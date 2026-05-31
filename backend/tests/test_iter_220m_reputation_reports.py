@@ -214,13 +214,12 @@ def test_admin_endpoint_sends_report(db, me_user_id):
         year=2025, month=6, rating=5, comment="Loved it",
     )
     try:
-        with patch("utils.reputation_reports.send_email", new=AsyncMock(return_value=None)):
-            with httpx.Client(timeout=15.0) as c:
-                r = c.post(
-                    f"{BASE}/api/partners/admin/{partner_id}/send-reputation-report",
-                    headers=_hdr(),
-                    json={"period": "2025-06"},
-                )
+        with patch("utils.reputation_reports.send_email", new=AsyncMock(return_value=None)), httpx.Client(timeout=15.0) as c:
+            r = c.post(
+                f"{BASE}/api/partners/admin/{partner_id}/send-reputation-report",
+                headers=_hdr(),
+                json={"period": "2025-06"},
+            )
         # Note: the BASE URL hits the live preview backend (not in-process)
         # so the patched send_email above doesn't apply. We accept the
         # real 200 OR a graceful failure when Resend isn't configured —

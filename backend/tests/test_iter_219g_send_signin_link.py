@@ -239,7 +239,7 @@ def test_password_reset_helper_called_via_send_signin_when_user_exists():
     password-reset branch — pinning the wiring so a future refactor
     can't accidentally send the wrong email."""
     src_path = os.path.join(os.path.dirname(__file__), "..", "routes", "partners.py")
-    src = open(src_path, "r", encoding="utf-8").read()
+    src = open(src_path, encoding="utf-8").read()
     block = src.split('@router.post("/partners/applications/{application_id}/send-signin-link")')[1]
     block = block.split("@router.")[0]
     assert "send_password_reset_email" in block, (

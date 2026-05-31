@@ -114,11 +114,10 @@ def test_engineer_feedback_rejects_unknown_kind():
     import pytest as _pytest
     from fastapi import HTTPException
     fdb, _, _ = _feedback_stub()
-    with patch("routes.crm_contract_workspace.db", fdb):
-        with _pytest.raises(HTTPException) as exc:
-            _run(submit_contract_feedback("case-1", {
-                "kind": "random_made_up_kind", "body": "x",
-            }, user=USER))
+    with patch("routes.crm_contract_workspace.db", fdb), _pytest.raises(HTTPException) as exc:
+        _run(submit_contract_feedback("case-1", {
+            "kind": "random_made_up_kind", "body": "x",
+        }, user=USER))
     assert exc.value.status_code == 400
 
 

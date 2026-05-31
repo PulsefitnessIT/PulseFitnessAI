@@ -214,7 +214,7 @@ def test_enforce_token_budget_blocks_over_cap():
 
         try:
             _run(enforce_token_budget("org-overspend", est_tokens=2000))
-            assert False, "expected HTTPException(429)"
+            raise AssertionError("expected HTTPException(429)")
         except HTTPException as exc:
             assert exc.status_code == 429
             assert "budget" in exc.detail.lower()

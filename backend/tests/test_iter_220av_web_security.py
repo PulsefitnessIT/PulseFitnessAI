@@ -193,7 +193,7 @@ def test_recipient_validation_rejects_adhoc_without_org(monkeypatch):
             to_email="x@y.com", kind="adhoc",
             organization_id=None, db=MagicMock(),
         ))
-        assert False, "expected HTTPException"
+        raise AssertionError("expected HTTPException")
     except HTTPException as exc:
         assert exc.status_code == 400
     monkeypatch.delenv("ENFORCE_EMAIL_RECIPIENT_VALIDATION")
@@ -211,7 +211,7 @@ def test_recipient_validation_rejects_bad_email_format(monkeypatch):
             to_email="not-an-email", kind="adhoc",
             organization_id="org-1", db=MagicMock(),
         ))
-        assert False, "expected HTTPException"
+        raise AssertionError("expected HTTPException")
     except HTTPException as exc:
         assert exc.status_code == 400
     monkeypatch.delenv("ENFORCE_EMAIL_RECIPIENT_VALIDATION")
@@ -300,7 +300,7 @@ def test_recipient_validation_rejects_unknown_address(monkeypatch):
             to_email="random@stranger.com", kind="adhoc",
             organization_id="org-1", db=db_mock,
         ))
-        assert False, "expected HTTPException"
+        raise AssertionError("expected HTTPException")
     except HTTPException as exc:
         assert exc.status_code == 400
         assert "organisation" in exc.detail.lower() or "roster" in exc.detail.lower()

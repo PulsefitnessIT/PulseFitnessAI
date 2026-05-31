@@ -170,7 +170,7 @@ def _norm_postcode(pc: Optional[str]) -> Optional[str]:
     return s
 
 
-def _compose_address(payload: "CustomerIn | CustomerPatch") -> Optional[str]:
+def _compose_address(payload: CustomerIn | CustomerPatch) -> Optional[str]:
     """Iter 220ck — Stitch the structured address fields into the
     legacy ``site_address`` string so old reports keep working. The
     structured columns remain authoritative for new reports."""

@@ -300,7 +300,7 @@ class TestEngineerEquipmentAPI:
         list_data = list_resp.json()
         found = any(e["id"] == data["id"] for e in list_data["equipment"])
         assert found, f"Created equipment {data['id']} not found in list"
-        print(f"✓ Created equipment verified in list")
+        print("✓ Created equipment verified in list")
 
     def test_create_with_unknown_case_id(self, auth_headers):
         """POST /api/svc/engineer/equipment?case_id=unknown persists equipment but skips case attach."""
@@ -320,7 +320,7 @@ class TestEngineerEquipmentAPI:
         if resp.status_code == 400:
             detail = resp.json().get("detail", "")
             if "site_id" in detail.lower() or "multiple sites" in detail.lower():
-                print(f"✓ Create correctly requires site_id for multi-site org")
+                print("✓ Create correctly requires site_id for multi-site org")
                 return
         
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
@@ -330,7 +330,7 @@ class TestEngineerEquipmentAPI:
         assert "id" in data
         assert data["attached_to_case"] is False
         assert data.get("case_skip_reason") == "case_not_found"
-        print(f"✓ Equipment created with case_skip_reason='case_not_found'")
+        print("✓ Equipment created with case_skip_reason='case_not_found'")
 
 
 if __name__ == "__main__":

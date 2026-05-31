@@ -1,4 +1,4 @@
-"""Web-security helpers — Iter 220av (Wave 4).
+r"""Web-security helpers — Iter 220av (Wave 4).
 
 Three risk-register findings closed in one helper module:
 
@@ -106,7 +106,7 @@ _SCHEME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+\-.]*:")
 
 
 def is_safe_next_url(raw: str | None, *, max_length: int = 512) -> bool:
-    """Return True iff ``raw`` is a relative path safe to redirect to.
+    r"""Return True iff ``raw`` is a relative path safe to redirect to.
 
     Hard rules (any one fails → reject):
 

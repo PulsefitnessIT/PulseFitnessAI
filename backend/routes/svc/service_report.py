@@ -414,7 +414,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     field_defs = payload.get("custom_field_defs") or []
     if custom_fields and field_defs:
         defs_by_key = {d["key"]: d for d in field_defs if d.get("key")}
-        ordered = [k for k in custom_fields.keys() if k in defs_by_key]
+        ordered = [k for k in custom_fields if k in defs_by_key]
         if ordered:
             story.append(Paragraph("MACHINE READINGS &amp; DETAILS", h_section))
             rows = [["Field", "Value"]]

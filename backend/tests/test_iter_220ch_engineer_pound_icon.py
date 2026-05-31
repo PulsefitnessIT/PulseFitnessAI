@@ -45,7 +45,7 @@ def _imports_block(text: str) -> str:
 def test_engineer_files_use_pound_receipt_icon():
     for path in ENGINEER_PAGES:
         assert os.path.exists(path), path
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             src = fh.read()
         block = _imports_block(src)
         # Must alias the pound-sterling receipt as Receipt — keeps the
@@ -72,7 +72,7 @@ def test_engineer_pages_have_no_dollar_glyph_in_jsx_strings():
     regex/escape sequences."""
     bad: list[str] = []
     for path in ENGINEER_PAGES:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             for lineno, line in enumerate(fh, 1):
                 # Strip ${...} interpolations.
                 stripped = re.sub(r"\$\{[^}]*\}", "", line)
@@ -81,8 +81,6 @@ def test_engineer_pages_have_no_dollar_glyph_in_jsx_strings():
                     continue
                 # Look for a bare $ next to a digit or in a JSX text node.
                 # JSX text nodes appear as `>$` or `"$"` literal strings.
-                if re.search(r'>[^<>{]*\$[^<>{]*<', stripped):
-                    bad.append(f"{path}:{lineno}: {line.rstrip()}")
-                elif re.search(r'["\']\$[0-9 ]', stripped):
+                if re.search(r'>[^<>{]*\$[^<>{]*<', stripped) or re.search(r'["\']\$[0-9 ]', stripped):
                     bad.append(f"{path}:{lineno}: {line.rstrip()}")
     assert not bad, "Literal $ glyphs found in engineer JSX:\n" + "\n".join(bad)

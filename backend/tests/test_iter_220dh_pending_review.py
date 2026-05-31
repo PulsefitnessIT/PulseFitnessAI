@@ -268,4 +268,4 @@ def test_frontend_panel_mounted_and_routed():
     # Filter test IDs are template-passed via prop.
     assert "pending-review-filter-all" in panel
     for kind in ("partner_application", "ptw_request", "parts_request"):
-        assert f"pending-review-filter-${{k}}" in panel or f"pending-review-filter-{kind}" in panel
+        assert "pending-review-filter-${k}" in panel or f"pending-review-filter-{kind}" in panel

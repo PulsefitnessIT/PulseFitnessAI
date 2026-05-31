@@ -158,7 +158,7 @@ class TestEngineerCustomers:
         assert r.status_code == 200, f"Update customer failed: {r.status_code} - {r.text}"
         data = r.json()
         assert data["notes"] == "Updated notes for iter 217"
-        print(f"✓ Updated customer notes")
+        print("✓ Updated customer notes")
     
     def test_csv_template_download(self, auth_headers):
         """GET /api/svc/engineer/customers/template.csv returns CSV with text/csv content-type."""
@@ -264,7 +264,7 @@ class TestEngineerQuotes:
         # May fail if email not configured, but should not 5xx
         assert r.status_code in [200, 400, 422, 503], f"Send quote unexpected error: {r.status_code} - {r.text}"
         if r.status_code == 200:
-            print(f"✓ Quote sent successfully")
+            print("✓ Quote sent successfully")
         else:
             print(f"⚠ Quote send returned {r.status_code} (email may not be configured)")
     
@@ -275,7 +275,7 @@ class TestEngineerQuotes:
         assert r.status_code == 200, f"Mark quote failed: {r.status_code} - {r.text}"
         data = r.json()
         assert data.get("status") == "accepted", f"Expected status 'accepted', got: {data.get('status')}"
-        print(f"✓ Quote marked as accepted")
+        print("✓ Quote marked as accepted")
 
 
 class TestEngineerInvoices:
@@ -373,7 +373,7 @@ class TestEngineerStripeConnect:
         if r.status_code == 200:
             data = r.json()
             assert "url" in data or "ok" in data, f"Missing 'url' or 'ok' in response: {data}"
-            print(f"✓ Stripe onboarding link generated")
+            print("✓ Stripe onboarding link generated")
         else:
             print(f"⚠ Stripe onboarding returned {r.status_code} (Stripe may not be fully configured)")
 
@@ -404,7 +404,7 @@ class TestEngineerOtherEndpoints:
         assert r.status_code == 200, f"Job requests failed: {r.status_code} - {r.text}"
         data = r.json()
         assert "requests" in data, f"Missing 'requests' in job-requests response: {data}"
-        print(f"✓ Job requests (inbox) endpoint working")
+        print("✓ Job requests (inbox) endpoint working")
     
     def test_notifications_list(self, auth_headers):
         """GET /api/svc/engineer/notifications returns notifications."""
@@ -412,7 +412,7 @@ class TestEngineerOtherEndpoints:
         assert r.status_code == 200, f"Notifications failed: {r.status_code} - {r.text}"
         data = r.json()
         assert "notifications" in data or isinstance(data, list), f"Unexpected notifications response: {data}"
-        print(f"✓ Notifications endpoint working")
+        print("✓ Notifications endpoint working")
     
     def test_diary_list(self, auth_headers):
         """GET /api/svc/engineer/diary returns slots."""
@@ -430,7 +430,7 @@ class TestEngineerOtherEndpoints:
         data = r.json()
         # Should have some stats structure
         assert isinstance(data, dict), f"Analytics should return dict: {data}"
-        print(f"✓ Analytics endpoint working")
+        print("✓ Analytics endpoint working")
 
 
 class TestEngineerJobs:
@@ -451,7 +451,7 @@ class TestEngineerJobs:
         assert r.status_code == 200, f"Jobs list failed: {r.status_code} - {r.text}"
         data = r.json()
         assert "jobs" in data or isinstance(data, list), f"Unexpected jobs response: {data}"
-        print(f"✓ Jobs list endpoint working")
+        print("✓ Jobs list endpoint working")
 
 
 if __name__ == "__main__":

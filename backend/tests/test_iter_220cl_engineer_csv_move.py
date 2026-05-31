@@ -225,16 +225,16 @@ def test_csv_import_endpoint_persists_rows_tagged_with_customer_id():
     })
     fdb.equipment.insert_many = AsyncMock()
     csv_body = (
-        "Name,Type,Manufacturer,Model,Serial Number,"
-        "Purchase Date (YYYY-MM-DD),Warranty Expiry (YYYY-MM-DD),"
-        "Length (m),Width (m),Height (m),Location,Notes\r\n"
-        "Treadmill 1,Treadmill,Life Fitness,Integrity DX,LF-1,"
-        ",,2.1,0.9,1.6,Cardio Zone,\r\n"
-        "Bike 1,Spin Bike,Wattbike,Atom,WB-2,"
-        ",,1.2,0.6,1.3,Cardio Zone,\r\n"
+        b"Name,Type,Manufacturer,Model,Serial Number,"
+        b"Purchase Date (YYYY-MM-DD),Warranty Expiry (YYYY-MM-DD),"
+        b"Length (m),Width (m),Height (m),Location,Notes\r\n"
+        b"Treadmill 1,Treadmill,Life Fitness,Integrity DX,LF-1,"
+        b",,2.1,0.9,1.6,Cardio Zone,\r\n"
+        b"Bike 1,Spin Bike,Wattbike,Atom,WB-2,"
+        b",,1.2,0.6,1.3,Cardio Zone,\r\n"
         # Blank row should be skipped silently.
-        ",,,,,,,,,,,\r\n"
-    ).encode("utf-8")
+        b",,,,,,,,,,,\r\n"
+    )
     file = MagicMock()
     file.read = AsyncMock(return_value=csv_body)
 

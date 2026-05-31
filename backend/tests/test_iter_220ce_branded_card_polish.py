@@ -109,7 +109,7 @@ def test_branded_card_falls_back_to_text_when_logo_missing(tmp_path):
     — it should fall back to the text-only brand mark and still
     return a valid PNG."""
     from utils import social_autopilot as m
-    with patch.object(os.path, "exists", side_effect=lambda p: False if "brand" in p else True):
+    with patch.object(os.path, "exists", side_effect=lambda p: "brand" not in p):
         png = m._pillow_branded_card_png(
             "Fallback Headline",
             {"image_aspect": "1:1", "image_size_px": 400, "label": "IG"},

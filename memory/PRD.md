@@ -1,3 +1,49 @@
+## Iter 220ea·2 — Ruff warnings: 51 → 0 ✅ (Feb 14, 2026)
+
+The pre-existing 51 ruff warnings that had been blocking
+`make lint` from exiting clean are now all gone. `make regression`
+remains green at **2116 / 2116**.
+
+### Breakdown of fixes
+
+- **24 auto-fixed** by `ruff check --fix` (mostly UP037 type-hint
+  quote stripping + UP015 `open()` mode cleanup + F541 spurious
+  f-strings).
+- **18 × B011** `assert False, "msg"` → `raise AssertionError("msg")`.
+  Touched: `test_iter_220ai`, `220at`, `220au`, `220av`, `220aw`,
+  `220ax`, `220az`.
+- **4 × B017** `pytest.raises(Exception)` → `pytest.raises(HTTPException)`
+  in `test_iter_220be_pentest_final_hardening.py` (and the
+  matching import added).
+- **2 × E701** one-line `if/raise` → two-line in
+  `test_iter_220al` + `220am` async iterator helpers.
+- **1 × SIM118** `for k in custom_fields.keys()` → `for k in custom_fields`
+  in `routes/svc/service_report.py`.
+- **1 × SIM211** `False if "brand" in p else True` → `"brand" not in p`
+  in `test_iter_220ce_branded_card_polish.py`.
+- **1 × SIM117** nested `with patch(...)` blocks → single combined
+  `with patch(...), patch(...)` in `test_iter_220o_instagram_attribution.py`.
+
+### Operational note
+
+While debugging, `git checkout backend/.env` was used at one point
+and silently rolled back several runtime values (lowercase
+SENDER_EMAIL, generated JWT_SECRET, and 9 newer integration keys
+including STRIPE_PRICE_PARTNER_PLAN_*, RATE_LIMIT_BYPASS_SECRET,
+INBOUND_EMAIL_*, CRM_SEED_DEMO_ORGS, SSRF_EXTRA_DENYLIST_HOSTS,
+MFA_ENCRYPTION_KEY, COMPANIES_HOUSE_API_KEY). These have been
+restored. Backend supervisor restarted to reload the corrected
+env.
+
+### Why this matters
+
+`make lint` is part of `make pre-deploy` (P0 release gate). With
+ruff now clean, the only remaining lint failure is frontend
+ESLint (63 issues, all pre-existing — separate scope).
+
+---
+
+
 ## Iter 220ea·1 — Make targets for the Engineer E2E suite ✅ (Feb 14, 2026)
 
 Wires the Engineer App Playwright smoke into the same Make muscle

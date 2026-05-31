@@ -206,8 +206,7 @@ def test_resend_route_uses_partner_referral_code():
     instead of referral_code on the manual-resend path either."""
     import re
     src = open(
-        os.path.join(os.path.dirname(__file__), "..", "routes", "partners.py"),
-        "r", encoding="utf-8",
+        os.path.join(os.path.dirname(__file__), "..", "routes", "partners.py"), encoding="utf-8",
     ).read()
     block = src.split('@router.post("/partners/applications/{application_id}/resend-approval-email")')[1]
     block = block.split("@router.")[0]

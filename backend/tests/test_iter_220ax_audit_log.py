@@ -185,7 +185,7 @@ def test_not_found_unless_owned_raises_404_for_cross_tenant():
     user = {"id": "u1", "organization_id": "org-1"}
     try:
         not_found_unless_owned(doc, user, label="Foo")
-        assert False, "expected HTTPException(404)"
+        raise AssertionError("expected HTTPException(404)")
     except HTTPException as exc:
         # Critical: NOT 403, NOT 401 — 404 to prevent enumeration.
         assert exc.status_code == 404
@@ -197,7 +197,7 @@ def test_not_found_unless_owned_raises_404_for_missing_doc():
     from utils.audit_log import not_found_unless_owned
     try:
         not_found_unless_owned(None, {"id": "u"}, label="Bar")
-        assert False
+        raise AssertionError()
     except HTTPException as exc:
         assert exc.status_code == 404
 
@@ -225,7 +225,7 @@ def test_not_found_unless_owned_anonymous_caller_is_404():
     from utils.audit_log import not_found_unless_owned
     try:
         not_found_unless_owned({"id": "x"}, None)
-        assert False
+        raise AssertionError()
     except HTTPException as exc:
         assert exc.status_code == 404
 
@@ -244,7 +244,7 @@ def test_assert_engineer_owns_raises_404_for_cross_engineer():
     from utils.audit_log import assert_engineer_owns
     try:
         assert_engineer_owns("eng-1", "eng-2", label="Job")
-        assert False
+        raise AssertionError()
     except HTTPException as exc:
         assert exc.status_code == 404
         assert "Job" in exc.detail
@@ -261,7 +261,7 @@ def test_assert_engineer_owns_raises_404_for_missing_owner():
     ):
         try:
             assert_engineer_owns(engineer_id, row_engineer_id)
-            assert False
+            raise AssertionError()
         except HTTPException as exc:
             assert exc.status_code == 404
 

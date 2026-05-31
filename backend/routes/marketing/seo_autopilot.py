@@ -1483,7 +1483,7 @@ async def asyncio_gather(*coros):
 # the process restarts mid-day.
 
 
-def _london_now() -> "datetime":
+def _london_now() -> datetime:
     """Wall clock in Europe/London, used for the 09:00 trigger."""
     from datetime import datetime as _dt
     try:

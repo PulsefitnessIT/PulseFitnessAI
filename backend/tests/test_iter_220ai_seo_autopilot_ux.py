@@ -131,7 +131,7 @@ def test_update_autopilot_config_rejects_out_of_range_hour():
     for bad in (-1, 24, 99):
         try:
             m.AutopilotConfigPayload(hour_uk=bad)
-            assert False, f"hour_uk={bad} should have failed validation"
+            raise AssertionError(f"hour_uk={bad} should have failed validation")
         except ValidationError:
             pass
 

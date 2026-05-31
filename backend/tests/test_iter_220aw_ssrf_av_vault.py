@@ -54,7 +54,7 @@ def test_scan_bytes_blocks_eicar():
     from utils.malware_scan import EICAR_SIGNATURE, scan_bytes
     try:
         _run(scan_bytes(EICAR_SIGNATURE, "test.txt"))
-        assert False, "expected HTTPException(400)"
+        raise AssertionError("expected HTTPException(400)")
     except HTTPException as exc:
         assert exc.status_code == 400
         assert "Eicar" in exc.detail
@@ -75,7 +75,7 @@ def test_scan_bytes_strict_mode_fails_closed_without_clamav(monkeypatch):
     from utils.malware_scan import scan_bytes
     try:
         _run(scan_bytes(b"%PDF-1.4 clean", "test.pdf"))
-        assert False, "expected HTTPException(503)"
+        raise AssertionError("expected HTTPException(503)")
     except HTTPException as exc:
         assert exc.status_code == 503
         assert "STRICT_AV_MODE" in exc.detail or "unavailable" in exc.detail.lower()
@@ -142,7 +142,7 @@ def test_ssrf_assert_raises_ssrfblocked():
     from utils.ssrf_guard import assert_safe_external_url, SSRFBlocked
     try:
         assert_safe_external_url("http://127.0.0.1/")
-        assert False, "expected SSRFBlocked"
+        raise AssertionError("expected SSRFBlocked")
     except SSRFBlocked as exc:
         assert exc.status_code == 400
         assert isinstance(exc, HTTPException)

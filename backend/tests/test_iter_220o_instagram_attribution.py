@@ -150,10 +150,9 @@ def test_attribution_summary_decorates_landings_with_conversion_rate():
     agg_cursor.to_list = AsyncMock(return_value=convs)
     fake_db.partner_applications.aggregate = MagicMock(return_value=agg_cursor)
 
-    with patch("routes.partners.db", fake_db):
-        # Bypass auth gate
-        with patch("routes.partners._require_master_admin", return_value=None):
-            res = _run(partner_attribution_summary(user={"id": "u", "is_master_admin": True}))
+    with patch("routes.partners.db", fake_db), \
+         patch("routes.partners._require_master_admin", return_value=None):
+        res = _run(partner_attribution_summary(user={"id": "u", "is_master_admin": True}))
 
     assert res["totals"]["landings"] == 140
     assert res["totals"]["applications_attributed"] == 9

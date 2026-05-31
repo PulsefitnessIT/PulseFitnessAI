@@ -154,7 +154,7 @@ def test_enforce_master_admin_mfa_blocks_when_enabled(monkeypatch):
     importlib.reload(g)
     try:
         g.enforce_master_admin_mfa({"is_master_admin": True, "_jwt_mfa_verified": False})
-        assert False, "expected HTTPException(401)"
+        raise AssertionError("expected HTTPException(401)")
     except HTTPException as exc:
         assert exc.status_code == 401
         assert "mfa" in exc.detail.lower()
@@ -207,7 +207,7 @@ def test_assert_role_rejects_non_matching_role():
     from utils.auth_guards import assert_role
     try:
         assert_role({"role": "staff"}, ["manager", "owner"])
-        assert False, "expected HTTPException(403)"
+        raise AssertionError("expected HTTPException(403)")
     except HTTPException as exc:
         assert exc.status_code == 403
         assert "manager" in exc.detail or "owner" in exc.detail
@@ -218,7 +218,7 @@ def test_assert_role_rejects_user_with_no_role():
     from utils.auth_guards import assert_role
     try:
         assert_role({}, ["manager"])
-        assert False, "expected HTTPException(403)"
+        raise AssertionError("expected HTTPException(403)")
     except HTTPException as exc:
         assert exc.status_code == 403
 
@@ -318,7 +318,7 @@ def test_get_current_user_rejects_token_minted_before_revoke():
             asyncio.new_event_loop().run_until_complete(
                 get_current_user(_DummyRequest(), _DummyCreds(token))
             )
-            assert False, "expected HTTPException(401)"
+            raise AssertionError("expected HTTPException(401)")
         except HTTPException as exc:
             assert exc.status_code == 401
             assert "revoked" in exc.detail.lower()

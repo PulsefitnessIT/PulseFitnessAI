@@ -142,7 +142,7 @@ def test_assert_engineer_owns_still_404s():
     from utils.audit_log import assert_engineer_owns
     try:
         assert_engineer_owns("eng-1", "eng-2", label="Foo")
-        assert False
+        raise AssertionError()
     except HTTPException as exc:
         assert exc.status_code == 404
         assert "Foo" in exc.detail
