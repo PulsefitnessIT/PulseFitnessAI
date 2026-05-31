@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   BarChart3, RefreshCw, AlertTriangle, DollarSign,
-  Shield, Calendar, TrendingUp,
+  Shield, Calendar, TrendingUp, Zap,
 } from 'lucide-react';
 
 const fmtMoney = v => `£${Math.round(v || 0).toLocaleString('en-GB')}`;
@@ -89,6 +89,7 @@ export function ContractsRenewalsDashboard({ API, headers, c, isDark, onOpen }) 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [auto, setAuto] = useState(false);
 
   const reload = () => {
     setLoading(true);
@@ -108,6 +109,19 @@ export function ContractsRenewalsDashboard({ API, headers, c, isDark, onOpen }) 
     setRunning(false);
   };
 
+  const autoSend = async () => {
+    if (!window.confirm('Auto-send renewal drafts to every customer whose contract has auto_renew enabled and is within the 30-day window? Customers still need to click Accept & sign — nothing activates automatically.')) return;
+    setAuto(true);
+    try {
+      const res = await axios.post(`${API}/crm/v2/contracts/renewals/auto-send`, {}, { headers: headers() });
+      const d = res.data.totals?.dispatched || 0;
+      const s = res.data.totals?.skipped || 0;
+      alert(`Auto-renewals dispatched: ${d}. Skipped: ${s}.`);
+      reload();
+    } catch (e) { alert(e?.response?.data?.detail || 'Failed'); }
+    setAuto(false);
+  };
+
   if (loading) return <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
   const buckets = data?.buckets || { '30': [], '60': [], '90': [] };
   return (
@@ -119,10 +133,16 @@ export function ContractsRenewalsDashboard({ API, headers, c, isDark, onOpen }) 
             {(data?.totals?.contracts || 0)} contract(s) — {fmtMoney(data?.totals?.annual_value_at_risk)}/yr at risk
           </p>
         </div>
-        <button onClick={runReminders} disabled={running} data-testid="run-renewal-reminders-btn"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-warning)] text-white">
-          {running ? <RefreshCw size={12} className="animate-spin" /> : <Calendar size={12} />} Run reminders now
-        </button>
+        <div className="flex gap-2">
+          <button onClick={runReminders} disabled={running} data-testid="run-renewal-reminders-btn"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-warning)] text-white">
+            {running ? <RefreshCw size={12} className="animate-spin" /> : <Calendar size={12} />} Run reminders now
+          </button>
+          <button onClick={autoSend} disabled={auto} data-testid="auto-renewal-autopilot-btn"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 text-white">
+            {auto ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />} Auto-renewal autopilot
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[

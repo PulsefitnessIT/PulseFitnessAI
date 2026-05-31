@@ -197,6 +197,207 @@ async def run_renewal_reminders(user: dict = Depends(get_crm_user)):
     return {"success": True, "reminders_created": created}
 
 
+# Iter 220e4 — Auto-renewal autopilot.
+#
+# For each active contract that:
+#   * has ``auto_renew == True`` (per-contract opt-in)
+#   * is within the 30-day expiry threshold
+#   * has not already been auto-dispatched in the last 60 days
+#   * has a billing or primary contact with an email address
+#
+# this endpoint will:
+#   1. Clone the contract into a renewal draft with the suggested
+#      uplift applied (via the existing ``/contracts/{id}/renew``
+#      logic — we call the underlying db ops directly to keep the
+#      auto-flow as a pure background-safe path).
+#   2. Mint a public accept-token on the renewal draft.
+#   3. Build the branded PDF and email it to the customer with the
+#      accept link.
+#   4. Record ``auto_renewal_sent_at`` on the ORIGINAL contract so a
+#      second run on the same day is a no-op, and on the renewal
+#      draft for full audit trail.
+#
+# The flow NEVER auto-signs / auto-activates — the customer still
+# has to click "Accept & sign" on the public page. Failure modes
+# degrade gracefully: if email send fails we still produce the
+# draft + token so the operator can share the link manually.
+
+
+@router.post("/contracts/renewals/auto-send")
+async def auto_send_renewals(user: dict = Depends(get_crm_user)):
+    """Auto-renewal autopilot. Eligible contracts get a renewal
+    draft + branded PDF emailed to their billing contact. Idempotent
+    within a 60-day window per contract."""
+    of = _of(user)
+    today = datetime.now(timezone.utc).date()
+    cutoff_30 = (today + timedelta(days=30)).isoformat()
+    cutoff_60_ago = (today - timedelta(days=60)).isoformat()
+
+    contracts = await db.crm2_contracts.find(
+        {**of, "status": "active", "auto_renew": True,
+         "end_date": {"$lte": cutoff_30, "$gte": today.isoformat()}},
+        {"_id": 0},
+    ).to_list(500)
+
+    dispatched: list[dict] = []
+    skipped: list[dict] = []
+    # Lazy imports so this module stays light when the autopilot isn't
+    # used (PDF + Resend pulled in only when we actually need them).
+    from routes.crm_contract_send import (
+        _build_catalog, _ensure_accept_token,
+    )
+    from utils.crm_contract_pdf import build_contract_pdf
+    import base64
+    catalog = _build_catalog()
+
+    for c in contracts:
+        last_sent = c.get("auto_renewal_sent_at") or ""
+        if last_sent and last_sent[:10] >= cutoff_60_ago:
+            skipped.append({"id": c["id"], "reason": "already_dispatched_recently"})
+            continue
+
+        # Resolve customer email.
+        to_email = ""
+        for cid in (c.get("billing_contact_id"), c.get("contact_id")):
+            if not cid:
+                continue
+            ct = await db.crm2_contacts.find_one({"id": cid}, {"_id": 0, "email": 1})
+            if ct and ct.get("email"):
+                to_email = ct["email"]
+                break
+        if not to_email:
+            skipped.append({"id": c["id"], "reason": "no_contact_email"})
+            continue
+
+        # 1. Clone into a renewal draft with uplift applied.
+        uplift = _suggested_uplift(c)
+        new_id = str(uuid.uuid4())
+        original_annual = float(c.get("annual_value") or 0)
+        new_annual = round(original_annual * (1 + uplift["uplift_percent"] / 100), 2)
+        try:
+            new_start_dt = datetime.fromisoformat(c["end_date"][:10]).date()
+        except (KeyError, ValueError):
+            new_start_dt = today
+        new_end_dt = new_start_dt + timedelta(days=365)
+        new_pricing = {**(c.get("pricing") or {}), "annual_value": new_annual,
+                       "monthly_value": round(new_annual / 12, 2)}
+        renewal_doc = {
+            **{k: v for k, v in c.items()
+               if k not in ("id", "_id", "created_at", "status", "signature",
+                            "signed_by", "signed_at", "version", "accept_token",
+                            "auto_renewal_sent_at")},
+            "id": new_id,
+            "contract_number": f"{c.get('contract_number', 'CTR')}/R{(c.get('version') or 1) + 1}",
+            "status": "sent",
+            "previous_contract_id": c["id"],
+            "start_date": new_start_dt.isoformat(),
+            "end_date": new_end_dt.isoformat(),
+            "annual_value": new_annual,
+            "pricing": new_pricing,
+            "version": (c.get("version") or 1) + 1,
+            "auto_dispatched": True,
+            "auto_dispatched_at": _now(),
+            "created_by": user.get("full_name", "auto-renewal"),
+            "created_at": _now(), "updated_at": _now(),
+        }
+        await db.crm2_contracts.insert_one(renewal_doc)
+
+        # Copy asset coverage rows so the new contract carries the
+        # same equipment list out of the gate.
+        assets = await db.crm2_contract_assets.find(
+            {"contract_id": c["id"], **of}, {"_id": 0},
+        ).to_list(500)
+        for a in assets:
+            await db.crm2_contract_assets.insert_one({
+                **{k: v for k, v in a.items() if k not in ("id", "contract_id", "_id")},
+                "id": str(uuid.uuid4()),
+                "contract_id": new_id,
+                "created_at": _now(),
+            })
+
+        # 2. Public accept token.
+        token = await _ensure_accept_token(new_id, of)
+
+        # 3. PDF + email send.
+        org = await db.organizations.find_one(
+            {"id": user.get("organization_id")},
+            {"_id": 0, "name": 1, "primary_color": 1, "logo_url": 1},
+        ) or {}
+        try:
+            pdf_bytes = build_contract_pdf(renewal_doc, org, catalog)
+        except Exception:
+            pdf_bytes = b""
+
+        email_ok = False
+        accept_path = f"/contracts/accept/{token}"
+        if pdf_bytes:
+            try:
+                from utils.email import send_email
+                subject = (
+                    f"Your {renewal_doc.get('tier', 'service').title()} renewal is ready — "
+                    f"{renewal_doc['contract_number']}"
+                )
+                html = (
+                    f"<p>Hi,</p>"
+                    f"<p>Your service contract is due for renewal. We've drafted the "
+                    f"next term at <strong>£{new_annual:,.0f}/yr</strong> "
+                    f"(+{uplift['uplift_percent']}% — {uplift['rationale']}).</p>"
+                    f"<p>Review and accept online: "
+                    f"<a href=\"{accept_path}\">{accept_path}</a>.</p>"
+                    f"<p>Kind regards,<br/>{org.get('name', 'Your service team')}</p>"
+                )
+                email_ok = await send_email(
+                    to=to_email, subject=subject, html=html,
+                    text=f"Your renewal is ready — £{new_annual:,.0f}/yr. Accept at {accept_path}",
+                    attachments=[{
+                        "filename": f"renewal_{renewal_doc['contract_number']}.pdf",
+                        "content": base64.b64encode(pdf_bytes).decode("ascii"),
+                    }],
+                )
+            except Exception:
+                email_ok = False
+
+        # 4. Mark original + activity feed.
+        await db.crm2_contracts.update_one(
+            {"id": c["id"]},
+            {"$set": {"auto_renewal_sent_at": _now(),
+                      "renewal_contract_id": new_id,
+                      "updated_at": _now()}},
+        )
+        await db.crm2_activities.insert_one({
+            "id": str(uuid.uuid4()),
+            "organization_id": user.get("organization_id"),
+            "type": "contract_renewal",
+            "contract_id": c["id"],
+            "subject": f"Auto-renewal dispatched: {c.get('contract_number')}",
+            "body": (
+                f"Renewal {renewal_doc['contract_number']} (+{uplift['uplift_percent']}% — "
+                f"£{new_annual:,.0f}/yr) emailed to {to_email}"
+                + ("" if email_ok else " (delivery deferred — share link manually)")
+            ),
+            "company_id": c.get("company_id", ""),
+            "owner_id": user.get("id"),
+            "owner_name": user.get("full_name", "system"),
+            "created_at": _now(),
+        })
+        dispatched.append({
+            "contract_id": c["id"],
+            "renewal_contract_id": new_id,
+            "to": to_email,
+            "uplift_percent": uplift["uplift_percent"],
+            "new_annual_value": new_annual,
+            "accept_path": accept_path,
+            "email_dispatched": email_ok,
+        })
+
+    return {
+        "success": True,
+        "dispatched": dispatched,
+        "skipped": skipped,
+        "totals": {"dispatched": len(dispatched), "skipped": len(skipped)},
+    }
+
+
 # ── Phase F · Reports / Analytics ──────────────────────────────
 
 

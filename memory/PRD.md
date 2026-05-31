@@ -1,3 +1,61 @@
+## Iter 220e4 — Auto-renewal autopilot ✅ (Feb 14, 2026)
+
+Operator continuation of the "potential improvement" suggested at
+iter 220e3 finish:
+
+> the renewals dashboard auto-fires an outbound email to the customer
+> at the 30-day threshold (with the branded PDF + accept link), so a
+> contract literally renews itself if both sides agree.
+
+### What changed
+
+- **New endpoint**: `POST /api/crm/v2/contracts/renewals/auto-send`.
+  For every active contract that has `auto_renew=True`, is within 30
+  days of expiry, has a contact email, and wasn't auto-dispatched in
+  the last 60 days, the autopilot:
+  1. Clones the contract into a renewal draft (`status=sent`,
+     `auto_dispatched=true`, version + 1, `contract_number` suffixed
+     with `/R{n}`) with the **suggested uplift applied** to
+     `annual_value` + `pricing`.
+  2. Copies the `crm2_contract_assets` rows so the new contract
+     carries the same equipment out of the gate.
+  3. Mints a public accept-token (`_ensure_accept_token`).
+  4. Builds the branded PDF and emails it to the billing contact (or
+     primary contact if no billing contact) via Resend with the
+     accept link.
+  5. Marks the **original** contract with `auto_renewal_sent_at` and
+     `renewal_contract_id`, plus an audit activity on
+     `crm2_activities`.
+- **NEVER auto-signs / auto-activates** — the customer still has to
+  click "Accept & sign" on the public page (which moves the renewal
+  draft to `status=active`).
+- Idempotent within a 60-day window per contract — running twice the
+  same day is a no-op for already-dispatched contracts.
+- Graceful degradation: if Resend isn't reachable, the renewal draft
+  + accept-token are still created so the operator can copy/paste
+  the accept link manually.
+
+### Frontend
+
+- New **"Auto-renewal autopilot"** emerald button on CRM → Contracts
+  → Renewals tab, sitting alongside "Run reminders now". Confirms
+  before firing and shows dispatched / skipped counts.
+
+### Tests (5)
+
+`test_iter_220e4_auto_renewal_autopilot.py`:
+- Dispatches a renewal for an eligible contract; renewal status is
+  `sent` (not `active`); uplift > 0; assets copied; original tagged.
+- Skips contracts auto-dispatched in the last 60 days.
+- Skips contracts without a contact email (and lists the reason).
+- Ignores contracts without `auto_renew=True`.
+- UI button wired through and hits the new endpoint.
+
+Lint clean (ruff + ESLint). Endpoint smoke-tests `401` (auth-gated route registered).
+
+---
+
+
 ## Iter 220e3 — CRM → Contracts: Premium overhaul (Phases A–G) ✅ (Feb 14, 2026)
 
 Operator brief:
