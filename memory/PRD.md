@@ -1,3 +1,80 @@
+## Iter 220dy — Modularise `server.py` (P3 hygiene) ✅ (Feb 14, 2026)
+
+P3 hygiene task — extract stateless startup work into a dedicated
+package.
+
+### Before / After
+
+| File | Before | After |
+|------|--------|-------|
+| `server.py` | 1027 lines | **548 lines** (−47%) |
+| `bootstrap/__init__.py` | — | 27 lines |
+| `bootstrap/seed.py` | — | 212 lines |
+| `bootstrap/indexes.py` | — | 353 lines |
+
+### What moved
+
+**`bootstrap/seed.py`**
+- `seed_master_admin` — idempotent master-admin seed + self-heal
+  of the master admin's password, lockouts, and missing org doc.
+- `seed_services` — integrations + CRM admin + picklists +
+  stakeholder + products + tenant mirror + membership indexes +
+  optional demo-seed branches.
+
+**`bootstrap/indexes.py`**
+- `create_indexes` — every collection's index family in one
+  audit-friendly file. Idempotent (MongoDB no-ops on identical
+  existing indexes). Organised by tier (core / tier-2 / tier-3 /
+  tier-4) with the original commentary preserved.
+
+### Backwards compatibility
+
+`server.py` keeps the three underscored shims
+(`_seed_master_admin`, `_seed_services`, `_create_indexes`) as
+thin `await bootstrap.x()` wrappers so any out-of-tree caller
+importing the old names still works.
+
+### What didn't move (and why)
+
+- FastAPI `app` instance, mount calls, CORS / GZip middleware,
+  the security-headers middleware, and the `startup` / `shutdown`
+  orchestrators stay in `server.py` because they directly
+  reference module-level state (`app`, `api_router`, `logger`)
+  that doesn't compose cleanly into a stateless module.
+
+### Tests / lint
+
+- `tests/test_iter_220dy_server_modularisation.py` — **7 tests** green:
+  - `bootstrap` package + submodules importable + expose three
+    async public functions.
+  - All three underscored shims still defined in `server.py` and
+    delegate to bootstrap (no inline body).
+  - `server.py` line-count guard (`<700` lines, ensures the
+    refactor can't be silently re-inlined by a future iter).
+  - `seed_master_admin` functional: inserts when missing, self-
+    heals the org doc when it's deleted.
+  - `create_indexes` runs the core block end-to-end with all
+    `ensure_*_indexes` patched at the call site — proves no
+    historic index call was dropped.
+- Three existing tests updated to read from the new locations:
+  - `test_iter_216h259_engineer_lite_crm` → reads
+    `bootstrap/indexes.py` instead of `server.py`.
+  - `test_iter_216h272_module_trials_org_resolve` → reads
+    `bootstrap/seed.py` and splits on `seed_master_admin`.
+  - `test_iter_216h276_tenant_mirror` → reads
+    `bootstrap/seed.py`.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+- Backend verified live (supervisor restart + curl smoke).
+
+### Result
+- `make regression` → **1984 passed, 15 skipped, 0 failed**.
+- `server.py` is now ~half the size, and the next time a new
+  startup task lands ("ensure Stripe webhook handlers", "warm
+  the price cache") it has an obvious home in the bootstrap
+  package instead of bloating the route-mount file.
+
+
 ## Iter 220dx — Engineer "Capture serial on visit 1" auto-task ✅ (Feb 14, 2026)
 
 Closes the rubbed-off-serial loop end-to-end. Three iters

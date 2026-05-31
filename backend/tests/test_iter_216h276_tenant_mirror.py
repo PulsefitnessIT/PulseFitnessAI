@@ -262,7 +262,9 @@ def test_manual_reconcile_endpoint_returns_mirror_summary():
 
 
 def test_server_startup_runs_tenant_mirror():
-    src = pathlib.Path("/app/backend/server.py").read_text()
+    # Iter 220dy — tenant-mirror seed moved with the rest of
+    # seed_services into bootstrap/seed.py.
+    src = pathlib.Path("/app/backend/bootstrap/seed.py").read_text()
     assert "from utils.tenant_mirror import" in src
     assert "ensure_tenant_mirror_indexes()" in src
     assert "mirror_pulse_tenants_to_crm()" in src

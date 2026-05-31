@@ -112,9 +112,12 @@ def test_resolve_org_returns_real_doc_when_present():
 def test_seeder_self_heals_missing_master_admin_org():
     """Verify the boot-time seeder re-creates the org doc when it's
     missing. Pinned via a static check rather than mocking the full
-    boot path (which would also touch services like Stripe, MQ, etc.)."""
-    src = pathlib.Path("/app/backend/server.py").read_text()
-    seeder_block = src.split("async def _seed_master_admin")[1].split("async def _seed_services")[0]
+    boot path (which would also touch services like Stripe, MQ, etc.).
+
+    Iter 220dy — the seeder moved to ``bootstrap.seed``; we now read
+    the body from there instead of ``server.py``."""
+    src = pathlib.Path("/app/backend/bootstrap/seed.py").read_text()
+    seeder_block = src.split("async def seed_master_admin")[1].split("async def seed_services")[0]
     # Self-heal must:
     #   - read the existing user's organization_id
     #   - look up the org by that id

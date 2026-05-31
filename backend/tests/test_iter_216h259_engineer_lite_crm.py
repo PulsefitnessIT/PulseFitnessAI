@@ -95,7 +95,8 @@ def test_router_registered_in_features():
 
 
 def test_server_wires_ensure_indexes():
-    src = pathlib.Path("/app/backend/server.py").read_text()
+    # Iter 220dy — moved from server.py to bootstrap/indexes.py.
+    src = pathlib.Path("/app/backend/bootstrap/indexes.py").read_text()
     assert "ensure_engineer_customer_indexes" in src
     assert "from routes.svc.engineer_customers import ensure_indexes" in src
 
