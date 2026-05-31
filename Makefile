@@ -253,6 +253,7 @@ regression:
 	  tests/test_iter_220ds_handoff_time_customfields.py \
 	  tests/test_iter_220dt_job_types_and_serial_unknown.py \
 	  tests/test_iter_220du_custom_fields_by_job_type.py \
+	  tests/test_iter_220dv_per_machine_field_autoload.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

@@ -1,3 +1,63 @@
+## Iter 220dv — Per-machine field auto-load by job type ✅ (Feb 14, 2026)
+
+Closes the user's original feature request:
+
+> "Custom Fields option should be moved to Account Settings - Where
+>  the engineer can create the custom fields and tag them to
+>  specific equipment based on the job type"
+
+The end-to-end loop is now live:
+
+1. **Admin** creates a custom field in Account Settings → Manage
+   Custom Fields, tagged with `job_types: [ppm]` + scope
+   `equipment_type: Treadmill`.
+2. **Customer / Service desk** logs a fault with
+   `case_type='ppm'`.
+3. **Engineer** opens the case → Equipment tab → expands the
+   Treadmill row → `MachineRowCustomFields` calls
+   `GET /api/svc/work-report-fields/for-machine-row/{row_id}`.
+4. **Resolver** looks up the row's parent case, reads
+   `case_type='ppm'`, filters defs to job_types `[]` or `['ppm']`,
+   joined with the equipment_type scope.
+5. **Engineer** sees the right field set per machine row —
+   universal + PPM-tagged fields render; Repair-only fields stay
+   hidden.
+
+### Why no frontend change?
+
+`MachineRowCustomFields.js` was already wired to the
+`for-machine-row` endpoint when iter 220 shipped per-machine
+custom fields. The case_type filter sits in the **backend
+resolver**, so the React component automatically inherits the
+job-type-aware filtering — zero FE refactor needed. The pytest
+suite pins the contract so a future refactor can't regress it.
+
+### Tests / lint
+
+- `tests/test_iter_220dv_per_machine_field_autoload.py` — **6
+  tests** green:
+  - PPM case row sees universal + PPM-tagged fields, NOT
+    repair-only.
+  - Repair case row sees universal + repair-only, NOT PPM.
+  - Install case sees only the universal field (no install-
+    tagged def in this fixture, proving the filter excludes
+    unrelated job types).
+  - Legacy parent case (missing `case_type`) → resolver falls
+    back to "repair" so the engineer still sees a useful set.
+  - The `values` payload echoes the row's saved `custom_fields`
+    so React can pre-fill on first paint.
+  - Frontend contract pin: `MachineRowCustomFields.js` still
+    uses the per-row endpoint + `custom_fields: next` patch.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1966 passed, 15 skipped, 0 failed**.
+- User's original requirement fully satisfied — engineer auto-
+  loads matching custom fields onto the Equipment tab per-machine
+  based on the case's job type, configured from Account Settings.
+
+
 ## Iter 220du — Custom Fields × Job Type (Account Settings link) ✅ (Feb 14, 2026)
 
 Closes the loop on the job-type rollout. Admins can now scope
