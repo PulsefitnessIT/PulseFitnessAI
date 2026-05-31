@@ -1,3 +1,70 @@
+## Iter 220e9 — Chunked uploads for engineer media ✅ (Feb 14, 2026)
+
+Closes the last release-readiness gap from the iter 220e6 audit: a
+field engineer on a flaky 4G connection no longer loses a 25 MB
+video because the connection blipped at 90%. Large uploads are
+sliced into 1 MB chunks with per-chunk retry; small files keep
+riding the original single-shot path so the happy path stays fast.
+
+### Backend (`routes/files_chunked.py`)
+
+- `POST /api/files/upload/chunks/init` — body `{filename, size,
+  content_type, category, total_chunks}`, returns `{upload_id,
+  max_chunk_bytes, expires_at}`. Persists session in
+  `file_upload_sessions`.
+- `PUT /api/files/upload/chunks/{upload_id}/{index}` — raw
+  `application/octet-stream` body, **idempotent** (retries
+  overwrite). Caps at 4 MB/chunk, validates index in range, blocks
+  empty bodies. User-scoped — another user with the same upload_id
+  gets 404.
+- `POST /api/files/upload/chunks/{upload_id}/complete` —
+  assembles chunks in order, runs the SAME `validate_upload` byte
+  sniff + category MIME allow-list as the legacy endpoint, stores
+  via `put_object`, inserts a `files` row, deletes the chunk rows.
+  Returns a file_doc interface-identical to `/files/upload` so the
+  frontend treats both paths uniformly. Stamps
+  `upload_method: "chunked"`.
+- `DELETE /api/files/upload/chunks/{upload_id}` — best-effort
+  abort + chunk cleanup.
+- `GET /api/files/upload/chunks/{upload_id}/status` — reports
+  `received/missing` chunk indices for resume-on-reopen flows.
+- 60 min TTL via `expires_at` so abandoned uploads don't bloat
+  Mongo.
+
+### Frontend (`utils/chunkedUpload.js`)
+
+- Pure helper, zero npm dependencies (matches the existing vanilla
+  IndexedDB outbox posture).
+- Auto-routes: ≤ 4 MB → legacy `/files/upload` (with axios
+  `onUploadProgress`); > 4 MB → init → 2-in-flight parallel
+  worker pool over 1 MB chunks with exponential backoff
+  (300 / 600 / 1200 / 2400 ms + jitter, 4 retries) → complete.
+- Aggregates progress across chunks via `onProgress(pct)` callback
+  so the existing progress bar plugs in without modification.
+- Best-effort `DELETE` abort on terminal failure so the server-side
+  TTL doesn't have to wait.
+
+### Wiring
+
+- `EngineerJobDetailV2.js` `PhotosTab.uploadFile` now goes through
+  `chunkedUpload(...)`. The category, error surfacing, and progress
+  UI are unchanged — only the transport.
+
+### Tests
+
+- `tests/test_iter_220e9_chunked_uploads.py` — 20 scenarios
+  covering init validation matrix, chunk store + idempotency +
+  oversize + out-of-range + empty + user-scoping, assembly +
+  size-mismatch + missing-chunk guards + post-assembly MIME sniff,
+  abort cleanup, resume status, and route-registry smoke.
+- Updated `test_iter_216h257_*` and `test_iter_220db_*` to match
+  the new wiring (category now a parameter, not a querystring).
+- Regression **2106 / 2106 passing**. Lint clean on all new
+  files.
+
+---
+
+
 ## Iter 220e8 — CRM Lead Conversion flow ✅ (Feb 14, 2026)
 
 Bridges the v2 Pipeline (`crm2_opportunities`) into the Contracts /

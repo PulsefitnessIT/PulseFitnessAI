@@ -175,7 +175,12 @@ def test_engineer_uploader_uses_service_media_and_surfaces_error():
     src = pathlib.Path(
         "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
     ).read_text()
-    assert "category=service-media" in src
+    # Iter 220e9 — uploads now go through `chunkedUpload`, which
+    # routes the same `service-media` category (string param instead
+    # of querystring) and falls back to the legacy single-shot
+    # endpoint for small files.
+    assert "category: 'service-media'" in src
+    assert "chunkedUpload" in src
     # No more silent generic "Upload failed".
     assert "err?.response?.data?.detail" in src
 

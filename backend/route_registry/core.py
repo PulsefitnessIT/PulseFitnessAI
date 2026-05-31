@@ -8,6 +8,7 @@ from routes.master_admin_perf import router as master_admin_perf_router
 from routes.equipment import router as equipment_router
 from routes.issues import router as issues_router
 from routes.files import router as files_router
+from routes.files_chunked import router as files_chunked_router
 from routes.payments import router as payments_router
 from routes.sites import router as sites_router
 from routes.fault_codes import router as fault_codes_router
@@ -29,7 +30,7 @@ def register_core(api_router: APIRouter) -> None:
     for r in (
         auth_router, account_router, site_data_export_router,
         master_admin_perf_router,
-        equipment_router, issues_router, files_router,
+        equipment_router, issues_router, files_router, files_chunked_router,
         payments_router, sites_router, fault_codes_router, fault_templates_router,
         support_router, support_escalate_router, nudges_router, security_manifest_router,
         security_document_router,

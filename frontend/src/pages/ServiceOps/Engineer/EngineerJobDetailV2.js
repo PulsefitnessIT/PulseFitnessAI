@@ -44,6 +44,7 @@ import WorkVisitMachinesCard from './WorkVisitMachinesCard';
 import useJobDraft from './useJobDraft';
 import { resolveChannel } from '@/utils/channelLabel';
 import { compressImage } from '@/utils/compressImage';
+import { chunkedUpload } from '@/utils/chunkedUpload';
 import ComplianceCard from './ComplianceCard';
 import EngineerEntitlementPanel from './EngineerEntitlementPanel';
 // Iter 220e6 — Offline write outbox for high-value mutating calls.
@@ -1522,26 +1523,22 @@ function PhotosTab({ job, onChange }) {
       // 4G connection isn't stuck waiting 30s for a 4 MB JPEG. Video
       // is passed through untouched (already validated above).
       const toSend = kind === 'video' ? file : await compressImage(file);
-      const fd = new FormData();
-      fd.append('file', toSend);
-      // Iter 216h257 — use `service-media` so the backend allow-list
-      // covers BOTH images and videos. Old `photos|videos` categories
-      // used the global MIME_ALL_ATTACHMENTS allow-list which silently
-      // 415'd every video.
-      const u = await axios.post(`${API}/files/upload?category=service-media`, fd, {
-        ...auth(),
-        headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
-          if (e.total) {
-            setUploadPct(Math.round((e.loaded / e.total) * 100));
-          }
-        },
+      // Iter 220e9 — chunked upload kicks in transparently for files
+      // > 4 MB so a flaky 4G connection drops one chunk, not the
+      // whole 25 MB video. `chunkedUpload` falls back to the legacy
+      // single-shot path for anything below the threshold.
+      const uploaded = await chunkedUpload({
+        baseURL: API,
+        file: toSend,
+        category: 'service-media',
+        authHeaders: auth().headers,
+        onProgress: (pct) => setUploadPct(pct),
       });
-      const fileUrl = u.data?.download_url || u.data?.storage_path;
+      const fileUrl = uploaded?.download_url || uploaded?.storage_path;
       const prefix = stage === 'before' ? '[BEFORE] ' : stage === 'after' ? '[AFTER] ' : '';
       await axios.post(`${API}/svc/engineer/photos`, {
         case_id: job.id, file_url: fileUrl,
-        mime_type: u.data?.content_type || (kind === 'video' ? 'video/webm' : 'image/jpeg'),
+        mime_type: uploaded?.content_type || (kind === 'video' ? 'video/webm' : 'image/jpeg'),
         caption: (prefix + (caption || '')).trim(),
         duration_seconds: kind === 'video' ? await probeVideoDuration(file) : null,
       }, auth());

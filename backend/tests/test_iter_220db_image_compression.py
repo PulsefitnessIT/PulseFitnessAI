@@ -40,13 +40,20 @@ def test_photos_tab_compresses_before_upload():
 
 def test_photos_tab_tracks_upload_progress():
     src = JOB_DETAIL.read_text()
-    assert "onUploadProgress" in src
+    # Iter 220e9 — progress is now driven by chunkedUpload's
+    # `onProgress` callback (which in turn uses axios
+    # `onUploadProgress` under the hood for small files and
+    # per-chunk completion ratio for large ones).
+    assert "onProgress:" in src
     assert "setUploadPct" in src
     # Progress UI test IDs.
     for tid in (
         "photo-upload-progress", "photo-upload-pct", "photo-upload-bar",
     ):
         assert f'data-testid="{tid}"' in src, f"missing test-id: {tid}"
+    # Underlying axios progress hook still wired inside the helper.
+    chunked = Path("/app/frontend/src/utils/chunkedUpload.js").read_text()
+    assert "onUploadProgress" in chunked
 
 
 def test_video_path_skips_compression():
