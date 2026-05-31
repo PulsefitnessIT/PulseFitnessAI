@@ -1,3 +1,77 @@
+## Iter 220du — Custom Fields × Job Type (Account Settings link) ✅ (Feb 14, 2026)
+
+Closes the loop on the job-type rollout. Admins can now scope
+each custom field to one or more job types so the engineer auto-
+loads ONLY the relevant fields per machine on each case.
+
+### Backend — `routes/svc/work_report_fields.py`
+
+- New `JOB_TYPES` whitelist matching the intake taxonomy:
+  `repair / ppm / install / inspection / callout / audit`.
+- `WorkReportFieldIn` + `WorkReportFieldPatch` models gain
+  `job_types: list[str]`.
+- `_validate_payload` rejects unknown slugs (400).
+- Field document persists `job_types` (empty list = matches every
+  job type — the iter-220 historic behaviour, fully backwards
+  compatible).
+- Resolvers (`fields_for_case`, `fields_for_machine_row`) gain a
+  `$and: [{ $or: [{job_types: missing}, {job_types: []},
+  {job_types: case_type}] }]` filter. Legacy cases without a
+  `case_type` default to `repair`.
+- PATCH endpoint can retarget existing fields' `job_types` list.
+
+### Frontend — `EngineerWorkReportFields.js`
+
+- New `JOB_TYPE_OPTIONS` constant with friendly labels.
+- Editor renders a chip group (`wrf-editor-job-types` +
+  `wrf-editor-job-{slug}` for each option) with click-to-toggle
+  behaviour. Empty selection visibly says "leave empty for all".
+- POST + PATCH bodies include `job_types` so the admin's choices
+  round-trip cleanly.
+- Field-list rows surface selected types as small indigo chips
+  (`wrf-row-{id}-job-types`) so admins can see at a glance which
+  fields are job-type-scoped vs. universal.
+
+### Frontend — `AccountPanel.js`
+
+- New "Engineer custom fields" card with friendly Wrench icon,
+  description, and a "Manage custom fields" link
+  (`account-link-custom-fields`) that routes to
+  `/svc/engineer/work-report-fields` and closes the panel.
+
+### Tests / lint
+
+- `tests/test_iter_220du_custom_fields_by_job_type.py` —
+  **8 tests** green:
+  - Create persists `job_types`.
+  - Unknown job-type slug → 400.
+  - Empty list = backwards compatible (matches all jobs).
+  - PATCH retargets `job_types`.
+  - Resolver filters by `case_type` (PPM case sees PPM +
+    universal fields, not pure-repair ones).
+  - Legacy case (no `case_type` field) defaults to `repair`.
+  - Admin page has the chip editor + all 6 slug option ids.
+  - AccountPanel exposes the "Manage custom fields" link.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1960 passed, 15 skipped, 0 failed**.
+- Engineer admins now have a single place (Account Settings →
+  Manage custom fields) to define per-job-type, per-machine
+  custom capture fields. Engineer's Equipment / Complete flow
+  auto-resolves the right field set on every case.
+
+### Pending — per-machine render of resolved fields
+
+The backend resolver now returns the correct field set per
+machine + job type, but the **engineer-side rendering** on the
+Equipment tab still uses the case-level `for-case` lookup (single
+shared list). Wiring `for-machine-row` into the
+`WorkVisitMachinesCard` so each row gets its own filtered field
+list is the natural follow-up (P1, ~half-day's work).
+
+
 ## Iter 220dt — Job-type taxonomy + serial-unknown + Summary cleanup ✅ (Feb 14, 2026)
 
 Four operator-driven changes from the new screenshots:

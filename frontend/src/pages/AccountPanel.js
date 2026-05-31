@@ -13,7 +13,7 @@ import UsageMeterCard from '../components/shared/UsageMeterCard';
 import NotificationPreferencesPanel from '../components/shared/NotificationPreferencesPanel';
 import SubscriptionManagementPanel from '../components/shared/SubscriptionManagementPanel';
 import {
-  CreditCard, Calendar, Building2, ArrowUpRight, Clock
+  CreditCard, Calendar, Building2, ArrowUpRight, Clock, Wrench
 } from 'lucide-react';
 
 const AccountPanel = ({ open, onClose }) => {
@@ -201,6 +201,36 @@ const AccountPanel = ({ open, onClose }) => {
         {/* Digest email preferences */}
         <div className="mt-4">
           <DigestPreferencesCard />
+        </div>
+
+        {/* Iter 220du — Custom Fields admin link. Engineer admins
+            create / edit / job-type-scope custom fields here so
+            the engineer's job tabs auto-load the right per-machine
+            data-capture rows. */}
+        <div className="mt-4">
+          <Card className="bg-[var(--color-ink-alt)] border-white/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
+                <Wrench size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-semibold">Engineer custom fields</p>
+                <p className="text-[var(--color-text-muted)] text-xs leading-snug mt-0.5">
+                  Define machine + job-type specific capture fields
+                  (e.g. PPM checklist values, install commissioning
+                  readings).
+                </p>
+                <Link
+                  to="/svc/engineer/work-report-fields"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-[var(--color-brand-blue)] hover:underline"
+                  data-testid="account-link-custom-fields"
+                >
+                  Manage custom fields <ArrowUpRight size={12} />
+                </Link>
+              </div>
+            </div>
+          </Card>
         </div>
       </DialogContent>
     </Dialog>

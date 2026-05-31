@@ -51,6 +51,11 @@ SCOPE_SPECIFICITY = {
     "model": 3,
     "asset": 4,
 }
+# Iter 220du — parallel filter dimension. When a field has a
+# non-empty job_types list it only resolves when the case's
+# case_type is in the list; an empty list matches every job type
+# (the default, fully backwards-compatible with iter 220 fields).
+JOB_TYPES = ("repair", "ppm", "install", "inspection", "callout", "audit")
 MAX_NAME_LEN = 60
 MAX_FIELDS_PER_ORG = 200
 
@@ -78,6 +83,9 @@ class WorkReportFieldIn(BaseModel):
     field_type: str
     scope_kind: str = "global"
     scope_value: Optional[str] = None
+    # Iter 220du — restrict to one or more job types. Empty list =
+    # all job types (the historic behaviour).
+    job_types: list[str] = Field(default_factory=list)
     options: list[str] = Field(default_factory=list)
     required: bool = False
     help_text: Optional[str] = None
@@ -88,6 +96,7 @@ class WorkReportFieldPatch(BaseModel):
     options: Optional[list[str]] = None
     required: Optional[bool] = None
     help_text: Optional[str] = None
+    job_types: Optional[list[str]] = None
     archived: Optional[bool] = None
 
 
@@ -98,6 +107,11 @@ def _validate_payload(p: WorkReportFieldIn) -> None:
         raise HTTPException(400, f"scope_kind must be one of {SCOPE_KINDS}")
     if p.scope_kind != "global" and not (p.scope_value or "").strip():
         raise HTTPException(400, "scope_value is required when scope_kind is not 'global'")
+    # Iter 220du — validate job-type filter when set.
+    if p.job_types:
+        for jt in p.job_types:
+            if jt not in JOB_TYPES:
+                raise HTTPException(400, f"job_types entries must be one of {JOB_TYPES}")
     if p.field_type == "dropdown":
         opts = [o.strip() for o in (p.options or []) if (o or "").strip()]
         if len(opts) < 2:
@@ -177,8 +191,26 @@ async def fields_for_machine_row(row_id: str, user=Depends(get_current_user)):
     if asset_id:
         or_clauses.append({"scope_kind": "asset", "scope_value": asset_id})
 
+    # Iter 220du — pull the parent case's case_type so the per-row
+    # resolver also filters by job type. Defaults to "repair" when
+    # the row's case is missing the field (legacy cases).
+    case_type_match = "repair"
+    parent_case_id = row.get("case_id")
+    if parent_case_id:
+        parent = await db.svc_cases.find_one(
+            {"id": parent_case_id, **of},
+            {"_id": 0, "case_type": 1},
+        )
+        if parent and parent.get("case_type"):
+            case_type_match = str(parent["case_type"]).lower()
+
     defs = await db.svc_work_report_field_defs.find(
-        {**of, "archived": {"$ne": True}, "$or": or_clauses},
+        {**of, "archived": {"$ne": True}, "$or": or_clauses,
+         "$and": [{"$or": [
+             {"job_types": {"$exists": False}},
+             {"job_types": {"$size": 0}},
+             {"job_types": case_type_match},
+         ]}]},
         {"_id": 0},
     ).sort([("position", 1), ("created_at", 1)]).to_list(MAX_FIELDS_PER_ORG)
     defs.sort(key=lambda r: (
@@ -205,6 +237,7 @@ async def fields_for_case(case_id: str, user=Depends(get_current_user)):
         {"id": case_id, **of},
         {"_id": 0, "id": 1, "asset_id": 1, "asset_name": 1,
          "asset_manufacturer": 1, "asset_model": 1, "asset_type": 1,
+         "case_type": 1,
          "work_report_custom_fields": 1},
     )
     if not case:
@@ -231,8 +264,19 @@ async def fields_for_case(case_id: str, user=Depends(get_current_user)):
     if asset_id:
         or_clauses.append({"scope_kind": "asset", "scope_value": asset_id})
 
+    # Iter 220du — case_type filter. Match defs that EITHER have no
+    # job_types restriction (all-jobs, the historic behaviour) OR
+    # explicitly include this case's case_type. Falls back to
+    # `repair` so historic cases without a stamped type still
+    # resolve a sensible set.
+    case_type_match = (case.get("case_type") or "repair").lower()
     rows = await db.svc_work_report_field_defs.find(
-        {**of, "archived": {"$ne": True}, "$or": or_clauses},
+        {**of, "archived": {"$ne": True}, "$or": or_clauses,
+         "$and": [{"$or": [
+             {"job_types": {"$exists": False}},
+             {"job_types": {"$size": 0}},
+             {"job_types": case_type_match},
+         ]}]},
         {"_id": 0},
     ).sort([("position", 1), ("created_at", 1)]).to_list(MAX_FIELDS_PER_ORG)
 
@@ -335,6 +379,8 @@ async def create_work_report_field(
         "field_type": payload.field_type,
         "scope_kind": payload.scope_kind,
         "scope_value": (payload.scope_value or None) if payload.scope_kind != "global" else None,
+        # Iter 220du — persisted job-type filter (empty = all).
+        "job_types": [jt for jt in (payload.job_types or []) if jt in JOB_TYPES],
         "options": [o.strip() for o in (payload.options or []) if o and o.strip()],
         "required": bool(payload.required),
         "help_text": (payload.help_text or "").strip() or None,
@@ -380,6 +426,11 @@ async def update_work_report_field(
         updates["help_text"] = payload.help_text.strip() or None
     if payload.archived is not None:
         updates["archived"] = bool(payload.archived)
+    if payload.job_types is not None:
+        # Iter 220du — allow admins to retarget an existing field.
+        updates["job_types"] = [
+            jt for jt in payload.job_types if jt in JOB_TYPES
+        ]
     await db.svc_work_report_field_defs.update_one({"id": field_id, **of}, {"$set": updates})
     refreshed = await db.svc_work_report_field_defs.find_one({"id": field_id, **of}, {"_id": 0})
     return _strip(refreshed)

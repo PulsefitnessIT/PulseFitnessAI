@@ -46,6 +46,17 @@ const TYPE_OPTIONS = [
   { id: 'file',     label: 'File upload' },
 ];
 
+// Iter 220du — Job-type filter chips. Empty selection = all jobs
+// (the historic behaviour, fully backwards compatible).
+const JOB_TYPE_OPTIONS = [
+  { id: 'repair',     label: 'Repair' },
+  { id: 'ppm',        label: 'PPM Service' },
+  { id: 'install',    label: 'Installation' },
+  { id: 'inspection', label: 'Inspection' },
+  { id: 'callout',    label: 'Emergency callout' },
+  { id: 'audit',      label: 'Asset audit' },
+];
+
 export default function EngineerWorkReportFields() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -225,6 +236,22 @@ function FieldCard({ row, onEdit, onArchive, onRestore }) {
           <p className="text-xs text-slate-500 mt-1 truncate">
             {scopeLabel(row)} · key <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded">{row.key}</code>
           </p>
+          {/* Iter 220du — Job-type chips (empty = all). */}
+          {(row.job_types || []).length ? (
+            <p
+              className="text-[11px] text-indigo-700 mt-1 flex flex-wrap gap-1"
+              data-testid={`wrf-row-${row.id}-job-types`}
+            >
+              {row.job_types.map((jt) => (
+                <span
+                  key={jt}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-bold uppercase"
+                >
+                  {JOB_TYPE_OPTIONS.find((o) => o.id === jt)?.label || jt}
+                </span>
+              ))}
+            </p>
+          ) : null}
           {row.field_type === 'dropdown' && (row.options || []).length ? (
             <p className="text-xs text-slate-500 mt-1 truncate">
               Options: {row.options.join(' · ')}
@@ -281,7 +308,17 @@ export function FieldEditor({ mode, row, onCancel, onSaved }) {
   const [options, setOptions] = useState((row?.options || []).join('\n'));
   const [required, setRequired] = useState(!!row?.required);
   const [helpText, setHelpText] = useState(row?.help_text || '');
+  // Iter 220du — Job-type filter (Repair / PPM / Install / etc).
+  // Empty array = all job types (the historic behaviour, fully
+  // backwards compatible).
+  const [jobTypes, setJobTypes] = useState(row?.job_types || []);
   const [busy, setBusy] = useState(false);
+
+  const toggleJobType = (slug) => {
+    setJobTypes((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  };
 
   const save = async () => {
     if (!name.trim()) { notify.error('Name is required'); return; }
@@ -302,6 +339,7 @@ export function FieldEditor({ mode, row, onCancel, onSaved }) {
           options: opts,
           required,
           help_text: helpText.trim(),
+          job_types: jobTypes,
         }, auth());
         notify.success('Field updated');
       } else {
@@ -313,6 +351,7 @@ export function FieldEditor({ mode, row, onCancel, onSaved }) {
           options: opts,
           required,
           help_text: helpText.trim(),
+          job_types: jobTypes,
         }, auth());
         notify.success('Field created');
       }
@@ -401,6 +440,38 @@ export function FieldEditor({ mode, row, onCancel, onSaved }) {
             {isEdit && <p className="text-[10px] text-slate-400 mt-1">Scope can't be changed after creation.</p>}
           </div>
         )}
+      </div>
+
+      {/* Iter 220du — Job-type filter chips. Clicking toggles
+          inclusion; an empty set means "show on every job type".
+          Drives `fields_for_case` + `fields_for_machine_row`. */}
+      <div data-testid="wrf-editor-job-types">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          Only on these job types{' '}
+          <span className="font-normal normal-case text-slate-400">
+            (leave empty for all)
+          </span>
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {JOB_TYPE_OPTIONS.map((j) => {
+            const on = jobTypes.includes(j.id);
+            return (
+              <button
+                key={j.id}
+                type="button"
+                onClick={() => toggleJobType(j.id)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                  on
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+                data-testid={`wrf-editor-job-${j.id}`}
+              >
+                {j.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {fieldType === 'dropdown' && (
