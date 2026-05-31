@@ -7,6 +7,13 @@ const EMPTY_ISSUE_FORM = {
   serial_number: '', machine_type: '', issue_description: '',
   severity: 'operational_minor', supplier: '', steps_taken: '',
   fault_code: null,
+  // Iter 220dw — Customer-portal Log-a-Fault now captures the
+  // job type + serial-unknown escape hatch. Defaults match the
+  // backend schema (iter 220dt) so existing flows stay identical
+  // when the customer doesn't change them.
+  case_type: 'repair',
+  serial_unknown: false,
+  serial_unknown_reason: '',
 };
 
 const EMPTY_PO_FORM = {

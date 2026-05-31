@@ -1,3 +1,64 @@
+## Iter 220dw — Customer-portal Log-a-Fault: case_type + serial_unknown ✅ (Feb 14, 2026)
+
+Surfaces the iter 220dt backend fields on the dashboard's
+Log-a-Fault dialog (used by gym staff to log faults on their own
+equipment) so customers can:
+
+### 1 · Pick a Job Type at fault-log time
+
+- New select on the Log-a-Fault dialog
+  (`issue-case-type-wrapper` / `issue-case-type-select`).
+- 6 options matching the canonical taxonomy: Repair / PPM /
+  Install / Inspection / Callout / Audit.
+- Friendly help text underneath: *"Helps us send the right
+  engineer with the right kit + pre-load any machine-specific
+  checklist fields."*
+- Default `repair` so existing flows are unchanged.
+
+### 2 · Flag a rubbed-off serial without abandoning the fault
+
+- Checkbox under the serial input
+  (`issue-serial-unknown-wrap` / `issue-serial-unknown`).
+- When ticked:
+  - Serial input visibly **disables** (`disabled={!!issueForm.serial_unknown}`)
+    so customers can't half-fill both states.
+  - Reason dropdown reveals (`issue-serial-unknown-reason`):
+    *Plate rubbed off / Plate not visible (behind cladding) /
+    Machine has no serial plate*.
+  - State stamps the case (engineer's first-visit "snap the
+    serial plate" task picks it up).
+
+### 3 · Empty-form scaffold + payload propagation
+
+- `useIssueWorkflow.js::EMPTY_ISSUE_FORM` initialises
+  `case_type='repair'`, `serial_unknown=false`,
+  `serial_unknown_reason=''`.
+- Payload uses `...currentMachine` spread, so the new fields
+  flow into the existing `POST /api/issues` body without any
+  extra wiring. Backend (iter 220dt) already accepts them.
+
+### Tests / lint
+
+- `tests/test_iter_220dw_log_a_fault_case_type_serial_unknown.py`
+  — **4 tests** green:
+  - Job-type dropdown renders with all 6 options + correct
+    labels.
+  - Serial-unknown checkbox + conditional reason dropdown
+    pinned with all 3 reasons.
+  - Empty-form scaffold carries the new fields.
+  - Payload spread (`...currentMachine`) intact so a future
+    refactor can't silently drop them.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1969 passed, 16 skipped, 0 failed**.
+- End-to-end loop closed: customer picks job type → engineer
+  Summary chip + per-machine field auto-load both honour it.
+  Customer flags rubbed-off serial → engineer's first-visit task
+  captures it on site.
+
+
 ## Iter 220dv — Per-machine field auto-load by job type ✅ (Feb 14, 2026)
 
 Closes the user's original feature request:

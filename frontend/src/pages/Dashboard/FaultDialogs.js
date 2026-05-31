@@ -151,7 +151,8 @@ const FaultDialogs = ({
    placeholder={selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')}
    list="issue-serial-datalist"
    autoComplete="off"
-   className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-2 h-10 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
+   className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-2 h-10 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)] disabled:opacity-60"
+   disabled={!!issueForm.serial_unknown}
    data-testid="issue-serial-select"
  />
  <datalist id="issue-serial-datalist">
@@ -161,6 +162,33 @@ const FaultDialogs = ({
    </option>
  ))}
  </datalist>
+ {/* Iter 220dw — Serial-unknown escape hatch. Some machines have
+     rubbed-off plates; previously customers had to either guess
+     or abandon the fault. The checkbox + reason field stamps the
+     case so the engineer's first-visit task captures the serial
+     properly. Backend already accepts both fields (iter 220dt). */}
+ <label className="flex items-center gap-2 mt-2 text-xs text-[var(--color-text-muted)] cursor-pointer select-none" data-testid="issue-serial-unknown-wrap">
+   <input
+     type="checkbox"
+     checked={!!issueForm.serial_unknown}
+     onChange={(e) => setIssueForm({ ...issueForm, serial_unknown: e.target.checked, serial_unknown_reason: e.target.checked ? (issueForm.serial_unknown_reason || 'rubbed_off') : '' })}
+     data-testid="issue-serial-unknown"
+   />
+   Serial unknown / unreadable
+ </label>
+ {issueForm.serial_unknown && (
+   <select
+     value={issueForm.serial_unknown_reason || 'rubbed_off'}
+     onChange={(e) => setIssueForm({ ...issueForm, serial_unknown_reason: e.target.value })}
+     className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-1 h-9 px-3 rounded-md text-sm"
+     data-testid="issue-serial-unknown-reason"
+     onKeyDown={(e) => e.stopPropagation()}
+   >
+     <option value="rubbed_off">Plate rubbed off / unreadable</option>
+     <option value="not_visible">Plate not visible / behind cladding</option>
+     <option value="never_had_one">Machine has no serial plate</option>
+   </select>
+ )}
  </div>
 
  {/* Coverage Status — Iter 216h205 uses the shared CoverageBanner. */}
@@ -260,6 +288,33 @@ const FaultDialogs = ({
  privileged={canManageOrgTemplates}
  />
  </div>
+
+{/* Iter 220dw — Job Type. Drives the engineer Summary chip + the
+    per-machine custom-field auto-load. "Repair" is the default
+    because the legacy Log-a-Fault flow only ever meant "fix it". */}
+<div data-testid="issue-case-type-wrapper">
+<Label htmlFor="case_type" className="text-[var(--theme-text)]">{t('faults.job_type', 'Job type')}</Label>
+<select
+  id="case_type"
+  value={issueForm.case_type || 'repair'}
+  onChange={(e) => setIssueForm({ ...issueForm, case_type: e.target.value })}
+  onKeyDown={(e) => e.stopPropagation()}
+  className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-2 h-10 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
+  data-testid="issue-case-type-select"
+>
+  <option value="repair">Repair</option>
+  <option value="ppm">Preventative Maintenance Service</option>
+  <option value="install">Installation</option>
+  <option value="inspection">Safety / compliance inspection</option>
+  <option value="callout">Emergency callout</option>
+  <option value="audit">Asset audit</option>
+</select>
+<p className="text-[var(--color-text-muted)] text-[11px] mt-1">
+  Helps us send the right engineer with the right kit + pre-load
+  any machine-specific checklist fields.
+</p>
+</div>
+
 
  {/* Upload */}
  <div>
