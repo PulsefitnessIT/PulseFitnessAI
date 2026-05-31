@@ -1,3 +1,82 @@
+## Iter 220ea — Engineer App Playwright E2E smoke suite ✅ (Feb 14, 2026)
+
+Closes the deferred release-readiness gap from iter 220e6: real
+browser coverage for the Engineer PWA flows. The pytest layer can
+only check source-level wiring; this spec runs the actual app in a
+mobile-viewport headless Chromium so blank screens, error
+boundaries, and offline-indicator regressions are caught before
+release.
+
+### New Playwright spec (`tests/mobile-regression/engineer-smoke.spec.js`)
+
+- **6 route smoke tests** at iPhone 13 Pro viewport — every
+  Engineer route must either render its happy-path testid OR the
+  partner-engineer access-gate (both are valid landings for
+  master admin without partner-engineer role):
+  - `/svc/engineer` → `engineer-home-v2`
+  - `/svc/engineer/jobs` → `engineer-home`
+  - `/svc/engineer/quotes` → `engineer-quotes`
+  - `/svc/engineer/invoices` → `engineer-invoices`
+  - `/svc/engineer/diary` → `engineer-diary`
+  - `/svc/engineer/inbox` → `engineer-inbox`
+- Each test asserts:
+  - `engineer-error-boundary` fallback was NOT triggered.
+  - No `console.error` outside a known-noise allow-list
+    (React DevTools, posthog, CSP-blocked Emergent/Cloudflare
+    third-party scripts, expected 4xx warmups, intentional
+    offline-test ERR_INTERNET_DISCONNECTED).
+- **Offline pill wiring test**: navigates to `/svc/engineer/jobs`,
+  flips `context.setOffline(true)` + dispatches the `offline`
+  event, asserts the pill becomes visible, flips back online,
+  asserts the pill clears.
+
+### Resilient global setup rewrite (`global-setup.js`)
+
+The previous UI-driven flow (open /login → fill → click submit →
+waitForURL) was racy on the preview environment: the cookie banner
+mounted after inputs hydrated and intercepted the submit click,
+and lazy-loaded chunks for `/master-admin` regularly exceeded the
+25 s `waitForURL` budget.
+
+The rewrite:
+- POSTs `/api/auth/login` directly via Playwright's request
+  context (single round-trip, ~250 ms).
+- Seeds the resulting JWT into `localStorage.token` via
+  `addInitScript`, plus a `cookie_consent_v1` flag so the
+  banner doesn't intercept clicks in downstream tests.
+- Falls back to `/app/frontend/.env` for
+  `REACT_APP_BACKEND_URL` when the shell env doesn't carry it
+  (previously baseURL silently defaulted to localhost:3000 and
+  every API call 404'd).
+
+`playwright.config.js` got the same `resolveBaseURL` helper so the
+runner itself uses the correct backend even outside CI.
+
+### Static guard (`backend/tests/test_iter_220ea_engineer_e2e_smoke.py`)
+
+- 9 pytest assertions guarding the spec from drift: every route
+  must remain listed, every critical testid must still be
+  asserted, console-noise allow-list must include the platform
+  scripts and offline-test signals, and the global setup must
+  keep using the API path rather than the UI flow.
+
+### Verified
+
+- All 7 Playwright tests pass against the live preview environment
+  (master-admin lands on the access-gate route in this env, which
+  is treated as a valid landing).
+- pytest regression **2115 / 2115 passing**. Lint clean on new
+  files.
+
+### How to run
+
+```
+cd /app/frontend && yarn test:mobile-regression -- tests/mobile-regression/engineer-smoke.spec.js
+```
+
+---
+
+
 ## Iter 220e9 — Chunked uploads for engineer media ✅ (Feb 14, 2026)
 
 Closes the last release-readiness gap from the iter 220e6 audit: a

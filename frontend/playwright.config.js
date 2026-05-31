@@ -14,6 +14,25 @@
  *   cd /app/frontend && yarn test:mobile-regression
  */
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Iter 220ea — pick up REACT_APP_BACKEND_URL from /app/frontend/.env
+// when not exported in the shell. Without this Playwright's baseURL
+// silently defaulted to localhost:3000 (the dev server), which made
+// every /api/* request 404 from the runner.
+function resolveBaseURL() {
+  if (process.env.E2E_BASE_URL)          return process.env.E2E_BASE_URL;
+  if (process.env.REACT_APP_BACKEND_URL) return process.env.REACT_APP_BACKEND_URL;
+  try {
+    const envPath = path.resolve(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      const m = fs.readFileSync(envPath, 'utf8').match(/^REACT_APP_BACKEND_URL=(.+)$/m);
+      if (m?.[1]) return m[1].trim();
+    }
+  } catch { /* ignore */ }
+  return 'http://localhost:3000';
+}
 
 export default defineConfig({
   testDir: './tests/mobile-regression',
@@ -29,7 +48,7 @@ export default defineConfig({
     ['json', { outputFile: '/app/test_reports/mobile-regression-latest.json' }],
   ],
   use: {
-    baseURL: process.env.E2E_BASE_URL || process.env.REACT_APP_BACKEND_URL || 'http://localhost:3000',
+    baseURL: resolveBaseURL(),
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
