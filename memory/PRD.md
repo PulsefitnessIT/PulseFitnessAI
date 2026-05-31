@@ -1,3 +1,81 @@
+## Iter 220dz + 220e0 — Empty custom fields hidden + cover-aware close-out ✅ (Feb 14, 2026)
+
+Two screenshot-driven UX polish pins.
+
+### 1 · Empty machine-row custom fields no longer clog Equipment
+
+Previously every machine row rendered an ~80 px "No custom
+fields yet for this machine type. Tap '+ Custom field' to add one"
+placeholder, even when the org had nothing pre-configured. On a
+gym with 30 machines that's 2 400 px of empty noise.
+
+- `MachineRowCustomFields.js` now early-returns a tiny right-
+  aligned "+ Custom field" link when:
+  - `fields.length === 0`
+  - `!creating`
+  - No saved values on this row (`hasSavedValues`)
+- Verbose placeholder copy deleted.
+- All paths to the full panel preserved (resolved fields, saved
+  values, or active editor) so engineers can still create fields
+  ad-hoc when they need to.
+
+### 2 · Close-out flow respects warranty / contract cover
+
+The "Close & invoice" button used to fire regardless of whether
+the gym was already paying for cover. Operators flagged this on
+the screenshot: *"If the gym is within warranty/contract there
+would be no need to invoice the job unless mis-use."*
+
+- New `coverState` memo on the Complete tab reads
+  `source_meta.coverage_status`, `source_meta.warranty_active`,
+  and `case.cover_type`. Returns one of three states (warranty /
+  contract / chargeable).
+- When covered:
+  - **Green banner** at the top of the Outcome card surfaces the
+    cover label (e.g. *"Under GOLD service contract until
+    31/12/2027"* or *"Under manufacturer warranty until …"*)
+    plus a *"Mis-use / chargeable — bill anyway"* checkbox.
+  - **"Close & invoice"** chip becomes **"Close (no invoice)"**.
+  - **Auto-invoice toggle hidden** (misuse override controls
+    billing for covered cases).
+  - **Fast-path CTA** changes to **"I'm done — close & send the
+    report"** instead of **"... close & send the invoice"**.
+  - Backend complete call sends `chargeable: false` and
+    `target: 'repaired'` instead of `'closed'` so the case isn't
+    auto-locked to the invoice workflow.
+  - Invoice draft generation **skipped entirely** when the misuse
+    override isn't ticked.
+  - Service report still goes to the customer (toast reads
+    *"Service report emailed · no charge (under cover)"*).
+- Misuse override flips every above behaviour back to the
+  chargeable path — one tick is enough to invoice a mis-use case.
+
+### Tests / lint
+
+- `tests/test_iter_220dz_engineer_ux_polish.py` — **9 tests**
+  green:
+  - MachineRowCustomFields collapses when empty.
+  - Verbose placeholder text removed.
+  - Panel stays open when row has saved values.
+  - `coverState` memo + banner testids pinned.
+  - Close chip label swaps to "no invoice".
+  - Auto-invoice toggle hidden when covered.
+  - `chargeable: willBill` pinned (was hard-coded true).
+  - Fast-path skips invoice when covered, flips target to
+    'repaired'.
+  - Fast-path button label swaps to "send the report".
+  - `coverState` recognises contract / warranty / explicit cover_type.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1993 passed, 15 skipped, 0 failed**.
+- Equipment tab feels half as long on a multi-machine gym.
+- Engineers can no longer accidentally invoice a customer who's
+  under contract — misuse is now an explicit, audit-friendly
+  choice rather than the default.
+
+
 ## Iter 220dy — Modularise `server.py` (P3 hygiene) ✅ (Feb 14, 2026)
 
 P3 hygiene task — extract stateless startup work into a dedicated

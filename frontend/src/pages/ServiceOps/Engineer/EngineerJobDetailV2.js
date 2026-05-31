@@ -28,7 +28,7 @@ import {
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download, Phone, Navigation, History, LogIn,
-  Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer,
+  Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
@@ -2346,6 +2346,53 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   }));
   const setAutoInvoice = (v) => setDraft({ auto_invoice: !!v });
 
+  // Iter 220e0 — Cover-aware close-out. When the case sits under an
+  // active contract or warranty we should not be defaulting to
+  // "Close & invoice" — the gym already pays for cover. Engineers
+  // can still tick "Misuse — bill anyway" for chargeable misuse, but
+  // that's now an explicit override rather than the default.
+  const coverState = useMemo(() => {
+    const meta = job.source_meta || {};
+    const status = (meta.coverage_status || job.coverage_status || '').toLowerCase();
+    const warrantyActive = !!meta.warranty_active;
+    const cover = (job.cover_type || '').toLowerCase();
+    const explicitCover = cover && cover !== 'chargeable' && cover !== 'none';
+    const covered = status === 'covered' || warrantyActive || explicitCover;
+    if (!covered) return { covered: false, label: '', kind: 'chargeable' };
+    if (warrantyActive) {
+      const exp = meta.warranty_expiry || '';
+      return {
+        covered: true,
+        kind: 'warranty',
+        label: 'Under manufacturer warranty' + (exp ? ` until ${String(exp).slice(0, 10)}` : ''),
+        detail: 'No invoice will be sent unless this is logged as misuse.',
+      };
+    }
+    const tier = (meta.contract_tier || '').toUpperCase();
+    const end = (meta.contract_end_date || '').slice(0, 10);
+    return {
+      covered: true,
+      kind: 'contract',
+      label: 'Under '
+        + (tier ? `${tier} ` : '')
+        + 'service contract'
+        + (end ? ` until ${end}` : ''),
+      detail: 'No invoice will be sent unless this is logged as misuse.',
+    };
+  }, [job.source_meta, job.coverage_status, job.cover_type]);
+
+  // When the case is covered we treat "misuse" as the chargeable
+  // override. Stored on the draft so it autosaves like any other
+  // close-out field.
+  const misuseOverride = !!draft.misuse_override;
+  const setMisuseOverride = (v) => setDraft({ misuse_override: !!v });
+
+  // Effective "should we bill?" — covered cases default to no-bill;
+  // misuse override flips it. Non-covered keep the existing
+  // auto_invoice toggle.
+  const willBill = coverState.covered ? misuseOverride : autoInvoice;
+  const willGenerateInvoice = coverState.covered ? misuseOverride : autoInvoice;
+
   const complete = async () => {
     if (!summary.trim()) { notify.error('Add a work summary'); return; }
     setBusy(true);
@@ -2357,11 +2404,13 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         }, auth());
       }
       await axios.post(`${API}/svc/engineer/jobs/${job.id}/complete`, {
-        summary: summary.trim(), target, chargeable: true,
+        summary: summary.trim(), target,
+        // Iter 220e0 — chargeable now follows cover state, not always true.
+        chargeable: willBill,
         custom_fields: customFields,
       }, auth());
       notify.success('Job completed');
-      if (autoInvoice) {
+      if (willGenerateInvoice) {
         try {
           const r = await axios.post(
             `${API}/svc/engineer/jobs/${job.id}/generate-invoice-draft`, {}, auth(),
@@ -2414,21 +2463,28 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           }, auth());
         } catch { /* non-blocking */ }
       }
-      // 3. Complete the job (force target to closed when fast-pathing).
+      // 3. Complete the job. Cover-aware: covered + no-misuse cases
+      //    close out as "repaired" with chargeable=false; everything
+      //    else stays on the original "closed + chargeable" path.
+      const fastTarget = coverState.covered && !misuseOverride ? 'repaired' : 'closed';
       await axios.post(`${API}/svc/engineer/jobs/${job.id}/complete`, {
-        summary: summary.trim(), target: 'closed', chargeable: true,
+        summary: summary.trim(),
+        target: fastTarget,
+        chargeable: willBill,
         custom_fields: customFields,
       }, auth());
-      // 4. Generate the invoice draft.
+      // 4. Generate the invoice draft — ONLY when we're actually billing.
       let inv = null;
-      try {
-        const r = await axios.post(
-          `${API}/svc/engineer/jobs/${job.id}/generate-invoice-draft`, {}, auth(),
-        );
-        inv = r.data;
-        setDraftResult(inv);
-      } catch (e) {
-        notify.error('Invoice draft skipped', e?.response?.data?.detail || e?.message);
+      if (willBill) {
+        try {
+          const r = await axios.post(
+            `${API}/svc/engineer/jobs/${job.id}/generate-invoice-draft`, {}, auth(),
+          );
+          inv = r.data;
+          setDraftResult(inv);
+        } catch (e) {
+          notify.error('Invoice draft skipped', e?.response?.data?.detail || e?.message);
+        }
       }
       // 5. Email the branded service report (matches the "Email report"
       // button on the report card — same backend endpoint).
@@ -2437,7 +2493,9 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         notify.success(
           'Sent to customer',
           inv ? `Invoice ${inv.invoice_number} created · service report emailed.`
-              : 'Service report emailed.',
+              : (coverState.covered && !misuseOverride
+                  ? 'Service report emailed · no charge (under cover).'
+                  : 'Service report emailed.'),
         );
       } catch (e) {
         notify.error('Report email failed', e?.response?.data?.detail || e?.message);
@@ -2549,11 +2607,44 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-options-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Outcome</p>
+        {/* Iter 220e0 — Cover-aware banner. When the gym has an active
+            contract or warranty we surface that fact + change the
+            default close-out to "no invoice". */}
+        {coverState.covered ? (
+          <div
+            className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3"
+            data-testid="complete-cover-banner"
+          >
+            <div className="flex items-start gap-2">
+              <ShieldCheck size={16} className="text-emerald-700 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-extrabold text-emerald-900" data-testid="complete-cover-label">
+                  {coverState.label}
+                </p>
+                {coverState.detail && (
+                  <p className="text-[11px] text-emerald-800 mt-0.5">{coverState.detail}</p>
+                )}
+              </div>
+            </div>
+            <label className="mt-2 flex items-center gap-2 text-xs text-emerald-900 select-none">
+              <input
+                type="checkbox"
+                checked={misuseOverride}
+                onChange={(e) => setMisuseOverride(e.target.checked)}
+                data-testid="complete-misuse-override"
+              />
+              Mis-use / chargeable — bill anyway
+            </label>
+          </div>
+        ) : null}
         <div className="flex gap-2 flex-wrap">
           {[
             { id: 'awaiting_sign_off', label: 'Awaiting sign-off' },
             { id: 'repaired',          label: 'Repaired' },
-            { id: 'closed',            label: 'Close & invoice' },
+            {
+              id: 'closed',
+              label: coverState.covered && !misuseOverride ? 'Close (no invoice)' : 'Close & invoice',
+            },
           ].map(o => (
             <button key={o.id} type="button" onClick={() => setTarget(o.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold border ${target === o.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200'}`}
@@ -2562,10 +2653,15 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
             </button>
           ))}
         </div>
-        <label className="mt-3 flex items-center gap-2 text-xs text-slate-700 select-none">
-          <input type="checkbox" checked={autoInvoice} onChange={e => setAutoInvoice(e.target.checked)} data-testid="complete-auto-invoice" />
-          Generate invoice draft from time + mileage + parts
-        </label>
+        {/* Auto-invoice toggle stays for non-covered cases. For covered
+            cases the toggle is hidden (misuse override controls it
+            from the cover banner). */}
+        {!coverState.covered && (
+          <label className="mt-3 flex items-center gap-2 text-xs text-slate-700 select-none">
+            <input type="checkbox" checked={autoInvoice} onChange={e => setAutoInvoice(e.target.checked)} data-testid="complete-auto-invoice" />
+            Generate invoice draft from time + mileage + parts
+          </label>
+        )}
       </div>
 
       {draftResult && (
@@ -2589,7 +2685,10 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       <div className="sticky bottom-4 space-y-2">
         {/* Iter 220cv — Fast-path close-out. Stops the timer, completes
             the job, generates the invoice draft and emails the branded
-            service report in one tap. */}
+            service report in one tap.
+            Iter 220e0 — label adapts to cover state: covered cases
+            show "close & send report" instead of "close & send
+            invoice". Misuse override re-enables the invoice path. */}
         <button
           onClick={completeAndSendInvoice}
           disabled={busy}
@@ -2597,7 +2696,9 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           data-testid="complete-fast-path"
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          I'm done — close & send the invoice
+          {coverState.covered && !misuseOverride
+            ? "I'm done — close & send the report"
+            : "I'm done — close & send the invoice"}
         </button>
         <button
           onClick={complete}

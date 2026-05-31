@@ -75,6 +75,33 @@ export default function MachineRowCustomFields({ caseId, row, onPatch }) {
     );
   }
 
+  // Iter 220dz — collapse the panel entirely when there's nothing to
+  // show. Previously even a blank "no fields configured" placeholder
+  // ate ~80 px under every machine row on the Equipment tab. We only
+  // render the panel when:
+  //   • At least one resolved field exists (admin pre-configured for
+  //     this job-type / equipment scope in Account Settings), OR
+  //   • The engineer has already saved a value on this row (so the
+  //     panel must stay to keep the value visible/editable), OR
+  //   • The engineer has actively opened the create editor.
+  // A small "+ Custom field" link rides at the bottom of the existing
+  // notes section instead (added below).
+  const hasSavedValues = Object.keys(row.custom_fields || {}).length > 0;
+  if (fields.length === 0 && !creating && !hasSavedValues) {
+    return (
+      <div className="text-right" data-testid={`mrcf-collapsed-${row.id}`}>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-blue-700"
+          data-testid={`mrcf-new-${row.id}`}
+        >
+          <Plus size={9} /> Custom field
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2" data-testid={`mrcf-${row.id}`}>
       <div className="flex items-center justify-between gap-2">
@@ -106,11 +133,7 @@ export default function MachineRowCustomFields({ caseId, row, onPatch }) {
         />
       )}
 
-      {fields.length === 0 ? (
-        <p className="text-[10px] text-slate-400 italic" data-testid={`mrcf-empty-${row.id}`}>
-          No custom fields yet for this machine type. Tap "+ Custom field" to add one (e.g. Drag Factor, Software Version) — it'll auto-load for every {context.equipment_type || 'machine'} you log next time.
-        </p>
-      ) : (
+      {fields.length === 0 ? null : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {fields.map((f) => (
             <div key={f.id} data-testid={`mrcf-field-${row.id}-${f.key}`}>
