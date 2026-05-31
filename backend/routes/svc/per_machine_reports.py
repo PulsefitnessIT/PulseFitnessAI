@@ -86,6 +86,11 @@ class MachineRowIn(BaseModel):
     serviced: bool = False
     cleaned: bool = False
     notes: Optional[str] = Field(default=None, max_length=4000)
+    # Iter 220ea·12 — Per-machine return-visit scoping. The engineer
+    # uses this textarea to capture what *still* needs doing if a
+    # return visit is required. Surfaces on the customer report and
+    # feeds the parts-for-return-visit picker.
+    further_work: Optional[str] = Field(default=None, max_length=4000)
     custom_fields: Optional[dict] = None
 
 
@@ -97,6 +102,7 @@ class MachineRowPatch(BaseModel):
     serviced: Optional[bool] = None
     cleaned: Optional[bool] = None
     notes: Optional[str] = Field(default=None, max_length=4000)
+    further_work: Optional[str] = Field(default=None, max_length=4000)
     custom_fields: Optional[dict] = None
     order_index: Optional[int] = None
 
@@ -220,6 +226,8 @@ async def update_machine(
             updates.setdefault(k, v)
     if "notes" in updates:
         updates["notes"] = (updates["notes"] or "").strip() or None
+    if "further_work" in updates:
+        updates["further_work"] = (updates["further_work"] or "").strip() or None
     updates["updated_at"] = _now()
     await db.svc_work_visit_machines.update_one(
         {**of, "case_id": case_id, "id": row_id},

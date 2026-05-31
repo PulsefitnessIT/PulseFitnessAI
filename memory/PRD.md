@@ -1,3 +1,56 @@
+## Iter 220ea·12 — Per-machine parts + further-work + clean row ✅ (Feb 14, 2026)
+
+Four connected changes to the Equipment tab's expanded machine
+row in `WorkVisitMachinesCard.js` from a live user report.
+
+### 1 · Machine name picker removed from row body
+The `MachineAssetPicker` and its surrounding "Machine" label have
+been deleted from the expanded row. The asset is locked the
+moment the engineer picks "From site" or "New asset"; renaming
+it inline on the case made it possible to drift the snapshot
+away from the canonical equipment record.
+
+### 2 · "Notes / Recommendations" → "Work actioned"
+Label + placeholder text refreshed to make it clear this field
+captures what the engineer *did*, not just observations:
+"e.g. Replaced drive belt, calibrated speed sensor, lubricated
+deck."
+
+### 3 · New "Further work required" field
+A second textarea below "Work actioned" lets the engineer record
+what's still needed on a return visit. Backed by a new
+`further_work` field on the `svc_work_visit_machines` row
+(`MachineRowIn` / `MachineRowPatch` Pydantic models updated;
+4000-char max; normalised the same way as `notes`).
+
+### 4 · Per-machine parts widgets
+Two compact self-fetching widgets live inside the row:
+
+- **`MachineRowPartsUsed`** — POSTs to
+  `/svc/engineer/jobs/{case_id}/parts/use` with
+  `machine_id = row.id`. Renders existing `allocated_parts`
+  filtered to this row's machine_id as emerald chips
+  ("SKU × qty").
+- **`MachineRowPartsForReturn`** — POSTs to
+  `/svc/engineer/parts-requests` with `urgency: 'next_visit'`
+  and the same `machine_id`. Renders pending/approved
+  requests as amber/emerald list rows with a per-request
+  cancel button.
+
+Both widgets share the same `MachineRowPartsPickerInline`
+search-and-qty picker so the UX is consistent. No backend
+changes needed beyond the `further_work` field — the
+`/parts/use` and `/parts-requests` endpoints already accepted
+`machine_id` (iter 220do).
+
+### Tests
+`backend/tests/test_iter_220ea_12_per_machine_parts_and_further_work.py`
+(8 source-level guards) added to `Makefile` regression target.
+168/168 nearby tests pass. End-to-end verified via curl:
+`PATCH /svc/engineer/jobs/{case}/machines/{row}` with
+`further_work` round-trips correctly.
+
+
 ## Iter 220ea·11 — Equipment tab cleanups #2 ✅ (Feb 14, 2026)
 
 Two more cleanups from live user feedback on the Equipment tab:

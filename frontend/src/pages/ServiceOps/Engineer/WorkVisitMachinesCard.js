@@ -21,7 +21,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import {
   Plus, Loader2, Trash2, Copy, Wrench, Sparkles, ChevronDown,
-  ChevronUp, Camera, X, PackagePlus, Package, CheckSquare, Square,
+  ChevronUp, ChevronRight, Camera, X, PackagePlus, Package, CheckSquare, Square,
   ListChecks, Search, Check,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -299,6 +299,7 @@ export default function WorkVisitMachinesCard({ caseId }) {
               key={row.id}
               row={row}
               index={idx}
+              caseId={caseId}
               expanded={expandedId === row.id}
               onExpand={() => setExpandedId(expandedId === row.id ? null : row.id)}
               onPatch={(patch) => patchRow(row.id, patch)}
@@ -310,6 +311,7 @@ export default function WorkVisitMachinesCard({ caseId }) {
               assetOptions={filteredAssets}
               assetSearch={assetSearch}
               setAssetSearch={setAssetSearch}
+              refreshRows={load}
             />
           ))}
         </div>
@@ -669,10 +671,347 @@ function MachineAssetPicker({ row, assetOptions, onPatch }) {
   );
 }
 
+// ─── Iter 220ea·12 · Per-machine parts widgets ────────────────────
+// Two compact inline widgets that surface parts tagged to a single
+// machine row. Both reuse the existing engineer parts endpoints
+// (`/parts/use` for consumed parts, `/parts-requests` for parts
+// the engineer wants ops to order for a return visit). Each widget
+// is self-fetching so it can live inside the per-row expansion
+// without the card having to ferry data through props.
+
+function MachineRowPartsPickerInline({ onPick, onCancel, busy }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [picked, setPicked] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!q || q.length < 2) { setResults([]); return; }
+      setSearching(true);
+      try {
+        const r = await axios.get(`${API}/svc/parts`, {
+          ...auth(), params: { q, limit: 8 },
+        });
+        if (!cancelled) setResults(r.data?.items || []);
+      } catch { if (!cancelled) setResults([]); }
+      finally { if (!cancelled) setSearching(false); }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [q]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-2"
+         data-testid="machine-parts-picker">
+      {!picked ? (
+        <>
+          <div className="relative">
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              autoFocus
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search parts by name or SKU…"
+              className="w-full pl-7 pr-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+              data-testid="machine-parts-search-input"
+            />
+          </div>
+          {searching && (
+            <p className="text-[11px] text-slate-500">Searching…</p>
+          )}
+          {!searching && q.length >= 2 && results.length === 0 && (
+            <p className="text-[11px] text-slate-500">
+              No matches. Use the Parts tab to request an unlisted part.
+            </p>
+          )}
+          {results.length > 0 && (
+            <ul className="space-y-1">
+              {results.map((p) => (
+                <li key={p.sku}>
+                  <button
+                    type="button"
+                    onClick={() => setPicked(p)}
+                    className="w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-blue-50"
+                    data-testid={`machine-parts-pick-${p.sku}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-900 truncate">{p.name || p.sku}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{p.sku}</p>
+                    </div>
+                    <ChevronRight size={12} className="text-slate-400" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full text-center text-[11px] text-slate-500 hover:text-slate-700 underline underline-offset-2"
+            data-testid="machine-parts-picker-cancel"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <div className="rounded-lg bg-white border border-slate-200 px-2 py-1.5">
+            <p className="text-xs font-bold text-slate-900">{picked.name || picked.sku}</p>
+            <p className="text-[10px] text-slate-500 font-mono">{picked.sku}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Qty</label>
+            <input
+              type="number"
+              min={1}
+              max={999}
+              value={qty}
+              onChange={(e) => setQty(Math.max(1, Math.min(999, parseInt(e.target.value || '1', 10))))}
+              className="w-16 text-xs px-2 py-1 border border-slate-200 rounded-lg bg-white"
+              data-testid="machine-parts-qty-input"
+            />
+            <button
+              type="button"
+              onClick={() => setPicked(null)}
+              className="ml-auto text-[10px] text-slate-500 underline"
+              data-testid="machine-parts-pick-back"
+            >
+              Change
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] font-extrabold uppercase tracking-wider"
+              data-testid="machine-parts-picker-cancel-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => onPick(picked, qty)}
+              disabled={busy}
+              className="flex-1 px-2 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-extrabold uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50"
+              data-testid="machine-parts-picker-confirm"
+            >
+              {busy ? 'Saving…' : 'Add'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MachineRowPartsUsed({ row, caseId, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState([]);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/jobs/${caseId}`, auth());
+      const allocated = r.data?.allocated_parts || [];
+      setItems(allocated.filter(p => p.machine_id === row.id));
+    } catch { setItems([]); }
+  }, [caseId, row.id]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async (part, qty) => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/svc/engineer/jobs/${caseId}/parts/use`, {
+        part_sku: part.sku,
+        qty,
+        notes: '',
+        machine_id: row.id,
+        machine_name: row.asset_name || null,
+      }, auth());
+      notify.success(`${part.sku} × ${qty} added`);
+      setOpen(false);
+      await load();
+      onChange?.();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not add part');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div data-testid={`machine-parts-used-${row.id}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          Parts used {items.length > 0 ? `· ${items.length}` : ''}
+        </label>
+        {!open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+            data-testid={`machine-parts-used-add-${row.id}`}
+          >
+            <Plus size={10} /> Tag part
+          </button>
+        )}
+      </div>
+      {items.length === 0 && !open && (
+        <p className="text-[11px] text-slate-400 italic">No parts tagged to this machine yet.</p>
+      )}
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {items.map((p) => (
+            <span
+              key={p.id}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold"
+              data-testid={`machine-parts-used-chip-${p.id}`}
+            >
+              <Check size={10} />
+              <span className="font-mono">{p.part_sku}</span>
+              <span>× {p.qty}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div className="mt-2">
+          <MachineRowPartsPickerInline
+            onPick={add}
+            onCancel={() => setOpen(false)}
+            busy={busy}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MachineRowPartsForReturn({ row, caseId, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState([]);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/parts-requests`, {
+        ...auth(), params: { case_id: caseId },
+      });
+      const all = r.data?.items || [];
+      setItems(all.filter(p => p.machine_id === row.id));
+    } catch { setItems([]); }
+  }, [caseId, row.id]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async (part, qty) => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/svc/engineer/parts-requests`, {
+        case_id: caseId,
+        part_sku: part.sku,
+        part_name: part.name || part.sku,
+        qty,
+        urgency: 'next_visit',
+        notes: 'Required for return visit',
+        machine_id: row.id,
+        machine_name: row.asset_name || null,
+      }, auth());
+      notify.success('Added to parts request');
+      setOpen(false);
+      await load();
+      onChange?.();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not request part');
+    } finally { setBusy(false); }
+  };
+
+  const cancel = async (id) => {
+    if (!window.confirm('Cancel this parts request?')) return;
+    try {
+      await axios.delete(`${API}/svc/engineer/parts-requests/${id}`, auth());
+      await load();
+      notify.success('Request cancelled');
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not cancel');
+    }
+  };
+
+  return (
+    <div data-testid={`machine-parts-return-${row.id}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          Parts for return visit {items.length > 0 ? `· ${items.length}` : ''}
+        </label>
+        {!open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+            data-testid={`machine-parts-return-add-${row.id}`}
+          >
+            <Plus size={10} /> Tag part to order
+          </button>
+        )}
+      </div>
+      {items.length === 0 && !open && (
+        <p className="text-[11px] text-slate-400 italic">No return-visit parts tagged.</p>
+      )}
+      {items.length > 0 && (
+        <ul className="space-y-1">
+          {items.map((p) => (
+            <li
+              key={p.id}
+              className={`flex items-center justify-between gap-2 px-2 py-1 rounded-lg border text-[11px] ${
+                p.status === 'pending'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : p.status === 'approved'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+              data-testid={`machine-parts-return-row-${p.id}`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold truncate">
+                  <span className="font-mono">{p.part_sku}</span> × {p.qty}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide opacity-75">{p.status}</p>
+              </div>
+              {p.status === 'pending' && (
+                <button
+                  type="button"
+                  onClick={() => cancel(p.id)}
+                  className="text-rose-600 hover:text-rose-700 p-1"
+                  aria-label="Cancel request"
+                  data-testid={`machine-parts-return-cancel-${p.id}`}
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && (
+        <div className="mt-2">
+          <MachineRowPartsPickerInline
+            onPick={add}
+            onCancel={() => setOpen(false)}
+            busy={busy}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function MachineRow({
-  row, index, expanded, onExpand, onPatch, onDelete, onCopyDown,
+  row, index, caseId, expanded, onExpand, onPatch, onDelete, onCopyDown,
   onAttachPhoto, onRemovePhoto,
-  showCopyDown, assetOptions, assetSearch: _assetSearch, setAssetSearch: _setAssetSearch,
+  showCopyDown, assetOptions: _assetOptions,
+  assetSearch: _assetSearch, setAssetSearch: _setAssetSearch,
+  refreshRows,
 }) {
   const notesRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -757,30 +1096,54 @@ function MachineRow({
       </div>
 
       {expanded && (
-        <div className="mt-3 space-y-2.5 pl-8">
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Machine</label>
-            <MachineAssetPicker
-              row={row}
-              assetOptions={assetOptions}
-              onPatch={onPatch}
-            />
-          </div>
+        <div className="mt-3 space-y-3 pl-8">
+          {/* Iter 220ea·12 — Machine name picker removed. The
+              asset is locked from "From site" / "New asset", so
+              the engineer shouldn't be able to overwrite it inline. */}
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Notes / Recommendations</label>
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              Work actioned
+            </label>
             <textarea
               ref={notesRef}
               value={row.notes || ''}
               onChange={(e) => onPatch({ notes: e.target.value })}
               rows={3}
               className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
-              placeholder="e.g. Shock cord worn — recommend replacement. Million-Meter calibration check needed."
+              placeholder="e.g. Replaced drive belt, calibrated speed sensor, lubricated deck."
               maxLength={4000}
               data-testid={`machine-notes-${row.id}`}
             />
             <NotePresetChips onInsert={insertNote} currentText={row.notes || ''} />
           </div>
+
+          {/* Iter 220ea·12 — Parts used on this visit. Surfaces
+              the existing parts-tagging flow inline on the row so
+              the engineer can link parts to *this specific machine*
+              without leaving the Equipment tab. */}
+          <MachineRowPartsUsed row={row} caseId={caseId} onChange={refreshRows} />
+
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              Further work required
+            </label>
+            <textarea
+              value={row.further_work || ''}
+              onChange={(e) => onPatch({ further_work: e.target.value })}
+              rows={2}
+              className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+              placeholder="e.g. Console PCB needs replacing on return visit."
+              maxLength={4000}
+              data-testid={`machine-further-work-${row.id}`}
+            />
+          </div>
+
+          {/* Iter 220ea·12 — Parts to order for the return visit.
+              Wraps the existing parts-request endpoint with a
+              row-scoped picker so the parts the engineer flags
+              here are tagged to this machine for ops to action. */}
+          <MachineRowPartsForReturn row={row} caseId={caseId} onChange={refreshRows} />
 
           <MachineRowCustomFields row={row} onPatch={onPatch} />
 
