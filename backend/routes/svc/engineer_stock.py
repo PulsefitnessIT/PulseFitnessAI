@@ -293,26 +293,101 @@ async def my_stock_history(
 async def parts_used_on_asset(
     machine_id: Optional[str] = Query(None),
     machine_name: Optional[str] = Query(None),
-    limit: int = Query(100, ge=1, le=300),
+    asset_id: Optional[str] = Query(None),
+    serial: Optional[str] = Query(None),
+    limit: int = Query(200, ge=1, le=500),
     user=Depends(get_current_user),
 ):
-    """Parts-used history tagged to a specific machine/asset.
+    """Parts-used history for a specific asset/machine + CAPEX signal.
 
-    Powers the per-asset 'parts fitted' timeline (repeat-failure / CAPEX
-    signal). Matches the machine tag carried on consume movements.
+    Resolution order:
+      • ``asset_id`` / ``serial`` → resolve the asset's cases, then its
+        consume movements (works retroactively — movements don't store
+        the asset key directly, the case does).
+      • ``machine_id`` / ``machine_name`` → direct movement-tag match.
+
+    Returns the fitted-parts timeline plus aggregates that surface
+    repeat failures and lifetime spend (the CAPEX replace-vs-repair
+    signal): total qty/value, distinct visits, and per-part counts with
+    a ``repeat_parts`` list (any part fitted ≥ 2 times).
     """
     of = _of(user)
-    if not machine_id and not machine_name:
-        return {"items": [], "count": 0, "total_qty": 0}
+    show_cost = _can_see_cost(user)
     q: dict = {**of, "movement_type": "consume"}
+
     if machine_id:
         q["machine_id"] = machine_id
     elif machine_name:
-        q["machine_name"] = {"$regex": f"^{machine_name}$", "$options": "i"}
+        q["machine_name"] = {"$regex": f"^{re.escape(machine_name)}$", "$options": "i"}
+    elif asset_id or serial:
+        ors = []
+        if asset_id:
+            ors.append({"asset_id": asset_id})
+        if serial:
+            ors.append({"asset_serial": serial})
+        cases = await db.svc_cases.find(
+            {**of, "$or": ors}, {"_id": 0, "id": 1}).to_list(3000)
+        case_ids = [c["id"] for c in cases]
+        if not case_ids:
+            return _empty_asset()
+        q["case_id"] = {"$in": case_ids}
+    else:
+        return _empty_asset()
+
     rows = await db.svc_part_movements.find(q, {"_id": 0}) \
         .sort("at", -1).limit(limit).to_list(limit)
-    total_qty = sum(int(r.get("qty") or 0) for r in rows)
-    return {"items": rows, "count": len(rows), "total_qty": total_qty}
+
+    total_qty = 0
+    total_value = 0.0
+    visits: set[str] = set()
+    by_part: dict[str, dict] = {}
+    for r in rows:
+        qty = int(r.get("qty") or 0)
+        val = float(r.get("list_price_gbp") or 0) * qty
+        total_qty += qty
+        total_value += val
+        if r.get("case_id"):
+            visits.add(r["case_id"])
+        sku = r.get("part_sku") or "?"
+        b = by_part.setdefault(sku, {
+            "part_sku": sku, "part_name": r.get("part_name") or sku,
+            "times_fitted": 0, "qty": 0, "value": 0.0, "last_at": None,
+        })
+        b["times_fitted"] += 1
+        b["qty"] += qty
+        b["value"] = round(b["value"] + val, 2)
+        if not b["last_at"] or (r.get("at") or "") > b["last_at"]:
+            b["last_at"] = r.get("at")
+
+    repeat_parts = sorted(
+        [p for p in by_part.values() if p["times_fitted"] >= 2],
+        key=lambda p: p["times_fitted"], reverse=True)
+
+    if not show_cost:
+        for r in rows:
+            r.pop("list_price_gbp", None)
+        for p in by_part.values():
+            p.pop("value", None)
+        for p in repeat_parts:
+            p.pop("value", None)
+
+    return {
+        "items": rows,
+        "count": len(rows),
+        "total_qty": total_qty,
+        "total_value": round(total_value, 2) if show_cost else None,
+        "visit_count": len(visits),
+        "distinct_parts": len(by_part),
+        "repeat_parts": repeat_parts,
+        "has_repeat_failures": bool(repeat_parts),
+        "show_value": show_cost,
+    }
+
+
+def _empty_asset() -> dict:
+    return {"items": [], "count": 0, "total_qty": 0, "total_value": 0.0,
+            "visit_count": 0, "distinct_parts": 0, "repeat_parts": [],
+            "has_repeat_failures": False, "show_value": False}
 
 
 # ─────────────────────────────────────────────────────────────────
