@@ -52,8 +52,12 @@ auto-enter the sitemap. Solution content lives in
 `frontend/src/pages/Marketing/Landing/solutionsData.js` (keep slugs in sync
 with `SOLUTION_SLUGS`). Manufacturer pages are data-driven from the
 `manufacturer_catalogue` collection — a manufacturer earns a page once it
-has >= 6 quality products (thin/marketing-heavy catalogues are excluded).
-New manufacturers appear automatically as the catalogue ingests them.
+has >= 6 **serviceable machines**. The product filter only lists equipment
+we can genuinely service (moving parts / electronics: cardio + selectorized
+/ plate-loaded / cable machines); free weights, benches, racks, plates,
+flooring, accessories, tools and apparel are excluded (we must not claim to
+service items with no moving parts). New manufacturers appear automatically
+as the catalogue ingests them.
 
 ## Note: canonical host
 `index.html` + the sitemap use **`www.gymaxisai.com`**; the autopilot's

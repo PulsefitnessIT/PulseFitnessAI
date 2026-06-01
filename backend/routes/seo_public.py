@@ -158,6 +158,55 @@ def _looks_like_product(title: str, page_url: str) -> bool:
     return True
 
 
+# We only claim to *service* equipment with moving parts / electronics.
+# A product must match this allowlist of serviceable machine types AND must
+# NOT match the non-serviceable list below (free weights, benches, racks,
+# accessories, apparel, flooring — anything with no moving parts).
+_SERVICEABLE_MACHINE = re.compile(
+    r"(treadmill|runner|\brunning machine|\bbike\b|e-?bike|cycle|cycling|\bspin\b|spinning"
+    r"|elliptical|cross[\s-]?trainer|crosstrainer|\brower\b|rowing|trakrow|\berg\b"
+    r"|ski[\s-]?erg|stepper|step machine|climber|\bstair|jacobs ladder|recumbent|upright"
+    r"|airbike|air[\s-]?bike|assault|\bair\b|\btrainer\b|\batom\b|atomx|proton|nucleus"
+    r"|\bpress\b|pulldown|pull[\s-]?down|\brow\b|\bcurl\b|extension|\bfly\b|\bpec\b"
+    r"|pec[\s-]?dec|delt|\braise\b|adductor|abductor|\bthigh\b|calf|abdominal|crunch"
+    r"|glute|hack[\s-]?squat|smith|\bcable\b|crossover|functional|multi[\s-]?gym"
+    r"|jungle|\bpulley\b|motioncage|motion[\s-]?cage|leverage|\bchin\b|converging"
+    r"|diverging|iso[\s-]?lateral|plate[\s-]?loaded|selectorized|pin[\s-]?loaded"
+    r"|\bfts\b|vibration[\s-]?plate|power[\s-]?plate|dual[\s-]?adjustable|\bdip\b)",
+    re.IGNORECASE,
+)
+_NON_SERVICEABLE = re.compile(
+    r"(dumbbell|kettlebell|barbell|weight[\s-]?plate|bumper[\s-]?plate|olympic[\s-]?plate"
+    r"|plate[\s-]?tree|plate[\s-]?rack|\bcollar\b|medicine[\s-]?ball|slam[\s-]?ball"
+    r"|wall[\s-]?ball|\bbench\b|\brack\b|\bcage\b|\bstool\b|\btree\b|\bstorage\b"
+    r"|\bpedal|saddle|\bmat\b|flooring|\btile\b|\bhandle|attachment|\bgrip\b|\bstem\b"
+    r"|dongle|charger|power[\s-]?supply|\bbattery\b|sticker|\bstrap\b|\blever\b"
+    r"|\bbundle\b|\bkit\b|holder|\bsensor\b|\bfan\b|seat[\s-]?post|\bpost\b|\btape\b"
+    r"|\bcream\b|chamois|bum butter|stabilis|stabiliz|\bfoot\b|\bshort|jersey|\bsock"
+    r"|\bshirt\b|\bglove|clothing|apparel|hyperice|hypervolt|normatec|venom|massage"
+    r"|foam[\s-]?roll|percussion|monitor service|\bapp\b|software|\bgift|\bbar\b(?!bell)"
+    r"|reconditioned|\bgrade\b|\bdraft\b|essentials|ultimate bundle|summer goals"
+    r"|spring bundle|workout bundle|\bbag\b|\brope\b|skipping|resistance band|\bband\b"
+    r"|\bpad\b|\bpads\b|\bdisc\b|connector|\brig\b|rebounder|rip trainer|\btrx\b"
+    r"|\btest\b|\biter\d|boxing|balance disc|\bstation\b|spotter|\bpin\b(?!.?load)"
+    r"|\bring\b|\bball\b|\bplate\b(?![\s-]?load))",
+    re.IGNORECASE,
+)
+# Suffixes that mark a duplicate/variant of an existing machine, stripped
+# before dedup so "Wattbike Atom - Reconditioned, Grade 1" folds into "Atom".
+_VARIANT_SUFFIX = re.compile(
+    r"\s*[-–—]\s*(reconditioned|grade\s*\d|refurbished|draft|ex[\s-]?demo).*$",
+    re.IGNORECASE,
+)
+
+
+def _is_serviceable_machine(title: str) -> bool:
+    """True only for equipment we can genuinely service (moving parts or
+    electronics) — excludes free weights, benches, racks, accessories,
+    apparel and flooring."""
+    return bool(_SERVICEABLE_MACHINE.search(title)) and not _NON_SERVICEABLE.search(title)
+
+
 async def _manufacturer_names() -> list[dict]:
     """All distinct manufacturers in the catalogue (raw counts)."""
     pipeline = [
@@ -193,6 +242,10 @@ async def _collect_products(name: str, *, limit: int = 24) -> list[dict]:
         clean = re.split(r"\s[|–—]\s", title)[0].strip()
         clean = re.sub(r"\s*-\s*" + re.escape(name) + r"\s*$", "", clean,
                        flags=re.IGNORECASE).strip()
+        clean = _VARIANT_SUFFIX.sub("", clean).strip()
+        # Only list equipment we can genuinely service (moving parts).
+        if not _is_serviceable_machine(clean):
+            continue
         key = clean.lower()
         if not clean or key == name.lower() or key in seen:
             continue

@@ -13,12 +13,41 @@ from utils.database import db
 from routes.seo_public import (
     MANUFACTURER_MIN_PRODUCTS,
     SOLUTION_SLUGS,
+    _is_serviceable_machine,
     _looks_like_product,
     _slugify,
     build_sitemap_xml,
     get_landing_manufacturers,
     get_manufacturer_detail,
 )
+
+
+# ───────────── Serviceable-machine allowlist ──────────────────────
+
+def test_serviceable_machine_accepts_real_machines():
+    for t in ["Lat Pulldown", "Incline Chest Press", "Dual Action Leg Press",
+              "MotionCage Package 1", "Wattbike Atom", "Impulse RT950 Treadmill",
+              "Recumbent Bike", "Elliptical Cross Trainer", "Dual Pulley Functional Trainer",
+              "Seated Calf Raise", "Cable Crossover Machine", "Group Cycle"]:
+        assert _is_serviceable_machine(t), t
+
+
+def test_serviceable_machine_rejects_non_serviceable():
+    # apparel, free weights, accessories, flooring, benches/racks, no moving parts
+    for t in ["Women's Virtus Shorts", "Eleiko Vulcano Dumbbells", "Wellgo E148 pedals",
+              "ANT+ dongle", "Universal charger", "Origin 10mm Rubber Interlocking Floor Tile",
+              "Olympic Spring Collars", "Commercial Flat/Incline Bench", "Commercial Squat Rack",
+              "Olympic Plate Tree", "Atom Arm Pads", "Origin Air Balance Disc",
+              "TRX Rip Trainer", "Hyperice Hypervolt 2 Pro", "Studio Barbell",
+              "V Handle Cable Attachment", "Wattbike racing saddle", "Pedal Straps - Pair",
+              "Iter216e Test Treadmill", "Functional Rig Single Connector"]:
+        assert not _is_serviceable_machine(t), t
+
+
+def test_press_machines_not_dropped_as_press_release():
+    # regression: an over-broad press filter once dropped these
+    for t in ["Leg Press", "Chest Press", "Shoulder Press"]:
+        assert _is_serviceable_machine(t), t
 
 
 # ───────────────────── Product quality filter ─────────────────────

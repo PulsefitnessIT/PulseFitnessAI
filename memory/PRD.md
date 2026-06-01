@@ -1,3 +1,17 @@
+## Iter 220ea·29b — Manufacturer pages: serviceable-machines-only filter ✅ (Feb, 2026)
+
+User flagged that the `/maintenance/*` product grids listed clothing, tools, accessories and no-moving-part items (we must not claim to *service* those). Replaced the "remove the noise" filter with a **positive allowlist of serviceable machines** in `routes/seo_public.py`:
+- `_is_serviceable_machine()` = `_SERVICEABLE_MACHINE` (cardio: treadmill/bike/cycle/elliptical/rower/stepper/climber; strength: press/pulldown/row/curl/extension/fly/pec/raise/adductor/calf/ab/glute/hack squat/smith/cable/functional trainer/multi-gym/pulley/motioncage/leverage; etc.) AND NOT `_NON_SERVICEABLE` (free weights, benches, racks, plates, collars, flooring, mats, pedals, saddles, handles, cable attachments, chargers/dongles/batteries, apparel, recovery/massage, bundles, pads, discs, rigs/connectors, test seed data).
+- Variant suffixes ("- Reconditioned, Grade 1") stripped + deduped before counting.
+- A manufacturer now needs >= 6 **serviceable machines** (not just products) to earn a page.
+
+**Result:** Hoist Fitness (24), Origin Fitness (24), Pulse Fitness (16) — all genuine strength/cardio machines with real images. Wattbike (only 5 genuine bikes in catalogue) and Precor (mostly marketing) correctly excluded until the catalogue has more serviceable machines. Verified live via screenshots (Origin grid = Leg Press, Chest Press, Lat Pulldown, Recumbent Bike, etc.). Also fixed an over-broad `\bpress\b` filter that had been dropping "Leg/Chest/Shoulder Press" machines.
+
+**Testing:** lint clean; 9 landing tests (incl. serviceable allowlist accept/reject cases) green; docs-verify PASS (51 docs). Files: routes/seo_public.py, tests/test_iter_220ea_29_seo_landing.py, docs/SEO_P0_ACTIVATION.md.
+
+---
+
+
 ## Iter 220ea·29 — SEO P1: programmatic solution + manufacturer landing pages ✅ (Feb, 2026)
 
 Follow-on to the P0 SEO foundation. Built programmatic, keyword-targeted landing pages that auto-feed the dynamic sitemap — turning the manufacturer catalogue + a content data file into ranking landing pages for both the manager and engineer audiences. Backend + frontend; lint clean (py+js); 11 new pytests; pages verified live via screenshots; docs-verify PASS.
