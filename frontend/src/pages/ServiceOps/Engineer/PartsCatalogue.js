@@ -8,9 +8,9 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, Search, Upload, Loader2, ChevronLeft, ChevronRight,
+  ArrowLeft, Search, Loader2, ChevronLeft, ChevronRight,
   Package, PoundSterling, Pencil, X, Boxes,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -30,6 +30,7 @@ const STATUS = [
 
 export default function PartsCatalogue() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState({ items: [], total: 0, pages: 1, show_cost: false, can_manage: false });
   const [facets, setFacets] = useState({ categories: [], manufacturers: [], total: 0 });
   const [loading, setLoading] = useState(true);
@@ -66,6 +67,23 @@ export default function PartsCatalogue() {
   }, [load]);
   useEffect(() => { setPage(1); }, [search, category, status]);
 
+  // Iter 220ea·21 — Import is launched from Account Settings → Stock
+  // (?import=1), not from a button on this screen. Open the wizard once
+  // the catalogue confirms the user can manage parts.
+  useEffect(() => {
+    if (searchParams.get('import') === '1' && data.can_manage) {
+      setImporting(true);
+    }
+  }, [searchParams, data.can_manage]);
+
+  const closeImport = () => {
+    setImporting(false);
+    if (searchParams.get('import')) {
+      searchParams.delete('import');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50" data-testid="parts-catalogue-page">
       {/* Header */}
@@ -78,12 +96,6 @@ export default function PartsCatalogue() {
             <h1 className="text-lg font-extrabold text-slate-900 leading-none">Parts Catalogue</h1>
             <p className="text-xs text-slate-500 mt-0.5">{facets.total} parts</p>
           </div>
-          {data.can_manage && (
-            <button onClick={() => setImporting(true)} data-testid="catalogue-import-btn"
-                    className="px-3.5 h-10 rounded-xl bg-blue-600 text-white text-sm font-bold flex items-center gap-1.5">
-              <Upload className="w-4 h-4" /> Import
-            </button>
-          )}
         </div>
         <div className="max-w-5xl mx-auto px-4 pb-3 space-y-2">
           <div className="relative">
@@ -119,13 +131,7 @@ export default function PartsCatalogue() {
           <div className="py-16 text-center" data-testid="catalogue-empty">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400"><Boxes className="w-7 h-7" /></div>
             <p className="mt-3 font-bold text-slate-700">No parts found</p>
-            <p className="text-sm text-slate-400 mt-1">{data.can_manage ? 'Import a spreadsheet to get started.' : 'Try a different search.'}</p>
-            {data.can_manage && (
-              <button onClick={() => setImporting(true)} data-testid="catalogue-empty-import-btn"
-                      className="mt-4 inline-flex items-center gap-1.5 px-4 h-11 rounded-xl bg-blue-600 text-white text-sm font-bold">
-                <Upload className="w-4 h-4" /> Import a spreadsheet
-              </button>
-            )}
+            <p className="text-sm text-slate-400 mt-1">{data.can_manage ? 'Import parts from Account settings → Stock → Import parts.' : 'Try a different search.'}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -173,7 +179,7 @@ export default function PartsCatalogue() {
       </div>
 
       {importing && (
-        <PartsImportWizard onClose={() => setImporting(false)}
+        <PartsImportWizard onClose={closeImport}
                            onComplete={() => { load(); loadFacets(); }} />
       )}
       {edit && (

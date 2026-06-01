@@ -141,7 +141,25 @@ def test_jobdetail_parts_use_and_consume_route_through_outbox():
     assert "parts-used-charge-" in src
 
 
-def test_catalogue_edit_drawer_has_cover_category_select():
-    src = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "PartsCatalogue.js").read_text()
-    assert "edit-cover-category" in src
-    assert "catalogue-empty-import-btn" in src
+def test_import_moved_to_account_settings_stock_section():
+    cat = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "PartsCatalogue.js").read_text()
+    settings = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "EngineerAccountSettings.js").read_text()
+    # cover-category select stays on the catalogue edit drawer
+    assert "edit-cover-category" in cat
+    # import buttons removed from the main catalogue screen
+    assert "catalogue-import-btn" not in cat
+    assert "catalogue-empty-import-btn" not in cat
+    # catalogue auto-opens the wizard only when arriving from settings
+    assert "import" in cat and "can_manage" in cat
+    # import now lives in Account Settings → Stock
+    assert "engineer-settings-section-stock" in settings
+    assert "engineer-settings-parts-import-row" in settings
+    assert "engineer-settings-catalogue-row" in settings
+
+
+def test_text_white_preserved_on_slate_dark_buttons():
+    # Root-cause fix for the "black button" bug: slate-900/800 dark
+    # buttons must keep white text in the light theme.
+    css = (FRONTEND / "index.css").read_text()
+    assert ".bg-slate-900.text-white" in css
+    assert ".bg-slate-800.text-white" in css

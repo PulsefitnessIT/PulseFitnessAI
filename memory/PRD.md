@@ -1,3 +1,32 @@
+## Iter 220ea·22 — Import moved to settings · black-button fix · 10k rows ✅ (Feb, 2026)
+
+Three live user requests after Pulse's 6,139-part import landed cleanly:
+
+1. **Import limit 5,000 → 10,000 rows** (`parts_import.py` `MAX_ROWS`;
+   wizard hint updated). Pulse's 8k+ catalogues now fit one file; >10k
+   returns a clear "split the file" 413. Verified live (6k parses, 11k
+   rejected).
+2. **"Black buttons" bug (root cause)** — `index.css` light-theme rule
+   `[data-theme="light"] .text-white { color: var(--theme-text) }` forces
+   dark text, with an allow-list that preserves white only on specific
+   backgrounds (blue/green/red/amber/zinc…). `bg-slate-900`/`bg-slate-800`
+   were **missing** → every dark slate button rendered as a black blob
+   with invisible text (catalogue status chips, import wizard "Done",
+   stock filters, etc.). Added slate-900/800 to the allow-list — fixes it
+   app-wide. Verified: Active chip text now `rgb(255,255,255)`.
+3. **Import tucked into settings** — removed the Import button from the
+   main Catalogue screen (header + empty-state). Added an **Account
+   Settings → Stock** section (`EngineerAccountSettings.js`) with "Parts
+   catalogue" + "Import parts" rows. "Import parts" navigates to
+   `/svc/engineer/catalogue?import=1`, which auto-opens the wizard (gated
+   on `can_manage`) and strips the query param on close. Verified live.
+
+**Tested:** `tests/test_iter_220ea_21_*` updated (18 pass) — asserts
+import removed from catalogue, present in settings Stock section, and
+the slate-white CSS allow-list. Lint clean (ruff + eslint).
+
+
+
 ## Iter 220ea·21 — Stock Phase 3: Contract-cover on parts + offline "parts used" ✅ (Feb, 2026)
 
 Phase 3 of the Stock Control system. Two deliverables, both built on

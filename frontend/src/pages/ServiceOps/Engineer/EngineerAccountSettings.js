@@ -22,6 +22,7 @@ import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
   Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
+  Boxes,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
@@ -373,6 +374,31 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               />
             </section>
           )}
+
+          {/* Iter 220ea·21 — Stock & parts. Import is tucked away here
+              (off the main catalogue screen) so bulk-import options live
+              only in settings. */}
+          <section data-testid="engineer-settings-section-stock">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Stock</p>
+            <div className="space-y-2">
+              <Row
+                icon={Boxes}
+                accent="#0f766e"
+                title="Parts catalogue"
+                subtitle="Browse, search and edit your parts catalogue."
+                onClick={() => { onClose(); navigate('/svc/engineer/catalogue'); }}
+                testid="engineer-settings-catalogue-row"
+              />
+              <Row
+                icon={Upload}
+                accent="#1d4ed8"
+                title="Import parts"
+                subtitle="Bulk-add or update parts from a CSV / Excel spreadsheet."
+                onClick={() => { onClose(); navigate('/svc/engineer/catalogue?import=1'); }}
+                testid="engineer-settings-parts-import-row"
+              />
+            </div>
+          </section>
 
           {/* Iter 220 — Work-report custom fields */}
           <section data-testid="engineer-settings-section-work-reports">
