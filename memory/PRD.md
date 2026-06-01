@@ -1,3 +1,38 @@
+## Iter 220ea·22b — Multi-part transfer + import to warehouse/van ✅ (Feb, 2026)
+
+Two user requests on top of Phase 4:
+
+**1. Multi-part stock transfer (cart).**
+- Backend `POST /svc/admin/stock/transfer-batch` — pick From/To once, send
+  `items:[{part_sku, qty}]`. Validates EVERY line first (part exists +
+  enough at source); if any line is short, nothing is applied and a 409
+  returns a structured `failures` list. All-or-nothing apply writes paired
+  `transfer_out`/`transfer_in` movements per line under one `transfer_id`;
+  `Idempotency-Key` dedupe. Single `/transfer` kept for back-compat.
+- Frontend `AdminStock.js` TransferTab rebuilt as a **cart**: search → pick
+  → qty → Add (repeat), cart list with per-line remove, one "Transfer N
+  parts" submit. Shortfall failures surfaced inline in the toast.
+
+**2. Import stock into the main warehouse OR an engineer's van.**
+- Backend `parts_import.py` commit now takes `options.stock_location`
+  (`catalogue` | `warehouse` | `van`) + `qty_mode` (`set`|`adjust`) +
+  `target_engineer_id`. Mapped Quantity column lands in `svc_warehouse_stock`
+  (location=warehouse) or `svc_van_stock` for the chosen engineer; catalogue
+  = details only, no stock written. Legacy `van_qty_mode` still honoured.
+  Summary/audit carry `stock_location` + `stock_lines`.
+- Frontend `PartsImportWizard.js` Options step: **Stock destination** picker
+  (Warehouse / Engineer van + engineer dropdown / Catalogue only) shown when
+  a Quantity column is mapped; default = Warehouse. Engineers loaded from
+  `/svc/admin/stock/locations`. Done step relabels to Warehouse/Van lines.
+
+**Tested:** test_iter_220ea_22 extended (18 tests) — batch validation
+(400/400/409+failures) + import warehouse source guard + cart/destination
+front-end guards. Live e2e: batch van→warehouse (over-qty 409, happy,
+idempotent) + warehouse import (WHTEST → warehouse stock). All test data
+restored (warehouse 0, van intact, catalogue 6,139). Lint clean.
+
+
+
 ## Iter 220ea·22 — Stock Phase 4: Office/Admin stock overview ✅ (Feb, 2026)
 
 Office-side stock management on the existing stock collections

@@ -129,6 +129,53 @@ def test_stock_take_requires_counts(master_admin_token_session):
     assert r.status_code == 400, r.text
 
 
+# ───────────────── batch transfer validation (no mutation) ────────
+
+def test_transfer_batch_requires_items(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/transfer-batch",
+                      json={"from": {"type": "warehouse"},
+                            "to": {"type": "van", "engineer_id": "x"}, "items": []},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 400, r.text
+
+
+def test_transfer_batch_same_src_dest(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/transfer-batch",
+                      json={"from": {"type": "warehouse"}, "to": {"type": "warehouse"},
+                            "items": [{"part_sku": "X", "qty": 1}]},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 400, r.text
+
+
+def test_transfer_batch_insufficient_returns_failures(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    # warehouse is empty in this org → any real qty from warehouse fails with
+    # a structured failures list (404-for-part or 409-for-stock).
+    r = requests.post(f"{BASE}/api/svc/admin/stock/transfer-batch",
+                      json={"from": {"type": "warehouse"},
+                            "to": {"type": "van", "engineer_id": "someone"},
+                            "items": [{"part_sku": "DEFINITELY-NOT-REAL-SKU", "qty": 1}]},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 409, r.text
+    detail = r.json().get("detail")
+    assert isinstance(detail, dict) and isinstance(detail.get("failures"), list)
+
+
+# ───────────────────── import stock destination ──────────────────
+
+def test_import_commit_supports_warehouse_destination():
+    """Source guard: commit honours options.stock_location warehouse/van."""
+    src = (Path(__file__).resolve().parents[1] / "routes" / "svc" / "parts_import.py").read_text()
+    assert "stock_location" in src
+    assert "svc_warehouse_stock" in src
+    assert '"location": "warehouse"' in src
+
+
 # ───────────────────── frontend source guards ─────────────────────
 
 def test_admin_stock_page_has_all_tabs():
@@ -141,6 +188,21 @@ def test_admin_stock_page_has_all_tabs():
                 "admin-stock-overview", "admin-stock-transfer",
                 "admin-stock-stocktake", "admin-stock-crossorg"):
         assert tid in src, f"missing {tid}"
+
+
+def test_transfer_is_multi_part_cart():
+    src = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "AdminStock.js").read_text()
+    # multi-part cart wired to the batch endpoint
+    assert "transfer-batch" in src
+    assert "transfer-cart" in src
+    assert "transfer-add-line" in src
+
+
+def test_import_wizard_has_stock_destination_picker():
+    src = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "PartsImportWizard.js").read_text()
+    assert "opt-stock-location" in src
+    assert "stock_location" in src
+    assert "opt-target-engineer" in src
 
 
 def test_admin_stock_route_and_entrypoints():

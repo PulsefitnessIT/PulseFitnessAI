@@ -420,7 +420,17 @@ async def commit_import(body: dict, user=Depends(get_current_user)):
     mapping = body.get("mapping") or {}
     options = body.get("options") or {}
     mode = (options.get("mode") or "upsert").lower()          # add_new|update_existing|upsert
-    van_mode = (options.get("van_qty_mode") or "set").lower()  # set|adjust|ignore
+    # Iter 220ea·22 — stock destination: where mapped quantities land.
+    #   catalogue → don't touch stock · warehouse → svc_warehouse_stock
+    #   van → svc_van_stock for target_engineer_id
+    van_mode = (options.get("van_qty_mode") or "set").lower()  # set|adjust|ignore (legacy)
+    stock_location = (options.get("stock_location") or "").lower()
+    if stock_location not in ("catalogue", "warehouse", "van"):
+        # Back-compat: derive from the legacy van_qty_mode.
+        stock_location = "catalogue" if van_mode == "ignore" else "van"
+    qty_mode = (options.get("qty_mode") or van_mode or "set").lower()  # set|adjust
+    if qty_mode not in ("set", "adjust"):
+        qty_mode = "set"
     skip_dupes = bool(options.get("skip_duplicates", True))
     target_eng = options.get("target_engineer_id") or user["id"]
 
@@ -480,41 +490,53 @@ async def commit_import(body: dict, user=Depends(get_current_user)):
         else:
             updated += 1
 
-        # Van quantity (optional)
-        if van_mode != "ignore":
+        # Stock quantity (optional) → warehouse or a chosen engineer's van.
+        if stock_location != "catalogue":
             qnum = _to_num(m.get("van_qty"))
             if qnum is not None:
                 qty = int(qnum)
-                vset = {"updated_at": _now()}
+                sset = {"updated_at": _now()}
                 if m.get("bin_location"):
-                    vset["bin_location"] = m["bin_location"]
-                if van_mode == "adjust":
-                    update_doc = {"$inc": {"qty": qty}, "$set": vset,
-                                  "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": _now()}}
+                    sset["bin_location"] = m["bin_location"]
+                if qty_mode == "adjust":
+                    set_part = {"$inc": {"qty": qty}, "$set": sset}
                 else:  # set
-                    vset["qty"] = qty
-                    update_doc = {"$set": vset,
-                                  "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": _now()}}
-                await db.svc_van_stock.update_one(
-                    {**of, "engineer_id": target_eng, "part_sku": sku},
-                    update_doc, upsert=True)
+                    sset["qty"] = qty
+                    set_part = {"$set": sset}
+                if stock_location == "warehouse":
+                    on_insert = {"id": str(uuid.uuid4()), "created_at": _now(),
+                                 "location": "warehouse"}
+                    await db.svc_warehouse_stock.update_one(
+                        {**of, "location": "warehouse", "part_sku": sku},
+                        {**set_part, "$setOnInsert": on_insert}, upsert=True)
+                    to_loc, eng_for_move = "warehouse", ""
+                else:  # van
+                    on_insert = {"id": str(uuid.uuid4()), "created_at": _now()}
+                    await db.svc_van_stock.update_one(
+                        {**of, "engineer_id": target_eng, "part_sku": sku},
+                        {**set_part, "$setOnInsert": on_insert}, upsert=True)
+                    to_loc, eng_for_move = "van", target_eng
                 await db.svc_part_movements.insert_one({
                     "id": str(uuid.uuid4()), "organization_id": of["organization_id"],
                     "movement_type": "import", "part_sku": sku, "part_name": name,
-                    "qty": qty, "from_location": "import", "to_location": "van",
-                    "engineer_id": target_eng, "actor_id": user["id"],
+                    "qty": qty, "from_location": "import", "to_location": to_loc,
+                    "engineer_id": eng_for_move, "actor_id": user["id"],
                     "actor_name": user.get("full_name") or user.get("email") or "",
                     "at": _now(), "import_session_id": session_id})
                 van_adjusted += 1
 
     summary = {"created": created, "updated": updated, "skipped": skipped,
-               "errors": errors, "van_adjusted": van_adjusted, "rows": len(rows)}
+               "errors": errors, "stock_lines": van_adjusted, "van_adjusted": van_adjusted,
+               "stock_location": stock_location, "rows": len(rows)}
     audit = {
         "id": str(uuid.uuid4()), "organization_id": of["organization_id"],
         "import_session_id": session_id, "filename": s.get("filename"),
         "actor_id": user["id"],
         "actor_name": user.get("full_name") or user.get("email") or "",
-        "mode": mode, "van_qty_mode": van_mode, "summary": summary, "at": _now(),
+        "mode": mode, "van_qty_mode": van_mode, "stock_location": stock_location,
+        "qty_mode": qty_mode,
+        "target_engineer_id": (target_eng if stock_location == "van" else None),
+        "summary": summary, "at": _now(),
     }
     await db.svc_parts_import_audit.insert_one(audit)
     await db.svc_parts_import_sessions.update_one(

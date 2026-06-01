@@ -9,11 +9,11 @@
  * AI column-mapping is suggested on parse; the user can override every
  * mapping before validating.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   Upload, FileSpreadsheet, X, ArrowRight, ArrowLeft, Loader2,
-  CheckCircle2, AlertTriangle, Sparkles, PartyPopper,
+  CheckCircle2, AlertTriangle, Sparkles, PartyPopper, Warehouse, Truck,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -39,11 +39,28 @@ export default function PartsImportWizard({ onClose, onComplete }) {
   const [parsed, setParsed] = useState(null);   // {session_id, headers, sample, suggested_mapping, ...}
   const [mapping, setMapping] = useState({});    // {header: canonical|''}
   const [validation, setValidation] = useState(null);
-  const [options, setOptions] = useState({ mode: 'upsert', van_qty_mode: 'set', skip_duplicates: true });
+  const [options, setOptions] = useState({
+    mode: 'upsert', stock_location: 'warehouse', qty_mode: 'set',
+    target_engineer_id: '', skip_duplicates: true,
+  });
+  const [engineers, setEngineers] = useState([]);
   const [result, setResult] = useState(null);
   const fileRef = useRef(null);
 
   const canonicalFields = parsed?.canonical_fields || [];
+  const hasQty = Object.values(mapping).includes('van_qty');
+
+  // Load engineers once (for the "Engineer van" stock destination).
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/svc/admin/stock/locations`, auth());
+        const engs = r.data.engineers || [];
+        setEngineers(engs);
+        if (engs[0]) setOptions((o) => (o.target_engineer_id ? o : { ...o, target_engineer_id: engs[0].engineer_id }));
+      } catch { /* picker just won't list engineers */ }
+    })();
+  }, []);
 
   const doParse = async (file) => {
     if (!file) return;
@@ -206,10 +223,40 @@ export default function PartsImportWizard({ onClose, onComplete }) {
                   <Seg value={options.mode} set={(v) => setOptions((o) => ({ ...o, mode: v }))}
                        opts={[['upsert', 'Add + update'], ['add_new', 'Add new only'], ['update_existing', 'Update only']]} tid="opt-mode" />
                 </OptRow>
-                <OptRow label="Van quantity">
-                  <Seg value={options.van_qty_mode} set={(v) => setOptions((o) => ({ ...o, van_qty_mode: v }))}
-                       opts={[['set', 'Set'], ['adjust', 'Adjust ±'], ['ignore', 'Ignore']]} tid="opt-van" />
-                </OptRow>
+                {hasQty ? (
+                  <>
+                    <OptRow label="Stock destination">
+                      <Seg value={options.stock_location} set={(v) => setOptions((o) => ({ ...o, stock_location: v }))}
+                           opts={[['warehouse', 'Warehouse'], ['van', 'Engineer van'], ['catalogue', 'Catalogue only']]} tid="opt-stock-location" />
+                    </OptRow>
+                    {options.stock_location === 'van' && (
+                      <OptRow label="Engineer">
+                        <select value={options.target_engineer_id}
+                                onChange={(e) => setOptions((o) => ({ ...o, target_engineer_id: e.target.value }))}
+                                data-testid="opt-target-engineer"
+                                className="h-9 px-2 rounded-xl border border-slate-200 text-sm bg-white max-w-[180px]">
+                          {engineers.length === 0 && <option value="">No engineers</option>}
+                          {engineers.map((eng) => (
+                            <option key={eng.engineer_id} value={eng.engineer_id}>{eng.name}</option>
+                          ))}
+                        </select>
+                      </OptRow>
+                    )}
+                    {options.stock_location !== 'catalogue' && (
+                      <OptRow label="Quantity">
+                        <Seg value={options.qty_mode} set={(v) => setOptions((o) => ({ ...o, qty_mode: v }))}
+                             opts={[['set', 'Set to value'], ['adjust', 'Add ±']]} tid="opt-qty-mode" />
+                      </OptRow>
+                    )}
+                    <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      {options.stock_location === 'warehouse' && <><Warehouse className="w-3.5 h-3.5" /> Quantities import into the main warehouse.</>}
+                      {options.stock_location === 'van' && <><Truck className="w-3.5 h-3.5" /> Quantities import into the selected engineer&apos;s van.</>}
+                      {options.stock_location === 'catalogue' && <>Catalogue details only — stock levels are not changed.</>}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-slate-400">Map a <span className="font-semibold">Quantity</span> column to import stock levels into the warehouse or a van.</p>
+                )}
               </div>
             </div>
           )}
@@ -225,7 +272,8 @@ export default function PartsImportWizard({ onClose, onComplete }) {
                 <Mini label="Created" value={result.created} tone="emerald" />
                 <Mini label="Updated" value={result.updated} tone="blue" />
                 <Mini label="Skipped" value={result.skipped} tone="slate" />
-                <Mini label="Van lines" value={result.van_adjusted} tone="blue" />
+                <Mini label={result.stock_location === 'warehouse' ? 'Warehouse' : result.stock_location === 'van' ? 'Van lines' : 'Stock lines'}
+                      value={result.stock_lines ?? result.van_adjusted} tone="blue" />
                 <Mini label="Errors" value={result.errors} tone={result.errors ? 'rose' : 'slate'} />
                 <Mini label="Rows" value={result.rows} tone="slate" />
               </div>

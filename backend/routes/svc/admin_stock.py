@@ -354,6 +354,102 @@ async def transfer(
             "from": src_label, "to": dst_label, "transfer_id": transfer_id}
 
 
+def _validate_locs(src: dict, dst: dict):
+    """Shared from/to validation for transfers. Returns
+    (src_type, src_eng, dst_type, dst_eng)."""
+    src_type = (src.get("type") or "").lower()
+    dst_type = (dst.get("type") or "").lower()
+    if src_type not in ("warehouse", "van") or dst_type not in ("warehouse", "van"):
+        raise HTTPException(400, "from.type and to.type must be warehouse|van")
+    src_eng = src.get("engineer_id") or ""
+    dst_eng = dst.get("engineer_id") or ""
+    if src_type == "van" and not src_eng:
+        raise HTTPException(400, "from.engineer_id required for a van source")
+    if dst_type == "van" and not dst_eng:
+        raise HTTPException(400, "to.engineer_id required for a van destination")
+    if src_type == dst_type and src_eng == dst_eng:
+        raise HTTPException(400, "Source and destination are the same")
+    return src_type, src_eng, dst_type, dst_eng
+
+
+@router.post("/transfer-batch")
+async def transfer_batch(
+    body: dict,
+    user=Depends(get_current_user),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
+    """Move MULTIPLE parts between two locations in one go. Validates
+    every line first (part exists + enough at source); if any line fails
+    nothing is applied and a 409 lists the shortfalls. Body:
+    {from, to, items:[{part_sku, qty}], reason?}."""
+    _require_manage(user)
+    of = _of(user)
+    src = (body or {}).get("from") or {}
+    dst = (body or {}).get("to") or {}
+    reason = ((body or {}).get("reason") or "").strip()
+    src_type, src_eng, dst_type, dst_eng = _validate_locs(src, dst)
+
+    # Normalise + aggregate duplicate SKUs.
+    agg: dict[str, int] = {}
+    for it in (body or {}).get("items") or []:
+        sku = ((it or {}).get("part_sku") or "").strip().upper()
+        qty = int((it or {}).get("qty") or 0)
+        if sku and qty > 0:
+            agg[sku] = agg.get(sku, 0) + qty
+    if not agg:
+        raise HTTPException(400, "Add at least one part with a positive qty")
+
+    if idempotency_key:
+        prev = await db.svc_part_movements.find_one(
+            {**of, "idempotency_key": idempotency_key}, {"_id": 0})
+        if prev:
+            return {"ok": True, "already_done": True}
+
+    # Validate every line before touching stock (all-or-nothing).
+    parts: dict[str, dict] = {}
+    failures: list[dict] = []
+    for sku, qty in agg.items():
+        part = await db.svc_parts.find_one({**of, "sku": sku}, {"_id": 0})
+        if not part:
+            failures.append({"part_sku": sku, "reason": "not in catalogue"})
+            continue
+        parts[sku] = part
+        s = await _stock_doc(of, src_type, src_eng, sku)
+        on_hand = int((s or {}).get("qty") or 0)
+        if on_hand < qty:
+            failures.append({"part_sku": sku, "reason": f"only {on_hand} at source",
+                             "available": on_hand, "requested": qty})
+    if failures:
+        raise HTTPException(409, {"message": "Some lines cannot be transferred",
+                                  "failures": failures})
+
+    src_label = f"van:{src_eng}" if src_type == "van" else "warehouse"
+    dst_label = f"van:{dst_eng}" if dst_type == "van" else "warehouse"
+    transfer_id = str(uuid.uuid4())
+    actor_name = user.get("full_name") or user.get("email") or ""
+    movements: list[dict] = []
+    for sku, qty in agg.items():
+        await _apply_delta(of, src_type, src_eng, sku, -qty)
+        await _apply_delta(of, dst_type, dst_eng, sku, qty)
+        base = {
+            "organization_id": of["organization_id"], "part_sku": sku,
+            "part_name": parts[sku].get("name") or sku,
+            "actor_id": user["id"], "actor_name": actor_name,
+            "reason": reason or "Office transfer", "at": _now(),
+            "transfer_id": transfer_id, "from_location": src_label, "to_location": dst_label,
+        }
+        if idempotency_key:
+            base["idempotency_key"] = idempotency_key
+        movements.append({**base, "id": str(uuid.uuid4()), "movement_type": "transfer_out",
+                          "qty": -qty, "location": src_type, "engineer_id": src_eng})
+        movements.append({**base, "id": str(uuid.uuid4()), "movement_type": "transfer_in",
+                          "qty": qty, "location": dst_type, "engineer_id": dst_eng})
+    await db.svc_part_movements.insert_many(movements)
+    return {"ok": True, "transferred": len(agg),
+            "items": [{"part_sku": k, "qty": v} for k, v in agg.items()],
+            "from": src_label, "to": dst_label, "transfer_id": transfer_id}
+
+
 # ───────────────────────────── Stock-take ─────────────────────────
 
 @router.post("/stock-take")

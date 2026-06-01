@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Boxes, Truck, ClipboardCheck, Globe2, Loader2, RefreshCw,
   Warehouse, AlertTriangle, Search, ArrowRight, Users,
-  Building2, ChevronRight, PackageCheck,
+  Building2, ChevronRight, PackageCheck, Trash2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -286,6 +286,7 @@ const TransferTab = ({ locations, onDone }) => {
   const [results, setResults] = useState([]);
   const [picked, setPicked] = useState(null);
   const [qty, setQty] = useState(1);
+  const [cart, setCart] = useState([]);          // [{sku, name, qty}]
   const [from, setFrom] = useState('warehouse');
   const [to, setTo] = useState(engineers[0] ? `van:${engineers[0].engineer_id}` : 'warehouse');
   const [reason, setReason] = useState('');
@@ -301,21 +302,40 @@ const TransferTab = ({ locations, onDone }) => {
 
   useEffect(() => { const t = setTimeout(() => searchParts(sku), 250); return () => clearTimeout(t); }, [sku, searchParts]);
 
-  const submit = async () => {
+  const addToCart = () => {
     if (!picked) { notify.error('Pick a part first'); return; }
+    const q = Math.max(1, Number(qty) || 1);
+    setCart((c) => {
+      const i = c.findIndex((x) => x.sku === picked.sku);
+      if (i >= 0) { const n = [...c]; n[i] = { ...n[i], qty: n[i].qty + q }; return n; }
+      return [...c, { sku: picked.sku, name: picked.name, qty: q }];
+    });
+    setPicked(null); setSku(''); setQty(1); setResults([]);
+  };
+
+  const removeLine = (s) => setCart((c) => c.filter((x) => x.sku !== s));
+  const totalUnits = cart.reduce((s, x) => s + x.qty, 0);
+
+  const submit = async () => {
+    if (cart.length === 0) { notify.error('Add at least one part'); return; }
     if (from === to) { notify.error('Source and destination are the same'); return; }
     setBusy(true);
     try {
-      const r = await axios.post(`${API}/svc/admin/stock/transfer`, {
-        part_sku: picked.sku, qty: Number(qty),
+      const r = await axios.post(`${API}/svc/admin/stock/transfer-batch`, {
         from: parseLoc(from), to: parseLoc(to), reason,
+        items: cart.map((x) => ({ part_sku: x.sku, qty: x.qty })),
       }, { headers: { ...auth().headers, 'Idempotency-Key': newIdem() } });
       if (r.data.already_done) notify.success('Already transferred');
-      else notify.success(`Moved ${qty} × ${picked.sku}`);
-      setPicked(null); setSku(''); setQty(1); setReason(''); setResults([]);
+      else notify.success(`Moved ${r.data.transferred} part${r.data.transferred === 1 ? '' : 's'} (${totalUnits} units)`);
+      setCart([]); setReason('');
       onDone?.();
     } catch (e) {
-      notify.error(e?.response?.data?.detail || 'Transfer failed');
+      const detail = e?.response?.data?.detail;
+      if (detail && typeof detail === 'object' && Array.isArray(detail.failures)) {
+        notify.error(`${detail.message}: ${detail.failures.map((f) => `${f.part_sku} (${f.reason})`).join(', ')}`);
+      } else {
+        notify.error(detail || 'Transfer failed');
+      }
     } finally { setBusy(false); }
   };
 
@@ -324,19 +344,31 @@ const TransferTab = ({ locations, onDone }) => {
   return (
     <div className="max-w-lg space-y-4" data-testid="admin-stock-transfer">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-        <div>
-          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Part</label>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+          <LocationPicker label="From" value={from} onChange={setFrom} engineers={engineers} tid="transfer-from" />
+          <ArrowRight className="w-5 h-5 text-slate-400 mb-3" />
+          <LocationPicker label="To" value={to} onChange={setTo} engineers={engineers} tid="transfer-to" />
+        </div>
+
+        {/* Add a part line */}
+        <div className="border-t border-slate-100 pt-3 space-y-2.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Add parts</label>
           {picked ? (
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-2.5" data-testid="transfer-picked">
+            <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-2.5" data-testid="transfer-picked">
               <PackageCheck className="w-4 h-4 text-blue-600" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-slate-900 truncate">{picked.name}</p>
                 <p className="text-[11px] font-mono text-slate-500">{picked.sku}</p>
               </div>
-              <button onClick={() => { setPicked(null); setSku(''); }} className="text-xs font-bold text-blue-700">Change</button>
+              <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
+                     data-testid="transfer-qty"
+                     className="w-16 h-9 px-2 rounded-lg border border-slate-200 text-sm text-right tabular-nums" />
+              <button onClick={addToCart} data-testid="transfer-add-line"
+                      className="px-3 h-9 rounded-lg bg-blue-600 text-white text-sm font-bold">Add</button>
+              <button onClick={() => { setPicked(null); setSku(''); }} className="text-xs font-bold text-slate-400">✕</button>
             </div>
           ) : (
-            <div className="relative mt-1">
+            <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Search SKU or name…"
                      data-testid="transfer-part-search"
@@ -357,18 +389,25 @@ const TransferTab = ({ locations, onDone }) => {
           )}
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-          <LocationPicker label="From" value={from} onChange={setFrom} engineers={engineers} tid="transfer-from" />
-          <ArrowRight className="w-5 h-5 text-slate-400 mb-3" />
-          <LocationPicker label="To" value={to} onChange={setTo} engineers={engineers} tid="transfer-to" />
-        </div>
+        {/* Cart */}
+        {cart.length > 0 && (
+          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden" data-testid="transfer-cart">
+            {cart.map((x) => (
+              <div key={x.sku} className="flex items-center gap-2 px-3 py-2" data-testid={`transfer-cart-${x.sku}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{x.name}</p>
+                  <p className="text-[11px] font-mono text-slate-400">{x.sku}</p>
+                </div>
+                <span className="text-sm font-bold text-slate-700 tabular-nums">× {x.qty}</span>
+                <button onClick={() => removeLine(x.sku)} data-testid={`transfer-remove-${x.sku}`}
+                        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div>
-          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Quantity</label>
-          <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
-                 data-testid="transfer-qty"
-                 className="w-full mt-1 h-11 px-3 rounded-xl border border-slate-200 text-sm bg-white tabular-nums" />
-        </div>
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Reason (optional)</label>
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. restock van"
@@ -377,11 +416,11 @@ const TransferTab = ({ locations, onDone }) => {
         </div>
 
         <p className="text-xs text-slate-500">
-          Move <span className="font-bold text-slate-700">{qty || 0}</span> from <span className="font-bold text-slate-700">{locName(from)}</span> → <span className="font-bold text-slate-700">{locName(to)}</span>
+          Move <span className="font-bold text-slate-700">{cart.length}</span> part{cart.length === 1 ? '' : 's'} ({totalUnits} units) from <span className="font-bold text-slate-700">{locName(from)}</span> → <span className="font-bold text-slate-700">{locName(to)}</span>
         </p>
-        <button onClick={submit} disabled={busy || !picked} data-testid="transfer-submit"
+        <button onClick={submit} disabled={busy || cart.length === 0} data-testid="transfer-submit"
                 className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />} Transfer stock
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />} Transfer {cart.length || ''} {cart.length === 1 ? 'part' : 'parts'}
         </button>
       </div>
     </div>
