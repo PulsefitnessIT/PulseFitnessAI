@@ -1,3 +1,27 @@
+## Iter 220ea·33 — Legacy Report Import Tool (Engineer App) + SVG logo fix ✅ (Feb, 2026)
+
+Field engineers who lived on spreadsheets/PDFs can now migrate their history onto GymAxis. A 4-step wizard lets them pick/create a customer → bulk-upload historic **PDF/CSV/XLSX** reports → **Gemini 3 Flash** extracts each machine + its custom fields → fully edit inline → generate a **branded PDF** saved against the customer. Backend was already built+wired in a prior session; this iter built the **React wizard**, both entry points, and fixed the regression + PDF-link hardening. Backend curl-verified (extract/save/PDF all green); frontend E2E verified by testing agent (regression fixed, full flow ~90%); 8 pytests added to Makefile regression.
+
+**User choices:** launch from BOTH (a) a **dismissible** Engineer Home tile (hideable once migrations are done — persists via localStorage `gx_engineer_legacy_tile_hidden`; still reachable in Settings → Tools) AND (b) Account Settings → Tools. **Full inline editing** of machine name/status/model/serial/work-done + add/remove/edit custom fields.
+
+**Frontend (new):** `pages/ServiceOps/Engineer/EngineerLegacyImport.js` — Stepper (Customer/Upload/Review/Done); customer search/create; multi-file upload with per-file AI extraction status; `MachineEditor` (expandable, full edit + custom fields); saved-reports panel (re-open/delete PDFs). PDF open is **popup-blocker hardened** (pre-open the tab inside the click gesture, then point it at the authed blob).
+- `EngineerHomeV2.js` — dismissible `engineer-home-legacy-tile` above Quick actions (+ `Wand2, X` imports).
+- `EngineerAccountSettings.js` — new **Tools** section row `engineer-settings-legacy-import-row`.
+- `routes/AppRoutes.js` — route `/svc/engineer/legacy-import` (error-boundary wrapped).
+
+**Backend (pre-built, verified):** `routes/svc/legacy_reports.py` (prefix `/api/svc/legacy`) — `/extract` (Gemini via `utils/legacy_extract.py`), `/customers` + `/customers/search`, `/reports` save/list/get/delete, `/reports/{id}/pdf` (branded reportlab PDF via `utils/legacy_report_pdf.py`). Scope = `organization_id or eng:{user_id}` so **orgless partner engineers** work.
+
+**Issue 1 (Daniel's logo upload) — FIXED:** `routes/files.py` now auto-converts **SVG→PNG via cairosvg** for `category=branding` (SVG was silently rejected by the validator). Frontend already accepts `image/*` + shows "PNG / JPG / SVG · < 4 MB". Genuinely bad SVGs surface a clear message.
+
+**Regression caught+fixed:** first testing run found `EngineerHomeV2` crashed (`ReferenceError: Wand2 is not defined`) because the tile JSX shipped without the icon import → fixed → re-verified clean.
+
+**Tests:** `tests/test_iter_220ea_33_legacy_import.py` (8: live customer→save→PDF, auth guard, empty-visits 400, PDF builder unit, + frontend wiring guards incl. an icon-import regression guard) — in Makefile regression.
+
+**Files:** routes/files.py, frontend EngineerLegacyImport.js (new), EngineerHomeV2.js, EngineerAccountSettings.js, routes/AppRoutes.js, tests/test_iter_220ea_33_legacy_import.py (new). Backend legacy_reports.py + utils/legacy_extract.py + utils/legacy_report_pdf.py were pre-built. **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·32 — FIX: engineers landed in Operations not the Engineer App + send password links from profile ✅ (Feb, 2026)
 
 **Reported (major):** an engineer (Daniel Thomas) sent a "Send sign-in link" signed in and landed on the **Operations Hub** instead of the **Engineer App**. **Root cause:** partner engineers have NO organization, so the login payload's `account_type` resolved to `'full'`, and the post-login fallback in `LoginPage`/`LoginRedirectPage` had no partner-engineer branch → everyone fell through to `/dashboard` (Operations). **Fixed + browser-verified** (a partner engineer now lands on `/partner-engineer`). Plus: admins can now send a password/sign-in link straight from an engineer's profile in the Partners list.

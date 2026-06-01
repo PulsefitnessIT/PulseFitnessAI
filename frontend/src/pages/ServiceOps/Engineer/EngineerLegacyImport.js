@@ -228,13 +228,18 @@ export default function EngineerLegacyImport() {
   };
 
   // ── PDF download (auth blob) ──
-  const downloadPdf = async (reportId, name) => {
+  const downloadPdf = async (reportId) => {
+    // Open the tab synchronously inside the click gesture so popup
+    // blockers don't swallow it, then point it at the blob once fetched.
+    const win = window.open('', '_blank');
     try {
       const r = await axios.get(`${API}/svc/legacy/reports/${reportId}/pdf`, { ...auth(), responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      if (win) win.location = url;
+      else window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err) {
+      if (win) win.close();
       notify.error('Could not open PDF', err?.response?.data?.detail || err?.message);
     }
   };
@@ -311,7 +316,7 @@ export default function EngineerLegacyImport() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => downloadPdf(rep.id, rep.title)}
+                      onClick={() => downloadPdf(rep.id)}
                       className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
                       data-testid={`legacy-saved-pdf-${rep.id}`}
                       title="Open PDF"
@@ -546,7 +551,7 @@ export default function EngineerLegacyImport() {
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <button
                 type="button"
-                onClick={() => downloadPdf(savedReport.id, savedReport.title)}
+                onClick={() => downloadPdf(savedReport.id)}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold"
                 data-testid="legacy-done-view-pdf"
               >
