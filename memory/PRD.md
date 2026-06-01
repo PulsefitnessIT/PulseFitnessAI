@@ -1,4 +1,50 @@
-## Iter 220ea·19 — Engineer App Phase 5: Stock Control hub (Phase 1) ✅ (Feb, 2026)
+## Iter 220ea·20 — Stock Phase 2: Parts Catalogue + AI Bulk Import ✅ (Feb, 2026)
+
+Phase 2 of the Stock Control system — built on the existing `svc_parts`
+catalogue (no duplicate business records). Adds a paginated catalogue
+browser and a 6-step CSV/Excel bulk import with **AI-assisted column
+mapping + duplicate detection** (Claude via the Emergent LLM key,
+strictly advisory).
+
+**Backend:**
+- `routes/svc/parts_catalogue.py` — `GET /svc/parts/catalogue`
+  (server-side pagination + search + facet filters category/manufacturer/
+  status + sort; cost gated to owner/admin via `show_cost`), `/facets`,
+  `GET/PATCH /{id}` (edit), `POST /bulk-status`.
+- `routes/svc/parts_import.py` — `POST /svc/parts/import/parse` (CSV via
+  csv sniffer / Excel via openpyxl → headers + sample + **AI/heuristic
+  mapping**; file staged server-side in `svc_parts_import_sessions`,
+  ≤5000 rows), `/validate` (dupes in-file + vs catalogue, missing,
+  invalid numerics + **AI near-duplicate groups**), `/commit` (upsert
+  parts + optional van qty set/adjust + movement + `svc_parts_import_audit`),
+  `/audit`. Import gated to owner/admin/manager.
+- New transient collections: `svc_parts_import_sessions` (staging),
+  `svc_parts_import_audit` (audit trail).
+
+**Frontend:**
+- `PartsImportWizard.js` — Upload (drag/file + AI toggle) → Map (per-column
+  selects, AI-prefilled) → Review (summary minis, issues list, AI dupes,
+  options: mode upsert/add/update, van qty set/adjust/ignore) → Done
+  (created/updated/skipped/van/errors). Server-staged session so 1000s of
+  rows never round-trip.
+- `PartsCatalogue.js` at `/svc/engineer/catalogue` — paginated browse,
+  search + category/status filters, edit drawer, Import button. Linked
+  from the Stock hub header ("Catalogue").
+
+**Tested:** 5 backend pytests (`tests/test_iter_220ea_20_parts_catalogue_import.py`,
+in Makefile regression) + curl end-to-end (AI mapped all 10 columns
+correctly; validate caught dup/missing/invalid; commit created+skipped+
+van-adjusted). Testing agent: **100% frontend pass** (full wizard flow).
+Fixed the one cosmetic finding (bottom padding so the cookie banner never
+covers the last card). Lint clean (ruff + eslint).
+
+**Remaining stock phases (P2/P3):** per-asset parts history UI · stock
+transfers · stock-take/audit · weekly/monthly engineer reports ·
+contract-cover logic on parts · office/admin enterprise overview · full
+offline queueing · barcode scan-to-add wiring · catalogue export.
+
+
+
 
 First shippable slice of the Stock Control & Parts Management system,
 **built on the existing parts backend — no duplicate collections/records**

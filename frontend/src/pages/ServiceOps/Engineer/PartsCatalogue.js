@@ -112,7 +112,7 @@ export default function PartsCatalogue() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-4">
+      <div className="max-w-5xl mx-auto px-4 pt-4 pb-28">
         {loading ? (
           <div className="py-20 flex justify-center text-slate-400"><Loader2 className="w-7 h-7 animate-spin" /></div>
         ) : data.items.length === 0 ? (

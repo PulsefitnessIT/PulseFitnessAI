@@ -261,7 +261,7 @@ export default function EngineerStock() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-3">
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-28 space-y-3">
         {loading && tab === 'van' && van.items.length === 0 ? (
           <div className="py-20 flex justify-center text-slate-400"><Loader2 className="w-7 h-7 animate-spin" /></div>
         ) : null}
