@@ -53,13 +53,14 @@ CANONICAL_FIELDS: dict[str, list[str]] = {
     "list_price": ["sellprice", "sellingprice", "saleprice", "listprice", "rrp", "retail", "price"],
     "van_qty": ["quantity", "qty", "stock", "onhand", "vanqty", "stockqty", "instock"],
     "reorder_threshold": ["minstock", "minimumstock", "minstocklevel", "minlevel", "min", "reorderpoint"],
+    "reorder_max": ["maxstock", "maximumstock", "maxstocklevel", "maxlevel", "max", "targetstock", "targetlevel"],
     "reorder_qty": ["reorderlevel", "reorderquantity", "reorderqty", "orderqty", "ordermultiple"],
     "bin_location": ["binlocation", "location", "bin", "vanlocation", "shelf", "position"],
     "compatible_models": ["compatiblemodel", "compatiblemodels", "model", "models", "fitsmodel"],
     "notes": ["notes", "comment", "comments", "remarks", "memo"],
 }
 REQUIRED_FIELDS = {"sku", "name"}
-NUMERIC_FIELDS = {"cost", "list_price", "van_qty", "reorder_threshold", "reorder_qty"}
+NUMERIC_FIELDS = {"cost", "list_price", "van_qty", "reorder_threshold", "reorder_max", "reorder_qty"}
 
 
 def _now() -> str:
@@ -472,7 +473,7 @@ async def commit_import(body: dict, user=Depends(get_current_user)):
                 fields[f] = m[f]
         if m.get("compatible_models"):
             fields["compatible_models"] = [x.strip() for x in m["compatible_models"].split(",") if x.strip()]
-        for f in ("cost", "list_price", "reorder_threshold", "reorder_qty"):
+        for f in ("cost", "list_price", "reorder_threshold", "reorder_max", "reorder_qty"):
             num = _to_num(m.get(f))
             if num is not None:
                 fields[f] = num if f in {"cost", "list_price"} else int(num)

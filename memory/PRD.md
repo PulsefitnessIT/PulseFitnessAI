@@ -1,3 +1,39 @@
+## Iter 220ea·23 — Stock Phase 5: reports (CSV/PDF) + min/max reorder ✅ (Feb, 2026)
+
+**Min/Max reorder levels (foundation):**
+- New `reorder_max` field on parts (target/top-up level); `reorder_threshold`
+  is the min/reorder point. Editable in the catalogue Edit drawer
+  (Min / Max / Reorder qty) and mappable in the bulk import (canonical +
+  numeric fields). `admin_stock` computes `below_min` + `suggested_order`
+  (top-up to max, else reorder_qty, else shortfall-to-min) and surfaces
+  `max_qty`/`suggested_order` on by-location lines.
+
+**Phase 5 reports (`admin_stock.py`):**
+- `GET /reorder-report` (+ `.csv`) — catalogue parts at/below min at a
+  location with current/min/max/suggested order qty + est. order cost.
+- `GET /report?period=week|month` (+ `.csv`, `.pdf`) — snapshot (lines,
+  units, value, below-min, out) + period movement summary (grouped by
+  type) + reorder list. PDF built with reportlab (summary + activity +
+  reorder tables); CSV via StreamingResponse.
+
+**Frontend:**
+- `AdminStock.js` new **Reports** tab: Location + Week/Month selector,
+  snapshot stats, Stock-CSV / Reorder-CSV / PDF export buttons
+  (blob download w/ auth), period activity list, reorder table.
+- `PartsCatalogue.js` Edit drawer adds the **Max stock** field.
+
+**Tested:** 10 pytests (`tests/test_iter_220ea_23_stock_reports.py`, in
+Makefile) — reorder/report shapes + CSV (text/csv) + PDF (%PDF magic) +
+min/max source guards. Live e2e verified (suggested_order top-up math,
+342KB stock CSV, valid PDF). Reports tab UI verified. Leftover PYT/test
+parts purged from the user org (catalogue back to 6,139). Lint clean.
+
+**Remaining:** per-asset parts history UI · barcode scan-to-add ·
+per-location min/max overrides (currently min/max are per-part) ·
+Sicon/Pulse/Outlook/DocuSign/Sage (BLOCKED on credentials).
+
+
+
 ## Iter 220ea·22c — Transfer cart shows source stock ✅ (Feb, 2026)
 
 User feedback on the multi-part transfer: show how many of a part are in

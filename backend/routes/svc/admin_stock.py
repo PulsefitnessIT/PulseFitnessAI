@@ -22,10 +22,13 @@ pickers/resolvers here use user ids.
 """
 from __future__ import annotations
 
+import csv
+import io
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -118,6 +121,20 @@ def _line_flags(qty: int, part: dict) -> tuple[bool, bool, int]:
     zero = qty <= 0
     low = bool(minq > 0 and 0 < qty <= minq)
     return low, zero, minq
+
+
+def _reorder_suggestion(qty: int, part: dict) -> int:
+    """Suggested order qty when a line is at/below its minimum: top up to
+    the max (target) level, else fall back to the reorder qty, else the
+    shortfall to min."""
+    minq = int(part.get("reorder_threshold") or 0)
+    maxq = int(part.get("reorder_max") or 0)
+    if minq <= 0 or qty > minq:
+        return 0
+    if maxq > qty:
+        return maxq - qty
+    roq = int(part.get("reorder_qty") or 0)
+    return roq if roq > 0 else max(minq - qty, 0)
 
 
 # ───────────────────────────── Overview ───────────────────────────
@@ -223,10 +240,13 @@ async def by_location(
                 continue
         qty = int(r.get("qty") or 0)
         low, zero, minq = _line_flags(qty, p)
+        maxq = int(p.get("reorder_max") or 0)
         item = {
             "part_sku": r.get("part_sku"), "name": p.get("name") or r.get("part_sku"),
             "manufacturer": p.get("manufacturer", ""), "category": p.get("category", ""),
-            "qty": qty, "min_qty": minq, "low": low, "zero": zero,
+            "qty": qty, "min_qty": minq, "max_qty": maxq, "low": low, "zero": zero,
+            "below_min": bool(minq > 0 and qty <= minq),
+            "suggested_order": _reorder_suggestion(qty, p),
             "sell_price": float(p.get("list_price") or 0),
             "value_sell": round(float(p.get("list_price") or 0) * qty, 2),
         }
@@ -594,6 +614,309 @@ async def cross_org(user=Depends(get_current_user)):
         "zero": sum(r["zero"] for r in rows),
     }
     return {"organizations": rows, "totals": totals}
+
+
+# ─────────────────── Reorder report (min/max levels) ──────────────
+
+async def _location_stock_map(of: dict, location: str, engineer_id: str) -> dict:
+    if location == "van":
+        cur = db.svc_van_stock.find({**of, "engineer_id": engineer_id}, {"_id": 0, "part_sku": 1, "qty": 1})
+    else:
+        cur = db.svc_warehouse_stock.find({**of, "location": "warehouse"}, {"_id": 0, "part_sku": 1, "qty": 1})
+    out: dict = {}
+    async for r in cur:
+        out[r["part_sku"]] = int(r.get("qty") or 0)
+    return out
+
+
+def _loc_label(location: str, engineer_id: str, names: dict) -> str:
+    if location == "van":
+        return f"{names.get(engineer_id, 'Van')} (van)"
+    return "Warehouse"
+
+
+async def _reorder_items(of: dict, location: str, engineer_id: str, show_cost: bool) -> tuple[list, dict]:
+    """Catalogue parts with a minimum set whose on-hand at the location is
+    at/below that minimum, with a suggested order qty (top-up to max)."""
+    parts = await db.svc_parts.find(
+        {**of, "reorder_threshold": {"$gt": 0}},
+        {"_id": 0, "sku": 1, "name": 1, "manufacturer": 1, "supplier": 1,
+         "category": 1, "reorder_threshold": 1, "reorder_max": 1, "reorder_qty": 1,
+         "list_price": 1, "cost": 1},
+    ).to_list(50000)
+    stock = await _location_stock_map(of, location, engineer_id)
+    items = []
+    for p in parts:
+        minq = int(p.get("reorder_threshold") or 0)
+        qty = stock.get(p["sku"], 0)
+        if qty > minq:
+            continue
+        suggested = _reorder_suggestion(qty, p)
+        item = {
+            "part_sku": p["sku"], "name": p.get("name") or p["sku"],
+            "manufacturer": p.get("manufacturer", ""), "supplier": p.get("supplier", ""),
+            "category": p.get("category", ""), "qty": qty, "min_qty": minq,
+            "max_qty": int(p.get("reorder_max") or 0), "suggested_order": suggested,
+            "zero": qty <= 0, "sell_price": float(p.get("list_price") or 0),
+        }
+        if show_cost:
+            item["cost"] = float(p.get("cost") or 0)
+            item["est_order_cost"] = round(float(p.get("cost") or 0) * suggested, 2)
+        items.append(item)
+    # Most urgent (deepest below min, then zero stock) first.
+    items.sort(key=lambda x: (x["qty"] - x["min_qty"], x["qty"]))
+    totals = {
+        "parts": len(items),
+        "suggested_units": sum(i["suggested_order"] for i in items),
+        "est_order_cost": round(sum(i.get("est_order_cost", 0) for i in items), 2) if show_cost else None,
+    }
+    return items, totals
+
+
+@router.get("/reorder-report")
+async def reorder_report(
+    location: str = Query("warehouse"), engineer_id: str = Query(""),
+    user=Depends(get_current_user),
+):
+    _require_manage(user)
+    of = _of(user)
+    location = "van" if location == "van" else "warehouse"
+    if location == "van" and not engineer_id:
+        raise HTTPException(400, "engineer_id required for a van reorder report")
+    show_cost = _can_manage(user)
+    items, totals = await _reorder_items(of, location, engineer_id, show_cost)
+    names = await _resolve_engineer_names([engineer_id]) if engineer_id else {}
+    return {"location": location, "engineer_id": engineer_id,
+            "location_label": _loc_label(location, engineer_id, names),
+            "items": items, "totals": totals, "show_cost": show_cost}
+
+
+@router.get("/reorder-report.csv")
+async def reorder_report_csv(
+    location: str = Query("warehouse"), engineer_id: str = Query(""),
+    user=Depends(get_current_user),
+):
+    _require_manage(user)
+    of = _of(user)
+    location = "van" if location == "van" else "warehouse"
+    show_cost = _can_manage(user)
+    items, _ = await _reorder_items(of, location, engineer_id, show_cost)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    head = ["SKU", "Name", "Manufacturer", "Supplier", "On hand", "Min", "Max", "Suggested order"]
+    if show_cost:
+        head += ["Unit cost", "Est. order cost"]
+    w.writerow(head)
+    for it in items:
+        row = [it["part_sku"], it["name"], it["manufacturer"], it["supplier"],
+               it["qty"], it["min_qty"], it["max_qty"], it["suggested_order"]]
+        if show_cost:
+            row += [it.get("cost", 0), it.get("est_order_cost", 0)]
+        w.writerow(row)
+    buf.seek(0)
+    fname = f"reorder-{location}-{datetime.now(timezone.utc):%Y%m%d}.csv"
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+# ─────────────── Phase 5 — Weekly/Monthly stock report ────────────
+
+async def _report_snapshot(of: dict, location: str, engineer_id: str, show_cost: bool) -> tuple[list, dict]:
+    if location == "van":
+        rows = await db.svc_van_stock.find({**of, "engineer_id": engineer_id}, {"_id": 0}).to_list(50000)
+    else:
+        rows = await db.svc_warehouse_stock.find({**of, "location": "warehouse"}, {"_id": 0}).to_list(50000)
+    cat = await _cat_map(of, {r.get("part_sku") for r in rows})
+    lines = []
+    units = below = out = 0
+    vs = vc = 0.0
+    for r in rows:
+        qty = int(r.get("qty") or 0)
+        p = cat.get(r.get("part_sku"), {})
+        minq = int(p.get("reorder_threshold") or 0)
+        sell = float(p.get("list_price") or 0)
+        cost = float(p.get("cost") or 0)
+        units += qty
+        vs += sell * qty
+        vc += cost * qty
+        if qty <= 0:
+            out += 1
+        if minq > 0 and qty <= minq:
+            below += 1
+        line = {"part_sku": r.get("part_sku"), "name": p.get("name") or r.get("part_sku"),
+                "qty": qty, "min_qty": minq, "max_qty": int(p.get("reorder_max") or 0),
+                "value_sell": round(sell * qty, 2)}
+        if show_cost:
+            line["value_cost"] = round(cost * qty, 2)
+        lines.append(line)
+    lines.sort(key=lambda x: (x["name"] or "").lower())
+    snap = {"lines": len(rows), "units": units, "below_min": below, "out": out,
+            "value_sell": round(vs, 2)}
+    if show_cost:
+        snap["value_cost"] = round(vc, 2)
+    return lines, snap
+
+
+async def _period_movements(of: dict, location: str, engineer_id: str, days: int) -> list:
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    q = {**of, "at": {"$gte": since}, "location": location}
+    if location == "van":
+        q["engineer_id"] = engineer_id
+    agg: dict = {}
+    async for m in db.svc_part_movements.find(q, {"_id": 0, "movement_type": 1, "qty": 1}):
+        mt = m.get("movement_type") or "other"
+        a = agg.setdefault(mt, {"type": mt, "count": 0, "units": 0})
+        a["count"] += 1
+        a["units"] += abs(int(m.get("qty") or 0))
+    return sorted(agg.values(), key=lambda x: -x["count"])
+
+
+@router.get("/report")
+async def stock_report(
+    location: str = Query("warehouse"), engineer_id: str = Query(""),
+    period: str = Query("month"), user=Depends(get_current_user),
+):
+    _require_manage(user)
+    of = _of(user)
+    location = "van" if location == "van" else "warehouse"
+    if location == "van" and not engineer_id:
+        raise HTTPException(400, "engineer_id required for a van report")
+    show_cost = _can_manage(user)
+    days = 7 if period == "week" else 30
+    _, snap = await _report_snapshot(of, location, engineer_id, show_cost)
+    movements = await _period_movements(of, location, engineer_id, days)
+    names = await _resolve_engineer_names([engineer_id]) if engineer_id else {}
+    return {"location": location, "engineer_id": engineer_id,
+            "location_label": _loc_label(location, engineer_id, names),
+            "period": "week" if period == "week" else "month",
+            "snapshot": snap, "movements": movements, "show_cost": show_cost,
+            "generated_at": _now()}
+
+
+@router.get("/report.csv")
+async def stock_report_csv(
+    location: str = Query("warehouse"), engineer_id: str = Query(""),
+    user=Depends(get_current_user),
+):
+    _require_manage(user)
+    of = _of(user)
+    location = "van" if location == "van" else "warehouse"
+    show_cost = _can_manage(user)
+    lines, _ = await _report_snapshot(of, location, engineer_id, show_cost)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    head = ["SKU", "Name", "On hand", "Min", "Max", "Stock value"]
+    if show_cost:
+        head.append("Cost value")
+    w.writerow(head)
+    for ln in lines:
+        row = [ln["part_sku"], ln["name"], ln["qty"], ln["min_qty"], ln["max_qty"], ln["value_sell"]]
+        if show_cost:
+            row.append(ln.get("value_cost", 0))
+        w.writerow(row)
+    buf.seek(0)
+    fname = f"stock-{location}-{datetime.now(timezone.utc):%Y%m%d}.csv"
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+@router.get("/report.pdf")
+async def stock_report_pdf(
+    location: str = Query("warehouse"), engineer_id: str = Query(""),
+    period: str = Query("month"), user=Depends(get_current_user),
+):
+    _require_manage(user)
+    of = _of(user)
+    location = "van" if location == "van" else "warehouse"
+    show_cost = _can_manage(user)
+    days = 7 if period == "week" else 30
+    lines, snap = await _report_snapshot(of, location, engineer_id, show_cost)
+    movements = await _period_movements(of, location, engineer_id, days)
+    items, _ = await _reorder_items(of, location, engineer_id, show_cost)
+    names = await _resolve_engineer_names([engineer_id]) if engineer_id else {}
+    label = _loc_label(location, engineer_id, names)
+    pdf = _build_report_pdf(label, "week" if period == "week" else "month",
+                            snap, movements, items, lines, show_cost)
+    fname = f"stock-report-{location}-{datetime.now(timezone.utc):%Y%m%d}.pdf"
+    return StreamingResponse(iter([pdf]), media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+def _build_report_pdf(label, period, snap, movements, reorder, lines, show_cost) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    )
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=18 * mm,
+                            leftMargin=16 * mm, rightMargin=16 * mm, bottomMargin=16 * mm)
+    styles = getSampleStyleSheet()
+    story = []
+    story.append(Paragraph(f"Stock report — {label}", styles["Title"]))
+    story.append(Paragraph(
+        f"Period: last {'7 days' if period == 'week' else '30 days'} · "
+        f"Generated {datetime.now(timezone.utc):%d %b %Y %H:%M} UTC", styles["Normal"]))
+    story.append(Spacer(1, 8 * mm))
+
+    sval = f"£{snap['value_sell']:,.2f}"
+    summ = [["Stock lines", str(snap["lines"])], ["Total units", f"{snap['units']:,}"],
+            ["Stock value", sval], ["Below minimum", str(snap["below_min"])],
+            ["Out of stock", str(snap["out"])]]
+    if show_cost:
+        summ.insert(3, ["Cost value", f"£{snap.get('value_cost', 0):,.2f}"])
+    t = Table(summ, colWidths=[60 * mm, 60 * mm])
+    t.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#64748b")),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 6 * mm))
+
+    story.append(Paragraph("Activity this period", styles["Heading3"]))
+    if movements:
+        mt = [["Movement", "Count", "Units"]] + [
+            [m["type"].replace("_", " ").title(), str(m["count"]), str(m["units"])] for m in movements]
+    else:
+        mt = [["Movement", "Count", "Units"], ["No activity", "0", "0"]]
+    mtab = Table(mt, colWidths=[80 * mm, 40 * mm, 40 * mm])
+    mtab.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e293b")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+    ]))
+    story.append(mtab)
+    story.append(Spacer(1, 6 * mm))
+
+    story.append(Paragraph(f"Reorder needed ({len(reorder)})", styles["Heading3"]))
+    if reorder:
+        rt = [["SKU", "Name", "On hand", "Min", "Max", "Order"]] + [
+            [i["part_sku"], (i["name"] or "")[:38], str(i["qty"]), str(i["min_qty"]),
+             str(i["max_qty"]), str(i["suggested_order"])] for i in reorder[:40]]
+        rtab = Table(rt, colWidths=[28 * mm, 70 * mm, 20 * mm, 16 * mm, 16 * mm, 18 * mm])
+        rtab.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#b45309")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#fffbeb")]),
+        ]))
+        story.append(rtab)
+        if len(reorder) > 40:
+            story.append(Paragraph(f"…and {len(reorder) - 40} more (see CSV).", styles["Italic"]))
+    else:
+        story.append(Paragraph("Everything is at or above its minimum level.", styles["Normal"]))
+
+    doc.build(story)
+    return buf.getvalue()
 
 
 __all__ = ["router"]

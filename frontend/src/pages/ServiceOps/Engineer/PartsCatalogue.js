@@ -197,6 +197,7 @@ const EditDrawer = ({ part, showCost, onClose, onSaved }) => {
     name: part.name || '', category: part.category || '', manufacturer: part.manufacturer || '',
     supplier: part.supplier || '', list_price: part.list_price ?? 0, cost: part.cost ?? 0,
     reorder_threshold: part.reorder_threshold ?? 0, reorder_qty: part.reorder_qty ?? 0,
+    reorder_max: part.reorder_max ?? 0,
     bin_location: part.bin_location || '', cover_category: part.cover_category || '',
   });
   const [busy, setBusy] = useState(false);
@@ -230,8 +231,9 @@ const EditDrawer = ({ part, showCost, onClose, onSaved }) => {
           <Field label="Sell price" type="number" value={form.list_price} onChange={(v) => set('list_price', v)} tid="edit-price" />
           {showCost && <Field label="Cost price" type="number" value={form.cost} onChange={(v) => set('cost', v)} tid="edit-cost" />}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Field label="Min stock" type="number" value={form.reorder_threshold} onChange={(v) => set('reorder_threshold', v)} tid="edit-min" />
+          <Field label="Max stock" type="number" value={form.reorder_max} onChange={(v) => set('reorder_max', v)} tid="edit-max" />
           <Field label="Reorder qty" type="number" value={form.reorder_qty} onChange={(v) => set('reorder_qty', v)} tid="edit-reorder" />
         </div>
         <Field label="Van location" value={form.bin_location} onChange={(v) => set('bin_location', v)} tid="edit-bin" />

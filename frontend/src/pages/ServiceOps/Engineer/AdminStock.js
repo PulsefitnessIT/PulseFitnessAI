@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Boxes, Truck, ClipboardCheck, Globe2, Loader2, RefreshCw,
   Warehouse, AlertTriangle, Search, ArrowRight, Users,
-  Building2, ChevronRight, PackageCheck, Trash2,
+  Building2, ChevronRight, PackageCheck, Trash2, FileText, Download, ShoppingCart,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -72,6 +72,7 @@ export default function AdminStock() {
     { k: 'overview', label: 'Overview', icon: Boxes },
     { k: 'transfer', label: 'Transfer', icon: Truck },
     { k: 'stocktake', label: 'Stock-take', icon: ClipboardCheck },
+    { k: 'reports', label: 'Reports', icon: FileText },
     ...(canCross ? [{ k: 'crossorg', label: 'Cross-org', icon: Globe2 }] : []),
   ];
 
@@ -114,6 +115,7 @@ export default function AdminStock() {
             {tab === 'detail' && <DetailTab detail={detail} showCost={overview?.show_cost} onBack={() => setTab('overview')} />}
             {tab === 'transfer' && <TransferTab locations={locations} onDone={loadCore} />}
             {tab === 'stocktake' && <StockTakeTab locations={locations} showCost={overview?.show_cost} onDone={loadCore} />}
+            {tab === 'reports' && <ReportsTab locations={locations} showCost={overview?.show_cost} />}
             {tab === 'crossorg' && canCross && <CrossOrgTab />}
           </>
         )}
@@ -579,6 +581,151 @@ const StockTakeTab = ({ locations, onDone }) => {
           Post {dirty.length} adjustment{dirty.length === 1 ? '' : 's'}
         </button>
       </div>
+    </div>
+  );
+};
+
+/* ───────────────────────────── Reports ──────────────────────────── */
+
+const downloadFile = async (path, filename) => {
+  try {
+    const r = await axios.get(`${API}${path}`, { ...auth(), responseType: 'blob' });
+    const url = URL.createObjectURL(r.data);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+  } catch { notify.error('Download failed'); }
+};
+
+const ReportsTab = ({ locations, showCost }) => {
+  const engineers = locations.engineers || [];
+  const [loc, setLoc] = useState('warehouse');
+  const [period, setPeriod] = useState('month');
+  const [report, setReport] = useState(null);
+  const [reorder, setReorder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const p = parseLoc(loc);
+  const qs = `location=${p.type}&engineer_id=${encodeURIComponent(p.engineer_id || '')}`;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rep, reo] = await Promise.all([
+        axios.get(`${API}/svc/admin/stock/report?${qs}&period=${period}`, auth()),
+        axios.get(`${API}/svc/admin/stock/reorder-report?${qs}`, auth()),
+      ]);
+      setReport(rep.data); setReorder(reo.data);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not load report');
+    } finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loc, period]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const snap = report?.snapshot || {};
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div className="space-y-4" data-testid="admin-stock-reports">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[180px]">
+          <LocationPicker label="Location" value={loc} onChange={setLoc} engineers={engineers} tid="reports-location" />
+        </div>
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Period</label>
+          <div className="mt-1 flex rounded-xl border border-slate-200 overflow-hidden">
+            {[['week', 'Week'], ['month', 'Month']].map(([k, lbl]) => (
+              <button key={k} onClick={() => setPeriod(k)} data-testid={`reports-period-${k}`}
+                      className={`px-4 h-11 text-sm font-bold ${period === k ? 'bg-slate-900 text-white' : 'bg-white text-slate-500'}`}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-16 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
+      ) : (
+        <>
+          {/* Snapshot */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Stat label="Stock value" value={gbp(snap.value_sell)} tid="reports-stat-value" />
+            <Stat label="Units" value={num(snap.units)} tid="reports-stat-units" />
+            <Stat label="Below min" value={num(snap.below_min)} icon={AlertTriangle} tid="reports-stat-belowmin" />
+            <Stat label="Out of stock" value={num(snap.out)} icon={AlertTriangle} tid="reports-stat-out" />
+          </div>
+
+          {/* Exports */}
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => downloadFile(`/svc/admin/stock/report.csv?${qs}`, `stock-${p.type}-${stamp}.csv`)}
+                    data-testid="reports-export-stock-csv"
+                    className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-xl bg-slate-900 text-white text-sm font-bold">
+              <Download className="w-4 h-4" /> Stock CSV
+            </button>
+            <button onClick={() => downloadFile(`/svc/admin/stock/reorder-report.csv?${qs}`, `reorder-${p.type}-${stamp}.csv`)}
+                    data-testid="reports-export-reorder-csv"
+                    className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-xl bg-amber-600 text-white text-sm font-bold">
+              <ShoppingCart className="w-4 h-4" /> Reorder CSV
+            </button>
+            <button onClick={() => downloadFile(`/svc/admin/stock/report.pdf?${qs}&period=${period}`, `stock-report-${p.type}-${stamp}.pdf`)}
+                    data-testid="reports-export-pdf"
+                    className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-xl bg-blue-600 text-white text-sm font-bold">
+              <FileText className="w-4 h-4" /> PDF report
+            </button>
+          </div>
+
+          {/* Period activity */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Activity this {report?.period}</h3>
+            {(report?.movements || []).length === 0 ? (
+              <p className="text-sm text-slate-400" data-testid="reports-no-activity">No stock movements in this period.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {report.movements.map((m) => (
+                  <div key={m.type} className="flex items-center justify-between py-1.5 text-sm" data-testid={`reports-movement-${m.type}`}>
+                    <span className="font-semibold text-slate-700 capitalize">{m.type.replace(/_/g, ' ')}</span>
+                    <span className="text-slate-500">{num(m.count)} moves · {num(m.units)} units</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Reorder list */}
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-100">
+              <h3 className="font-bold text-amber-900 flex items-center gap-1.5"><ShoppingCart className="w-4 h-4" /> Reorder needed</h3>
+              <span className="text-xs font-bold text-amber-700">{reorder?.totals?.parts || 0} parts · {num(reorder?.totals?.suggested_units || 0)} units{showCost && reorder?.totals?.est_order_cost != null ? ` · ${gbp(reorder.totals.est_order_cost)}` : ''}</span>
+            </div>
+            {(reorder?.items || []).length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-slate-400" data-testid="reports-reorder-empty">Everything is at or above its minimum level. Set Min/Max levels on parts to drive this list.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                <div className="grid grid-cols-[1fr_48px_48px_60px] gap-2 px-4 py-2 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <span>Part</span><span className="text-right">Have</span><span className="text-right">Min</span><span className="text-right">Order</span>
+                </div>
+                {reorder.items.slice(0, 100).map((it) => (
+                  <div key={it.part_sku} className="grid grid-cols-[1fr_48px_48px_60px] gap-2 items-center px-4 py-2" data-testid={`reports-reorder-${it.part_sku}`}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{it.name}</p>
+                      <p className="text-[10px] font-mono text-slate-400">{it.part_sku}</p>
+                    </div>
+                    <span className={`text-right text-sm font-bold tabular-nums ${it.zero ? 'text-rose-600' : 'text-amber-600'}`}>{num(it.qty)}</span>
+                    <span className="text-right text-sm tabular-nums text-slate-500">{num(it.min_qty)}</span>
+                    <span className="text-right text-sm font-extrabold tabular-nums text-blue-700">{num(it.suggested_order)}</span>
+                  </div>
+                ))}
+                {reorder.items.length > 100 && (
+                  <p className="px-4 py-2 text-center text-xs text-slate-400">Showing first 100 — download the Reorder CSV for the full list.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };
