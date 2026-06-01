@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend-only test of Engineer Stock hub (/svc/engineer/stock). Logged in as master admin and validated all 4 tabs, search/filter/sort, stat chips, replenish modal, qa-parts navigation. All testids resolved; seeded van data (4 items, 2 low) rendered correctly with sell prices, qty badges, and £922.38 total. Replenish modal opens, +/- qty controls work, urgency chips toggle. One non-blocking finding: cookie-consent banner overlaps the bottom of the mobile replenish modal and obscured the submit button, preventing the modal from visibly closing in the automated run.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EngineerStock / ReplenishModal",
+        "issue": "Cookie-consent banner (fixed at bottom of viewport) overlaps the bottom edge of the mobile replenish modal (which uses items-end on small screens). The Send-request submit button is partially covered. Automated submit click registered but the modal did not visibly close, and the subsequent Requests-tab click was also captured by the cookie banner area (request-row count came back as 0 after submission). Real users will hit the same overlay until they accept cookies. Suggest: either dismiss banner on auth, raise the modal z-index above the banner, or add bottom padding/safe-area to the modal so the submit button sits above the cookie banner.",
+        "selector": "[data-testid='replenish-submit'] vs cookie banner",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Stat chips header",
+        "issues": [
+          "Stat label and value run together with no whitespace in DOM text (e.g. 'Lines4', 'Low / out2', 'Van value£922.38'). Visually fine because they're separate <p> tags, but consider adding a space/aria for screen-readers."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_220ea_19.json"
+  ],
+  "action_items": [
+    "Fix cookie-consent banner overlapping ReplenishModal submit button on 430px-wide mobile viewport (raise modal z-index above cookie banner, or auto-dismiss banner for authenticated users, or add bottom safe-area padding so submit clears the banner).",
+    "Re-run the replenish create→requests-tab verification once banner overlap is resolved to confirm onClose + onDone fire correctly (the code path looks correct; the test only failed because of the overlay, not the logic)."
+  ],
+  "critical_code_review_comments": [
+    "EngineerStock.js submit() in ReplenishModal calls onDone?.() without await before onClose() — fine (fire-and-forget), but if onDone throws synchronously the modal won't close. Consider wrapping onDone in its own try/catch.",
+    "loadAll uses Promise.all with no individual error handling — if /low or /parts-requests fails, the entire load is rejected and the user only sees a generic 'Could not load stock' toast. Consider Promise.allSettled so partial failures still render the rest.",
+    "ReplenishModal qty input accepts any number via direct typing (no max). Reorder_qty defaults to 20 for BRG-6204 (verified). Add max sanity-check / numeric clamp on input change.",
+    "Modal qty becomes a String when user types in the input (input value is string). Math.max(1, Number(q) - 1) handles it, but Number(q) + 1 in the plus button coerces too — no real bug, but worth a useState(Number(...)) normalize on change for cleanliness."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (van endpoint re-checked: 200, 4 items)",
+    "frontend": "≈90% (page, tabs, search/filter/sort, modal open + qty/urgency, qa-parts nav all verified; replenish-submit visual close blocked by cookie banner overlay)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (master_admin, show_cost=true)",
+  "seed_data_creation": "None created. Used existing seed: BELT-TM-01, BRG-6204 (low), LUB-SIL-500, CON-MOTOR-2 (low).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Engineer Stock hub frontend is functionally wired and renders all required testids: engineer-stock-page, stock-tab-{van,low,history,requests}, stock-search, stock-filter-{all,low,most_used,recent}, stock-sort, stock-stat-{lines,low,value}, van-item-{sku}, van-request-{sku}, low-item-{sku}, low-request-{sku}, history-row, request-row-{id}, replenish-modal, replenish-qty-{plus,minus,input}, replenish-urgency-{normal,urgent,critical}, replenish-submit, replenish-cancel, qa-parts (Home). The only blocker hit during automation was the cookie-consent banner pinned to the bottom of the viewport, which sits on top of the mobile-anchored replenish modal's submit button at 430×900. After accepting cookies (or fixing z-index/safe-area), the full replenish create→requests-tab assertion should pass. Backend /api/svc/engineer/stock/van returns 200 with the expected 4 items + show_cost=true for the admin account.",
+  "rca of the issue": "Cookie-consent banner uses a fixed bottom position and a z-index that competes with the replenish modal. On 430px-wide mobile the modal uses `items-end` so its content (including the submit button) hugs the bottom of the viewport — exactly where the banner is. Mitigation: (1) raise modal/overlay z-index above the cookie banner (modal currently uses z-50 — check banner z-index), or (2) add bottom padding equal to the cookie banner height while it's visible, or (3) auto-dismiss the cookie banner for logged-in users."
+}

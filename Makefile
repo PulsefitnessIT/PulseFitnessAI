@@ -286,6 +286,7 @@ regression:
 	  tests/test_iter_220ea_12_per_machine_parts_and_further_work.py \
 	  tests/test_iter_220ea_13_custom_fields_react_to_case_type.py \
 	  tests/test_iter_220ea_14_field_templates.py \
+	  tests/test_iter_220ea_19_engineer_stock.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

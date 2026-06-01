@@ -154,6 +154,8 @@ const ServiceOpsEngineerEndOfDay = lazy(() => import('@/pages/ServiceOps/Enginee
 const ServiceOpsEngineerCustomers = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCustomers'));
 // Iter 220ci — Engineer Equipment Tab (strict picklists, flows into Ops)
 const ServiceOpsEngineerEquipment = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerEquipment'));
+// Iter 220ea·19 — Engineer App Phase 5: Stock Control hub
+const ServiceOpsEngineerStock = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerStock'));
 const ServiceOpsEngineerEquipmentForm = lazy(() =>
   import('@/pages/ServiceOps/Engineer/EngineerEquipment').then((m) => ({ default: m.EngineerEquipmentForm })),
 );
@@ -358,7 +360,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/legal/privacy" element={<Navigate to="/privacy" replace />} />
       <Route path="/legal/terms"   element={<Navigate to="/terms" replace />} />
       <Route path="/forgot-password" element={<Navigate to="/reset-password" replace />} />
-      <Route path="/svc/engineer/parts" element={<Navigate to="/svc/engineer/jobs" replace />} />
+      <Route path="/svc/engineer/parts" element={<Navigate to="/svc/engineer/stock" replace />} />
 
       {/* ─── Auth & onboarding ─── */}
       {/* Iter 216h68 — always render LoginRedirectPage so it can honour
@@ -447,6 +449,8 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 220ci — Engineer Equipment Tab */}
       <Route path="/svc/engineer/equipment" element={user ? <ServiceOpsEngineerEquipment /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/equipment/new" element={user ? <ServiceOpsEngineerEquipmentForm /> : <Navigate to="/login" replace />} />
+      {/* Iter 220ea·19 — Engineer Stock Control hub */}
+      <Route path="/svc/engineer/stock" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerStock /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220 — Work Report custom fields manager */}
       <Route path="/svc/engineer/work-report-fields" element={user ? <ServiceOpsEngineerWorkReportFields /> : <Navigate to="/login" replace />} />
       {/* Iter 220i — Upcoming jobs list */}

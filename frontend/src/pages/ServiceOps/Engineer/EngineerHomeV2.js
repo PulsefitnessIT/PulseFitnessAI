@@ -21,7 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
-  Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
+  Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
   CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks,
@@ -414,9 +414,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Package} label="Equipment"
                              testid="qa-equipment"
                              onClick={() => navigate('/svc/engineer/equipment')} />
-                <QuickAction icon={Package} label="Parts"
+                <QuickAction icon={Boxes} label="Stock"
                              testid="qa-parts"
-                             onClick={() => navigate('/svc/engineer/jobs')} />
+                             onClick={() => navigate('/svc/engineer/stock')} />
                 {/* — Other — */}
                 <QuickAction icon={FileSignature} label="Send report"
                              testid="qa-report"

@@ -270,6 +270,62 @@ async def admin_approve(request_id: str, body: ApproveIn,
     if ship_from not in {"warehouse", "supplier_direct"}:
         raise HTTPException(422, "ship_from must be 'warehouse' or 'supplier_direct'")
 
+    # Iter 220ea·19 — Van-level replenishment (kind=van_replenish) has no
+    # case. Approve = top the engineer's van up directly + record a
+    # receive movement, then close the request. No case allocation.
+    if not req.get("case_id"):
+        await db.svc_van_stock.update_one(
+            {**of, "engineer_id": req["engineer_id"], "part_sku": req["part_sku"]},
+            {"$inc": {"qty": int(req.get("qty") or 0)},
+             "$set": {"updated_at": _now(), "last_replenished_at": _now()},
+             "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": _now()}},
+            upsert=True,
+        )
+        await db.svc_part_movements.insert_one({
+            "id": str(uuid.uuid4()),
+            "organization_id": of["organization_id"],
+            "case_id": None,
+            "movement_type": "receive",
+            "part_sku": req["part_sku"],
+            "part_name": req.get("part_name"),
+            "qty": int(req.get("qty") or 0),
+            "from_location": ship_from,
+            "to_location": "van",
+            "engineer_id": req["engineer_id"],
+            "actor_id": user["id"],
+            "actor_name": user.get("full_name") or user.get("email") or "",
+            "at": _now(),
+            "from_request_id": request_id,
+        })
+        await db.svc_parts_requests.update_one(
+            {"id": request_id, **of},
+            {"$set": {
+                "status": "approved",
+                "approved_at": _now(),
+                "approved_by_id": user["id"],
+                "approved_by_name": user.get("full_name") or user.get("email") or "",
+                "ship_from": ship_from,
+                "admin_notes": (body.notes or "").strip(),
+                "eta_date":    (body.eta_date or "").strip() or None,
+                "backordered": bool(body.backordered),
+                "updated_at": _now(),
+            }},
+        )
+        try:
+            await audit_log(
+                action="svc.parts.approve",
+                user_id=user.get("id", ""),
+                user_email=user.get("email", ""),
+                resource_type="svc_parts_request",
+                resource_id=request_id,
+                details=f"van_replenish · sku={req.get('part_sku')} · "
+                        f"qty={req.get('qty')} · from={ship_from}",
+            )
+        except Exception as e:
+            logger.warning("[audit] parts.approve (van) failed: %s", e)
+        fresh = await db.svc_parts_requests.find_one({"id": request_id, **of}, {"_id": 0})
+        return fresh or {"ok": True}
+
     case = await db.svc_cases.find_one(
         {"id": req["case_id"], **of}, {"_id": 0},
     )
