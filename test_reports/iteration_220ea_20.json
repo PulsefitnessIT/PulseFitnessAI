@@ -1,0 +1,36 @@
+{
+  "summary": "Phase 2 frontend test — Parts Catalogue + 6-step Bulk Import wizard (CSV upload → AI mapping → validate → review → commit → done). Tested end-to-end as admin@gymaxisai.com. ALL 5 features pass.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PartsCatalogue", "issues": ["Cookie banner sits at bottom-right and partially overlaps the last list row in 1280×900 viewport. Wizard modal is z-[120] (above banner) so no functional impact, but the banner can briefly cover the last catalogue card. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PartsCatalogue.js l.40 — `importing` state name shadows industry-meaning (consider `importOpen`). Cosmetic.",
+    "PartsImportWizard.js l.66 — Mapping validation only checks `sku` + `name` client-side. Backend rejects but UX could disable Validate button when those are unmapped (currently relies on toast). Minor UX nit.",
+    "PartsImportWizard.js — `useAi` toggle label has the checkbox INSIDE a <label data-testid=\"import-ai-toggle\">; this is functionally fine but a Playwright click on `import-ai-toggle` would toggle the checkbox via label-for behaviour. Works as-is.",
+    "PartsCatalogue.js l.50 — `catch { notify.error('Could not load catalogue') }` swallows the underlying error message; consider surfacing `e?.response?.data?.detail` for easier debugging in prod."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not retested)", "frontend": "100%"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (master admin, show_cost=true, can_manage=true)",
+  "seed_data_creation": "Imported 2 NEW parts via wizard: TESTIMP-A001, TESTIMP-A002 (Acme/Belts & Rollers). Also touched TM-BELT-200 (cost/qty UPDATE) and renamed BRG-6204 to 'Bearing 6204-2RS *' via edit drawer test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 Parts Catalogue + Import wizard verified end-to-end in browser. The wizard uses /api/svc/parts/import/{parse,validate,commit}; AI/heuristic auto-mapping correctly resolved 10/10 columns on a UK-style header CSV (Part Number→sku, Description→name, Qty→van_qty, Cost Price→cost, Sell Price→list_price, Min Stock→reorder_threshold, Reorder Qty→reorder_qty, Bin→bin_location). Commit returned 2 created + 1 updated + 3 van lines + 0 errors and the catalogue auto-refreshed (search 'TESTIMP' → 2 items). Stock hub catalogue button navigates correctly. Cost price shown for admin.",
+  "evidence": {
+    "catalogue_items_rendered": 25,
+    "search_BELT_results": 3,
+    "edit_drawer": "Opened on BRG-6204, name change persisted (visible as 'Bearing 6204-2RS *' after save)",
+    "ai_mapping": "10/10 headers auto-mapped (sku,name,manufacturer,category,van_qty,cost,list_price,reorder_threshold,reorder_qty,bin_location)",
+    "validation_summary": {"valid": 3, "new": 2, "update": 1, "errors": 0},
+    "commit_summary": {"created": 2, "updated": 1, "skipped": 0, "van_adjusted": 3, "errors": 0, "rows": 3},
+    "post_import_catalogue_search_TESTIMP": ["catalogue-item-TESTIMP-A001", "catalogue-item-TESTIMP-A002"],
+    "stock_hub_link_navigation": "stock-catalogue-btn → /svc/engineer/catalogue ✓"
+  }
+}

@@ -20,7 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Search, Boxes, AlertTriangle, History as HistoryIcon,
   Truck, Loader2, RefreshCw, PackagePlus, TrendingUp, Clock,
-  ChevronRight, PoundSterling, CheckCircle2, XCircle, Hourglass,
+  ChevronRight, PoundSterling, CheckCircle2, XCircle, Hourglass, Package,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -219,6 +219,10 @@ export default function EngineerStock() {
             <h1 className="text-lg font-extrabold text-slate-900 leading-none">My Stock</h1>
             <p className="text-xs text-slate-500 mt-0.5">Van inventory &amp; replenishment</p>
           </div>
+          <button onClick={() => navigate('/svc/engineer/catalogue')} className="px-2.5 h-9 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 flex items-center gap-1"
+                  data-testid="stock-catalogue-btn">
+            <Package className="w-4 h-4" /> Catalogue
+          </button>
           <button onClick={loadAll} className="p-2 text-slate-500" data-testid="stock-refresh-btn" aria-label="Refresh">
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
