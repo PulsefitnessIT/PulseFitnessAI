@@ -331,6 +331,10 @@ from routes.marketing.seo_autopilot import (
 app.include_router(_seo_router)
 app.include_router(_seo_public_router)
 
+# Iter 220ea·28 — public SEO surface: dynamic sitemap + crawler prerender.
+from routes.seo_public import router as _seo_public_surface_router
+app.include_router(_seo_public_surface_router)
+
 # Iter 220bl — Social Media Autopilot (master-admin only).
 from routes.marketing.social_autopilot import router as _social_autopilot_router
 app.include_router(_social_autopilot_router)

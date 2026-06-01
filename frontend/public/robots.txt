@@ -29,6 +29,7 @@ Disallow: /embed/
 Disallow: /instructor
 Disallow: /checkin/
 Disallow: /gym-floor
+Allow: /api/seo/
 Disallow: /api/
 
-Sitemap: https://www.gymaxisai.com/sitemap.xml
+Sitemap: https://www.gymaxisai.com/api/seo/sitemap.xml

@@ -933,6 +933,14 @@ async def generate_article(
         "created_at": now, "updated_at": now,
     }
     await db.seo_articles.insert_one(doc)
+    # Iter 220ea·28 — notify search engines the instant an article goes
+    # live (best-effort; never blocks the publish).
+    if final_status == "published":
+        try:
+            from utils.indexnow import ping_blog_slug
+            await ping_blog_slug(slug)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[seo] IndexNow ping failed for %s: %s", slug, exc)
     # Iter 220at — token-spend telemetry + AI action audit.
     await record_token_usage(
         user.get("organization_id"),
@@ -1008,7 +1016,16 @@ async def patch_article(
     res = await db.seo_articles.update_one({"id": article_id}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(404, "Article not found")
-    return _scrub(await db.seo_articles.find_one({"id": article_id}, {"_id": 0}))
+    fresh = await db.seo_articles.find_one({"id": article_id}, {"_id": 0})
+    # Iter 220ea·28 — ping IndexNow when an article is (re)published.
+    if updates.get("status") == "published" and fresh and fresh.get("slug"):
+        try:
+            from utils.indexnow import ping_blog_slug
+            await ping_blog_slug(fresh["slug"])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[seo] IndexNow ping failed for %s: %s",
+                           fresh.get("slug"), exc)
+    return _scrub(fresh)
 
 
 @router.delete("/articles/{article_id}")

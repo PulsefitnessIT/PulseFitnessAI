@@ -1,3 +1,25 @@
+## Iter 220ea·28 — SEO P0: crawlability foundation (sitemap + prerender + IndexNow) ✅ (Feb, 2026)
+
+User wants GymAxis AI to rank on Google and be found by gym managers/engineers. They already have an SEO autopilot (daily AI blog generation). Audit found the foundation gap: the marketing site is a client-rendered SPA with **no SSR/prerender** and a **static sitemap** that never included autopilot blog posts — so new content wasn't discovered (sitemap), indexed slowly (JS render), or shareable (non-JS social crawlers saw the generic homepage card). Also found a **broken homepage `og:image`** (referenced a missing file). User chose **P0 only**. Backend + docs; lint clean; 11 new pytests + sitemap/prerender verified live; docs-verify PASS.
+
+**Built (all live):**
+- `routes/seo_public.py` (new router under `/api/seo`):
+  - `GET /api/seo/sitemap.xml` — dynamic sitemap: static marketing + comparison pages + every **published** blog post (real `lastmod`). robots.txt now points here (`Allow: /api/seo/` added before `Disallow: /api/`).
+  - `GET /api/seo/share/blog/{slug}` — crawler prerender: full title/meta/OG/Twitter + Article+BreadcrumbList+FAQPage JSON-LD + body; JS-redirects humans to `/blog/{slug}`. Defensive Markdown→HTML (escaped). `og:image` never emits base64 `data:` URIs (falls back to brand cover).
+  - `POST /api/seo/indexnow/ping` — manual master-admin ping.
+- `utils/indexnow.py` — IndexNow client (best-effort, non-blocking); key file `frontend/public/{INDEXNOW_KEY}.txt` shipped. Wired into `seo_autopilot.generate_article` (on publish) + `patch_article` (on republish) so engines are notified instantly.
+- **OG cover fix**: created clean 1200×630 `frontend/public/brand/og-cover.jpg` (homepage `og:image` was a 404). Now also the blog OG fallback.
+- Config: `SEO_SITE_URL` (default `https://www.gymaxisai.com`), `INDEXNOW_KEY`, `INDEXNOW_DISABLED`.
+
+**Not auto-activated (documented in `/app/docs/SEO_P0_ACTIVATION.md`):** Google/Bing Search Console verification + sitemap submission (user action); optional production **edge rule** to route organic `/blog/*` bot traffic to the prerender (backend can't intercept SPA routes — `/api`→backend, else→frontend). Flagged a **www vs non-www canonical** inconsistency (index.html/sitemap use www; autopilot blurb uses bare domain) — pick one + 301 the other.
+
+**Deferred (P1, user can pick next):** programmatic manufacturer/equipment landing pages (from `manufacturer_catalogue`, for the engineer audience) + solution/use-case pages (gym CRM / leisure-centre / PPM software) + data-driven comparison template.
+
+**Files:** routes/seo_public.py, utils/indexnow.py, routes/marketing/seo_autopilot.py, server.py, frontend/public/robots.txt, frontend/public/{key}.txt, frontend/public/brand/og-cover.jpg, tests/test_iter_220ea_28_seo_public.py (new, in Makefile), docs/SEO_P0_ACTIVATION.md.
+
+---
+
+
 ## Iter 220ea·27 — Parts/stock → Sicon mapping + field-correctness audit ✅ (Feb, 2026)
 
 User is sending the Sicon integration doc to Sicon and asked (1) whether the Sicon API has parts references we can map now that the engineer app has parts, and (2) a correctness audit of all mapping fields. Verified everything against the **live Sicon WebAPI specs** (Service / CoreWebAPI / Distribution R260200c JSON). Backend + docs only; lint clean; 10 new pytests + 48 sicon-mapping + 47 parts-stock tests green; docs-verify + integration-mapping gates PASS.
