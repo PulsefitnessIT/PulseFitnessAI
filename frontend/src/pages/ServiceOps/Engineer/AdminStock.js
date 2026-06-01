@@ -78,7 +78,7 @@ export default function AdminStock() {
   const openDetail = (loc) => { setDetail(loc); setTab('detail'); };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20" data-testid="admin-stock-page">
+    <div className="min-h-screen bg-slate-50 pb-28" data-testid="admin-stock-page">
       <header className="sticky top-0 z-20 bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <button onClick={() => navigate(-1)} data-testid="admin-stock-back"
@@ -232,7 +232,7 @@ const DetailTab = ({ detail, showCost, onBack }) => {
         <p className="py-12 text-center text-sm text-slate-400" data-testid="detail-empty">No parts at this location.</p>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
-          {items.map((it) => (
+          {items.slice(0, 150).map((it) => (
             <div key={it.part_sku} className="p-3 flex items-center gap-3" data-testid={`detail-row-${it.part_sku}`}>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-slate-900 text-sm truncate">{it.name}</p>
@@ -248,6 +248,11 @@ const DetailTab = ({ detail, showCost, onBack }) => {
               </div>
             </div>
           ))}
+          {items.length > 150 && (
+            <p className="px-3 py-2.5 text-center text-xs text-slate-400" data-testid="detail-more-hint">
+              Showing first 150 of {num(items.length)} — search to narrow.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -458,7 +463,7 @@ const StockTakeTab = ({ locations, onDone }) => {
           <div className="grid grid-cols-[1fr_64px_72px_64px] gap-2 px-3 py-2 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
             <span>Part</span><span className="text-right">System</span><span className="text-right">Counted</span><span className="text-right">Var</span>
           </div>
-          {filtered.map((it) => {
+          {filtered.slice(0, 150).map((it) => {
             const v = counts[it.part_sku] ?? '';
             const variance = v === '' ? null : Number(v) - it.qty;
             return (
@@ -478,10 +483,15 @@ const StockTakeTab = ({ locations, onDone }) => {
               </div>
             );
           })}
+          {filtered.length > 150 && (
+            <p className="px-3 py-2.5 text-center text-xs text-slate-400" data-testid="stocktake-more-hint">
+              Showing first 150 of {num(filtered.length)} — search to count a specific part.
+            </p>
+          )}
         </div>
       )}
 
-      <div className="sticky bottom-4">
+      <div className="sticky bottom-4 z-[210]">
         <button onClick={post} disabled={busy || dirty.length === 0} data-testid="stocktake-post"
                 className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}

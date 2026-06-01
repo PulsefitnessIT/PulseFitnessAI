@@ -242,15 +242,20 @@ async def by_location(
 @router.get("/locations")
 async def locations(user=Depends(get_current_user)):
     """Warehouse + the org's engineers (user-id keyed) for transfer /
-    stock-take pickers."""
+    stock-take pickers. Drops stale case-assignee ids that resolve to no
+    real name and hold no van stock (avoids confusing UUID labels)."""
     _require_manage(user)
     of = _of(user)
     ids = await _org_engineer_ids(of)
+    van_holders = set(await db.svc_van_stock.distinct("engineer_id", of))
     names = await _resolve_engineer_names(list(ids))
-    engineers = sorted(
-        [{"engineer_id": i, "name": names.get(i, "")} for i in ids],
-        key=lambda x: (x["name"] or "").lower(),
-    )
+    engineers = []
+    for i in ids:
+        nm = names.get(i, "")
+        resolved = bool(nm) and nm != f"Engineer {i[:6]}"
+        if resolved or i in van_holders:
+            engineers.append({"engineer_id": i, "name": nm or "Unnamed engineer"})
+    engineers.sort(key=lambda x: (x["name"] or "").lower())
     return {"warehouse": True, "engineers": engineers}
 
 

@@ -1,3 +1,50 @@
+## Iter 220ea·22 — Stock Phase 4: Office/Admin stock overview ✅ (Feb, 2026)
+
+Office-side stock management on the existing stock collections
+(`svc_van_stock`, `svc_warehouse_stock`, `svc_parts`,
+`svc_part_movements`) — no duplicate data. User choices: surface in
+**both** Engineer App (responsive) + desktop Service Desk · transfers
+apply **immediately** · stock-take = count → variance → post · cross-org
+visible to **master + pulse** admins.
+
+**Backend** `routes/svc/admin_stock.py` (prefix `/svc/admin/stock`,
+gated owner/admin/manager; cross-org gated master/pulse):
+- `GET /overview` — warehouse + per-engineer van rollups (lines/units/
+  value sell+cost/low/zero) + org totals + `can_cross_org`.
+- `GET /by-location?location=&engineer_id=&search=` — detailed line items.
+- `GET /locations` — warehouse + engineers (user-id keyed) for pickers;
+  drops stale unresolved case-assignee ids.
+- `POST /transfer` — immediate warehouse↔van / van↔van move with source
+  check (409 on insufficient), paired `transfer_out`/`transfer_in`
+  movements, `Idempotency-Key` dedupe.
+- `POST /stock-take` — counts → variance vs expected → set qty + write
+  `adjust` movements (naturally idempotent via set-semantics).
+- `GET /cross-org` — master/pulse: stock value + low/zero per org.
+
+**Frontend** `AdminStock.js` (responsive page, route
+`/svc/engineer/stock-admin` — under the `/svc/engineer/*` namespace
+which is master-admin allow-listed; `/svc/stock-admin` was redirected to
+the admin console). 4 tabs: Overview (KPIs + drill into warehouse/van) ·
+Transfer (part search → from/to → qty) · Stock-take (location → counts →
+variance → post) · Cross-org (master/pulse only). Entry points: Account
+Settings → Stock → "Stock management" (`engineer-settings-stock-admin-row`)
+and Service Desk "Stock" button (`desk-stock-management`).
+
+**Testing:** 11 pytests (`tests/test_iter_220ea_22_admin_stock.py`, in
+Makefile) — read contracts + transfer validation (400/404/409) +
+front-end source guards. Live e2e verified (transfer idempotency,
+stock-take variance, balances). Testing agent frontend run ~95% pass
+(all 6 scenarios). Post-test fixes: sticky CTAs raised to `z-[210]`
+above PWA/cookie banners; DetailTab + StockTakeTab cap render to 150
+rows w/ "search to narrow" hint (6,139-part vans); picker drops
+unnamed/stale engineer ids. Lint clean (ruff + eslint).
+
+**Remaining stock phases:** Phase 5 weekly/monthly engineer reports
+(PDF/CSV) · per-asset parts history UI · barcode scan-to-add ·
+catalogue export.
+
+
+
 ## Iter 220ea·22 — Import moved to settings · black-button fix · 10k rows ✅ (Feb, 2026)
 
 Three live user requests after Pulse's 6,139-part import landed cleanly:
