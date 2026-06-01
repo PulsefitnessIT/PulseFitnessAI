@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -719,6 +720,174 @@ async def apply_field_template(
 
 
 
+# ─── Iter 220ea·24 · Cross-org field share links ──────────────────
+# An operator can bundle some (or all) of their custom fields into a
+# share token, hand the link to another org, and that org imports the
+# fields into their own library in one tap. Unlike the platform
+# `FIELD_TEMPLATES` (editorial, ships with the product), these are
+# user-authored bundles. Idempotent import (skip dup by name+scope).
+# Stored in ``svc_work_report_field_shares`` with a 30-day expiry.
+
+
+def _share_spec(r: dict) -> dict:
+    """Snapshot the portable spec of a field def for a share bundle."""
+    return {
+        "name": r.get("name"),
+        "field_type": r.get("field_type"),
+        "scope_kind": r.get("scope_kind") or "global",
+        "scope_value": r.get("scope_value"),
+        "job_types": list(r.get("job_types") or []),
+        "options": list(r.get("options") or []),
+        "required": bool(r.get("required")),
+        "help_text": r.get("help_text"),
+    }
+
+
+async def _live_share(token: str) -> dict:
+    share = await db.svc_work_report_field_shares.find_one({"token": token}, {"_id": 0})
+    if not share:
+        raise HTTPException(404, "Share link not found")
+    exp = share.get("expires_at") or ""
+    if exp and exp < _now():
+        raise HTTPException(410, "This share link has expired")
+    return share
+
+
+class FieldShareIn(BaseModel):
+    # Empty list = share every non-archived field on the org.
+    field_ids: list[str] = Field(default_factory=list)
+    label: Optional[str] = None
+
+
+@router.post("/work-report-fields/share", status_code=201)
+async def share_fields(payload: FieldShareIn, user=Depends(get_current_user)):
+    """Bundle the org's custom fields into a share token another org
+    can import. Snapshots the field specs at share time so later edits
+    don't mutate an outstanding link."""
+    of = _of(user)
+    q: dict = {**of, "archived": {"$ne": True}}
+    if payload.field_ids:
+        q["id"] = {"$in": payload.field_ids}
+    rows = await db.svc_work_report_field_defs.find(q, {"_id": 0}).to_list(MAX_FIELDS_PER_ORG)
+    if not rows:
+        raise HTTPException(400, "No fields to share")
+    snapshot = [_share_spec(r) for r in rows]
+    org = await db.organizations.find_one(
+        {"id": of["organization_id"]}, {"_id": 0, "name": 1})
+    token = secrets.token_urlsafe(9)
+    now = datetime.now(timezone.utc)
+    label = (payload.label or "").strip()[:80] or f"{len(snapshot)} custom field{'s' if len(snapshot) != 1 else ''}"
+    doc = {
+        "id": str(uuid.uuid4()),
+        "token": token,
+        **of,
+        "source_org_name": (org or {}).get("name") or "",
+        "label": label,
+        "fields": snapshot,
+        "field_count": len(snapshot),
+        "created_by_id": user.get("id"),
+        "created_by_name": user.get("full_name") or user.get("email") or "",
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(days=30)).isoformat(),
+    }
+    await db.svc_work_report_field_shares.insert_one(doc)
+    return {
+        "ok": True, "token": token, "label": label,
+        "field_count": len(snapshot), "expires_at": doc["expires_at"],
+    }
+
+
+@router.get("/work-report-fields/shared/{token}")
+async def preview_shared_fields(token: str, user=Depends(get_current_user)):
+    """Preview a share bundle before importing it."""
+    share = await _live_share(token)
+    return {
+        "token": token,
+        "label": share.get("label"),
+        "source_org_name": share.get("source_org_name"),
+        "field_count": share.get("field_count"),
+        "fields": share.get("fields") or [],
+        "expires_at": share.get("expires_at"),
+        "is_own_org": share.get("organization_id") == user.get("organization_id"),
+    }
+
+
+@router.post("/work-report-fields/shared/{token}/import", status_code=201)
+async def import_shared_fields(token: str, user=Depends(get_current_user)):
+    """Import a share bundle into the caller's org. Idempotent: skips any
+    field whose (name, scope_kind, scope_value) already exists."""
+    of = _of(user)
+    share = await _live_share(token)
+    specs = share.get("fields") or []
+    total = await db.svc_work_report_field_defs.count_documents(
+        {**of, "archived": {"$ne": True}})
+    if total + len(specs) > MAX_FIELDS_PER_ORG:
+        raise HTTPException(
+            400,
+            f"Importing would exceed the field cap ({MAX_FIELDS_PER_ORG}). "
+            f"Archive unused fields first.",
+        )
+    created: list[dict] = []
+    skipped: list[dict] = []
+    now = _now()
+    for idx, spec in enumerate(specs):
+        name = (spec.get("name") or "").strip()
+        if not name or spec.get("field_type") not in FIELD_TYPES:
+            continue
+        scope_kind = spec.get("scope_kind") or "global"
+        if scope_kind not in SCOPE_KINDS:
+            scope_kind = "global"
+        scope_value = (spec.get("scope_value") or None) if scope_kind != "global" else None
+        dup = await db.svc_work_report_field_defs.find_one(
+            {**of, "name": name, "scope_kind": scope_kind,
+             "scope_value": scope_value, "archived": {"$ne": True}},
+            {"_id": 0, "id": 1},
+        )
+        if dup:
+            skipped.append({"name": name, "existing_id": dup["id"]})
+            continue
+        key = _slug(name)
+        base_key, suffix = key, 1
+        while await db.svc_work_report_field_defs.find_one(
+            {**of, "key": key, "scope_kind": scope_kind,
+             "scope_value": scope_value, "archived": {"$ne": True}},
+            {"_id": 1},
+        ):
+            suffix += 1
+            key = f"{base_key}_{suffix}"
+        doc = {
+            "id": str(uuid.uuid4()),
+            **of,
+            "name": name,
+            "key": key,
+            "field_type": spec.get("field_type"),
+            "scope_kind": scope_kind,
+            "scope_value": scope_value,
+            "job_types": [jt for jt in (spec.get("job_types") or []) if jt in JOB_TYPES],
+            "options": list(spec.get("options") or []),
+            "required": bool(spec.get("required")),
+            "help_text": (spec.get("help_text") or "").strip() or None,
+            "archived": False,
+            "position": total + idx,
+            "created_at": now,
+            "created_by_id": user.get("id"),
+            "created_by_name": user.get("full_name") or user.get("email") or "",
+            "imported_from_share": token,
+            "updated_at": now,
+        }
+        await db.svc_work_report_field_defs.insert_one(doc)
+        doc.pop("_id", None)
+        created.append(doc)
+    return {
+        "ok": True,
+        "source_org_name": share.get("source_org_name"),
+        "created": created,
+        "created_count": len(created),
+        "skipped": skipped,
+        "skipped_count": len(skipped),
+    }
+
+
 @router.get("/work-report-fields/history/{case_id}")
 async def field_history_for_case(
     case_id: str,
@@ -891,6 +1060,8 @@ async def ensure_indexes() -> None:
         [("organization_id", 1), ("scope_kind", 1), ("scope_value", 1)],
     )
     await db.svc_work_report_field_defs.create_index([("organization_id", 1), ("archived", 1)])
+    # Iter 220ea·24 — share-link lookups by token.
+    await db.svc_work_report_field_shares.create_index([("token", 1)], unique=True)
 
 
 __all__ = ["router", "validate_and_normalise_custom_field_values", "ensure_indexes"]

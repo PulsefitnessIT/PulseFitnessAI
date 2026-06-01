@@ -54,6 +54,8 @@ def _setup_db(*, ptws=None, lotos=None, coshhs=None,
     fdb.svc_ptw_requests.find = MagicMock(return_value=_chain(ptws or []))
     fdb.svc_loto_checklists.find = MagicMock(return_value=_chain(lotos or []))
     fdb.svc_coshh_usage.find = MagicMock(return_value=_chain(coshhs or []))
+    # Iter 220ea·24 — Return Visit Brief parts-for-return lookup.
+    fdb.svc_parts_requests.find = MagicMock(return_value=_chain([]))
     return fdb
 
 

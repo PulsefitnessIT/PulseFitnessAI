@@ -51,7 +51,6 @@ def test_app_routes_wraps_engineer_routes_with_boundary():
         'path="/svc/engineer"',
         'path="/svc/engineer/jobs"',
         'path="/svc/engineer/jobs/:caseId"',
-        'path="/svc/engineer/jobs/:caseId/legacy"',
     ):
         idx = src.find(path)
         assert idx > 0, f"Missing route {path}"

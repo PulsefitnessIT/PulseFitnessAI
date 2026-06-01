@@ -84,6 +84,11 @@ def parse_engagement_from_html(html: str) -> dict:
     """
     if not html:
         return {}
+    # ReDoS defence-in-depth: OG/meta tags live in <head> near the top,
+    # so cap the work even though the scan below is now linear.
+    if len(html) > 1_000_000:
+        head = html.find("</head>")
+        html = html[: head + 7] if head != -1 else html[:1_000_000]
     out: dict = {}
 
     # 1) OpenGraph description / title — most-reliable across platforms.
@@ -116,33 +121,35 @@ def parse_engagement_from_html(html: str) -> dict:
     return out
 
 
-_META_RE_FMT = (
-    r'<meta\s+(?:[^>]*\s+)?(?:property|name)\s*=\s*["\']{tag}["\']'
-    r'[^>]*\scontent\s*=\s*(["\'])(.*?)\1'
-)
+# Iter 220ea·24 — linear (ReDoS-safe) meta scan. The previous single
+# `_META_RE_FMT` regex nested `(?:[^>]*\s+)?` with `[^>]*` and `.*?`,
+# which catastrophically backtracks on large minified Instagram HTML
+# (hundreds of KB, many `<meta>` tags) and pegged the crawler at 100%
+# CPU — wedging the daily background loop and blocking the whole app.
+# We now isolate each `<meta …>` tag first (a single bounded quantifier,
+# linear) and only run small attribute regexes inside each tag string.
+_META_TAG_RE = re.compile(r"<meta\b[^>]{0,2000}?>", re.I | re.S)
+_META_PROP_RE = re.compile(r'(?:property|name)\s*=\s*(["\'])(.*?)\1', re.I | re.S)
+_META_CONTENT_RE = re.compile(r'content\s*=\s*(["\'])(.*?)\1', re.I | re.S)
 
 
 def _meta(html: str, tag: str) -> str:
     """Pull the value of a ``<meta property="og:title" content="...">``
     or ``<meta name="..." content="...">`` tag. Returns empty string
-    if not found. Quote-aware — the content value may itself contain
-    the opposite quote character (common in IG OG descriptions which
-    quote the caption text)."""
+    if not found. Linear scan (ReDoS-safe): isolate each meta tag, then
+    match its property/name + content attributes individually."""
     if not html or not tag:
         return ""
-    m = re.search(_META_RE_FMT.format(tag=re.escape(tag)), html, re.I | re.S)
-    if not m:
-        # Try the reverse attribute order (content first, then property).
-        rev = (
-            r'<meta\s+(?:[^>]*\s+)?content\s*=\s*(["\'])(.*?)\1'
-            r'[^>]*\s(?:property|name)\s*=\s*["\']'
-            + re.escape(tag) + r'["\']'
-        )
-        m = re.search(rev, html, re.I | re.S)
-        if m:
-            return m.group(2)
-        return ""
-    return m.group(2)
+    want = tag.lower()
+    for tm in _META_TAG_RE.finditer(html):
+        tagstr = tm.group(0)
+        pm = _META_PROP_RE.search(tagstr)
+        if not pm or pm.group(2).strip().lower() != want:
+            continue
+        cm = _META_CONTENT_RE.search(tagstr)
+        if cm:
+            return cm.group(2)
+    return ""
 
 
 async def fetch_public_post(url: str, *, timeout: float = 15.0) -> dict:

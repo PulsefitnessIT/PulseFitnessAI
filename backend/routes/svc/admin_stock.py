@@ -274,7 +274,10 @@ async def locations(user=Depends(get_current_user)):
         nm = names.get(i, "")
         resolved = bool(nm) and nm != f"Engineer {i[:6]}"
         if resolved or i in van_holders:
-            engineers.append({"engineer_id": i, "name": nm or "Unnamed engineer"})
+            # Iter 220ea·24 — never surface a raw UUID prefix as a label.
+            # Unresolved van holders read "Unnamed engineer" instead of
+            # the confusing "Engineer 663ec6" fallback.
+            engineers.append({"engineer_id": i, "name": nm if resolved else "Unnamed engineer"})
     engineers.sort(key=lambda x: (x["name"] or "").lower())
     return {"warehouse": True, "engineers": engineers}
 
@@ -501,7 +504,11 @@ async def transfer_batch(
 # ───────────────────────────── Stock-take ─────────────────────────
 
 @router.post("/stock-take")
-async def stock_take(body: dict, user=Depends(get_current_user)):
+async def stock_take(
+    body: dict,
+    user=Depends(get_current_user),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
     """Post a physical count. For each line we compute variance vs the
     expected qty and, where non-zero, set the stock to the counted value
     and write an ``adjust`` movement tagged as a stock-take.
@@ -520,6 +527,16 @@ async def stock_take(body: dict, user=Depends(get_current_user)):
         raise HTTPException(400, "engineer_id required for a van stock-take")
     if not counts:
         raise HTTPException(400, "counts required")
+
+    # Iter 220ea·24 — dedupe duplicate submits on slow networks so a
+    # stock-take is never double-posted (which would otherwise write a
+    # second batch of ``adjust`` movements into the audit trail).
+    if idempotency_key:
+        prev = await db.svc_part_movements.find_one(
+            {**of, "idempotency_key": idempotency_key}, {"_id": 0})
+        if prev:
+            return {"ok": True, "already_done": True, "checked": 0,
+                    "adjusted": 0, "variance_units": 0, "lines": []}
 
     checked = adjusted = 0
     variance_units = 0
@@ -554,6 +571,7 @@ async def stock_take(body: dict, user=Depends(get_current_user)):
             "reason": f"{reason} (variance {'+' if delta > 0 else ''}{delta})",
             "actor_id": user["id"], "actor_name": user.get("full_name") or "",
             "at": _now(), "stock_take": True,
+            **({"idempotency_key": idempotency_key} if idempotency_key else {}),
         })
         adjusted += 1
         variance_units += delta

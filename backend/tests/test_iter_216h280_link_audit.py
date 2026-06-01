@@ -50,11 +50,11 @@ def test_legacy_forgot_password_redirects_to_reset():
 
 
 def test_legacy_engineer_parts_redirects_to_jobs():
-    """`/svc/engineer/parts` redirects to the jobs list (parts are
-    managed inline on each job)."""
+    """`/svc/engineer/parts` redirects to the engineer Stock hub
+    (iter 220ea·19 — van stock now lives there)."""
     txt = _routes_text()
     assert 'path="/svc/engineer/parts"' in txt
-    assert '<Navigate to="/svc/engineer/jobs" replace />' in txt
+    assert '<Navigate to="/svc/engineer/stock" replace />' in txt
 
 
 def test_developers_route_replaces_api_docs():

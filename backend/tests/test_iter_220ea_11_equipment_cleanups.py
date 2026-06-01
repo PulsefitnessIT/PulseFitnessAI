@@ -64,12 +64,11 @@ def test_two_action_buttons_remain_with_test_ids():
 
 
 def test_addrow_helper_still_used_by_site_picker():
-    """`addRow` itself isn't deleted — it's still the function the
-    "From site" multi-select picker calls when the engineer
-    confirms their selection. Only the top-level button that
-    bypassed asset linkage is gone."""
+    """The "From site" multi-select picker attaches the chosen
+    equipment via the bulk `onAttach` flow (iter 220ea·12 replaced the
+    old per-row `addRow` helper with a single bulk-from-site POST)."""
     src = _read(MACHINES)
-    # The helper definition + its picker call-site remain.
-    assert "const addRow = async (preset = {})" in src
-    # And the picker's "Add N" CTA still uses it.
+    # The picker confirm CTA + its bulk attach call-site remain.
     assert "Add {selected.size" in src
+    assert "bulk-from-site" in src
+    assert "const onAttach = async ()" in src

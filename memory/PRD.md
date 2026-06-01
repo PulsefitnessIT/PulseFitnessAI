@@ -1,3 +1,30 @@
+## Iter 220ea·24 — Return Visit Brief + cross-org field share + stock polish ✅ (Feb, 2026)
+
+Shipped four user-approved items (a/b/c/d) plus two bug fixes surfaced during testing. Lint clean (backend ruff + frontend ESLint), 47 targeted pytests green, live e2e verified on preview.
+
+**(a) Return Visit Brief — folded into the customer service report PDF** (not a separate export, per user):
+- `routes/svc/service_report.py`: `_gather_report_data` now fetches parts-for-return (`svc_parts_requests`, urgency=`next_visit`, status not cancelled/rejected). `_build_pdf` renders a conditional amber "RETURN VISIT BRIEF" card with (1) outstanding work per machine (`further_work`) and (2) a "Parts to bring next visit" table. Renders only when something is outstanding.
+- **Bug fixed:** `engineer_parts_requests.py` `URGENCIES` rejected `next_visit` (422) → the Equipment-tab "Parts for return" widget was broken. Added `next_visit` to the allowed set.
+
+**(b) Cross-org custom-field template sharing via token/link:**
+- `routes/svc/work_report_fields.py`: new `svc_work_report_field_shares` collection + endpoints `POST /work-report-fields/share` (snapshot fields → token, 30-day expiry), `GET /work-report-fields/shared/{token}` (preview), `POST /work-report-fields/shared/{token}/import` (idempotent — skips dups by name+scope). Token index added.
+- `EngineerWorkReportFields.js`: new "Share" header button + `ShareImportModal` (Share-mine / Import-a-link tabs). Deep-link `?share=<token>` auto-opens Import + auto-previews. Verified e2e (share→preview→import, screenshot of deep-link import).
+
+**(c) Stock-control polish:**
+- `admin_stock.py`: stock-take POST now accepts `Idempotency-Key` (dedupes double-posts; stamps movements; replay returns `already_done`). Verified live (van count adjust → replay no-op → qty unchanged). Van label fallback no longer leaks UUID prefix ("Unnamed engineer" instead of "Engineer 663ec6").
+- `AdminStock.js`: stock-take submit sends `Idempotency-Key: newIdem()`.
+
+**(d) Tech-debt:** Deleted legacy `EngineerJobDetail.js` (V1, superseded by V2); removed its lazy import + `/svc/engineer/jobs/:caseId/legacy` route from `AppRoutes.js`.
+
+**Bonus P0 fix — backend was wedged (ReDoS):** `utils/social_tracker.py` `_meta` used a catastrophic-backtracking regex (`(?:[^>]*\s+)?...[^>]*...(.*?)`) that pegged the daily crawl loop at 100% CPU on large Instagram HTML, blocking the whole app event loop on every startup. Rewrote to a linear per-`<meta>`-tag scan + 1MB parse cap. Parse of a 765KB pathological payload dropped from ∞ → 0.03s. App now boots responsive.
+
+**Tests:** `tests/test_iter_220ea_24_return_brief_and_field_share.py` (added to Makefile regression w/ TAB). Updated drifted source-guards: `test_iter_220dj_report_compliance_pack.py` (mock new svc_parts_requests call), `test_iter_220e6_release_readiness_engineer_app.py` (drop legacy route), `test_iter_216h280_link_audit.py` (parts→stock redirect), `test_iter_220ea_11_equipment_cleanups.py` (addRow→bulk onAttach).
+
+**Files:** service_report.py, engineer_parts_requests.py, work_report_fields.py, admin_stock.py, social_tracker.py, EngineerWorkReportFields.js, AdminStock.js, AppRoutes.js.
+
+---
+
+
 ## Iter 220ea·23 — Stock Phase 5: reports (CSV/PDF) + min/max reorder ✅ (Feb, 2026)
 
 **Min/Max reorder levels (foundation):**

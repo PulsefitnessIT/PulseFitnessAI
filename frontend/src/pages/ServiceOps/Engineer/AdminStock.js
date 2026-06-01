@@ -518,7 +518,8 @@ const StockTakeTab = ({ locations, onDone }) => {
         counts: dirty.map(([sku, v]) => ({ part_sku: sku, counted_qty: Number(v) })),
         reason: 'Stock-take',
       };
-      const r = await axios.post(`${API}/svc/admin/stock/stock-take`, payload, auth());
+      const r = await axios.post(`${API}/svc/admin/stock/stock-take`, payload,
+        { headers: { ...auth().headers, 'Idempotency-Key': newIdem() } });
       notify.success(`Posted ${r.data.adjusted} adjustment${r.data.adjusted === 1 ? '' : 's'} (variance ${r.data.variance_units >= 0 ? '+' : ''}${r.data.variance_units})`);
       onDone?.();
       await load();

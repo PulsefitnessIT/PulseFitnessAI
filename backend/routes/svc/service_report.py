@@ -160,6 +160,16 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
                 bucket.setdefault(p["machine_row_id"], []).append(p)
         for m in machines:
             m["photos"] = bucket.get(m["id"], [])
+    # Iter 220ea·24 — Return Visit Brief inputs:
+    #   • parts the engineer flagged to bring on the return visit
+    #     (Equipment tab "Parts for return" → urgency=next_visit)
+    #   • per-machine "further work required" (already on the machine docs)
+    return_parts = await db.svc_parts_requests.find(
+        {"case_id": case_id, **of, "urgency": "next_visit",
+         "status": {"$nin": ["cancelled", "rejected"]}},
+        {"_id": 0, "part_sku": 1, "part_name": 1, "qty": 1,
+         "machine_name": 1, "notes": 1, "status": 1},
+    ).sort([("created_at", 1)]).to_list(50)
     return {
         "case": case,
         "photos": photos,
@@ -176,6 +186,7 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "rating_comment": rating_comment,
         "custom_field_defs": custom_field_defs,
         "machines": machines,
+        "return_parts": return_parts,
         "engineer_branding": (engineer_user or {}).get("branding") or {},
     }
 
@@ -548,6 +559,79 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             story.append(card)
             story.append(Spacer(1, 3 * mm))
         story.append(Spacer(1, 1 * mm))
+
+    # ── Iter 220ea·24 · Return Visit Brief ────────────────────────
+    # Consolidates everything still outstanding after this visit:
+    # per-machine "further work required" + the parts the engineer
+    # flagged to bring back. Renders only when there's something to
+    # carry forward so a fully-closed visit stays clean.
+    return_parts = payload.get("return_parts") or []
+    further_machines = [
+        m for m in (payload.get("machines") or [])
+        if (m.get("further_work") or "").strip()
+    ]
+    if return_parts or further_machines:
+        story.append(Paragraph("RETURN VISIT BRIEF", h_section))
+        brief_rows: list = []
+        intro = Paragraph(
+            "<font color='#B45309'><b>This visit isn't fully closed.</b></font> "
+            "The items below are outstanding and should be scheduled for a "
+            "return visit.",
+            muted,
+        )
+        brief_rows.append([intro])
+        # Outstanding work per machine.
+        if further_machines:
+            work_lines = []
+            for m in further_machines:
+                nm = (m.get("asset_name") or "Machine").strip()[:120]
+                txt = (
+                    (m.get("further_work") or "").strip()
+                    .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    .replace("\n", "<br/>")
+                )
+                work_lines.append(
+                    f"<b>{nm}</b><br/><font color='#475569'>{txt}</font>"
+                )
+            brief_rows.append([Paragraph(
+                "<font color='#0F172A'><b>Outstanding work</b></font>", muted)])
+            brief_rows.append([Paragraph("<br/><br/>".join(work_lines), body)])
+        # Parts to bring next visit.
+        if return_parts:
+            prows = [["SKU", "Part", "Qty", "For machine"]]
+            for p in return_parts:
+                prows.append([
+                    p.get("part_sku", ""),
+                    (p.get("part_name") or "")[:60],
+                    str(p.get("qty", "")),
+                    (p.get("machine_name") or "—")[:40],
+                ])
+            parts_tbl = Table(prows, colWidths=[26 * mm, 78 * mm, 14 * mm, 45 * mm])
+            parts_tbl.setStyle(TableStyle([
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#FEF3C7")),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#FCD34D")),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            brief_rows.append([Paragraph(
+                "<font color='#0F172A'><b>Parts to bring next visit</b></font>", muted)])
+            brief_rows.append([parts_tbl])
+        brief_card = Table(brief_rows, colWidths=[175 * mm])
+        brief_card.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFFBEB")),
+            ("LINEBEFORE", (0, 0), (0, -1), 2, colors.HexColor("#F59E0B")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#FDE68A")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 9),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(brief_card)
+        story.append(Spacer(1, 4 * mm))
 
     # ── Photos ────────────────────────────────────────────────────
     valid_images = []

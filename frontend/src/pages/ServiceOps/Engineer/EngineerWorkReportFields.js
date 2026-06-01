@@ -16,10 +16,11 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Loader2, Archive, Edit3, Save, X,
   Eye, EyeOff, Sparkles, Check, ChevronRight,
+  Share2, Link2, Copy, Download,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -59,6 +60,7 @@ const JOB_TYPE_OPTIONS = [
 
 export default function EngineerWorkReportFields() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -66,6 +68,10 @@ export default function EngineerWorkReportFields() {
   const [creating, setCreating] = useState(false);
   // Iter 220ea·14 — Templates modal toggle.
   const [showTemplates, setShowTemplates] = useState(false);
+  // Iter 220ea·24 — Share / import modal. `shareToken` deep-links an
+  // inbound share (?share=<token>) straight into import-preview.
+  const [showShare, setShowShare] = useState(false);
+  const [shareToken, setShareToken] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +89,24 @@ export default function EngineerWorkReportFields() {
   }, [showArchived]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Iter 220ea·24 — open the import flow when arriving via a share link.
+  useEffect(() => {
+    const t = searchParams.get('share');
+    if (t) {
+      setShareToken(t);
+      setShowShare(true);
+    }
+  }, [searchParams]);
+
+  const closeShare = () => {
+    setShowShare(false);
+    setShareToken('');
+    if (searchParams.get('share')) {
+      searchParams.delete('share');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   const visibleRows = useMemo(() => rows, [rows]);
 
@@ -110,6 +134,14 @@ export default function EngineerWorkReportFields() {
             title="Pick a starter template (e.g. Treadmill PPM) to seed common fields in one tap"
           >
             <Sparkles size={14} /> Templates
+          </button>
+          <button
+            onClick={() => { setShareToken(''); setShowShare(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50"
+            data-testid="wrf-share-btn"
+            title="Share these fields with another organisation, or import a shared set"
+          >
+            <Share2 size={14} /> Share
           </button>
           <button
             onClick={() => setCreating(true)}
@@ -220,6 +252,15 @@ export default function EngineerWorkReportFields() {
         <FieldTemplatesModal
           onClose={() => setShowTemplates(false)}
           onApplied={() => { setShowTemplates(false); load(); }}
+        />
+      )}
+
+      {showShare && (
+        <ShareImportModal
+          fieldCount={rows.filter((r) => !r.archived).length}
+          initialToken={shareToken}
+          onClose={closeShare}
+          onImported={() => { closeShare(); load(); }}
         />
       )}
     </div>
@@ -753,6 +794,260 @@ function FieldTemplatesModal({ onClose, onApplied }) {
             Done
           </button>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Iter 220ea·24 · ShareImportModal ─────────────────────────────
+// Two flows in one sheet: (1) "Share" bundles the org's custom fields
+// into a token + link to hand to another org; (2) "Import" pastes a
+// token/link, previews the shared set, and one-tap imports it (dups
+// skipped). A ?share=<token> deep-link opens straight into Import.
+function ShareImportModal({ fieldCount, initialToken, onClose, onImported }) {
+  const [tab, setTab] = useState(initialToken ? 'import' : 'share');
+
+  // Share state
+  const [label, setLabel] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [shareResult, setShareResult] = useState(null); // {token, url, field_count}
+  const [copied, setCopied] = useState(false);
+
+  // Import state
+  const [tokenInput, setTokenInput] = useState(initialToken || '');
+  const [previewing, setPreviewing] = useState(false);
+  const [preview, setPreview] = useState(null); // {source_org_name, fields, ...}
+  const [importing, setImporting] = useState(false);
+
+  const shareUrl = (token) =>
+    `${window.location.origin}/svc/engineer/work-report-fields?share=${token}`;
+
+  const extractToken = (raw) => {
+    const v = (raw || '').trim();
+    if (!v) return '';
+    const m = v.match(/[?&]share=([^&\s]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    // Bare token (strip any trailing slash/url noise).
+    return v.split(/[/?#\s]/).pop();
+  };
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const r = await axios.post(`${API}/svc/work-report-fields/share`, {
+        field_ids: [], label: label.trim() || undefined,
+      }, auth());
+      const token = r.data?.token;
+      setShareResult({ token, url: shareUrl(token), field_count: r.data?.field_count || 0 });
+    } catch (e) {
+      notify.error('Could not create share link', e?.response?.data?.detail || e?.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!shareResult?.url) return;
+    try {
+      await navigator.clipboard.writeText(shareResult.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      notify.error('Copy failed — select and copy the link manually');
+    }
+  };
+
+  const doPreview = useCallback(async (tok) => {
+    const token = extractToken(tok);
+    if (!token) { notify.error('Paste a share link or token first'); return; }
+    setPreviewing(true);
+    setPreview(null);
+    try {
+      const r = await axios.get(`${API}/svc/work-report-fields/shared/${encodeURIComponent(token)}`, auth());
+      setPreview({ ...r.data, token });
+    } catch (e) {
+      notify.error('Could not load shared fields', e?.response?.data?.detail || e?.message);
+    } finally {
+      setPreviewing(false);
+    }
+  }, []);
+
+  // Auto-preview when deep-linked via ?share=.
+  useEffect(() => {
+    if (initialToken) doPreview(initialToken);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialToken]);
+
+  const doImport = async () => {
+    if (!preview?.token) return;
+    setImporting(true);
+    try {
+      const r = await axios.post(
+        `${API}/svc/work-report-fields/shared/${encodeURIComponent(preview.token)}/import`,
+        {}, auth());
+      const created = r.data?.created_count || 0;
+      const skipped = r.data?.skipped_count || 0;
+      notify.success(
+        'Fields imported',
+        `${created} field${created === 1 ? '' : 's'} added${skipped > 0 ? ` · ${skipped} already existed (skipped)` : ''}.`,
+      );
+      onImported?.();
+    } catch (e) {
+      notify.error('Import failed', e?.response?.data?.detail || e?.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-3"
+      onClick={onClose}
+      data-testid="wrf-share-modal"
+    >
+      <div
+        className="w-full max-w-xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
+            <Share2 size={18} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-extrabold text-slate-900">Share custom fields</h2>
+            <p className="text-xs text-slate-500">Copy your field set to another organisation.</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-slate-100" aria-label="Close" data-testid="wrf-share-close">
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="px-3 pt-3 flex gap-1">
+          <button
+            onClick={() => setTab('share')}
+            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-bold border ${tab === 'share' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}
+            data-testid="wrf-share-tab-share"
+          >
+            <Link2 size={14} /> Share mine
+          </button>
+          <button
+            onClick={() => setTab('import')}
+            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-bold border ${tab === 'import' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}
+            data-testid="wrf-share-tab-import"
+          >
+            <Download size={14} /> Import a link
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {tab === 'share' ? (
+            <div className="space-y-3" data-testid="wrf-share-pane">
+              <p className="text-xs text-slate-500">
+                This creates a link sharing all <b>{fieldCount}</b> active custom field{fieldCount === 1 ? '' : 's'}.
+                The recipient imports them into their own library — duplicates are skipped.
+              </p>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Label (optional)</label>
+                <input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  maxLength={80}
+                  placeholder="e.g. Treadmill PPM pack"
+                  className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+                  data-testid="wrf-share-label"
+                />
+              </div>
+              {!shareResult ? (
+                <button
+                  onClick={generate}
+                  disabled={generating || fieldCount === 0}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-bold disabled:opacity-50"
+                  data-testid="wrf-share-generate"
+                >
+                  {generating ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+                  {fieldCount === 0 ? 'No fields to share' : 'Generate share link'}
+                </button>
+              ) : (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2" data-testid="wrf-share-result">
+                  <p className="text-xs font-bold text-emerald-800">
+                    Link ready · {shareResult.field_count} field{shareResult.field_count === 1 ? '' : 's'} · valid 30 days
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={shareResult.url}
+                      className="flex-1 text-xs border border-emerald-200 rounded-lg px-2 py-2 bg-white font-mono text-slate-700"
+                      data-testid="wrf-share-url"
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <button
+                      onClick={copyLink}
+                      className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                      data-testid="wrf-share-copy"
+                    >
+                      {copied ? <Check size={13} /> : <Copy size={13} />}
+                      {copied ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3" data-testid="wrf-import-pane">
+              <p className="text-xs text-slate-500">
+                Paste a share link (or token) someone sent you, then preview and import.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="Paste share link or token…"
+                  className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+                  data-testid="wrf-import-token"
+                />
+                <button
+                  onClick={() => doPreview(tokenInput)}
+                  disabled={previewing || !tokenInput.trim()}
+                  className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-bold disabled:opacity-50"
+                  data-testid="wrf-import-preview"
+                >
+                  {previewing ? <Loader2 size={13} className="animate-spin" /> : 'Preview'}
+                </button>
+              </div>
+
+              {preview && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2" data-testid="wrf-import-preview-result">
+                  <p className="text-xs text-slate-600">
+                    <b className="text-slate-900">{preview.label || `${preview.field_count} fields`}</b>
+                    {preview.source_org_name ? <> · from <b>{preview.source_org_name}</b></> : null}
+                    {preview.is_own_org ? <span className="ml-1 text-amber-700">(your own org)</span> : null}
+                  </p>
+                  <ul className="space-y-1 max-h-48 overflow-y-auto">
+                    {(preview.fields || []).map((f, i) => (
+                      <li key={i} className="text-[11px] text-slate-700 flex items-center gap-2" data-testid={`wrf-import-field-${i}`}>
+                        <span className="font-mono text-slate-400">{i + 1}.</span>
+                        <span className="font-bold text-slate-900">{f.name}</span>
+                        <span className="text-slate-400">·</span>
+                        <span className="uppercase tracking-wide text-[9px] text-slate-500">{f.field_type}</span>
+                        {f.required && <span className="text-rose-600 font-extrabold">*</span>}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={doImport}
+                    disabled={importing}
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold disabled:opacity-50"
+                    data-testid="wrf-import-confirm"
+                  >
+                    {importing ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    Import {preview.field_count} field{preview.field_count === 1 ? '' : 's'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

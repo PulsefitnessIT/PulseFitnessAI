@@ -41,7 +41,10 @@ from utils.svc_state import append_event
 logger = logging.getLogger(__name__)
 
 
-URGENCIES = {"normal", "urgent", "critical"}
+# ``next_visit`` (Iter 220ea·24) flags a part the engineer wants to bring
+# on the return visit — raised from the Equipment tab's "Parts for return"
+# widget. It feeds the Return Visit Brief on the customer service report.
+URGENCIES = {"normal", "urgent", "critical", "next_visit"}
 
 
 def _now() -> str:
