@@ -11,7 +11,7 @@ import uuid
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://maintenance-hub-357.preview.emergentagent.com").rstrip("/")
+       "https://service-ops-hub-6.preview.emergentagent.com").rstrip("/")
 
 
 def _login(email, pwd):

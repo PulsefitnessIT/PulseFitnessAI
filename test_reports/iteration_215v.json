@@ -29,7 +29,7 @@
   },
   "test_credentials": {
     "operator": "lee.somers@pulsefitness.com / TempPass123!",
-    "pre_seeded_instructor": "id=0cce241e-c932-49e5-9074-9b125dfd30b9, slug=aiden-rowe"
+    "pre_seeded_instructor": "id=service-ops-hub-6, slug=aiden-rowe"
   },
   "seed_data_creation": "None - used pre-seeded instructor 'Aiden Rowe' created by main agent",
   "retest_needed": false,

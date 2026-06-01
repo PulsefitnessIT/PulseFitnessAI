@@ -30,7 +30,7 @@
   "test_credentials": {
     "operator": "lee.somers@pulsefitness.com / TempPass123!",
     "billing_test_member": "billing.test@example.com / Test123! (password set during testing)",
-    "pre_seeded_instructor": "id=0cce241e-c932-49e5-9074-9b125dfd30b9, slug=aiden-rowe, user_id=0ba72dfc-2d59-422e-8412-97af93e6bf00"
+    "pre_seeded_instructor": "id=service-ops-hub-6, slug=aiden-rowe, user_id=service-ops-hub-6"
   },
   "seed_data_creation": "Set password for billing test member (billing.test@example.com) to enable member portal login",
   "retest_needed": false,

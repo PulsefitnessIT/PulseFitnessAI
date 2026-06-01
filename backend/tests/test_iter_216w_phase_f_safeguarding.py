@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 OPERATOR_EMAIL = "bob@knockers.com"
 OPERATOR_PASSWORD = "Test123!"
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://maintenance-hub-357.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://service-ops-hub-6.preview.emergentagent.com").rstrip("/")
 
 
 def rate_limit_bypass_headers() -> dict:

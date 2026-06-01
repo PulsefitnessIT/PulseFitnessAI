@@ -30,7 +30,7 @@ from utils.partner_application_ai import _fallback, _coerce, _summarise_roster
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://maintenance-hub-357.preview.emergentagent.com",
+    "https://service-ops-hub-6.preview.emergentagent.com",
 )
 
 _CACHE: dict[str, str] = {}

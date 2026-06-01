@@ -8,7 +8,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://maintenance-hub-357.preview.emergentagent.com")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://service-ops-hub-6.preview.emergentagent.com")
 
 # Test credentials
 MASTER_ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")

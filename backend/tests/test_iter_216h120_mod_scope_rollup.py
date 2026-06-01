@@ -235,7 +235,7 @@ def test_drilldown_into_unrelated_site_is_403() -> None:
     # Pick a non-MOD pulse pro org from the seed (the Third Space demo
     # ships with one); any random uuid would also work for negative path.
     r = requests.get(
-        f"{API}/equipment?site_id=00000000-0000-0000-0000-000000000000",
+        f"{API}/equipment?site_id=service-ops-hub-6",
         headers={"Authorization": f"Bearer {tok}"},
         timeout=10,
     )

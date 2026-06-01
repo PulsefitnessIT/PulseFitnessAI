@@ -20,7 +20,7 @@ import uuid
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://maintenance-hub-357.preview.emergentagent.com"
+    BASE_URL = "https://service-ops-hub-6.preview.emergentagent.com"
 
 
 @pytest.fixture(scope="module")
