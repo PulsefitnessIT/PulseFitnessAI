@@ -1,3 +1,21 @@
+## Iter 220ea·30 — Engineer tester recruitment + editable spec names + "WE NEED YOU!" social posts ✅ (Feb, 2026)
+
+User command (3 parts): (1) make spec-sheet model **names editable** in the Spec Sheets lines so the correct model number is advertised; (2) advertise the engineer programme for testing with **trial periods** — chose BOTH a 10-day free trial for tester engineers AND a live "X of 10 spaces left" counter on the recruitment landing; (3) create on-brand "WE NEED YOU!" Instagram/TikTok recruitment posts (hero + feature posts). Brand corrected by user → GymAxis electric blue `#2563EB` → purple `#9D4CDD`, **no cyan**. Lint clean (py+js); backend testing agent 5/5 PASS; landing + Social Library + posters verified live; 5 new pytests (in Makefile). 1 throwaway tester app cleaned up (counter back to 10/10).
+
+**Built:**
+- **Editable spec-sheet names** — `PATCH /api/spec-sheets/{id}` (master admin) edits equipment_model / manufacturer / equipment_type / product_level / description and re-matches equipment when the model changes. `AdminSpecSheets.js` gains an inline edit (pencil → model/manufacturer/type inputs → Save) per row. Reachable: Master Admin → Catalogue & Library → Equipment catalogue → Spec sheets. The edited name drives what's advertised on `/maintenance/{slug}`.
+- **Engineer tester programme** (`routes/partners.py`): `ENGINEER_TESTER_SPACES` (10) + `ENGINEER_TESTER_TRIAL_DAYS` (10) env-overridable. `public_apply_partner` takes `cohort=tester` (or campaign UTM) → flags the application `tester_cohort`. On approve, the partner gets `tester_cohort=true`, `trial_ends_at` (~10 days), and a trialing subscription with `current_period_end` set. New public `GET /api/partners/recruitment/status` → `{total_spaces, taken, remaining, open, trial_days}`. `PartnerEngineerLanding.js` shows a live "Only N of 10 tester spaces left · 10-day free trial" counter (`pe-tester-spaces`) and all apply CTAs carry `cohort=tester` (`PartnerApplyPublic.js` forwards it).
+- **"WE NEED YOU!" social campaign** — 7 on-brand 9:16 (1080×1920) posters generated via `scripts/gen_engineer_recruit_posters.py` (Nano Banana `gemini-3.1-flash-image-preview` AI backgrounds cached in `_bg/` + crisp Pillow-composited brand text: white headline, blue→purple accents/footer, real GymAxis logo on a white chip). Saved to `frontend/public/marketing/engineer_recruit/post_0N.png`. Seeded idempotently into the Social Media Library as the **engineer_recruit** campaign (channel `all` = IG Reels/Stories + TikTok) with captions, hashtags and per-post TikTok hooks. Posts: WE NEED YOU (hero) · One job every machine · Works offline · Parts & van stock · Paperless check-sheets · Photos→reports · Get paid (CTA close).
+- **Wired the orphan Social Media Library panel** into the Master Admin console (was authored but never mounted): lazy import + `case 'social-media-library'` in `MasterAdminPage.js`, sub-tab + routing/label in `SidebarConfig.js`. Now reachable at Catalogue & Library → Social media library; the 7 posters render cross-channel.
+
+**Files:** routes/spec_sheets.py, routes/partners.py, routes/social_media_library.py, scripts/gen_engineer_recruit_posters.py (new), frontend/public/marketing/engineer_recruit/* (7 posters + _bg cache), frontend AdminSpecSheets.js, PartnerEngineerLanding.js, PartnerApplyPublic.js, MasterAdminPage.js, MasterAdmin/SidebarConfig.js, tests/test_iter_220ea_30_engineer_recruit.py (new, in Makefile).
+
+**Notes / not auto-done:** real IG/TikTok publishing is still manual (download poster + paste caption from the library) — there is no live Instagram/TikTok publish API wired (parked). To re-tweak poster copy without re-spending image credits, re-run the script — it reuses the cached AI backgrounds.
+
+---
+
+
+
 ## Iter 220ea·29c — Manufacturer pages use spec-sheet main pictures (ops-style) ✅ (Feb, 2026)
 
 User: for Pulse Fitness, use the spec-sheet main pictures (as the operations module does for equipment photos). Implemented **spec-sheet-first image sourcing** in `routes/seo_public.py`, generalised to any manufacturer with spec sheets:

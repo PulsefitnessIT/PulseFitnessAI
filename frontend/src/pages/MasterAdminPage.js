@@ -60,6 +60,7 @@ const DocumentsPanel = lazy(() => import('./MasterAdmin/DocumentsPanel'));
 const CollectionsDashboard = lazy(() => import('./MasterAdmin/CollectionsDashboard'));
 const DbViewerPanel = lazy(() => import('./MasterAdmin/DbViewerPanel'));
 const CataloguePanel = lazy(() => import('./MasterAdmin/CataloguePanel'));
+const SocialMediaLibraryPanel = lazy(() => import('./MasterAdmin/SocialMediaLibraryPanel'));
 const CustomPropertiesPanel = lazy(() => import('./MasterAdmin/CustomPropertiesPanel'));
 const RecentErrorsPanel = lazy(() => import('./MasterAdmin/RecentErrorsPanel'));
 const IntegrationHealthPanel = lazy(() => import('./MasterAdmin/IntegrationHealthPanel'));
@@ -518,6 +519,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <DbViewerPanel />;
       case 'catalogue':
         return <CataloguePanel />;
+      case 'social-media-library':
+        return <SocialMediaLibraryPanel />;
       case 'custom-properties':
         return <CustomPropertiesPanel />;
       case 'recent-errors':
