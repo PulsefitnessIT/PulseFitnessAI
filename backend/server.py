@@ -482,6 +482,18 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"welcome-back digest loop start failed: {e}")
 
+    # Iter 220ea·26c — PPM recurrence rollover. Once a preventive-
+    # maintenance visit completes, auto-create the next one on the books
+    # (interval_days later) until the contract end. Self-healing sweep —
+    # idempotent (one open visit per schedule), so re-runs are no-ops.
+    try:
+        from utils.ppm_rollover import run_forever as _ppm_rollover_loop
+        _ppm_hours = int(os.environ.get("PPM_ROLLOVER_HOURS", "6"))
+        asyncio.create_task(_ppm_rollover_loop(_ppm_hours))
+        logger.info("[ppm-rollover] loop started (%dh)", _ppm_hours)
+    except Exception as e:
+        logger.error(f"ppm rollover loop start failed: {e}")
+
     # Iter 220af — Daily SEO Autopilot. Picks the next queued keyword
     # at 09:00 Europe/London and generates + publishes an article.
     # Idempotent via the ``seo_autopilot_runs`` daily stamp. Disable

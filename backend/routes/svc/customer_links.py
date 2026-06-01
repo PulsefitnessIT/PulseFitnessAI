@@ -148,6 +148,17 @@ async def push_unlinked_customers(user=Depends(get_current_user)):
     return {"ok": True, "created": created, "linked": linked, "skipped": skipped}
 
 
+@router.post("/admin/ppm/roll")
+async def roll_ppm_now(user=Depends(get_current_user)):
+    """Iter 220ea·26c — manually roll this org's PPM schedules forward
+    (the same sweep the background worker runs every few hours). Lets ops
+    materialise upcoming visits on demand."""
+    if not _can_manage(user):
+        raise HTTPException(403, "Owners, managers and admins only")
+    from utils.ppm_rollover import roll_ppm_schedules_once
+    return await roll_ppm_schedules_once(_org(user))
+
+
 
 
 __all__ = ["router"]

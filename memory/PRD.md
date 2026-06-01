@@ -1,3 +1,18 @@
+## Iter 220ea·26c — PPM recurrence rollover (G2 follow-up) ✅ (Feb, 2026)
+
+Made the preventive-maintenance cadence self-driving: once a PPM visit completes, the next is auto-created `interval_days` later, until the contract end. Lint clean, 12/12 iter-26 pytests green, verified live (function + endpoint).
+
+- **Worker** `utils/ppm_rollover.py::roll_ppm_schedules_once(organization_id=None)` + `run_forever(hours)`: scans active `svc_ppm_schedules` — latest visit still open → skip; latest closed/invoiced/cancelled → create the next visit at `due + interval_days` (via canonical `intake._create_case`, scheduled, linked via `ppm_schedule_id`) and bump `visits_generated`/`next_due_date`; next due past `end_date` → retire the schedule (`active=False`). Self-healing (periodic sweep, not just an event hook) + idempotent (one open visit per schedule, dedupe by due date).
+- **Registration:** background loop started in `server.py` startup (`PPM_ROLLOVER_HOURS`, default 6h). Confirmed in logs: "[ppm-rollover] loop started (6h)".
+- **Manual trigger:** `POST /api/svc/admin/ppm/roll` (manager-only) in `customer_links.py` — ops can materialise upcoming visits on demand; also used for testing.
+- **Verified:** complete→roll creates next visit at due+30 (12 visits/yr); idempotent re-roll; end-date retirement. Endpoint-based regression test (runs the roll in the server's healthy loop to avoid the shared-test-loop `_create_case` orphan-task issue).
+- **Files:** utils/ppm_rollover.py (new), server.py, routes/svc/customer_links.py, tests/test_iter_220ea_26_crm_service_bridge.py.
+
+The full CRM↔Service lifecycle is now closed-loop: contract signed → customer + PPM schedule + first visit (G2) → each completed visit auto-schedules the next (G2c) → completion syncs back to the CRM timeline (existing svc→crm bridge).
+
+---
+
+
 ## Iter 220ea·26b — G4: reconcile field customers into the CRM ✅ (Feb, 2026)
 
 Closed the last CRM↔Service island: field-added engineer customers (`svc_engineer_customers`) can now be pushed into the CRM. Lint clean, 10/10 iter-26 pytests green, verified live (browser e2e).

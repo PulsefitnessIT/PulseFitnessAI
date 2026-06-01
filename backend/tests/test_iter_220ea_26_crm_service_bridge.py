@@ -166,6 +166,85 @@ def test_onboard_contract_seeds_customer_schedule_and_case():
     assert r3["onboarded"] is False
 
 
+# ─────────────────── G2c — PPM recurrence rollover ────────────────
+
+def test_ppm_rollover_creates_next_visit_on_completion(master_admin_token_session):
+    token = master_admin_token_session
+    if not token:
+        pytest.skip("no master admin token (rate limited?)")
+    sched_id = str(uuid.uuid4())
+
+    async def org_of():
+        u = await db.users.find_one({"email": "admin@gymaxisai.com"},
+                                    {"_id": 0, "organization_id": 1})
+        return (u or {}).get("organization_id")
+
+    org = run_async(org_of())
+
+    async def seed():
+        # Schedule (12 visits/yr, 30-day interval) + a completed first visit.
+        await db.svc_ppm_schedules.insert_one({
+            "id": sched_id, "organization_id": org, "contract_id": str(uuid.uuid4()),
+            "company_id": "", "customer_name": "Cadence Gyms QA", "customer_email": "",
+            "site_postcode": "CB1 1AA", "visits_per_year": 12, "interval_days": 30,
+            "start_date": "2026-02-01", "end_date": "2027-01-31",
+            "next_due_date": "2026-02-01", "visits_generated": 1, "active": True})
+        await db.svc_cases.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": org, "case_type": "ppm",
+            "status": "closed", "ppm_schedule_id": sched_id,
+            "ppm_due_date": "2026-02-01", "scheduled_at": "2026-02-01T00:00:00+00:00",
+            "reference": "PPM-QA-1", "created_at": "2026-02-01T00:00:00+00:00"})
+
+    run_async(seed())
+    try:
+        # Roll via the real endpoint (runs in the server's healthy loop).
+        r = requests.post(f"{BASE}/api/svc/admin/ppm/roll", headers=_h(token), timeout=30)
+        assert r.status_code == 200, r.text
+        assert r.json().get("created", 0) >= 1
+
+        async def next_open():
+            return await db.svc_cases.find_one(
+                {"organization_id": org, "ppm_schedule_id": sched_id,
+                 "status": {"$ne": "closed"}}, {"_id": 0, "ppm_due_date": 1})
+
+        async def n_open():
+            return await db.svc_cases.count_documents(
+                {"organization_id": org, "ppm_schedule_id": sched_id,
+                 "status": {"$ne": "closed"}})
+
+        nxt = run_async(next_open())
+        assert nxt and nxt["ppm_due_date"] == "2026-03-03"  # 2026-02-01 + 30 days
+
+        # Idempotent — rolling again leaves exactly one open visit.
+        requests.post(f"{BASE}/api/svc/admin/ppm/roll", headers=_h(token), timeout=30)
+        assert run_async(n_open()) == 1
+
+        # Past end-date → schedule retired, no new visit.
+        run_async(db.svc_ppm_schedules.update_one(
+            {"id": sched_id}, {"$set": {"end_date": "2020-01-01"}}))
+        run_async(db.svc_cases.update_many(
+            {"organization_id": org, "ppm_schedule_id": sched_id},
+            {"$set": {"status": "closed"}}))
+        requests.post(f"{BASE}/api/svc/admin/ppm/roll", headers=_h(token), timeout=30)
+
+        async def sched_active():
+            s = await db.svc_ppm_schedules.find_one({"id": sched_id}, {"_id": 0, "active": 1})
+            return s["active"]
+
+        assert run_async(sched_active()) is False
+    finally:
+        run_async(db.svc_cases.delete_many(
+            {"organization_id": org, "ppm_schedule_id": sched_id}))
+        run_async(db.svc_ppm_schedules.delete_many({"id": sched_id}))
+
+
+def test_ppm_rollover_worker_and_endpoint_wired():
+    server = (BACKEND / "server.py").read_text()
+    assert "ppm_rollover" in server and "ppm-rollover" in server
+    links = (BACKEND / "routes" / "svc" / "customer_links.py").read_text()
+    assert "/admin/ppm/roll" in links
+
+
 # ─────────────────── G4 — field customer → CRM ────────────────────
 
 def test_push_field_customer_to_crm_creates_and_matches():
