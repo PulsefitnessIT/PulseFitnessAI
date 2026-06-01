@@ -1,3 +1,26 @@
+## Iter 220ea·32 — FIX: engineers landed in Operations not the Engineer App + send password links from profile ✅ (Feb, 2026)
+
+**Reported (major):** an engineer (Daniel Thomas) sent a "Send sign-in link" signed in and landed on the **Operations Hub** instead of the **Engineer App**. **Root cause:** partner engineers have NO organization, so the login payload's `account_type` resolved to `'full'`, and the post-login fallback in `LoginPage`/`LoginRedirectPage` had no partner-engineer branch → everyone fell through to `/dashboard` (Operations). **Fixed + browser-verified** (a partner engineer now lands on `/partner-engineer`). Plus: admins can now send a password/sign-in link straight from an engineer's profile in the Partners list.
+
+**Routing fix:**
+- `routes/auth.py` — both the `/auth/login` and `/auth/me` payloads now include `is_partner_engineer` (true if `user.is_partner_engineer` OR role `engineer_partner` OR account_type `partner_engineer`).
+- `utils/partner_claim.py` — the login/register claim hook now also **flags the user** (`users.is_partner_engineer=True`) whenever a partner row is linked (covers org-account engineers), and uses `re.escape` on the email regex (latent bug: plus-addressed/special-char emails silently failed to claim/flag). Login finalize sets the in-memory flag so the very first login routes correctly.
+- `LoginPage.js` + `LoginRedirectPage.js` — fallback now routes partner engineers to `/partner-engineer` (before the lite/pulse_pro/dashboard branches; master-admin still first).
+
+**Send-link-from-profile feature:**
+- `routes/partners.py` — factored `_mint_and_send_password_reset()` (shared with the application drawer) + new `POST /api/partners/{partner_id}/send-signin-link` (master admin). Smart: existing account → password-reset email; not yet activated → re-issues the activation welcome email via the application.
+- `AdminPartners.js` — "Send link" button (`admin-partner-signin-link-{id}`) on every approved engineer row.
+
+**Verification:** browser login as a partner engineer → lands on the Engineer App (not Operations); claim hook flags + claims the row (re.escape fix); send-signin-link returns `kind=password_reset`. Test data cleaned.
+
+**Files:** routes/auth.py, utils/partner_claim.py, routes/partners.py, frontend LoginPage.js, LoginRedirectPage.js, MasterAdmin/AdminPartners.js.
+
+**Production:** ships on redeploy.
+
+---
+
+
+
 ## Iter 220ea·31 — Watertight engineer 10-day trial → feedback → Stripe process ✅ (Feb, 2026)
 
 User needs a watertight trial pipeline before the "WE NEED YOU!" adverts drive an intake. Confirmed choices: admin button to start a 10-day FREE trial (Partners list + one-click "Approve & start trial" on a pending application); on day-10 access continues during a **3-day grace** then auto-suspends if no decision; feedback form emailed (rating / worked well / missing / continue Yes-No); ACCEPT → Stripe £30/mo, DECLINE or no-response → suspended (access revoked, feedback kept); reminders day-9 + day-10 + a +2-day last-chance nudge. **One trial per engineer, ever.** Backend 6/6 pytest + full lifecycle curl-verified (start → time-travel → feedback → accept gives a real Stripe checkout URL → decline/no-response suspend); frontend tested (admin buttons + on-brand public feedback page); test data cleaned (counter 10/10).

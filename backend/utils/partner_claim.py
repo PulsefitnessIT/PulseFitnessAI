@@ -19,6 +19,7 @@ backfill script in iter 219e migrations.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -29,32 +30,42 @@ def _now() -> datetime:
 
 
 async def claim_pending_partner_for_user(email: str | None, user_id: str | None) -> bool:
-    """Best-effort claim. Returns True iff we relinked at least one
-    partner_engineers row to this user. Never raises — auth must
-    not fail because of a partner-side hiccup."""
+    """Best-effort claim + partner-engineer flagging. Returns True iff this
+    user is a partner engineer (a partner_engineers row is linked to them).
+    Never raises — auth must not fail because of a partner-side hiccup.
+
+    Iter 220ea·32 — also stamps ``users.is_partner_engineer = True`` so the
+    frontend routes them to the Engineer App on login instead of the
+    Operations dashboard (partner engineers have no org → account_type
+    resolved to 'full' → they were dumped on /dashboard)."""
     if not email or not user_id:
         return False
     try:
-        # Import here so the auth router doesn't pull the whole
-        # partner-engineers surface on cold start.
         from utils.database import db
-        # Match any row that:
-        #   • shares the email (case-insensitive — Mongo collation
-        #     not used to keep the index hits cheap; lowercased
-        #     copies sit beside the original)
-        #   • is still in the pending-claim placeholder state
-        result = await db.partner_engineers.update_many(
+        email_rx = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+        # 1. Link any still-pending placeholder rows for this email.
+        await db.partner_engineers.update_many(
             {
-                "email": {"$regex": f"^{email}$", "$options": "i"},
+                "email": email_rx,
                 "user_id": {"$regex": "^pending:"},
             },
             {"$set": {"user_id": user_id, "updated_at": _now()}},
         )
-        if result.modified_count:
-            logger.info(
-                "[partners] claimed %d pending partner_engineer row(s) for user=%s (%s)",
-                result.modified_count, user_id, email,
+        # 2. Is this user a partner engineer? (row linked by id OR email)
+        linked = await db.partner_engineers.find_one(
+            {"$or": [
+                {"user_id": user_id},
+                {"email": email_rx},
+            ]},
+            {"_id": 0, "id": 1},
+        )
+        if linked:
+            # Idempotent flag so login/me payloads route correctly.
+            await db.users.update_one(
+                {"id": user_id, "is_partner_engineer": {"$ne": True}},
+                {"$set": {"is_partner_engineer": True}},
             )
+            logger.info("[partners] flagged user=%s as partner engineer (%s)", user_id, email)
             return True
     except Exception as exc:  # noqa: BLE001
         logger.warning("[partners] claim_pending_partner_for_user failed: %s", exc)

@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, CheckCircle2, X, PoundSterling, Users,
-  Download, Star, TrendingUp, ChevronRight, Rocket,
+  Download, Star, TrendingUp, ChevronRight, Rocket, KeyRound,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -117,6 +117,19 @@ export default function AdminPartners() {
       notify.success(`${p.full_name} suspended`);
       await load();
     } catch (e) { notifyApiError(notify, e, 'Suspend failed'); }
+    finally { setBusy(null); }
+  };
+
+  // Iter 220ea·32 — send a sign-in / password-reset link straight from
+  // the engineer's profile. Smart: existing account → password reset;
+  // not yet activated → re-issues the activation welcome email.
+  const sendSigninLink = async (p) => {
+    setBusy(p.id);
+    try {
+      const r = await axios.post(`${API}/api/partners/${p.id}/send-signin-link`, {}, { headers });
+      const kind = r.data?.kind === 'password_reset' ? 'Password reset link' : 'Activation link';
+      notify.success(`${kind} sent to ${r.data?.sent_to || p.email}`);
+    } catch (e) { notifyApiError(notify, e, 'Could not send link'); }
     finally { setBusy(null); }
   };
 
@@ -400,6 +413,14 @@ export default function AdminPartners() {
                             data-testid={`admin-partner-start-trial-${p.id}`}
                             title="Start the 10-day free trial">
                             <Rocket size={10} /> Start trial
+                          </button>
+                        )}
+                        {p.status === 'approved' && (
+                          <button onClick={() => sendSigninLink(p)} disabled={busy === p.id}
+                            className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-zinc-300 dark:border-zinc-700 inline-flex items-center gap-1 disabled:opacity-50"
+                            data-testid={`admin-partner-signin-link-${p.id}`}
+                            title="Email a password / sign-in link to this engineer">
+                            <KeyRound size={10} /> Send link
                           </button>
                         )}
                         {p.status === 'approved' && (

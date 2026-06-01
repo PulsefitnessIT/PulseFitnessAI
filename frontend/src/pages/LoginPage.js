@@ -72,9 +72,11 @@ export default function LoginPage() {
       }
       const fallback = (u.is_master_admin || u.is_pulse_admin)
         ? '/master-admin'
-        : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
-          ? '/pulse'
-          : '/dashboard';
+        : (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner')
+          ? '/partner-engineer'
+          : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
+            ? '/pulse'
+            : '/dashboard';
       navigate(nextParam || fallback, { replace: true });
     } catch (err) {
       // Gym-floor fallback — same form, but POST against /gym-floor/login

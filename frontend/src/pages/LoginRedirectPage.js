@@ -30,9 +30,11 @@ const LoginRedirectPage = () => {
     })();
     const fallback = (user.is_master_admin || user.is_pulse_admin)
       ? '/master-admin'
-      : (user.account_type === 'lite' || user.account_type === 'pulse_pro')
-        ? '/pulse'
-        : '/dashboard';
+      : (user.is_partner_engineer || user.account_type === 'partner_engineer' || user.role === 'engineer_partner')
+        ? '/partner-engineer'
+        : (user.account_type === 'lite' || user.account_type === 'pulse_pro')
+          ? '/pulse'
+          : '/dashboard';
     return <Navigate to={safeNext || fallback} replace />;
   }
   return <LoginPage />;

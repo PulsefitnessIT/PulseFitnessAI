@@ -1215,6 +1215,73 @@ async def resend_partner_application_approval_email(
     }
 
 
+async def _mint_and_send_password_reset(
+    existing_user: dict, full_name: str, issued_by: str, partner_id: str,
+) -> dict:
+    """Shared password-reset minter — used by the application drawer AND
+    the engineer-profile 'Send password link' button. 1-hour TTL token,
+    same shape as /auth/forgot-password."""
+    import secrets
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    await db.password_reset_tokens.insert_one({
+        "token": token,
+        "user_id": existing_user["id"],
+        "email": existing_user["email"],
+        "expires_at": expires_at,
+        "used": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "issued_by": issued_by,
+        "issued_via": "admin_partner",
+    })
+    from utils.brand_urls import app_url_for_org
+    org = None
+    if existing_user.get("organization_id"):
+        org = await db.organizations.find_one(
+            {"id": existing_user["organization_id"]}, {"_id": 0, "account_type": 1})
+    reset_url = f"{app_url_for_org(org)}/reset-password?token={token}"
+    try:
+        from utils.email import send_password_reset_email
+        ok = await send_password_reset_email(
+            existing_user["email"], existing_user.get("full_name") or full_name, reset_url)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner password-reset email failed: %s", exc)
+        raise HTTPException(502, "Email send failed — please retry shortly") from exc
+    await _audit(partner_id=partner_id, actor_id=issued_by,
+                 action="send_password_reset", after={"to": existing_user["email"], "delivered": bool(ok)})
+    return {"ok": bool(ok), "kind": "password_reset", "sent_to": existing_user["email"]}
+
+
+@router.post("/partners/{partner_id}/send-signin-link")
+async def send_partner_signin_link_by_partner(
+    partner_id: str, user: dict = Depends(get_current_user),
+):
+    """Iter 220ea·32 — send a sign-in / password link straight from an
+    engineer's profile in the Partners list (not just the application
+    drawer). Same smart behaviour: existing account → password reset;
+    not yet activated → re-issue the activation welcome email."""
+    _require_master_admin(user)
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(404, "Engineer not found")
+    target_email = (partner.get("email") or "").strip()
+    if not target_email:
+        raise HTTPException(400, "This engineer has no email on file")
+
+    existing_user = await db.users.find_one(
+        {"email": {"$regex": f"^{re.escape(target_email)}$", "$options": "i"}}, {"_id": 0})
+    if existing_user:
+        return await _mint_and_send_password_reset(
+            existing_user, partner.get("full_name") or "", user.get("id") or "", partner_id)
+
+    # No account yet → fall back to re-issuing the activation welcome email.
+    if partner.get("application_id"):
+        return await send_partner_signin_link(partner["application_id"], user)
+    raise HTTPException(
+        400, "This engineer hasn't created an account yet and has no application to "
+             "activate from — they'll need to be (re)approved to receive an activation link.")
+
+
 @router.post("/partners/applications/{application_id}/send-signin-link")
 async def send_partner_signin_link(
     application_id: str,
@@ -1254,50 +1321,10 @@ async def send_partner_signin_link(
 
     if existing_user:
         # ── Password-reset path ────────────────────────────────
-        import secrets
-        token = secrets.token_urlsafe(32)
-        expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
-        await db.password_reset_tokens.insert_one({
-            "token": token,
-            "user_id": existing_user["id"],
-            "email": existing_user["email"],
-            "expires_at": expires_at,
-            "used": False,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "issued_by": user.get("id"),
-            "issued_via": "admin_partner_drawer",
-        })
-        from utils.brand_urls import app_url_for_org
-        org = None
-        if existing_user.get("organization_id"):
-            org = await db.organizations.find_one(
-                {"id": existing_user["organization_id"]},
-                {"_id": 0, "account_type": 1},
-            )
-        frontend_url = app_url_for_org(org)
-        reset_url = f"{frontend_url}/reset-password?token={token}"
-        try:
-            from utils.email import send_password_reset_email
-            ok = await send_password_reset_email(
-                existing_user["email"],
-                existing_user.get("full_name") or full_name,
-                reset_url,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Partner password-reset email failed: %s", exc)
-            raise HTTPException(502, "Email send failed — please retry shortly") from exc
-        await _audit(
-            partner_id=app.get("partner_id") or "",
-            actor_id=user.get("id") or "",
-            action="send_password_reset",
-            after={"to": existing_user["email"], "delivered": bool(ok)},
-        )
-        return {
-            "ok": bool(ok),
-            "kind": "password_reset",
-            "sent_to": existing_user["email"],
-            "application_id": application_id,
-        }
+        result = await _mint_and_send_password_reset(
+            existing_user, full_name, user.get("id") or "", app.get("partner_id") or "")
+        result["application_id"] = application_id
+        return result
 
     # ── Activation path ────────────────────────────────────────
     # Reuse existing token if still valid; otherwise mint a fresh one.
