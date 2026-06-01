@@ -186,6 +186,76 @@ def test_generate_article_dedupes_colliding_slug():
     _run(go())
 
 
+# ── Iter 220ea·15 — Blog generation resilience ───────────────
+# A field-reported bug: the daily autopilot published an article whose
+# body was the LLM-unreachable placeholder ("Article generation is
+# temporarily unavailable…"). Two regressions are locked in here:
+#   1. A failed generation is NEVER published live (held in needs_review).
+#   2. The placeholder copy must NOT mention AI.
+
+
+def test_failed_generation_is_not_published_live():
+    from routes.marketing import seo_autopilot as m
+
+    user = {"id": "u-1", "is_master_admin": True}
+    fdb = _fake_db()
+
+    async def go():
+        # _llm_text returns None → no usable body → generation_failed.
+        with patch.object(m, "db", fdb), \
+             patch.object(m, "_llm_text", AsyncMock(return_value=None)), \
+             patch.object(m, "_generate_hero_image", AsyncMock(return_value=None)):
+            payload = m.ArticleGeneratePayload(
+                primary_keyword="gym equipment downtime",
+                publish_now=True, generate_hero_image=False,
+            )
+            out = await m.generate_article(payload, user)
+            assert out["status"] == "needs_review", out["status"]
+            assert out["published_at"] is None
+            assert out["generation_failed"] is True
+    _run(go())
+
+
+def test_placeholder_body_never_mentions_ai():
+    from routes.marketing import seo_autopilot as m
+
+    async def go():
+        with patch.object(m, "_llm_text", AsyncMock(return_value=None)):
+            out = await m._generate_article_payload(
+                "gym equipment downtime", [], None, 1200,
+            )
+            assert out["generation_failed"] is True
+            body = out["body_md"].lower()
+            for banned in ("ai service", " ai ", "ai-", "regenerate", "temporarily unavailable"):
+                assert banned not in body, f"placeholder leaked: {banned!r}"
+    _run(go())
+
+
+def test_autopilot_keeps_keyword_queued_when_generation_fails():
+    from routes.marketing import seo_autopilot as m
+
+    user = {"id": "u-1", "is_master_admin": True}
+    fdb = _fake_db()
+    fdb.seo_keywords.find_one = AsyncMock(
+        return_value={"id": "kw-1", "term": "gym equipment downtime"},
+    )
+
+    async def go():
+        with patch.object(m, "db", fdb), \
+             patch.object(m, "_llm_text", AsyncMock(return_value=None)), \
+             patch.object(m, "_generate_hero_image", AsyncMock(return_value=None)), \
+             patch.object(m, "autodiscover_top_up_queue", AsyncMock(return_value=None)), \
+             patch.object(m, "_load_config", AsyncMock(return_value={})):
+            res = await m.run_autopilot(user)
+            assert res["ok"] is True
+            # Keyword must NOT be flipped to "published" on a failed run.
+            kw_update = fdb.seo_keywords.update_one.call_args.args[1]["$set"]
+            assert kw_update.get("status") != "published"
+            assert res["article"]["status"] == "needs_review"
+    _run(go())
+
+
+
 # ── Article patch — status transitions ───────────────────────
 
 def test_patch_article_stamps_published_at_on_first_publish():

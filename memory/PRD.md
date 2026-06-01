@@ -1,3 +1,47 @@
+## Iter 220ea·15 — Blog generation resilience (no broken/AI placeholders go live) ✅ (Feb, 2026)
+
+**Field-reported bug:** the daily SEO autopilot published a blog whose
+body was the LLM-unreachable placeholder *"Article generation is
+temporarily unavailable. Please regenerate once the AI service is back
+online."* (screenshot from gymaxisai.com). The LLM had a transient blip;
+the code fell to the placeholder on the first failure and auto-published
+it live. Two user requirements: (1) make generation work reliably, and
+(2) any failure copy must NEVER mention AI.
+
+### Fixes — `routes/marketing/seo_autopilot.py`
+1. **`_llm_text` retries** up to 3× with exponential backoff (2/4/8s)
+   and treats an empty response as a failure — recovers from transient
+   blips instead of giving up on the first error.
+2. **Neutral placeholder + `generation_failed` flag.**
+   `_generate_article_payload` now returns `generation_failed` and the
+   placeholder body reads *"This article is being prepared and will be
+   published here shortly. Please check back soon."* — no AI mention.
+3. **Never auto-publish a failed article.** `generate_article` holds a
+   failed generation in `needs_review` (never `published`) when
+   `publish_now=True`. `generation_failed` is persisted on the doc for
+   observability. Manual `publish_now=False` drafts behave as before.
+4. **Autopilot retries the topic.** `run_autopilot` keeps the keyword
+   `queued` (doesn't retire it to `published`) when generation fails, so
+   the next daily run retries rather than burning the topic.
+
+### Cleanup
+- Regenerated the one broken live article in the DB
+  (`gym-treadmill-downtime-impact-on-retention`) — now real 1,235-word
+  content, verified via the public `/api/blog/posts/{slug}` endpoint.
+
+### Tests
+`tests/test_iter_220ad_seo_autopilot.py` (+3): failed generation not
+published live, placeholder never mentions AI, autopilot keeps keyword
+queued on failure. 21/21 in-file + 67 nearby SEO tests pass. Lint clean.
+
+### NOTE — production article in the screenshot
+The screenshot is from production (gymaxisai.com), whose DB is separate
+from preview. This code fix prevents recurrence after deploy; the
+existing broken production post should be regenerated post-deploy
+(Master Admin → Marketing → SEO → regenerate, or next autopilot run).
+
+
+
 ## Iter 220ea·14 — Starter Field Templates ✅ (Feb 14, 2026)
 
 Cuts the cold-start "what fields should I even ask the engineer

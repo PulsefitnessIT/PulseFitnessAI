@@ -23,6 +23,7 @@ Quality bar:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -204,23 +205,37 @@ def _safe_json_extract(text: str) -> Optional[dict | list]:
     return None
 
 
-async def _llm_text(system: str, prompt: str, *, session_id: str) -> Optional[str]:
+async def _llm_text(
+    system: str, prompt: str, *, session_id: str, retries: int = 3,
+) -> Optional[str]:
     key = _emergent_key()
     if not key:
         logger.warning("[seo] EMERGENT_LLM_KEY missing")
         return None
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage  # type: ignore
-        chat = LlmChat(
-            api_key=key, session_id=session_id, system_message=system,
-        ).with_model("anthropic", "claude-sonnet-4-6")
-        resp = await chat.send_message(UserMessage(text=prompt))
-        if isinstance(resp, str):
-            return resp
-        return getattr(resp, "text", str(resp))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[seo] llm_text failed: %s", exc)
-        return None
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, retries + 1):
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage  # type: ignore
+            chat = LlmChat(
+                api_key=key, session_id=session_id, system_message=system,
+            ).with_model("anthropic", "claude-sonnet-4-6")
+            resp = await chat.send_message(UserMessage(text=prompt))
+            text = resp if isinstance(resp, str) else getattr(resp, "text", str(resp))
+            if text and text.strip():
+                return text
+            logger.warning(
+                "[seo] llm_text empty response (attempt %s/%s)", attempt, retries,
+            )
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            logger.warning(
+                "[seo] llm_text failed (attempt %s/%s): %s", attempt, retries, exc,
+            )
+        if attempt < retries:
+            await asyncio.sleep(min(2 ** attempt, 8))
+    if last_exc:
+        logger.warning("[seo] llm_text exhausted %s retries: %s", retries, last_exc)
+    return None
 
 
 async def _generate_hero_image(prompt: str, *, session_id: str) -> Optional[str]:
@@ -471,14 +486,20 @@ async def _generate_article_payload(
     if not isinstance(data, dict):
         data = {}
 
+    # Did the model actually return usable article content? When the
+    # LLM is unreachable or returns junk, ``body_md`` is absent. The
+    # caller uses this flag to hold the article back from going live
+    # rather than publishing a broken placeholder.
+    generation_failed = not bool(data.get("body_md"))
+
     # Reasonable fallbacks for any missing field — never let the UI break.
     title = (data.get("title") or primary_keyword.title())[:200]
     excerpt = (data.get("excerpt") or
                f"What we've learned about {primary_keyword} from the gym ops trenches.")[:600]
     body_md = data.get("body_md") or (
         f"# {title}\n\n"
-        f"Article generation is temporarily unavailable. Please regenerate "
-        f"once the AI service is back online.\n"
+        "This article is being prepared and will be published here "
+        "shortly. Please check back soon.\n"
     )
     meta_description = (data.get("meta_description") or excerpt)[:300]
     tags = data.get("tags") or [primary_keyword, "operations", "gym"]
@@ -533,6 +554,7 @@ async def _generate_article_payload(
         "meta_description": meta_description, "tags": tags[:6],
         "qa_blocks": qa_blocks[:6],
         "word_count": len((body_md or "").split()),
+        "generation_failed": generation_failed,
     }
 
 
@@ -833,7 +855,7 @@ async def generate_article(
         db, title=text["title"], body_md=text["body_md"], threshold=0.6,
     )
     regenerated = False
-    if not uniq["ok"] and uniq.get("best_match"):
+    if not text.get("generation_failed") and not uniq["ok"] and uniq.get("best_match"):
         regenerated = True
         match = uniq["best_match"]
         harden_angle = (
@@ -868,9 +890,13 @@ async def generate_article(
     # Iter 220bj — when the post-generation uniqueness check still
     # fails after a regenerate, downgrade to needs_review so master
     # admin can decide rather than auto-publishing a near-duplicate.
+    # A generation failure (LLM unreachable) is ALWAYS held back for
+    # review — we never publish a placeholder article live.
     publish_now = bool(payload.publish_now)
     final_status: str
-    if publish_now and not uniq["ok"]:
+    if publish_now and text.get("generation_failed"):
+        final_status = "needs_review"
+    elif publish_now and not uniq["ok"]:
         final_status = "needs_review"
     elif publish_now:
         final_status = "published"
@@ -894,6 +920,7 @@ async def generate_article(
         "hero_image_alt": text["title"],
         "status": final_status,
         "published_at": now if final_status == "published" else None,
+        "generation_failed": bool(text.get("generation_failed")),
         "scheduled_for": None,
         "metrics": {"views": 0, "organic_visits": 0},
         # Iter 220bj — freshness telemetry
@@ -1049,12 +1076,22 @@ async def run_autopilot(user: dict = Depends(get_current_user)):
         await db.seo_articles.update_one(
             {"id": article["id"]}, {"$set": article_updates},
         )
-    await db.seo_keywords.update_one(
-        {"id": next_kw["id"]},
-        {"$set": {"status": "published",
-                  "target_article_id": article["id"],
-                  "updated_at": _now()}},
-    )
+    # Only retire the keyword when the article actually published. If
+    # generation failed (LLM unreachable) the article is held in
+    # needs_review — keep the keyword queued so the next run retries it
+    # rather than burning the topic on a placeholder.
+    if article.get("status") == "published":
+        await db.seo_keywords.update_one(
+            {"id": next_kw["id"]},
+            {"$set": {"status": "published",
+                      "target_article_id": article["id"],
+                      "updated_at": _now()}},
+        )
+    else:
+        await db.seo_keywords.update_one(
+            {"id": next_kw["id"]},
+            {"$set": {"updated_at": _now()}},
+        )
     return {"ok": True, "keyword_id": next_kw["id"], "article": article}
 
 
@@ -1467,8 +1504,6 @@ async def init_seo_indexes() -> None:
 
 
 # ── asyncio.gather alias — keeps the module 1 import lighter ──────
-import asyncio  # noqa: E402
-
 async def asyncio_gather(*coros):
     return await asyncio.gather(*coros)
 
