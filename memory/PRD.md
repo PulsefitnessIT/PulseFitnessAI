@@ -1,3 +1,17 @@
+## Iter 220ea·25 — Engineer app gap review + error-boundary hardening ✅ (Feb, 2026)
+
+Reviewed the whole engineer app (45 components, 32 routes, ~50 backend svc modules, offline outbox, integrations) for gaps. Verdict: feature-complete; no "coming soon"/dead flows. Closed the one true robustness gap found.
+
+**Tier-1 gap fixed — error-boundary coverage:** Only 6/32 engineer routes were wrapped in `EngineerErrorBoundary`; a render crash on the other 26 (Quotes, Invoices, Payouts, Diary, Customers, Analytics, Equipment, Work-report-fields, Workspace, Queue, Inbox, etc.) would white-screen the whole SPA. Wrapped all remaining authenticated `/svc/engineer/*` routes → **31/31 now protected**. `routes/AppRoutes.js`. Verified: lint clean, Analytics route renders normally (boundary transparent when no error).
+- Strengthened guard `test_iter_220e6_release_readiness_engineer_app.py::test_app_routes_wraps_engineer_routes_with_boundary` to scan ALL engineer route lines and fail if any is unwrapped (prevents future regressions).
+
+**Documented remaining gaps (not bugs):**
+- Tier-2 (BLOCKED on external creds): Sicon Service sync, Sage 200 invoice posting (placeholder £65/hr labour rate), Outlook calendar, DocuSign — all explicit stubs.
+- Tier-3 (optional polish): offline outbox covers critical job-completion path only (not notes/mileage/quotes/invoices); field share-link management (list/revoke); per-location min/max overrides; org-configurable Sage rates.
+
+---
+
+
 ## Iter 220ea·24 — Return Visit Brief + cross-org field share + stock polish ✅ (Feb, 2026)
 
 Shipped four user-approved items (a/b/c/d) plus two bug fixes surfaced during testing. Lint clean (backend ruff + frontend ESLint), 47 targeted pytests green, live e2e verified on preview.

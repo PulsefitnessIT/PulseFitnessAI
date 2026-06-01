@@ -417,39 +417,39 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerHome /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJobsList /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs/:caseId" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJob /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/quotes" element={user ? <ServiceOpsEngineerQuotes /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/quotes/new" element={user ? <ServiceOpsEngineerQuoteBuilder /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/quotes/:id" element={user ? <ServiceOpsEngineerQuoteBuilder /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/invoices" element={user ? <ServiceOpsEngineerInvoices /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/invoices/new" element={user ? <ServiceOpsEngineerInvoiceBuilder /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/invoices/:id" element={user ? <ServiceOpsEngineerInvoiceBuilder /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/payouts" element={user ? <ServiceOpsEngineerPayouts /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/quotes" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerQuotes /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/quotes/new" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerQuoteBuilder /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/quotes/:id" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerQuoteBuilder /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/invoices" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerInvoices /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/invoices/new" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerInvoiceBuilder /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/invoices/:id" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerInvoiceBuilder /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/payouts" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerPayouts /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 216h140 — Engineer App Phase 4 */}
-      <Route path="/svc/engineer/diary" element={user ? <ServiceOpsEngineerDiary /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/diary" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerDiary /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/service-desk/dispatch" element={user ? <ServiceOpsAdminDispatchBoard /> : <Navigate to="/login" replace />} />
       {/* Iter 216h141 — Engineer Workspace (desktop 3-column) */}
-      <Route path="/svc/engineer/workspace" element={user ? <ServiceOpsEngineerWorkspace /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/workspace" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerWorkspace /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 216h142 — Engineer Notifications */}
-      <Route path="/svc/engineer/notifications" element={user ? <ServiceOpsEngineerNotifications /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/notifications" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerNotifications /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 216h143 — Engineer Sync queue (offline writes) */}
-      <Route path="/svc/engineer/sync" element={user ? <ServiceOpsEngineerSyncPanel /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/sync" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerSyncPanel /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 216h144 — Engineer independence */}
-      <Route path="/svc/engineer/jobs/new" element={user ? <ServiceOpsEngineerNewJob /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/inbox"    element={user ? <ServiceOpsEngineerInbox /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/jobs/new" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerNewJob /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/inbox"    element={user ? <EngineerErrorBoundary><ServiceOpsEngineerInbox /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/r/:slug"               element={<PublicEngineerCard />} />
       {/* Iter 216h147 — Engineer self-claim queue */}
-      <Route path="/svc/engineer/queue"    element={user ? <ServiceOpsEngineerQueue /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/queue"    element={user ? <EngineerErrorBoundary><ServiceOpsEngineerQueue /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 216h148 — Public engineer landing/login */}
       <Route path="/engineer"  element={<PublicEngineerLanding />} />
       <Route path="/engineers" element={<Navigate to="/engineer" replace />} />
       {/* Iter 216h159 — Engineer card-conversion analytics */}
-      <Route path="/svc/engineer/card-analytics" element={user ? <ServiceOpsEngineerCardAnalytics /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/analytics" element={user ? <ServiceOpsEngineerAnalytics /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/end-of-day" element={user ? <ServiceOpsEngineerEndOfDay /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/customers" element={user ? <ServiceOpsEngineerCustomers /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/card-analytics" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerCardAnalytics /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/analytics" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerAnalytics /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/end-of-day" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEndOfDay /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/customers" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerCustomers /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ci — Engineer Equipment Tab */}
-      <Route path="/svc/engineer/equipment" element={user ? <ServiceOpsEngineerEquipment /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/equipment/new" element={user ? <ServiceOpsEngineerEquipmentForm /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/equipment" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEquipment /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/equipment/new" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEquipmentForm /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ea·19 — Engineer Stock Control hub */}
       <Route path="/svc/engineer/stock" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerStock /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ea·20 — Parts Catalogue + Import */}
@@ -457,13 +457,13 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 220ea·22 — Phase 4: Office/Admin stock management */}
       <Route path="/svc/engineer/stock-admin" element={user ? <EngineerErrorBoundary><ServiceOpsAdminStock /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220 — Work Report custom fields manager */}
-      <Route path="/svc/engineer/work-report-fields" element={user ? <ServiceOpsEngineerWorkReportFields /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/work-report-fields" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerWorkReportFields /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220i — Upcoming jobs list */}
-      <Route path="/svc/engineer/upcoming" element={user ? <ServiceOpsEngineerUpcoming /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/branding" element={user ? <ServiceOpsEngineerBranding /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/upcoming" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerUpcoming /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/branding" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerBranding /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ea·10 — Engineer Account Settings → H&S checklist editor */}
-      <Route path="/svc/engineer/h-s-checklist" element={user ? <ServiceOpsSafetyTemplateAdmin /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/ratings" element={user ? <ServiceOpsEngineerRatings /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/h-s-checklist" element={user ? <EngineerErrorBoundary><ServiceOpsSafetyTemplateAdmin /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/ratings" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerRatings /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

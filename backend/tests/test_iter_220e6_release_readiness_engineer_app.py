@@ -44,19 +44,25 @@ def test_engineer_error_boundary_component_exists():
 def test_app_routes_wraps_engineer_routes_with_boundary():
     src = _read("routes/AppRoutes.js")
     assert "import EngineerErrorBoundary" in src
-    # Each engineer route element renders the boundary inline.
-    # Search by full element fragment so we don't false-match on
-    # path-prefix overlap.
-    for path in (
-        'path="/svc/engineer"',
-        'path="/svc/engineer/jobs"',
-        'path="/svc/engineer/jobs/:caseId"',
-    ):
-        idx = src.find(path)
-        assert idx > 0, f"Missing route {path}"
-        line_end = src.find("\n", idx)
-        line = src[idx:line_end if line_end > 0 else idx + 400]
-        assert "EngineerErrorBoundary" in line, f"Route {path} not wrapped"
+    # Iter 220ea·24 — EVERY authenticated /svc/engineer/* route must be
+    # wrapped in EngineerErrorBoundary so a render crash on any screen
+    # shows the friendly fallback instead of white-screening the whole
+    # SPA. Scan all such route lines and assert the boundary is present.
+    import re
+
+    route_lines = [
+        ln for ln in src.splitlines()
+        if 'path="/svc/engineer' in ln and "user ?" in ln
+        and 'Navigate to="/login"' in ln
+    ]
+    # Sanity: we expect the full engineer surface (>25 routes).
+    assert len(route_lines) >= 25, f"only found {len(route_lines)} engineer routes"
+    unwrapped = [
+        re.search(r'path="([^"]+)"', ln).group(1)
+        for ln in route_lines
+        if "EngineerErrorBoundary" not in ln
+    ]
+    assert not unwrapped, f"engineer routes not wrapped in error boundary: {unwrapped}"
 
 
 # ── Gap #2 — Offline write outbox ─────────────────────────────
