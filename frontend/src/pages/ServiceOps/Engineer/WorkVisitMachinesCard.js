@@ -22,11 +22,12 @@ import { Link } from 'react-router-dom';
 import {
   Plus, Loader2, Trash2, Copy, Wrench, Sparkles, ChevronDown,
   ChevronUp, ChevronRight, Camera, X, PackagePlus, Package, CheckSquare, Square,
-  ListChecks, Search, Check,
+  ListChecks, Search, Check, Clock, ShieldCheck,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { chunkedUpload } from '@/utils/chunkedUpload';
 import { stashPausedUpload } from '@/utils/engineerUploadStash';
+import { outboxPost } from '@/utils/engineerOutbox';
 import NotePresetChips from './NotePresetChips';
 import MachineRowCustomFields from './MachineRowCustomFields';
 
@@ -36,6 +37,14 @@ const API = process.env.REACT_APP_BACKEND_URL
 const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
+
+// Iter 220ea·21 — client idempotency key so an offline-queued
+// "part used" replays exactly once when the connection returns.
+const newIdemKey = () => (
+  (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`
+);
 
 export default function WorkVisitMachinesCard({ caseId }) {
   const [rows, setRows] = useState([]);
@@ -703,17 +712,31 @@ function MachineRowPartsUsed({ row, caseId, onChange }) {
 
   const add = async (part, qty) => {
     setBusy(true);
+    const idem = newIdemKey();
     try {
-      await axios.post(`${API}/svc/engineer/jobs/${caseId}/parts/use`, {
+      const res = await outboxPost(`${API}/svc/engineer/jobs/${caseId}/parts/use`, {
         part_sku: part.sku,
         qty,
         notes: '',
         machine_id: row.id,
         machine_name: row.asset_name || null,
-      }, auth());
-      notify.success(`${part.sku} × ${qty} added`);
+      }, {
+        headers: { ...auth().headers, 'Idempotency-Key': idem },
+        kind: 'parts_use',
+        label: `Part ${part.sku} ×${qty}`,
+      });
+      if (res?.queued) {
+        // Offline — show an optimistic "pending sync" chip; the real
+        // row will replace it once the outbox drains and load() runs.
+        setItems((prev) => [...prev, {
+          id: `pending-${idem}`, part_sku: part.sku, qty, machine_id: row.id, _pending: true,
+        }]);
+        notify.success('Saved offline — will sync when back online');
+      } else {
+        notify.success(`${part.sku} × ${qty} added`);
+        await load();
+      }
       setOpen(false);
-      await load();
       onChange?.();
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Could not add part');
@@ -742,17 +765,38 @@ function MachineRowPartsUsed({ row, caseId, onChange }) {
       )}
       {items.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {items.map((p) => (
-            <span
-              key={p.id}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold"
-              data-testid={`machine-parts-used-chip-${p.id}`}
-            >
-              <Check size={10} />
-              <span className="font-mono">{p.part_sku}</span>
-              <span>× {p.qty}</span>
-            </span>
-          ))}
+          {items.map((p) => {
+            const tone = p._pending
+              ? 'bg-slate-50 text-slate-500 border-slate-200'
+              : p.covered
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : p.chargeable
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+            return (
+              <span
+                key={p.id}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${tone}`}
+                data-testid={`machine-parts-used-chip-${p.id}`}
+                title={p.cover_reason || ''}
+              >
+                {p._pending ? <Clock size={10} className="animate-pulse" /> : <Check size={10} />}
+                <span className="font-mono">{p.part_sku}</span>
+                <span>× {p.qty}</span>
+                {!p._pending && p.covered && (
+                  <span className="inline-flex items-center gap-0.5 pl-1 border-l border-emerald-300" data-testid={`machine-parts-cover-${p.id}`}>
+                    <ShieldCheck size={10} /> Covered
+                  </span>
+                )}
+                {!p._pending && p.chargeable && (
+                  <span className="pl-1 border-l border-amber-300" data-testid={`machine-parts-charge-${p.id}`}>
+                    Chargeable
+                  </span>
+                )}
+                {p._pending && <span className="pl-1 border-l border-slate-300">Pending</span>}
+              </span>
+            );
+          })}
         </div>
       )}
       {open && (

@@ -22,7 +22,7 @@ router = APIRouter(prefix="/svc/parts/catalogue", tags=["Service Ops · Parts Ca
 EDITABLE = {"name", "description", "manufacturer", "mfr_part_number", "supplier",
             "supplier_part_number", "category", "cost", "list_price",
             "reorder_threshold", "reorder_qty", "bin_location", "notes",
-            "compatible_models", "status", "active"}
+            "compatible_models", "status", "active", "cover_category"}
 NUMERIC = {"cost", "list_price"}
 INT_FIELDS = {"reorder_threshold", "reorder_qty"}
 

@@ -120,6 +120,12 @@ export default function PartsCatalogue() {
             <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400"><Boxes className="w-7 h-7" /></div>
             <p className="mt-3 font-bold text-slate-700">No parts found</p>
             <p className="text-sm text-slate-400 mt-1">{data.can_manage ? 'Import a spreadsheet to get started.' : 'Try a different search.'}</p>
+            {data.can_manage && (
+              <button onClick={() => setImporting(true)} data-testid="catalogue-empty-import-btn"
+                      className="mt-4 inline-flex items-center gap-1.5 px-4 h-11 rounded-xl bg-blue-600 text-white text-sm font-bold">
+                <Upload className="w-4 h-4" /> Import a spreadsheet
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -185,7 +191,7 @@ const EditDrawer = ({ part, showCost, onClose, onSaved }) => {
     name: part.name || '', category: part.category || '', manufacturer: part.manufacturer || '',
     supplier: part.supplier || '', list_price: part.list_price ?? 0, cost: part.cost ?? 0,
     reorder_threshold: part.reorder_threshold ?? 0, reorder_qty: part.reorder_qty ?? 0,
-    bin_location: part.bin_location || '',
+    bin_location: part.bin_location || '', cover_category: part.cover_category || '',
   });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -223,6 +229,21 @@ const EditDrawer = ({ part, showCost, onClose, onSaved }) => {
           <Field label="Reorder qty" type="number" value={form.reorder_qty} onChange={(v) => set('reorder_qty', v)} tid="edit-reorder" />
         </div>
         <Field label="Van location" value={form.bin_location} onChange={(v) => set('bin_location', v)} tid="edit-bin" />
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Contract cover category</label>
+          <select value={form.cover_category} onChange={(e) => set('cover_category', e.target.value)}
+                  data-testid="edit-cover-category"
+                  className="w-full mt-1 h-10 px-3 rounded-xl border border-slate-200 text-sm bg-white">
+            <option value="">Auto-detect from name</option>
+            <option value="major">Major part</option>
+            <option value="wear_tear">Wear &amp; tear part</option>
+            <option value="consumable">Consumable</option>
+            <option value="treadmill_belts">Treadmill belt</option>
+            <option value="treadmill_beds">Treadmill bed/deck</option>
+            <option value="upholstery">Upholstery</option>
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1">Decides whether this part is covered by a contract or chargeable when used on a job.</p>
+        </div>
         <button onClick={save} disabled={busy} data-testid="edit-save"
                 className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : null} Save changes

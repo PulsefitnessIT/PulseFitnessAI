@@ -42,6 +42,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from routes.partners import require_engineer_app_access
+from routes.svc.parts_cover import classify_part_cover
 from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import append_event
@@ -90,6 +91,16 @@ async def _case_for_engineer(case_id: str, user: dict) -> dict:
         # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
         raise HTTPException(404, "Job not found")
     return case
+
+
+async def _contract_for_case(case: dict) -> dict | None:
+    """Iter 220ea·21 — resolve the service contract linked to a case
+    (via ``contract_id``) so used parts can be classified covered vs
+    chargeable. Returns None when the job has no linked contract."""
+    cid = case.get("contract_id")
+    if not cid:
+        return None
+    return await db.crm2_contracts.find_one({"id": cid}, {"_id": 0})
 
 
 # ───────────────────────── Mileage ─────────────────────────────────
@@ -192,12 +203,29 @@ async def consume_allocation(case_id: str, allocation_id: str,
     if alloc.get("fulfilled"):
         return {"ok": True, "already_consumed": True, "allocation": alloc}
 
+    # Iter 220ea·21 — classify this allocation against the job's
+    # contract at consume time so the invoice draft can charge £0 for
+    # contract-covered parts.
+    part = await db.svc_parts.find_one(
+        {**of, "sku": alloc.get("part_sku")}, {"_id": 0},
+    )
+    contract = await _contract_for_case(case)
+    cover = classify_part_cover(
+        part or {"sku": alloc.get("part_sku"), "name": alloc.get("part_name")},
+        contract,
+    )
+
     await db.svc_cases.update_one(
         {"id": case_id, **of, "allocated_parts.id": allocation_id},
         {"$set": {
             "allocated_parts.$.fulfilled": True,
             "allocated_parts.$.fulfilled_at": _now(),
             "allocated_parts.$.fulfilled_by_id": user["id"],
+            "allocated_parts.$.cover_category": cover["cover_category"],
+            "allocated_parts.$.cover_label": cover["cover_label"],
+            "allocated_parts.$.covered": cover["covered"],
+            "allocated_parts.$.chargeable": cover["chargeable"],
+            "allocated_parts.$.cover_reason": cover["cover_reason"],
             "updated_at": _now(),
         }},
     )
@@ -224,7 +252,7 @@ async def consume_allocation(case_id: str, allocation_id: str,
         body=f"Used {alloc.get('qty')} × {alloc.get('part_sku')} ({alloc.get('part_name','')})",
         extra={"kind": "parts_consume", "allocation_id": allocation_id},
     )
-    return {"ok": True, "allocation_id": allocation_id, "fulfilled": True}
+    return {"ok": True, "allocation_id": allocation_id, "fulfilled": True, **cover}
 
 
 class PartUseIn(BaseModel):
@@ -272,6 +300,11 @@ async def use_part_ad_hoc(
     list_price = float((part or {}).get("list_price") or 0)
     part_name = (part or {}).get("name") or sku
 
+    # Iter 220ea·21 — classify the part against the job's contract so
+    # the allocation carries covered/chargeable + a plain-English reason.
+    contract = await _contract_for_case(case)
+    cover = classify_part_cover(part or {"sku": sku, "name": part_name}, contract)
+
     van = await db.svc_van_stock.find_one(
         {**of, "engineer_id": user["id"], "part_sku": sku},
     )
@@ -303,6 +336,7 @@ async def use_part_ad_hoc(
         "machine_id": (body.machine_id or None),
         "machine_name": (body.machine_name or None),
         "idempotency_key": idempotency_key,
+        **cover,
     }
     await db.svc_cases.update_one(
         {"id": case_id, **of},
@@ -394,6 +428,7 @@ async def generate_invoice_draft(
         })
     for alloc in consumed:
         qty = float(alloc.get("qty") or 0)
+        covered = bool(alloc.get("covered"))
         price = float(alloc.get("list_price_gbp") or 0)
         # Fall back to catalogue list price if not embedded
         if price <= 0 and alloc.get("part_sku"):
@@ -401,9 +436,16 @@ async def generate_invoice_draft(
                 {**of, "sku": alloc["part_sku"]}, {"_id": 0, "list_price": 1},
             )
             price = float((part or {}).get("list_price") or 0)
+        # Iter 220ea·21 — contract-covered parts are itemised at £0 so
+        # the invoice shows what was done without charging the customer.
+        if covered:
+            price = 0.0
+        desc = f"{alloc.get('part_sku')} — {alloc.get('part_name','')}"
+        if covered:
+            desc += " (covered by contract)"
         lines.append({
             "kind": "part",
-            "description": f"{alloc.get('part_sku')} — {alloc.get('part_name','')}",
+            "description": desc,
             "quantity": qty,
             "unit_price": price,
         })

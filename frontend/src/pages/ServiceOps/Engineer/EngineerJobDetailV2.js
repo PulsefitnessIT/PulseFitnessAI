@@ -2661,32 +2661,44 @@ function PartsTab({ job, onChange }) {
 
   const consume = async (allocationId) => {
     setBusy(true);
+    const idem = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID() : `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
-      await axios.post(`${API}/svc/engineer/jobs/${job.id}/parts/${allocationId}/consume`, {}, auth());
-      notify.success('Marked as used');
-      await onChange();
+      const res = await outboxPost(`${API}/svc/engineer/jobs/${job.id}/parts/${allocationId}/consume`, {}, {
+        headers: { ...auth().headers, 'Idempotency-Key': idem },
+        kind: 'parts_consume', label: 'Mark part used',
+      });
+      notify.success(res?.queued ? 'Saved offline — will sync when back online' : 'Marked as used');
+      if (!res?.queued) await onChange();
     } catch { notify.error('Could not update'); }
     finally { setBusy(false); }
   };
 
   const addPartUsage = async (sku, qty = 1, machineId = '', machineName = '') => {
     setBusy(true);
+    const idem = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID() : `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       // Iter 220do — pass the machine the part was used on so the
       // customer report links the spend to the specific asset.
       const mid = machineId || adhoc.machine_id || '';
       const m = machines.find(x => (x.id || x.machine_id) === mid);
       const mname = machineName || m?.name || m?.title || '';
-      await axios.post(`${API}/svc/engineer/jobs/${job.id}/parts/use`, {
+      const res = await outboxPost(`${API}/svc/engineer/jobs/${job.id}/parts/use`, {
         part_sku: sku, qty, notes: adhoc.notes || null,
         machine_id: mid || null,
         machine_name: mname || null,
-      }, auth());
-      notify.success(`${sku} × ${qty} added`);
+      }, {
+        headers: { ...auth().headers, 'Idempotency-Key': idem },
+        kind: 'parts_use', label: `Part ${sku} ×${qty}`,
+      });
+      notify.success(res?.queued
+        ? 'Saved offline — will sync when back online'
+        : `${sku} × ${qty} added`);
       setAdhoc({ part_sku: '', qty: 1, notes: '', machine_id: '' });
       setSearch('');
       setResults([]);
-      await onChange();
+      if (!res?.queued) await onChange();
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Could not add part');
     } finally { setBusy(false); }
@@ -2917,7 +2929,18 @@ function PartsTab({ job, onChange }) {
                     {a.machine_name ? <> · <span className="font-semibold text-slate-700">{a.machine_name}</span></> : null}
                   </p>
                 </div>
-                {a.list_price_gbp ? <span className="text-xs font-bold text-slate-700 tabular-nums">{fmtGBP(a.list_price_gbp * (a.qty || 0))}</span> : null}
+                {a.covered ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold"
+                        data-testid={`parts-used-cover-${a.id}`} title={a.cover_reason || 'Covered by contract'}>
+                    <ShieldCheck size={11} /> Covered
+                  </span>
+                ) : a.chargeable && a.list_price_gbp ? (
+                  <span className="text-xs font-bold text-amber-700 tabular-nums" data-testid={`parts-used-charge-${a.id}`} title={a.cover_reason || 'Chargeable'}>
+                    {fmtGBP(a.list_price_gbp * (a.qty || 0))}
+                  </span>
+                ) : a.list_price_gbp ? (
+                  <span className="text-xs font-bold text-slate-700 tabular-nums">{fmtGBP(a.list_price_gbp * (a.qty || 0))}</span>
+                ) : null}
               </li>
             ))}
           </ul>

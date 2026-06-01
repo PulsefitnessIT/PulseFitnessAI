@@ -1,3 +1,57 @@
+## Iter 220ea·21 — Stock Phase 3: Contract-cover on parts + offline "parts used" ✅ (Feb, 2026)
+
+Phase 3 of the Stock Control system. Two deliverables, both built on
+the existing parts + contract + outbox infrastructure (no new
+collections):
+
+**A · Contract-cover logic on parts** (covered vs chargeable):
+- New `routes/svc/parts_cover.py` — pure classifier
+  `classify_part_cover(part, contract)` → `{cover_category, cover_label,
+  covered, chargeable, cover_reason}`. Maps a part to a cover category
+  (explicit `cover_category` field else keyword heuristic: belt / deck /
+  upholstery / consumable / major / wear_tear) → a contract inclusion
+  key. Reuses the canonical `crm_contract_templates` cover model
+  (`inclusions.maintenance` + `exclusions_structured`); an exclusion
+  overrides an inclusion; no active contract ⇒ chargeable.
+- `engineer_phase3.py` stamps cover onto the allocation in
+  `/parts/use` (ad-hoc) and `/parts/{id}/consume` (resolves the case's
+  `contract_id` via `_contract_for_case`). `generate-invoice-draft`
+  zero-rates covered parts (itemised "(covered by contract)" @ £0) and
+  charges non-covered parts normally.
+- `parts_catalogue.py` adds `cover_category` to editable fields; the
+  catalogue Edit drawer gets a cover-category select (Auto-detect /
+  major / wear&tear / consumable / belt / bed / upholstery).
+
+**B · Offline queueing of "parts used"** (engineer app):
+- `WorkVisitMachinesCard.js` (`MachineRowPartsUsed`) and
+  `EngineerJobDetailV2.js` (`addPartUsage` + `consume`) now route the
+  POST through the existing `engineerOutbox` (`outboxPost`) with a
+  client `Idempotency-Key`. Offline → 202 queued → optimistic "pending
+  sync" chip + "Saved offline" toast; drains automatically on reconnect
+  (the `/parts/use` endpoint already de-dupes on `Idempotency-Key`).
+- Parts chips/list now show **Covered** (emerald, ShieldCheck) vs
+  **Chargeable** (amber) from the stamped cover fields.
+
+**Tested:** 17 pytests (`tests/test_iter_220ea_21_parts_cover_and_offline.py`,
+in Makefile regression) — classifier unit matrix + backend/frontend
+source guards. Live end-to-end verified: belt (in cover) → covered/£0
+invoice line; motor (not in cover) → chargeable/£320; idempotent
+replay returns the same allocation. Lint clean (ruff + eslint).
+
+**Also this session (housekeeping):** cleared all automated-test stock
+from the GymAxis AI Admin preview org (svc_parts/van/movements/requests)
+so the user can import a real test spreadsheet. The bulk **Import**
+button lives on the **Catalogue** page (Stock hub → "Catalogue" →
+top-right "Import"); added an Import button to the catalogue empty state
+for discoverability.
+
+**Remaining stock phases (P1/P2):** Phase 4 office/admin stock overview
+(view-all engineer stock · transfers · stock-take/audit · cross-org) ·
+Phase 5 weekly/monthly engineer reports (PDF/CSV) · per-asset parts
+history UI · barcode scan-to-add · catalogue export.
+
+
+
 ## Iter 220ea·20 — Stock Phase 2: Parts Catalogue + AI Bulk Import ✅ (Feb, 2026)
 
 Phase 2 of the Stock Control system — built on the existing `svc_parts`
