@@ -13,9 +13,11 @@ from utils.database import db
 from routes.seo_public import (
     MANUFACTURER_MIN_PRODUCTS,
     SOLUTION_SLUGS,
+    _collect_products,
     _is_serviceable_machine,
     _looks_like_product,
     _slugify,
+    _spec_core_name,
     build_sitemap_xml,
     get_landing_manufacturers,
     get_manufacturer_detail,
@@ -146,3 +148,45 @@ def test_solution_slugs_are_unique_and_kebab():
     assert len(SOLUTION_SLUGS) == len(set(SOLUTION_SLUGS))
     for s in SOLUTION_SLUGS:
         assert s == _slugify(s)
+
+
+# ───────── Spec-sheet main pictures (ops-style sourcing) ──────────
+
+def test_spec_core_name_strips_brand_range_and_model_code():
+    assert _spec_core_name("Pulse Fitness Classic Strength 446H Seated Row",
+                            "Pulse Fitness") == "seated row"
+    assert _spec_core_name("Pulse Fitness Club Line / Strength 576H Seated Leg Press",
+                            "Pulse Fitness") == "seated leg press"
+
+
+def test_collect_products_prefers_spec_sheet_image_and_dedups():
+    mfr = "ZZSpec " + uuid.uuid4().hex[:6]
+    spec_id = "spec-" + uuid.uuid4().hex[:8]
+
+    async def scenario():
+        await db.manufacturer_catalogue.insert_many([
+            {"manufacturer_display": mfr, "domain": "z.com",
+             "page_title": t, "image_url": "https://z.com/i.jpg",
+             "page_url": f"https://z.com/products/{t.replace(' ', '-').lower()}"}
+            for t in ["Seated Row", "Chest Press", "Lat Pulldown",
+                      "Leg Extension", "Shoulder Press", "Leg Curl"]
+        ])
+        await db.spec_sheets.insert_one({
+            "id": spec_id, "manufacturer": mfr,
+            "equipment_model": f"{mfr} Classic Strength 446H Seated Row",
+            "hero_image_url": "gymaxis-ai/spec-sheets/images/x.jpeg",
+        })
+        prods = await _collect_products(mfr, limit=30)
+        await db.manufacturer_catalogue.delete_many({"manufacturer_display": mfr})
+        await db.spec_sheets.delete_one({"id": spec_id})
+        return prods
+
+    prods = run_async(scenario())
+    titles = [p["title"] for p in prods]
+    # spec-sheet machine appears first with its hero image
+    assert prods[0]["image_url"] == f"/api/spec-sheets/image/{spec_id}"
+    assert "446H Seated Row" in prods[0]["title"]
+    # the catalogue "Seated Row" duplicate is removed (spec wins)
+    assert "Seated Row" not in titles
+    # the other catalogue machines remain
+    assert "Chest Press" in titles and "Leg Curl" in titles

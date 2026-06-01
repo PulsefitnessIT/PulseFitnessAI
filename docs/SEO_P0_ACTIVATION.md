@@ -59,6 +59,13 @@ flooring, accessories, tools and apparel are excluded (we must not claim to
 service items with no moving parts). New manufacturers appear automatically
 as the catalogue ingests them.
 
+**Product images** prefer the **spec-sheet hero image** (the main picture
+from an uploaded spec sheet PDF, served via the public
+`/api/spec-sheets/image/{id}` endpoint) — the same source the operations
+module uses — falling back to the catalogue image when no spec sheet
+exists. A catalogue product matching a spec sheet is deduped in favour of
+the spec-sheet version.
+
 ## Note: canonical host
 `index.html` + the sitemap use **`www.gymaxisai.com`**; the autopilot's
 brand blurb references the bare `gymaxisai.com`. Pick one canonical host

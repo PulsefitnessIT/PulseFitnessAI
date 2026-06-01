@@ -207,6 +207,36 @@ def _is_serviceable_machine(title: str) -> bool:
     return bool(_SERVICEABLE_MACHINE.search(title)) and not _NON_SERVICEABLE.search(title)
 
 
+def _norm_name(text: str) -> str:
+    """Normalise an equipment name for cross-source matching."""
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).split())
+
+
+# Brand/range/category words stripped from a spec-sheet model to get a
+# clean, comparable machine name (e.g. "Pulse Fitness Classic Strength
+# 446H Seated Row" -> display "446H Seated Row", core "seated row").
+_SPEC_STRIP = re.compile(
+    r"\b(classic|club ?line|club|premium|strength|cardio|line|range"
+    r"|selectoris\w*|selectoriz\w*|plate ?loaded|series)\b",
+    re.IGNORECASE,
+)
+
+
+def _spec_display_title(model: str, manufacturer: str) -> str:
+    t = re.sub(re.escape(manufacturer), "", model or "", flags=re.IGNORECASE)
+    t = _SPEC_STRIP.sub("", t)
+    t = re.sub(r"\s*/\s*", " ", t)
+    t = re.sub(r"\s+", " ", t).strip(" -/")
+    return t or (model or "")
+
+
+def _spec_core_name(model: str, manufacturer: str) -> str:
+    """Core machine name with brand, range words and model codes removed."""
+    t = _spec_display_title(model, manufacturer)
+    t = re.sub(r"\b\d{2,4}[a-zA-Z]?\b", "", t)  # drop model codes like 446H
+    return _norm_name(t)
+
+
 async def _manufacturer_names() -> list[dict]:
     """All distinct manufacturers in the catalogue (raw counts)."""
     pipeline = [
@@ -224,8 +254,44 @@ async def _manufacturer_names() -> list[dict]:
     ]
 
 
+async def _load_spec_sheets(name: str) -> list[dict]:
+    """Spec-sheet products for a manufacturer, using the same hero image the
+    ops module shows. Returns [{title, image_url, url, _norm}] — the image
+    is the public spec-sheet hero endpoint."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    cursor = db.spec_sheets.find(
+        {"manufacturer": {"$regex": f"^{re.escape(name)}$", "$options": "i"},
+         "hero_image_url": {"$nin": [None, ""]}},
+        {"_id": 0, "id": 1, "equipment_model": 1},
+    )
+    async for s in cursor:
+        model = s.get("equipment_model") or ""
+        display = _spec_display_title(model, name)
+        core = _spec_core_name(model, name)
+        if not core or not _is_serviceable_machine(display):
+            continue
+        if core in seen:
+            continue
+        seen.add(core)
+        out.append({
+            "title": display,
+            "image_url": f"/api/spec-sheets/image/{s['id']}",
+            "url": None,
+            "_norm": core,
+        })
+    return out
+
+
 async def _collect_products(name: str, *, limit: int = 24) -> list[dict]:
-    """Filtered, deduped, high-quality product list for one manufacturer."""
+    """Filtered, deduped, high-quality product list for one manufacturer.
+
+    Spec-sheet products (with their authoritative main picture) take
+    priority; catalogue products fill the rest. A catalogue product that
+    matches a spec sheet is skipped so the spec image wins — exactly how the
+    operations module sources equipment photos."""
+    spec_products = await _load_spec_sheets(name)
+    spec_norms = {s["_norm"] for s in spec_products}
     seen: set[str] = set()
     products: list[dict] = []
     cursor = db.manufacturer_catalogue.find(
@@ -247,13 +313,18 @@ async def _collect_products(name: str, *, limit: int = 24) -> list[dict]:
         if not _is_serviceable_machine(clean):
             continue
         key = clean.lower()
+        norm = _norm_name(clean)
         if not clean or key == name.lower() or key in seen:
+            continue
+        # A spec sheet already covers this machine — prefer its main picture.
+        if norm in spec_norms:
             continue
         seen.add(key)
         products.append({"title": clean, "image_url": img, "url": p.get("page_url")})
-        if len(products) >= limit:
-            break
-    return products
+    # Spec-sheet machines first (authoritative photos), then catalogue.
+    spec_cards = [{"title": s["title"], "image_url": s["image_url"], "url": s["url"]}
+                  for s in spec_products]
+    return (spec_cards + products)[:limit]
 
 
 async def get_landing_manufacturers(min_products: int = MANUFACTURER_MIN_PRODUCTS) -> list[dict]:

@@ -1,3 +1,17 @@
+## Iter 220ea·29c — Manufacturer pages use spec-sheet main pictures (ops-style) ✅ (Feb, 2026)
+
+User: for Pulse Fitness, use the spec-sheet main pictures (as the operations module does for equipment photos). Implemented **spec-sheet-first image sourcing** in `routes/seo_public.py`, generalised to any manufacturer with spec sheets:
+- `_load_spec_sheets(name)` pulls that manufacturer's `spec_sheets` (with `hero_image_url`), titling them from `equipment_model` (brand/range/model-code stripped → e.g. "446H Seated Row") and imaging them via the **public** `/api/spec-sheets/image/{id}` endpoint (same hero the ops module shows).
+- `_collect_products` now lists spec-sheet machines **first** (authoritative photos), then catalogue machines; a catalogue product that matches a spec sheet (normalised name) is **deduped** so the spec image wins. Falls back to catalogue image where no spec sheet exists.
+- Fixed a model-code strip bug (`[a-z]?`→`[a-zA-Z]?`) so "446H" matches catalogue "Seated Row" for dedup.
+
+**Result (verified live):** Pulse page shows "446H Seated Row" + "576H Seated Leg Press" with their spec-sheet main pictures (first image loaded, naturalWidth 517) at the top, catalogue duplicates removed, 16 genuine machines total. Hoist/Origin (no spec sheets) unchanged. Generalises automatically as more spec sheets are uploaded.
+
+**Testing:** lint clean; 11 landing tests (incl. spec-core-name + spec-image-preference/dedup) green; 22 SEO tests together; docs-verify PASS. Files: routes/seo_public.py, tests/test_iter_220ea_29_seo_landing.py, docs/SEO_P0_ACTIVATION.md.
+
+---
+
+
 ## Iter 220ea·29b — Manufacturer pages: serviceable-machines-only filter ✅ (Feb, 2026)
 
 User flagged that the `/maintenance/*` product grids listed clothing, tools, accessories and no-moving-part items (we must not claim to *service* those). Replaced the "remove the noise" filter with a **positive allowlist of serviceable machines** in `routes/seo_public.py`:
