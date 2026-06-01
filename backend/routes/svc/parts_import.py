@@ -37,7 +37,7 @@ from utils.database import db
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc/parts/import", tags=["Service Ops · Parts Import"])
 
-MAX_ROWS = 5000  # per import; larger files should be split
+MAX_ROWS = 10000  # per import; larger catalogues (e.g. Pulse 8k+) fit in one file
 
 # Canonical target fields → synonyms (normalised) for heuristic mapping.
 CANONICAL_FIELDS: dict[str, list[str]] = {

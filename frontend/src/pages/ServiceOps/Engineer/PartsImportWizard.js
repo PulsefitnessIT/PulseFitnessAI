@@ -128,7 +128,7 @@ export default function PartsImportWizard({ onClose, onComplete }) {
                       className="w-full border-2 border-dashed border-slate-300 rounded-2xl py-12 flex flex-col items-center gap-2 text-slate-500 hover:border-blue-400 hover:bg-blue-50/40 transition-colors">
                 {busy ? <Loader2 className="w-9 h-9 animate-spin text-blue-500" /> : <Upload className="w-9 h-9" />}
                 <p className="font-bold text-slate-700">{busy ? 'Reading file…' : 'Tap to choose a file'}</p>
-                <p className="text-xs">CSV or Excel (.xlsx) · up to 5,000 rows</p>
+                <p className="text-xs">CSV or Excel (.xlsx) · up to 10,000 rows</p>
               </button>
               <input ref={fileRef} type="file" accept=".csv,.xlsx,.xlsm,.txt" className="hidden"
                      data-testid="import-file-input"
