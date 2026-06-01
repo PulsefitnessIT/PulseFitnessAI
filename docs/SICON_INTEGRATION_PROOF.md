@@ -1,16 +1,17 @@
-> **📋 Status — Iter 220m (May 26, 2026)**
+> **📋 Status — Iter 220ea·18 (Feb 2026)**
 >
-> Hand-over package status unchanged: code path complete + tested with
-> mocked Sicon endpoints. Awaiting partner credentials from Pulse IT.
-> The `/master-admin/integrations → Sicon` mapping panel is mobile-
-> friendly (iter 216h229) — the field-mapping read-only table wraps
-> in `overflow-x-auto` with `min-w-[420px]` so it stays readable on
-> phones during partner demos.
+> **Canonical hand-over is `INTEGRATION_FIELD_MAPPING.md` §33.** This
+> file is the partner-facing **completion-evidence pack** (coverage
+> counts, test suites, change log). Hand-over package status unchanged:
+> code path complete + tested against mocked Sicon endpoints, awaiting
+> partner credentials from Pulse IT. The
+> `/master-admin/integrations → Sicon` mapping panel is mobile-friendly
+> (iter 216h229).
 >
-> No changes to the proof package since v1.0. Once Pulse IT returns
-> with credentials, flipping from mocked to live is a single env-var
-> change (`SICON_LIVE_MODE=true` + `SICON_API_KEY=…`) — the rest of
-> the code path is already production-shaped.
+> Go-live is the **per-org `enabled=true` flip** on the Sicon config
+> (valid Basic-auth credentials + `companyId`) — no redeploy. *(The
+> legacy `SICON_LIVE_MODE` / `SICON_API_KEY` env flip in older revisions
+> is superseded — see §33 / spec §6.1.)*
 
 ---
 
@@ -112,7 +113,7 @@ All Sicon endpoints listed in spec sections §3 and §6 are wrapped in [`backend
 - Status transitions on the Sicon side are honoured immediately (e.g. Sicon-side close → GymAxis `issue.status = "resolved"`).
 
 ### Worker observability
-- Every outbox attempt writes to `sicon_audit_events` (event_type, success bool, payload digest, user id).
+- Every outbox attempt writes to `sicon_audit_log` (event_type, success bool, payload digest, user id).
 - The Master Admin → Sicon → Audit panel renders the last 1000 events with filters.
 - Failed outbox items show up in `sicon_sync_queue` with the original payload preserved for replay.
 
@@ -218,7 +219,7 @@ Both can coexist; direct overrides win.
 - **Authentication**: HTTP Basic over TLS, per-org credentials stored encrypted at rest (`encrypt_value` / `decrypt_value` in `sicon_client.py` — Fernet symmetric).
 - **Authorisation gates**: All `/api/sicon/*` mutation endpoints require GymAxis role `owner` or `manager` (`_require_owner_or_manager`).
 - **Connectivity test**: `POST /api/sicon/test-connection` — returns latency + reachability + Sicon-reported company info.
-- **Audit log**: every Sicon-touching operation writes a row to `sicon_audit_events` (timestamp, org, user, event_type, success, redacted payload digest).
+- **Audit log**: every Sicon-touching operation writes a row to `sicon_audit_log` (timestamp, org, user, event_type/action, success, redacted detail).
 - **Retry / outbox**: `sicon_sync_queue` collection. Failed operations preserve the full payload for human or automated replay. Exponential backoff capped at 6 attempts.
 - **Mapping authority**: the field table in `routes/sicon_mapping.py` is the canonical reference. A drift-guard test (`test_iter_216h7_sicon_mapping_audit.py::test_mapping_covers_iter_216h7_extensions`) fails the build if a new wire field is shipped without a documentation row.
 

@@ -1,11 +1,12 @@
-> **📋 Status — Iter 220bi (Feb 2026)**
+> **📋 Status — Iter 220ea·18 (Feb 2026)**
 >
-> Field-mapping audit complete — every Sicon field documented below
-> is either persisted on the GymAxis `issues` doc (under the
-> `sicon_*` namespace), exposed in the Operations → Issue Detail
-> Job Card panel, or driven from a config/lookup. Blank ("—") cells
-> in the tables below have been populated with the exact GymAxis
-> persistence path so future engineers can trace every byte.
+> **Canonical hand-over is now `INTEGRATION_FIELD_MAPPING.md` §33**
+> ("Sicon ↔ GymAxis — Complete Field-Capture & Connection Pack").
+> This file is the **narrative appendix**: entity model, sync rules,
+> conflict matrix and end-to-end workflow walk-throughs. For the
+> connection/auth handshake, the credentials ask-list and the full
+> field-capture tables, use §33. Where this file and §33 ever differ,
+> **§33 wins** (it is code-grounded and kept current).
 >
 > Still **P1 — waiting on live Sicon credentials** to switch from
 > mocked endpoints to production. The integration code path, admin
@@ -25,9 +26,10 @@
 >   table is usable on phones.
 >
 > No model / endpoint changes since v1.0 below; only awaiting
-> credentials. Once Pulse IT returns with the keys, switching from
-> the mocked adapter to the live one is a single env-var flip
-> (`SICON_LIVE_MODE=true` + `SICON_API_KEY=…`).
+> credentials. Go-live is the **per-org `enabled=true` flip** on the
+> Sicon config (with valid Basic-auth credentials + `companyId`) — no
+> redeploy. *(The legacy `SICON_LIVE_MODE` / `SICON_API_KEY` env flip
+> referenced in older revisions is superseded — see §33 / §6.1.)*
 
 ---
 
@@ -327,15 +329,20 @@ GymAxis AI is the INITIATOR and INTELLIGENCE layer. Sicon Service is the EXECUTI
 
 ## 6.1 Authentication
 
-Sicon WebAPI uses **API Key + Base URL** authentication:
+Sicon WebAPI (R260200c) uses **HTTP Basic auth over TLS** + a `companyId`
+query parameter (NOT OAuth, NOT a bearer API key):
 
 ```
-Base URL: https://{customer-instance}.sicon.co.uk/api/
-Headers:
-  - Authorization: Bearer {SICON_API_KEY}
-  - Content-Type: application/json
-  - CompanyId: {SAGE_COMPANY_ID} (optional, for multi-company)
+Base URL: https://{customer-instance}.sicon-cloud.com
+Auth:     HTTP Basic — username + password (Sage/Sicon service account)
+Query:    companyId={SAGE_COMPANY_ID} on every request
+Headers:  Content-Type: application/json · Accept: application/json
 ```
+
+Credentials are stored per-org, **Fernet-encrypted at rest**
+(`username_enc` / `password_enc` in `sicon_config`; key derived from
+`JWT_SECRET`) and never returned to the frontend. See §33.2 for the full
+connection table.
 
 ## 6.2 GymAxis Integration Endpoints
 
@@ -544,7 +551,7 @@ If Ping fails, all sync operations queue to the failure queue and retry on the n
 
 # 10. ANALYSIS FIELDS USAGE
 
-Sicon provides 20 free-text `AnalysisField` slots on every case. GymAxis uses these for cross-system data:
+Sicon provides 20 free-text `AnalysisField` slots on every case. GymAxis populates **all twenty** for cross-system data (see §33.4 for the authoritative, code-grounded list):
 
 | Field | Usage | Example |
 |---|---|---|
@@ -556,7 +563,7 @@ Sicon provides 20 free-text `AnalysisField` slots on every case. GymAxis uses th
 | `AnalysisField6` | SLA Category | "Gold - 4hr response" |
 | `AnalysisField7` | GymAxis PPM Schedule ID (if PPM) | "e8044e53-xxxx" |
 | `AnalysisField8` | Supplier Case Token (if supplier involved) | "abc123-token" |
-| `AnalysisField9-20` | Reserved for future use | — |
+| `AnalysisField9-20` | **Wired** — equipment lineage (fault code, machine type, make/model/install/warranty), provenance (source, reporter role) and **CSAT rating** | see §33.4 |
 
 ---
 

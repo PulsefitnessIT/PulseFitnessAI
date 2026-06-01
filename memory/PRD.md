@@ -1,4 +1,30 @@
-## Iter 220ea·17 — Sicon/Pulse hand-over: INTEGRATION_FIELD_MAPPING.md completed ✅ (Feb, 2026)
+## Iter 220ea·18 — Sicon docs consolidated: one source of truth, stale facts renewed ✅ (Feb, 2026)
+
+Audited all Sicon/integration mapping docs for duplication ahead of the
+Pulse meeting. Found **3 overlapping Sicon docs** — two carried stale,
+contradictory facts vs. the now-canonical §33. Merged the unique value
+up and renewed the appendices.
+
+- **`INTEGRATION_FIELD_MAPPING.md` §33 = canonical** Sicon hand-over.
+  Added §33.10 source-of-truth/conflict matrix, §33.11 verification &
+  test/code index (~200 wire fields, key files, test suites), and §33.12
+  a document-map stating §33 is canonical and the others are appendices.
+- **`SICON_INTEGRATION_SPEC.md` renewed** (kept — code docstrings cite
+  its section numbers): canonical banner; fixed §6.1 auth (**HTTP Basic +
+  `companyId`**, not Bearer/API-key — it had contradicted its own §9);
+  AnalysisField9-20 marked **wired** (was "reserved"); go-live = per-org
+  `enabled=true` (dropped dead `SICON_LIVE_MODE`/`SICON_API_KEY`).
+- **`docs/SICON_INTEGRATION_PROOF.md` renewed**: canonical banner;
+  audit collection corrected to **`sicon_audit_log`** (was the wrong
+  `sicon_audit_events`); go-live flip corrected.
+- **`SVC_FIELD_MAPPING.md`** left intact — distinct internal `svc_*`
+  schema, required by the mapping lint, already redirects to master.
+
+Verified: `check_integration_mapping.py` PASS (0 err) and `make
+docs-verify` PASS (50 docs consistent). Documentation-only; no code change.
+
+
+
 
 Ahead of the Sicon + Pulse Fitness meeting, made
 `/app/memory/INTEGRATION_FIELD_MAPPING.md` a complete, self-contained

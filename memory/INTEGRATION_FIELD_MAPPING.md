@@ -1042,10 +1042,65 @@ codes), and the full Engineer/Resource HR record.
 4. Set `auto_sync_faults=true` + `auto_sync_status=true`, `enabled=true`.
 5. Raise one pilot fault → confirm the Sicon case + case number returns, then verify status/appointment/note read-back on the Job Card.
 
+## 33.10 · Source-of-truth & conflict resolution
+
+When the same datum exists both sides, the winner is fixed:
+
+| Data domain | Winner | Why |
+|---|---|---|
+| Service case **status** | **Sicon** | execution layer; engineers update it |
+| Case **priority** (after create) | **Sicon** | coordinator may re-prioritise |
+| Customer / account financials | **Sage 200** | financial master (`SLCustomerAccountID`) |
+| **Site address** | **GymAxis** | the portal holds the freshest site info |
+| **Contract terms** (SLA, dates) | **GymAxis CRM** | CRM negotiates the lifecycle |
+| **Engineer assignment** | **Sicon** | Sicon's scheduler dispatches |
+| **AI triage** data | **GymAxis** | only GymAxis has the AI engine |
+| Initial **fault description** | **GymAxis** | customer logs it in the portal |
+| **Work done** / parts used | **Sicon** | engineer records in Sicon |
+| **Tracking notes** | originating system | tagged `GymAxis` or `Sicon` by source |
+
+## 33.11 · Verification, test coverage & key files
+
+- **Live mapping audit** (read-only, in-product): `GET /api/sicon/field-mapping`
+  (`routes/sicon_mapping.py`), rendered in **Master Admin → Sicon → Mapping**.
+  A drift-guard test fails the build if a wire field ships without a doc row.
+- **Coverage by entity** (wire fields actively used, ~200 total): Service
+  Case 55 (incl. AnalysisField1-20, Location + SubLocation, Equipments[]) ·
+  Contract header 13 + 21 spare slots · Contract Line 50 (CLAnalysisCode1-15
+  of 150) · Tracking Note 10 (incl. GPS) · Appointment 21 · Time Booking 5 ·
+  Resource/Engineer 25 · Customer/Org 2.
+- **Code index**: client `utils/sicon_client.py` · sync/event hooks
+  `utils/sicon_sync.py` · outbox `utils/sicon_outbox_worker.py` · inbound
+  poller `utils/sicon_poller.py` · admin routes `routes/sicon.py` · mapping
+  audit `routes/sicon_mapping.py` · config `sicon_config`, retry queue
+  `sicon_sync_queue`, audit `sicon_audit_log`.
+- **Tests**: `tests/test_iter_220bi_sicon_field_mapping.py`,
+  `tests/test_iter_216h7_sicon_mapping_audit.py`, and the `test_iter_215*_sicon`
+  / `test_iter_216g*` suites cover mappers, contract lines, spare slots,
+  AnalysisFields 9-20, sub-status state machine, and the drift guard.
+
+## 33.12 · Document map — single source of truth
+
+**This §33 (in `INTEGRATION_FIELD_MAPPING.md`) is the canonical Sicon
+hand-over.** The other Sicon documents are focused appendices that defer
+to it — kept because code docstrings reference their section numbers:
+
+| Document | Role | Defers to |
+|---|---|---|
+| `INTEGRATION_FIELD_MAPPING.md` **§33** | **Canonical** connection + field-capture hand-over | — |
+| `memory/SICON_INTEGRATION_SPEC.md` | Long-form narrative: entity model, sync rules, conflict matrix, workflow walk-throughs | §33 for connection/auth/fields |
+| `docs/SICON_INTEGRATION_PROOF.md` | Completion evidence: coverage counts, test suites, change log (partner proof pack) | §33 for connection/auth/fields |
+| `memory/SVC_FIELD_MAPPING.md` | Internal `svc_*` collection schema ↔ Sicon/Sage (§2-18 detail) | §33 for the live R260200c contract |
+
+> Auth is **HTTP Basic + `companyId`** and go-live is the per-org
+> `enabled=true` flip — if any appendix says otherwise (e.g. an old
+> `Bearer`/`SICON_API_KEY` note), §33 wins and the appendix is being renewed.
+
 ---
 
-**Owner**: GymAxis Engineering · §33 added for the Sicon/Pulse hand-over.
+**Owner**: GymAxis Engineering · §33 = canonical Sicon/Pulse hand-over.
 **Cross-refs**: §19-§24 (cross-system tables) · §25 (credentials matrix) ·
-`/app/memory/SICON_INTEGRATION_SPEC.md` (full API contract) ·
-`/app/memory/SVC_FIELD_MAPPING.md` (Service-Ops §2-18 detail).
+`memory/SICON_INTEGRATION_SPEC.md` (narrative appendix) ·
+`docs/SICON_INTEGRATION_PROOF.md` (completion evidence) ·
+`memory/SVC_FIELD_MAPPING.md` (internal `svc_*` schema, §2-18).
 
