@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 220ea·33 Legacy Import frontend testing — BLOCKED by a critical regression on Engineer Home. EngineerHomeV2.js renders Wand2 and X icons inside the new dismissible legacy-import tile but neither is imported from lucide-react. Result: `ReferenceError: Wand2 is not defined` crashes the whole EngineerHomeV2 component, the EngineerErrorBoundary kicks in and shows 'Something went wrong on this screen', and BOTH legacy-import entry points (engineer-home-legacy-tile AND engineer-home-menu-btn → engineer-settings-legacy-import-row) become unreachable. The /svc/engineer/legacy-import page itself could not be exercised through normal navigation because Home is dead; deep-linking was also blocked because the user is bounced via the engineer shell. Login API works (POST /api/auth/login returns 200 + token).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EngineerHomeV2",
+        "issue": "ReferenceError: Wand2 is not defined — crashes EngineerHomeV2 and hides the entire Engineer Home behind the error boundary. The new Iter 220ea·33 legacy-import tile JSX uses <Wand2 .../> (line ~401) and <X .../> (line ~417) but the lucide-react import block (lines 23–28) does NOT import Wand2 or X. Add them: `import { ..., Wand2, X } from 'lucide-react';`",
+        "selector": "[data-testid=\"engineer-home-legacy-tile\"] (never mounts)",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {"flow": "Engineer Home → Legacy Import tile", "issue": "Tile never renders because parent component throws.", "affected_selectors": ["engineer-home-legacy-tile", "engineer-home-legacy-open", "engineer-home-legacy-hide"]},
+      {"flow": "Engineer Home → hamburger → Settings → Tools → Legacy Import", "issue": "Hamburger menu unreachable because EngineerHomeV2 crashed before mounting the menu button.", "affected_selectors": ["engineer-home-menu-btn", "engineer-settings-legacy-import-row"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX (1-line): in /app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js add `Wand2` and `X` to the lucide-react import (lines 23-28). After hot-reload the tile + hide-button + Settings drawer entry should mount and the rest of the wizard E2E (Step1 customer → Step2 CSV upload → Step3 review/edit → Step4 done + saved-reports panel) can then be validated.",
+    "After fix, re-test: dismissible tile + localStorage 'gx_engineer_legacy_tile_hidden' persistence across reload; new-customer name gate on legacy-next-upload; CSV upload → Gemini 3 extraction (5–20s) → legacy-next-review enable; inline machine + custom-field edit; legacy-save → legacy-step-done → legacy-done-view-pdf (PDF blob open in new tab); legacy-toggle-saved → legacy-saved-list."
+  ],
+  "critical_code_review_comments": [
+    "Missing-import regression in EngineerHomeV2.js shipped to preview — the React error boundary masks this from end-users with a generic 'Something went wrong' card; consider an ESLint rule (no-undef / react/jsx-no-undef) or a CI build that fails on undefined JSX identifiers so this class of crash cannot reach main.",
+    "EngineerLegacyImport.js (~740 lines) is borderline — still readable but the MachineEditor sub-component (~100 lines) could move to its own file as the wizard grows.",
+    "EngineerLegacyImport's customer-search debounce uses an inline 300ms setTimeout effect; consider pulling into a shared useDebouncedQuery hook (already used elsewhere) for consistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "0% — blocked by Home crash before any legacy-import flow could be exercised"},
+  "test_credentials": "engineer.smoke@gymaxisai.com / EngTest123! (login works, returns valid JWT)",
+  "seed_data_creation": "None — no customers or reports were created because the wizard was unreachable. No cleanup required.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Direct-navigate to /svc/engineer/legacy-import to check whether the EngineerLegacyImport page itself renders independently of the broken Home shell (the route is likely fine — only the Home component is throwing). The data-testids on the legacy import page are confirmed present in the source: legacy-stepper, legacy-step-customer, legacy-cust-mode-search, legacy-cust-mode-new, legacy-newcust-name, legacy-next-upload, legacy-step-upload, legacy-upload-btn, legacy-upload-input, legacy-next-review, legacy-step-review, legacy-machine-{id}, legacy-machine-toggle-{id}, legacy-m-name/status/model/serial/work-{id}, legacy-cf-label/value/remove-{id}-{i}, legacy-save, legacy-step-done, legacy-done-view-pdf, legacy-done-another, legacy-toggle-saved, legacy-saved-list. After main agent adds the missing imports the full E2E should be quick.",
+  "rca of the issue": "ROOT CAUSE: incomplete import statement. EngineerHomeV2.js was edited in Iter 220ea·33 to add a new dismissible legacy-import promo tile that renders <Wand2/> and a close <X/> icon, but only the JSX was added — the corresponding `Wand2, X` entries in the `import { ... } from 'lucide-react'` block were never added. When React tries to render the home component these symbols resolve to undefined → ReferenceError → EngineerErrorBoundary catches and displays the fallback card. REPRO: 1) POST /api/auth/login with engineer.smoke@gymaxisai.com/EngTest123!, 2) localStorage.setItem('token', <jwt>), 3) navigate to /svc/engineer, 4) observe 'Something went wrong on this screen' card and console error 'ReferenceError: Wand2 is not defined at EngineerHomeV2'. FIX: append `Wand2, X` to the lucide-react named-imports list at line ~28."
+}

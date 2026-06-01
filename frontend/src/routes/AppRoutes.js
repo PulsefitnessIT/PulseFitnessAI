@@ -163,6 +163,8 @@ const ServiceOpsEngineerStock = lazy(() => import('@/pages/ServiceOps/Engineer/E
 // Iter 220ea·20 — Phase 5b: Parts Catalogue + Bulk Import
 const ServiceOpsPartsCatalogue = lazy(() => import('@/pages/ServiceOps/Engineer/PartsCatalogue'));
 const ServiceOpsAdminStock = lazy(() => import('@/pages/ServiceOps/Engineer/AdminStock'));
+// Iter 220ea·33 — Legacy report import (PDF/CSV/XLSX → branded PDF via AI)
+const ServiceOpsEngineerLegacyImport = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerLegacyImport'));
 const ServiceOpsEngineerEquipmentForm = lazy(() =>
   import('@/pages/ServiceOps/Engineer/EngineerEquipment').then((m) => ({ default: m.EngineerEquipmentForm })),
 );
@@ -465,6 +467,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/catalogue" element={user ? <EngineerErrorBoundary><ServiceOpsPartsCatalogue /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ea·22 — Phase 4: Office/Admin stock management */}
       <Route path="/svc/engineer/stock-admin" element={user ? <EngineerErrorBoundary><ServiceOpsAdminStock /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      {/* Iter 220ea·33 — Legacy report import wizard */}
+      <Route path="/svc/engineer/legacy-import" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerLegacyImport /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220 — Work Report custom fields manager */}
       <Route path="/svc/engineer/work-report-fields" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerWorkReportFields /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220i — Upcoming jobs list */}

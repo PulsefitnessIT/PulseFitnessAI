@@ -171,6 +171,17 @@ export default function EngineerHomeV2() {
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Iter 220ea·33 — dismissible Legacy Import tile. Once an engineer has
+  // migrated all their historic reports they may never need it again, so
+  // they can hide it from Home (still reachable via Settings → Tools).
+  const [legacyTileHidden, setLegacyTileHidden] = useState(() => {
+    try { return localStorage.getItem('gx_engineer_legacy_tile_hidden') === '1'; } catch { return false; }
+  });
+  const hideLegacyTile = () => {
+    try { localStorage.setItem('gx_engineer_legacy_tile_hidden', '1'); } catch { /* ignore */ }
+    setLegacyTileHidden(true);
+    notify.success('Hidden from Home', 'Find it again in Settings → Tools.');
+  };
   // Iter 220cu — one-glance "My day" briefing (next stop, miles,
   // pending parts, pending quotes, unread inbox).
   const [briefing, setBriefing] = useState(null);
@@ -373,6 +384,40 @@ export default function EngineerHomeV2() {
                        testid="kpi-invoiced"
                        onClick={() => navigate('/svc/engineer/invoices')} />
             </div>
+
+            {/* Iter 220ea·33 — Legacy import promo tile (dismissible). */}
+            {!legacyTileHidden && (
+              <div
+                className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-blue-50/40 p-4 flex items-center gap-3"
+                data-testid="engineer-home-legacy-tile"
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate('/svc/engineer/legacy-import')}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  data-testid="engineer-home-legacy-open"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center flex-shrink-0">
+                    <Wand2 size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-700">New</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">Import legacy reports</p>
+                    <p className="text-xs text-slate-500 truncate">Old PDFs &amp; spreadsheets → branded GymAxis PDFs.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={hideLegacyTile}
+                  className="p-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex-shrink-0"
+                  data-testid="engineer-home-legacy-hide"
+                  aria-label="Hide legacy import tile"
+                  title="Hide from Home"
+                >
+                  <X size={14} className="text-slate-400" />
+                </button>
+              </div>
+            )}
 
             {/* Quick actions — Iter 220cr: grouped by workflow
                 (jobs → quotes → invoices → records → other) so the

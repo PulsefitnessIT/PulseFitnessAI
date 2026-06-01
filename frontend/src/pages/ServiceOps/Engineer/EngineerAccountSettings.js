@@ -22,7 +22,7 @@ import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
   Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
-  Boxes, Warehouse,
+  Boxes, Warehouse, Wand2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
@@ -406,6 +406,20 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
                 testid="engineer-settings-parts-import-row"
               />
             </div>
+          </section>
+
+          {/* Iter 220ea·33 — Legacy report import. One-off migration tool:
+              turn historic PDFs/spreadsheets into branded GymAxis PDFs. */}
+          <section data-testid="engineer-settings-section-tools">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Tools</p>
+            <Row
+              icon={Wand2}
+              accent="#7c3aed"
+              title="Import legacy reports"
+              subtitle="Turn old PDFs/spreadsheets into branded service reports with AI."
+              onClick={() => { onClose(); navigate('/svc/engineer/legacy-import'); }}
+              testid="engineer-settings-legacy-import-row"
+            />
           </section>
 
           {/* Iter 220 — Work-report custom fields */}
