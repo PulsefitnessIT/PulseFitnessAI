@@ -77,6 +77,10 @@ const CompareGlofox = lazy(() => import('@/pages/Marketing/Compare/CompareGlofox
 const CompareClubReady = lazy(() => import('@/pages/Marketing/Compare/CompareClubReady'));
 const BlogIndex = lazy(() => import('@/pages/Marketing/Blog/BlogIndex'));
 const BlogPost = lazy(() => import('@/pages/Marketing/Blog/BlogPost'));
+const SolutionsIndex = lazy(() => import('@/pages/Marketing/Landing/SolutionsIndex'));
+const SolutionLanding = lazy(() => import('@/pages/Marketing/Landing/SolutionLanding'));
+const MaintenanceIndex = lazy(() => import('@/pages/Marketing/Landing/MaintenanceIndex'));
+const ManufacturerLanding = lazy(() => import('@/pages/Marketing/Landing/ManufacturerLanding'));
 const CRMApp = lazy(() => import('@/pages/CRM/CRMApp'));
 const CRMSetupWizard = lazy(() => import('@/pages/CRM/CRMSetupWizard'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
@@ -338,6 +342,10 @@ export default function AppRoutes({ user, login }) {
       <Route path="/compare/clubready" element={<CompareClubReady />} />
       <Route path="/blog" element={<BlogIndex />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/solutions" element={<SolutionsIndex />} />
+      <Route path="/solutions/:slug" element={<SolutionLanding />} />
+      <Route path="/maintenance" element={<MaintenanceIndex />} />
+      <Route path="/maintenance/:slug" element={<ManufacturerLanding />} />
       <Route path="/partnership-proposal" element={<PartnershipProposalPage />} />
       <Route path="/integration-requirements" element={<IntegrationRequirementsPage />} />
       <Route path="/learn/:slug" element={<LearnMorePage />} />

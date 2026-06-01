@@ -45,6 +45,16 @@ works regardless of the SPA.
 - `INDEXNOW_KEY` — must match the hosted `/{key}.txt` file (default ships).
 - `INDEXNOW_DISABLED=1` — kill-switch for the ping.
 
+## Programmatic landing pages (P1, iter 220ea·29)
+
+`/solutions/*` and `/maintenance/*` are programmatic SEO pages that
+auto-enter the sitemap. Solution content lives in
+`frontend/src/pages/Marketing/Landing/solutionsData.js` (keep slugs in sync
+with `SOLUTION_SLUGS`). Manufacturer pages are data-driven from the
+`manufacturer_catalogue` collection — a manufacturer earns a page once it
+has >= 6 quality products (thin/marketing-heavy catalogues are excluded).
+New manufacturers appear automatically as the catalogue ingests them.
+
 ## Note: canonical host
 `index.html` + the sitemap use **`www.gymaxisai.com`**; the autopilot's
 brand blurb references the bare `gymaxisai.com`. Pick one canonical host

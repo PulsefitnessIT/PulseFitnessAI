@@ -31,6 +31,7 @@ import html
 import os
 import re
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, Response
@@ -65,6 +66,22 @@ STATIC_PAGES: list[tuple[str, str, float]] = [
 ]
 COMPARE_SLUGS = ["clubready", "glofox", "mindbody"]
 
+# Programmatic solution/use-case pages (content lives in the frontend
+# data file src/pages/Marketing/Landing/solutionsData.js — keep the slug
+# list in sync so they enter the sitemap).
+SOLUTION_SLUGS = [
+    "gym-maintenance-software",
+    "ppm-software-for-gym-equipment",
+    "gym-equipment-asset-management",
+    "gym-crm-software",
+    "leisure-centre-management-software",
+    "fitness-equipment-service-management",
+]
+
+# A manufacturer needs at least this many quality products to earn its
+# own landing page — keeps pages substantive (no thin/doorway content).
+MANUFACTURER_MIN_PRODUCTS = 6
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -89,6 +106,141 @@ def _url_node(loc: str, lastmod: str, changefreq: str, priority: float) -> str:
     )
 
 
+def _slugify(text: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower().replace("&", " and ")).strip("-")
+    return re.sub(r"-{2,}", "-", s)
+
+
+# Catalogue product pages that are clearly not individual products
+# (homepages, generic landing copy) — excluded from landing pages so the
+# rendered range stays high quality.
+_NON_PRODUCT_TITLE = re.compile(
+    r"(\bhome\b|world-class|shop all|all products|commercial (fitness|cardio|gym)"
+    r"|fitness solutions|cardio- und|équipements|equipo comercial|attrezzature"
+    r"|sitemap|collection|category|cookie|privacy|gym equipment for"
+    r"|press release|press kit|pressemitteilung|\bnews\b|\bblog\b|newsletter|gift card|gift voucher"
+    r"|prensa|presse|comunicado|communiqu|power of movement|\bbbc\b|webinar|podcast"
+    r"|case stud|fallstudie|kundenstimmen|testimonial|\bcustomer\b|\bcontact\b"
+    r"|\bstory\b|stories|\bstudie|caminadora|tapis|\bevent|exhibition|\bdemo\b"
+    r"|jersey|bib short|t-shirt|hoodie|jacket|\bsock|\bcap\b|water bottle|clothing"
+    r"|apparel|\btowel\b|\bcare kit\b|spare part|accessor)",
+    re.IGNORECASE,
+)
+_LOCALE_SEG = re.compile(r"^[a-z]{2}([-_][a-z]{2})?$", re.IGNORECASE)
+_PRODUCT_URL_HINT = re.compile(
+    r"/(product|products|shop|cardio|strength|machine|machines|equipment|range"
+    r"|gear|bike|bikes|treadmill|rower|cycle|cycling|console|collections/[^/]+/)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_product(title: str, page_url: str) -> bool:
+    """Keep only substantive, English-ish individual product pages."""
+    if not title or _NON_PRODUCT_TITLE.search(title):
+        return False
+    # Product names are short; long titles are marketing sentences.
+    if len(title.split()) > 7 or ":" in title:
+        return False
+    # Reject mostly non-ASCII (localised) titles.
+    ascii_ratio = sum(c.isascii() for c in title) / max(len(title), 1)
+    if ascii_ratio < 0.9:
+        return False
+    from urllib.parse import urlparse
+    segs = [s for s in (urlparse(page_url).path or "").strip("/").split("/") if s]
+    if not segs:                       # homepage
+        return False
+    if len(segs) == 1 and _LOCALE_SEG.match(segs[0]):  # locale root e.g. /de
+        return False
+    # URL must look like a product: a known product path, or a single
+    # clean slug (many vendors host products at the root, e.g. /atom).
+    if not _PRODUCT_URL_HINT.search(page_url) and len(segs) > 1:
+        return False
+    return True
+
+
+async def _manufacturer_names() -> list[dict]:
+    """All distinct manufacturers in the catalogue (raw counts)."""
+    pipeline = [
+        {"$group": {
+            "_id": "$manufacturer_display",
+            "count": {"$sum": 1},
+            "domain": {"$first": "$domain"},
+        }},
+        {"$match": {"_id": {"$ne": None}, "count": {"$gte": 20}}},
+        {"$sort": {"count": -1}},
+    ]
+    return [
+        {"name": r["_id"], "slug": _slugify(r["_id"]), "domain": r.get("domain")}
+        async for r in db.manufacturer_catalogue.aggregate(pipeline)
+    ]
+
+
+async def _collect_products(name: str, *, limit: int = 24) -> list[dict]:
+    """Filtered, deduped, high-quality product list for one manufacturer."""
+    seen: set[str] = set()
+    products: list[dict] = []
+    cursor = db.manufacturer_catalogue.find(
+        {"manufacturer_display": name},
+        {"_id": 0, "page_title": 1, "image_url": 1, "page_url": 1},
+    )
+    async for p in cursor:
+        title = (p.get("page_title") or "").strip()
+        img = p.get("image_url") or ""
+        if not title or not img.startswith("http"):
+            continue
+        if not _looks_like_product(title, p.get("page_url") or ""):
+            continue
+        clean = re.split(r"\s[|–—]\s", title)[0].strip()
+        clean = re.sub(r"\s*-\s*" + re.escape(name) + r"\s*$", "", clean,
+                       flags=re.IGNORECASE).strip()
+        key = clean.lower()
+        if not clean or key == name.lower() or key in seen:
+            continue
+        seen.add(key)
+        products.append({"title": clean, "image_url": img, "url": p.get("page_url")})
+        if len(products) >= limit:
+            break
+    return products
+
+
+async def get_landing_manufacturers(min_products: int = MANUFACTURER_MIN_PRODUCTS) -> list[dict]:
+    """Manufacturers with enough *quality* products to earn a landing page —
+    keeps thin/marketing-heavy catalogues (e.g. mostly case studies) out."""
+    out = []
+    for m in await _manufacturer_names():
+        products = await _collect_products(m["name"])
+        if len(products) >= min_products:
+            out.append({**m, "product_count": len(products)})
+    out.sort(key=lambda x: -x["product_count"])
+    return out
+
+
+async def get_manufacturer_detail(slug: str, *, limit: int = 24) -> Optional[dict]:
+    match = next((m for m in await _manufacturer_names() if m["slug"] == slug), None)
+    if not match:
+        return None
+    products = await _collect_products(match["name"], limit=limit)
+    if len(products) < MANUFACTURER_MIN_PRODUCTS:
+        return None
+    return {**match, "products": products, "product_count": len(products)}
+
+
+@router.get("/landing/manufacturers")
+async def list_landing_manufacturers():
+    """Public — manufacturers that have a maintenance landing page."""
+    return {"manufacturers": await get_landing_manufacturers()}
+
+
+@router.get("/landing/manufacturer/{slug}")
+async def manufacturer_landing_detail(slug: str):
+    """Public — one manufacturer's real product range + meta for the
+    /maintenance/{slug} landing page."""
+    detail = await get_manufacturer_detail(slug)
+    if not detail or len(detail.get("products") or []) == 0:
+        raise HTTPException(404, "Manufacturer landing not found")
+    return detail
+
+
 async def build_sitemap_xml() -> str:
     site = _site()
     nodes: list[str] = [
@@ -100,6 +252,18 @@ async def build_sitemap_xml() -> str:
                   datetime.now(timezone.utc).date().isoformat(), "monthly", 0.6)
         for slug in COMPARE_SLUGS
     ]
+    today = datetime.now(timezone.utc).date().isoformat()
+    # Programmatic solution/use-case landing pages.
+    nodes.append(_url_node(f"{site}/solutions", today, "monthly", 0.7))
+    nodes += [
+        _url_node(f"{site}/solutions/{slug}", today, "monthly", 0.8)
+        for slug in SOLUTION_SLUGS
+    ]
+    # Programmatic manufacturer maintenance landing pages (data-driven —
+    # grows automatically as the catalogue ingests more manufacturers).
+    nodes.append(_url_node(f"{site}/maintenance", today, "monthly", 0.7))
+    for mfr in await get_landing_manufacturers():
+        nodes.append(_url_node(f"{site}/maintenance/{mfr['slug']}", today, "monthly", 0.7))
     # Published blog posts — the whole point of making this dynamic.
     cursor = db.seo_articles.find(
         {"status": "published"},

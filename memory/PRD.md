@@ -1,3 +1,20 @@
+## Iter 220ea·29 — SEO P1: programmatic solution + manufacturer landing pages ✅ (Feb, 2026)
+
+Follow-on to the P0 SEO foundation. Built programmatic, keyword-targeted landing pages that auto-feed the dynamic sitemap — turning the manufacturer catalogue + a content data file into ranking landing pages for both the manager and engineer audiences. Backend + frontend; lint clean (py+js); 11 new pytests; pages verified live via screenshots; docs-verify PASS.
+
+**Built:**
+- **6 solution pages** `/solutions/{slug}` + `/solutions` index — content in `frontend/src/pages/Marketing/Landing/solutionsData.js`. Targets: gym-maintenance-software, ppm-software-for-gym-equipment, gym-equipment-asset-management, gym-crm-software, leisure-centre-management-software, fitness-equipment-service-management. Each: hero, pains, capabilities, manufacturer strip, FAQ, related links, CTA + Product/FAQPage/BreadcrumbList JSON-LD via `useSeo`.
+- **Manufacturer maintenance pages** `/maintenance/{slug}` + `/maintenance` index — **data-driven** from the `manufacturer_catalogue` collection. Renders each manufacturer's **real product range** (names + images) + service value props + brand-specific FAQ + Service/FAQPage JSON-LD. Currently 4 quality manufacturers (Wattbike, Hoist Fitness, Origin Fitness, Pulse Fitness); grows automatically as the catalogue ingests more.
+- **Quality gating** (`routes/seo_public.py`): a manufacturer earns a page only with >= 6 *quality* products. `_looks_like_product` filters case studies/testimonials/localized marketing/apparel/PR/long-sentence titles + requires product-shaped URLs. Precor (mostly marketing rows) correctly excluded (404 + out of sitemap). **Fixed a real bug**: an over-broad `\bpress\b` filter was silently dropping "Leg Press / Chest Press / Shoulder Press" machines — now restricted to "press release".
+- **Backend endpoints**: `GET /api/seo/landing/manufacturers`, `GET /api/seo/landing/manufacturer/{slug}`. Both solution + manufacturer URLs added to `build_sitemap_xml`.
+- **Internal linking**: marketing footer now links Solutions + Maintenance-by-brand; pages cross-link each other, blog, pricing.
+- Routes registered in `AppRoutes.js` (lazy). Note: these SPA pages rely on `useSeo` (Googlebot JS render) + og-cover fallback for social; blog-style crawler prerender not yet extended to them (P2 if needed).
+
+**Files:** routes/seo_public.py, frontend/src/pages/Marketing/Landing/{solutionsData.js,SolutionLanding.js,SolutionsIndex.js,ManufacturerLanding.js,MaintenanceIndex.js}, routes/AppRoutes.js, pages/Marketing/MarketingShell.js, tests/test_iter_220ea_29_seo_landing.py (new, in Makefile), docs/SEO_P0_ACTIVATION.md.
+
+---
+
+
 ## Iter 220ea·28 — SEO P0: crawlability foundation (sitemap + prerender + IndexNow) ✅ (Feb, 2026)
 
 User wants GymAxis AI to rank on Google and be found by gym managers/engineers. They already have an SEO autopilot (daily AI blog generation). Audit found the foundation gap: the marketing site is a client-rendered SPA with **no SSR/prerender** and a **static sitemap** that never included autopilot blog posts — so new content wasn't discovered (sitemap), indexed slowly (JS render), or shareable (non-JS social crawlers saw the generic homepage card). Also found a **broken homepage `og:image`** (referenced a missing file). User chose **P0 only**. Backend + docs; lint clean; 11 new pytests + sitemap/prerender verified live; docs-verify PASS.
