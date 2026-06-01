@@ -161,6 +161,114 @@ async def find_company_id(
         return ""
 
 
+async def push_customer_to_crm(customer: dict, *, user: dict | None = None) -> dict:
+    """Iter 220ea·26 (G4) — reconcile a field-added service customer
+    (``svc_engineer_customers``) into the CRM so it stops being an island.
+
+    If the customer is already linked (``company_id`` resolves to a live
+    CRM company) this is a no-op. Otherwise it tries to match an existing
+    CRM company by name/email first (avoids duplicates); failing that it
+    creates a new ``crm2_companies`` record (``type='customer'``,
+    ``source='service_field'``), logs a CRM activity, and links the
+    engineer customer back via ``company_id``.
+
+    Returns ``{created, linked, company_id, company_name, reason}``.
+    """
+    org = customer.get("organization_id")
+    out = {"created": False, "linked": False, "company_id": "",
+           "company_name": "", "reason": ""}
+    if not org:
+        out["reason"] = "no org"
+        return out
+    cust_id = customer.get("id") or ""
+
+    async def _link_back(company_id: str):
+        if cust_id and company_id:
+            await db.svc_engineer_customers.update_one(
+                {"organization_id": org, "id": cust_id},
+                {"$set": {"company_id": company_id, "updated_at": _now()}})
+
+    # 1) Already linked to a live CRM company?
+    existing_id = customer.get("company_id") or ""
+    if existing_id:
+        co = await db.crm2_companies.find_one(
+            {"organization_id": org, "id": existing_id}, {"_id": 0, "id": 1, "name": 1})
+        if co:
+            out.update(company_id=co["id"], company_name=co.get("name") or "",
+                       reason="already linked")
+            return out
+
+    name = (customer.get("name") or "").strip()
+    email = (customer.get("email") or "").strip()
+    if not name:
+        out["reason"] = "customer has no name"
+        return out
+
+    # 2) Match an existing CRM company by name/email before creating one.
+    match_id = await find_company_id(org, name=name, email=email,
+                                     postcode=customer.get("postcode") or "")
+    if match_id:
+        await _link_back(match_id)
+        out.update(linked=True, company_id=match_id, company_name=name,
+                   reason="linked to existing CRM company")
+        return out
+
+    # 3) Create a new CRM (v2) company from the field customer.
+    company_id = str(uuid.uuid4())
+    owner_id = (user or {}).get("id") or "system"
+    owner_name = (user or {}).get("full_name") or "Service field"
+    company = {
+        "id": company_id,
+        "organization_id": org,
+        "name": name,
+        "type": "customer",
+        "sector": "",
+        "website": "",
+        "phone": customer.get("phone") or "",
+        "email": email,
+        "address": customer.get("site_address") or "",
+        "address_line1": customer.get("address_line1") or customer.get("site_address") or "",
+        "address_line2": customer.get("address_line2") or "",
+        "address_line3": "",
+        "city": customer.get("city") or "",
+        "postcode": customer.get("postcode") or "",
+        "county": customer.get("county") or "",
+        "country": customer.get("country") or "United Kingdom",
+        "company_number": customer.get("company_number") or "",
+        "description": "",
+        "directors": [],
+        "account_owner_id": owner_id,
+        "account_owner_name": owner_name,
+        "sla_tier": "standard",
+        "revenue_band": "",
+        "status": "active",
+        "tags": ["service-field"],
+        "notes": customer.get("notes") or "Reconciled from a field-added service customer.",
+        "territory_id": None,
+        "owner_id": owner_id,
+        "owner_name": owner_name,
+        "region": "",
+        "source": "service_field",
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    await db.crm2_companies.insert_one(company)
+    try:
+        await db.crm2_activities.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": org,
+            "type": "system", "subject": "Company created from Service field",
+            "body": f"{owner_name} reconciled service customer “{name}” into the CRM.",
+            "company_id": company_id, "owner_id": owner_id,
+            "owner_name": owner_name, "created_at": _now(), "updated_at": _now(),
+        })
+    except Exception:  # pragma: no cover
+        logger.debug("push_customer_to_crm activity failed", exc_info=True)
+    await _link_back(company_id)
+    out.update(created=True, linked=True, company_id=company_id,
+               company_name=name, reason="created new CRM company")
+    return out
+
+
 async def _upsert_activity(
     *, organization_id: str, case_id: str, kind: str, doc: dict,
 ) -> dict:

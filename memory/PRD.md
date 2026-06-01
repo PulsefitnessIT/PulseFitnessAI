@@ -1,3 +1,19 @@
+## Iter 220ea·26b — G4: reconcile field customers into the CRM ✅ (Feb, 2026)
+
+Closed the last CRM↔Service island: field-added engineer customers (`svc_engineer_customers`) can now be pushed into the CRM. Lint clean, 10/10 iter-26 pytests green, verified live (browser e2e).
+
+- **Backend** `utils/svc_crm_sync.py::push_customer_to_crm`: if already linked → no-op; else match an existing CRM company by name/email (avoids dupes); else create a new `crm2_companies` (`type='customer'`, `source='service_field'`, tag `service-field`) + a `crm2_activities` log, then link the customer's `company_id` back. Idempotent.
+- **Endpoints** (`routes/svc/customer_links.py`): `POST /api/svc/customers/{id}/push-to-crm` (per-customer) and `POST /api/svc/admin/customers/push-unlinked-to-crm` (bulk reconcile, manage-only — the create-side counterpart to the G1 link-only backfill).
+- **Frontend**: `CrmLinkRow` now offers "Create in CRM" beside "Link to a CRM customer" on unlinked customers. Verified live — click → toast "… is now in the CRM" → flips to the linked green badge + Unlink.
+- **Design choice:** push is **explicit** (per-customer button + bulk endpoint), not auto-on-every-save, to avoid polluting the CRM with incidental field entries. An optional org "auto-push new field customers" toggle remains a future option.
+- **Tests:** added 2 cases to `tests/test_iter_220ea_26_crm_service_bridge.py` (create-new + idempotent + match-existing; endpoint/UI guards).
+- **Files:** utils/svc_crm_sync.py, routes/svc/customer_links.py, frontend EngineerCustomers.js, tests/test_iter_220ea_26_crm_service_bridge.py.
+
+All four CRM↔Service gaps (G1/G2/G3/G4) are now closed.
+
+---
+
+
 ## Iter 220ea·26 — CRM ↔ Service Ops bridge (gaps G3 → G1 → G2) ✅ (Feb, 2026)
 
 Cross-surface review found the four surfaces (Engineer App / Service Desk / Operations / CRM) well-connected on the Service→CRM side but with three gaps around shared customer identity + the CRM→Service direction. Closed all three in the user's chosen order c→a→b. Lint clean, 8 new pytests green (in Makefile regression), all e2e/functionally verified.

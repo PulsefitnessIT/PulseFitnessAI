@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from utils.auth import get_current_user
 from utils.database import db
-from utils.svc_crm_sync import _re_escape, find_company_id
+from utils.svc_crm_sync import _re_escape, find_company_id, push_customer_to_crm
 
 router = APIRouter(prefix="/svc", tags=["Service Ops · CRM Customer Link"])
 
@@ -107,6 +107,47 @@ async def backfill_crm_links(user=Depends(get_current_user)):
         "cases": {"linked": cases_linked, "unmatched": cases_unmatched},
         "customers": {"linked": cust_linked, "unmatched": cust_unmatched},
     }
+
+@router.post("/customers/{customer_id}/push-to-crm")
+async def push_customer(customer_id: str, user=Depends(get_current_user)):
+    """Iter 220ea·26 (G4) — reconcile one field-added service customer
+    into the CRM: link to an existing CRM company if one matches, else
+    create a new CRM company. Idempotent (no-op if already linked)."""
+    org = _org(user)
+    cust = await db.svc_engineer_customers.find_one(
+        {"organization_id": org, "id": customer_id}, {"_id": 0})
+    if not cust:
+        raise HTTPException(404, "Customer not found")
+    return await push_customer_to_crm(cust, user=user)
+
+
+@router.post("/admin/customers/push-unlinked-to-crm")
+async def push_unlinked_customers(user=Depends(get_current_user)):
+    """Iter 220ea·26 (G4) — bulk reconcile: push every field-added
+    customer that isn't yet linked to the CRM. Counterpart to the G1
+    backfill (which only links to *existing* CRM companies — this also
+    *creates* CRM companies for genuinely new field customers)."""
+    if not _can_manage(user):
+        raise HTTPException(403, "Owners, managers and admins only")
+    org = _org(user)
+    created = linked = skipped = 0
+    cursor = db.svc_engineer_customers.find(
+        {"organization_id": org,
+         "$or": [{"company_id": {"$exists": False}}, {"company_id": ""},
+                 {"company_id": None}]},
+        {"_id": 0},
+    )
+    async for cust in cursor:
+        res = await push_customer_to_crm(cust, user=user)
+        if res.get("created"):
+            created += 1
+        elif res.get("linked"):
+            linked += 1
+        else:
+            skipped += 1
+    return {"ok": True, "created": created, "linked": linked, "skipped": skipped}
+
+
 
 
 __all__ = ["router"]

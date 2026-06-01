@@ -18,7 +18,7 @@ from tests.conftest import _test_backend_url, rate_limit_bypass_headers
 from tests.shared_loop import run_async
 from utils.database import db
 from utils.sales_to_service import onboard_contract_to_service
-from utils.svc_crm_sync import find_company_id, resolve_sage_customer_id
+from utils.svc_crm_sync import find_company_id, push_customer_to_crm, resolve_sage_customer_id
 
 BASE = _test_backend_url()
 BACKEND = Path(__file__).resolve().parents[1]
@@ -164,6 +164,60 @@ def test_onboard_contract_seeds_customer_schedule_and_case():
     assert r2["reason"] == "already onboarded"
     assert n_sched == 1 and n_case == 1  # idempotent — no duplicates
     assert r3["onboarded"] is False
+
+
+# ─────────────────── G4 — field customer → CRM ────────────────────
+
+def test_push_field_customer_to_crm_creates_and_matches():
+    org = "i26g4_" + uuid.uuid4().hex[:8]
+    user = {"id": "eng1", "organization_id": org, "full_name": "Field Eng"}
+
+    async def scenario():
+        # A) New field customer, no CRM match → creates a CRM company.
+        cust_a = {"id": str(uuid.uuid4()), "organization_id": org,
+                  "name": "Riverside Gym", "email": "gm@riverside.co",
+                  "postcode": "LS1 1AA", "company_id": ""}
+        await db.svc_engineer_customers.insert_one(dict(cust_a))
+        r_a = await push_customer_to_crm(cust_a, user=user)
+        co = await db.crm2_companies.find_one(
+            {"organization_id": org, "id": r_a["company_id"]},
+            {"_id": 0, "type": 1, "source": 1})
+        linked = await db.svc_engineer_customers.find_one(
+            {"id": cust_a["id"]}, {"_id": 0, "company_id": 1})
+        # A') Idempotent — already linked, no duplicate company.
+        r_a2 = await push_customer_to_crm(
+            {**cust_a, "company_id": r_a["company_id"]}, user=user)
+        n_riverside = await db.crm2_companies.count_documents(
+            {"organization_id": org, "name": "Riverside Gym"})
+        # B) Field customer matching an existing CRM company → links only.
+        cid = str(uuid.uuid4())
+        await db.crm2_companies.insert_one(
+            {"id": cid, "organization_id": org, "name": "Peak Fitness"})
+        cust_b = {"id": str(uuid.uuid4()), "organization_id": org,
+                  "name": "Peak Fitness", "company_id": ""}
+        r_b = await push_customer_to_crm(cust_b, user=user)
+        n_peak = await db.crm2_companies.count_documents(
+            {"organization_id": org, "name": "Peak Fitness"})
+        for c in ("crm2_companies", "crm2_activities", "svc_engineer_customers"):
+            await db[c].delete_many({"organization_id": org})
+        return r_a, co, linked, r_a2, n_riverside, r_b, n_peak
+
+    r_a, co, linked, r_a2, n_riverside, r_b, n_peak = run_async(scenario())
+    assert r_a["created"] is True and r_a["linked"] is True
+    assert co and co["type"] == "customer" and co["source"] == "service_field"
+    assert linked["company_id"] == r_a["company_id"]
+    assert r_a2["reason"] == "already linked" and n_riverside == 1
+    assert r_b["created"] is False and r_b["linked"] is True and n_peak == 1
+
+
+def test_push_endpoints_registered():
+    src = (BACKEND / "routes" / "svc" / "customer_links.py").read_text()
+    assert "/customers/{customer_id}/push-to-crm" in src
+    assert "/admin/customers/push-unlinked-to-crm" in src
+    fe = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "EngineerCustomers.js").read_text()
+    assert "push-to-crm" in fe
+    assert "Create in CRM" in fe
+
 
 
 # ─────────────────────── source / wiring guards ───────────────────

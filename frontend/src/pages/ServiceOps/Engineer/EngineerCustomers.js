@@ -111,6 +111,19 @@ const CrmLinkRow = ({ customerId, crmCompany, onChanged }) => {
     } finally { setBusy(false); }
   };
 
+  const pushToCrm = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/svc/customers/${customerId}/push-to-crm`, {}, auth());
+      notify.success(
+        r.data?.created ? 'Created in CRM' : 'Linked to CRM',
+        r.data?.company_name ? `${r.data.company_name} is now in the CRM.` : undefined);
+      onChanged?.();
+    } catch (e) {
+      notify.error('Could not push to CRM', e?.response?.data?.detail || e?.message);
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="pt-2 border-t border-slate-100" data-testid={`crm-link-${customerId}`}>
       <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
@@ -132,11 +145,20 @@ const CrmLinkRow = ({ customerId, crmCompany, onChanged }) => {
           </button>
         </div>
       ) : !open ? (
-        <button type="button" onClick={() => setOpen(true)}
-          className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
-          data-testid={`crm-link-open-${customerId}`}>
-          <Search size={12} /> Link to a CRM customer
-        </button>
+        <div className="mt-1 flex items-center gap-3 flex-wrap">
+          <button type="button" onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+            data-testid={`crm-link-open-${customerId}`}>
+            <Search size={12} /> Link to a CRM customer
+          </button>
+          <span className="text-slate-300">·</span>
+          <button type="button" onClick={pushToCrm} disabled={busy}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 disabled:opacity-50"
+            data-testid={`crm-push-${customerId}`}>
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Building2 size={12} />}
+            Create in CRM
+          </button>
+        </div>
       ) : (
         <div className="mt-1 space-y-1">
           <div className="relative">
