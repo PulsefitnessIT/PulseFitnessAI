@@ -486,6 +486,17 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"welcome-back digest loop start failed: {e}")
 
+    # Iter 220ea·31 — Engineer 10-day trial lifecycle. Day-9 reminder,
+    # day-10 feedback form, +2-day last-chance nudge, then auto-suspend
+    # after a 3-day grace if there's no decision. Idempotent (per-step
+    # timestamps), so the 6-hourly sweep is safe to re-run.
+    try:
+        from utils.partner_trial_lifecycle import run_forever as _trial_lifecycle_loop
+        asyncio.create_task(_trial_lifecycle_loop(6))
+        logger.info("[trial] engineer trial lifecycle loop started (6h)")
+    except Exception as e:
+        logger.error(f"trial lifecycle loop start failed: {e}")
+
     # Iter 220ea·26c — PPM recurrence rollover. Once a preventive-
     # maintenance visit completes, auto-create the next one on the books
     # (interval_days later) until the contract end. Self-healing sweep —

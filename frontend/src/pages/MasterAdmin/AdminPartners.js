@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, CheckCircle2, X, PoundSterling, Users,
-  Download, Star, TrendingUp, ChevronRight,
+  Download, Star, TrendingUp, ChevronRight, Rocket,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -117,6 +117,19 @@ export default function AdminPartners() {
       notify.success(`${p.full_name} suspended`);
       await load();
     } catch (e) { notifyApiError(notify, e, 'Suspend failed'); }
+    finally { setBusy(null); }
+  };
+
+  // Iter 220ea·31 — put an approved engineer onto the 10-day free trial.
+  // Watertight: one trial per engineer; the backend rejects repeats.
+  const startTrial = async (p) => {
+    if (!window.confirm(`Start the 10-day free trial for ${p.full_name}? They'll get full Engineer App access now and a feedback form when it ends.`)) return;
+    setBusy(p.id);
+    try {
+      await axios.post(`${API}/api/partners/${p.id}/start-trial`, {}, { headers });
+      notify.success(`${p.full_name} is on a 10-day trial`);
+      await load();
+    } catch (e) { notifyApiError(notify, e, 'Could not start trial'); }
     finally { setBusy(null); }
   };
 
@@ -340,7 +353,7 @@ export default function AdminPartners() {
                       <div className="font-bold text-zinc-900 dark:text-zinc-100">{p.full_name}</div>
                       <div className="text-[11px] text-zinc-500">{p.email}{p.company_name ? ` · ${p.company_name}` : ''}</div>
                     </td>
-                    <td className="py-2 pr-3 text-xs"><StatusPill status={p.status} /></td>
+                    <td className="py-2 pr-3 text-xs"><StatusPill status={p.status} /><TrialBadge trial={p.trial} /></td>
                     <td className="py-2 pr-3">
                       <select value={p.level} onChange={(e) => setLevel(p, e.target.value)} disabled={busy === p.id}
                         className="text-xs border border-zinc-200 dark:border-zinc-800 rounded px-1.5 py-1 bg-transparent"
@@ -379,6 +392,14 @@ export default function AdminPartners() {
                             className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1 disabled:opacity-50"
                             data-testid={`admin-partner-reject-${p.id}`}>
                             <X size={10} /> Reject
+                          </button>
+                        )}
+                        {p.status === 'approved' && !p.trial_used && (
+                          <button onClick={() => startTrial(p)} disabled={busy === p.id}
+                            className="px-2 py-1 text-[10px] font-bold uppercase rounded bg-[var(--color-brand-blue-dark,#003DA5)] hover:opacity-90 text-white inline-flex items-center gap-1 disabled:opacity-50"
+                            data-testid={`admin-partner-start-trial-${p.id}`}
+                            title="Start the 10-day free trial">
+                            <Rocket size={10} /> Start trial
                           </button>
                         )}
                         {p.status === 'approved' && (
@@ -492,6 +513,36 @@ function StatusPill({ status }) {
     suspended: 'bg-zinc-300 text-zinc-800',
   };
   return <span className={'px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-[9px] ' + (map[status] || 'bg-zinc-100')}>{status}</span>;
+}
+
+// Iter 220ea·31 — trial lifecycle badge shown under the status pill.
+function TrialBadge({ trial }) {
+  if (!trial || !trial.status) return null;
+  const daysLeft = (iso) => {
+    if (!iso) return null;
+    const d = Math.ceil((new Date(iso) - new Date()) / 86400000);
+    return d;
+  };
+  const map = {
+    active:           { cls: 'bg-blue-100 text-blue-800', label: 'Trial' },
+    feedback_pending: { cls: 'bg-amber-100 text-amber-800', label: 'Feedback due' },
+    accepted:         { cls: 'bg-indigo-100 text-indigo-800', label: 'Accepted · paying' },
+    converted_paid:   { cls: 'bg-emerald-100 text-emerald-800', label: 'Paid' },
+    declined:         { cls: 'bg-rose-100 text-rose-800', label: 'Declined' },
+    expired:          { cls: 'bg-zinc-300 text-zinc-700', label: 'Trial expired' },
+  };
+  const m = map[trial.status] || { cls: 'bg-zinc-100 text-zinc-600', label: trial.status };
+  let suffix = '';
+  if (trial.status === 'active') {
+    const d = daysLeft(trial.ends_at);
+    if (d != null) suffix = d > 0 ? ` · ${d}d left` : ' · ends today';
+  }
+  return (
+    <span className={'ml-1 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-[9px] ' + m.cls}
+      title={`Trial ${trial.status}${trial.ends_at ? ` · ends ${new Date(trial.ends_at).toLocaleDateString()}` : ''}`}>
+      {m.label}{suffix}
+    </span>
+  );
 }
 
 const TIER_STYLE = {

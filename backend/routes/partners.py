@@ -81,6 +81,11 @@ TERMS_VERSION = "2026-02-13"
 # get a `trial_ends_at` ENGINEER_TESTER_TRIAL_DAYS out + a trialing sub.
 ENGINEER_TESTER_SPACES = max(1, int(os.environ.get("ENGINEER_TESTER_SPACES", "10") or 10))
 ENGINEER_TESTER_TRIAL_DAYS = max(1, int(os.environ.get("ENGINEER_TESTER_TRIAL_DAYS", "10") or 10))
+# Iter 220ea·31 — after the 10-day trial ends we email a feedback form and
+# keep Engineer App access alive for a short grace window while the engineer
+# decides (accept → Stripe, or decline). No decision by the end of grace =>
+# auto-suspend (access revoked, in-flight jobs returned to dispatch).
+ENGINEER_TRIAL_GRACE_DAYS = max(0, int(os.environ.get("ENGINEER_TRIAL_GRACE_DAYS", "3") or 3))
 
 
 # Iter 216h80 — Pulse Fitness isolation. The Partner Engineer Network
@@ -904,7 +909,213 @@ async def approve_partner_application(
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner application-approved email failed: %s", exc)
 
+    # Iter 220ea·31 — campaign tester-cohort applicants are auto-enrolled
+    # onto the proper 10-day trial lifecycle (feedback form + Stripe at the
+    # end). Best-effort: a failure here must never undo the approval.
+    if is_tester:
+        try:
+            tp = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+            if tp and not tp.get("trial_used"):
+                await _start_partner_trial(tp, user.get("id") or "")
+        except Exception:
+            logger.warning("[partners] auto-start trial on approve failed", exc_info=True)
+
     return {"ok": True, "partner_id": partner_id, "application_id": application_id, "level": level}
+
+
+# ──────────────────────── Engineer 10-day trial lifecycle ────────────────────────
+# Watertight rules:
+#   • One trial per engineer, ever (`trial_used` guard — no repeat freebies).
+#   • Explicit admin action (button) OR auto-start for campaign tester_cohort.
+#   • Day 9 reminder → Day 10 feedback form → 3-day grace → accept(Stripe) /
+#     decline / no-response(auto-suspend). All transitions audited.
+
+import secrets as _secrets
+
+
+async def _start_partner_trial(partner: dict, started_by: str, *, force: bool = False) -> dict:
+    """Put an (approved) engineer onto the 10-day free trial. Idempotent-ish:
+    refuses if the engineer has already used a trial unless `force`."""
+    if partner.get("trial_used") and not force:
+        raise HTTPException(400, "This engineer has already used their free trial.")
+    now = datetime.now(timezone.utc)
+    ends_at = (now + timedelta(days=ENGINEER_TESTER_TRIAL_DAYS)).isoformat()
+    trial = {
+        "status": "active",
+        "started_at": now.isoformat(),
+        "ends_at": ends_at,
+        "started_by": started_by or "system",
+        "reminder_sent_at": None,
+        "feedback_sent_at": None,
+        "feedback_token": None,
+        "grace_until": None,
+        "lastchance_sent_at": None,
+        "feedback": None,
+        "decision": None,
+        "decided_at": None,
+        "converted_at": None,
+    }
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {
+            "status": "approved",
+            "trial": trial,
+            "trial_used": True,
+            "trial_ends_at": ends_at,
+            "subscription.status": "trialing",
+            "subscription.current_period_end": ends_at,
+            "updated_at": _now(),
+        }},
+    )
+    await _audit(partner_id=partner["id"], actor_id=started_by or "system",
+                 action="trial_started", after={"ends_at": ends_at})
+    try:
+        from utils.partner_emails import send_trial_started
+        await send_trial_started(
+            email=partner.get("email") or "",
+            full_name=partner.get("full_name") or "",
+            ends_at=ends_at,
+            trial_days=ENGINEER_TESTER_TRIAL_DAYS,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[partners] trial-started email failed: %s", exc)
+    return trial
+
+
+@router.post("/partners/{partner_id}/start-trial")
+async def start_partner_trial_endpoint(
+    partner_id: str, user: dict = Depends(get_current_user),
+):
+    """Master admin — put an already-approved engineer onto the 10-day
+    free trial (button in the Partners list)."""
+    _require_master_admin(user)
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(404, "Engineer not found")
+    if partner.get("status") in {"rejected"}:
+        raise HTTPException(400, "Cannot start a trial for a rejected engineer")
+    trial = await _start_partner_trial(partner, user.get("id") or "")
+    return {"ok": True, "partner_id": partner_id, "trial": trial}
+
+
+@router.post("/partners/applications/{application_id}/approve-with-trial")
+async def approve_application_with_trial(
+    application_id: str,
+    body: dict = Body(default_factory=dict),
+    user: dict = Depends(get_current_user),
+):
+    """Master admin — one-click 'Approve & start 10-day trial' from the
+    application drawer. Promotes the application (if needed) then starts
+    the trial. Safe to call on an already-approved application."""
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+
+    if app.get("status") == "approved" and app.get("partner_id"):
+        partner_id = app["partner_id"]
+    else:
+        result = await approve_partner_application(application_id, body, user)
+        partner_id = result["partner_id"]
+
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(500, "Partner row missing after approval")
+    # If approval already auto-started a trial (campaign tester_cohort), keep it.
+    if partner.get("trial_used") and (partner.get("trial") or {}).get("status"):
+        return {"ok": True, "partner_id": partner_id, "trial": partner["trial"],
+                "already_on_trial": True}
+    trial = await _start_partner_trial(partner, user.get("id") or "")
+    return {"ok": True, "partner_id": partner_id, "trial": trial}
+
+
+@router.get("/partners/trial/feedback/{token}")
+async def get_trial_feedback(token: str):
+    """Public — resolve a trial-feedback token so the engineer's feedback
+    page can render their name + state. No auth (token is the secret)."""
+    partner = await db.partner_engineers.find_one(
+        {"trial.feedback_token": token},
+        {"_id": 0, "id": 1, "full_name": 1, "trial": 1},
+    )
+    if not partner:
+        raise HTTPException(404, "This feedback link is invalid or has expired.")
+    trial = partner.get("trial") or {}
+    return {
+        "engineer_name": partner.get("full_name") or "there",
+        "status": trial.get("status"),
+        "already_submitted": bool(trial.get("feedback")),
+        "decision": trial.get("decision"),
+        "trial_days": ENGINEER_TESTER_TRIAL_DAYS,
+    }
+
+
+@router.post("/partners/trial/feedback/{token}")
+async def submit_trial_feedback(token: str, body: dict = Body(default_factory=dict)):
+    """Public — engineer submits trial feedback + their continue decision.
+
+    accept → create a Stripe checkout (returns url). decline → suspend.
+    """
+    partner = await db.partner_engineers.find_one({"trial.feedback_token": token}, {"_id": 0})
+    if not partner:
+        raise HTTPException(404, "This feedback link is invalid or has expired.")
+    trial = partner.get("trial") or {}
+    if trial.get("status") not in {"feedback_pending", "accepted"}:
+        raise HTTPException(400, "This trial is no longer awaiting feedback.")
+
+    try:
+        rating = int(body.get("rating") or 0)
+    except (TypeError, ValueError):
+        rating = 0
+    rating = max(0, min(5, rating))
+    feedback = {
+        "rating": rating,
+        "worked_well": (body.get("worked_well") or "").strip()[:4000],
+        "missing": (body.get("missing") or "").strip()[:4000],
+        "continue_paid": bool(body.get("continue_paid")),
+        "submitted_at": _now(),
+    }
+    decision = "accept" if feedback["continue_paid"] else "decline"
+
+    if decision == "accept":
+        await db.partner_engineers.update_one(
+            {"id": partner["id"]},
+            {"$set": {"trial.feedback": feedback, "trial.status": "accepted",
+                      "trial.decision": "accept", "trial.decided_at": _now(),
+                      "updated_at": _now()}},
+        )
+        await _audit(partner_id=partner["id"], actor_id="engineer",
+                     action="trial_feedback_accept", after={"rating": rating})
+        try:
+            checkout = await _create_partner_checkout_session(
+                partner, body.get("origin_url") or "")
+            return {"ok": True, "decision": "accept", "checkout_url": checkout["url"]}
+        except HTTPException as exc:
+            # Free-tier (no payment needed) → just keep them active.
+            if exc.status_code == 400 and "free tier" in str(exc.detail).lower():
+                await db.partner_engineers.update_one(
+                    {"id": partner["id"]},
+                    {"$set": {"trial.status": "converted_paid", "trial.converted_at": _now(),
+                              "subscription.status": "active"}},
+                )
+                return {"ok": True, "decision": "accept", "checkout_url": None,
+                        "free_tier": True}
+            raise
+
+    # Decline → mark, suspend access, return in-flight jobs to dispatch.
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {"trial.feedback": feedback, "trial.status": "declined",
+                  "trial.decision": "decline", "trial.decided_at": _now(),
+                  "status": "suspended",
+                  "subscription.status": "trial_declined", "updated_at": _now()}},
+    )
+    await _audit(partner_id=partner["id"], actor_id="engineer",
+                 action="trial_feedback_decline", after={"rating": rating})
+    try:
+        await _handle_partner_loss_of_access(partner["id"], "trial_declined")
+    except Exception:
+        logger.exception("[partners] loss-of-access on trial decline failed")
+    return {"ok": True, "decision": "decline", "checkout_url": None}
 
 
 @router.post("/partners/applications/{application_id}/resend-approval-email")
@@ -2204,21 +2415,13 @@ async def my_commission(user: dict = Depends(get_current_user)):
 # ───────────────────────── PARTNER PLAN subscription (iter 216h76) ─────────────────────────
 
 
-@router.post("/partners/me/subscription/checkout")
-async def create_partner_subscription_checkout(
-    body: dict = Body(default_factory=dict), user: dict = Depends(get_current_user),
-):
-    """Create a Stripe Checkout Session for the partner's app-fee plan.
+async def _create_partner_checkout_session(partner: dict, origin_url: str) -> dict:
+    """Shared Stripe Checkout creation for the Partner Engineer Plan.
 
-    The price ID auto-selects from the partner's CURRENT `app_fee_tier` —
-    so a brand-new partner lands on the £30 price, a partner with 5+
-    active referrals lands on £15, and a partner at the free tier gets
-    a friendly 400 ("you're already free, no checkout needed")."""
-    partner = await _get_partner_by_user(user["id"])
-    if not partner:
-        raise HTTPException(404, "No partner profile — apply first")
-    if partner.get("status") != "approved":
-        raise HTTPException(400, "Application must be approved before starting the subscription")
+    Used by both the authed subscription endpoint AND the public
+    trial-feedback "accept & pay" flow (where the engineer may not be
+    logged in). Price auto-selects from the partner's current app-fee tier.
+    """
     tier = await _recompute_app_fee(partner["id"])
     if tier["price_gbp"] == 0:
         raise HTTPException(400, "You're on the free tier — no subscription needed")
@@ -2229,25 +2432,24 @@ async def create_partner_subscription_checkout(
             "Partner Plan Stripe price IDs not configured — ask Master Admin to set "
             "STRIPE_PRICE_PARTNER_PLAN_30 and STRIPE_PRICE_PARTNER_PLAN_15 in the env.",
         )
-
-    origin_url = (body.get("origin_url") or "").rstrip("/") or (
+    origin_url = (origin_url or "").rstrip("/") or (
         os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
     ).rstrip("/")
     if not origin_url:
         raise HTTPException(400, "origin_url is required")
-
     try:
         import stripe
         stripe.api_key = os.environ.get("STRIPE_API_KEY")
     except ImportError:
         raise HTTPException(503, "Stripe SDK unavailable")
 
+    email = partner.get("email") or ""
     success_url = f"{origin_url}/partner-engineer?subscription=success&session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin_url}/partner-engineer?subscription=cancelled"
     metadata = {
         "partner_id": partner["id"],
-        "user_id": user["id"],
-        "user_email": user.get("email") or "",
+        "user_id": partner.get("user_id") or "",
+        "user_email": email,
         "kind": "partner_engineer_plan",
         "tier_gbp": str(tier["price_gbp"]),
     }
@@ -2258,12 +2460,9 @@ async def create_partner_subscription_checkout(
             mode="subscription",
             success_url=success_url,
             cancel_url=cancel_url,
-            customer_email=user.get("email"),
+            customer_email=email or None,
             metadata=metadata,
             subscription_data={"metadata": metadata},
-            # Iter 220bo · F-220bo-3 — deterministic key so a double-
-            # click / network retry within a minute lands on the same
-            # Stripe session instead of creating duplicates.
             idempotency_key=_stripe_idem_key("partner_plan_checkout", partner["id"], price_id),
         )
     except Exception as exc:
@@ -2279,6 +2478,24 @@ async def create_partner_subscription_checkout(
         }},
     )
     return {"url": session.url, "session_id": session.id}
+
+
+@router.post("/partners/me/subscription/checkout")
+async def create_partner_subscription_checkout(
+    body: dict = Body(default_factory=dict), user: dict = Depends(get_current_user),
+):
+    """Create a Stripe Checkout Session for the partner's app-fee plan.
+
+    The price ID auto-selects from the partner's CURRENT `app_fee_tier` —
+    so a brand-new partner lands on the £30 price, a partner with 5+
+    active referrals lands on £15, and a partner at the free tier gets
+    a friendly 400 ("you're already free, no checkout needed")."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "No partner profile — apply first")
+    if partner.get("status") != "approved":
+        raise HTTPException(400, "Application must be approved before starting the subscription")
+    return await _create_partner_checkout_session(partner, body.get("origin_url") or "")
 
 
 @router.post("/partners/me/subscription/cancel")
@@ -2360,6 +2577,18 @@ async def handle_partner_checkout_completed(session_data: dict) -> Optional[dict
             "subscription.synced_at": _now(),
         }},
     )
+    # Iter 220ea·31 — a trial engineer who paid has converted. Close out
+    # the trial lifecycle so the worker stops chasing them for feedback /
+    # suspension, and re-open access if a lapse had suspended them.
+    paid_partner = await db.partner_engineers.find_one(
+        {"id": partner_id}, {"_id": 0, "trial": 1, "status": 1})
+    if paid_partner and (paid_partner.get("trial") or {}).get("status") not in (None, "converted_paid"):
+        trial_set = {"trial.status": "converted_paid", "trial.converted_at": _now()}
+        if paid_partner.get("status") == "suspended":
+            trial_set["status"] = "approved"  # paying lifts a trial-expiry suspension
+        await db.partner_engineers.update_one({"id": partner_id}, {"$set": trial_set})
+        await _audit(partner_id=partner_id, actor_id="system",
+                     action="trial_converted_paid", after={"stripe_subscription_id": sub_id})
     await _audit(partner_id=partner_id, actor_id="system",
                  action="subscription_activated",
                  after={"stripe_subscription_id": sub_id, "stripe_customer_id": customer_id})

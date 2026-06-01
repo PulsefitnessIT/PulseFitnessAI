@@ -514,3 +514,97 @@ async def send_engineer_unavailable_autoreply(
         subject=subject,
         html=_wrap(f"{engineer_first_name} is on leave", body),
     )
+
+
+
+# ── Engineer 10-day trial lifecycle ───────────────────────────────────
+
+
+def _trial_feedback_url(token: str) -> str:
+    base = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    return f"{base}/partner-engineer/trial-feedback/{token}"
+
+
+def _fmt_date(iso: str | None) -> str:
+    if not iso:
+        return "soon"
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).strftime("%-d %B %Y")
+    except Exception:
+        return "soon"
+
+
+async def send_trial_started(email: str, full_name: str, ends_at: str, trial_days: int = 10) -> bool:
+    """Sent when an admin (or the campaign auto-enrol) starts the free trial."""
+    first = (full_name or "").split(" ")[0] or "there"
+    body = (
+        f"<p>Hi {first},</p>"
+        f"<p>Your <strong>{trial_days}-day free trial</strong> of the GymAxis Engineer App is live. "
+        f"You've got full access to take jobs, batch faults, capture photos, fire off branded "
+        f"service reports and track your van stock — no card needed.</p>"
+        f'<p style="background:#F1F5F9;border-left:3px solid #0055FF;padding:14px 16px;border-radius:6px;">'
+        f"Your trial runs until <strong>{_fmt_date(ends_at)}</strong>. We'll email you a short feedback "
+        f"form when it ends — if you love it, you can continue on the plan in a couple of taps.</p>"
+        f"<p>Get stuck in — the more you put through it, the more useful your feedback will be.</p>"
+    )
+    return await send_email(
+        to=email,
+        subject=f"Your {trial_days}-day GymAxis Engineer App trial has started",
+        html=_wrap("Your free trial is live.", body, "Open the Engineer App", _partner_dashboard_url()),
+    )
+
+
+async def send_trial_ending_tomorrow(email: str, full_name: str, ends_at: str) -> bool:
+    """Day-9 nudge — trial ends tomorrow."""
+    first = (full_name or "").split(" ")[0] or "there"
+    body = (
+        f"<p>Hi {first},</p>"
+        f"<p>Quick heads-up — your free trial of the GymAxis Engineer App ends "
+        f"<strong>tomorrow ({_fmt_date(ends_at)})</strong>.</p>"
+        f"<p>Squeeze in any last jobs you want to test, and keep an eye on your inbox: "
+        f"we'll send a 2-minute feedback form right after, with the option to continue on the plan.</p>"
+    )
+    return await send_email(
+        to=email,
+        subject="Your GymAxis Engineer App trial ends tomorrow",
+        html=_wrap("One day left on your trial.", body, "Open the Engineer App", _partner_dashboard_url()),
+    )
+
+
+async def send_trial_feedback_request(email: str, full_name: str, token: str, trial_days: int = 10) -> bool:
+    """Day-10 — trial ended, ask for feedback + continue decision."""
+    first = (full_name or "").split(" ")[0] or "there"
+    url = _trial_feedback_url(token)
+    body = (
+        f"<p>Hi {first},</p>"
+        f"<p>That's a wrap on your {trial_days}-day GymAxis Engineer App trial — thank you for "
+        f"putting it through its paces.</p>"
+        f"<p>Could you spare <strong>2 minutes</strong> to tell us how it went? At the end you can "
+        f"choose to continue on the plan (£30/mo, automatically dropping to free once you refer "
+        f"10 active sites) or step away — no pressure either way.</p>"
+        f'<p style="background:#FFF7ED;border-left:3px solid #F59E0B;padding:14px 16px;border-radius:6px;">'
+        f"Your access stays on for a few more days while you decide. Tell us your verdict below.</p>"
+    )
+    return await send_email(
+        to=email,
+        subject="How was your GymAxis trial? (2 mins) — continue or step away",
+        html=_wrap("Tell us how the trial went.", body, "Give feedback & decide", url),
+    )
+
+
+async def send_trial_lastchance(email: str, full_name: str, token: str) -> bool:
+    """Final nudge ~2 days after the feedback form if no response yet."""
+    first = (full_name or "").split(" ")[0] or "there"
+    url = _trial_feedback_url(token)
+    body = (
+        f"<p>Hi {first},</p>"
+        f"<p>Last chance — your GymAxis Engineer App trial access is about to switch off. "
+        f"If you'd like to keep going, just complete the quick feedback form and continue on the "
+        f"plan. If we don't hear back, your access will pause and any in-flight jobs will be "
+        f"returned to the dispatch team.</p>"
+    )
+    return await send_email(
+        to=email,
+        subject="Last chance to keep your GymAxis Engineer App access",
+        html=_wrap("Your trial access is about to pause.", body, "Continue on the plan", url),
+    )

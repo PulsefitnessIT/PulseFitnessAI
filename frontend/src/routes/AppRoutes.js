@@ -107,6 +107,7 @@ const _ServiceOpsReports = lazy(() => import('@/pages/ServiceOps/ServiceOpsRepor
 const PartnerDashboard = lazy(() => import('@/pages/PartnerEngineer/PartnerDashboard'));
 // Iter 219f — public activation page (single-use link from approval email).
 const PartnerEngineerActivate = lazy(() => import('@/pages/PartnerEngineer/PartnerEngineerActivate'));
+const TrialFeedback = lazy(() => import('@/pages/PartnerEngineer/TrialFeedback'));
 // Iter 216h88 — public Partner Engineer landing page
 const PartnerEngineerLanding = lazy(() => import('@/pages/Marketing/PartnerEngineerLanding'));
 const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPublic'));
@@ -489,6 +490,8 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 219f — single-use activation page from approval email.
           Public (no auth) — the engineer doesn't have an account yet. */}
       <Route path="/partner-engineer/activate" element={<PartnerEngineerActivate />} />
+      {/* Iter 220ea·31 — public trial-feedback page (tokenised, no auth) */}
+      <Route path="/partner-engineer/trial-feedback/:token" element={<TrialFeedback />} />
 
       {/* ─── Member-facing surfaces (white-label) ─── */}
       <Route path="/members" element={<MemberPortal />} />

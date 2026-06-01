@@ -32,7 +32,7 @@ import axios from 'axios';
 import {
   X, Loader2, Mail, Phone, MapPin, Calendar, ShieldCheck, FileText,
   Download, CheckCircle2, XCircle, Award, Briefcase, MessageSquare,
-  Sparkles, ChevronDown, Wrench, Tag, AlertTriangle, RefreshCw, Wand2,
+  Sparkles, ChevronDown, Wrench, Tag, AlertTriangle, RefreshCw, Wand2, Rocket,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -186,9 +186,9 @@ export default function PartnerApplicationDrawer({
     }
   };
 
-  const approve = async () => {
+  const approve = async (withTrial = false) => {
     if (!applicationId) return;
-    setBusy('approve');
+    setBusy(withTrial ? 'approve_trial' : 'approve');
     try {
       // Persist any unsaved notes first so the audit trail is honest.
       if (notes !== (data?.application?.reviewer_notes || '')) {
@@ -198,12 +198,15 @@ export default function PartnerApplicationDrawer({
           { headers },
         );
       }
-      await axios.post(
-        `${API}/api/partners/applications/${applicationId}/approve`,
-        { level },
-        { headers },
+      const endpoint = withTrial
+        ? `${API}/api/partners/applications/${applicationId}/approve-with-trial`
+        : `${API}/api/partners/applications/${applicationId}/approve`;
+      await axios.post(endpoint, { level }, { headers });
+      notify.success(
+        withTrial
+          ? `${app.full_name || 'Applicant'} approved + 10-day trial started`
+          : `${app.full_name || 'Applicant'} approved as ${level.replace('_', ' ')}`,
       );
-      notify.success(`${app.full_name || 'Applicant'} approved as ${level.replace('_', ' ')}`);
       if (onApproved) onApproved();
       // Iter 219d — keep drawer open and reload so the "Resend
       // approval email" button is immediately accessible (covers the
@@ -556,12 +559,22 @@ export default function PartnerApplicationDrawer({
               </button>
               <button
                 type="button"
-                onClick={approve}
+                onClick={() => approve(false)}
                 disabled={busy !== null || loading}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
                 data-testid="partner-application-approve-btn"
               >
                 {busy === 'approve' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => approve(true)}
+                disabled={busy !== null || loading}
+                className="px-4 py-2 rounded-lg bg-[var(--color-brand-blue-dark,#003DA5)] hover:opacity-90 text-white text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
+                data-testid="partner-application-approve-trial-btn"
+                title="Approve and immediately start the 10-day free trial"
+              >
+                {busy === 'approve_trial' ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />} Approve &amp; start trial
               </button>
             </>
           ) : (
