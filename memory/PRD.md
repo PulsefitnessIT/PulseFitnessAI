@@ -1,3 +1,29 @@
+## Iter 220ea·31 — Watertight engineer 10-day trial → feedback → Stripe process ✅ (Feb, 2026)
+
+User needs a watertight trial pipeline before the "WE NEED YOU!" adverts drive an intake. Confirmed choices: admin button to start a 10-day FREE trial (Partners list + one-click "Approve & start trial" on a pending application); on day-10 access continues during a **3-day grace** then auto-suspends if no decision; feedback form emailed (rating / worked well / missing / continue Yes-No); ACCEPT → Stripe £30/mo, DECLINE or no-response → suspended (access revoked, feedback kept); reminders day-9 + day-10 + a +2-day last-chance nudge. **One trial per engineer, ever.** Backend 6/6 pytest + full lifecycle curl-verified (start → time-travel → feedback → accept gives a real Stripe checkout URL → decline/no-response suspend); frontend tested (admin buttons + on-brand public feedback page); test data cleaned (counter 10/10).
+
+**State machine** (on `partner_engineers.trial`): `active → feedback_pending → (accepted → converted_paid) | declined | expired`. `trial_used:true` blocks repeat trials. Suspension sets `partner.status=suspended` and returns in-flight jobs to dispatch (`_handle_partner_loss_of_access`).
+
+**Backend (`routes/partners.py`):**
+- `_start_partner_trial(partner, by, *, force)` — sets the trial object + `trial_used` + trialing subscription, emails "trial started". One-trial guard (400 on repeat).
+- `POST /api/partners/{id}/start-trial` (master admin) — Partners-list button.
+- `POST /api/partners/applications/{id}/approve-with-trial` (master admin) — promotes + starts trial in one click. `approve_partner_application` also auto-starts the full lifecycle for campaign `tester_cohort` applicants.
+- `GET/POST /api/partners/trial/feedback/{token}` (PUBLIC, tokenised) — render + submit. accept → `_create_partner_checkout_session` returns a Stripe URL (free-tier handled); decline → suspend.
+- `_create_partner_checkout_session` factored out and shared with the authed `/partners/me/subscription/checkout`.
+- `handle_partner_checkout_completed` → flips trial to `converted_paid` and lifts a trial-expiry suspension on payment.
+
+**Worker `utils/partner_trial_lifecycle.py`** (registered in server.py, 6h, idempotent per-step timestamps): day-9 "ends tomorrow" → day-10 feedback form (token + `grace_until=+3d`) → +2-day last-chance nudge → grace passed & unpaid ⇒ expired + suspended. Emails in `utils/partner_emails.py` (send_trial_started / _ending_tomorrow / _feedback_request / _lastchance).
+
+**Frontend:** `AdminPartners.js` — "Start trial" button (`admin-partner-start-trial-{id}`) + `TrialBadge` (active/feedback-due/accepted/paid/declined/expired with countdown). `PartnerApplicationDrawer.js` — footer now has "Approve" + "Approve & start trial". New public on-brand page `pages/PartnerEngineer/TrialFeedback.js` at `/partner-engineer/trial-feedback/:token` (5-star + 2 textareas + continue/decline → Stripe redirect).
+
+**Files:** routes/partners.py, utils/partner_trial_lifecycle.py (new), utils/partner_emails.py, server.py, AdminPartners.js, PartnerApplicationDrawer.js, PartnerEngineer/TrialFeedback.js (new), routes/AppRoutes.js, tests/test_iter_220ea_31_engineer_trial.py (new, in Makefile).
+
+**Notes:** Stripe is real test-mode; emails via Resend (real). `routes/partners.py` is ~5,100 lines — flagged for a future split (applications / trial / subscription / public). Production: works after redeploy.
+
+---
+
+
+
 ## Iter 220ea·30 — Engineer tester recruitment + editable spec names + "WE NEED YOU!" social posts ✅ (Feb, 2026)
 
 User command (3 parts): (1) make spec-sheet model **names editable** in the Spec Sheets lines so the correct model number is advertised; (2) advertise the engineer programme for testing with **trial periods** — chose BOTH a 10-day free trial for tester engineers AND a live "X of 10 spaces left" counter on the recruitment landing; (3) create on-brand "WE NEED YOU!" Instagram/TikTok recruitment posts (hero + feature posts). Brand corrected by user → GymAxis electric blue `#2563EB` → purple `#9D4CDD`, **no cyan**. Lint clean (py+js); backend testing agent 5/5 PASS; landing + Social Library + posters verified live; 5 new pytests (in Makefile). 1 throwaway tester app cleaned up (counter back to 10/10).
