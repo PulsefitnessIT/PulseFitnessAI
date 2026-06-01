@@ -71,6 +71,9 @@ class CustomerIn(BaseModel):
     company_number: Optional[str] = Field(default=None, max_length=20)
     notes: Optional[str] = Field(default=None, max_length=4000)
     equipment_list: Optional[list[str]] = None
+    # Iter 220ea·26 (G1) — explicit link to a CRM (v2) company id. When
+    # omitted on create we best-effort match by name/email.
+    company_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class CustomerPatch(BaseModel):
@@ -88,6 +91,8 @@ class CustomerPatch(BaseModel):
     company_number: Optional[str] = Field(default=None, max_length=20)
     notes: Optional[str] = Field(default=None, max_length=4000)
     equipment_list: Optional[list[str]] = None
+    # Iter 220ea·26 (G1) — set to a CRM company id to link, or "" to unlink.
+    company_id: Optional[str] = Field(default=None, max_length=64)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -653,6 +658,18 @@ async def get_customer(customer_id: str, user=Depends(get_current_user)):
         doc["recent_invoices"] = await _recent_invoices(org_id, doc.get("email"), doc.get("phone"))
     except Exception:
         doc["recent_invoices"] = []
+    # Iter 220ea·26 (G1) — resolve the linked CRM (v2) company so the
+    # detail panel can show "Linked to <company>" instead of a raw id.
+    doc["crm_company"] = None
+    if doc.get("company_id"):
+        try:
+            co = await db.crm2_companies.find_one(
+                {"organization_id": org_id, "id": doc["company_id"]},
+                {"_id": 0, "id": 1, "name": 1, "sage_customer_id": 1},
+            )
+            doc["crm_company"] = co
+        except Exception:
+            doc["crm_company"] = None
     return doc
 
 
@@ -663,6 +680,17 @@ async def create_customer(payload: CustomerIn, user=Depends(get_current_user)):
     instead of inserting a duplicate."""
     org_id = _of(user)
     doc = _to_doc(payload, org_id=org_id, user_id=user["id"])
+    # Iter 220ea·26 (G1) — link to the canonical CRM (v2) company.
+    if payload.company_id:
+        doc["company_id"] = payload.company_id.strip()
+    else:
+        try:
+            from utils.svc_crm_sync import find_company_id
+            doc["company_id"] = await find_company_id(
+                org_id, name=doc["name"], email=doc["email"] or "",
+                postcode=doc["postcode"] or "")
+        except Exception:
+            doc["company_id"] = ""
 
     dupe = await _find_duplicate(org_id, doc["email"], doc["phone"])
     if dupe:
@@ -672,7 +700,7 @@ async def create_customer(payload: CustomerIn, user=Depends(get_current_user)):
                 "name", "email", "phone", "site_name", "site_address",
                 "address_line1", "address_line2", "city", "county",
                 "postcode", "country", "company_number",
-                "notes", "equipment_list",
+                "notes", "equipment_list", "company_id",
             ) and v
         }
         updates["updated_at"] = _now_iso()
@@ -719,6 +747,9 @@ async def update_customer(
             updates[k] = (v or "").strip() or None
     if "postcode" in raw:
         updates["postcode"] = _norm_postcode(raw["postcode"])
+    if "company_id" in raw:
+        # Iter 220ea·26 (G1) — explicit link/unlink to a CRM company.
+        updates["company_id"] = (raw["company_id"] or "").strip()
     if "equipment_list" in raw and raw["equipment_list"] is not None:
         updates["equipment_list"] = [e.strip() for e in raw["equipment_list"] if e and e.strip()]
     if updates:

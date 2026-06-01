@@ -85,6 +85,82 @@ def _re_escape(s: str) -> str:
         "]", "\\]").replace("$", "\\$").replace("^", "\\^")
 
 
+async def resolve_sage_customer_id(
+    organization_id: str, *, name: str = "", email: str = "",
+    company_id: str = "",
+) -> str:
+    """Iter 220ea·26 (G3) — resolve a case's Sage customer account id.
+
+    Historically service intake / billing read ``sage_customer_id`` only
+    from the **v1** ``crm_companies`` shadow, matched by **name only**.
+    A company created directly in the live **v2** CRM (``crm2_companies``)
+    has no v1 shadow, so the Sage link silently came back empty.
+
+    This resolver closes that seam:
+      1. If ``company_id`` is known (the canonical link added in G1),
+         read the v2 company directly, then its v1 twin by name.
+      2. Otherwise match v2 by name → email, then v1 by name → email.
+    Reads ``sage_customer_id`` from whichever store carries it (only v1
+    holds it today, but checking v2 first future-proofs the bridge).
+    Best-effort: returns ``""`` on any miss or error — never raises.
+    """
+    try:
+        of = {"organization_id": organization_id}
+
+        async def _sid_from(coll, query):
+            doc = await coll.find_one(
+                {**of, **query}, {"_id": 0, "sage_customer_id": 1, "name": 1})
+            return ((doc or {}).get("sage_customer_id") or "",
+                    (doc or {}).get("name") or "")
+
+        # 1) Canonical id path.
+        if company_id:
+            sid, v2name = await _sid_from(db.crm2_companies, {"id": company_id})
+            if sid:
+                return sid
+            if v2name:
+                sid, _ = await _sid_from(
+                    db.crm_companies,
+                    {"name": {"$regex": f"^{_re_escape(v2name)}$", "$options": "i"}})
+                if sid:
+                    return sid
+
+        # 2) Name / email matching across v2 then v1.
+        for coll in (db.crm2_companies, db.crm_companies):
+            if name:
+                sid, _ = await _sid_from(
+                    coll, {"name": {"$regex": f"^{_re_escape(name)}$", "$options": "i"}})
+                if sid:
+                    return sid
+            if email:
+                sid, _ = await _sid_from(
+                    coll, {"email": {"$regex": f"^{_re_escape(email)}$", "$options": "i"}})
+                if sid:
+                    return sid
+    except Exception:  # pragma: no cover - best-effort bridge
+        logger.debug("resolve_sage_customer_id failed", exc_info=True)
+    return ""
+
+
+async def find_company_id(
+    organization_id: str, *, name: str = "", email: str = "",
+    postcode: str = "",
+) -> str:
+    """Iter 220ea·26 (G1) — resolve the canonical CRM (v2) company id for
+    a service customer. Returns the ``crm2_companies.id`` or ``""``.
+
+    This is the shared spine that lets a service case / engineer customer
+    point at one CRM company instead of being matched by free-text name
+    every time. Best-effort, never raises."""
+    try:
+        co = await _find_company(
+            organization_id, name=name, email=email, postcode=postcode)
+        return (co or {}).get("id") or ""
+    except Exception:  # pragma: no cover - best-effort bridge
+        logger.debug("find_company_id failed", exc_info=True)
+        return ""
+
+
 async def _upsert_activity(
     *, organization_id: str, case_id: str, kind: str, doc: dict,
 ) -> dict:

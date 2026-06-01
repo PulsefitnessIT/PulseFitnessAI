@@ -1,3 +1,29 @@
+## Iter 220ea·26 — CRM ↔ Service Ops bridge (gaps G3 → G1 → G2) ✅ (Feb, 2026)
+
+Cross-surface review found the four surfaces (Engineer App / Service Desk / Operations / CRM) well-connected on the Service→CRM side but with three gaps around shared customer identity + the CRM→Service direction. Closed all three in the user's chosen order c→a→b. Lint clean, 8 new pytests green (in Makefile regression), all e2e/functionally verified.
+
+**G3 (c) — v1/v2 Sage seam fixed.** `sage_customer_id` lived only on v1 `crm_companies` (matched by name only), so a company created in the live v2 CRM silently lost its Sage link. New shared `resolve_sage_customer_id(org, name, email, company_id)` in `utils/svc_crm_sync.py` resolves v2-first → v1 fallback, by name **or** email. Wired into `intake.py` + `billing.py`. Verified (v2-by-name/id/email + v1 fallback + miss).
+
+**G1 (a) — canonical customer link.** Added a `company_id` (CRM v2 company id) spine across `svc_cases` + `svc_engineer_customers`:
+- `find_company_id` resolver (`svc_crm_sync.py`).
+- New `routes/svc/customer_links.py`: `GET /api/svc/customers/crm-search` (link picker, regular service auth so engineer + office both use it) and `POST /api/svc/admin/customers/backfill-crm-links` (idempotent backfill by name/email). Registered in `route_registry/features.py`.
+- Auto-link on intake case create + engineer-customer create (operator pick wins, else best-effort match). `company_id` added to `CustomerIn`/`CustomerPatch` (PATCH sets/unlinks). Customer-detail GET enriched with `crm_company` {name, sage_customer_id}.
+- Frontend: `CrmLinkRow` in `EngineerCustomers.js` — shows linked CRM company badge (+Sage id) with search-to-link / unlink. Verified live (screenshot: green "✓ <company> · SAGE-xxx" badge).
+
+**G2 (b) — auto sales→service onboarding.** New `utils/sales_to_service.py::onboard_contract_to_service`: when a CRM maintenance contract activates/signs (`sla.preventive_maintenance` + `visits_per_year≥1`), it (1) ensures a linked service customer, (2) writes an `svc_ppm_schedules` row (visits/yr, interval, start/end, next-due), and (3) seeds the first `case_type='ppm'` case via the canonical `intake._create_case`, scheduled at contract start. Idempotent on `contract_id`; non-PPM contracts skipped. Wired into both `_fire_contract_activated` (update→active) and the `/contracts/{id}/sign` path in `crm_contracts.py`. Verified end-to-end (customer + schedule + case created; idempotent re-run; non-PPM skip).
+
+**Note on auth split:** CRM uses `get_crm_user`; Service Ops uses `get_current_user`. G2 verified via direct functional tests (CRM API auth-gated for HTTP).
+
+**Pre-existing/environmental test failures (NOT from this work, evidence captured):**
+- `215dn` case-scoping + `216u` ppm-autogen list: the `/api/svc/cases` list sorts by SLA urgency with `limit=50`; the shared preview DB holds 564+ cases so a freshly created case isn't in the first page (reproduced with a vanilla intake create). Data-volume, not code.
+- `215dp` ×4 (engineer time-tracking, 412 precondition) + `215ds` (AI photo): live-API state/rate-limit flakiness in untouched areas.
+- `215ed` lint-script (`0 warn`): pre-existing 95.3% integration-annotation coverage; NOT in the Makefile regression gate; my files add 0 counted `Field(description=)` fields.
+
+**Files:** utils/svc_crm_sync.py, routes/svc/customer_links.py (new), routes/svc/intake.py, routes/svc/billing.py, routes/svc/engineer_customers.py, route_registry/features.py, utils/sales_to_service.py (new), routes/crm_contracts.py, frontend EngineerCustomers.js, tests/test_iter_220ea_26_crm_service_bridge.py (new).
+
+---
+
+
 ## Iter 220ea·25 — Engineer app gap review + error-boundary hardening ✅ (Feb, 2026)
 
 Reviewed the whole engineer app (45 components, 32 routes, ~50 backend svc modules, offline outbox, integrations) for gaps. Verdict: feature-complete; no "coming soon"/dead flows. Closed the one true robustness gap found.

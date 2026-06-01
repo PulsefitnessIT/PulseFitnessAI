@@ -292,6 +292,7 @@ regression:
 	  tests/test_iter_220ea_22_admin_stock.py \
 	  tests/test_iter_220ea_23_stock_reports.py \
 	  tests/test_iter_220ea_24_return_brief_and_field_share.py \
+	  tests/test_iter_220ea_26_crm_service_bridge.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

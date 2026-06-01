@@ -296,7 +296,8 @@ async def get_contract(contract_id: str, user=Depends(get_crm_user)):
 
 
 async def _fire_contract_activated(contract_id: str, existing: dict, updates: dict, user: dict):
-    """Fire integration event when a contract becomes active."""
+    """Fire integration event when a contract becomes active, and bridge
+    it into Service Ops (G2 — auto sales→service onboarding)."""
     try:
         from routes.integration_hub import publish_event
         await publish_event(
@@ -312,6 +313,16 @@ async def _fire_contract_activated(contract_id: str, existing: dict, updates: di
             organization_id=user.get("organization_id", ""),
             triggered_by=user.get("full_name", ""),
         )
+    except Exception:
+        pass
+    # Iter 220ea·26 (G2) — auto-onboard the maintenance contract into the
+    # service world (customer + PPM schedule + first visit). Idempotent,
+    # best-effort: never blocks the contract flow.
+    try:
+        from utils.sales_to_service import onboard_contract_to_service
+        contract = {**existing, **updates, "id": contract_id}
+        contract.pop("_id", None)
+        await onboard_contract_to_service(contract, user=user)
     except Exception:
         pass
 
@@ -503,6 +514,13 @@ async def sign_contract(contract_id: str, data: dict, user=Depends(get_crm_user)
                 organization_id=user.get("organization_id", ""),
                 triggered_by=user.get("full_name", ""),
             )
+        except Exception:
+            pass
+        # Iter 220ea·26 (G2) — auto-onboard the signed maintenance contract
+        # into Service Ops (customer + PPM schedule + first visit).
+        try:
+            from utils.sales_to_service import onboard_contract_to_service
+            await onboard_contract_to_service({**c, **updates, "id": contract_id}, user=user)
         except Exception:
             pass
 

@@ -160,6 +160,21 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         "created_at": _now(),
         "updated_at": _now(),
     }
+    # Iter 220ea·26 (G1) — stamp the canonical CRM (v2) company id so the
+    # case, CRM timeline, Sage link and engineer book all share one spine.
+    # Operator-picked id wins; otherwise best-effort match by name/email.
+    case["company_id"] = (payload.get("company_id") or "").strip()
+    if not case["company_id"]:
+        try:
+            from utils.svc_crm_sync import find_company_id
+            case["company_id"] = await find_company_id(
+                org_id,
+                name=case.get("customer_name") or "",
+                email=case.get("customer_email") or "",
+                postcode=case.get("site_postcode") or "",
+            )
+        except Exception:
+            case["company_id"] = ""
     await db.svc_cases.insert_one(case)
 
     # Seed timeline with the intake event so it's never empty.
@@ -183,15 +198,13 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
     quote_outbox: dict | None = None
     if case["cover_type"] == "chargeable" and case.get("quote_required"):
         try:
-            sage_customer_id = ""
-            try:
-                comp = await db.crm_companies.find_one(
-                    {"organization_id": org_id, "name": case.get("customer_name") or ""},
-                    {"_id": 0, "sage_customer_id": 1},
-                )
-                sage_customer_id = (comp or {}).get("sage_customer_id") or ""
-            except Exception:
-                sage_customer_id = ""
+            from utils.svc_crm_sync import resolve_sage_customer_id
+            sage_customer_id = await resolve_sage_customer_id(
+                org_id,
+                name=case.get("customer_name") or "",
+                email=case.get("customer_email") or "",
+                company_id=case.get("company_id") or "",
+            )
             from routes.svc.integrations.sage_invoice import enqueue_quote_for_case
             quote_outbox = await enqueue_quote_for_case(
                 case,

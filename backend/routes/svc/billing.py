@@ -451,16 +451,15 @@ async def finalise_invoice(case_id: str, user=Depends(get_current_user)):
     quote = await db.svc_quotes.find_one({**of, "case_id": case_id, "status": "approved"}, {"_id": 0})
     if not quote:
         raise HTTPException(409, "No approved quote — approve a quote before finalising")
-    # Look up the org's Sage customer id from the CRM company record (best-effort).
-    sage_customer_id = ""
-    try:
-        comp = await db.crm_companies.find_one(
-            {"organization_id": of["organization_id"], "name": case.get("customer_name") or ""},
-            {"_id": 0, "sage_customer_id": 1},
-        )
-        sage_customer_id = (comp or {}).get("sage_customer_id") or ""
-    except Exception:
-        pass
+    # Look up the org's Sage customer id from the CRM company record
+    # (best-effort, v2-first via the shared resolver — Iter 220ea·26 G3).
+    from utils.svc_crm_sync import resolve_sage_customer_id
+    sage_customer_id = await resolve_sage_customer_id(
+        of["organization_id"],
+        name=case.get("customer_name") or "",
+        email=case.get("customer_email") or "",
+        company_id=case.get("company_id") or "",
+    )
     await sage_invoice.enqueue_invoice_for_case(
         case, sage_customer_id=sage_customer_id, quote=quote, status="ready",
     )

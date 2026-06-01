@@ -77,6 +77,106 @@ const Field = ({ label, value, onChange, type = 'text', testid, placeholder, mul
   </label>
 );
 
+// Iter 220ea·26 (G1) — Canonical CRM link. Shows the linked CRM company
+// for a service customer (one shared spine across CRM ↔ Service Ops) and
+// lets the user search + link, or unlink. Linking PATCHes `company_id`.
+const CrmLinkRow = ({ customerId, crmCompany, onChanged }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const runSearch = async (val) => {
+    setQ(val);
+    if (!val.trim()) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const r = await axios.get(`${API}/svc/customers/crm-search`,
+        { params: { q: val }, ...auth() });
+      setResults(r.data?.companies || []);
+    } catch { setResults([]); } finally { setSearching(false); }
+  };
+
+  const setLink = async (companyId) => {
+    setBusy(true);
+    try {
+      await axios.patch(`${API}/svc/engineer/customers/${customerId}`,
+        { company_id: companyId }, auth());
+      notify.success(companyId ? 'Linked to CRM customer' : 'Unlinked from CRM');
+      setOpen(false); setQ(''); setResults([]);
+      onChanged?.();
+    } catch (e) {
+      notify.error('Could not update CRM link', e?.response?.data?.detail || e?.message);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="pt-2 border-t border-slate-100" data-testid={`crm-link-${customerId}`}>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+        <Building2 size={12} /> CRM customer
+      </p>
+      {crmCompany ? (
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1"
+            data-testid={`crm-link-badge-${customerId}`}>
+            <CheckCircle2 size={12} /> {crmCompany.name}
+            {crmCompany.sage_customer_id
+              ? <span className="text-emerald-500 font-mono">· {crmCompany.sage_customer_id}</span>
+              : null}
+          </span>
+          <button type="button" onClick={() => setLink('')} disabled={busy}
+            className="text-[11px] text-slate-400 hover:text-rose-600 font-semibold disabled:opacity-50"
+            data-testid={`crm-unlink-${customerId}`}>
+            {busy ? <Loader2 size={12} className="animate-spin" /> : 'Unlink'}
+          </button>
+        </div>
+      ) : !open ? (
+        <button type="button" onClick={() => setOpen(true)}
+          className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+          data-testid={`crm-link-open-${customerId}`}>
+          <Search size={12} /> Link to a CRM customer
+        </button>
+      ) : (
+        <div className="mt-1 space-y-1">
+          <div className="relative">
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input autoFocus value={q} onChange={(e) => runSearch(e.target.value)}
+              placeholder="Search CRM companies…"
+              className="w-full text-xs border border-slate-200 rounded-lg pl-7 pr-2 py-1.5 bg-white"
+              data-testid={`crm-link-search-${customerId}`} />
+          </div>
+          {searching ? (
+            <p className="text-[11px] text-slate-400 flex items-center gap-1">
+              <Loader2 size={11} className="animate-spin" /> Searching…
+            </p>
+          ) : results.length > 0 ? (
+            <ul className="border border-slate-100 rounded-lg divide-y divide-slate-50 max-h-40 overflow-y-auto">
+              {results.map((c) => (
+                <li key={c.id}>
+                  <button type="button" disabled={busy} onClick={() => setLink(c.id)}
+                    className="w-full text-left px-2 py-1.5 hover:bg-slate-50 text-xs flex items-center justify-between gap-2 disabled:opacity-50"
+                    data-testid={`crm-link-result-${c.id}`}>
+                    <span className="truncate"><b>{c.name}</b>
+                      {c.postcode ? <span className="text-slate-400 ml-1">{c.postcode}</span> : null}</span>
+                    {c.sage_customer_id
+                      ? <span className="text-emerald-600 font-mono shrink-0">{c.sage_customer_id}</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : q.trim() ? (
+            <p className="text-[11px] text-slate-400 italic">No CRM companies match.</p>
+          ) : null}
+          <button type="button" onClick={() => { setOpen(false); setQ(''); setResults([]); }}
+            className="text-[11px] text-slate-400 hover:text-slate-600">Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 export default function EngineerCustomers() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -359,6 +459,19 @@ export default function EngineerCustomers() {
     navigate(`/svc/engineer/quotes/new?${params.toString()}`);
   };
 
+  const loadActiveDetail = async (id) => {
+    setActiveDetail(null);
+    setActiveDetailLoading(true);
+    try {
+      const r = await axios.get(`${API}/svc/engineer/customers/${id}`, auth());
+      setActiveDetail(r.data);
+    } catch (err) {
+      notify.error('Failed to load customer history', err?.response?.data?.detail || err?.message);
+    } finally {
+      setActiveDetailLoading(false);
+    }
+  };
+
   const handleToggleRow = async (row) => {
     if (activeId === row.id) {
       setActiveId(null);
@@ -366,16 +479,7 @@ export default function EngineerCustomers() {
       return;
     }
     setActiveId(row.id);
-    setActiveDetail(null);
-    setActiveDetailLoading(true);
-    try {
-      const r = await axios.get(`${API}/svc/engineer/customers/${row.id}`, auth());
-      setActiveDetail(r.data);
-    } catch (err) {
-      notify.error('Failed to load customer history', err?.response?.data?.detail || err?.message);
-    } finally {
-      setActiveDetailLoading(false);
-    }
+    await loadActiveDetail(row.id);
   };
 
   return (
@@ -575,6 +679,11 @@ export default function EngineerCustomers() {
                             No quotes or invoices on file yet.
                           </p>
                         ) : null}
+                        <CrmLinkRow
+                          customerId={activeDetail.id}
+                          crmCompany={activeDetail.crm_company}
+                          onChanged={() => loadActiveDetail(activeDetail.id)}
+                        />
                       </div>
                     ) : null}
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
