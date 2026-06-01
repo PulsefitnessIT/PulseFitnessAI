@@ -134,6 +134,7 @@ from routes.svc.views import router as svc_views_router
 from routes.svc.integrations.health import router as svc_integrations_health_router
 # Iter 216h82 — Customer-facing per-job Service Report PDF + email
 from routes.svc.service_report import router as svc_service_report_router
+from routes.svc.legacy_reports import router as svc_legacy_reports_router
 # Iter 216h83 — Public customer live-tracking
 from routes.svc.public_tracking import router as svc_public_tracking_router
 # Iter 216h89 — Pre-job H&S / RAMS signoff
@@ -300,6 +301,8 @@ _UNGATED_ROUTERS = (
     svc_integrations_health_router,
     # Iter 216h82 — per-job Service Report PDF + email
     svc_service_report_router,
+    # Iter 220ea·33 — Legacy report import wizard (AI → branded PDF)
+    svc_legacy_reports_router,
     # Iter 216h83 — public live tracking
     svc_public_tracking_router,
     # Iter 216h89 — Pre-job H&S signoff

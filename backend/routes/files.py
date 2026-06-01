@@ -35,6 +35,21 @@ async def upload_file(file: UploadFile = File(...), category: str = Query("gener
     original_filename = file.filename
     original_size = len(data)
 
+    # Iter 220ea·33 — engineers' logos are very often SVG (vector exports).
+    # SVG is blocked by the validator (can carry inline scripts), so for the
+    # branding category we rasterise SVG → PNG up front (cairosvg drops any
+    # scripts), which then validates and embeds cleanly in PDFs.
+    if category == "branding" and ext.lower() == "svg":
+        try:
+            import cairosvg
+            data = cairosvg.svg2png(bytestring=data, output_width=512)
+            ext = "png"
+            base = file.filename.rsplit(".", 1)[0] if "." in file.filename else file.filename
+            original_filename = f"{base}.png"
+        except Exception as e:  # noqa: BLE001
+            logger.warning("SVG logo conversion failed: %s", e)
+            raise HTTPException(415, "Couldn't process that SVG — please upload a PNG or JPG logo instead.")
+
     # Iter 216h257 — narrow allow-list per category so engineers can
     # upload videos for case media. Without the override the global
     # `MIME_ALL_ATTACHMENTS` set excluded videos and every video upload
