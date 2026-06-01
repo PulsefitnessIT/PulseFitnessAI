@@ -26,7 +26,7 @@ from utils.database import db
 router = APIRouter(tags=["social-media-library"])
 
 CHANNELS = ["instagram", "linkedin", "facebook", "tiktok", "twitter", "all"]
-CAMPAIGNS = ["mosaic_9up", "switch_thread", "general", "evergreen"]
+CAMPAIGNS = ["mosaic_9up", "switch_thread", "engineer_recruit", "general", "evergreen"]
 
 
 def _now() -> str:
@@ -384,6 +384,168 @@ SEED_ROWS: list[dict[str, Any]] = [
     },
 ]
 
+# ── Engineer tester recruitment campaign ("WE NEED YOU!") ─────────────
+
+
+ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
+    {
+        "label": "Engineer Recruit · 01 · WE NEED YOU (hero)",
+        "image_url": "/marketing/engineer_recruit/post_01.png",
+        "post_order": 1,
+        "caption": (
+            "WE NEED YOU — fitness equipment engineers.\n\n"
+            "We're opening 10 tester spaces on the GymAxis Engineer App. Real "
+            "service jobs, a serious mobile toolkit, and your own business — we "
+            "just need sharp engineers to help us put it through its paces.\n\n"
+            "10 spaces. 10-day free trial. Stay on if you love it.\n\n"
+            "Apply in 5 minutes — link in bio."
+        ),
+        "hashtags": [
+            "FitnessEquipment", "GymEngineer", "FieldService", "GymMaintenance",
+            "FitnessIndustry", "PPM", "NowHiring", "UKFitness", "GymTech", "GymAxis",
+        ],
+        "notes": (
+            "HERO — POST THIS FIRST + pin it. 9:16 (1080x1920) works for IG "
+            "Reels/Stories and TikTok. TikTok hook (read aloud over the image): "
+            "'Fitness equipment engineers — we need you. Ten tester spaces, ten-day "
+            "free trial.' Link in bio -> /partners/engineers."
+        ),
+    },
+    {
+        "label": "Engineer Recruit · 02 · One job, every machine",
+        "image_url": "/marketing/engineer_recruit/post_02.png",
+        "post_order": 2,
+        "caption": (
+            "One job. Every machine.\n\n"
+            "Five faults across three rigs used to mean three visits, three "
+            "invoices and three slipping SLAs. The GymAxis Engineer App batches "
+            "them under a single visit — but tracks every machine's resolution "
+            "clock independently.\n\n"
+            "Less admin. More wrench time.\n\n"
+            "10 tester spaces open — apply free, link in bio."
+        ),
+        "hashtags": [
+            "GymEngineer", "FieldService", "GymMaintenance", "FitnessEquipment",
+            "PreventiveMaintenance", "GymTech", "FitnessIndustry", "GymAxis",
+        ],
+        "notes": "TikTok hook: 'One job. Every broken machine. One tap.'",
+    },
+    {
+        "label": "Engineer Recruit · 03 · Works offline",
+        "image_url": "/marketing/engineer_recruit/post_03.png",
+        "post_order": 3,
+        "caption": (
+            "Works offline. Always.\n\n"
+            "Plant rooms and basements kill your signal — but not your paperwork. "
+            "The app captures the whole visit offline and syncs the second you're "
+            "back on data. Nothing lost, nothing re-typed.\n\n"
+            "10 tester spaces — apply free, link in bio."
+        ),
+        "hashtags": [
+            "FieldService", "GymMaintenance", "OfflineFirst", "GymEngineer",
+            "FitnessEquipment", "GymTech", "FitnessIndustry", "GymAxis",
+        ],
+        "notes": "TikTok hook: 'No signal in the plant room? The app doesn't care.'",
+    },
+    {
+        "label": "Engineer Recruit · 04 · Parts & van stock",
+        "image_url": "/marketing/engineer_recruit/post_04.png",
+        "post_order": 4,
+        "caption": (
+            "Know what's on the van.\n\n"
+            "Track your van stock, log the exact parts used on each machine, and "
+            "fire a reorder before you run dry. Covered-vs-chargeable is worked "
+            "out for you, so billing is never a guess.\n\n"
+            "10 tester spaces — apply free, link in bio."
+        ),
+        "hashtags": [
+            "VanStock", "StockControl", "FieldService", "GymMaintenance",
+            "FitnessEquipment", "GymEngineer", "GymTech", "GymAxis",
+        ],
+        "notes": "TikTok hook: 'Every part, every van, every job — accounted for.'",
+    },
+    {
+        "label": "Engineer Recruit · 05 · Paperless check-sheets",
+        "image_url": "/marketing/engineer_recruit/post_05.png",
+        "post_order": 5,
+        "caption": (
+            "Paperless check-sheets.\n\n"
+            "Daily, weekly, monthly PPM and H&S sign-offs — captured on the floor, "
+            "time-stamped and geo-stamped, audit-ready before you leave the "
+            "building. The clipboard era is over.\n\n"
+            "10 tester spaces — apply free, link in bio."
+        ),
+        "hashtags": [
+            "PPM", "HealthAndSafety", "GymCompliance", "GymMaintenance",
+            "FieldService", "PreventiveMaintenance", "FitnessEquipment", "GymAxis",
+        ],
+        "notes": "TikTok hook: 'Binned the clipboard. Every check-sheet, done on the floor.'",
+    },
+    {
+        "label": "Engineer Recruit · 06 · Photos to reports",
+        "image_url": "/marketing/engineer_recruit/post_06.png",
+        "post_order": 6,
+        "caption": (
+            "Photos to reports — instantly.\n\n"
+            "Snap before-and-after photos and the app builds a clean, branded "
+            "service report with signatures, then sends it to the customer before "
+            "you've driven off. You look pro on every single job.\n\n"
+            "10 tester spaces — apply free, link in bio."
+        ),
+        "hashtags": [
+            "FieldService", "ServiceReport", "GymMaintenance", "FitnessEquipment",
+            "GymEngineer", "GymTech", "FitnessIndustry", "GymAxis",
+        ],
+        "notes": "TikTok hook: 'Snap. Sign. Sent. Branded report before you leave.'",
+    },
+    {
+        "label": "Engineer Recruit · 07 · Get paid (CTA close)",
+        "image_url": "/marketing/engineer_recruit/post_07.png",
+        "post_order": 7,
+        "caption": (
+            "Get paid — without the chase.\n\n"
+            "Raise quotes on-site, invoice in a tap, and get paid through the "
+            "platform. The monthly fee starts at £30 and drops to free once you "
+            "refer 10 active sites. Your business, levelled up.\n\n"
+            "Final call: 10 tester spaces, 10-day free trial. Apply now — link in bio."
+        ),
+        "hashtags": [
+            "GymEngineer", "RunYourBusiness", "FieldService", "FitnessEquipment",
+            "NowHiring", "FitnessIndustry", "GymTech", "GymAxis",
+        ],
+        "notes": "CLOSING CTA — post last. TikTok hook: 'Quote, invoice, get paid — all in one app. Last 10 spaces.'",
+    },
+]
+
+
+async def _seed_engineer_recruit() -> int:
+    """Insert the 'WE NEED YOU!' engineer recruitment campaign rows iff that
+    campaign isn't present yet. Idempotent — safe on every load."""
+    existing = await db.social_media_library.count_documents({"campaign": "engineer_recruit"})
+    if existing > 0:
+        return 0
+    docs = []
+    for r in ENGINEER_RECRUIT_ROWS:
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "label": r["label"],
+            "image_url": r["image_url"],
+            "channel": "all",  # 9:16 asset — Instagram (Reels/Stories) + TikTok
+            "campaign": "engineer_recruit",
+            "post_order": r.get("post_order", 0),
+            "caption": r.get("caption", ""),
+            "hashtags": r.get("hashtags", []),
+            "notes": r.get("notes", ""),
+            "enabled": True,
+            "created_at": _now(),
+            "created_by": "system_seed",
+        })
+    if docs:
+        await db.social_media_library.insert_many(docs)
+    return len(docs)
+
+
+
 
 async def _seed_if_empty() -> int:
     """Insert seed rows iff the collection is empty. Returns inserted count."""
@@ -420,6 +582,7 @@ async def _seed_if_empty() -> int:
 async def list_posts(user: dict = Depends(get_current_user)):
     require_master_admin(user)
     seeded = await _seed_if_empty()
+    seeded += await _seed_engineer_recruit()
     rows = (
         await db.social_media_library
         .find({}, {"_id": 0})

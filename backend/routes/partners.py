@@ -73,6 +73,16 @@ SIGNUP_REWARD_PCT = 0.5
 OPERATIONS_PRICE_GBP = 69  # Iter 216h75 — bumped from £59
 TERMS_VERSION = "2026-02-13"
 
+# Iter 220ea·30 — Engineer tester recruitment programme. A limited cohort
+# of fitness-equipment engineers is recruited (via the "WE NEED YOU!"
+# social campaign) to test the Engineer App on a short free trial. The
+# landing page shows a live "X of N spaces left" counter; applicants who
+# arrive via the campaign are flagged `tester_cohort` and, on approval,
+# get a `trial_ends_at` ENGINEER_TESTER_TRIAL_DAYS out + a trialing sub.
+ENGINEER_TESTER_SPACES = max(1, int(os.environ.get("ENGINEER_TESTER_SPACES", "10") or 10))
+ENGINEER_TESTER_TRIAL_DAYS = max(1, int(os.environ.get("ENGINEER_TESTER_TRIAL_DAYS", "10") or 10))
+
+
 # Iter 216h80 — Pulse Fitness isolation. The Partner Engineer Network
 # is a GymAxis-only commercial layer. Pulse customers/orgs must NEVER:
 #   • see the "Find an engineer" widget
@@ -397,6 +407,10 @@ async def public_apply_partner(
     qualifications_expires_at: str = Form(""),
     referral_source: str = Form(""),
     referred_by_eref: str = Form(""),
+    # Iter 220ea·30 — engineer tester recruitment cohort. The
+    # "WE NEED YOU!" campaign landing sends cohort=tester so approved
+    # applicants get the short free trial + count against the 10 spaces.
+    cohort: str = Form(""),
     # Iter 220o — Instagram-attributed (and any other UTM-tagged)
     # landing. Stored on the application so master admin can see at
     # a glance which marketing channel converted this engineer.
@@ -467,6 +481,10 @@ async def public_apply_partner(
         "utm_term": (utm_term or "").strip().lower()[:200] or None,
         "referrer_url": (referrer_url or "").strip()[:500] or None,
         "cover_letter": (cover_letter or "").strip()[:4000] or None,
+        # Iter 220ea·30 — flag engineer-tester-cohort applicants (campaign
+        # landing sends cohort=tester; also infer from the campaign UTM).
+        "tester_cohort": (cohort or "").strip().lower() == "tester"
+        or (utm_campaign or "").strip().lower() in {"engineer_recruit", "we_need_you"},
         "terms_accepted_at": _now(),
         "terms_version": TERMS_VERSION,
         "updated_at": _now(),
@@ -547,6 +565,26 @@ async def public_apply_partner(
         "status": "pending",
         "message": "Thanks — your application is in. We aim to respond within 2 working days.",
         "resubmitted": False,
+    }
+
+
+@router.get("/partners/recruitment/status")
+async def recruitment_status():
+    """Public — live tester-cohort capacity for the engineer recruitment
+    ("WE NEED YOU!") campaign. Drives the "X of N spaces left" counter on
+    the landing page. Counts applications flagged tester_cohort that are
+    still pending/in-review/approved against ENGINEER_TESTER_SPACES."""
+    taken = await db.partner_applications.count_documents({
+        "tester_cohort": True,
+        "status": {"$in": ["pending", "in_review", "approved"]},
+    })
+    remaining = max(0, ENGINEER_TESTER_SPACES - taken)
+    return {
+        "total_spaces": ENGINEER_TESTER_SPACES,
+        "taken": min(taken, ENGINEER_TESTER_SPACES),
+        "remaining": remaining,
+        "open": remaining > 0,
+        "trial_days": ENGINEER_TESTER_TRIAL_DAYS,
     }
 
 
@@ -738,20 +776,35 @@ async def approve_partner_application(
     if level not in {"engineer_partner", "verified_partner", "strategic_partner", "customer_added"}:
         raise HTTPException(400, "Invalid level")
 
+    # Iter 220ea·30 — tester-cohort engineers get a short free trial on
+    # approval. trial_ends_at drives the in-app countdown; the sub is
+    # marked trialing with current_period_end == the trial end.
+    is_tester = bool(app.get("tester_cohort"))
+    trial_end_iso = (
+        (datetime.now(timezone.utc) + timedelta(days=ENGINEER_TESTER_TRIAL_DAYS)).isoformat()
+        if is_tester else None
+    )
+
     # Idempotent — if a partner row already exists for this email
     # (e.g. they self-claimed via the authed flow earlier) just attach
     # the application to it rather than creating a duplicate.
     existing_partner = await db.partner_engineers.find_one({"email": app["email"]}, {"_id": 0})
 
     if existing_partner:
+        existing_set = {
+            "status": "approved",
+            "level": level,
+            "application_id": application_id,
+            "updated_at": _now(),
+        }
+        if is_tester:
+            existing_set["tester_cohort"] = True
+            existing_set["trial_ends_at"] = trial_end_iso
+            existing_set["subscription.status"] = "trialing"
+            existing_set["subscription.current_period_end"] = trial_end_iso
         await db.partner_engineers.update_one(
             {"id": existing_partner["id"]},
-            {"$set": {
-                "status": "approved",
-                "level": level,
-                "application_id": application_id,
-                "updated_at": _now(),
-            }},
+            {"$set": existing_set},
         )
         partner_id = existing_partner["id"]
         referral_code = existing_partner.get("referral_code")
@@ -774,7 +827,13 @@ async def approve_partner_application(
             "active_referral_count": 0,
             "app_fee_tier": _app_fee_tier(0),
             "enhanced_review_required": False,
-            "subscription": {"status": "trialing", "stripe_subscription_id": None, "current_period_end": None},
+            "subscription": {
+                "status": "trialing",
+                "stripe_subscription_id": None,
+                "current_period_end": trial_end_iso,
+            },
+            "tester_cohort": is_tester,
+            "trial_ends_at": trial_end_iso,
             "payout": {"method": "manual_csv", "stripe_account_id": None, "bank_name": None,
                        "sort_code": None, "account_number_last4": None},
             "created_at": _now(),

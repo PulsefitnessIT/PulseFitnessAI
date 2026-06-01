@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Body
 from fastapi.responses import Response
 from datetime import datetime, timezone
 import uuid
@@ -193,6 +193,47 @@ async def delete_spec_sheet(spec_id: str, user: dict = Depends(get_current_user)
 
     await db.spec_sheets.delete_one({"id": spec_id})
     return {"success": True, "message": f"Spec sheet '{spec.get('equipment_model')}' deleted"}
+
+
+@router.patch("/{spec_id}")
+async def update_spec_sheet(
+    spec_id: str, body: dict = Body(...), user: dict = Depends(get_current_user),
+) -> dict:
+    """Edit a spec sheet's details — primarily the **model name** so the
+    correct model number is advertised on the maintenance landing pages
+    (the AI extractor occasionally mislabels a model). Master admin only.
+
+    Editable: equipment_model, manufacturer, equipment_type, product_level,
+    description. When the model name changes we re-run equipment matching
+    so the linked equipment + advertised range stay correct.
+    """
+    if not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Master admin only")
+    spec = await db.spec_sheets.find_one({"id": spec_id}, {"_id": 0})
+    if not spec:
+        raise HTTPException(status_code=404, detail="Spec sheet not found")
+
+    updates: dict = {}
+    for field in ("equipment_model", "manufacturer", "equipment_type",
+                  "product_level", "description"):
+        if field in body and isinstance(body[field], str):
+            updates[field] = body[field].strip()[:300]
+    if not updates:
+        raise HTTPException(status_code=400, detail="No editable fields provided")
+    if "equipment_model" in updates and not updates["equipment_model"]:
+        raise HTTPException(status_code=400, detail="Model name cannot be empty")
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.spec_sheets.update_one({"id": spec_id}, {"$set": updates})
+
+    # Re-match equipment if the model name actually changed.
+    rematched = None
+    if "equipment_model" in updates and updates["equipment_model"] != (spec.get("equipment_model") or ""):
+        fresh = await db.spec_sheets.find_one({"id": spec_id}, {"_id": 0})
+        rematched = await _auto_match_spec_sheet(fresh)
+
+    updated = await db.spec_sheets.find_one({"id": spec_id}, {"_id": 0})
+    return {"success": True, "spec_sheet": updated, "rematched_count": rematched}
 
 
 @router.post("/{spec_id}/rematch")

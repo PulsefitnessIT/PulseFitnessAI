@@ -12,11 +12,13 @@
  *
  * Lives at /partners/engineers (indexable, no auth).
  */
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import {
   ArrowRight, HardHat, MapPin, Smartphone, Camera,
   PoundSterling, BadgeCheck, CheckCircle2, Star, ChevronRight,
-  Truck,
+  Truck, Users, Clock,
 } from 'lucide-react';
 
 import './marketing.css';
@@ -24,6 +26,45 @@ import MarketingShell from './MarketingShell';
 import LiveEngineerAppPreview from './LiveEngineerAppPreview';
 import { useSeo } from '@/utils/seo';
 import { useUtmAttribution } from '@/hooks/useUtmAttribution';
+
+const API = process.env.REACT_APP_BACKEND_URL + '/api';
+
+// Iter 220ea·30 — this landing IS the engineer tester recruitment
+// campaign, so every apply CTA carries cohort=tester (counts the
+// applicant against the 10 spaces + grants the free trial on approval).
+const withCohort = (href) => href + (href.includes('?') ? '&' : '?') + 'cohort=tester';
+
+/* Iter 220ea·30 — live tester-cohort capacity for the "WE NEED YOU!"
+   recruitment campaign. Reads the public recruitment-status endpoint
+   and shows an urgency counter ("X of 10 tester spaces left"). */
+function TesterSpaces() {
+  const [status, setStatus] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/partners/recruitment/status`)
+      .then(r => { if (alive) setStatus(r.data); })
+      .catch(() => { /* non-blocking — hide the badge on failure */ });
+    return () => { alive = false; };
+  }, []);
+  if (!status) return null;
+  const { remaining, total_spaces, trial_days, open } = status;
+  return (
+    <div
+      className="mt-6 inline-flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-2xl border border-[var(--gx-brand-to)]/30 bg-white/80 px-4 py-2.5 shadow-sm backdrop-blur dark:bg-zinc-900/70"
+      data-testid="pe-tester-spaces"
+    >
+      <span className="inline-flex items-center gap-1.5 text-sm font-black tracking-tight" style={{ color: 'var(--gx-brand-from)' }}>
+        <Users size={15} />
+        {open
+          ? <>Only <span data-testid="pe-tester-remaining">{remaining}</span> of {total_spaces} tester spaces left</>
+          : <>All {total_spaces} tester spaces filled — join the waitlist</>}
+      </span>
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+        <Clock size={12} /> {trial_days}-day free trial
+      </span>
+    </div>
+  );
+}
 
 const TIER_TABLE = [
   { refs: '0',     fee: '£30',  badge: 'Starter',  hint: 'Standard tier — most new partners start here' },
@@ -165,7 +206,7 @@ function Hero() {
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
-              to={applyHref}
+              to={withCohort(applyHref)}
               className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap"
               data-testid="pe-hero-apply"
             >
@@ -184,6 +225,7 @@ function Hero() {
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30/mo · drops automatically</li>
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />Cancel anytime</li>
           </ul>
+          <TesterSpaces />
         </div>
         {/* Visual: stylised engineer profile card preview */}
         <div className="relative" data-testid="pe-hero-card">
@@ -521,7 +563,7 @@ function FinalCta() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to={applyHref}
+                to={withCohort(applyHref)}
                 className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100"
                 data-testid="pe-final-apply"
               >

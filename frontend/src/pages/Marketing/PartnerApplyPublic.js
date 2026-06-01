@@ -190,6 +190,13 @@ export default function PartnerApplyPublic() {
           }
         }
       } catch { /* attribution best-effort; never blocks the submit */ }
+      // Iter 220ea·30 — engineer tester recruitment cohort. The
+      // "WE NEED YOU!" landing links here with ?cohort=tester so the
+      // applicant counts against the 10 spaces + gets the free trial.
+      try {
+        const cohort = (new URLSearchParams(window.location.search).get('cohort') || '').trim().toLowerCase();
+        if (cohort === 'tester') fd.append('cohort', 'tester');
+      } catch { /* ignore */ }
       const r = await axios.post(`${API}/api/partners/public-apply`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

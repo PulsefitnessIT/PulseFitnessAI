@@ -9,7 +9,7 @@ import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
   Upload, FileText, Trash2, Loader2, CheckCircle,
   Image as ImageIcon, RefreshCw, Search, X, ChevronDown, ChevronUp,
-  AlertTriangle, CheckSquare, Square,
+  AlertTriangle, CheckSquare, Square, Pencil, Save,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -68,6 +68,9 @@ const AdminSpecSheets = ({ headers }) => {
   const [dragOver, setDragOver] = useState(false);
   const [expandedSpec, setExpandedSpec] = useState(null);
   const [rematching, setRematching] = useState(null);
+  const [editingSpec, setEditingSpec] = useState(null);
+  const [editDraft, setEditDraft] = useState({ equipment_model: '', manufacturer: '', equipment_type: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -161,6 +164,40 @@ const AdminSpecSheets = ({ headers }) => {
     }
     setRematching(null);
   };
+
+  // Iter 220ea·30 — edit a spec sheet's model name (+ manufacturer / type)
+  // so the correct model number is advertised on the maintenance landing
+  // pages. The AI extractor occasionally mislabels a model.
+  const startEdit = (spec) => {
+    setEditingSpec(spec.id);
+    setEditDraft({
+      equipment_model: spec.equipment_model || '',
+      manufacturer: spec.manufacturer || '',
+      equipment_type: spec.equipment_type || 'Other',
+    });
+  };
+  const cancelEdit = () => { setEditingSpec(null); setSavingEdit(false); };
+  const saveEdit = async (specId) => {
+    const model = (editDraft.equipment_model || '').trim();
+    if (!model) { notify.error('Model name cannot be empty'); return; }
+    setSavingEdit(true);
+    try {
+      const res = await axios.patch(`${API}/spec-sheets/${specId}`, {
+        equipment_model: model,
+        manufacturer: (editDraft.manufacturer || '').trim(),
+        equipment_type: (editDraft.equipment_type || 'Other').trim(),
+      }, { headers });
+      const matched = res.data?.rematched_count;
+      notify.success(`Saved${matched != null ? ` · re-matched ${matched} equipment item${matched === 1 ? '' : 's'}` : ''}`);
+      setEditingSpec(null);
+      fetchSpecs();
+    } catch {
+      notify.error('Save failed');
+    }
+    setSavingEdit(false);
+  };
+
+  const EQUIPMENT_TYPES = ['Treadmill', 'Cycle', 'Cross-Trainer', 'Rower', 'Stepper', 'Strength', 'Functional', 'Multi-Station', 'Other'];
 
   const filtered = useMemo(() => specSheets.filter(s => {
     if (!searchQuery) return true;
@@ -377,40 +414,92 @@ const AdminSpecSheets = ({ headers }) => {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-sm font-semibold text-zinc-900 truncate">{spec.equipment_model || spec.original_filename}</span>
-                      {spec.product_level && (
-                        <Badge className={`text-[10px] ${levelColor(spec.product_level)}`}>{spec.product_level}</Badge>
-                      )}
-                      <Badge className={`text-[10px] ${typeColor(spec.equipment_type)}`}>{spec.equipment_type}</Badge>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-zinc-500">
-                      <span>{spec.manufacturer}</span>
-                      {spec.matched_count > 0 && (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <CheckCircle size={12} /> {spec.matched_count} matched
-                        </span>
-                      )}
-                      {spec.matched_count === 0 && (
-                        <span className="text-amber-600">No matches yet</span>
-                      )}
-                    </div>
+                    {editingSpec === spec.id ? (
+                      <div className="space-y-2" data-testid={`spec-edit-form-${spec.id}`}>
+                        <input
+                          value={editDraft.equipment_model}
+                          onChange={e => setEditDraft(d => ({ ...d, equipment_model: e.target.value }))}
+                          placeholder="Model name (e.g. 446H Seated Row)"
+                          autoFocus
+                          className="w-full px-2.5 py-1.5 text-sm font-semibold border border-[var(--color-brand-blue-dark)] rounded-md focus:ring-1 focus:ring-[var(--color-brand-blue-dark)] focus:outline-none"
+                          data-testid={`spec-edit-model-${spec.id}`}
+                        />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            value={editDraft.manufacturer}
+                            onChange={e => setEditDraft(d => ({ ...d, manufacturer: e.target.value }))}
+                            placeholder="Manufacturer"
+                            className="px-2 py-1 text-xs border border-zinc-200 rounded-md focus:ring-1 focus:ring-[var(--color-brand-blue-dark)] focus:outline-none min-w-[140px]"
+                            data-testid={`spec-edit-manufacturer-${spec.id}`}
+                          />
+                          <select
+                            value={editDraft.equipment_type}
+                            onChange={e => setEditDraft(d => ({ ...d, equipment_type: e.target.value }))}
+                            className="px-2 py-1 text-xs border border-zinc-200 rounded-md focus:ring-1 focus:ring-[var(--color-brand-blue-dark)] focus:outline-none bg-white"
+                            data-testid={`spec-edit-type-${spec.id}`}
+                          >
+                            {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <p className="text-[11px] text-zinc-400">This name is what's advertised on the maintenance landing pages. Saving re-matches equipment.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-semibold text-zinc-900 truncate">{spec.equipment_model || spec.original_filename}</span>
+                          {spec.product_level && (
+                            <Badge className={`text-[10px] ${levelColor(spec.product_level)}`}>{spec.product_level}</Badge>
+                          )}
+                          <Badge className={`text-[10px] ${typeColor(spec.equipment_type)}`}>{spec.equipment_type}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-zinc-500">
+                          <span>{spec.manufacturer}</span>
+                          {spec.matched_count > 0 && (
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle size={12} /> {spec.matched_count} matched
+                            </span>
+                          )}
+                          {spec.matched_count === 0 && (
+                            <span className="text-amber-600">No matches yet</span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="ghost" size="sm" onClick={() => handleRematch(spec.id)} disabled={rematching === spec.id}
-                      className="h-8 px-2 text-zinc-500 hover:text-[var(--color-brand-blue-dark)]" data-testid={`spec-rematch-${spec.id}`}>
-                      {rematching === spec.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setExpandedSpec(expandedSpec === spec.id ? null : spec.id)}
-                      className="h-8 px-2 text-zinc-500" data-testid={`spec-expand-${spec.id}`}>
-                      {expandedSpec === spec.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(spec.id, spec.equipment_model)}
-                      className="h-8 px-2 text-zinc-400 hover:text-red-500" data-testid={`spec-delete-${spec.id}`}>
-                      <Trash2 size={14} />
-                    </Button>
+                    {editingSpec === spec.id ? (
+                      <>
+                        <Button size="sm" onClick={() => saveEdit(spec.id)} disabled={savingEdit}
+                          className="h-8 px-3 bg-[var(--color-brand-blue-dark)] hover:bg-[var(--color-brand-blue-dark)]/90 text-white" data-testid={`spec-edit-save-${spec.id}`}>
+                          {savingEdit ? <Loader2 size={14} className="animate-spin" /> : <><Save size={13} className="mr-1" /> Save</>}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={savingEdit}
+                          className="h-8 px-2 text-zinc-500" data-testid={`spec-edit-cancel-${spec.id}`}>
+                          <X size={14} />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(spec)}
+                          className="h-8 px-2 text-zinc-500 hover:text-[var(--color-brand-blue-dark)]" data-testid={`spec-edit-${spec.id}`}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleRematch(spec.id)} disabled={rematching === spec.id}
+                          className="h-8 px-2 text-zinc-500 hover:text-[var(--color-brand-blue-dark)]" data-testid={`spec-rematch-${spec.id}`}>
+                          {rematching === spec.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setExpandedSpec(expandedSpec === spec.id ? null : spec.id)}
+                          className="h-8 px-2 text-zinc-500" data-testid={`spec-expand-${spec.id}`}>
+                          {expandedSpec === spec.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(spec.id, spec.equipment_model)}
+                          className="h-8 px-2 text-zinc-400 hover:text-red-500" data-testid={`spec-delete-${spec.id}`}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
 
