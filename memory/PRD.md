@@ -1,4 +1,52 @@
-## Iter 220ea·18 — Sicon docs consolidated: one source of truth, stale facts renewed ✅ (Feb, 2026)
+## Iter 220ea·19 — Engineer App Phase 5: Stock Control hub (Phase 1) ✅ (Feb, 2026)
+
+First shippable slice of the Stock Control & Parts Management system,
+**built on the existing parts backend — no duplicate collections/records**
+(reuses `svc_parts`, `svc_van_stock`, `svc_part_movements`,
+`svc_parts_requests`). Audit confirmed parts-used-on-job (van
+auto-decrement + consume movement + machine tag + offline idempotency)
+and replenishment workflow already existed in `engineer_phase3.py` /
+`engineer_parts_requests.py`; this phase adds the missing **mobile
+engineer Stock hub** + engineer-scoped read layer.
+
+**Backend — `routes/svc/engineer_stock.py`** (new, engineer-scoped, gated
+by `require_engineer_app_access`):
+- `GET /api/svc/engineer/stock/van` — my van stock joined with catalogue
+  + usage signals; server-side search/category/manufacturer/filter
+  (all|low|zero|most_used|recent)/sort; summary (lines, low, zero,
+  van sell-value). **Cost gated**: sell price always; cost only for
+  owner/admin/manager (`show_cost`). Mobile shows sell value (compact).
+- `GET /low` — van lines at/below min + suggested reorder qty.
+- `GET /history` — my movement timeline (cursor-paged).
+- `GET /asset` — parts-used history tagged to a machine/asset.
+- `POST /replenish` — **van-level** replenishment (no job) → writes
+  `svc_parts_requests` (case_id null, kind=`van_replenish`).
+- Extended `engineer_parts_requests.admin_approve` to handle case-less
+  van top-ups (increment van + receive movement, no case allocation).
+
+**Frontend — `EngineerStock.js`** (new mobile hub at `/svc/engineer/stock`,
+Home → Stock quick-action): tabs Van / Low / History / Requests; qty
+badges (green/amber/rose), sell price, search + filter chips + sort,
+low-stock with suggested qty, movement timeline, replenishment requests
+with status/ETA badges, and a replenish modal (qty stepper + urgency +
+notes). `/svc/engineer/parts` now redirects here.
+
+**Tested**: 7 backend pytests pass (`tests/test_iter_220ea_19_engineer_stock.py`,
+added to Makefile regression); curl-verified create→approve→van-topup
+loop + van_replenish surfacing in Requests; testing agent validated the
+mobile hub (~90%, all testids/tabs/modal/nav). Fixed the one finding
+(cookie-banner overlapping the modal submit on mobile → modal z-[120] >
+banner z-[100] + bottom padding) plus robustness (Promise.allSettled,
+qty clamp, submit guard). Lint clean (ruff + eslint).
+
+**Phase 1 of N** — next phases (per spec, not yet built): Parts
+Catalogue + CSV/Excel bulk import (map→validate→preview→confirm),
+per-asset parts history UI, stock transfers, stock-take/audit,
+weekly/monthly engineer reports, contract-cover logic on parts, AI
+helpers, full offline queueing.
+
+
+
 
 Audited all Sicon/integration mapping docs for duplication ahead of the
 Pulse meeting. Found **3 overlapping Sicon docs** — two carried stale,

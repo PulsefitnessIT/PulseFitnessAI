@@ -91,16 +91,16 @@ const ReplenishModal = ({ open, part, defaultQty, onClose, onDone }) => {
         part_sku: part.part_sku, part_name: part.name, qty: Number(qty), urgency, notes,
       }, auth());
       notify.success(`Requested ${qty} × ${part.part_sku} from the office`);
-      onDone?.();
+      try { await onDone?.(); } catch { /* refresh failure shouldn't block close */ }
       onClose();
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Could not send request');
     } finally { setBusy(false); }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4"
+    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4"
          data-testid="replenish-modal" onClick={onClose}>
-      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 space-y-4"
+      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-28 sm:pb-5 space-y-4"
            onClick={(e) => e.stopPropagation()}>
         <div>
           <h3 className="text-lg font-bold text-slate-900">Request replenishment</h3>
@@ -110,12 +110,16 @@ const ReplenishModal = ({ open, part, defaultQty, onClose, onDone }) => {
           <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Quantity</label>
           <div className="mt-1 flex items-center gap-3">
             <button className="w-11 h-11 rounded-xl border border-slate-200 text-xl font-bold text-slate-600"
-                    onClick={() => setQty((q) => Math.max(1, Number(q) - 1))} data-testid="replenish-qty-minus">−</button>
-            <input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)}
+                    onClick={() => setQty((q) => Math.max(1, (Number(q) || 1) - 1))} data-testid="replenish-qty-minus">−</button>
+            <input type="number" min={1} max={999} value={qty}
+                   onChange={(e) => {
+                     const n = parseInt(e.target.value, 10);
+                     setQty(Number.isNaN(n) ? '' : Math.min(Math.max(n, 1), 999));
+                   }}
                    className="w-20 h-11 text-center text-lg font-bold border border-slate-200 rounded-xl"
                    data-testid="replenish-qty-input" />
             <button className="w-11 h-11 rounded-xl border border-slate-200 text-xl font-bold text-slate-600"
-                    onClick={() => setQty((q) => Number(q) + 1)} data-testid="replenish-qty-plus">+</button>
+                    onClick={() => setQty((q) => Math.min(999, (Number(q) || 0) + 1))} data-testid="replenish-qty-plus">+</button>
           </div>
         </div>
         <div>
@@ -138,7 +142,7 @@ const ReplenishModal = ({ open, part, defaultQty, onClose, onDone }) => {
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className="flex-1 h-12 rounded-xl border border-slate-200 font-semibold text-slate-600"
                   data-testid="replenish-cancel">Cancel</button>
-          <button onClick={submit} disabled={busy}
+          <button onClick={submit} disabled={busy || !qty || Number(qty) < 1}
                   className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60"
                   data-testid="replenish-submit">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PackagePlus className="w-5 h-5" />}
@@ -172,18 +176,21 @@ export default function EngineerStock() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    try {
-      const [v, l, h, rq] = await Promise.all([
-        axios.get(`${API}/svc/engineer/stock/van`, { ...auth(), params: { search, filter: vanFilter, sort } }),
-        axios.get(`${API}/svc/engineer/stock/low`, auth()),
-        axios.get(`${API}/svc/engineer/stock/history`, { ...auth(), params: { limit: 50 } }),
-        axios.get(`${API}/svc/engineer/parts-requests`, auth()),
-      ]);
-      setVan(v.data); setLow(l.data); setHistory(h.data);
-      setRequests(rq.data?.items || []);
-    } catch (e) {
-      notify.error('Could not load stock');
-    } finally { setLoading(false); }
+    const results = await Promise.allSettled([
+      axios.get(`${API}/svc/engineer/stock/van`, { ...auth(), params: { search, filter: vanFilter, sort } }),
+      axios.get(`${API}/svc/engineer/stock/low`, auth()),
+      axios.get(`${API}/svc/engineer/stock/history`, { ...auth(), params: { limit: 50 } }),
+      axios.get(`${API}/svc/engineer/parts-requests`, auth()),
+    ]);
+    const [v, l, h, rq] = results;
+    if (v.status === 'fulfilled') setVan(v.value.data);
+    if (l.status === 'fulfilled') setLow(l.value.data);
+    if (h.status === 'fulfilled') setHistory(h.value.data);
+    if (rq.status === 'fulfilled') setRequests(rq.value.data?.items || []);
+    if (results.some((r) => r.status === 'rejected')) {
+      notify.error('Some stock data could not be loaded');
+    }
+    setLoading(false);
   }, [search, vanFilter, sort]);
 
   useEffect(() => { loadAll(); /* initial */ }, []); // eslint-disable-line react-hooks/exhaustive-deps
