@@ -1,3 +1,34 @@
+## Iter 220ea·17 — Sicon/Pulse hand-over: INTEGRATION_FIELD_MAPPING.md completed ✅ (Feb, 2026)
+
+Ahead of the Sicon + Pulse Fitness meeting, made
+`/app/memory/INTEGRATION_FIELD_MAPPING.md` a complete, self-contained
+hand-over document, grounded in the live code (`utils/sicon_client.py`,
+`utils/sicon_sync.py`, `routes/sicon.py`).
+
+- **§25 rewritten** to match the real Sicon config: HTTP Basic auth +
+  `companyId` (not OAuth/tenant_id), full per-org config fields, default
+  routing lookups, advanced maps (`equipment_id_mapping`,
+  `sub_status_mapping`, CRM links), Fernet-at-rest encryption.
+- **New §33 — "Sicon ↔ GymAxis Complete Field-Capture & Connection
+  Pack"**: connection/auth handshake; a numbered **credentials ask-list**
+  (what Pulse/Sicon must provide to connect); full OUTBOUND mapping
+  (Service Case incl. all 20 AnalysisFields, SubLocation, Equipments[],
+  tracking notes w/ GPS, appointments + completion proof-of-work, time
+  bookings, contract headers w/ 21 spare slots, contract lines w/ all
+  commercial groups + 15 analysis codes); full INBOUND capture (case
+  read-back 30 fields, appointments, tracking notes, time bookings,
+  engineer/resource HR record); a **field-capture completeness
+  statement**; remaining opportunities (equipment register pull,
+  parts/costing read-back, webhooks, attachments); and a go-live
+  checklist.
+- `make lint-integrations` passes (6 ok, 0 err); no new endpoint warnings.
+
+Integration remains **dry-run** until live Sicon credentials are
+supplied; go-live is a per-org config save + `enabled=true` flip — no
+redeploy.
+
+
+
 ## Iter 220ea·16 — Green the GitHub CI gates ✅ (Feb, 2026)
 
 GitHub CI ("CI — pre-commit gates + tests") was failing on two jobs

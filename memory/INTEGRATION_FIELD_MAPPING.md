@@ -281,15 +281,49 @@ the workers will start draining the outboxes.
 
 ### Sicon Service Manager (per-org config — stored encrypted in MongoDB)
 
-Configured via `PUT /api/sicon/config` (UI: Admin Console → Integrations → Sicon).
+Configured via `PUT /api/sicon/config` (UI: Operations → Settings →
+Integrations → Sicon, owner-only). Stored in the `sicon_config`
+collection. Credentials are encrypted at rest with Fernet (key derived
+from `JWT_SECRET`) and are **never** returned to the frontend (the GET
+masks username as `••••••••` and returns `has_password` only).
+
+**Connection / auth (what actually connects):**
 
 | Field | Required | Notes |
 |---|---|---|
-| `base_url` | yes | e.g. `https://customer.sicon-cloud.com/api` |
-| `username` | yes | encrypted at rest as `username_enc` |
-| `password` | yes | encrypted at rest as `password_enc` |
-| `enabled` | yes | master switch — false = dry-run |
-| `tenant_id` | optional | Sicon multi-tenant (R260200c+) |
+| `base_url` | **yes** | Sicon WebAPI root, e.g. `https://customer.sicon-cloud.com` (trailing slash stripped). All calls are server-to-server HTTPS. |
+| `username` | **yes** | HTTP Basic auth user (Sage/Sicon service account). Encrypted at rest as `username_enc`. |
+| `password` | **yes** | HTTP Basic auth password. Encrypted at rest as `password_enc`. |
+| `company_id` | **yes** | Sage 200 company id — sent as the `companyId` query param on every call. |
+| `enabled` | **yes** | master switch — `false` = dry-run (no HTTP calls made). |
+
+**Routing / default lookups (so a GymAxis fault lands on the right Sicon case):**
+
+| Field | Required | Notes |
+|---|---|---|
+| `auto_sync_faults` | yes | when true, new faults auto-create a Sicon case. |
+| `auto_sync_status` | yes | when true, GymAxis polls Sicon for status/appointment/note updates. |
+| `default_case_type_id` / `default_case_type_name` | yes | fallback Sicon Case Type when fault-type mapping is unset. |
+| `default_priority_id` | yes | fallback Sicon Priority id. |
+| `priority_mapping` | yes | `{severity → Sicon PriorityID}` map (e.g. `low/medium/critical`). |
+| `default_internal_team_id` / `default_external_team_id` | optional | default Sicon teams for assignment. |
+| `default_assigned_user_id` | optional | default Sage user the case is assigned to. |
+| `default_contract_id` / `default_contract_line_id` | optional | default Sicon Service Contract + line for covered work. |
+| `location_address` | optional | fallback `Location*` address block when the site has none. |
+
+**Advanced lookup maps (set via the field-mapping admin UI / DB — read by the mapper):**
+
+| Field | Notes |
+|---|---|
+| `equipment_id_mapping` | `{serial_number → SiconEquipmentID}` so faults carry the real Sicon asset. |
+| `sub_status_mapping` | `{workflow_state → SiSMDocumentSubStatusID}` for richer progress tracking. |
+| `default_crm_person_id` / `default_crm_company_id` | org-level Sicon CRM cross-links (also held on the `organizations` doc as `sicon_crm_person_id` / `sicon_crm_company_id`). |
+
+> **Note:** Sicon WebAPI (R260200c) uses **HTTP Basic auth + `companyId`**,
+> not OAuth and not a single API key. There is **no** `tenant_id` or
+> bearer token in the current contract. The `SICON_LIVE_MODE` /
+> `SICON_API_KEY` env flip referenced in older notes is superseded by the
+> per-org `enabled` switch above.
 
 ### Sage 200 UK (per-org config — stored encrypted in MongoDB)
 
@@ -744,4 +778,274 @@ To go live with Orbit 4:
 4. For outbound: ensure `gym_operator_id` and `service_provider_id` are populated on the GymAxis org → these are the Orbit 4 user ids to pass into the mappers.
 
 ---
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 33. SICON ↔ GYMAXIS — COMPLETE FIELD-CAPTURE & CONNECTION PACK
+#     (Pulse Fitness Portal · Sicon partner meeting hand-over)
+# ═══════════════════════════════════════════════════════════════════
+
+> **Audience**: Pulse Fitness IT + Sicon partner team.
+> **Purpose**: a single, self-contained brief showing (a) exactly what
+> we need from Sicon/Sage to connect, and (b) every field GymAxis
+> already captures from / pushes to Sicon — so the meeting can confirm
+> we are pulling **all** available information into the Pulse Fitness
+> Portal. Grounded in the live code: `utils/sicon_client.py`,
+> `utils/sicon_sync.py`, `routes/sicon.py`.
+>
+> **Current status**: code-complete and stable; running in **dry-run**
+> until live Sicon credentials are supplied. Go-live is a per-org
+> config save + `enabled=true` flip — no redeploy.
+
+## 33.1 · System roles (one-paragraph recap)
+
+GymAxis AI / Pulse Fitness Portal is the **initiator + intelligence**
+layer (fault capture, AI triage, KPIs, PPM scheduling, customer comms).
+**Sicon Service (R260200c)** is the **execution** layer (case lifecycle,
+engineer dispatch, appointments, time bookings, costing). **Sage 200**
+is the **financial master** (`SLCustomerAccountID`, invoicing, contract
+billing). Neither system duplicates the other.
+
+## 33.2 · Connection & authentication (the technical handshake)
+
+| Item | Value |
+|---|---|
+| Protocol | HTTPS, **server-to-server only** (credentials never reach the browser) |
+| Auth | **HTTP Basic** (`username` + `password`) on every request |
+| Tenant scoping | `companyId` query param (the Sage 200 company id) on every request |
+| Base URL | Sicon WebAPI root, e.g. `https://<customer>.sicon-cloud.com` |
+| Connectivity probe | `GET /api/SMConnectivity/Ping` (used by **Test Connection**) |
+| Credential storage | Fernet-encrypted at rest (key derived from `JWT_SECRET`); DB collection `sicon_config` (`username_enc` / `password_enc`) |
+| Timeouts / retries | 30 s timeout; failed writes queued to `sicon_sync_queue` with typed backoff (see §33.9) |
+| Not used | OAuth, bearer tokens, single API key, `tenant_id` — **the R260200c contract is Basic-auth + companyId** |
+
+### What Sicon / Pulse IT must PROVIDE for us to connect
+
+This is the **ask list** for the meeting:
+
+| # | Credential / value | Why we need it |
+|---|---|---|
+| 1 | **Sicon WebAPI base URL** | The HTTPS root we call. |
+| 2 | **Service-account username + password** (Basic auth, read/write to Service module) | Authenticates every call. A dedicated integration user is preferred over a person's login. |
+| 3 | **Sage 200 `companyId`** | Scopes every call to the right company dataset. |
+| 4 | **Default Case Type id + name** (e.g. "Reactive", "Preventative Maintenance") | So a new fault lands as the right case type. |
+| 5 | **Priority ids** for our severities (`safety_critical / critical / high / medium / low`) | Drives `priority_mapping`. |
+| 6 | **Internal / External Team ids** (optional) + **default assigned Sage user id** (optional) | Default routing/assignment. |
+| 7 | **Default Service Contract id + Contract Line id** (optional) | So covered work is attributed to the contract. |
+| 8 | **Sicon CRM Person id + Company id** for the Pulse account (optional) | Cross-links the case to Sicon CRM. |
+| 9 | **Equipment id map** (`serial_number → SiconEquipmentID`) OR access to pull the equipment register | So faults carry the real Sicon asset, not just a serial. |
+| 10 | **Sub-Location ids** per gym site (`SiconSubLocationID`, `CustDeliveryAddressID`) | Maps a GymAxis site to the Sicon delivery/sub-location for routing. |
+| 11 | **Network allow-list** for GymAxis egress IPs + valid TLS on the WebAPI host | So our server can reach the WebAPI. |
+| 12 | **Lookup reference data access**: Case Types, Tracking Statuses, Priorities, Appointment Resources (engineers) | We pull these to populate the admin field-mapping UI. |
+
+> Items 4-10 can also be **auto-discovered** once 1-3 are live: we expose
+> `GET /api/sicon/case-types`, `/api/sicon/tracking-statuses`,
+> `/api/sicon/priorities`, and `/api/sicon/engineers` to read the lookups
+> straight from Sicon and let the admin map them in the UI.
+
+## 33.3 · What GymAxis configures (per-org `sicon_config`)
+
+Saved via `PUT /api/sicon/config` (owner-only). Full field list and
+encryption rules are in **§25** above — connection fields, default
+routing lookups, `priority_mapping` / `sub_status_mapping` /
+`equipment_id_mapping`, and the auto-sync switches.
+
+## 33.4 · OUTBOUND — Service Case (GymAxis fault → Sicon case)
+
+Built by `map_gymaxis_to_sicon_case()`; created via
+`ServiceCase/CreateNewCase`, amended via `ServiceCase/AmendCase`.
+
+| Sicon field | Source (GymAxis) | Notes |
+|---|---|---|
+| `SiSMCaseId` | `issue.sicon_case_id` | `0` on create; echoed on amend |
+| `CaseNumber` | `issue.sicon_case_number` | passthrough on amend |
+| `CaseTypeID` / `CaseTypeName` | fault-type → config default | `Reactive` / `Safety Critical` / `Preventative Maintenance` |
+| `Description` | `issue.issue_description` | ≤4000 chars |
+| `Summary` | `machine_type — serial_number` | |
+| `CallDate` | `issue.created_at` | |
+| `PriorityID` / `PriorityName` | `severity` via `priority_mapping` | |
+| `ContactName / ContactEmail / ContactPhoneNumber` | reporter/caller fields | |
+| `CustomerReference` | `sage_customer_reference` / `company_sage_ref` | |
+| `SLCustomerAccountID` | `sage_customer_account_id` | Sage account key |
+| `AssignedToSageUserID` | config default | |
+| `InternalTeamID` / `ExternalTeamID` | config defaults | |
+| `SiconContractID` / `SiconContractNumber` / `SiconContractLineID` | issue → config fallback | links case to its contract |
+| `SiconCRMPersonID` / `SiconCRMCompanyID` | org CRM links → config | |
+| `SiJcJobID` | `0` on create | Sicon owns |
+| `SiSMDocumentSubStatusID` | `sicon_sub_status_id` / `workflow_state` via `sub_status_mapping` | richer progress |
+| `Location*` block | site address (`LocationPostalName`, `LocationAddressLine1-4`, `LocationCity`, `LocationCounty`, `LocationPostCode`) | |
+| `SubLocation{}` | joined site → `SiconSubLocationID`, `CustDeliveryAddressID`, `Description`, `Comment` | full object |
+| `Equipments[]` | serial → `equipment_id_mapping` / `sicon_equipment_id` → `{SiconEquipmentID, ItemID, Name}` | preferred over bare `EquipmentIDs[]` |
+| `EquipmentIDs[]` | derived from `Equipments[]` | back-compat |
+
+### AnalysisFields 1-20 (full AI-triage + asset-lineage payload)
+
+We populate **all twenty** analysis slots so Sicon and downstream Sage
+reporting can see GymAxis's intelligence on every case:
+
+| Slot | Carries |
+|---|---|
+| `AnalysisField1` | AI triage summary (≤250) |
+| `AnalysisField2` | AI severity (UPPERCASE) |
+| `AnalysisField3` | AI recommended parts (≤250) |
+| `AnalysisField4` | GymAxis issue id (cross-ref) |
+| `AnalysisField5` | GymAxis org name (≤100) |
+| `AnalysisField6` | SLA category / tier |
+| `AnalysisField7` | PPM schedule id |
+| `AnalysisField8` | Supplier case token |
+| `AnalysisField9` | Fault code (≤50) |
+| `AnalysisField10` | Machine type (≤80) |
+| `AnalysisField11` | Equipment make / manufacturer (≤80) |
+| `AnalysisField12` | Equipment model code / model (≤80) |
+| `AnalysisField13` | Equipment install date |
+| `AnalysisField14` | Equipment warranty expiry |
+| `AnalysisField15` | GymAxis issue id (≤60) |
+| `AnalysisField16` | PPM schedule id (≤60) |
+| `AnalysisField17` | AI triage summary (≤200) |
+| `AnalysisField18` | Source (`manual` / `orbit4` / …) |
+| `AnalysisField19` | Reporter role |
+| `AnalysisField20` | CSAT rating |
+
+## 33.5 · OUTBOUND — Tracking notes, appointments, time bookings
+
+### Tracking note (`build_tracking_note_payload`) → `Cases/{id}/TrackingNotes`
+`TrackingNote` (≤2000) · `CaseTrackingStatusID` · `VisibleToEngineer` ·
+`VisibleToCustomer` · `CreatedBy` · `Time` · `SiconAppointmentID`
+(optional) · `Latitude` / `Longitude` (GPS, optional) ·
+`ReassignToSageUserNumber` (optional). Fired automatically on AI triage,
+supplier contact/response/visit, status change, and media attach.
+
+### Appointment (`build_appointment_payload`) → `Service/Appointments`
+`ScheduledStartDate` / `ScheduledEndDate` · `AppointmentType`
+(`Work`/`Travel`/`Other`, with `ParentWorkAppointmentID` for travel) ·
+`Subject` · `WorkBriefing` (≤1000) · `EmployeeIDs[]` · `Confirmed` ·
+optional `ChargeRateID` / `LabelID`.
+
+### Appointment completion (`build_appointment_completion_payload`)
+Proof-of-work chain: `AppointmentComplete` · `WorkDoneDescription`
+(≤2000) · `WorkDoneAcknowledged` · `FurtherAction` (≤2000) ·
+`FurtherActionAcknowledged` · `ArrivalSignee` / `DepartureSignee` ·
+`Arrival/Departure Latitude/Longitude` (GPS).
+
+### Time booking (`build_time_booking_payload`) → `Appointments/{id}/TimeBookings`
+`EmployeeIDs[]` · `StartDate` · `EndDate` · `ActualHours` · `ChargeRate`.
+
+## 33.6 · OUTBOUND — Contracts & contract lines
+
+### Contract header (`map_gymaxis_contract_to_sicon`) → `Contract/CreateUpdateContract`
+`ContractID` · `ContractNumber` · `CustomerNumber` · `Description` ·
+`SOPBillingDescription` · `CustomerOrderNumber` (also settable via
+`Contract/UpdateContractCustomerOrderNumber`). Plus **all three
+spare-slot banks** (7 each, type-strict): `SpareText1-7` (strings),
+`SpareNum1-7` (financial KPIs / uplift caps / % values),
+`SpareDate1-7` (renewal anchors, review/expiry dates).
+
+### Contract line (`map_gymaxis_contract_line_to_sicon`) → `ContractLine/PostContractLine`
+Full commercial line — we populate every group:
+- **Identity**: `SiconContractID` · `SiconContractLineID` · `ItemCode` · `SalesOrderDescription` · `InternalDescription`
+- **Dates & price**: `ContractStartDate` · `ContractEndDate` · `Quantity` · `UnitPrice` · `SOPUnitPrice` · `PriceInterval` · `AmendedQuantity` · `AmendedUnitPrice` · `BillCoverFrom` · `OrderDate` · `OriginalStartDate` · `AnnualUnitCost`
+- **Renewal**: `RenewalQuantity` · `RenewalUnitPrice` · `RenewalFrequency` · `RenewalPriceFreqInterval` · `RenewalDuration` · `ContractExtended` · `InitialContractDuration` · `ExtendedContractDuration` · `ContractDuration` · `isRenewalUpdate` · `ReasonCode`
+- **Billing**: `InvoiceFrequencyValue` · `InvoiceFrequencyInterval` · `BillCoverDuration` · `BillMonthInAdvanceArrearsQty` · `BillInArrears` · `ProRata` · `IsRolling`
+- **Discounts**: `Discount1-3 Percent` / `Value`
+- **Supplier**: `VisitFrequency` · `WhoSold` · `PLSupplierID` · `SupplierCode` · `SupplierUnitPrice`
+- **Analysis codes `CLAnalysisCode1-15`** (of 150 available): SLA tier · response hrs · resolution hrs · OOS credit terms · safety-critical flag · GymAxis asset_id · site_id · PPM frequency override · tender ref · renewal-notice days · SLA penalty band · KPI breach flag · finance approver email · billing-cycle override · holdback %. Caller-supplied `analysis_codes` override any default.
+
+## 33.7 · INBOUND — what GymAxis captures back from Sicon
+
+All persisted on the `issues` doc under the `sicon_*` namespace and
+surfaced on the Operations → Issue Detail **Job Card**. Polled every
+`auto_sync_status` cycle (case status → appointments → tracking notes).
+
+### Case read-back (`map_sicon_case_to_gymaxis`) — 30 fields
+`sicon_case_id` · `sicon_case_number` · `sicon_status_id` ·
+`sicon_status` · `sicon_sub_status_id` · `sicon_description` ·
+`sicon_summary` · `sicon_priority_id` · `sicon_priority` ·
+`sicon_assigned_to` (+`_id`) · `sicon_internal_team` (+`_id`) ·
+`sicon_external_team` (+`_id`) · `sicon_contact_name/email/phone` ·
+`sicon_call_date` · `sicon_customer_reference` ·
+`sicon_sl_customer_account_id` · `sicon_case_type_id/name` ·
+`sicon_contract_id/number` · `sicon_contract_line_id/number` ·
+`sicon_job_id` · `sicon_crm_person_id` · `sicon_crm_company_id` ·
+`sicon_sub_location_id/description/comment` · `sicon_equipment_ids[]`.
+
+### Appointment read-back (`map_sicon_appointment_to_gymaxis`)
+`sicon_appointment_id` · `scheduled_start/end` · `appointment_type` ·
+`work_done_description` · `further_action` · `arrival/departure_signee` ·
+`arrival/departure latitude/longitude` (GPS) · `appointment_complete` ·
+`confirmed` · `employee_ids[]` · `subject`. Drives
+`engineer_assigned_at`, `work_completed_at`, `engineer_notes`.
+
+### Tracking note read-back (`map_sicon_tracking_note_to_gymaxis`)
+`sicon_note_id` · `message` · `timestamp` · `by` ·
+`case_tracking_status_id` · `status` · `visible_to_engineer` ·
+`visible_to_customer` · `sicon_appointment_id` · `latitude` /
+`longitude`. Appended to the issue `timeline` preserving every field.
+
+### Time booking read-back (`map_sicon_time_booking_to_gymaxis`)
+`start_date` · `end_date` · `actual_hours` · `employee_ids[]`.
+
+### Engineer / resource read-back (`map_sicon_resource_to_engineer`) — full HR record
+Nightly refresh of `/api/service/appointments/resources` into
+`sicon_engineers` (leavers skipped): `sicon_employee_id` (`SIJCEMPID`) ·
+`full_name` · `first_name` · `surname` · `diary_colour` ·
+`employee_number` · `payroll_reference` · `post_code_area` ·
+`team_name` · `team_id` · `subcontractor_account_id` ·
+`contract_expiry_date` · `warehouse_name` / `warehouse_id` ·
+`is_team_leader` · `is_leaver` · `is_project_manager` ·
+`is_shop_floor_user` · `start_date` · `address_line1` · `city` ·
+`postcode` · `mobile_no` · `telephone_no` · `email`.
+
+## 33.8 · Field-capture completeness statement
+
+For the meeting: GymAxis currently **captures or pushes every field
+exposed by the Sicon R260200c Service/Contract WebAPI surface we
+integrate** — Service Case (incl. all 20 AnalysisFields, full
+SubLocation + Equipments objects), Tracking Notes (incl. GPS +
+visibility + appointment link), Appointments (work/travel split +
+completion proof-of-work + GPS), Time Bookings, Contract headers (all
+21 spare slots) and Contract Lines (all commercial groups + 15 analysis
+codes), and the full Engineer/Resource HR record.
+
+### Remaining opportunities (decide at the meeting)
+| Opportunity | What it unlocks | Blocker |
+|---|---|---|
+| Live **equipment register pull** (vs. manual `equipment_id_mapping`) | auto-link every asset by serial | needs equipment read endpoint / export |
+| **Parts / stock / costing** read-back from Sicon onto the case | true job cost + margin in the Portal | confirm Sicon endpoints + permissions |
+| **Webhook push** from Sicon (vs. our polling) | near-real-time status without poll lag | Sicon to confirm webhook capability |
+| Extra `AnalysisFields 21+` / spare slots | any bespoke Pulse signal Sicon wants surfaced | agree field semantics |
+| **Document / attachment** sync (photos, sign-off PDFs) onto the Sicon case | richer engineer evidence in Sicon | confirm attachment endpoint |
+
+## 33.9 · Reliability & go-live
+
+- **Dry-run today**: with `enabled=false` no HTTP call is made; every
+  intended write is observable. Flip `enabled=true` (+ valid creds) to
+  go live — no redeploy.
+- **Resilience**: failed writes are queued in `sicon_sync_queue` with
+  typed backoff (5xx/408/network distinct schedules); non-retryable
+  4xx (`400/401/403/404/409/422`) are dead-lettered. Retry worker +
+  audit log (`sicon_audit_log`) included.
+- **Admin endpoints** (all live, owner-gated): `GET/PUT /api/sicon/config`,
+  `POST /api/sicon/test-connection`, `GET /api/sicon/case-types` ·
+  `/tracking-statuses` · `/priorities` · `/engineers`,
+  `POST /api/sicon/engineers/refresh`, `POST /api/sicon/sync-case/{issue_id}`,
+  `POST /api/sicon/amend-case/{issue_id}`, `POST /api/sicon/add-note/{issue_id}`,
+  `POST /api/sicon/create-appointment/{issue_id}`,
+  `POST /api/sicon/sync-contract/{contract_id}`,
+  `POST /api/sicon/poll-updates`, `GET /api/sicon/sync-queue`,
+  `GET /api/sicon/audit-log`.
+
+### Go-live checklist
+1. Sicon/Pulse IT provide items 1-3 (§33.2) → save via `PUT /api/sicon/config`.
+2. **Test Connection** (`POST /api/sicon/test-connection`) → expect `connected: true`.
+3. Pull lookups (`/case-types`, `/priorities`, `/engineers`) and map defaults 4-10 in the admin UI.
+4. Set `auto_sync_faults=true` + `auto_sync_status=true`, `enabled=true`.
+5. Raise one pilot fault → confirm the Sicon case + case number returns, then verify status/appointment/note read-back on the Job Card.
+
+---
+
+**Owner**: GymAxis Engineering · §33 added for the Sicon/Pulse hand-over.
+**Cross-refs**: §19-§24 (cross-system tables) · §25 (credentials matrix) ·
+`/app/memory/SICON_INTEGRATION_SPEC.md` (full API contract) ·
+`/app/memory/SVC_FIELD_MAPPING.md` (Service-Ops §2-18 detail).
 
