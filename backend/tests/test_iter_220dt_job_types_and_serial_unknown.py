@@ -75,7 +75,9 @@ def test_claim_modal_uses_hours_minutes_dropdowns():
 
 def test_engineer_summary_renders_case_type_chip():
     src = _read_fe("pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
-    assert 'data-testid="jaag-case-type"' in src
+    # Iter 220ea·8 — the lower-row "jaag-case-type" chip was promoted
+    # into the status-pill row as "summary-case-type-pill".
+    assert 'data-testid="summary-case-type-pill"' in src
     # Friendly label map + helper exist.
     assert "CASE_TYPE_LABELS" in src
     assert "function labelForCaseType" in src

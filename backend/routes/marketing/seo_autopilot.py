@@ -894,9 +894,10 @@ async def generate_article(
     # review — we never publish a placeholder article live.
     publish_now = bool(payload.publish_now)
     final_status: str
-    if publish_now and text.get("generation_failed"):
-        final_status = "needs_review"
-    elif publish_now and not uniq["ok"]:
+    if publish_now and (text.get("generation_failed") or not uniq["ok"]):
+        # Failed generation (LLM unreachable) OR a near-duplicate is
+        # held in needs_review — we never publish a placeholder or a
+        # rehash live.
         final_status = "needs_review"
     elif publish_now:
         final_status = "published"

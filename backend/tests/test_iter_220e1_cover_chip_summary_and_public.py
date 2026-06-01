@@ -71,12 +71,12 @@ def test_complete_tab_reuses_shared_cover_helper():
 
 def test_summary_renders_cover_chip():
     src = _read("pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
-    # Chip lives next to priority + case-type so engineer sees
-    # cover state at the same glance as everything else.
-    assert 'data-testid="jaag-cover-chip"' in src
-    # Chip uses the short label when covered (Warranty / GOLD
-    # contract / etc) and "Chargeable" when not.
-    assert "cover.covered ? (cover.short || 'Covered') : 'Chargeable'" in src
+    # Iter 220ea·8 — the standalone "jaag-cover-chip" was folded into
+    # the status-pill row. Cover state is now surfaced at a glance via
+    # the rose "Chargeable" pill (when uncovered), alongside the cover
+    # banner which carries the full covered/expiring detail.
+    assert 'data-testid="summary-chargeable-pill"' in src
+    assert "cover?.tone === 'red'" in src
 
 
 def test_summary_renders_cover_banner_with_actionable_detail():

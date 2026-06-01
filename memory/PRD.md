@@ -1,3 +1,42 @@
+## Iter 220ea·16 — Green the GitHub CI gates ✅ (Feb, 2026)
+
+GitHub CI ("CI — pre-commit gates + tests") was failing on two jobs
+after the last save. Root causes were pre-existing tech debt the
+previous session never caught (it relied on targeted Pytests +
+screenshots and never ran the full `make regression` / `make lint`).
+
+### Pre-commit gates job (ruff · bandit · eslint · complexity)
+- **ruff SIM114** in `routes/marketing/seo_autopilot.py` — the two
+  `needs_review` branches from iter 220ea·15 collapsed into one
+  `if publish_now and (generation_failed or not uniq["ok"])`.
+- **ruff F541** in `tests/test_iter_220ea_8_priority_key_and_case_type.py`
+  — an f-string with only escaped braces; dropped the `f` prefix.
+- **3 × ESLint dead-code warnings** in `WorkVisitMachinesCard.js`
+  (`--max-warnings 0` gate) — removed code orphaned by the iter
+  220ea·11/12 Equipment-tab redesign: the `adding` state, the unused
+  `addRow` helper, and the unrendered `MachineAssetPicker` component.
+
+### Backend regression job (make regression)
+4 stale source-level guard tests asserted UI the iter 220ea·6–9
+Summary redesign had intentionally removed/renamed. Updated to the
+new reality:
+- `test_iter_220dt …case_type_chip` → `jaag-case-type` is now
+  `summary-case-type-pill`.
+- `test_iter_220e1 …cover_chip` → cover chip folded into the status
+  row; now asserts `summary-chargeable-pill`.
+- `test_iter_220e2 …three_tones` → cover trichotomy now lives on the
+  banner (`jaag-cover-banner`) + chargeable pill, not the deleted chip.
+- `test_iter_220e5 …entitlement_panel` → renamed to assert the panel
+  is NOT mounted on Summary (intentionally removed in 220ea·7).
+
+### Verified
+All four pre-commit gates pass locally (ruff clean, bandit 0 high,
+xenon pass, eslint 0 warnings). `make regression` → **2212 passed,
+16 skipped, 0 failed**. Frontend serves 200 + edited JSX parses clean.
+Re-save to GitHub to re-trigger CI.
+
+
+
 ## Iter 220ea·15 — Blog generation resilience (no broken/AI placeholders go live) ✅ (Feb, 2026)
 
 **Field-reported bug:** the daily SEO autopilot published a blog whose

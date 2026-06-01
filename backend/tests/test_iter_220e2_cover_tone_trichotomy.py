@@ -196,15 +196,19 @@ def test_compute_cover_state_helper_emits_tone():
 
 def test_engineer_chip_and_banner_render_three_tones():
     src = _read("pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
-    # Chip switches palette on cover.tone (green / amber / red).
-    assert "data-testid=\"jaag-cover-chip\"" in src
+    # Iter 220ea·8 — the cover chip was folded into the status row; the
+    # cover banner remains the canonical three-tone surface
+    # (green / amber / red) and a rose "Chargeable" pill flags the
+    # uncovered case at a glance.
     assert "cover.tone === 'green'" in src
     assert "cover.tone === 'amber'" in src
     # The chargeable branch falls through to rose.
-    assert "bg-rose-50 text-rose-800" in src
+    assert "text-rose-800" in src
     # Banner mirrors the same trichotomy.
     assert "data-testid=\"jaag-cover-banner\"" in src
     assert "bg-rose-50 border-rose-300" in src
+    # Chargeable-at-a-glance pill in the status-pill row.
+    assert 'data-testid="summary-chargeable-pill"' in src
 
 
 def test_public_tracking_chip_renders_three_tones():

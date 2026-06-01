@@ -107,7 +107,7 @@ def test_priority_key_legend_renders_four_tiers():
     assert "const PRIORITY_KEY" in src
     for code in ("P1", "P2", "P3", "P4"):
         # The legend renders a row per tier with a stable test-id.
-        assert f'summary-priority-key-row-${{p.code}}' in src or f'"summary-priority-key-row-{code}"' in src
+        assert 'summary-priority-key-row-${p.code}' in src or f'"summary-priority-key-row-{code}"' in src
     # And the legend uses the canonical labels + detail copy.
     for word in ("Critical", "High", "Standard", "Low"):
         assert word in src, f"missing priority label: {word}"

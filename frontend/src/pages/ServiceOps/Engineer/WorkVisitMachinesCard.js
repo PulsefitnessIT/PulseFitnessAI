@@ -40,7 +40,6 @@ const auth = () => ({
 export default function WorkVisitMachinesCard({ caseId }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [assetOptions, setAssetOptions] = useState([]);
   const [assetSearch, setAssetSearch] = useState('');
@@ -85,23 +84,6 @@ export default function WorkVisitMachinesCard({ caseId }) {
     })();
     return () => { cancelled = true; };
   }, []);
-
-  const addRow = async (preset = {}) => {
-    setAdding(true);
-    try {
-      const r = await axios.post(
-        `${API}/svc/engineer/jobs/${caseId}/machines`,
-        preset,
-        auth(),
-      );
-      setRows((prev) => [...prev, r.data]);
-      setExpandedId(r.data.id);
-    } catch (e) {
-      notify.error('Could not add machine', e?.response?.data?.detail || e?.message);
-    } finally {
-      setAdding(false);
-    }
-  };
 
   const patchRow = async (rowId, patch) => {
     // Optimistic.
@@ -565,108 +547,6 @@ function SiteEquipmentPicker({ caseId, onClose, onImported }) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function MachineAssetPicker({ row, assetOptions, onPatch }) {
-  // Iter 220i — Closes on Enter / outside-click / Escape; auto-picks
-  // when there's exactly one match. Search is local to this row so
-  // typing in row 1 doesn't affect row 2's filter.
-  const [open, setOpen] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const wrapperRef = useRef(null);
-
-  const filtered = (() => {
-    const needle = (row.asset_name || '').trim().toLowerCase();
-    if (needle.length < 2) return [];
-    if (row.asset_id) return [];
-    return assetOptions.filter(a =>
-      a.label.toLowerCase().includes(needle) ||
-      (a.serial || '').toLowerCase().includes(needle),
-    ).slice(0, 8);
-  })();
-
-  useEffect(() => {
-    setOpen(filtered.length > 0);
-    setActiveIdx(0);
-  }, [filtered.length, row.asset_name, row.asset_id]);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const pick = (a) => {
-    onPatch({
-      asset_id: a.id,
-      asset_name: a.label,
-      asset_serial: a.serial || null,
-      asset_type: a.equipment_type || null,
-    });
-    setOpen(false);
-  };
-
-  const onKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (filtered.length === 1) {
-        pick(filtered[0]);
-      } else if (filtered.length > 1 && open) {
-        pick(filtered[activeIdx]);
-      } else {
-        // No matches → free text accepted, close the picker.
-        setOpen(false);
-      }
-    } else if (e.key === 'ArrowDown' && open) {
-      e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
-    } else if (e.key === 'ArrowUp' && open) {
-      e.preventDefault();
-      setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-    }
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <input
-        value={row.asset_name || ''}
-        onChange={(e) => onPatch({ asset_name: e.target.value, asset_id: null })}
-        onFocus={() => filtered.length && setOpen(true)}
-        onKeyDown={onKeyDown}
-        className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
-        placeholder="e.g. BikeErg #03 (Concept 2)"
-        maxLength={200}
-        autoComplete="off"
-        data-testid={`machine-name-input-${row.id}`}
-      />
-      {open && filtered.length > 0 && (
-        <div
-          className="mt-1 max-h-40 overflow-auto border border-slate-200 rounded-lg bg-white shadow-sm absolute left-0 right-0 z-10"
-          data-testid={`machine-asset-picker-${row.id}`}
-        >
-          {filtered.map((a, idx) => (
-            <button
-              type="button"
-              key={a.id}
-              onMouseDown={(e) => { e.preventDefault(); pick(a); }}
-              onMouseEnter={() => setActiveIdx(idx)}
-              className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between ${idx === activeIdx ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-              data-testid={`machine-asset-option-${a.id}`}
-            >
-              <span className="truncate">{a.label}</span>
-              {a.serial && <span className="font-mono text-[10px] text-slate-500 ml-2">{a.serial}</span>}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

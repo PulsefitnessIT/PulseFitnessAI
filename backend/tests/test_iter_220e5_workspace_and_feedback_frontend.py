@@ -39,12 +39,13 @@ def test_engineer_entitlement_panel_exists_and_posts_feedback():
     assert 'data-testid="entitlement-fields"' in src
 
 
-def test_engineer_job_detail_mounts_entitlement_panel():
+def test_engineer_job_detail_no_entitlement_panel_on_summary():
     src = _read("pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
-    assert "import EngineerEntitlementPanel" in src
-    assert "<EngineerEntitlementPanel" in src
-    # Panel renders immediately after the cover banner.
-    cover_idx = src.find('data-testid="jaag-cover-banner"')
-    panel_idx = src.find("<EngineerEntitlementPanel")
-    overrun_idx = src.find("<JobOverrunBanner")
-    assert cover_idx < panel_idx < overrun_idx
+    # Iter 220ea·7 — EngineerEntitlementPanel was removed from the
+    # Summary tab (it confused engineers on jobs without a CRM contract
+    # link). Cover context is now conveyed by the cover banner + the
+    # rose "Chargeable" pill. Guard against accidental re-introduction.
+    assert "import EngineerEntitlementPanel" not in src
+    assert "<EngineerEntitlementPanel" not in src
+    # The cover banner is still the canonical cover surface on Summary.
+    assert 'data-testid="jaag-cover-banner"' in src
