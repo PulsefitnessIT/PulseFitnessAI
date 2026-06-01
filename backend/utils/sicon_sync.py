@@ -13,6 +13,9 @@ from utils.database import db
 from utils.sicon_common import get_sicon_client, get_sicon_config
 from utils.sicon_client import (
     SiconAPIError,
+    build_internal_issue_payload,
+    build_stock_adjustment_payload,
+    build_stock_transfer_payload,
     build_tracking_note_payload,
     map_gymaxis_to_sicon_case,
     map_sicon_appointment_to_gymaxis,
@@ -337,6 +340,123 @@ async def on_media_attached(issue_id: str, user_name: str) -> None:
     await post_tracking_note(issue_id, note, created_by=user_name)
 
 
+# ── Event hooks: GymAxis stock → Sicon (CoreWebAPI) ───────────────
+# Dry-run safe: every hook is a no-op unless the org's Sicon config has
+# both `enabled` and `auto_sync_stock` true AND a client is configured.
+# Failures are queued (never raised) so a stock-sync blip can't break the
+# engineer/office flow. See INTEGRATION_FIELD_MAPPING.md §33.13.
+
+def _warehouse_for(config: Dict, location_type: str, engineer_id: str = "") -> str:
+    """Resolve the Sage warehouse name for one of our stock locations.
+
+    `warehouse` → the org's main Sage warehouse; `van` → the engineer's
+    van warehouse via the per-org `van_warehouse_mapping` (engineer_id →
+    warehouse name), falling back to the configured default."""
+    default_wh = config.get("default_warehouse_name") or "Warehouse"
+    if location_type == "van" and engineer_id:
+        return (config.get("van_warehouse_mapping") or {}).get(engineer_id) or default_wh
+    return default_wh
+
+
+async def _stock_sync_ready(organization_id: str):
+    """Return (config, client) when stock sync is on for the org, else (None, None)."""
+    if not organization_id:
+        return None, None
+    config = await get_sicon_config(organization_id)
+    if not config or not config.get("enabled") or not config.get("auto_sync_stock"):
+        return None, None
+    client = await get_sicon_client(organization_id)
+    return (config, client) if client else (None, None)
+
+
+async def on_part_consumed(organization_id: str, movement: Dict) -> bool:
+    """A part was consumed on a job → book a Sage internal issue out of the
+    engineer's van. `movement` is the `svc_part_movements` consume doc."""
+    config, client = await _stock_sync_ready(organization_id)
+    if not client:
+        return False
+    payload = build_internal_issue_payload(
+        movement.get("part_sku") or "",
+        movement.get("qty") or 0,
+        _warehouse_for(config, "van", movement.get("engineer_id") or ""),
+        reference=(movement.get("case_reference") or movement.get("case_id") or "")[:60],
+        second_ref=(movement.get("case_id") or "")[:60],
+        cover_category=movement.get("cover_category") or "",
+        narrative=movement.get("part_name") or movement.get("part_sku") or "",
+    )
+    try:
+        await client.internal_issue(payload)
+        await _log_event(organization_id, "stock_internal_issue",
+                         f"Issued {payload['Quantity']} × {payload['ItemCode']}", True)
+        return True
+    except SiconAPIError as e:
+        await enqueue_failed_operation(
+            organization_id, "stock_internal_issue", "movement",
+            movement.get("id") or _now(), payload, e)
+        logger.warning(f"Sicon internal-issue queued for retry: {e}")
+        return False
+
+
+async def on_stock_transferred(organization_id: str, transfer: Dict) -> bool:
+    """A warehouse↔van transfer happened → mirror it to Sage. `transfer` is
+    {part_sku, qty, from:{type,engineer_id}, to:{type,engineer_id},
+    transfer_id, part_name}."""
+    config, client = await _stock_sync_ready(organization_id)
+    if not client:
+        return False
+    src = transfer.get("from") or {}
+    dst = transfer.get("to") or {}
+    payload = build_stock_transfer_payload(
+        transfer.get("part_sku") or "",
+        transfer.get("qty") or 0,
+        _warehouse_for(config, src.get("type") or "", src.get("engineer_id") or ""),
+        _warehouse_for(config, dst.get("type") or "", dst.get("engineer_id") or ""),
+        reference=(transfer.get("transfer_id") or "")[:60],
+        second_reference=(transfer.get("part_name") or "")[:60],
+    )
+    try:
+        await client.transfer_stock(payload)
+        await _log_event(organization_id, "stock_transfer",
+                         f"Transferred {payload['Quantity']} × {payload['ItemCode']}", True)
+        return True
+    except SiconAPIError as e:
+        await enqueue_failed_operation(
+            organization_id, "stock_transfer", "transfer",
+            transfer.get("transfer_id") or _now(), payload, e)
+        logger.warning(f"Sicon stock-transfer queued for retry: {e}")
+        return False
+
+
+async def on_stock_adjusted(organization_id: str, adjustment: Dict) -> bool:
+    """A stock-take variance was posted → mirror to Sage AddStock/WriteOff.
+    `adjustment` is {part_sku, qty_delta, location, engineer_id, reference}."""
+    config, client = await _stock_sync_ready(organization_id)
+    if not client:
+        return False
+    operation, payload = build_stock_adjustment_payload(
+        adjustment.get("part_sku") or "",
+        adjustment.get("qty_delta") or 0,
+        _warehouse_for(config, adjustment.get("location") or "",
+                       adjustment.get("engineer_id") or ""),
+        reference=(adjustment.get("reference") or "stock-take")[:60],
+        narrative=adjustment.get("part_name") or "",
+    )
+    try:
+        if operation == "stock_add":
+            await client.add_stock(payload)
+        else:
+            await client.write_off_stock(payload)
+        await _log_event(organization_id, operation,
+                         f"Adjusted {payload['Quantity']} × {payload['ItemCode']}", True)
+        return True
+    except SiconAPIError as e:
+        await enqueue_failed_operation(
+            organization_id, operation, "adjustment",
+            adjustment.get("id") or _now(), payload, e)
+        logger.warning(f"Sicon stock-adjust queued for retry: {e}")
+        return False
+
+
 # ── Inbound poll: Sicon → GymAxis ─────────────────────────────────
 
 async def _sync_case_status(client, issue: Dict, sicon_case_id) -> bool:
@@ -496,6 +616,10 @@ async def _retry_item(client, item: dict) -> bool:
         "amend_case": lambda: client.amend_case(payload),
         "create_appointment": lambda: client.create_appointment(payload),
         "create_contract": lambda: client.create_contract(payload),
+        "stock_internal_issue": lambda: client.internal_issue(payload),
+        "stock_transfer": lambda: client.transfer_stock(payload),
+        "stock_add": lambda: client.add_stock(payload),
+        "stock_writeoff": lambda: client.write_off_stock(payload),
     }
     handler = handlers.get(op)
     if handler is None:

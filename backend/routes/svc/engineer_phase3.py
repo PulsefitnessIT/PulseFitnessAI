@@ -252,6 +252,22 @@ async def consume_allocation(case_id: str, allocation_id: str,
         body=f"Used {alloc.get('qty')} × {alloc.get('part_sku')} ({alloc.get('part_name','')})",
         extra={"kind": "parts_consume", "allocation_id": allocation_id},
     )
+    # Iter 220ea·27 — mirror the consumption to Sage as a Sicon internal
+    # issue (dry-run no-op unless the org has Sicon stock sync enabled).
+    try:
+        from utils.sicon_sync import on_part_consumed
+        await on_part_consumed(of["organization_id"], {
+            "id": str(uuid.uuid4()),
+            "part_sku": alloc.get("part_sku"),
+            "part_name": alloc.get("part_name"),
+            "qty": alloc.get("qty"),
+            "engineer_id": user["id"],
+            "case_id": case_id,
+            "case_reference": case.get("reference"),
+            "cover_category": cover["cover_category"],
+        })
+    except Exception as ex:
+        logger.warning("Sicon stock sync (consume) skipped: %s", ex)
     return {"ok": True, "allocation_id": allocation_id, "fulfilled": True, **cover}
 
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -34,6 +35,25 @@ from utils.auth import get_current_user
 from utils.database import db
 
 router = APIRouter(prefix="/svc/admin/stock", tags=["Service Ops · Admin Stock"])
+
+logger = logging.getLogger(__name__)
+
+
+async def _sync_transfer_to_sicon(organization_id: str, part_sku: str, part_name: str,
+                                  qty: int, src_type: str, src_eng: str,
+                                  dst_type: str, dst_eng: str, transfer_id: str) -> None:
+    """Best-effort mirror of a stock transfer to Sage via Sicon (dry-run
+    no-op unless the org has Sicon stock sync enabled)."""
+    try:
+        from utils.sicon_sync import on_stock_transferred
+        await on_stock_transferred(organization_id, {
+            "part_sku": part_sku, "part_name": part_name, "qty": qty,
+            "transfer_id": transfer_id,
+            "from": {"type": src_type, "engineer_id": src_eng},
+            "to": {"type": dst_type, "engineer_id": dst_eng},
+        })
+    except Exception as ex:
+        logger.warning("Sicon stock sync (transfer) skipped: %s", ex)
 
 
 def _now() -> str:
@@ -373,6 +393,8 @@ async def transfer(
         {**base, "id": str(uuid.uuid4()), "movement_type": "transfer_in",
          "qty": qty, "location": dst_type, "engineer_id": dst_eng},
     ])
+    await _sync_transfer_to_sicon(of["organization_id"], sku, part.get("name") or sku,
+                                  qty, src_type, src_eng, dst_type, dst_eng, transfer_id)
     return {"ok": True, "part_sku": sku, "qty": qty,
             "from": src_label, "to": dst_label, "transfer_id": transfer_id}
 
@@ -496,6 +518,10 @@ async def transfer_batch(
         movements.append({**base, "id": str(uuid.uuid4()), "movement_type": "transfer_in",
                           "qty": qty, "location": dst_type, "engineer_id": dst_eng})
     await db.svc_part_movements.insert_many(movements)
+    for sku, qty in agg.items():
+        await _sync_transfer_to_sicon(of["organization_id"], sku,
+                                      parts[sku].get("name") or sku, qty,
+                                      src_type, src_eng, dst_type, dst_eng, transfer_id)
     return {"ok": True, "transferred": len(agg),
             "items": [{"part_sku": k, "qty": v} for k, v in agg.items()],
             "from": src_label, "to": dst_label, "transfer_id": transfer_id}
@@ -577,6 +603,16 @@ async def stock_take(
         variance_units += delta
     if movements:
         await db.svc_part_movements.insert_many(movements)
+        for m in movements:
+            try:
+                from utils.sicon_sync import on_stock_adjusted
+                await on_stock_adjusted(of["organization_id"], {
+                    "id": m["id"], "part_sku": m["part_sku"],
+                    "qty_delta": m["qty"], "location": location,
+                    "engineer_id": engineer_id, "reason": reason,
+                })
+            except Exception as ex:
+                logger.warning("Sicon stock sync (stock-take) skipped: %s", ex)
     return {"ok": True, "checked": checked, "adjusted": adjusted,
             "variance_units": variance_units, "lines": lines}
 

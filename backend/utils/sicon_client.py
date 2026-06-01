@@ -212,6 +212,31 @@ class SiconClient:
         contract_data = {**contract_data, "ContractID": contract_id}
         return await self.create_or_update_contract(contract_data)
 
+    # ── Stock (Sicon CoreWebAPI — Sage 200 stock) ─────────────────
+    # The Service WebAPI exposes no parts/stock object on a case, so parts
+    # used on a job are booked through the CoreWebAPI stock surface against
+    # the engineer's van warehouse. See INTEGRATION_FIELD_MAPPING.md §33.13.
+    async def get_stock_items_by_code(self, code: str) -> Dict:
+        """Resolve a Sage stock item from our catalogue SKU (link picker)."""
+        return await self._request("GET", "/api/StockItem/GetStockItemsByCode",
+                                    params={"code": code})
+
+    async def internal_issue(self, payload: Dict) -> Dict:
+        """Book a part out of a warehouse/van (a 'parts used on job' event)."""
+        return await self._request("POST", "/api/StockItem/InternalIssue", json_body=payload)
+
+    async def transfer_stock(self, payload: Dict) -> Dict:
+        """Move stock between two warehouses/bins (warehouse↔van transfer)."""
+        return await self._request("POST", "/api/StockItem/TransferStock", json_body=payload)
+
+    async def add_stock(self, payload: Dict) -> Dict:
+        """Positive stock-take adjustment (count higher than expected)."""
+        return await self._request("POST", "/api/StockItem/AddStock", json_body=payload)
+
+    async def write_off_stock(self, payload: Dict) -> Dict:
+        """Negative stock-take adjustment (count lower than expected)."""
+        return await self._request("POST", "/api/StockItem/WriteOffStock", json_body=payload)
+
 
 # ── Severity → Priority Lookup ────────────────────────────────────
 
@@ -384,6 +409,7 @@ def map_gymaxis_to_sicon_case(issue: Dict, config: Dict, org_name: str = "",
         "CaseNumber": issue.get("sicon_case_number", ""),
         "CaseTypeID": case_type_id,
         "CaseTypeName": case_type_name,
+        "FaultCode": (issue.get("fault_code") or "")[:50],
         "Description": issue.get("issue_description", "")[:4000],
         "Summary": f"{issue.get('machine_type', '')} — {issue.get('serial_number', '')}".strip(" —"),
         "CallDate": issue.get("created_at", datetime.now(timezone.utc).isoformat()),
@@ -437,6 +463,9 @@ def build_tracking_note_payload(note_text: str, created_by: str = "GymAxis AI",
         "TrackingNote": note_text[:2000],
         "CaseTrackingStatusID": status_id,
         "VisibleToEngineer": visible_to_engineer,
+        # Sicon's UpdateTrackingNoteRequest uses the plural key; the create
+        # endpoint's published schema is empty so we send both to be safe.
+        "VisibleToEngineers": visible_to_engineer,
         "VisibleToCustomer": visible_to_customer,
         "CreatedBy": created_by,
         "Time": datetime.now(timezone.utc).isoformat(),
@@ -731,6 +760,83 @@ def build_time_booking_payload(employee_ids: List[int], start_date: str, end_dat
         "EndDate": end_date,
         "ActualHours": float(actual_hours or 0),
         "ChargeRate": int(charge_rate or 0),
+    }
+
+
+# ── Mappers: GymAxis stock → Sicon CoreWebAPI ─────────────────────
+# Our parts system (svc_parts catalogue, svc_van_stock / svc_warehouse_stock,
+# svc_part_movements) maps onto Sage stock through the CoreWebAPI surface.
+# See INTEGRATION_FIELD_MAPPING.md §33.13 for the full table + open questions.
+
+def build_internal_issue_payload(part_sku: str, qty, warehouse_name: str,
+                                 *, bin_name: str = "", reference: str = "",
+                                 second_ref: str = "", cover_category: str = "",
+                                 narrative: str = "",
+                                 issue_date: Optional[str] = None) -> Dict:
+    """StockItem/InternalIssue — book a part out of the engineer's van/warehouse
+    when it's consumed on a job (our ``consume`` movement)."""
+    return {
+        "ItemCode": (part_sku or "").strip().upper(),
+        "WarehouseName": warehouse_name or "",
+        "BinName": bin_name or "",
+        "Reference": (reference or "")[:60],
+        "SecondRef": (second_ref or "")[:60],
+        "AnalysisCode1": (cover_category or "")[:50],
+        "DefaultNarrative": (narrative or "")[:250],
+        "Quantity": float(qty or 0),
+        "IssueDate": issue_date or datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def build_stock_transfer_payload(part_sku: str, qty, from_warehouse: str,
+                                 to_warehouse: str, *, from_bin: str = "",
+                                 to_bin: str = "", reference: str = "",
+                                 second_reference: str = "",
+                                 date: Optional[str] = None) -> Dict:
+    """StockItem/TransferStock — warehouse↔van move (our paired
+    ``transfer_out``/``transfer_in`` movements become one transfer)."""
+    return {
+        "ItemCode": (part_sku or "").strip().upper(),
+        "FromWarehouse": from_warehouse or "",
+        "FromBin": from_bin or "",
+        "ToWarehouse": to_warehouse or "",
+        "ToBin": to_bin or "",
+        "Quantity": float(qty or 0),
+        "Date": date or datetime.now(timezone.utc).isoformat(),
+        "Reference": (reference or "")[:60],
+        "SecondReference": (second_reference or "")[:60],
+    }
+
+
+def build_stock_adjustment_payload(part_sku: str, qty_delta, warehouse_name: str,
+                                   *, bin_name: str = "", reference: str = "",
+                                   narrative: str = "",
+                                   write_off_category: str = "Stock take") -> tuple[str, Dict]:
+    """Stock-take variance (our ``adjust`` movement). Positive delta →
+    AddStock, negative → WriteOffStock (field names differ between the two
+    Sage endpoints). Returns ``(operation, payload)`` where operation is
+    ``"stock_add"`` or ``"stock_writeoff"``."""
+    item = (part_sku or "").strip().upper()
+    qty = abs(float(qty_delta or 0))
+    if (qty_delta or 0) >= 0:
+        return "stock_add", {
+            "ItemCode": item,
+            "WarehouseName": warehouse_name or "",
+            "BinName": bin_name or "",
+            "Reference": (reference or "")[:60],
+            "SecondRef": "",
+            "Quantity": qty,
+            "MovementDate": datetime.now(timezone.utc).isoformat(),
+        }
+    return "stock_writeoff", {
+        "WriteOffCategory": write_off_category,
+        "ItemCode": item,
+        "WarehouseName": warehouse_name or "",
+        "BinName": bin_name or "",
+        "Quantity": qty,
+        "Reference": (reference or "")[:60],
+        "SecondReference": "",
+        "MovementDate": datetime.now(timezone.utc).isoformat(),
     }
 
 

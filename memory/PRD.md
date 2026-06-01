@@ -1,3 +1,26 @@
+## Iter 220ea·27 — Parts/stock → Sicon mapping + field-correctness audit ✅ (Feb, 2026)
+
+User is sending the Sicon integration doc to Sicon and asked (1) whether the Sicon API has parts references we can map now that the engineer app has parts, and (2) a correctness audit of all mapping fields. Verified everything against the **live Sicon WebAPI specs** (Service / CoreWebAPI / Distribution R260200c JSON). Backend + docs only; lint clean; 10 new pytests + 48 sicon-mapping + 47 parts-stock tests green; docs-verify + integration-mapping gates PASS.
+
+**Finding:** the Sicon **Service** WebAPI (R260200c) exposes **no parts/stock object** on a case/appointment (26 paths, 31 schemas checked) — only `Equipment.ItemID` + `SiconEmployee.WarehouseName/ID`. Parts must map through the **CoreWebAPI** stock surface.
+
+**Built (dry-run safe, opt-in via new per-org `auto_sync_stock` flag + `enabled`):**
+- `utils/sicon_client.py`: mappers `build_internal_issue_payload` / `build_stock_transfer_payload` / `build_stock_adjustment_payload` + client methods `internal_issue` / `transfer_stock` / `add_stock` / `write_off_stock` / `get_stock_items_by_code` (CoreWebAPI `/api/StockItem/*`).
+- `utils/sicon_sync.py`: hooks `on_part_consumed` (→ InternalIssue), `on_stock_transferred` (→ TransferStock), `on_stock_adjusted` (→ AddStock/WriteOffStock); `_warehouse_for` resolver (per-org `van_warehouse_mapping` + `default_warehouse_name`); queued-retry + audit; 4 new ops in the retry dispatcher.
+- Wired into `routes/svc/engineer_phase3.py` (part consume), `routes/svc/admin_stock.py` (transfer / transfer-batch / stock-take). All hooks best-effort/non-blocking — a sync blip can't break the engineer/office flow.
+
+**Field-correctness fixes (from the audit):**
+- `FaultCode` is a first-class field on `CreateCaseRequest` — now mapped from `issue.fault_code` (was only in `AnalysisField9`; both now sent).
+- Tracking notes now send both `VisibleToEngineer` (read schema) + `VisibleToEngineers` (UpdateTrackingNoteRequest) to avoid a silent visibility-flag drop. (Confirm with Sicon which the create endpoint honours.)
+- Documented that `CaseNumber`/`CaseTypeName`/`PriorityName`/`CustomerReference` are sent on create but live only on the read/amend schema (harmless, flagged).
+
+**Doc:** new canonical **§33.13** in `INTEGRATION_FIELD_MAPPING.md` (full parts/stock mapping table, van-warehouse resolution, chargeable-part→SOP option, and a numbered **open-questions-for-Sicon** list: van=Sage warehouse?, stock-write permissions, traceable items, SOP billing, stock read-back). §33.4/33.8/33.10/33.11 updated. **MOCKED until live Sicon credentials + permissions** — parts sync is dry-run (no HTTP) until an org sets `enabled=true` + `auto_sync_stock=true`.
+
+**Files:** utils/sicon_client.py, utils/sicon_sync.py, routes/svc/engineer_phase3.py, routes/svc/admin_stock.py, tests/test_iter_220ea_27_sicon_parts_stock.py (new, in Makefile), memory/INTEGRATION_FIELD_MAPPING.md.
+
+---
+
+
 ## Iter 220ea·26c — PPM recurrence rollover (G2 follow-up) ✅ (Feb, 2026)
 
 Made the preventive-maintenance cadence self-driving: once a PPM visit completes, the next is auto-created `interval_days` later, until the contract end. Lint clean, 12/12 iter-26 pytests green, verified live (function + endpoint).

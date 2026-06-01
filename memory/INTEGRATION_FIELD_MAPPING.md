@@ -861,6 +861,7 @@ Built by `map_gymaxis_to_sicon_case()`; created via
 | `SiSMCaseId` | `issue.sicon_case_id` | `0` on create; echoed on amend |
 | `CaseNumber` | `issue.sicon_case_number` | passthrough on amend |
 | `CaseTypeID` / `CaseTypeName` | fault-type → config default | `Reactive` / `Safety Critical` / `Preventative Maintenance` |
+| `FaultCode` | `issue.fault_code` | first-class field on `CreateCaseRequest` (also mirrored to `AnalysisField9`) |
 | `Description` | `issue.issue_description` | ≤4000 chars |
 | `Summary` | `machine_type — serial_number` | |
 | `CallDate` | `issue.created_at` | |
@@ -1011,7 +1012,7 @@ codes), and the full Engineer/Resource HR record.
 | Opportunity | What it unlocks | Blocker |
 |---|---|---|
 | Live **equipment register pull** (vs. manual `equipment_id_mapping`) | auto-link every asset by serial | needs equipment read endpoint / export |
-| **Parts / stock / costing** read-back from Sicon onto the case | true job cost + margin in the Portal | confirm Sicon endpoints + permissions |
+| **Parts / stock / costing** read-back from Sicon onto the case | true job cost + margin in the Portal | **outbound now mapped — see §33.13**; read-back needs a Sicon stock GET endpoint + permissions |
 | **Webhook push** from Sicon (vs. our polling) | near-real-time status without poll lag | Sicon to confirm webhook capability |
 | Extra `AnalysisFields 21+` / spare slots | any bespoke Pulse signal Sicon wants surfaced | agree field semantics |
 | **Document / attachment** sync (photos, sign-off PDFs) onto the Sicon case | richer engineer evidence in Sicon | confirm attachment endpoint |
@@ -1056,7 +1057,7 @@ When the same datum exists both sides, the winner is fixed:
 | **Engineer assignment** | **Sicon** | Sicon's scheduler dispatches |
 | **AI triage** data | **GymAxis** | only GymAxis has the AI engine |
 | Initial **fault description** | **GymAxis** | customer logs it in the portal |
-| **Work done** / parts used | **Sicon** | engineer records in Sicon |
+| **Work done** / parts used | **Sicon** | engineer records in Sicon; GymAxis van-stock usage posts out as a Sage internal issue (§33.13) |
 | **Tracking notes** | originating system | tagged `GymAxis` or `Sicon` by source |
 
 ## 33.11 · Verification, test coverage & key files
@@ -1075,9 +1076,14 @@ When the same datum exists both sides, the winner is fixed:
   audit `routes/sicon_mapping.py` · config `sicon_config`, retry queue
   `sicon_sync_queue`, audit `sicon_audit_log`.
 - **Tests**: `tests/test_iter_220bi_sicon_field_mapping.py`,
-  `tests/test_iter_216h7_sicon_mapping_audit.py`, and the `test_iter_215*_sicon`
+  `tests/test_iter_216h7_sicon_mapping_audit.py`,
+  `tests/test_iter_220ea_27_sicon_parts_stock.py` (parts/stock mappers +
+  hook gating + FaultCode/visibility fixes), and the `test_iter_215*_sicon`
   / `test_iter_216g*` suites cover mappers, contract lines, spare slots,
   AnalysisFields 9-20, sub-status state machine, and the drift guard.
+- **Parts/stock (CoreWebAPI)**: `StockItem/InternalIssue` (consume),
+  `TransferStock` (warehouse⇄van), `AddStock`/`WriteOffStock` (stock-take),
+  gated by per-org `auto_sync_stock`. See §33.13.
 
 ## 33.12 · Document map — single source of truth
 
@@ -1095,6 +1101,77 @@ to it — kept because code docstrings reference their section numbers:
 > Auth is **HTTP Basic + `companyId`** and go-live is the per-org
 > `enabled=true` flip — if any appendix says otherwise (e.g. an old
 > `Bearer`/`SICON_API_KEY` note), §33 wins and the appendix is being renewed.
+
+## 33.13 · OUTBOUND — Parts / stock (GymAxis van stock ↔ Sage 200 stock)
+
+**The Sicon *Service* WebAPI (R260200c) exposes no parts/stock object on a
+case or appointment** — verified against the live spec (26 Service paths,
+31 schemas). The only stock touchpoints in the Service module are
+`Equipment.ItemID` (the Sage stock item the *machine* is) and
+`SiconEmployee.WarehouseID/WarehouseName` (the engineer's **van
+warehouse**, already captured in the resource sync §33.7).
+
+GymAxis now owns a full van-stock system (catalogue, van/warehouse stock,
+movements, contract-cover). To post parts back to Sage we use the Sicon
+**CoreWebAPI** stock surface, booking against the engineer's van warehouse.
+This is **opt-in on top of case sync** — gated by a new per-org
+`auto_sync_stock` flag (default off) **and** `enabled`. Dry-run until then.
+
+### Mapping (GymAxis movement → Sicon/Sage CoreWebAPI)
+
+| GymAxis event (`svc_part_movements`) | Sicon endpoint | Payload (exact field names) |
+|---|---|---|
+| **Part consumed on a job** (`consume`) | `POST /api/StockItem/InternalIssue` | `ItemCode`=`part_sku` · `WarehouseName`=engineer van (resolved) · `Quantity`=`qty` · `Reference`=case ref · `SecondRef`=case id · `AnalysisCode1`=`cover_category` · `DefaultNarrative`=part name · `IssueDate` |
+| **Warehouse⇄van transfer** (`transfer_out`+`transfer_in`) | `POST /api/StockItem/TransferStock` | `ItemCode` · `FromWarehouse` · `ToWarehouse` · `Quantity` · `Reference`=`transfer_id` · `SecondReference` · `Date` |
+| **Stock-take variance, positive** (`adjust` +) | `POST /api/StockItem/AddStock` | `ItemCode` · `WarehouseName` · `Quantity` · `Reference` · `SecondRef` · `MovementDate` |
+| **Stock-take variance, negative** (`adjust` −) | `POST /api/StockItem/WriteOffStock` | `WriteOffCategory` · `ItemCode` · `WarehouseName` · `Quantity` · `Reference` · `SecondReference` · `MovementDate` |
+| **Catalogue ↔ Sage stock item** (link/resolve) | `GET /api/StockItem/GetStockItemsByCode`, `Search`, `CreateStockItem`, `AmendStockItem` | `Code`/`ItemCode`↔`sku` · `Name`/`Description`↔name · `Manufacturer` · `PartNumber` |
+| **Chargeable part → customer invoice** (cover = chargeable) | `POST /api/SOPOrderReturn/PostNewStandardLineToSO` | `DocumentNo` · `ItemCode` · `LineQuantity` · `UnitSellingPrice` (via `PriceBook/GetStockItemPrice`) · `WarehouseName` |
+| **Van replenishment** (`van_replenish`, optional) | `POST /api/POPOrderReturn/PostNewStandardLineToPO` | raise a PO line for the part |
+
+Built: `utils/sicon_client.py::build_internal_issue_payload /
+build_stock_transfer_payload / build_stock_adjustment_payload` + client
+methods `internal_issue` / `transfer_stock` / `add_stock` /
+`write_off_stock` / `get_stock_items_by_code`. Hooks
+`utils/sicon_sync.py::on_part_consumed / on_stock_transferred /
+on_stock_adjusted` (queued retry, audit-logged, never raise). Wired into
+`routes/svc/engineer_phase3.py` (consume) + `routes/svc/admin_stock.py`
+(transfer / transfer-batch / stock-take). The `InternalIssue`,
+`TransferStock`, `AddStock`, `WriteOffStock` retries are registered in the
+sync queue dispatcher.
+
+### Van-warehouse resolution
+
+`InternalIssue`/`TransferStock` need a real Sage **WarehouseName**. We
+resolve via per-org config: `default_warehouse_name` (the main warehouse)
+and `van_warehouse_mapping` (`engineer_id → Sage warehouse name`). The
+engineer's Sage warehouse is already known from the §33.7 resource sync
+(`SiconEmployee.WarehouseName/WarehouseID`) — the mapping just pins each
+GymAxis engineer to it.
+
+### Open questions for Sicon/Pulse (decide at the meeting)
+
+| Question | Why it matters |
+|---|---|
+| Is each engineer's **van a Sage warehouse (+ bin)?** What are the names/codes? | `InternalIssue.WarehouseName`/`BinName` need real values |
+| Are **WebAPI stock-write permissions** (issue / transfer / write-off) enabled for the integration user? | otherwise stock posts 401/403 |
+| **Traceable items** (serial/batch) handling | `InternalIssue`/`TransferStock` accept a `TraceableItems[]` array we can populate |
+| Should **chargeable parts** post a **SOP sales-order line** (bill the customer) vs. stay GymAxis-side? | replaces the placeholder labour-rate invoice with real Sage billing |
+| **Stock read-back** (on-hand by warehouse, cost) — is a stock GET endpoint/permission available? | true job cost + margin + van reconciliation in the Portal |
+
+### Field-correctness fixes shipped with this section
+- **`FaultCode`** is a first-class field on `CreateCaseRequest` — now mapped
+  from `issue.fault_code` directly (was only in `AnalysisField9`; both are
+  now sent).
+- Tracking notes send **both** `VisibleToEngineer` (singular, used on the
+  read `TrackingNote` schema) and `VisibleToEngineers` (plural, used on
+  `UpdateTrackingNoteRequest`) — the create schema is published empty, so
+  sending both avoids a silent visibility-flag drop. *Confirm with Sicon
+  which key the create endpoint honours.*
+- Footnote: we also send `CaseNumber` / `CaseTypeName` / `PriorityName` /
+  `CustomerReference` on **create**; these live only on the read/amend
+  `Case` schema, not `CreateCaseRequest`, so Sicon may ignore them on
+  create (they apply on amend/read). Harmless — flagged for transparency.
 
 ---
 
