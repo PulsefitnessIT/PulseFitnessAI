@@ -166,6 +166,27 @@ def test_transfer_batch_insufficient_returns_failures(master_admin_token_session
     assert isinstance(detail, dict) and isinstance(detail.get("failures"), list)
 
 
+def test_availability_endpoint_returns_qty_per_sku(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/availability",
+                      json={"location": "warehouse", "part_skus": ["ZZZ-NONE-1", "ZZZ-NONE-2"]},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 200, r.text
+    avail = r.json().get("availability") or {}
+    # unknown skus resolve to 0 (so the cart can flag over-transfers)
+    assert avail.get("ZZZ-NONE-1") == 0
+    assert avail.get("ZZZ-NONE-2") == 0
+
+
+def test_transfer_cart_shows_source_stock():
+    src = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "AdminStock.js").read_text()
+    assert "/svc/admin/stock/availability" in src
+    assert "transfer-picked-avail" in src
+    assert "transfer-shortfall-warning" in src
+    assert "hasShortfall" in src
+
+
 # ───────────────────── import stock destination ──────────────────
 
 def test_import_commit_supports_warehouse_destination():

@@ -372,6 +372,34 @@ def _validate_locs(src: dict, dst: dict):
     return src_type, src_eng, dst_type, dst_eng
 
 
+@router.post("/availability")
+async def availability(body: dict, user=Depends(get_current_user)):
+    """Current on-hand qty for a set of SKUs at one location — used by the
+    transfer cart to show 'X in stock at <source>' and stop over-transfers
+    before they error. Body: {location, engineer_id?, part_skus:[...]}."""
+    _require_manage(user)
+    of = _of(user)
+    location = ((body or {}).get("location") or "warehouse").lower()
+    engineer_id = (body or {}).get("engineer_id") or ""
+    skus = [str(s).strip().upper() for s in ((body or {}).get("part_skus") or []) if s]
+    skus = list(dict.fromkeys(skus))[:500]
+    if not skus:
+        return {"location": location, "engineer_id": engineer_id, "availability": {}}
+    if location == "van":
+        cur = db.svc_van_stock.find(
+            {**of, "engineer_id": engineer_id, "part_sku": {"$in": skus}},
+            {"_id": 0, "part_sku": 1, "qty": 1})
+    else:
+        cur = db.svc_warehouse_stock.find(
+            {**of, "location": "warehouse", "part_sku": {"$in": skus}},
+            {"_id": 0, "part_sku": 1, "qty": 1})
+    found: dict = {}
+    async for r in cur:
+        found[r["part_sku"]] = int(r.get("qty") or 0)
+    return {"location": location, "engineer_id": engineer_id,
+            "availability": {s: found.get(s, 0) for s in skus}}
+
+
 @router.post("/transfer-batch")
 async def transfer_batch(
     body: dict,

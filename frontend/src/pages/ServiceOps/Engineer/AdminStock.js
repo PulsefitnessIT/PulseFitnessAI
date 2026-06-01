@@ -291,6 +291,7 @@ const TransferTab = ({ locations, onDone }) => {
   const [to, setTo] = useState(engineers[0] ? `van:${engineers[0].engineer_id}` : 'warehouse');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [avail, setAvail] = useState({});        // {sku: qty at `from`}
 
   const searchParts = useCallback(async (q) => {
     if (!q || q.length < 2) { setResults([]); return; }
@@ -301,6 +302,25 @@ const TransferTab = ({ locations, onDone }) => {
   }, []);
 
   useEffect(() => { const t = setTimeout(() => searchParts(sku), 250); return () => clearTimeout(t); }, [sku, searchParts]);
+
+  // Iter 220ea·22b — show how many of each line are in stock at the
+  // source so the user never over-transfers. Re-fetches when the source
+  // location, cart or the picked part changes.
+  useEffect(() => {
+    const p = parseLoc(from);
+    const skus = [...new Set([...cart.map((x) => x.sku), ...(picked ? [picked.sku] : [])])];
+    if (skus.length === 0) { setAvail({}); return undefined; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await axios.post(`${API}/svc/admin/stock/availability`, {
+          location: p.type, engineer_id: p.engineer_id, part_skus: skus,
+        }, auth());
+        if (!cancelled) setAvail(r.data.availability || {});
+      } catch { /* non-blocking */ }
+    })();
+    return () => { cancelled = true; };
+  }, [from, cart, picked]);
 
   const addToCart = () => {
     if (!picked) { notify.error('Pick a part first'); return; }
@@ -315,6 +335,11 @@ const TransferTab = ({ locations, onDone }) => {
 
   const removeLine = (s) => setCart((c) => c.filter((x) => x.sku !== s));
   const totalUnits = cart.reduce((s, x) => s + x.qty, 0);
+  const locName = (v) => (v === 'warehouse' ? 'Warehouse' : (engineers.find((e) => `van:${e.engineer_id}` === v)?.name || 'Van'));
+  const fromName = locName(from);
+  // A line is short when we know the source qty and it's below the line qty.
+  const lineShort = (x) => avail[x.sku] !== undefined && x.qty > avail[x.sku];
+  const hasShortfall = cart.some(lineShort);
 
   const submit = async () => {
     if (cart.length === 0) { notify.error('Add at least one part'); return; }
@@ -339,8 +364,6 @@ const TransferTab = ({ locations, onDone }) => {
     } finally { setBusy(false); }
   };
 
-  const locName = (v) => (v === 'warehouse' ? 'Warehouse' : (engineers.find((e) => `van:${e.engineer_id}` === v)?.name || 'Van'));
-
   return (
     <div className="max-w-lg space-y-4" data-testid="admin-stock-transfer">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
@@ -354,18 +377,24 @@ const TransferTab = ({ locations, onDone }) => {
         <div className="border-t border-slate-100 pt-3 space-y-2.5">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Add parts</label>
           {picked ? (
-            <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-2.5" data-testid="transfer-picked">
-              <PackageCheck className="w-4 h-4 text-blue-600" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">{picked.name}</p>
-                <p className="text-[11px] font-mono text-slate-500">{picked.sku}</p>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-2.5 space-y-1.5" data-testid="transfer-picked">
+              <div className="flex items-center gap-2">
+                <PackageCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{picked.name}</p>
+                  <p className="text-[11px] font-mono text-slate-500">{picked.sku}</p>
+                </div>
+                <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
+                       data-testid="transfer-qty"
+                       className="w-16 h-9 px-2 rounded-lg border border-slate-200 text-sm text-right tabular-nums" />
+                <button onClick={addToCart} data-testid="transfer-add-line"
+                        className="px-3 h-9 rounded-lg bg-blue-600 text-white text-sm font-bold">Add</button>
+                <button onClick={() => { setPicked(null); setSku(''); }} className="text-xs font-bold text-slate-400">✕</button>
               </div>
-              <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
-                     data-testid="transfer-qty"
-                     className="w-16 h-9 px-2 rounded-lg border border-slate-200 text-sm text-right tabular-nums" />
-              <button onClick={addToCart} data-testid="transfer-add-line"
-                      className="px-3 h-9 rounded-lg bg-blue-600 text-white text-sm font-bold">Add</button>
-              <button onClick={() => { setPicked(null); setSku(''); }} className="text-xs font-bold text-slate-400">✕</button>
+              <p className={`text-[11px] font-semibold ${avail[picked.sku] === undefined ? 'text-slate-400' : (Number(qty) > avail[picked.sku] ? 'text-rose-600' : 'text-emerald-600')}`}
+                 data-testid="transfer-picked-avail">
+                {avail[picked.sku] === undefined ? `Checking stock in ${fromName}…` : `${avail[picked.sku]} in stock at ${fromName}`}
+              </p>
             </div>
           ) : (
             <div className="relative">
@@ -392,19 +421,27 @@ const TransferTab = ({ locations, onDone }) => {
         {/* Cart */}
         {cart.length > 0 && (
           <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden" data-testid="transfer-cart">
-            {cart.map((x) => (
-              <div key={x.sku} className="flex items-center gap-2 px-3 py-2" data-testid={`transfer-cart-${x.sku}`}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{x.name}</p>
-                  <p className="text-[11px] font-mono text-slate-400">{x.sku}</p>
+            {cart.map((x) => {
+              const short = lineShort(x);
+              return (
+                <div key={x.sku} className={`flex items-center gap-2 px-3 py-2 ${short ? 'bg-rose-50' : ''}`} data-testid={`transfer-cart-${x.sku}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{x.name}</p>
+                    <p className="text-[11px] font-mono text-slate-400">{x.sku}</p>
+                    {avail[x.sku] !== undefined && (
+                      <p className={`text-[11px] font-semibold ${short ? 'text-rose-600' : 'text-slate-400'}`} data-testid={`transfer-cart-avail-${x.sku}`}>
+                        {short ? `Only ${avail[x.sku]} in ${fromName}` : `${avail[x.sku]} in ${fromName}`}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`text-sm font-bold tabular-nums ${short ? 'text-rose-600' : 'text-slate-700'}`}>× {x.qty}</span>
+                  <button onClick={() => removeLine(x.sku)} data-testid={`transfer-remove-${x.sku}`}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <span className="text-sm font-bold text-slate-700 tabular-nums">× {x.qty}</span>
-                <button onClick={() => removeLine(x.sku)} data-testid={`transfer-remove-${x.sku}`}
-                        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -418,7 +455,12 @@ const TransferTab = ({ locations, onDone }) => {
         <p className="text-xs text-slate-500">
           Move <span className="font-bold text-slate-700">{cart.length}</span> part{cart.length === 1 ? '' : 's'} ({totalUnits} units) from <span className="font-bold text-slate-700">{locName(from)}</span> → <span className="font-bold text-slate-700">{locName(to)}</span>
         </p>
-        <button onClick={submit} disabled={busy || cart.length === 0} data-testid="transfer-submit"
+        {hasShortfall && (
+          <p className="text-xs font-semibold text-rose-600" data-testid="transfer-shortfall-warning">
+            Some lines exceed what&apos;s in stock at {fromName}. Reduce the quantity or remove them.
+          </p>
+        )}
+        <button onClick={submit} disabled={busy || cart.length === 0 || hasShortfall} data-testid="transfer-submit"
                 className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />} Transfer {cart.length || ''} {cart.length === 1 ? 'part' : 'parts'}
         </button>

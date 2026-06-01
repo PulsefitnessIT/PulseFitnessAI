@@ -1,3 +1,21 @@
+## Iter 220ea·22c — Transfer cart shows source stock ✅ (Feb, 2026)
+
+User feedback on the multi-part transfer: show how many of a part are in
+stock at the selected source so users don't hit over-transfer errors.
+
+- Backend `POST /svc/admin/stock/availability` — body {location,
+  engineer_id?, part_skus:[...]} → on-hand qty per SKU at that location
+  (unknown → 0). Gated to managers.
+- Frontend `AdminStock.js` TransferTab: re-fetches availability whenever
+  the From location / cart / picked part changes. Picked line shows
+  "X in stock at <From>" (green, or rose if the qty exceeds it); each
+  cart line shows source stock and turns rose + "Only N in <From>" when
+  short. Submit is disabled with a shortfall warning until lines fit.
+- Verified live (availability returns correct van/warehouse qtys; UI
+  shows "162 in stock at Master Admin"). 19 tests pass; lint clean.
+
+
+
 ## Iter 220ea·22b — Multi-part transfer + import to warehouse/van ✅ (Feb, 2026)
 
 Two user requests on top of Phase 4:
