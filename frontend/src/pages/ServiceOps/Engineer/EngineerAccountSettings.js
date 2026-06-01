@@ -22,7 +22,7 @@ import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
   Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
-  Boxes,
+  Boxes, Warehouse,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
@@ -388,6 +388,14 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
                 subtitle="Browse, search and edit your parts catalogue."
                 onClick={() => { onClose(); navigate('/svc/engineer/catalogue'); }}
                 testid="engineer-settings-catalogue-row"
+              />
+              <Row
+                icon={Warehouse}
+                accent="#4f46e5"
+                title="Stock management"
+                subtitle="Office overview — all van stock, transfers, stock-take."
+                onClick={() => { onClose(); navigate('/svc/engineer/stock-admin'); }}
+                testid="engineer-settings-stock-admin-row"
               />
               <Row
                 icon={Upload}

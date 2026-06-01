@@ -116,6 +116,8 @@ from routes.svc.engineer_stock import router as svc_engineer_stock_router
 # Iter 220ea·20 — Phase 5b: Parts Catalogue + Bulk Import
 from routes.svc.parts_catalogue import router as svc_parts_catalogue_router
 from routes.svc.parts_import import router as svc_parts_import_router
+# Iter 220ea·22 — Phase 4: Office/Admin stock overview
+from routes.svc.admin_stock import router as svc_admin_stock_router
 # Iter 215ds — Phase 5 AI Assistant Layer (Claude Sonnet 4.5)
 from routes.svc.ai import router as svc_ai_router
 # Iter 215dt — Phase 6 Quoting & Billing
@@ -278,6 +280,8 @@ _UNGATED_ROUTERS = (
     # Iter 220ea·20 — Phase 5b: Parts Catalogue + Bulk Import
     svc_parts_catalogue_router,
     svc_parts_import_router,
+    # Iter 220ea·22 — Phase 4: Office/Admin stock overview
+    svc_admin_stock_router,
     # Iter 215ds — Phase 5 AI Assistant
     svc_ai_router,
     # Iter 215dt — Phase 6 Billing

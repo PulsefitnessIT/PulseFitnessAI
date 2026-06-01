@@ -1,0 +1,155 @@
+"""Iter 220ea·22 — Stock Phase 4: Office/Admin stock overview.
+
+Live HTTP contract tests for ``routes/svc/admin_stock.py`` plus
+source-level guards for the responsive admin surface
+(``AdminStock.js``). Read endpoints (overview / by-location / locations
+/ cross-org) are asserted for shape; transfer is asserted on its
+*validation* paths only (400 / 404 / 409) so the shared preview DB is
+never mutated — the happy-path transfer + stock-take are covered by the
+testing agent's UI run and manual live verification.
+
+All requests use the master-admin token (owner/admin → can_manage +
+can_cross_org). Tests skip gracefully if the token is unavailable.
+"""
+from pathlib import Path
+
+import pytest
+import requests
+
+from tests.conftest import _test_backend_url, rate_limit_bypass_headers
+
+BASE = _test_backend_url()
+FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
+
+
+def _h(token):
+    return {"Authorization": f"Bearer {token}", **rate_limit_bypass_headers()}
+
+
+def _need(token):
+    if not token:
+        pytest.skip("no master admin token (rate limited?)")
+
+
+# ─────────────────────────── read contracts ───────────────────────
+
+def test_overview_shape(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.get(f"{BASE}/api/svc/admin/stock/overview", headers=_h(token), timeout=30)
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert "warehouse" in b and "engineers" in b and "totals" in b
+    assert isinstance(b["engineers"], list)
+    for k in ("value_sell", "low", "zero", "engineers", "catalogue_parts"):
+        assert k in b["totals"], f"missing totals.{k}"
+    # master admin → cost visible + cross-org allowed
+    assert b["show_cost"] is True
+    assert b["can_cross_org"] is True
+
+
+def test_by_location_warehouse_shape(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.get(f"{BASE}/api/svc/admin/stock/by-location",
+                     params={"location": "warehouse"}, headers=_h(token), timeout=30)
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["location"] == "warehouse"
+    assert isinstance(b["items"], list)
+
+
+def test_by_location_van_requires_engineer(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.get(f"{BASE}/api/svc/admin/stock/by-location",
+                     params={"location": "van"}, headers=_h(token), timeout=20)
+    assert r.status_code == 400, r.text
+
+
+def test_locations_shape(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.get(f"{BASE}/api/svc/admin/stock/locations", headers=_h(token), timeout=20)
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b.get("warehouse") is True
+    assert isinstance(b["engineers"], list)
+
+
+def test_cross_org_master_admin_ok(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.get(f"{BASE}/api/svc/admin/stock/cross-org", headers=_h(token), timeout=30)
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert "organizations" in b and "totals" in b
+    for k in ("orgs", "value_sell", "low", "zero"):
+        assert k in b["totals"], f"missing totals.{k}"
+
+
+# ───────────────────── transfer validation (no mutation) ──────────
+
+def test_transfer_rejects_missing_part(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/transfer",
+                      json={"qty": 1, "from": {"type": "warehouse"}, "to": {"type": "warehouse"}},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 400, r.text
+
+
+def test_transfer_rejects_same_source_dest(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/transfer",
+                      json={"part_sku": "ANYTHING", "qty": 1,
+                            "from": {"type": "warehouse"}, "to": {"type": "warehouse"}},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 400, r.text
+
+
+def test_transfer_unknown_part_404(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/transfer",
+                      json={"part_sku": "DEFINITELY-NOT-A-REAL-SKU-ZZZ", "qty": 1,
+                            "from": {"type": "warehouse"},
+                            "to": {"type": "van", "engineer_id": "someone"}},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 404, r.text
+
+
+def test_stock_take_requires_counts(master_admin_token_session):
+    token = master_admin_token_session
+    _need(token)
+    r = requests.post(f"{BASE}/api/svc/admin/stock/stock-take",
+                      json={"location": "warehouse", "counts": []},
+                      headers=_h(token), timeout=20)
+    assert r.status_code == 400, r.text
+
+
+# ───────────────────── frontend source guards ─────────────────────
+
+def test_admin_stock_page_has_all_tabs():
+    src = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "AdminStock.js").read_text()
+    # tab testids are generated as admin-stock-tab-${t.k}
+    assert "admin-stock-tab-${t.k}" in src
+    for key in ("'overview'", "'transfer'", "'stocktake'", "'crossorg'"):
+        assert key in src, f"missing tab key {key}"
+    for tid in ("admin-stock-page", "transfer-submit", "stocktake-post",
+                "admin-stock-overview", "admin-stock-transfer",
+                "admin-stock-stocktake", "admin-stock-crossorg"):
+        assert tid in src, f"missing {tid}"
+
+
+def test_admin_stock_route_and_entrypoints():
+    routes = (FRONTEND / "routes" / "AppRoutes.js").read_text()
+    settings = (FRONTEND / "pages" / "ServiceOps" / "Engineer" / "EngineerAccountSettings.js").read_text()
+    desk = (FRONTEND / "pages" / "ServiceOps" / "ServiceDeskPage.js").read_text()
+    # route lives under the /svc/engineer/* namespace (master-admin allow-listed)
+    assert "/svc/engineer/stock-admin" in routes
+    # reachable from both the engineer app settings and the desktop desk
+    assert "engineer-settings-stock-admin-row" in settings
+    assert "/svc/engineer/stock-admin" in settings
+    assert "desk-stock-management" in desk

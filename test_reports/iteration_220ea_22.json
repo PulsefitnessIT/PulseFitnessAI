@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend e2e validation of AdminStock (Stock Phase 4) at /svc/engineer/stock-admin as master admin. All 4 tabs render, drill-down works, transfer mutation succeeded end-to-end with success toast. Stock-take variance logic + post button enablement verified; final post click was blocked by stacked PWA-install / cookie-consent banners (page-level UX issue, not stock-page logic).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "StockTakeTab", "issue": "Sticky 'Post N adjustments' button (bottom-4) is obscured by PWA-install-banner (fixed bottom-4 z-[200]) and cookie-consent-banner (z-[100]). On a fresh session a real user cannot click stocktake-post until both banners are dismissed. Same risk applies to transfer-submit.", "selector": "[data-testid='stocktake-post']", "priority": "MEDIUM"},
+      {"component": "TransferTab", "issue": "Error toast 'Only 0 in stock at source — cannot move 1' correctly surfaces backend errors (good). However the From select shows engineer vans by truncated id (e.g. 'Engineer 663ec6') for engineers without a display name — confusing UX. Only the 'Master Admin' van has a real name.", "selector": "[data-testid='transfer-from']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Stock management - all tabs", "issues": ["Dark slate tabs/icons readable - the previously reported black-on-dark bug is NOT present in this build (tabs use border-b-2 + blue active state)"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Consider raising z-index of TransferTab/StockTakeTab CTAs above PWA banner (z>=300) or adding bottom padding equal to banner height to avoid click interception.",
+    "Improve engineer van label fallback when display name is missing (currently shows truncated UUID prefix)."
+  ],
+  "critical_code_review_comments": [
+    "AdminStock.js (~542 lines) is acceptable but four sub-components live in one file — fine for now; split if it grows.",
+    "axios calls use bearer token from localStorage — consistent with rest of codebase.",
+    "Idempotency-Key header sent on transfer (good). Stock-take POST does NOT send an Idempotency-Key — duplicate-submit on slow networks could double-post adjustments.",
+    "DetailTab loads ALL 6139 items in one go (no pagination/virtualisation). Rendering 6139 rows works but is heavy on mobile."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "~95% (every assertion in the 6 test scenarios passed; only the final stocktake-post click was blocked by an unrelated overlay, but the button state + variance UI were verified correct)"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (master admin) — cross-org tab visible as expected.",
+  "seed_data_creation": "MUTATIONS APPLIED (please restore): TRANSFER — 1 unit of SKU '33-088-1' (20mm Wide Belt) moved from Master Admin van (van:d7fc6143-ae1e-45e9-8a49-bcc4237754a6) → Warehouse. STOCKTAKE — NOT POSTED (post click was overlay-blocked); the input was filled but the API call never executed, so no DB change happened for the stocktake test (sku 26/021, system qty was 58, counted 59 — never persisted).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend overview at /api/svc/admin/stock/overview returns totals (value £6,597,718.33, catalogue 6139, low 0, out 1893). All stock currently lives in the 'Master Admin' van (van:d7fc6143-ae1e-45e9-8a49-bcc4237754a6); warehouse was empty before testing and now contains 1 × 33-088-1. Other 5 engineer vans exist but are empty so any stock-take/transfer against them returns empty rows or a '0 in stock' error. Verified flows: page render, all 4 tabs (overview/transfer/stocktake/crossorg), drill-down (DetailTab with 6139 detail-row-* nodes and detail-search), back-to-overview, transfer success toast 'Moved 1 × 33-088-1', variance UI '+1', post button text 'Post 1 adjustment'. The engineer-settings-stock-admin-row entry point was not verifiable from /svc/engineer/account-settings on this run — main agent should sanity-check that data-testid exists in Engineer Account Settings.",
+  "rca of the issue": "Stock-take post click failure RCA: Playwright timed out clicking [data-testid='stocktake-post'] because the global cookie-consent-banner (z-[100]) and PWAInstallPrompt banner (z-[200]) both sit at fixed bottom-4 — the same coordinates as the stocktake-post sticky CTA (also bottom-4). Reproduce: open /svc/engineer/stock-admin in a fresh browser session with no cookie consent stored, enter a variance, attempt to click Post — pointer events go to the banner. Mitigation: bump stocktake-post wrapper to z-[300], OR add bottom-spacer/margin equal to banner height (~120px), OR dismiss banners on stock-page mount."
+}

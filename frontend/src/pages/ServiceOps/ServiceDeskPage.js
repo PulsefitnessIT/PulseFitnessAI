@@ -15,6 +15,7 @@ import axios from 'axios';
 import {
   Plus, Search, AlertTriangle, Clock, CircleAlert, RefreshCw, Phone, Filter,
   Sparkles, Users, MapPin, CheckCircle2, Truck, Coffee, Target, Wrench, Calendar,
+  Boxes,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceDeskIntakeForm from './ServiceDeskIntakeForm';
@@ -259,6 +260,13 @@ export default function ServiceDeskPage() {
         data-testid="desk-dispatch-board"
       >
         Dispatch
+      </SvcSecondaryButton>
+      <SvcSecondaryButton
+        icon={Boxes}
+        onClick={() => (window.location.href = '/svc/engineer/stock-admin')}
+        data-testid="desk-stock-management"
+      >
+        Stock
       </SvcSecondaryButton>
       <SvcPrimaryButton icon={Plus} onClick={() => setIntakeOpen(true)} data-testid="desk-log-case">
         Log new case
