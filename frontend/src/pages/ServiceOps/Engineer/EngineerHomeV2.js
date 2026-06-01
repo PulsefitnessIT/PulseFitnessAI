@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
-  CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks,
+  CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';

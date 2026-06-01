@@ -1,0 +1,32 @@
+{
+  "summary": "Iter 220ea·33 Legacy Import E2E — REGRESSION FIX VERIFIED. EngineerHomeV2 now mounts cleanly with Wand2/X imports in place; no EngineerErrorBoundary card. Full wizard flow works end-to-end: Step 1 customer gate (next-upload disabled until name) → Step 2 CSV upload → Gemini 3 extraction (3s) returned 2 machines → Step 3 review with expandable toggles + inline name edit → Step 4 legacy-step-done with view-pdf + done-another buttons. Dismissible tile persists hidden state via localStorage 'gx_engineer_legacy_tile_hidden'=1 across reload. ONE MEDIUM BUG FOUND: legacy-done-view-pdf renders but its href attribute is empty, so the PDF cannot be opened from the wizard. legacy-toggle-saved was not found on the done step (may only render before/after done — needs main-agent confirmation). Account Settings entry (engineer-settings-legacy-import-row) was inside the drawer that opens directly from menu-btn (no intermediate Settings link); did not get to scroll-test the row this run.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EngineerLegacyImport · Step 4 Done", "issue": "legacy-done-view-pdf <a> has empty href attribute — clicking it will not open the branded PDF in a new tab. PDF blob URL or backend GET path is not wired into the anchor.", "selector": "[data-testid=\"legacy-done-view-pdf\"]", "priority": "MEDIUM"},
+      {"component": "EngineerLegacyImport · Saved reports panel", "issue": "legacy-toggle-saved not visible from the Done step in this run; verify it should be present on all steps (Customer / Done) per the spec.", "selector": "[data-testid=\"legacy-toggle-saved\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/svc/engineer/legacy-import Step 1", "issues": ["Cookie-consent banner (data-testid=cookie-consent-banner) overlays the bottom of the wizard and intercepts clicks on legacy-next-upload — required force=True in test. Consider raising wizard z-index or lowering banner once user has scrolled past the fold."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Wire legacy-done-view-pdf href to the saved report's PDF endpoint (URL.createObjectURL(blob) or backend GET path) so 'View PDF' actually opens the branded PDF in a new tab.",
+    "Confirm legacy-toggle-saved visibility rules — if it should appear on the Done step or Step 1, ensure it is mounted there (it was absent on Step 4 in this run).",
+    "Re-run a focused micro-test for the Account Settings → Tools → 'engineer-settings-legacy-import-row' once the above two are addressed; drawer opens directly from engineer-home-menu-btn (no intermediate link), the Tools section is below Customers in the same drawer."
+  ],
+  "critical_code_review_comments": [
+    "Wand2/X regression has been correctly resolved (line 27 imports both). Consider re-enabling react/jsx-no-undef in ESLint (DISABLE_ESLINT_PLUGIN=true is set in frontend/.env) so this class of crash is caught in CI rather than in QA.",
+    "legacy-done-view-pdf using an <a href> bound to a blob/URL means it must be set after the save response resolves — verify the save handler updates state synchronously before transitioning to Step 4 (currently step-done appears within 1s which suggests state may transition before href is populated)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "~90% — core wizard + regression fix verified; PDF link bug + saved-list visibility outstanding"},
+  "test_credentials": "engineer.smoke@gymaxisai.com / EngTest123! (POST /api/auth/login → 200, JWT 276 chars). Programmatic urllib login was 403-blocked by WAF; use Playwright page.request or the UI form.",
+  "seed_data_creation": "One test customer 'TEST_LegacyCust_QA' + one legacy report (2 machines: RowErg 1 — renamed to 'Edited RowErg' — and BikeErg 2) were created. Cleanup recommended on svc_engineer_customers + svc_legacy_reports collections.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Critical regression (Wand2/X ReferenceError) is FIXED. To re-test PDF link bug: after step-done renders, read legacy-done-view-pdf.getAttribute('href') — should be a non-empty blob: URL or backend path. To check saved panel, also try toggling it BEFORE starting the wizard (on the empty Step 1 view). Account Settings drawer opens directly from engineer-home-menu-btn (no extra click). Cookie banner intercepts clicks on lower-half buttons — use force=True or remove [data-testid=cookie-consent-banner] before interacting with bottom-of-page buttons.",
+  "rca of the issue": "Previous Wand2/X regression resolved by adding both symbols to the lucide-react named-import list at /app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js:27. Verified live: /svc/engineer renders without ErrorBoundary; both engineer-home-legacy-tile and engineer-home-menu-btn mount. Remaining PDF link issue is a separate state-wiring bug in EngineerLegacyImport.js Step 4 — the view-pdf anchor href is not populated when step transitions."
+}
