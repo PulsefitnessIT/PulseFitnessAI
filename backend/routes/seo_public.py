@@ -82,6 +82,157 @@ SOLUTION_SLUGS = [
 # own landing page — keeps pages substantive (no thin/doorway content).
 MANUFACTURER_MIN_PRODUCTS = 6
 
+# Programmatic equipment-type maintenance pages (the *category* axis that
+# complements the manufacturer/*brand* axis). Each type carries curated,
+# substantive editorial (common faults + PM tasks + FAQ) and is filled with
+# the real, serviceable machines of that type pulled live from the
+# catalogue across every brand. A type only earns a page once it has
+# EQUIPMENT_MIN_PRODUCTS real machines — thin types 404 until the
+# catalogue grows, exactly like the manufacturer pages.
+EQUIPMENT_MIN_PRODUCTS = 6
+
+# Per-type include regex (the broad serviceable/non-serviceable filters
+# still apply on top). `name`/`plural` drive the copy; `term` is the
+# search-intent phrase used in the H1/title.
+EQUIPMENT_TYPES: list[dict] = [
+    {
+        "slug": "treadmill",
+        "name": "Treadmill",
+        "plural": "treadmills",
+        "term": "treadmill servicing & repair",
+        "match": r"treadmill|\brunner\b|running machine",
+        "intro": "Treadmills are the hardest-worked machines on any gym floor — and the most expensive to leave broken. GymAxis keeps every treadmill serviced, compliant and earning.",
+        "faults": [
+            "Belt slipping, fraying or off-centre tracking",
+            "Worn or dry running deck causing motor strain",
+            "Motor brush wear and overheating cut-outs",
+            "Incline motor faults and mis-calibration",
+            "Console, speed-sensor and firmware errors",
+        ],
+        "tasks": [
+            "Belt tension, alignment and wear check",
+            "Deck lubrication and wear measurement",
+            "Motor brush inspection and current draw test",
+            "Incline calibration and limit-switch test",
+            "Firmware updates and speed-sensor verification",
+        ],
+    },
+    {
+        "slug": "exercise-bike",
+        "name": "Exercise bike",
+        "plural": "exercise bikes",
+        "term": "exercise bike servicing & repair",
+        "match": r"\bbike\b|indoor cycle|\bcycle\b|cycling|\bspin\b|spinning|recumbent|upright|airbike|air[\s-]?bike|assault|\batom\b|nucleus|proton",
+        "intro": "From studio spin bikes to air bikes and recumbents, GymAxis keeps every exercise bike smooth, quiet and safe — with parts and service history on one record.",
+        "faults": [
+            "Crank and bottom-bracket bearing play",
+            "Brake pad wear (friction) or magnetic resistance drift",
+            "Drive belt tension and slippage",
+            "Console battery and display faults",
+            "Pedal, cleat and saddle wear",
+        ],
+        "tasks": [
+            "Crank and bottom-bracket inspection",
+            "Brake adjustment or resistance calibration",
+            "Drive belt tension and alignment",
+            "Console battery replacement and firmware check",
+            "Saddle, handlebar and pedal security check",
+        ],
+    },
+    {
+        "slug": "rowing-machine",
+        "name": "Rowing machine",
+        "plural": "rowing machines",
+        "term": "rowing machine servicing & repair",
+        "match": r"\brower\b|rowing|\berg\b|ski[\s-]?erg|trakrow",
+        "intro": "Keep every rower and ski-erg pulling true. GymAxis tracks chain, damper and monitor health so a worn handle never takes a machine off the floor.",
+        "faults": [
+            "Chain or handle strap wear",
+            "Shock-cord stretch and slow recoil",
+            "Damper and flywheel noise or stiffness",
+            "Monitor battery and drag-factor errors",
+            "Seat roller wear and rail grit",
+        ],
+        "tasks": [
+            "Chain lubrication and link inspection",
+            "Shock-cord tension and replacement",
+            "Drag-factor calibration and flywheel clean",
+            "Seat roller and rail inspection",
+            "Monitor battery and firmware check",
+        ],
+    },
+    {
+        "slug": "cross-trainer",
+        "name": "Cross trainer",
+        "plural": "cross trainers",
+        "term": "cross trainer & elliptical servicing",
+        "match": r"elliptical|cross[\s-]?trainer|crosstrainer|\bglider\b",
+        "intro": "Ellipticals and cross trainers hide their wear in the bearings and drive. GymAxis schedules the right PPM so they stay silent and smooth.",
+        "faults": [
+            "Pedal-arm and link bearing play",
+            "Drive belt wear and slippage",
+            "Resistance or brake drift",
+            "Roller and ramp wear",
+            "Console and sensor faults",
+        ],
+        "tasks": [
+            "Bearing inspection and greasing",
+            "Drive belt tension and alignment",
+            "Ramp and roller clean and inspection",
+            "Resistance calibration",
+            "Console firmware and sensor check",
+        ],
+    },
+    {
+        "slug": "stair-climber",
+        "name": "Stair climber",
+        "plural": "stair climbers & steppers",
+        "term": "stair climber & stepper servicing",
+        "match": r"stepper|step machine|\bstair\b|climber|jacobs ladder|step[\s-]?mill|stepmill",
+        "intro": "Steppers and stair climbers take constant load through their drive and steps. GymAxis keeps the maintenance planned and the evidence logged.",
+        "faults": [
+            "Step chain or belt wear",
+            "Drive bearing noise",
+            "Resistance or alternator faults",
+            "Hand-rail and pedal wear",
+            "Console and sensor errors",
+        ],
+        "tasks": [
+            "Step chain and drive inspection",
+            "Bearing greasing and noise check",
+            "Resistance and alternator test",
+            "Hand-rail and pedal security check",
+            "Console firmware and sensor check",
+        ],
+    },
+    {
+        "slug": "strength-machine",
+        "name": "Strength machine",
+        "plural": "strength machines",
+        "term": "strength machine servicing & repair",
+        "match": (r"\bpress\b|pulldown|pull[\s-]?down|\brow\b|\bcurl\b|extension|\bfly\b|\bpec\b"
+                  r"|pec[\s-]?dec|\blat\b|\bleg\b|\bchest\b|\bshoulder\b|\bcable\b|crossover"
+                  r"|smith|functional|multi[\s-]?gym|adductor|abductor|\bdelt\b|\bcalf\b"
+                  r"|\bglute\b|hack[\s-]?squat|\bdip\b|\bchin\b|converging|iso[\s-]?lateral"
+                  r"|plate[\s-]?loaded|selectoriz|pin[\s-]?loaded"),
+        "intro": "Selectorised and plate-loaded strength kit fails quietly — a frayed cable or worn pulley is a safety risk. GymAxis makes inspection and repair routine.",
+        "faults": [
+            "Cable fraying and end-fitting wear",
+            "Pulley and bearing wear",
+            "Weight-stack pin and guide-rod wear",
+            "Upholstery tears and pad wear",
+            "Loose bolts and frame play",
+        ],
+        "tasks": [
+            "Cable inspection and replacement",
+            "Pulley and bearing check",
+            "Guide-rod lubrication and stack check",
+            "Upholstery and pad inspection",
+            "Bolt torque and frame inspection",
+        ],
+    },
+]
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -365,6 +516,120 @@ async def manufacturer_landing_detail(slug: str):
     return detail
 
 
+# ── Equipment-type (category) landing pages ──────────────────────────
+
+def _equipment_type(slug: str) -> Optional[dict]:
+    return next((t for t in EQUIPMENT_TYPES if t["slug"] == slug), None)
+
+
+async def _collect_equipment_by_type(type_def: dict, *, limit: int = 24) -> list[dict]:
+    """Real, serviceable machines of one type across every brand, deduped.
+
+    Spec-sheet machines (authoritative photos) come first, then catalogue
+    products. The broad serviceable/non-serviceable filters apply on top of
+    the type's include regex so only genuine machines of this category show.
+    """
+    type_re = re.compile(type_def["match"], re.IGNORECASE)
+    products: list[dict] = []
+    seen: set[str] = set()
+
+    # Spec sheets of this type (use the same hero image the ops module shows).
+    spec_cursor = db.spec_sheets.find(
+        {"hero_image_url": {"$nin": [None, ""]}},
+        {"_id": 0, "id": 1, "equipment_model": 1, "manufacturer": 1, "equipment_type": 1},
+    )
+    async for s in spec_cursor:
+        model = s.get("equipment_model") or ""
+        etype = s.get("equipment_type") or ""
+        hay = f"{model} {etype}"
+        if not type_re.search(hay) or not _is_serviceable_machine(hay):
+            continue
+        mfr = s.get("manufacturer") or ""
+        display = _spec_display_title(model, mfr) or model
+        key = _norm_name(f"{mfr} {display}")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        products.append({
+            "title": display,
+            "image_url": f"/api/spec-sheets/image/{s['id']}",
+            "url": None,
+            "manufacturer": mfr or None,
+        })
+
+    # Catalogue products of this type across all brands.
+    cursor = db.manufacturer_catalogue.find(
+        {}, {"_id": 0, "page_title": 1, "image_url": 1, "page_url": 1, "manufacturer_display": 1},
+    )
+    async for p in cursor:
+        title = (p.get("page_title") or "").strip()
+        img = p.get("image_url") or ""
+        if not title or not img.startswith("http"):
+            continue
+        if not _looks_like_product(title, p.get("page_url") or ""):
+            continue
+        mfr = (p.get("manufacturer_display") or "").strip()
+        clean = re.split(r"\s[|–—]\s", title)[0].strip()
+        if mfr:
+            clean = re.sub(r"\s*-\s*" + re.escape(mfr) + r"\s*$", "", clean, flags=re.IGNORECASE).strip()
+        clean = _VARIANT_SUFFIX.sub("", clean).strip()
+        if not clean or not type_re.search(clean) or not _is_serviceable_machine(clean):
+            continue
+        key = _norm_name(f"{mfr} {clean}")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        products.append({"title": clean, "image_url": img, "url": p.get("page_url"),
+                         "manufacturer": mfr or None})
+    return products[:limit]
+
+
+async def get_landing_equipment(min_products: int = EQUIPMENT_MIN_PRODUCTS) -> list[dict]:
+    """Equipment types with enough real serviceable machines to earn a page."""
+    out = []
+    for t in EQUIPMENT_TYPES:
+        products = await _collect_equipment_by_type(t)
+        if len(products) >= min_products:
+            brands = sorted({p["manufacturer"] for p in products if p.get("manufacturer")})
+            out.append({
+                "slug": t["slug"], "name": t["name"], "plural": t["plural"],
+                "term": t["term"], "product_count": len(products), "brands": brands,
+            })
+    out.sort(key=lambda x: -x["product_count"])
+    return out
+
+
+async def get_equipment_detail(slug: str, *, limit: int = 24) -> Optional[dict]:
+    t = _equipment_type(slug)
+    if not t:
+        return None
+    products = await _collect_equipment_by_type(t, limit=limit)
+    if len(products) < EQUIPMENT_MIN_PRODUCTS:
+        return None
+    brands = sorted({p["manufacturer"] for p in products if p.get("manufacturer")})
+    return {
+        "slug": t["slug"], "name": t["name"], "plural": t["plural"], "term": t["term"],
+        "intro": t["intro"], "faults": t["faults"], "tasks": t["tasks"],
+        "products": products, "product_count": len(products), "brands": brands,
+    }
+
+
+@router.get("/landing/equipment")
+async def list_landing_equipment():
+    """Public — equipment-type maintenance pages that have enough content."""
+    return {"equipment": await get_landing_equipment()}
+
+
+@router.get("/landing/equipment/{slug}")
+async def equipment_landing_detail(slug: str):
+    """Public — one equipment type's real machines + service editorial for
+    the /equipment/{slug} landing page."""
+    detail = await get_equipment_detail(slug)
+    if not detail or len(detail.get("products") or []) == 0:
+        raise HTTPException(404, "Equipment landing not found")
+    return detail
+
+
 async def build_sitemap_xml() -> str:
     site = _site()
     nodes: list[str] = [
@@ -388,6 +653,10 @@ async def build_sitemap_xml() -> str:
     nodes.append(_url_node(f"{site}/maintenance", today, "monthly", 0.7))
     for mfr in await get_landing_manufacturers():
         nodes.append(_url_node(f"{site}/maintenance/{mfr['slug']}", today, "monthly", 0.7))
+    # Programmatic equipment-type (category) maintenance landing pages.
+    nodes.append(_url_node(f"{site}/equipment", today, "monthly", 0.7))
+    for eq in await get_landing_equipment():
+        nodes.append(_url_node(f"{site}/equipment/{eq['slug']}", today, "monthly", 0.8))
     # Published blog posts — the whole point of making this dynamic.
     cursor = db.seo_articles.find(
         {"status": "published"},

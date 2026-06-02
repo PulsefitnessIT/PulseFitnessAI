@@ -81,6 +81,8 @@ const SolutionsIndex = lazy(() => import('@/pages/Marketing/Landing/SolutionsInd
 const SolutionLanding = lazy(() => import('@/pages/Marketing/Landing/SolutionLanding'));
 const MaintenanceIndex = lazy(() => import('@/pages/Marketing/Landing/MaintenanceIndex'));
 const ManufacturerLanding = lazy(() => import('@/pages/Marketing/Landing/ManufacturerLanding'));
+const EquipmentIndex = lazy(() => import('@/pages/Marketing/Landing/EquipmentIndex'));
+const EquipmentLanding = lazy(() => import('@/pages/Marketing/Landing/EquipmentLanding'));
 const CRMApp = lazy(() => import('@/pages/CRM/CRMApp'));
 const CRMSetupWizard = lazy(() => import('@/pages/CRM/CRMSetupWizard'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
@@ -349,6 +351,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/solutions/:slug" element={<SolutionLanding />} />
       <Route path="/maintenance" element={<MaintenanceIndex />} />
       <Route path="/maintenance/:slug" element={<ManufacturerLanding />} />
+      <Route path="/equipment" element={<EquipmentIndex />} />
+      <Route path="/equipment/:slug" element={<EquipmentLanding />} />
       <Route path="/partnership-proposal" element={<PartnershipProposalPage />} />
       <Route path="/integration-requirements" element={<IntegrationRequirementsPage />} />
       <Route path="/learn/:slug" element={<LearnMorePage />} />

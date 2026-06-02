@@ -1,3 +1,27 @@
+## Iter 220ea·34 — SEO P1: programmatic equipment-type (category) landing pages ✅ (Feb, 2026)
+
+Added the **category axis** to the programmatic SEO matrix: `/equipment` index + `/equipment/{type}` pages (e.g. `/equipment/exercise-bike`, `/equipment/strength-machine`), complementing the existing **brand axis** (`/maintenance/{manufacturer}`, iter 220ea·29) and **use-case axis** (`/solutions/*`). Targets high-intent search terms like "exercise bike servicing & repair", "strength machine maintenance". Backend + frontend; lint clean; 9 new pytests (in Makefile); pages verified live via screenshots.
+
+**Data-driven + quality-gated (no thin pages):** each type pulls its **real, serviceable machines across every brand** from `manufacturer_catalogue` + `spec_sheets` (reusing the existing serviceable/non-serviceable filters + `_looks_like_product`), deduped by brand+title. A type only earns a page once it has **≥6 real machines** (`EQUIPMENT_MIN_PRODUCTS`); thin types 404 until the catalogue grows — exactly like the manufacturer gate. Currently live: **strength-machine** (24 machines, 3 brands) + **exercise-bike** (12 machines, 5 brands); treadmill/rower/cross-trainer/stair-climber are defined and auto-appear as the catalogue ingests more.
+
+**Backend (`routes/seo_public.py`):**
+- `EQUIPMENT_TYPES` — 6 curated types, each with `match` regex + substantive editorial (5 common faults + 5 PM tasks).
+- `_collect_equipment_by_type()` (spec-sheet machines first for authoritative photos, then catalogue), `get_landing_equipment()`, `get_equipment_detail()`.
+- Endpoints `GET /api/seo/landing/equipment` + `/api/seo/landing/equipment/{slug}`.
+- Both `/equipment` index + every qualifying `/equipment/{slug}` added to the dynamic sitemap (priority 0.8).
+
+**Frontend:**
+- `pages/Marketing/Landing/EquipmentLanding.js` (`/equipment/:slug`) — hero, common-faults + PM-tasks cards, real machine grid (with brand), "brands we service" chips cross-linking to `/maintenance/{brand}`, FAQ, + Service/FAQPage/BreadcrumbList JSON-LD via `useSeo`.
+- `pages/Marketing/Landing/EquipmentIndex.js` (`/equipment`) — type cards (machine + brand counts), cross-link to `/maintenance`.
+- Routes in `AppRoutes.js`; cross-links added on `MaintenanceIndex.js` (brand→category) + marketing footer (`gx-footer-equipment`).
+
+**Note:** like the other landing pages these are SPA routes relying on `useSeo` (Googlebot JS render) + og-cover fallback; blog-style crawler prerender not extended to them (P2 if social cards/first-pass indexing prove insufficient).
+
+**Files:** routes/seo_public.py, frontend Landing/EquipmentLanding.js (new), Landing/EquipmentIndex.js (new), Landing/MaintenanceIndex.js, MarketingShell.js, routes/AppRoutes.js, tests/test_iter_220ea_34_equipment_landing.py (new, in Makefile). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·33 — Legacy Report Import Tool (Engineer App) + SVG logo fix ✅ (Feb, 2026)
 
 Field engineers who lived on spreadsheets/PDFs can now migrate their history onto GymAxis. A 4-step wizard lets them pick/create a customer → bulk-upload historic **PDF/CSV/XLSX** reports → **Gemini 3 Flash** extracts each machine + its custom fields → fully edit inline → generate a **branded PDF** saved against the customer. Backend was already built+wired in a prior session; this iter built the **React wizard**, both entry points, and fixed the regression + PDF-link hardening. Backend curl-verified (extract/save/PDF all green); frontend E2E verified by testing agent (regression fixed, full flow ~90%); 8 pytests added to Makefile regression.

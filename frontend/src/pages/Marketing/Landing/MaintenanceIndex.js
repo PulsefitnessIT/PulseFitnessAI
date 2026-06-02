@@ -54,7 +54,8 @@ export default function MaintenanceIndex() {
             Maintenance software for <span className="gx-gradient-text">every brand</span> on your floor.
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-3xl">
-            Whatever you run — cardio, strength, indoor cycling or functional — GymAxis keeps it serviced, compliant and on the floor. Pick a manufacturer for a brand-specific guide.
+            Whatever you run — cardio, strength, indoor cycling or functional — GymAxis keeps it serviced, compliant and on the floor. Pick a manufacturer for a brand-specific guide, or browse{' '}
+            <Link to="/equipment" className="font-semibold gx-gradient-text">by equipment type</Link>.
           </p>
         </div>
       </section>

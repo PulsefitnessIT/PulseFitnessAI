@@ -187,6 +187,7 @@ export function MarketingFooter() {
           <ul className="space-y-2 text-sm text-slate-600">
             <li><Link to="/solutions" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-solutions">Solutions</Link></li>
             <li><Link to="/maintenance" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-maintenance">Maintenance by brand</Link></li>
+            <li><Link to="/equipment" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-equipment">Servicing by equipment</Link></li>
             <li><Link to="/blog" className="hover:text-slate-900 dark:text-zinc-100">Blog</Link></li>
             <li><Link to="/compare" className="hover:text-slate-900 dark:text-zinc-100">Alternatives</Link></li>
             <li><Link to="/whats-new" className="hover:text-slate-900 dark:text-zinc-100">What&apos;s new</Link></li>
