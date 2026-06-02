@@ -80,6 +80,24 @@ def _record_convert_time(o: dict, convert_times: list) -> None:
         pass
 
 
+_MODULE_KEYS = ("operations", "memberships", "marketing", "crm")
+
+
+def _org_trial_modules(o: dict) -> list:
+    """Resolve which modules a trial org is trialling.
+
+    Iter 220ea·45 — reads the `trial_selected_modules` written by the
+    signup module selector (falls back to enabled_modules / primary_module
+    / operations for legacy trials created before the selector shipped).
+    """
+    mods = o.get("trial_selected_modules") or o.get("enabled_modules") or []
+    mods = [m for m in mods if m in _MODULE_KEYS]
+    if not mods:
+        pm = o.get("primary_module")
+        mods = [pm] if pm in _MODULE_KEYS else ["operations"]
+    return mods
+
+
 def _is_expiring_this_week(o: dict, now: datetime, week_out: datetime) -> bool:
     try:
         ends_at = datetime.fromisoformat(o.get("trial_ends_at", "").replace("Z", "+00:00"))
@@ -100,11 +118,15 @@ async def _classify_org_source(org_id: str) -> str:
 
 
 async def _aggregate_trial_counts(orgs: list, now: datetime, week_out: datetime) -> tuple:
-    """Walk the trial org list; return (by_status, by_source, convert_times, expiring_this_week)."""
+    """Walk the trial org list; return (by_status, by_source, convert_times, expiring_this_week, by_module)."""
     from utils.trial_lifecycle import compute_trial_state
 
     by_status = {"active": 0, "expiring_soon": 0, "expired": 0, "suspended": 0, "converted": 0}
     by_source = {"crm_linked": 0, "direct": 0}
+    # Iter 220ea·45 — trials now span modules (Operations / Memberships /
+    # CRM / Marketing) via the signup module selector, so the dashboard
+    # presents them cross-platform rather than as an "Operations" thing.
+    by_module = {"operations": 0, "memberships": 0, "marketing": 0, "crm": 0}
     convert_times: list = []
     expiring_this_week = 0
 
@@ -115,11 +137,14 @@ async def _aggregate_trial_counts(orgs: list, now: datetime, week_out: datetime)
         elif o.get("is_trial"):
             status = compute_trial_state(o).get("status", "active")
             by_status[status] = by_status.get(status, 0) + 1
+            if status in ("active", "expiring_soon"):
+                for m in _org_trial_modules(o):
+                    by_module[m] = by_module.get(m, 0) + 1
             if _is_expiring_this_week(o, now, week_out):
                 expiring_this_week += 1
         by_source[await _classify_org_source(o["id"])] += 1
 
-    return by_status, by_source, convert_times, expiring_this_week
+    return by_status, by_source, convert_times, expiring_this_week, by_module
 
 
 async def _compute_conversion_metrics(cutoff_30d: datetime, now: datetime, convert_times: list) -> tuple:
@@ -186,6 +211,8 @@ async def trials_recent(
             "referral_source": o.get("referral_source") or "",
             "utm_source": o.get("utm_source") or "",
             "utm_campaign": o.get("utm_campaign") or "",
+            "modules": _org_trial_modules(o),
+            "primary_module": o.get("primary_module") or "",
             "trial_started_at": o.get("trial_started_at") or o.get("created_at"),
             "trial_ends_at": o.get("trial_ends_at"),
         })
@@ -206,7 +233,7 @@ async def trials_summary(user: dict = Depends(get_current_user)) -> dict:
     week_out = now + timedelta(days=7)
     cutoff_30d = now - timedelta(days=30)
 
-    by_status, by_source, convert_times, expiring_this_week = await _aggregate_trial_counts(orgs, now, week_out)
+    by_status, by_source, convert_times, expiring_this_week, by_module = await _aggregate_trial_counts(orgs, now, week_out)
     converted_30d, ended_30d, conversion_rate_30d, avg_days_to_convert = await _compute_conversion_metrics(
         cutoff_30d, now, convert_times
     )
@@ -220,6 +247,7 @@ async def trials_summary(user: dict = Depends(get_current_user)) -> dict:
         "avg_days_to_convert": avg_days_to_convert,
         "expiring_this_week": expiring_this_week,
         "by_source": by_source,
+        "by_module": by_module,
     }
 
 
