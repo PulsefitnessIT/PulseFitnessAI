@@ -22,7 +22,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, X, CheckCircle2, Loader2, Zap } from 'lucide-react';
+import {
+  ArrowRight, X, CheckCircle2, Loader2, Zap,
+  Wrench, Users, Megaphone, Building2,
+} from 'lucide-react';
 
 import { useAuth } from '../../App';
 import Turnstile from '../../components/shared/Turnstile';
@@ -31,6 +34,16 @@ import ProfileCompletionFields, {
 } from '../../components/shared/ProfileCompletionFields';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+// Iter 220ea·42 — module selector on signup. Prospects choose exactly which
+// modules to trial; only those are entitled during the trial window.
+const TRIAL_MODULES = [
+  { key: 'operations', label: 'Operations', icon: Wrench, blurb: 'Equipment, faults, maintenance & engineers' },
+  { key: 'memberships', label: 'Memberships', icon: Users, blurb: 'Members, plans, classes & bookings' },
+  { key: 'crm', label: 'CRM', icon: Building2, blurb: 'Sales pipeline, contacts & deals' },
+  { key: 'marketing', label: 'Marketing', icon: Megaphone, blurb: 'Campaigns, automations & content' },
+];
+const ALL_MODULE_KEYS = TRIAL_MODULES.map((m) => m.key);
 
 /** Pluck utm_* tags from the current URL once on mount. */
 function readUtmTags() {
@@ -62,6 +75,10 @@ export default function TrialSignupModal() {
   // module page sets this to "marketing"). Drives the per-module
   // activation milestones + onboarding checklist post-signup.
   const [primaryModule, setPrimaryModule] = useState('');
+  // Iter 220ea·42 — which modules the prospect picked to trial. Defaults to
+  // ALL (the recommended "trial everything"); a module-specific CTA narrows
+  // it to just that one. Only chosen modules are entitled post-signup.
+  const [selectedModules, setSelectedModules] = useState(ALL_MODULE_KEYS);
   const utmRef = useRef({});
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -74,7 +91,11 @@ export default function TrialSignupModal() {
       // via the CustomEvent detail. Default to '' so unannotated CTAs
       // keep their existing "show every module's milestones" behaviour.
       const mod = (ev?.detail?.module || '').toString().trim().toLowerCase();
-      setPrimaryModule(['operations', 'memberships', 'crm', 'marketing'].includes(mod) ? mod : '');
+      const isKnown = ALL_MODULE_KEYS.includes(mod);
+      setPrimaryModule(isKnown ? mod : '');
+      // A module-specific CTA pre-selects just that module; a generic CTA
+      // pre-selects everything (the user can deselect what they don't want).
+      setSelectedModules(isKnown ? [mod] : ALL_MODULE_KEYS);
       setOpen(true);
     };
     const onClose = () => setOpen(false);
@@ -95,6 +116,7 @@ export default function TrialSignupModal() {
       setShowPass(false);
       setCaptchaToken('');
       setPrimaryModule('');
+      setSelectedModules(ALL_MODULE_KEYS);
       setError('');
     }
   }, [open]);
@@ -114,6 +136,9 @@ export default function TrialSignupModal() {
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const close = () => setOpen(false);
+  const toggleModule = (key) => setSelectedModules((cur) => (
+    cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]
+  ));
 
   // ── Step 1 submit: create the account + sign in. ──────────────────
   const submitStep1 = async (e) => {
@@ -121,6 +146,7 @@ export default function TrialSignupModal() {
     setError('');
     if (!form.phone.trim())       { setError('Please enter your contact phone number.'); return; }
     if (form.password.length < 8) { setError('Choose a password of at least 8 characters.'); return; }
+    if (selectedModules.length === 0) { setError('Please choose at least one module to trial.'); return; }
     if (!captchaToken)            { setError('Please complete the verification check before continuing.'); return; }
 
     setLoading(true);
@@ -133,8 +159,11 @@ export default function TrialSignupModal() {
         phone: form.phone.trim(),
         is_trial: true,
         trial_duration_days: 3,
-        trial_unlock_all_modules: true,
+        trial_unlock_all_modules: selectedModules.length === ALL_MODULE_KEYS.length,
         cf_turnstile_response: captchaToken,
+        // Iter 220ea·42 — the modules the prospect chose to trial. Backend
+        // entitles only these; the landing module is derived from them.
+        trial_modules: selectedModules,
         // Module intent — see useState comment above.
         primary_module: primaryModule || undefined,
         // Silent attribution — forwarded straight from the landing URL.
@@ -165,7 +194,17 @@ export default function TrialSignupModal() {
   // their own Start tab (add logo, add members) and never see the
   // Equipment wizard meant for gym operators.
   const moduleHome = () => {
-    switch (primaryModule) {
+    // Land on the chosen module. With a single pick it's unambiguous; with
+    // several, honour an explicit CTA intent, else prefer Operations (the
+    // general hub), else the first chosen module.
+    const landing = selectedModules.length === 1
+      ? selectedModules[0]
+      : (primaryModule && selectedModules.includes(primaryModule))
+        ? primaryModule
+        : selectedModules.includes('operations')
+          ? 'operations'
+          : selectedModules[0];
+    switch (landing) {
       case 'memberships': return '/memberships';
       case 'crm':         return '/crm';
       case 'marketing':   return '/marketing';
@@ -223,7 +262,7 @@ export default function TrialSignupModal() {
           <div className="flex items-start justify-between p-6 pb-2">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 border border-slate-200 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
-                <Zap size={11} /> 3-day free trial · all modules unlocked
+                <Zap size={11} /> 3-day free trial · {selectedModules.length >= ALL_MODULE_KEYS.length ? 'all modules unlocked' : `${selectedModules.length} module${selectedModules.length === 1 ? '' : 's'} selected`}
               </span>
               <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100" data-testid="trial-modal-title">
                 {step === 1 && 'Start your trial'}
@@ -231,7 +270,7 @@ export default function TrialSignupModal() {
                 {step === 3 && "You're in!"}
               </h2>
               <p className="mt-1 text-sm text-slate-500" data-testid="trial-modal-subtitle">
-                {step === 1 && 'Every module unlocked for 3 days. No credit card required.'}
+                {step === 1 && (selectedModules.length >= ALL_MODULE_KEYS.length ? 'Every module unlocked for 3 days. No credit card required.' : 'Trial just the modules you pick. No credit card required.')}
                 {step === 2 && 'A few details to finish setting up your account — required before we unlock the dashboard.'}
                 {step === 3 && 'Taking you to your dashboard…'}
               </p>
@@ -262,6 +301,40 @@ export default function TrialSignupModal() {
               {error && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" data-testid="trial-modal-error">{error}</div>
               )}
+              {/* Iter 220ea·42 — module selector. Pick which modules to trial. */}
+              <div data-testid="trial-module-selector">
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
+                  Which modules would you like to trial? *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {TRIAL_MODULES.map((m) => {
+                    const Icon = m.icon;
+                    const on = selectedModules.includes(m.key);
+                    return (
+                      <button
+                        type="button"
+                        key={m.key}
+                        onClick={() => toggleModule(m.key)}
+                        aria-pressed={on}
+                        className={`relative text-left rounded-xl border p-2.5 transition ${on ? 'border-slate-900 bg-slate-50 dark:bg-zinc-800 dark:border-zinc-200' : 'border-slate-200 hover:border-slate-300 dark:border-zinc-800'}`}
+                        data-testid={`trial-module-${m.key}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${on ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-slate-100 text-slate-500 dark:bg-zinc-900'}`}>
+                            <Icon size={14} />
+                          </span>
+                          <span className="font-bold text-sm text-slate-900 dark:text-zinc-100">{m.label}</span>
+                          {on && <CheckCircle2 size={15} className="text-emerald-500 ml-auto" data-testid={`trial-module-${m.key}-check`} />}
+                        </div>
+                        <p className="mt-1 text-[10px] leading-snug text-slate-500">{m.blurb}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[10px] text-slate-400">
+                  You can add or remove modules anytime during your trial.
+                </p>
+              </div>
               <Field label="Full name *" value={form.full_name} onChange={update('full_name')} placeholder="Jane Smith" testid="trial-name" />
               <Field label="Work email *" type="email" value={form.email} onChange={update('email')} placeholder="jane@yourgym.com" testid="trial-email" />
               <Field label="Gym / Company name *" value={form.company_name} onChange={update('company_name')} placeholder="Acme Fitness" testid="trial-company" />

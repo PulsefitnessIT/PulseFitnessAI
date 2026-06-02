@@ -14,6 +14,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify, useInlineBanner } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { moduleHomePath } from '@/utils/moduleHome';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -76,7 +77,7 @@ export default function LoginPage() {
           ? '/partner-engineer'
           : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
             ? '/pulse'
-            : '/dashboard';
+            : (moduleHomePath(u) || '/dashboard');
       navigate(nextParam || fallback, { replace: true });
     } catch (err) {
       // Gym-floor fallback — same form, but POST against /gym-floor/login

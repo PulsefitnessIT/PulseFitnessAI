@@ -50,6 +50,13 @@ class UserRegister(BaseModel):
     # 'operations' | 'memberships' | 'crm' | 'marketing' |
     # 'service_desk' | 'staffing' | 'reporting'.
     primary_module: Optional[str] = None
+    # Iter 220ea·42 — module selector on signup. The trial modal now lets
+    # the prospect choose exactly which modules to trial (all, or just 1-2).
+    # Only the chosen modules are entitled during the trial; the rest stay
+    # locked until the operator opts in later (in-app upgrade/bolt-on trial).
+    # Subset of MODULE_KEYS ('operations'|'memberships'|'marketing'|'crm').
+    # Empty/absent ⇒ all modules (back-compat with legacy CTAs).
+    trial_modules: Optional[list[str]] = None
 
 
 class UserLogin(BaseModel):

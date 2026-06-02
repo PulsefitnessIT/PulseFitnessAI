@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend e2e validation of GymAxis trial-signup module selector + module-aware routing (signup + login). All 4 required flows pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "TrialSignupModal", "issues": ["Console: 'Missing Description or aria-describedby for DialogContent' (a11y warning, low priority)"]},
+      {"screen": "Marketing landing", "issues": ["CSP blocks emergent-main.js, posthog, cloudflare beacon scripts — not impacting flows, but worth checking CSP if telemetry is needed"]}
+    ]
+  },
+  "test_results": {
+    "test1_module_selector_ui": "PASS — all 4 modules pre-selected (operations/memberships/crm/marketing each show trial-module-<key>-check); subtitle shows 'Every module unlocked for 3 days'; badge text contains 'all modules unlocked'; deselecting operations removes its check and badge changes to '3 modules selected'; deselecting all four + submit shows inline error 'Please choose at least one module to trial.' via trial-modal-error.",
+    "test2_memberships_only_signup": "PASS — registered uitest+mem199132@example.com with ONLY memberships selected, completed step1 (auto Turnstile dev token) → step2 profile completion (primary contact + company addresses, GB country) → trial-step2-submit → final URL https://service-ops-hub-6.preview.emergentagent.com/memberships (NOT /dashboard).",
+    "test3_all_modules_signup": "PASS — registered uitest+all840903@example.com with all 4 modules selected (default), completed both steps → final URL https://service-ops-hub-6.preview.emergentagent.com/dashboard.",
+    "test4_login_routing_memberonly": "PASS — logged in as memberonly.trial@example.com / TrialTest123! at /login (testids gx-login-email, gx-login-password) → final URL .../memberships (Member Only Gym memberships studio dashboard rendered, NOT operations /dashboard). Core fix for nncheer@icloud.com confusion is verified."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Login inputs use testids 'gx-login-email' / 'gx-login-password' instead of the more standard 'login-email' / 'login-submit' implied by docs — consider standardising to make selectors discoverable for future testing.",
+    "DialogContent missing aria-describedby — small a11y improvement on trial modal.",
+    "Frontend CSP currently blocks emergent-main.js, posthog and cloudflare insights — if any are intentional, add them to script-src; otherwise the noise should be removed to keep the console clean."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100% (4/4 critical flows)"},
+  "test_credentials": "memberonly.trial@example.com / TrialTest123! (pre-seeded). UI-created trial accounts during this run: uitest+mem199132@example.com, uitest+all840903@example.com, uitest+selnone<rand>@example.com — all password TrialTest123!. Safe to delete.",
+  "seed_data_creation": "Three trial-signup test accounts created via the UI (see test_credentials).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "TrialSignupModal opens via window event 'gymaxis:open-trial' from any marketing route. Step1 testids: trial-modal, trial-module-selector, trial-module-<key>, trial-module-<key>-check, trial-name, trial-email, trial-company, trial-phone, trial-password, trial-submit, trial-modal-error. Step2 testids: trial-modal-step2-form, profile-pc-name/phone/line1/city/postcode/country (select GB), profile-co-line1/city/postcode/country, trial-step2-submit. Turnstile auto-emits dev-bypass token. Login page testids: gx-login-email, gx-login-password (note: not 'login-email').",
+  "rca of the issue": "n/a — feature verification only. The module-aware routing fix in /app/frontend/src/utils/moduleHome.js + LoginRedirectPage.js + LoginPage.js + TrialSignupModal.moduleHome() is working end-to-end on both signup and login paths."
+}

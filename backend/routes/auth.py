@@ -82,6 +82,39 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
         # to keep the old per-module trial behaviour.
         unlock_all = bool(getattr(user, "trial_unlock_all_modules", True))
         from utils.module_access import MODULE_KEYS
+        # Iter 220ea·42 — module selector on signup. Resolve which modules
+        # the prospect chose to trial. Sanitise against the known keys; an
+        # empty/absent selection (legacy CTAs) falls back to "all modules".
+        chosen_raw = getattr(user, "trial_modules", None) or []
+        chosen = [m for m in (
+            str(x).strip().lower() for x in chosen_raw
+        ) if m in MODULE_KEYS]
+        # De-dupe while preserving order.
+        seen: set[str] = set()
+        chosen = [m for m in chosen if not (m in seen or seen.add(m))]
+        if not chosen:
+            chosen = list(MODULE_KEYS)
+        chose_all = set(chosen) == set(MODULE_KEYS)
+        # Entitlement matrix — only the chosen modules are enabled; the
+        # rest are explicitly locked so the trial really is "just what you
+        # picked". `org.modules.<key>.enabled` is the canonical gate read
+        # by `utils.module_access._org_module_access`.
+        org_doc["modules"] = {
+            key: {"enabled": key in chosen} for key in MODULE_KEYS
+        }
+        # Landing module for routing: honour an explicit primary_module if
+        # it's one of the chosen, else default to the single chosen module
+        # (or operations when several were picked / it's in the set).
+        explicit_primary = (getattr(user, "primary_module", None) or "").strip().lower()
+        if explicit_primary in chosen:
+            landing = explicit_primary
+        elif len(chosen) == 1:
+            landing = chosen[0]
+        elif "operations" in chosen:
+            landing = "operations"
+        else:
+            landing = chosen[0]
+        org_doc["primary_module"] = landing
         org_doc.update({
             "is_trial": True,
             "trial_started_at": now_dt.isoformat(),
@@ -91,10 +124,10 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
             "trial_status": "active",
             "subscription_tier": "pro",  # full feature access during trial
             "trial_source": "landing_signup",
-            # All six modules enabled for the trial duration so prospects
-            # can evaluate the full platform.
-            "enabled_modules": list(MODULE_KEYS) if unlock_all else [],
-            "trial_all_modules_unlocked": unlock_all,
+            # Only the chosen modules are enabled for the trial duration.
+            "enabled_modules": list(chosen),
+            "trial_selected_modules": list(chosen),
+            "trial_all_modules_unlocked": chose_all and unlock_all,
         })
     await db.organizations.insert_one(org_doc)
     return org_id, "owner"

@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
 import LoginPage from './LoginPage';
+import { moduleHomePath } from '@/utils/moduleHome';
 
 /**
  * /login route guard — sends authenticated users to their home portal,
@@ -34,7 +35,7 @@ const LoginRedirectPage = () => {
         ? '/partner-engineer'
         : (user.account_type === 'lite' || user.account_type === 'pulse_pro')
           ? '/pulse'
-          : '/dashboard';
+          : (moduleHomePath(user) || '/dashboard');
     return <Navigate to={safeNext || fallback} replace />;
   }
   return <LoginPage />;
