@@ -328,14 +328,6 @@ const AdminCRMAnalytics = () => {
                 {sageStatus === 'connected' ? 'Connected' : sageStatus === 'configured' ? 'Pending Keys' : 'Not Set Up'}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500">Workflows</span>
-              <span className="text-sm font-bold text-zinc-700">{workflows.total_executions} runs</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500">Meetings Logged</span>
-              <span className="text-sm font-bold text-zinc-700">{overview.total_meetings}</span>
-            </div>
           </div>
         </Card>
       </div>
@@ -360,14 +352,10 @@ const AdminCRMAnalytics = () => {
               <p className="text-[10px] text-blue-500">Executions</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="p-2.5 bg-zinc-50 rounded-lg text-center">
-              <p className="text-lg font-bold text-zinc-700">{overview.total_quotes}</p>
-              <p className="text-[10px] text-zinc-500">Total Quotes</p>
-            </div>
+          <div className="grid grid-cols-1 gap-2">
             <div className="p-2.5 bg-zinc-50 rounded-lg text-center">
               <p className="text-lg font-bold text-zinc-700">{overview.total_meetings}</p>
-              <p className="text-[10px] text-zinc-500">AI Meetings</p>
+              <p className="text-[10px] text-zinc-500">AI Meetings logged</p>
             </div>
           </div>
         </Card>

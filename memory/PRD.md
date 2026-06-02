@@ -1,3 +1,19 @@
+## Iter 220ea·46 — "One source of truth" pass on CRM / Memberships / Marketing admin overviews ✅ (Feb, 2026)
+
+Follow-up to the Operations overview redesign. Reviewed all three other Master-Admin overview tabs for the same duplication:
+- **Memberships** (`AdminMemberships/OverviewTab.js`) — clean (4+3 KPIs, growth chart, high-risk orgs). No change.
+- **Marketing → Analytics** (`AdminMarketingSuite.js`) — clean (6 KPI tiles + by-plan + top-orgs; Plans/Subscriptions as separate tabs). No change.
+- **CRM Intelligence** (`AdminCRMAnalytics.js`) — **had real duplication**: workflow executions, meetings, and quotes-total each appeared in two cards.
+
+**Fix (CRM, conservative de-dup — every metric kept, shown once):**
+- "System Health" card → removed the duplicate **Workflows** and **Meetings Logged** rows; it's now a pure integrations/users card (CRM Users, Roles, Sage 200).
+- "Automation" card → removed the duplicate **Total Quotes** tile (quotes live only in the dedicated "Quotes (CPQ)" card now); keeps workflows (Total/Active/Executions) + AI Meetings (now meetings' single home).
+
+Pure JSX removal — lint clean, CRM-analytics data shape confirmed via curl. **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·45 — Master Admin Overview redesign (de-duplicated, 1 source of truth) ✅ (Feb, 2026)
 
 **Request:** "duplications of information i.e Trials ... information overload ... redesign... all the information, 1 source of truth, still looks great." Scope (user-confirmed): only the default **Overview** (Operations Portal → Overview); consolidate the duplicate trial widgets into one card that drills into the full Trials section; trials are **cross-module** (not operations-only); keep the same master-admin look; mobile friendly.
