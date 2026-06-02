@@ -1,166 +1,124 @@
 {
-  "theme_and_archetype": {
-    "domain": "Enterprise SaaS Admin",
-    "theme": "Light",
+  "project_context": {
+    "domain": "Master Admin Dashboard",
+    "theme_mode": "light",
     "archetype": "4 (Swiss & High-Contrast)",
-    "reasoning": "Clarity, authority, and functional focus. Needs to feel like an enterprise control room rather than a developer console. High-contrast ensures readability for dense data sets like users, permissions, and audit logs."
+    "design_philosophy": "Information Clarity, Functional Beauty, De-cluttered, One Source of Truth"
   },
-  "visual_language": {
-    "fonts": {
-      "headings": {
-        "family": "Cabinet Grotesk",
-        "rationale": "Breaks the default 'Inter' SaaS look while maintaining enterprise legibility and adding a premium structural feel."
-      },
-      "body": {
-        "family": "IBM Plex Sans",
-        "rationale": "High-density readability for tables, logs, and technical configurations."
-      },
-      "rules": "H1 up to text-4xl with tracking-tight. H2 at text-2xl. Use font-light and font-semibold to create tension."
+  "visual_system": {
+    "surface_cards": "bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+    "typography": {
+      "primary_text": "text-slate-900",
+      "secondary_text": "text-slate-500",
+      "micro_labels": "text-xs font-semibold uppercase tracking-[0.2em] text-slate-500",
+      "kpi_values": "text-3xl font-bold tracking-tight text-slate-900",
+      "font_family": "Inter, system-ui, sans-serif"
     },
-    "colors": {
-      "primary": "#0055FF",
-      "background": "#FAFAFA",
-      "surface": "#FFFFFF",
-      "text_primary": "#0A0A0A",
-      "text_secondary": "#52525B",
-      "borders": "#E4E4E7",
-      "accents": {
-        "warning": "#F59E0B",
-        "danger": "#EF4444",
-        "success": "#10B981"
-      }
-    },
-    "surfaces": "Grid Borders for dense tables. Glassmorphism exclusively for sticky headers or contextual floating action bars. No soft shadows; use 1px solid borders to define hierarchy.",
-    "spacing": "Generous Spacing Philosophy. Use p-6 and p-8 for main layout containers to let data breathe. Tables use p-4 for row cells. Dense headers.",
-    "moodboard_references": [
-      "Linear (Role-Based Adaptive Views, sidebars)",
-      "Vercel (Card layouts, toggle panels, command palettes)",
-      "Sentry (Audit logs, system health graphs)"
-    ]
-  },
-  "information_architecture": {
-    "target_top_level_items": 8,
-    "sidebar_tree": [
-      {
-        "name": "Overview",
-        "sub_nav": ["Dashboard", "System Health"]
-      },
-      {
-        "name": "People",
-        "sub_nav": ["Directory", "Roles & Permissions", "Onboarding Wizard"]
-      },
-      {
-        "name": "Organisations",
-        "sub_nav": ["List", "Hierarchy", "Module Subscriptions"]
-      },
-      {
-        "name": "Sites",
-        "sub_nav": ["Locations", "Hardware"]
-      },
-      {
-        "name": "Finance",
-        "sub_nav": ["Billing Overview", "Collections", "Financial Ops"]
-      },
-      {
-        "name": "Growth",
-        "sub_nav": ["Trials & Activation", "Marketing Suite"]
-      },
-      {
-        "name": "Integrations",
-        "sub_nav": ["Connected Apps", "Webhooks"]
-      },
-      {
-        "name": "Settings & Compliance",
-        "sub_nav": ["Audit Log", "Database Viewer", "Global Preferences"]
-      }
-    ]
-  },
-  "brand_context_strategy": {
-    "recommendation": "Single app with a universal brand-picker toggle in the header.",
-    "justification": "Maintains a single codebase and SSoT for Master Admins. A fixed top-left context switcher (All / Pulse Fitness / GymAxis) changes the data scope (filtering tables) and subtle UI theme accents (e.g., active states) without redirecting to a new URL. It reinforces that the Admin controls the entire ecosystem."
-  },
-  "people_ssot_design": {
-    "page_structure": "Single 'Directory' Page with a unified TanStack table. Replaces AdminUsers, GlobalUsersPanel, AdminPulseAdmins, AdminCRMUsers.",
-    "filters": [
-      "Type (Pulse Admin, Owner, Staff, CRM-only)",
-      "Site Access",
-      "Status (Active, Invited, Locked)"
-    ],
-    "role_colored_chip_system": "Pulse Admin (Blue), Owner (Purple), Staff (Gray), CRM (Green).",
-    "drawer_tabs": [
-      "Profile (Basic Info, Avatar)",
-      "Sites (Locations they can access)",
-      "Permissions (Role matrix overrides)",
-      "Activity (Audit log filtered by user)",
-      "Sessions (Active logins, force logout)"
-    ],
-    "bulk_actions": "Floating action bar (Glassmorphism) appears when rows are selected for bulk role change or password resets."
-  },
-  "organisations_ssot_design": {
-    "page_structure": "Single 'Organisations' List replacing AdminOrganizations, AdminPulse, AdminMemberships/OrganisationsTab.",
-    "drawer_tabs": [
-      "Profile (Name, Head Office, Tax ID)",
-      "Sites (List of connected facilities)",
-      "People (Linked staff/owners)",
-      "Modules (Subscription toggles)",
-      "Billing (Stripe status, MRR)",
-      "Integrations (Tenant-specific keys)",
-      "Activity (Audit log)"
-    ]
-  },
-  "integrations_hub_design": {
-    "page_structure": "Grid of 'Integration Cards' (Sicon, Stripe, Resend, Sage 200, Orbit 4, Companies House).",
-    "card_anatomy": "Logo, Title, Status Pill (Healthy, Syncing, Error), Last Sync Timestamp.",
-    "click_to_detail_drawer": "Shows connection logs, API keys, sync settings, and manual trigger buttons."
-  },
-  "staff_onboarding_wizard": {
-    "flow": "Guided 4-step modal or full-page flow using Shadcn Tabs or Stepper.",
-    "steps": [
-      {"step": 1, "name": "Invite", "details": "Email, Name, Job Title"},
-      {"step": 2, "name": "Role Assignment", "details": "Select template (Admin, Manager, Coach)"},
-      {"step": 3, "name": "Site Access", "details": "Assign Head Office or specific sites"},
-      {"step": 4, "name": "Review & Send", "details": "Audit summary, trigger Send Reset/Invite Link"}
-    ]
-  },
-  "terminology_cleanup": {
-    "Locked staff": "Site-locked users",
-    "Archive": "Removed users",
-    "Activation funnel": "Customer activation",
-    "Tasks": "Setup checklist",
-    "Data Backfills": "Maintenance jobs",
-    "AdminUsers": "Directory",
-    "AdminPulseAdmins": "Directory"
-  },
-  "empty_stale_states": {
-    "strategy": "Avoid diluting the surface. Do not show empty panels as large blank cards.",
-    "implementation": "Collapse empty sections (e.g., 'Setup checklist' disappears or becomes a small '0 Tasks' badge in the header). Use 'Ghost' illustrations minimally. Guide user to action immediately (e.g., 'Add your first Integration')."
-  },
-  "phasing_recommendation": {
-    "confirmed_order": [
-      "P1: New Information Architecture & Sidebar (Foundation)",
-      "P2: Brand Context Toggle (Scope control early)",
-      "P3: People SSoT (Highest risk, most fragmentation)",
-      "P4: Organisations SSoT (Depends on People links)",
-      "P5: Integrations Hub (Consolidates remaining loose ends)",
-      "P6: Staff Onboarding Wizard (Polishes the experience now that SSoT is ready)"
-    ],
-    "changes_made": "Moved 'Brand toggle' up to P2. Defining the data scope (All vs Pulse vs GymAxis) early prevents building the SSoT tables twice. It sets the context for how P3 and P4 fetch and filter data."
-  },
-  "image_urls": [
-    {
-      "url": "https://images.pexels.com/photos/14589344/pexels-photo-14589344.jpeg",
-      "category": "User Avatars",
-      "description": "Dummy avatar for People directory rows."
-    },
-    {
-      "url": "https://images.pexels.com/photos/6146051/pexels-photo-6146051.jpeg",
-      "category": "User Avatars",
-      "description": "Dummy avatar for People directory rows."
+    "brand_accents": {
+      "primary": "#2563EB",
+      "secondary": "#9D4CDD",
+      "warning": "#F59E0B",
+      "danger": "#EF4444",
+      "success": "#10B981"
     }
-  ],
-  "instructions_to_main_agent": [
-    "Strictly follow the Single Source of Truth structures defined.",
-    "Implement the layout with pure HTML/Tailwind using grid-borders style, avoiding nested Shadcn cards where not needed.",
-    "Add data-testid to every interactive element (e.g., data-testid='sidebar-people-link', data-testid='people-table-row')."
-  ]
+  },
+  "layout_architecture": {
+    "global": "Mobile-first, responsive bento grids. Strict hierarchy to replace the current 'wall of strips' layout.",
+    "mobile_grid": "flex flex-col space-y-4 px-4 py-6",
+    "desktop_grid": "grid grid-cols-12 gap-6 p-8",
+    "sections_order": [
+      "1. Actionable Alerts: Stacked thin alert banners (Conditional rendering)",
+      "2. Core KPIs: The North Star metrics (4 cards)",
+      "3. Pipeline Engine: Unified Trials Card & Onboarding Funnel",
+      "4. Platform Growth: Line & Pie Charts",
+      "5. System Health & Operations: Secondary Stats, Platform Issues, and NPS"
+    ]
+  },
+  "component_guidelines": {
+    "AlertBanners": {
+      "purpose": "Group all urgent notifications (Failed payments, suspended orgs, Pro upgrades, GDPR archives) into top-level compact strips.",
+      "layout_spans": "col-span-12 flex flex-col gap-2"
+    },
+    "CoreKPIs": {
+      "purpose": "High-level platform health.",
+      "layout_spans": "col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4",
+      "metrics": ["Organisations", "Active Users", "Monthly Revenue (MRR)", "Open Cases"]
+    },
+    "UnifiedTrialsCard": {
+      "purpose": "Consolidate the duplicate Trial Funnel and Fresh Trials into a single cross-platform source of truth. Shift the perspective from 'Operations' to 'Cross-Platform'.",
+      "layout_spans": "col-span-12 lg:col-span-8",
+      "structure": {
+        "header": "Title 'Cross-Platform Trial Pipeline', subtitle clarifying platform-wide reach.",
+        "top_row_kpis": "Grid of 4 micro-stats: Active, Expiring < 7d (Amber highlight), Converted (30d), Conversion Rate (%).",
+        "body_left": "Module Breakdown: A visual breakdown (horizontal bars or styled list) showing active trials split by module (Operations, Memberships, CRM, Marketing).",
+        "body_right": "Fresh Trials List: Max 5 recent items showing Name, Team Size, Module Tag, and Time-ago.",
+        "footer": "Full-width or right-aligned primary CTA button 'Manage All Trials' linking to the deep-dive Trials section."
+      }
+    },
+    "OnboardingFunnelCard": {
+      "purpose": "Track onboarding packet progression.",
+      "layout_spans": "col-span-12 lg:col-span-4"
+    },
+    "PlatformGrowthSection": {
+      "purpose": "Visualize user and org growth.",
+      "layout_spans": "col-span-12 lg:col-span-8",
+      "content": "Line chart (Recharts) showing users + orgs over months."
+    },
+    "SubscriptionsSection": {
+      "purpose": "Plan distribution overview.",
+      "layout_spans": "col-span-12 lg:col-span-4",
+      "content": "Pie chart (Free/Pro/Premium/Enterprise)."
+    },
+    "HealthAndSecondary": {
+      "purpose": "Operational pulse and secondary metrics.",
+      "layout_spans": "col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-6",
+      "components": [
+        "PlatformIssuesTile (col-span-1)",
+        "SecondaryStatsGrid: AI Calls, Equip Tracked, Failed Payments metric, Resolved Cases (col-span-1)",
+        "NpsRollup (col-span-1)"
+      ]
+    }
+  },
+  "data_testids": {
+    "alerts": [
+      "alert-failed-payments",
+      "alert-suspended-orgs",
+      "alert-gdpr-retention",
+      "alert-pro-upgrades"
+    ],
+    "core_kpis": [
+      "kpi-organisations",
+      "kpi-active-users",
+      "kpi-mrr",
+      "kpi-open-cases"
+    ],
+    "unified_trials": {
+      "card": "unified-trials-card",
+      "kpi_active": "trials-kpi-active",
+      "kpi_expiring": "trials-kpi-expiring",
+      "kpi_converted": "trials-kpi-converted",
+      "module_breakdown": "trials-module-breakdown",
+      "recent_list": "trials-recent-list",
+      "manage_cta": "btn-manage-all-trials"
+    },
+    "growth_charts": [
+      "chart-platform-growth",
+      "chart-subscriptions-pie"
+    ],
+    "secondary_stats": [
+      "stat-ai-calls",
+      "stat-equip-tracked",
+      "stat-resolved-cases"
+    ],
+    "health": [
+      "tile-platform-issues",
+      "panel-nps-rollup"
+    ]
+  },
+  "implementation_notes": {
+    "file_type": "React .js components (No TypeScript/TSX)",
+    "styling": "Use pure Tailwind CSS. Preserve existing `Panel` aesthetic verbatim (bg-white, slate text, specific border radii/shadows). Do not introduce new themes.",
+    "mobile_responsiveness": "Ensure no horizontal overflow. Grid items must stack `grid-cols-1` on mobile. Use `overflow-x-auto` strictly inside chart containers if necessary.",
+    "recharts": "Ensure `ResponsiveContainer` is used for all charts to prevent layout breaks on small screens."
+  }
 }
