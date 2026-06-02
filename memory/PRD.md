@@ -1,3 +1,25 @@
+## Iter 220ea·39 — Faults auto-dispatch to the machine's supplier on submit ✅ (Feb, 2026)
+
+**Request (option C):** when an operator submits a fault, automatically create the supplier "card to log the job" and **email it to the supplier** — resolving the supplier set against *that machine* first, with fallbacks.
+
+**Problem:** on fault submit the old `_auto_dispatch_to_primary_supplier` only fired for engineer-escalated faults **and** only dispatched to an org-level `auto_dispatch=True` supplier (only ever auto-created for partner-referral signups). It **ignored the supplier set against the machine** and **didn't send an email** (just created a portal case). So gyms that set suppliers on machines saw nothing sent, and the manual 2-way comms prompted for an email (because that supplier had none resolved / on file).
+
+**Fix (`routes/issues.py`):**
+- New `_resolve_fault_supplier(issue, org)` — machine-first resolution: (1) supplier on the faulted **equipment** (`supplier_id` → `supplier` name, resolved against `db.suppliers`), (2) supplier named on the fault, (3) org primary `auto_dispatch` supplier. Only returns suppliers **with an email**.
+- Rewrote `_auto_dispatch_to_primary_supplier` to fire for any **open** (non-self-fix) fault: creates the supplier case via `_ensure_supplier_case`, posts a first message, and **emails the supplier** (`_send_comment_notification`, in its own try/except so a mail failure never undoes the dispatch). Tags the issue `auto_dispatched_supplier_*` + `supplier_case_token`. Idempotent (one supplier case per `issue_id`).
+- Wired into both the single (`POST /issues`) and multi-machine batch (`POST /issues/batch`) submit paths (each machine → its own supplier).
+
+**Bonus:** because the supplier case now exists with the resolved email on submit, the fault card's 2-way comms (`issue.supplier_case.supplier_email`) is pre-populated → **no more "set an email" prompt** (when the supplier has an email on file).
+
+**Operational note:** dispatch only happens when the resolved supplier has an **email**. Suppliers without an email on file → nothing sent (no spurious emails). Operators should ensure machine suppliers have emails.
+
+**Verified:** live e2e (Jack Ottey / Third Space) — logged a fault on a machine with a supplier set (no supplier in payload) → machine's supplier resolved, supplier case + token created, issue tagged, email triggered. New pytests `tests/test_iter_220ea_39_fault_supplier_dispatch.py` (3: machine-supplier dispatch, self-fix does NOT dispatch, helper/wiring guards) green, in Makefile. Lint clean.
+
+**Files:** routes/issues.py, tests/test_iter_220ea_39_fault_supplier_dispatch.py (new, in Makefile). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·38 — FIX: engineers stuck on "Billing in progress…" (no 10-day trial) ✅ (Feb, 2026)
 
 **Symptom (real engineer Daniel Thomas, danthomas2715@hotmail.com):** approved partner engineer stuck on the dashboard showing "PARTNER PLAN SUBSCRIPTION — Active · £30/mo · Billing in progress…", with no trial countdown and no way into the Engineer App.

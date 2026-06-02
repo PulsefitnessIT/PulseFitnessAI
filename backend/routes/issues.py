@@ -497,73 +497,139 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
         logger.warning(f"_mirror_job_to_svc_case failed: {e}")
 
 
+async def _resolve_fault_supplier(issue_doc: dict, org_id: str) -> Optional[dict]:
+    """Iter 220ea·39 — resolve which supplier a logged fault should be
+    dispatched to, in priority order (option C):
+
+      1. The supplier set against the *faulted machine* (equipment.supplier
+         / supplier_id) — this is the intuitive "the machine's supplier gets
+         the fault" behaviour the operator expects.
+      2. The supplier named on the fault itself (issue.supplier).
+      3. The org's primary `auto_dispatch` supplier (typically the Partner
+         Engineer who referred them) — the original fallback.
+
+    Only ever returns a supplier that has a non-empty email (we can't send a
+    card to log the job without one). Returns ``None`` to skip silently.
+    """
+    proj = {"_id": 0, "id": 1, "name": 1, "email": 1, "partner_engineer_id": 1}
+
+    # 1) Supplier set against the faulted machine.
+    equip = None
+    equip_id = (issue_doc.get("coverage_meta") or {}).get("equipment_id")
+    if equip_id:
+        equip = await db.equipment.find_one(
+            {"id": equip_id, "organization_id": org_id},
+            {"_id": 0, "supplier": 1, "supplier_id": 1},
+        )
+    if not equip and (issue_doc.get("serial_number") or "").strip():
+        serial = issue_doc["serial_number"].strip()
+        equip = await db.equipment.find_one(
+            {"organization_id": org_id,
+             "$or": [{"serial_number": serial}, {"name": serial}]},
+            {"_id": 0, "supplier": 1, "supplier_id": 1},
+        )
+    if equip:
+        if (equip.get("supplier_id") or "").strip():
+            s = await db.suppliers.find_one(
+                {"id": equip["supplier_id"], "organization_id": org_id, "email": {"$ne": ""}}, proj)
+            if s:
+                return s
+        if (equip.get("supplier") or "").strip():
+            s = await db.suppliers.find_one(
+                {"organization_id": org_id, "name": equip["supplier"], "email": {"$ne": ""}}, proj)
+            if s:
+                return s
+
+    # 2) Supplier named on the fault.
+    fault_supplier = (issue_doc.get("supplier") or "").strip()
+    if fault_supplier:
+        s = await db.suppliers.find_one(
+            {"organization_id": org_id, "name": fault_supplier, "email": {"$ne": ""}}, proj)
+        if s:
+            return s
+
+    # 3) Org's primary auto-dispatch supplier (partner-referral default).
+    return await db.suppliers.find_one(
+        {"organization_id": org_id, "auto_dispatch": True, "email": {"$ne": ""}},
+        proj, sort=[("is_primary_supplier", -1), ("created_at", 1)],
+    )
+
+
 async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> None:
-    """Iter 220n — when a gym logs a fault that's escalated to an engineer,
-    automatically dispatch the case to their *primary* service supplier
-    (typically the Partner Engineer who referred them) so it shows up in
-    the engineer's queue + inbox without a human in the loop.
+    """Iter 220ea·39 — on fault submit, automatically create the supplier
+    "card to log the job" and **email** it to the right supplier so they can
+    accept/schedule the work — no human in the loop.
 
-    Falls back silently when:
-      * The issue isn't being escalated to an engineer (in-house fix etc).
-      * The gym has zero `auto_dispatch=True` suppliers on file.
-      * No issue_id (defensive — shouldn't happen post-insert).
+    Supplier resolution is machine-first with fallbacks (see
+    ``_resolve_fault_supplier``). Fires for any *open* (unresolved) fault;
+    self-fixed faults are already closed so they're skipped. Silently does
+    nothing when no supplier with an email can be resolved.
 
-    Idempotent — `create_supplier_case` is keyed by token uuid + we
-    skip if a supplier_case already exists for this (issue_id,
-    supplier_id) pair.
+    Idempotent — one supplier case per fault (keyed by ``issue_id``); safe
+    against retries and the multi-machine batch flow.
     """
     try:
-        if (issue_doc.get("resolution_type") or "") != "engineer":
+        # Only dispatch open faults. Self-fixed faults are already resolved.
+        if (issue_doc.get("status") or "") != "open":
             return
         org_id = issue_doc.get("organization_id")
         issue_id = issue_doc.get("id")
         if not org_id or not issue_id:
             return
-        # Pick the highest-priority auto-dispatch supplier.
-        # Sort: is_primary_supplier desc, created_at asc (first one wins ties).
-        supplier = await db.suppliers.find_one(
-            {"organization_id": org_id, "auto_dispatch": True, "email": {"$ne": ""}},
-            {"_id": 0, "id": 1, "name": 1, "email": 1, "partner_engineer_id": 1},
-            sort=[("is_primary_supplier", -1), ("created_at", 1)],
-        )
-        if not supplier:
+        # Replay-safe: one supplier case per fault.
+        if await db.supplier_cases.find_one({"issue_id": issue_id}, {"_id": 0, "id": 1}):
             return
-        # Replay-safe: skip if a supplier_case already exists for this
-        # (issue, supplier) pair — guards against retries / multi-machine
-        # batch flows already calling out to the same supplier.
-        already = await db.supplier_cases.find_one(
-            {"issue_id": issue_id, "supplier_email": supplier["email"]},
-            {"_id": 0, "id": 1},
-        )
-        if already:
+        supplier = await _resolve_fault_supplier(issue_doc, org_id)
+        if not supplier or not (supplier.get("email") or "").strip():
             return
         # Resolve org name for the supplier-facing case page.
-        org = await db.organizations.find_one(
-            {"id": org_id}, {"_id": 0, "name": 1},
-        )
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1})
         org_name = (org or {}).get("name") or "Customer"
-        from routes.supplier_portal import create_supplier_case
-        await create_supplier_case(
-            issue_id=issue_id,
-            supplier_name=supplier.get("name") or "Service Engineer",
-            supplier_email=supplier["email"],
-            organization_name=org_name,
-            base_url="",  # ignored — create_supplier_case derives via app_url_for
+
+        # Create the supplier case (portal + token) and email the supplier a
+        # first message so the "card to log the job" lands in their inbox.
+        from routes.purchase_orders import _ensure_supplier_case
+        case = await _ensure_supplier_case(
+            issue_id, supplier.get("name") or "Service Supplier",
+            supplier["email"], org_name, user,
         )
-        # Tag the issue so the dashboard can render the "auto-dispatched
-        # to <engineer>" badge without a second lookup.
+        machine = issue_doc.get("machine_type") or "the equipment"
+        desc = (issue_doc.get("issue_description") or "").strip()
+        body = f"New fault logged for {machine}" + (f": {desc}." if desc else ".")
+        body += " Please review the details and log the job in your supplier portal."
+        comment = {
+            "id": str(uuid.uuid4()), "case_id": case["id"],
+            "author_name": user.get("full_name") or "Site Staff", "author_role": "gym",
+            "message": body, "attachments": [],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.supplier_case_comments.insert_one(comment)
+        if case.get("supplier_email"):
+            try:
+                from routes.supplier_portal import _send_comment_notification
+                await _send_comment_notification(case, comment, to_supplier=True)
+            except Exception as mail_err:
+                # Delivery failure must not undo the dispatch — the supplier
+                # card still exists and the portal link works.
+                logger.warning(f"supplier dispatch email failed: {mail_err}")
+
+        # Tag the issue so the dashboard can render the "dispatched to
+        # <supplier>" badge without a second lookup.
         await db.issues.update_one(
             {"id": issue_id},
             {"$set": {
-                "auto_dispatched_supplier_id": supplier["id"],
+                "auto_dispatched_supplier_id": supplier.get("id"),
                 "auto_dispatched_supplier_name": supplier.get("name"),
+                "auto_dispatched_supplier_email": supplier["email"],
                 "auto_dispatched_partner_engineer_id": supplier.get("partner_engineer_id"),
                 "auto_dispatched_at": datetime.now(timezone.utc).isoformat(),
+                "supplier_case_token": case.get("token"),
             }},
         )
     except Exception as e:
         # Never block intake on a dispatch failure.
         logger.warning(f"_auto_dispatch_to_primary_supplier failed: {e}")
+
 
 
 @router.post("/issues")
@@ -663,6 +729,11 @@ async def create_issues_batch(
     # machine. The svc_cases schema already supports `equipment_ids` /
     # `equipment_serials` arrays so this is a natural fit.
     await _mirror_job_to_svc_case(created, job_id, user)
+
+    # Iter 220ea·39 — auto-dispatch each open machine fault to its own
+    # supplier (machine-first resolution). Idempotent per issue_id.
+    for doc in created:
+        await _auto_dispatch_to_primary_supplier(doc, user)
 
     return {"job_id": job_id, "issues": created, "count": len(created)}
 
