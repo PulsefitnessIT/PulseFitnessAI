@@ -45,6 +45,11 @@ const LiteFaultsTab = ({
               <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`}>{issue.serial_number}</h3>
               <Badge className={getSeverityStyle(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
               <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{issue.status === 'in_progress' ? 'In Progress' : issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)}</Badge>
+              {issue.supplier_case?.supplier_name && (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-sent-${issue.id}`} title={`Fault sent to ${issue.supplier_case.supplier_name}${issue.supplier_case.supplier_email ? ` (${issue.supplier_case.supplier_email})` : ''}`}>
+                  <CheckCircle size={11} /> Sent to {issue.supplier_case.supplier_name}
+                </Badge>
+              )}
             </div>
             <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : ''}{issue.supplier_ref ? ` | Ref: ${issue.supplier_ref}` : ''}</p>
             <p className="text-white text-sm mt-1">{issue.issue_description?.substring(0, 100)}{issue.issue_description?.length > 100 ? '...' : ''}</p>

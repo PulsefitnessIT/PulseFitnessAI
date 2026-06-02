@@ -15,6 +15,7 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
+import { moduleHomePath } from '@/utils/moduleHome';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -234,6 +235,16 @@ function DashboardRoute({ user }) {
   }
   if (!previewAsOperator && (at === 'lite' || at === 'pulse_pro')) {
     return <Navigate to="/pulse" />;
+  }
+  // Iter 220ea·42 — module-aware deep-link guard. A trial that only
+  // unlocked a bolt-on module (e.g. Memberships-only) has no Operations
+  // access; if they deep-link to /dashboard, send them to their module
+  // home instead of an empty/irrelevant Operations dashboard. Only fires
+  // when Operations is NOT entitled (so full/operations trials are
+  // unaffected) and honours the ?as=operator preview escape hatch.
+  if (!previewAsOperator && user.module_access && !user.module_access.operations) {
+    const home = moduleHomePath(user);
+    if (home) return <Navigate to={home} replace />;
   }
   return <DashboardPage />;
 }
