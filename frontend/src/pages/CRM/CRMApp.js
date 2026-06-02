@@ -94,6 +94,23 @@ const NAV_ITEMS = [
   // Settings stays out of the bar — it's the gear icon in the toolbar.
 ];
 
+// Iter 220ea·41 — the CRM runs in two environments: `business` (Corporate
+// B2B sales) and `leisure` (Members — used inside a gym to manage members).
+// The Members environment doesn't sell equipment via tenders/quotes or run a
+// field sales team, so those B2B-only surfaces are hidden. The user
+// explicitly asked to drop Tenders + Territories; Contracts, Forecast and
+// Quotes are the other B2B-sales artefacts a gym managing members never uses.
+const MEMBERS_HIDDEN_TABS = new Set([
+  'quotes', 'tenders', 'territories', 'contracts', 'forecast',
+]);
+
+// In the Members environment a few tabs read better with gym-native labels
+// (the underlying data model is unchanged — purely a display relabel).
+const MEMBERS_TAB_LABELS = {
+  contacts: 'Members',
+  pipeline: 'Leads',
+};
+
 const _LANGS = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
@@ -556,6 +573,12 @@ export default function CRMApp() {
   // Settings later).
   const [hideStart] = useUserPref('hideStartTabs', false);
   useEffect(() => { if (hideStart && activeTab === 'start') setActiveTab('dashboard'); }, [hideStart, activeTab]);
+  // Iter 220ea·41 — if the active tab is hidden in the Members environment
+  // (e.g. user switched mode while on Tenders/Territories), fall back to the
+  // dashboard so they're never stranded on an invisible tab.
+  useEffect(() => {
+    if (activeMode === 'leisure' && MEMBERS_HIDDEN_TABS.has(activeTab)) setActiveTab('dashboard');
+  }, [activeMode, activeTab]);
   const visibleNavItems = useMemo(() => {
     const isInternal = !!user?.is_pulse_internal;
     const isMembersMode = activeMode === 'leisure';
@@ -584,9 +607,16 @@ export default function CRMApp() {
       .filter(it => !it.adminOnly || isAdmin)
       .filter(it => !it.hideFromBar)
       .filter(it => featureOn(it.featureFlag))
-      .filter(it => !(isMembersMode && it.id === 'quotes'))
+      .filter(it => !(isMembersMode && MEMBERS_HIDDEN_TABS.has(it.id)))
       .filter(it => !(hideStart && it.id === 'start'));
   }, [user?.is_pulse_internal, user?.is_master_admin, user?.features, user?.modules, user?.role, hideStart, activeMode]);
+
+  // Iter 220ea·41 — mode-aware tab label (Members environment relabels a
+  // couple of tabs to gym-native terms; Corporate keeps the i18n labels).
+  const tabLabel = useCallback((item) => {
+    if (activeMode === 'leisure' && MEMBERS_TAB_LABELS[item.id]) return MEMBERS_TAB_LABELS[item.id];
+    return t(item.labelKey);
+  }, [activeMode, t]);
 
   // ── Sync logout: when the user signs out from the platform Navbar
   // (which clears `mainAuth.user`), the CRM module must follow suit.
@@ -1006,7 +1036,7 @@ export default function CRMApp() {
                     data-testid={`crm-nav-${item.id}`}
                   >
                     <Icon size={14} className="shrink-0" />
-                    <span>{t(item.labelKey)}</span>
+                    <span>{tabLabel(item)}</span>
                   </button>
                 );
               })}
@@ -1037,7 +1067,7 @@ export default function CRMApp() {
                     data-testid={`crm-nav-mobile-${item.id}`}
                   >
                     <Icon size={12} className="shrink-0" />
-                    <span>{t(item.labelKey)}</span>
+                    <span>{tabLabel(item)}</span>
                   </button>
                 );
               })}

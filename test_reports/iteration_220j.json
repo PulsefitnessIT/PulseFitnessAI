@@ -1,0 +1,62 @@
+{
+  "summary": "Frontend e2e validation of two CRM fixes against master admin (admin@gymaxisai.com). FEATURE 1 (Territories paint-mode) and FEATURE 2 (Members vs Corporate nav filtering + relabel) BOTH PASS end-to-end. No regressions detected. Test data cleaned (county un-painted by 2nd click).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "feature_results": {
+    "FEATURE_1_territory_paint": {
+      "status": "PASS",
+      "evidence": {
+        "staff_rows_found": 4,
+        "engineer_smoke_clickable": true,
+        "focus_indicator_initial": "Painting: Engineer Smoke · 0 counties",
+        "county_clicked": "region-county-Greater London",
+        "focus_indicator_after_paint": "Painting: Engineer Smoke · 1 counties",
+        "county_fill_after_paint": "rgb(231, 13, 112) = #E70D70 Engineer Smoke colour",
+        "focus_indicator_after_cleanup_click": "Painting: Engineer Smoke · 0 counties",
+        "county_fill_after_cleanup": "rgb(226, 232, 240) default grey (unallocated)"
+      },
+      "notes": "Selecting staff -> clicking county paints with their colour AND increments counter; clicking same county again unpaints (toggle works). Cleanup confirmed - no leftover allocations on master admin org."
+    },
+    "FEATURE_2_members_vs_corporate": {
+      "status": "PASS",
+      "members_mode": {
+        "tenders_hidden": true,
+        "territories_hidden": true,
+        "contracts_hidden": true,
+        "forecast_hidden": true,
+        "quotes_hidden": true,
+        "contacts_label": "Members (relabeled correctly)",
+        "pipeline_label": "Leads (relabeled correctly)"
+      },
+      "corporate_mode": {
+        "tenders_visible": true,
+        "territories_visible": true,
+        "contracts_visible": true,
+        "forecast_visible": true,
+        "quotes_visible": true,
+        "contacts_label": "Contacts (restored)",
+        "pipeline_label": "Pipeline (restored)"
+      },
+      "mode_switcher_testids_observed": ["crm-mode-switcher", "crm-mode-leisure", "crm-mode-business"],
+      "notes": "Actual mode-button testids are crm-mode-leisure / crm-mode-business (NOT crm-mode-switcher-members / crm-mode-switcher-corporate as suggested in review_request). Functionality works; just a small doc/testid alignment note."
+    }
+  },
+  "test_report_links": ["/app/test_reports/crm_after_login.png", "/app/test_reports/crm_members_mode.png", "/app/test_reports/crm_territories.png", "/app/test_reports/crm_territories_painted.png"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: review_request mentions data-testids crm-mode-switcher-members / crm-mode-switcher-corporate but actual implementation uses crm-mode-leisure / crm-mode-business. Either update the request docs or align testids for future automation consistency.",
+    "Console noise: CSP errors blocking assets.emergent.sh, posthog, cloudflareinsights - unrelated to these fixes but worth tightening CSP allowlist or removing the blocked script tags to keep logs clean."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100%"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Painted Greater London for Engineer Smoke then un-painted in same run - no residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both CRM fixes (Territory paint-mode + Members/Corporate nav filtering+relabel) are verified live. Master admin defaults to Members mode on first load - if next agent needs Corporate-mode tests they must explicitly click crm-mode-business.",
+  "rca of the issue": "n/a - validation of fix, no bug reproduction needed. Both fixes were already shipped by main agent and validated by this run."
+}

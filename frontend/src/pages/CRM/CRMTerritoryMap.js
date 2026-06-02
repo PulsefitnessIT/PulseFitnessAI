@@ -23,7 +23,7 @@ import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { feature } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
-  Flame, Zap,
+  Flame, Zap, Paintbrush,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -261,6 +261,36 @@ export default function CRMTerritoryMap() {
     }
   };
 
+  // Iter 220ea·41 — "paint mode": once a staff member is selected in the
+  // sidebar (focusedUser), clicking a county/postcode area directly
+  // allocates them to it (paints their colour) — or removes them if they
+  // already cover it. No drawer needed. Optimistic + auto-saved. This is
+  // the intuitive "pick a person, click the map to allocate" flow.
+  const paintRegion = async (region, uid) => {
+    const key = region.type === 'county' ? 'counties' : 'postcode_areas';
+    const current = coverage[key][region.code] || [];
+    const has = current.some((m) => m.user_id === uid);
+    const nextIds = has
+      ? current.filter((m) => m.user_id !== uid).map((m) => m.user_id)
+      : [...current.map((m) => m.user_id), uid];
+    const s = staffById[uid];
+    const optimistic = has
+      ? current.filter((m) => m.user_id !== uid)
+      : [...current, { user_id: uid, full_name: s?.full_name, colour_hex: s?.colour_hex, role: s?.territory_role }];
+    // Optimistically recolour the region so painting feels instant.
+    setCoverage((cur) => ({ ...cur, [key]: { ...cur[key], [region.code]: optimistic } }));
+    try {
+      await axios.put(
+        `${API}/crm/territories/region/${region.type}/${encodeURIComponent(region.code)}`,
+        { assigned_rep_ids: nextIds },
+        auth(),
+      );
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not save assignment');
+      loadCoverage(); // revert to server truth on failure
+    }
+  };
+
   const saveStaffColour = async (uid, hex) => {
     setStaff((cur) => cur.map((s) => (s.id === uid ? { ...s, colour_hex: hex.toUpperCase() } : s)));
     try {
@@ -380,9 +410,9 @@ export default function CRMTerritoryMap() {
             </button>
           </div>
           {focusedUser && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-1 rounded-md" data-testid="focus-indicator">
-              Focused: {staffById[focusedUser]?.full_name || '?'} · {focusedCount} {layer === 'county' ? 'counties' : 'areas'}
-              <button onClick={() => setFocusedUser(null)} className="ml-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" data-testid="focus-clear">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-blue-600 border border-blue-700 px-2 py-1 rounded-md shadow-sm" data-testid="focus-indicator" title={`Click any county or postcode area to allocate it to ${staffById[focusedUser]?.full_name || 'this person'}. Click an allocated area again to remove them.`}>
+              <Paintbrush size={12} /> Painting: {staffById[focusedUser]?.full_name || '?'} · {focusedCount} {layer === 'county' ? 'counties' : 'areas'}
+              <button onClick={() => setFocusedUser(null)} className="ml-1 text-blue-100 hover:text-white" data-testid="focus-clear">
                 <X size={11} />
               </button>
             </span>
@@ -447,7 +477,7 @@ export default function CRMTerritoryMap() {
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      onClick={() => setActiveRegion(region)}
+                      onClick={() => { if (focusedUser) paintRegion(region, focusedUser); else setActiveRegion(region); }}
                       style={{
                         // SVG stroke colours — visual data, not theme tokens.
                         /* eslint-disable gymaxis/no-inline-hex -- SVG stroke literals */
@@ -478,7 +508,7 @@ export default function CRMTerritoryMap() {
               )}
             </div>
             <p className="text-[11px] text-zinc-500 mb-2">
-              Click a person to show only their patch. Click a colour swatch to recolour them.
+              Click a person to select them, then click counties or postcode areas on the map to allocate that area to them. Click an allocated area again to remove it. Click a colour swatch to recolour a person.
             </p>
             <div className="space-y-1 max-h-[520px] overflow-y-auto" data-testid="staff-list">
               {staff.length === 0 && <p className="text-xs text-zinc-400 italic py-2">No CRM users yet — add reps in People first.</p>}
