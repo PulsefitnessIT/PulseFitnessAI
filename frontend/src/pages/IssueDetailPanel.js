@@ -438,6 +438,28 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
+ {/* Iter 220ea·40 — confirmation the fault was dispatched to the supplier
+     (auto on submit, or via manual contact). Reassures the operator it
+     actually reached someone. */}
+ {issue.supplier_case?.supplier_name && (
+ <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20" data-testid={`supplier-sent-banner-${issue.id}`}>
+ <div className="flex items-start gap-2.5 min-w-0">
+ <CheckCircle size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+ <div className="min-w-0">
+ <p className="text-emerald-400 text-xs font-semibold">Sent to {issue.supplier_case.supplier_name}</p>
+ {issue.supplier_case.supplier_email && (
+ <p className="text-[var(--color-text-muted)] text-xs mt-0.5 truncate">{issue.supplier_case.supplier_email}{issue.auto_dispatched_at ? ' · emailed automatically on submit' : ''}</p>
+ )}
+ </div>
+ </div>
+ {issue.supplier_case?.token && (
+ <Button size="sm" variant="outline" onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank', 'noopener')} className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 text-xs shrink-0" data-testid={`supplier-sent-view-${issue.id}`}>
+ View card
+ </Button>
+ )}
+ </div>
+ )}
+
  {/* Iter 216h57 — Replaced the blue Supplier Fault Card deep-link
      with a prominent Engineer Visit panel. The Supplier-Card link
      still lives inside the Supplier Communication card below, so

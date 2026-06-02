@@ -161,6 +161,71 @@ async def get_suppliers(
     return {"suppliers": suppliers}
 
 
+@router.get("/suppliers/dispatch-readiness")
+async def supplier_dispatch_readiness(user: dict = Depends(get_current_user)):
+    """Iter 220ea·40 — which machines would *silently* fail to auto-dispatch
+    a fault because their linked supplier has no email on file (or isn't in
+    the supplier directory). Lets operators spot the gaps so every logged
+    fault actually reaches a supplier.
+    """
+    org_filter = get_organization_filter(user)
+    suppliers = await db.suppliers.find(
+        org_filter, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(1000)
+    by_id = {s["id"]: s for s in suppliers if s.get("id")}
+    by_name = {(s.get("name") or "").strip().lower(): s for s in suppliers if (s.get("name") or "").strip()}
+
+    equipment = await db.equipment.find(
+        org_filter,
+        {"_id": 0, "supplier": 1, "supplier_id": 1},
+    ).to_list(5000)
+
+    def _resolve(eq: dict) -> Optional[dict]:
+        sid = (eq.get("supplier_id") or "").strip()
+        if sid and sid in by_id:
+            return by_id[sid]
+        nm = (eq.get("supplier") or "").strip().lower()
+        return by_name.get(nm)
+
+    machines_ready = machines_blocked = machines_no_supplier = 0
+    blocked: Dict[str, dict] = {}
+    for eq in equipment:
+        has_link = bool((eq.get("supplier_id") or "").strip() or (eq.get("supplier") or "").strip())
+        if not has_link:
+            machines_no_supplier += 1
+            continue
+        sup = _resolve(eq)
+        if sup and (sup.get("email") or "").strip():
+            machines_ready += 1
+            continue
+        machines_blocked += 1
+        if sup:
+            key = sup.get("id") or f"name:{(sup.get('name') or '').lower()}"
+            entry = blocked.setdefault(key, {
+                "supplier_id": sup.get("id"), "name": sup.get("name"),
+                "reason": "no_email", "machine_count": 0})
+        else:
+            raw = (eq.get("supplier") or "Unknown supplier").strip()
+            entry = blocked.setdefault(f"name:{raw.lower()}", {
+                "supplier_id": None, "name": raw,
+                "reason": "not_in_directory", "machine_count": 0})
+        entry["machine_count"] += 1
+
+    missing_email = [
+        {"id": s.get("id"), "name": s.get("name")}
+        for s in suppliers if not (s.get("email") or "").strip()
+    ]
+    return {
+        "total_machines": len(equipment),
+        "machines_ready": machines_ready,
+        "machines_blocked": machines_blocked,
+        "machines_no_supplier": machines_no_supplier,
+        "blocked_suppliers": sorted(blocked.values(), key=lambda x: -x["machine_count"]),
+        "suppliers_missing_email": missing_email,
+        "suppliers_missing_email_count": len(missing_email),
+        "total_suppliers": len(suppliers),
+    }
+
+
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)):
     org_filter = get_organization_filter(user)

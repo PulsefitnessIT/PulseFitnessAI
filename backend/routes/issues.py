@@ -793,7 +793,8 @@ async def _batch_enrich_supplier_cases(issues: list[dict]):
         return
     cases = await db.supplier_cases.find(
         {"issue_id": {"$in": issue_ids}},
-        {"_id": 0, "issue_id": 1, "token": 1, "current_status": 1, "scheduled_date": 1, "engineer_name": 1}
+        {"_id": 0, "issue_id": 1, "token": 1, "current_status": 1, "scheduled_date": 1,
+         "engineer_name": 1, "supplier_name": 1, "supplier_email": 1}
     ).to_list(500)
     by_issue = {c["issue_id"]: c for c in cases}
     for issue in issues:

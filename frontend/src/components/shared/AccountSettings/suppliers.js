@@ -18,6 +18,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Pencil, X, Loader2, Truck, Mail, Phone, User, Tag,
+  AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 
@@ -33,6 +34,16 @@ export default function SuppliersSection() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(BLANK);
   const [submitting, setSubmitting] = useState(false);
+  // Iter 220ea·40 — dispatch readiness: which machines won't auto-email a
+  // supplier on fault submit (supplier has no email / isn't in directory).
+  const [readiness, setReadiness] = useState(null);
+
+  const loadReadiness = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/suppliers/dispatch-readiness`, { headers: headers() });
+      setReadiness(r.data || null);
+    } catch { /* non-blocking */ }
+  }, [headers]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,7 +57,7 @@ export default function SuppliersSection() {
     }
   }, [headers]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadReadiness(); }, [load, loadReadiness]);
 
   const openNew = () => { setEditing({}); setForm(BLANK); };
   const openEdit = (s) => {
@@ -84,11 +95,21 @@ export default function SuppliersSection() {
         await axios.post(`${API}/suppliers`, body, { headers: headers() });
         toast.success('Supplier added');
       }
-      close(); load();
+      close(); load(); loadReadiness();
     } catch (e) {
       const msg = e?.response?.data?.detail || 'Save failed';
       toast.error(typeof msg === 'string' ? msg : 'Save failed');
     } finally { setSubmitting(false); }
+  };
+
+  // Quick-fix a blocked supplier: open its editor (add email) or, if the
+  // machine references a supplier not in the directory, pre-fill Add.
+  const fixBlocked = (b) => {
+    if (b.supplier_id) {
+      const s = list.find((x) => x.id === b.supplier_id);
+      if (s) { openEdit(s); return; }
+    }
+    setEditing({}); setForm({ ...BLANK, name: b.name || '' });
   };
 
   const remove = async (s) => {
@@ -96,7 +117,7 @@ export default function SuppliersSection() {
     try {
       await axios.delete(`${API}/suppliers/${s.id}`, { headers: headers() });
       toast.success('Supplier removed');
-      load();
+      load(); loadReadiness();
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Could not remove');
     }
@@ -117,6 +138,44 @@ export default function SuppliersSection() {
           <Plus size={14} /> Add supplier
         </button>
       </header>
+
+      {/* Iter 220ea·40 — fault auto-dispatch readiness. */}
+      {readiness && (readiness.machines_blocked > 0 || (readiness.blocked_suppliers || []).length > 0) ? (
+        <div className="rounded-xl border p-4" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }} data-testid="supplier-dispatch-readiness-warning">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>
+                {readiness.machines_blocked} machine{readiness.machines_blocked === 1 ? '' : 's'} won&rsquo;t auto-dispatch faults
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
+                When a fault is logged on these machines, no supplier is emailed because the linked supplier has no email address (or isn&rsquo;t in your directory). Add an email to fix it.
+              </p>
+              <ul className="mt-3 space-y-1.5">
+                {(readiness.blocked_suppliers || []).map((b) => (
+                  <li key={`${b.supplier_id || b.name}`} className="flex items-center justify-between gap-3 text-xs rounded-lg px-3 py-2" style={{ background: 'var(--theme-surface)' }} data-testid={`blocked-supplier-${b.supplier_id || b.name}`}>
+                    <span className="min-w-0 truncate" style={{ color: 'var(--theme-text)' }}>
+                      <strong>{b.name}</strong>
+                      <span style={{ color: 'var(--theme-text-muted)' }}> · {b.machine_count} machine{b.machine_count === 1 ? '' : 's'} · {b.reason === 'not_in_directory' ? 'not in directory' : 'no email'}</span>
+                    </span>
+                    <button type="button" onClick={() => fixBlocked(b)} className="account-btn-secondary inline-flex items-center gap-1 shrink-0 text-xs" data-testid={`fix-blocked-supplier-${b.supplier_id || b.name}`}>
+                      <Mail size={11} /> {b.reason === 'not_in_directory' ? 'Add supplier' : 'Add email'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : readiness && readiness.total_machines > 0 ? (
+        <div className="rounded-xl border p-3 flex items-center gap-2.5" style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.25)' }} data-testid="supplier-dispatch-readiness-ok">
+          <CheckCircle2 size={16} className="shrink-0" style={{ color: '#10b981' }} />
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+            <strong style={{ color: 'var(--theme-text)' }}>{readiness.machines_ready} machine{readiness.machines_ready === 1 ? '' : 's'}</strong> will auto-email their supplier on fault submit.
+            {readiness.machines_no_supplier > 0 && ` ${readiness.machines_no_supplier} have no supplier set.`}
+          </p>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         {loading ? (
