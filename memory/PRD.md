@@ -1,3 +1,20 @@
+## Iter 220ea·38 — FIX: engineers stuck on "Billing in progress…" (no 10-day trial) ✅ (Feb, 2026)
+
+**Symptom (real engineer Daniel Thomas, danthomas2715@hotmail.com):** approved partner engineer stuck on the dashboard showing "PARTNER PLAN SUBSCRIPTION — Active · £30/mo · Billing in progress…", with no trial countdown and no way into the Engineer App.
+
+**Root cause:** in `routes/partners.py` the approve flow created every partner doc with `subscription.status="trialing"` but only set `current_period_end` + the real `trial` object (the 10-day timer) for **tester-cohort** applicants (`if is_tester`). Non-tester engineers got `trialing` with a null end date and **no `trial` object** → `SubscriptionCard` renders `isActive=true` + `periodEnd=null` → "Billing in progress…" fallback forever (the "Start subscription" CTA only shows when `!isActive`, so they're trapped).
+
+**Fix:** approval now auto-enrols **every engineer-level approval** (`engineer_partner`/`verified_partner`/`strategic_partner`) onto the proper 10-day trial via `_start_partner_trial` (writes `trial.status='active'`, `trial.started_at`, `trial.ends_at`=+10d, `subscription.current_period_end`=ends_at, `trial_used=true`). Lifecycle worker (`partner_trial_lifecycle.py`) then drives feedback form → Stripe at day 10.
+
+**Verified:** (1) master-admin `POST /api/partners/{id}/start-trial` run live against the stuck **preview** test partner → before: `trial:None`, `current_period_end:None`; after: `trial.status=active`, ends in exactly 10 days, `current_period_end` set (preview demo unstuck). (2) New pytest `tests/test_iter_220ea_38_engineer_trial_on_approval.py` — creates a non-tester application, approves it, asserts a live ~10-day trial. Green, in Makefile.
+
+**Recovery for an already-stuck engineer (incl. Daniel on production):** Master Admin → Partners → the engineer's row → **"Start trial"** (Rocket) button (`POST /api/partners/{id}/start-trial`); shows whenever `status=approved && !trial_used`. This writes the proper timer and unsticks the dashboard. (Daniel's live record is on production — only the admin action on gymaxisai.com can fix his existing row; the code fix prevents recurrence on redeploy.)
+
+**Files:** routes/partners.py (approve flow), tests/test_iter_220ea_38_engineer_trial_on_approval.py (new, in Makefile). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·37 — Polish: "pending sync" badge on Quotes & Invoices lists ✅ (Feb, 2026)
 
 Surfaced the existing `OutboxStatusPill` (from `engineerStatusBoot.jsx`, already used in the Engineer Home header) on the **Quotes** and **Invoices** list headers, next to the page title. It reads the engineer outbox status — the same queue quotes & invoices now write to — so engineers get clear confirmation their on-site work is queued and when it's synced:

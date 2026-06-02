@@ -909,10 +909,18 @@ async def approve_partner_application(
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner application-approved email failed: %s", exc)
 
-    # Iter 220ea·31 — campaign tester-cohort applicants are auto-enrolled
-    # onto the proper 10-day trial lifecycle (feedback form + Stripe at the
-    # end). Best-effort: a failure here must never undo the approval.
-    if is_tester:
+    # Iter 220ea·38 — EVERY approved engineer is auto-enrolled onto the
+    # proper 10-day trial lifecycle (feedback form + Stripe at the end),
+    # not just the campaign tester cohort. Previously non-tester engineers
+    # were left with a bare `subscription.status='trialing'` and no end
+    # date — the dashboard showed "Active · Billing in progress…" forever
+    # with no countdown and no way forward (engineer stuck on the landing
+    # page). Starting the trial here writes the real `trial` object +
+    # `ends_at` + `current_period_end` so the 10-day timer runs and the
+    # dashboard shows a proper countdown. Best-effort: a failure here must
+    # never undo the approval.
+    TRIAL_ELIGIBLE_LEVELS = {"engineer_partner", "verified_partner", "strategic_partner"}
+    if level in TRIAL_ELIGIBLE_LEVELS:
         try:
             tp = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
             if tp and not tp.get("trial_used"):
