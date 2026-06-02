@@ -1,3 +1,21 @@
+## Iter 220ea·47 — Engineer trial compliance grace + "Continue to app" + logout-bug triage ✅ (Feb, 2026)
+
+**Context (PRODUCTION):** Daniel Thomas — first live trialist — stuck on the partner compliance screen with "no button to proceed", and reports being logged out every time he swipes out of the app.
+
+**Findings:** Compliance is NOT a hard gate except at *claim time* (`require_engineer_compliance_to_claim`, only on queue-claim + job self-create). It needs just ONE of DBS/RTW uploaded — not all 4. The dashboard's "0/4" card is informational. So Daniel could see the dashboard but (a) couldn't pick up jobs without a doc, and (b) had no obvious path into the Engineer App.
+
+**Fixes (per user decision — "for the trial don't need compliance; put a deadline timer; he needs a button"):**
+- **Trial compliance grace (backend `routes/partners.py`):** new `_compliance_grace_info(partner)` — for the first **14 days** after approval (`ENGINEER_COMPLIANCE_GRACE_DAYS`, anchored on `approved_at` → `created_at`), the claim gate is **waived** so engineers can fully trial. After grace, the DBS/RTW gate re-applies. `grace` added to `/api/partners/me/compliance-docs`. Verified with pytest `tests/test_iter_220ea47_compliance_grace.py` (8/8: grace active/expired/fallback, claim allowed during grace w/o docs, blocked after grace, unblocked with DBS).
+- **Deadline timer UI (`PartnerComplianceCard.js`):** blue grace banner "You can start taking jobs right away — upload DBS or Right-to-Work within X days (by DATE)"; clearer post-grace amber banner ("just one of two unlocks claiming — you don't need all four"); summary shows "Xd left to upload".
+- **"Continue to Engineer App" button (`PartnerComplianceCard.js`)** + a prominent **"Open the Engineer App" hero CTA** on the partner dashboard (`PartnerDashboard.js`) so engineers are never stranded.
+
+**Logout-on-swipe bug — triaged, NOT yet fixed:** Auth bootstrap + 401 interceptor in `App.js` are robust (silent `/auth/refresh` + retry; only wipes token on a hard 401/403). Most likely cause is **iOS terminating the backgrounded PWA webview + 24h token expiry / localStorage eviction (ITP)** — not an over-eager logout in our code. This is auth/session-sensitive → needs device specifics + `integration_playbook_expert_v2` consult before any change. Awaiting: iPhone/Android? added to home screen as PWA? logs out after seconds or after long gap?
+
+**Production:** all fixes are in PREVIEW only — needs redeploy to reach Daniel on gymaxisai.com. Lint clean (py+js).
+
+---
+
+
 ## Iter 220ea·46 — "One source of truth" pass on CRM / Memberships / Marketing admin overviews ✅ (Feb, 2026)
 
 Follow-up to the Operations overview redesign. Reviewed all three other Master-Admin overview tabs for the same duplication:

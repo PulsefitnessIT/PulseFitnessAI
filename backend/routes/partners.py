@@ -2177,6 +2177,10 @@ async def get_my_compliance_docs(user: dict = Depends(get_current_user)):
         "compliance_docs": sanitise_docs_for_response(full),
         "status": overall_status(docs),
         "compliance_paused": bool(partner.get("compliance_paused")),
+        # Iter 220ea·47 — trial grace window so the dashboard can show the
+        # "upload within X days" countdown instead of an alarming 0/4.
+        "grace": _compliance_grace_info(partner),
+        "claim_doc_kinds": list(_CLAIM_REQUIRED_KINDS),
     }
 
 
@@ -4549,6 +4553,39 @@ def _has_valid_claim_doc(partner: dict) -> bool:
     return False
 
 
+# Iter 220ea·47 — trial compliance grace. A newly-approved partner engineer
+# can claim jobs WITHOUT any compliance docs for the first N days after
+# approval, so they can actually trial the Engineer App. A visible in-app
+# deadline nudges them to upload DBS / Right-to-Work before the grace lapses;
+# once it does, the standard claim gate re-applies.
+_COMPLIANCE_GRACE_DAYS = max(1, int(os.environ.get("ENGINEER_COMPLIANCE_GRACE_DAYS", "14") or 14))
+
+
+def _compliance_grace_info(partner: dict) -> dict:
+    """Returns {active, until, days_left, grace_days} for the post-approval
+    compliance grace window (anchored on approval, falling back to signup)."""
+    anchor = (partner or {}).get("approved_at") or (partner or {}).get("created_at")
+    out = {"active": False, "until": None, "days_left": 0, "grace_days": _COMPLIANCE_GRACE_DAYS}
+    if not anchor:
+        return out
+    try:
+        s = str(anchor)
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        start = datetime.fromisoformat(s)
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+    except Exception:
+        return out
+    until = start + timedelta(days=_COMPLIANCE_GRACE_DAYS)
+    secs_left = (until - datetime.now(timezone.utc)).total_seconds()
+    out["until"] = until.isoformat()
+    if secs_left > 0:
+        out["active"] = True
+        out["days_left"] = int((secs_left + 86399) // 86400)  # ceil to whole days
+    return out
+
+
 async def require_engineer_compliance_to_claim(user: dict = Depends(get_current_user)) -> dict:
     """Stricter gate applied to *claim-time* endpoints (queue claim,
     self-create-job).
@@ -4578,6 +4615,11 @@ async def require_engineer_compliance_to_claim(user: dict = Depends(get_current_
     if decision["reason"] in ("master_admin", "internal_engineer", "customer_grant"):
         return user
     partner = decision.get("partner") or {}
+    # Iter 220ea·47 — trial grace: during the first N days after approval the
+    # engineer can claim jobs without compliance docs on file. The dashboard
+    # shows the countdown so they know the deadline to upload DBS / RTW.
+    if _compliance_grace_info(partner).get("active"):
+        return user
     if partner.get("compliance_paused"):
         raise HTTPException(
             status_code=403,

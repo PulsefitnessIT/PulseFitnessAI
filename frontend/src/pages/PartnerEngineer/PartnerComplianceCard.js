@@ -15,8 +15,9 @@
  *   • Expired     — verified previously but expiry date is past (rose)
  */
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, CheckCircle2, AlertTriangle, Clock, ShieldCheck, FileCheck2, Loader2 } from 'lucide-react';
+import { Upload, CheckCircle2, AlertTriangle, Clock, ShieldCheck, FileCheck2, Loader2, Wrench, ArrowRight } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -178,7 +179,7 @@ function DocRow({ kind, blob, onUpload }) {
 }
 
 export default function PartnerComplianceCard() {
-  const [data, setData] = useState({ compliance_docs: {}, status: { verified_count: 0, total: 4, complete: false, blocked: false } });
+  const [data, setData] = useState({ compliance_docs: {}, status: { verified_count: 0, total: 4, complete: false, blocked: false }, grace: { active: false, days_left: 0, until: null } });
   const [loading, setLoading] = useState(true);
   const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
 
@@ -210,7 +211,7 @@ export default function PartnerComplianceCard() {
     }
   };
 
-  const { status, compliance_docs: docs } = data;
+  const { status, compliance_docs: docs, grace } = data;
   const verifiedColor = status.complete ? 'text-emerald-700' : status.verified_count > 0 ? 'text-amber-700' : 'text-zinc-500';
 
   return (
@@ -222,9 +223,34 @@ export default function PartnerComplianceCard() {
         </div>
         <p className={`text-xs font-bold ${verifiedColor}`} data-testid="compliance-summary">
           {status.verified_count}/{status.total} verified
-          {status.blocked && <span className="ml-2 text-rose-700">· action needed (expired doc)</span>}
+          {grace?.active && <span className="ml-2 text-blue-700">· {grace.days_left}d left to upload</span>}
+          {!grace?.active && status.blocked && <span className="ml-2 text-rose-700">· action needed (expired doc)</span>}
         </p>
       </div>
+
+      {/* Iter 220ea·47 — trial grace banner: engineers can work right away;
+          the deadline nudges them to upload DBS / RTW before grace lapses. */}
+      {grace?.active ? (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 flex items-start gap-2" data-testid="compliance-grace-banner">
+          <Clock size={14} className="text-blue-600 mt-0.5 shrink-0" />
+          <div className="text-[12px] text-blue-900 leading-relaxed">
+            <span className="font-bold">You can start taking jobs right away.</span>{' '}
+            Upload your <strong>DBS</strong> or <strong>Right-to-Work</strong> within{' '}
+            <strong>{grace.days_left} day{grace.days_left === 1 ? '' : 's'}</strong>
+            {grace.until ? <> (by {new Date(grace.until).toLocaleDateString('en-GB')})</> : null}{' '}
+            to keep claiming jobs once your trial ends.
+          </div>
+        </div>
+      ) : (status.verified_count === 0 && !status.blocked) ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2" data-testid="compliance-required-banner">
+          <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />
+          <div className="text-[12px] text-amber-900 leading-relaxed">
+            <span className="font-bold">Upload your DBS or Right-to-Work to claim new jobs.</span>{' '}
+            Just one of those two unlocks claiming — you don't need all four to get started.
+          </div>
+        </div>
+      ) : null}
+
       <p className="text-[11px] text-zinc-500 leading-relaxed">
         Gym operators ask for these docs before letting an engineer on site. Upload each one and we'll run an AI sanity-check; a human reviewer signs off before you're marked verified.
       </p>
@@ -237,6 +263,19 @@ export default function PartnerComplianceCard() {
           ))}
         </div>
       )}
+
+      {/* Always-present way forward — engineers should never feel stranded
+          on this card. Takes them straight into the Engineer App. */}
+      <Link
+        to="/svc/engineer"
+        className="mt-1 flex items-center justify-center gap-1.5 w-full px-4 py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition"
+        data-testid="compliance-continue-app"
+      >
+        <Wrench size={14} /> Continue to Engineer App <ArrowRight size={14} />
+      </Link>
+      <p className="text-[10px] text-center text-zinc-400">
+        You can upload these documents anytime — they won't stop you exploring the app.
+      </p>
     </div>
   );
 }

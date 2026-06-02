@@ -269,6 +269,29 @@ export default function PartnerDashboard() {
           </div>
         )}
 
+        {/* Iter 220ea·47 — unmissable primary path into the actual
+            Engineer App. The small header button alone left trialists
+            (Daniel) feeling stranded on the compliance section with no
+            obvious "next step". Approved partners only. */}
+        {partner.status === 'approved' && (
+          <Link
+            to="/svc/engineer"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-900 dark:border-white bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 p-4 hover:opacity-90 transition"
+            data-testid="partner-open-engineer-app-hero"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-white/10 dark:bg-zinc-900/10 flex items-center justify-center shrink-0">
+                <Wrench size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-black">Open the Engineer App</div>
+                <div className="text-[11px] opacity-70">Take jobs, log faults, send quotes &amp; invoices — your day-to-day workspace.</div>
+              </div>
+            </div>
+            <ArrowRight size={18} className="shrink-0" />
+          </Link>
+        )}
+
         {/* Referral block */}
         <Card title="Your referral link" icon={Users} testId="partner-referral-card">
           <div className="flex items-center gap-2 flex-wrap">
