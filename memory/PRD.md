@@ -1,3 +1,16 @@
+## Iter 220ea·41 — CRM Territories paint-mode + Members/Corporate nav split ✅ (Feb, 2026)
+
+Two user-reported CRM items (with screenshot), both fixed & verified 100% by the frontend testing agent (no regressions, test data cleaned).
+
+**1. Territories "can't allocate colours after selecting a staff member" — UX gap, not a backend bug.** Diagnosed the backend as fully working (curl-verified assign→persist→colour round-trip; topojson `county`/`area` keys valid). The real gap: selecting a staff member only *filtered* the map (focus) — there was no way to paint. Added **paint mode** in `CRMTerritoryMap.js`: once a person is selected in the SALES TEAM panel, clicking a county/postcode area instantly allocates them (paints their colour) — click again to remove. Optimistic UI + auto-save via the existing `PUT /api/crm/territories/region/{type}/{code}`; reverts on failure. The detailed multi-person drawer still opens when no one is selected. Focus indicator now reads "Painting: <name> · N counties" (blue, Paintbrush icon). Verified: select Engineer Smoke → click Greater London → fills #E70D70 + count 0→1 → click again → clears.
+
+**2. CRM Members vs Corporate environments — tab split.** The CRM already had two modes (`business`=Corporate, `leisure`=Members). Members mode previously only hid Quotes. Per the user, the Members (in-gym) environment now also hides **Tenders, Territories, Contracts, Forecast** (all B2B-sales-only). Added `MEMBERS_HIDDEN_TABS` set + a redirect guard (falls back to dashboard if stranded on a now-hidden tab). Light relabel via `MEMBERS_TAB_LABELS`: Contacts→**Members**, Pipeline→**Leads** (display-only; data model unchanged). Corporate mode restores all tabs + original labels. `CRMApp.js`. The CRMModeSwitcher (Members/Corporate) renders when both modes are enabled (master admin has both).
+
+**Files:** frontend `pages/CRM/CRMTerritoryMap.js` (paintRegion + onClick + copy/indicator), `pages/CRM/CRMApp.js` (MEMBERS_HIDDEN_TABS, MEMBERS_TAB_LABELS, tabLabel, redirect guard). No backend changes. Lint clean (js). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·39 — Faults auto-dispatch to the machine's supplier on submit ✅ (Feb, 2026)
 
 **Request (option C):** when an operator submits a fault, automatically create the supplier "card to log the job" and **email it to the supplier** — resolving the supplier set against *that machine* first, with fallbacks.
