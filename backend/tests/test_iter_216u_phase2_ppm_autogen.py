@@ -163,27 +163,33 @@ class TestGetCasesRecommendedFields:
             "Authorization": f"Bearer {auth_token}",
             "Content-Type": "application/json"
         }
-        
-        # First create a case to ensure we have data
+
+        # First create a case to ensure we have data. Use a unique title so
+        # we can scope the list query to it — the shared preview DB holds
+        # hundreds of cases and the list is paginated (limit 50, sorted by
+        # SLA urgency), so an unscoped list would page our fresh case out.
+        unique_title = f"TEST_ListCases_Recommended_{uuid.uuid4().hex[:8]}"
         create_resp = requests.post(
             f"{BASE_URL}/api/svc/intake/phone",
-            json={"title": "TEST_ListCases_Recommended", "description": "Test"},
+            json={"title": unique_title, "description": "Test"},
             headers=headers
         )
         assert create_resp.status_code == 200
         created_case = create_resp.json()
-        
-        # List cases
+
+        # List cases — scoped by our unique title so the fresh case is on
+        # the first page regardless of total case volume.
         list_resp = requests.get(
             f"{BASE_URL}/api/svc/cases",
+            params={"search": unique_title},
             headers=headers
         )
         assert list_resp.status_code == 200
         data = list_resp.json()
-        
+
         assert "cases" in data
         assert isinstance(data["cases"], list)
-        
+
         # Find our test case
         test_case = next((c for c in data["cases"] if c["id"] == created_case["id"]), None)
         assert test_case is not None, "Created case not found in list"

@@ -24,6 +24,7 @@ import {
   CheckCircle2, XCircle, Copy, Briefcase, Loader2, Mail, Search, BookmarkPlus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { outboxPost } from '@/utils/engineerOutbox';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -262,7 +263,21 @@ export default function EngineerQuoteBuilder() {
         return;
       }
       if (isNew) {
-        const r = await axios.post(`${API}/svc/engineer/quotes`, payload, auth());
+        // Iter 220ea·35 — offline-safe create. Route through the engineer
+        // outbox: if there's no signal the quote is queued and replayed on
+        // reconnect. A stable Idempotency-Key (reused on every replay)
+        // guarantees the server never creates a duplicate.
+        const idemKey = (window.crypto?.randomUUID?.() || `q-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        const r = await outboxPost(`${API}/svc/engineer/quotes`, payload, {
+          headers: { ...auth().headers, 'Idempotency-Key': idemKey },
+          kind: 'quote-create',
+          label: `Quote for ${payload.customer_name}`,
+        });
+        if (r.queued) {
+          notify.success('Saved offline', 'This quote will sync automatically when you\u2019re back online.');
+          navigate('/svc/engineer/quotes', { replace: true });
+          return;
+        }
         notify.success(`Quote ${r.data.quote_number} created`);
         navigate(`/svc/engineer/quotes/${r.data.id}`, { replace: true });
       } else {

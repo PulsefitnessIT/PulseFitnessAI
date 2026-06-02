@@ -1,3 +1,18 @@
+## Iter 220ea·35 — P2: offline engineer quoting + flaky-test fix ✅ (Feb, 2026)
+
+**Offline quoting ("raise on the spot, sync later"):** the engineer Quote Builder create now routes through the existing IndexedDB **outbox** (`utils/engineerOutbox.js`, the same proven path job-completion uses). On-site with no signal, the quote is queued and auto-replays on reconnect; the UI shows "Saved offline — syncs when you're back online" and returns to the quotes list. To make replay safe, `create_quote` is now **idempotent** via an `Idempotency-Key` header: a stable client-generated key is reused on every replay, so a lost-response re-send returns the already-created quote instead of duplicating it.
+- Backend `routes/svc/engineer_quotes.py`: `create_quote` accepts `Idempotency-Key` (alias header); if a quote with that key already exists for the engineer it's returned as-is; the key is stored on the doc. Curl-verified: same key → same quote (no dup); no key → always new.
+- Frontend `EngineerQuoteBuilder.js`: `handleSave` (create path) uses `outboxPost(... { headers: { 'Idempotency-Key': uuid }, kind:'quote-create' })`; handles `r.queued` (202) with the offline UX. Online path unchanged (verified — builder renders, no regression).
+
+**Flaky test fixed:** `test_list_cases_includes_recommended_fields` (`tests/test_iter_216u_phase2_ppm_autogen.py::TestGetCasesRecommendedFields`) failed on large/shared DBs because `/api/svc/cases` paginates (limit 50, sorted by SLA) and the fresh case paged out. Now uses a **unique title + `search` param** to scope the list to its own case — passes reliably regardless of case volume.
+
+**Tests:** `tests/test_iter_220ea_35_offline_quoting.py` (5: idempotent replay, no-key uniqueness, header/outbox wiring guards) — all green, added to Makefile. Flaky test re-run green.
+
+**Files:** routes/svc/engineer_quotes.py, frontend EngineerQuoteBuilder.js, tests/test_iter_216u_phase2_ppm_autogen.py (fixed), tests/test_iter_220ea_35_offline_quoting.py (new, in Makefile). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·34 — SEO P1: programmatic equipment-type (category) landing pages ✅ (Feb, 2026)
 
 Added the **category axis** to the programmatic SEO matrix: `/equipment` index + `/equipment/{type}` pages (e.g. `/equipment/exercise-bike`, `/equipment/strength-machine`), complementing the existing **brand axis** (`/maintenance/{manufacturer}`, iter 220ea·29) and **use-case axis** (`/solutions/*`). Targets high-intent search terms like "exercise bike servicing & repair", "strength machine maintenance". Backend + frontend; lint clean; 9 new pytests (in Makefile); pages verified live via screenshots.

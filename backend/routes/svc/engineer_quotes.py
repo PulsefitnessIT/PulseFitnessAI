@@ -27,7 +27,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -191,7 +191,22 @@ class StatusMark(BaseModel):
 
 
 @router.post("/quotes", status_code=201)
-async def create_quote(body: QuoteCreate, user=Depends(get_current_user)):
+async def create_quote(
+    body: QuoteCreate,
+    user=Depends(get_current_user),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+):
+    # Iter 220ea·35 — offline quoting. Engineers raise quotes on-site with
+    # no signal; the app queues the POST and replays it on reconnect. The
+    # replay reuses the same Idempotency-Key, so if the original response
+    # was lost we return the already-created quote instead of duplicating.
+    if idempotency_key:
+        existing = await db.svc_engineer_quotes.find_one(
+            {"engineer_id": user.get("id"), "idempotency_key": idempotency_key},
+            {"_id": 0},
+        )
+        if existing:
+            return existing
     case = await _case_snapshot(body.case_id, user)
     engineer = await _engineer_profile(user)
     lines_dicts = [ln.model_dump() for ln in body.lines]
@@ -236,6 +251,7 @@ async def create_quote(body: QuoteCreate, user=Depends(get_current_user)):
         "created_at": _now(), "updated_at": _now(),
         "sent_at": None, "accepted_at": None, "declined_at": None,
         "converted_case_id": None,
+        "idempotency_key": idempotency_key or None,
     }
     await db.svc_engineer_quotes.insert_one({**quote})
     quote.pop("_id", None)
