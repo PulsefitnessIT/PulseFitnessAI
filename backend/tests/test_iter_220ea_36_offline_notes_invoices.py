@@ -117,3 +117,13 @@ def test_frontend_notes_and_invoices_offline():
     inv = (FRONT / "EngineerInvoiceBuilder.js").read_text()
     assert "outboxPost" in inv and "Idempotency-Key" in inv
     assert "Saved offline" in inv and "r.queued" in inv
+
+
+def test_pending_sync_badge_on_lists():
+    """Iter 220ea·37 — the outbox 'pending sync' pill is surfaced on both
+    the Quotes and Invoices list headers so engineers get confirmation
+    their on-site quotes/invoices are queued and when they've synced."""
+    for fname in ("EngineerQuotes.js", "EngineerInvoices.js"):
+        src = (FRONT / fname).read_text()
+        assert "OutboxStatusPill" in src, f"{fname} missing OutboxStatusPill import/use"
+        assert "from '@/utils/engineerStatusBoot'" in src, f"{fname} missing pill import path"

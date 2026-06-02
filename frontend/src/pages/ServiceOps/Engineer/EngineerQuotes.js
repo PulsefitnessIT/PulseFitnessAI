@@ -13,6 +13,7 @@ import {
   CheckCircle2, XCircle, ReceiptPoundSterling as Receipt, ArrowLeft,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { OutboxStatusPill } from '@/utils/engineerStatusBoot';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -87,7 +88,10 @@ export default function EngineerQuotes() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">GymAxis</p>
-              <h1 className="text-xl font-extrabold text-slate-900">Quotes</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-extrabold text-slate-900">Quotes</h1>
+                <OutboxStatusPill />
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">

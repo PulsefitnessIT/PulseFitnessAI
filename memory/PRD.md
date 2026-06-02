@@ -1,3 +1,15 @@
+## Iter 220ea·37 — Polish: "pending sync" badge on Quotes & Invoices lists ✅ (Feb, 2026)
+
+Surfaced the existing `OutboxStatusPill` (from `engineerStatusBoot.jsx`, already used in the Engineer Home header) on the **Quotes** and **Invoices** list headers, next to the page title. It reads the engineer outbox status — the same queue quotes & invoices now write to — so engineers get clear confirmation their on-site work is queued and when it's synced:
+- **Offline** → red "Offline" badge. **Online with queued items** → amber "N queued" (tap to force-sync). **All synced** → the badge disappears (clean confirmation).
+
+Verified end-to-end via the real offline flow: created a quote while offline → "Saved offline" toast → client-side navigation to the Quotes list → the pill rendered with `data-pending=1`; on reconnect it drained and the badge cleared.
+
+**Files:** frontend EngineerQuotes.js, EngineerInvoices.js (import + pill next to the H1), tests/test_iter_220ea_36_offline_notes_invoices.py (+1 guard, now 6 tests). No backend changes. **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·36 — P2: offline parity for engineer notes + invoices ✅ (Feb, 2026)
 
 Extended offline write coverage to the remaining engineer paths the user called out. **Mileage was already covered** (uses `engineerSendOrQueue`); the two genuine gaps — **handoff notes** and **invoice create** — were on raw `axios` and are now queued + replayed on reconnect, each made **idempotent** server-side so a lost-response replay can't duplicate.
