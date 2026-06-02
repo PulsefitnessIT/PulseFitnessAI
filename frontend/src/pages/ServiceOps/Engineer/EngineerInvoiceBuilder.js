@@ -11,6 +11,7 @@ import {
   CheckCircle2, XCircle, Copy, AlertTriangle, Search, BookmarkPlus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { outboxPost } from '@/utils/engineerOutbox';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -145,7 +146,19 @@ export default function EngineerInvoiceBuilder() {
       if (!payload.customer_name) { notify.error('Customer name required'); return; }
       if (!payload.lines.length) { notify.error('Add at least one line item'); return; }
       if (isNew) {
-        const r = await axios.post(`${API}/svc/engineer/invoices`, payload, auth());
+        // Iter 220ea·36 — offline-safe create via the engineer outbox; a
+        // stable Idempotency-Key (reused on replay) prevents duplicates.
+        const idemKey = (window.crypto?.randomUUID?.() || `inv-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        const r = await outboxPost(`${API}/svc/engineer/invoices`, payload, {
+          headers: { ...auth().headers, 'Idempotency-Key': idemKey },
+          kind: 'invoice-create',
+          label: `Invoice for ${payload.customer_name}`,
+        });
+        if (r.queued) {
+          notify.success('Saved offline', 'This invoice will sync automatically when you\u2019re back online.');
+          navigate('/svc/engineer/invoices', { replace: true });
+          return;
+        }
         notify.success(`Invoice ${r.data.invoice_number} created`);
         navigate(`/svc/engineer/invoices/${r.data.id}`, { replace: true });
       } else {

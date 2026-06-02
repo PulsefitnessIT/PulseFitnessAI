@@ -1,3 +1,24 @@
+## Iter 220ea·36 — P2: offline parity for engineer notes + invoices ✅ (Feb, 2026)
+
+Extended offline write coverage to the remaining engineer paths the user called out. **Mileage was already covered** (uses `engineerSendOrQueue`); the two genuine gaps — **handoff notes** and **invoice create** — were on raw `axios` and are now queued + replayed on reconnect, each made **idempotent** server-side so a lost-response replay can't duplicate.
+
+**Handoff notes** (`POST /jobs/{case_id}/handoff-note`):
+- Frontend `EngineerJobDetailV2.js` (HandoffNotesPanel) now uses `engineerSendOrQueue` (same helper as mileage) with offline UX ("Handoff note queued — will sync when you reconnect").
+- Backend `engineer_phase3.py` `add_handoff_note` reads `Idempotency-Key`; if a note with that key already exists in `case.handoff_notes` it's returned as-is (no duplicate append). Key stored on the entry. Curl-verified: 2 sends, same key → 1 note.
+
+**Invoices** (`POST /invoices`) — mirrors the quote work exactly:
+- Frontend `EngineerInvoiceBuilder.js` create routes through `outboxPost` with a stable `Idempotency-Key`; `r.queued` → "Saved offline" + back to invoices list. Online path + builder render unchanged (verified).
+- Backend `engineer_invoices.py` `create_invoice` accepts `Idempotency-Key`; returns the existing invoice on replay; key stored on the doc. Curl-verified: replay → same invoice (no dup); no key → unique.
+
+**Offline write coverage now:** job-completion ✅, parts use/consume ✅, mileage ✅, quotes ✅, **handoff notes ✅, invoices ✅**. (Two engineer offline systems coexist: `engineerOfflineQueue.js`/`engineerSendOrQueue` for job-detail ops, `engineerOutbox.js`/`outboxPost` for the builder family — both carry an Idempotency-Key.)
+
+**Tests:** `tests/test_iter_220ea_36_offline_notes_invoices.py` (5: invoice idempotent replay + uniqueness, handoff-note idempotent replay, backend header guards, frontend offline wiring) — all green, in Makefile.
+
+**Files:** routes/svc/engineer_phase3.py, routes/svc/engineer_invoices.py, frontend EngineerJobDetailV2.js, EngineerInvoiceBuilder.js, tests/test_iter_220ea_36_offline_notes_invoices.py (new, in Makefile). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·35 — P2: offline engineer quoting + flaky-test fix ✅ (Feb, 2026)
 
 **Offline quoting ("raise on the spot, sync later"):** the engineer Quote Builder create now routes through the existing IndexedDB **outbox** (`utils/engineerOutbox.js`, the same proven path job-completion uses). On-site with no signal, the quote is queued and auto-replays on reconnect; the UI shows "Saved offline — syncs when you're back online" and returns to the quotes list. To make replay safe, `create_quote` is now **idempotent** via an `Idempotency-Key` header: a stable client-generated key is reused on every replay, so a lost-response re-send returns the already-created quote instead of duplicating it.

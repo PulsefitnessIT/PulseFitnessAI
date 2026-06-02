@@ -1465,14 +1465,21 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
     }
     setBusy(true);
     try {
-      await axios.post(
-        `${API}/svc/engineer/jobs/${caseId}/handoff-note`,
-        { note },
-        auth(),
-      );
+      // Iter 220ea·36 — offline parity. Handoff notes are often written in
+      // signal-dead plant rooms; queue + replay on reconnect (idempotent).
+      const r = await engineerSendOrQueue({
+        method: 'POST',
+        path: `/svc/engineer/jobs/${caseId}/handoff-note`,
+        body: { note },
+        label: 'Handoff note',
+      });
       setText('');
       setOpen(false);
-      notify.success('Handoff note saved', 'The next engineer will see this on Job-at-a-Glance.');
+      if (r.offline) {
+        notify.success('Handoff note queued', 'It will sync automatically when you reconnect.');
+      } else {
+        notify.success('Handoff note saved', 'The next engineer will see this on Job-at-a-Glance.');
+      }
       await onChange();
     } catch (e) {
       notify.error('Could not save note', e?.response?.data?.detail || e?.message || 'Try again.');

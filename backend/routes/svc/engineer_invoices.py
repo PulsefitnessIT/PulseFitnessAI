@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -406,7 +406,21 @@ async def invoice_prefill_from_case(case_id: str, user=Depends(get_current_user)
 
 
 @router.post("/invoices", status_code=201)
-async def create_invoice(body: InvoiceCreate, user=Depends(get_current_user)):
+async def create_invoice(
+    body: InvoiceCreate,
+    user=Depends(get_current_user),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+):
+    # Iter 220ea·36 — offline invoicing. Raised on-site and replayed from the
+    # outbox on reconnect; a stable Idempotency-Key makes create idempotent so
+    # a lost-response replay returns the existing invoice (no duplicate).
+    if idempotency_key:
+        existing = await db.svc_engineer_invoices.find_one(
+            {"engineer_id": user.get("id"), "idempotency_key": idempotency_key},
+            {"_id": 0},
+        )
+        if existing:
+            return existing
     case = await db.svc_cases.find_one(
         {"id": body.case_id, **_of(user)},
         {"_id": 0, "id": 1, "reference": 1, "customer_name": 1, "customer_email": 1,
@@ -424,6 +438,7 @@ async def create_invoice(body: InvoiceCreate, user=Depends(get_current_user)):
         case_snapshot=case or {},
         vat_settings=vat_settings,
     )
+    inv["idempotency_key"] = idempotency_key or None
     await db.svc_engineer_invoices.insert_one({**inv})
     inv.pop("_id", None)
     # Iter 216h259 — stamp Lite CRM last_job_at

@@ -528,6 +528,7 @@ async def add_handoff_note(
     case_id: str,
     body: dict,
     user=Depends(get_current_user),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     """Body: `{note: str}`. Appends a handoff note to `case.handoff_notes`."""
     of = _of(user)
@@ -537,10 +538,17 @@ async def add_handoff_note(
     if len(note) > 2000:
         note = note[:2000]
     case = await db.svc_cases.find_one(
-        {"id": case_id, **of}, {"_id": 0, "id": 1, "reference": 1},
+        {"id": case_id, **of}, {"_id": 0, "id": 1, "reference": 1, "handoff_notes": 1},
     )
     if not case:
         raise HTTPException(404, "Case not found")
+    # Iter 220ea·36 — offline parity. The note may be queued in the engineer
+    # outbox and replayed on reconnect; if the original response was lost we
+    # return the already-saved note instead of appending a duplicate.
+    if idempotency_key:
+        for existing in (case.get("handoff_notes") or []):
+            if existing.get("idempotency_key") == idempotency_key:
+                return {"ok": True, "entry": existing}
     now_iso = datetime.now(timezone.utc).isoformat()
     entry = {
         "id": str(uuid.uuid4()),
@@ -548,6 +556,7 @@ async def add_handoff_note(
         "engineer_name": user.get("full_name") or user.get("email") or "",
         "note": note,
         "at": now_iso,
+        "idempotency_key": idempotency_key,
     }
     await db.svc_cases.update_one(
         {"id": case_id, **of},
