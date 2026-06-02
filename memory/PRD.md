@@ -1,3 +1,19 @@
+## Iter 220ea·45 — Master Admin Overview redesign (de-duplicated, 1 source of truth) ✅ (Feb, 2026)
+
+**Request:** "duplications of information i.e Trials ... information overload ... redesign... all the information, 1 source of truth, still looks great." Scope (user-confirmed): only the default **Overview** (Operations Portal → Overview); consolidate the duplicate trial widgets into one card that drills into the full Trials section; trials are **cross-module** (not operations-only); keep the same master-admin look; mobile friendly.
+
+**Problem:** Overview stacked ~12 full-width blocks. Trials appeared in **two** overlapping widgets (`TrialFunnelStrip` + `FreshTrialsTile`); Failed Payments appeared **twice** (alert banner + secondary stat).
+
+**Built (design-agent blueprint → `/app/design_guidelines.json`):**
+- **`UnifiedTrialsCard.js`** (NEW) — single source of truth: headline KPIs (Active / Expiring ≤7d / Converted 30d / Conversion rate) + 30-day conversion bar + expiring alert + **module breakdown** (Operations/Memberships/CRM/Marketing horizontal bars) + freshest 24h signups (with module-tag chips) + one "Manage all trials" CTA → Trials section. Replaces & **deletes** `TrialFunnelStrip.js` + `FreshTrialsTile.js`.
+- **`AdminOverview.js`** rewritten into a grouped, responsive bento: alerts → core KPIs → UnifiedTrialsCard → onboarding → growth+subscriptions (paired) → platform-issues+secondary-stats (paired) → NPS. Dropped the duplicate Failed Payments secondary stat.
+- **Backend `master_admin_trials.py`**: `trials/summary` now returns `by_module`; `trials/recent` items now include `modules[]` + `primary_module` (uses `trial_selected_modules` from the signup selector, with legacy fallback). Curl-verified.
+
+**Verified:** testing agent 100% (desktop + mobile) — old duplicate widgets absent (count=0), unified card complete, cross-module data renders, CTA navigates to Trials, mobile no horizontal overflow. Lint clean (py+js). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·43b — Lite supplier badge parity + /dashboard module guard ✅ (Feb, 2026)
 
 Two follow-ups to the module-selector work:
