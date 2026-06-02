@@ -1,3 +1,23 @@
+## Iter 220ea·42 — Module selector on signup + module-aware routing ✅ (Feb, 2026)
+
+**Request:** trial customers should choose which modules to trial (all, or just 1–2) at signup. Bug: nncheer@icloud.com signed up wanting Memberships but landed in Operations and gave up. **User choices:** unchosen modules LOCKED during trial · all 4 pre-selected by default · modules = Operations / Memberships / CRM / Marketing.
+
+**Root cause of the confusion:** the signup modal only captured a module intent when a module-specific CTA opened it; a generic "Start Free Trial" left it blank → `/dashboard` (Operations). And the **post-login** redirect (`LoginRedirectPage`/`LoginPage`) was never module-aware — every trial user always went to `/dashboard`.
+
+**Built:**
+- **Module selector** (`TrialSignupModal.js`): Step-1 now shows a 4-card selector (Operations/Memberships/CRM/Marketing), all pre-selected (`trial-module-<key>`), toggleable; ≥1 required (inline error otherwise). A module-specific CTA pre-selects just that one. Header badge + subtitle reflect the selection. Sends `trial_modules:[...]` and routes post-signup to the chosen landing module.
+- **Backend entitlements** (`auth.py` register + `schemas.py`): new `UserRegister.trial_modules`. The trial org now sets `org.modules.<key>.enabled` so **only chosen modules are unlocked** (rest locked — addable later via in-app bolt-on trial/upgrade). `primary_module` = derived landing (single pick → that module; all → operations). Curl-verified: memberships-only → operations locked, primary=memberships; all → all unlocked, primary=operations.
+- **Module-aware routing** (`utils/moduleHome.js` new + `LoginRedirectPage.js` + `LoginPage.js`): `moduleHomePath(user)` sends a single-module trial to `/memberships`|`/crm`|`/marketing` on **both** signup and every subsequent login; multi/operations → `/dashboard`. Permanent fix for the "signed into Operations" problem.
+
+**Verified:** frontend testing agent 4/4 PASS (selector default-all + toggle + ≥1 validation; memberships-only signup → `/memberships`; all-modules signup → `/dashboard`; login as memberships-only trial → `/memberships`). Lint clean (py+js). Test accounts cleaned; `memberonly.trial@example.com` kept + documented in test_credentials.md.
+
+**Files:** frontend `pages/Marketing/TrialSignupModal.js`, `utils/moduleHome.js` (new), `pages/LoginRedirectPage.js`, `pages/LoginPage.js`; backend `routes/auth.py`, `models/schemas.py`. **Production:** ships on redeploy.
+
+**Note for nncheer@icloud.com (existing account, on production):** their org was created before this fix so it still has all modules + no memberships primary. To unstick them, set their org `primary_module="memberships"` (or have them re-pick in-app) — only a production action can fix their existing row; the code fix prevents recurrence for all new signups.
+
+---
+
+
 ## Iter 220ea·41 — CRM Territories paint-mode + Members/Corporate nav split ✅ (Feb, 2026)
 
 Two user-reported CRM items (with screenshot), both fixed & verified 100% by the frontend testing agent (no regressions, test data cleaned).
