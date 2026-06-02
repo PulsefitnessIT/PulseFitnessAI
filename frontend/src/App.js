@@ -567,13 +567,14 @@ function App() {
  // Only show loading for protected routes that need auth
  // Public routes (/, /crm, /pulse, /features, etc.) render immediately
  const protectedRoutes = ['/dashboard', '/master-admin', '/service-desk', '/memberships', '/marketing'];
- const protectedPrefixes = ['/svc/engineer', '/admin'];
+ const protectedPrefixes = ['/svc/engineer', '/admin', '/partner-engineer', '/partners'];
  const path = typeof window !== 'undefined' ? window.location.pathname : '';
- const isProtectedRoute = !!path && (
+ const hasSessionToken = (() => { try { return !!localStorage.getItem('token'); } catch { return false; } })();
+    const isProtectedRoute = !!path && (
    protectedRoutes.includes(path) ||
    protectedPrefixes.some((p) => path.startsWith(p))
  );
- if (isProtectedRoute) {
+ if (hasSessionToken || isProtectedRoute) {
  return (
  <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--theme-bg)' }}>
  <div className="text-xl" style={{ color: 'var(--brand-color, var(--color-brand-blue))' }}>Loading...</div>
