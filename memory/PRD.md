@@ -1,3 +1,15 @@
+## Iter 220ea·43b — Lite supplier badge parity + /dashboard module guard ✅ (Feb, 2026)
+
+Two follow-ups to the module-selector work:
+
+- **Lite dashboard supplier badge parity** (`LiteFaultsTab.js`): added the green "✓ Sent to <supplier>" badge (`issue-supplier-sent-<id>`) shown when a fault auto-dispatched to a supplier (`issue.supplier_case.supplier_name`), matching the standard `FaultsTab.js`. Pure visual copy of the already-verified badge; lint clean. (e2e skipped — requires seeding a lite/pulse_pro org + supplier-dispatched fault.)
+- **/dashboard module-aware deep-link guard** (`routes/AppRoutes.js` `DashboardRoute`): a trial that only unlocked a bolt-on (e.g. Memberships) has no Operations access; deep-linking `/dashboard` now redirects to their module home via `moduleHomePath(user)`. Fires only when `!user.module_access.operations` (full/operations trials unaffected) and honours the `?as=operator` preview escape hatch. **Verified 100%** by testing agent (login → /memberships; deep-link /dashboard → redirects to /memberships).
+
+**Files:** `pages/LiteDashboard/LiteFaultsTab.js`, `routes/AppRoutes.js` (+ `utils/moduleHome.js` import). **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·42 — Module selector on signup + module-aware routing ✅ (Feb, 2026)
 
 **Request:** trial customers should choose which modules to trial (all, or just 1–2) at signup. Bug: nncheer@icloud.com signed up wanting Memberships but landed in Operations and gave up. **User choices:** unchosen modules LOCKED during trial · all 4 pre-selected by default · modules = Operations / Memberships / CRM / Marketing.
