@@ -1,3 +1,16 @@
+## Iter 220ea·48 — iOS Safari "logged out on resume" bug FIXED ✅ (Feb, 2026)
+
+**Bug (PRODUCTION, Daniel — iOS Safari browser tab, not installed, logs out within seconds of switching apps).**
+
+**Root cause:** `App.js` `if (loading)` gate only shows the auth "Loading…" splash for a hardcoded allowlist of protected routes — **`/partner-engineer` was missing**. iOS Safari reloads backgrounded tabs on resume; the app re-boots with `user=null` while `/auth/me` is in flight, and because `/partner-engineer` wasn't gated, its route guard (`user ? <PartnerDashboard/> : <Navigate to="/login"/>`) rendered immediately and bounced the returning user to `/login` = "logged out".
+
+**Fix (`App.js`, render-timing only — no auth/token logic touched):** (1) added `/partner-engineer` + `/partners` to `protectedPrefixes`; (2) more robustly, while `loading`, now also show the splash whenever a **session token exists in localStorage** (`hasSessionToken`) — so route guards never render for ANY route until `/auth/me` resolves. Genuinely-invalid tokens are still cleared by boot → routed to `/login` (no lock-out); public marketing routes (no token) still render instantly.
+
+**Verified:** frontend testing agent 5/5 — 3× reload on `/partner-engineer` stays put; `/dashboard` + `/svc/engineer` reload persist; no-token still redirects to `/login`; public root renders logged-out. **Production:** ships on redeploy.
+
+---
+
+
 ## Iter 220ea·47 — Engineer trial compliance grace + "Continue to app" + logout-bug triage ✅ (Feb, 2026)
 
 **Context (PRODUCTION):** Daniel Thomas — first live trialist — stuck on the partner compliance screen with "no button to proceed", and reports being logged out every time he swipes out of the app.

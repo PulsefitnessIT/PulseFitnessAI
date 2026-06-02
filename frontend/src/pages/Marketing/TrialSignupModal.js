@@ -38,7 +38,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Iter 220ea·42 — module selector on signup. Prospects choose exactly which
 // modules to trial; only those are entitled during the trial window.
 const TRIAL_MODULES = [
-  { key: 'operations', label: 'Operations', icon: Wrench, blurb: 'Equipment, faults, maintenance & engineers' },
+  { key: 'operations', label: 'Operations', icon: Wrench, blurb: 'Equipment, faults, maintenance & asset management' },
   { key: 'memberships', label: 'Memberships', icon: Users, blurb: 'Members, plans, classes & bookings' },
   { key: 'crm', label: 'CRM', icon: Building2, blurb: 'Sales pipeline, contacts & deals' },
   { key: 'marketing', label: 'Marketing', icon: Megaphone, blurb: 'Campaigns, automations & content' },
@@ -319,12 +319,12 @@ export default function TrialSignupModal() {
                         className={`relative text-left rounded-xl border p-2.5 transition ${on ? 'border-slate-900 bg-slate-50 dark:bg-zinc-800 dark:border-zinc-200' : 'border-slate-200 hover:border-slate-300 dark:border-zinc-800'}`}
                         data-testid={`trial-module-${m.key}`}
                       >
-                        <div className="flex items-center gap-2">
+                        {on && <CheckCircle2 size={15} className="absolute top-2 right-2 text-emerald-500 shrink-0" data-testid={`trial-module-${m.key}-check`} />}
+                        <div className="flex items-center gap-2 pr-5">
                           <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${on ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-slate-100 text-slate-500 dark:bg-zinc-900'}`}>
                             <Icon size={14} />
                           </span>
-                          <span className="font-bold text-sm text-slate-900 dark:text-zinc-100">{m.label}</span>
-                          {on && <CheckCircle2 size={15} className="text-emerald-500 ml-auto" data-testid={`trial-module-${m.key}-check`} />}
+                          <span className="font-bold text-sm text-slate-900 dark:text-zinc-100 min-w-0 truncate">{m.label}</span>
                         </div>
                         <p className="mt-1 text-[10px] leading-snug text-slate-500">{m.blurb}</p>
                       </button>

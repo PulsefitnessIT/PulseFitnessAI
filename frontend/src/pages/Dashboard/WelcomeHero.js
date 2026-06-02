@@ -15,14 +15,14 @@ const WelcomeHero = ({ gymName, status, onStart, onDismiss }) => {
 
  return (
  <Card
- className="relative overflow-hidden bg-gradient-to-br from-[rgb(var(--rgb-brand-blue)/0.1)] via-[var(--color-surface-dark-alt)] to-[var(--color-accent-violet)]/10 border-[rgb(var(--rgb-brand-blue)/0.3)] p-6 mb-6"
+ className="relative overflow-hidden bg-gradient-to-br from-[rgb(var(--rgb-brand-blue)/0.08)] via-[var(--theme-surface)] to-[rgb(var(--rgb-brand-blue)/0.03)] border-[rgb(var(--rgb-brand-blue)/0.25)] p-6 mb-6"
  data-testid="welcome-hero-card"
  >
  {/* Dismiss button */}
  <button
  type="button"
  onClick={onDismiss}
- className="absolute top-3 right-3 text-white/40 hover:text-white transition-colors"
+ className="absolute top-3 right-3 text-[var(--color-text-muted)] hover:text-[var(--theme-text)] transition-colors"
  aria-label="Dismiss"
  data-testid="welcome-hero-dismiss"
  >
@@ -36,7 +36,7 @@ const WelcomeHero = ({ gymName, status, onStart, onDismiss }) => {
  </div>
  <div className="min-w-0">
  <h3 className="text-lg font-semibold text-white tracking-tight">
- Welcome to GymAxis Service, {gymName} <span className="inline-block">👋</span>
+ Welcome to GymAxis, {gymName} <span className="inline-block">👋</span>
  </h3>
  <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
  Let&apos;s get your gym fully set up — takes about 5 minutes.
@@ -55,7 +55,7 @@ const WelcomeHero = ({ gymName, status, onStart, onDismiss }) => {
  <span
  key={s.id}
  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] ${
- done ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-[var(--color-text-muted)]'
+ done ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300' : 'bg-[var(--theme-bg)] text-[var(--color-text-muted)] border border-[var(--theme-border)]'
  }`}
  data-testid={`welcome-check-${s.id}`}
  >
@@ -70,9 +70,9 @@ const WelcomeHero = ({ gymName, status, onStart, onDismiss }) => {
  <div className="mt-3 max-w-md">
  <div className="flex justify-between text-[10px] text-[var(--color-text-muted)] mb-1">
  <span>Setup progress</span>
- <span className="text-white font-medium">{percent}% · {completedCount} of {totalCount}</span>
+ <span className="text-[var(--theme-text)] font-medium">{percent}% · {completedCount} of {totalCount}</span>
  </div>
- <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+ <div className="h-1.5 rounded-full bg-[var(--theme-border)] overflow-hidden">
  <div
  className="h-full rounded-full bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-accent-violet)] transition-all duration-700"
  style={{ width: `${percent}%` }}

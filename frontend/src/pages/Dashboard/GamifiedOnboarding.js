@@ -214,7 +214,7 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  data-testid="gamified-onboarding-dialog"
  >
  <VisuallyHidden>
- <DialogTitle>GymAxis Service Onboarding Wizard</DialogTitle>
+ <DialogTitle>GymAxis Onboarding Wizard</DialogTitle>
  <DialogDescription>Four-stage guided setup: Suppliers, Equipment, Team, and Go-Live.</DialogDescription>
  </VisuallyHidden>
  {/* Hero header */}
@@ -222,7 +222,7 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  <button
  type="button"
  onClick={() => onClose?.()}
- className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+ className="absolute top-4 right-4 text-[var(--color-text-muted)] hover:text-[var(--theme-text)] transition-colors"
  data-testid="onboarding-close-btn"
  aria-label="Close"
  >
@@ -234,7 +234,7 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  </div>
  <div className="flex-1">
  <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
- Welcome to GymAxis Service, {gymName} <span className="inline-block animate-waving-hand">👋</span>
+ Welcome to GymAxis, {gymName} <span className="inline-block animate-waving-hand">👋</span>
  </h2>
  <p className="text-[var(--color-text-muted)] text-sm mt-1">
  Let&apos;s get your gym fully set up in just a few quick steps — takes about 5 minutes.
@@ -246,9 +246,9 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  <div className="mt-2">
  <div className="flex items-center justify-between mb-2 text-xs text-[var(--color-text-muted)]">
  <span>Your setup progress</span>
- <span className="font-medium text-white">{percent}% complete · {completedCount} of {STAGE_DEFS.length} stages</span>
+ <span className="font-medium text-[var(--theme-text)]">{percent}% complete · {completedCount} of {STAGE_DEFS.length} stages</span>
  </div>
- <div className="h-2 rounded-full bg-white/5 overflow-hidden dark:bg-zinc-900">
+ <div className="h-2 rounded-full bg-[var(--theme-border)] overflow-hidden dark:bg-zinc-900">
  <div
  className="h-full rounded-full bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-accent-violet)] transition-all duration-700 ease-out"
  style={{ width: `${percent}%` }}
@@ -270,8 +270,8 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  onClick={() => setCurrentStage(s.id)}
  className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
  active ? 'bg-[var(--color-brand-blue)] text-white shadow-lg shadow-[rgb(var(--rgb-brand-blue)/0.3)]'
- : done ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
- : 'bg-white/5 text-[var(--color-text-muted)] border border-[var(--theme-border)] hover:text-white'
+ : done ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+ : 'bg-[var(--theme-bg)] text-[var(--color-text-muted)] border border-[var(--theme-border)] hover:text-[var(--theme-text)]'
  }`}
  data-testid={`stage-pill-${s.id}`}
  >
