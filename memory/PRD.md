@@ -1,3 +1,17 @@
+## Iter 220k — FIX: signup "stuck on Companies House" + Escape killed the whole signup ✅ (Jun, 2026)
+
+**Bug (user testing signup):** on step-2 "Tell us about your gym", the Companies House typeahead box couldn't be dismissed, and pressing Escape (to close the dropdown) closed the ENTIRE signup.
+
+**Root cause:** `TrialSignupModal.js` registers a global `window` keydown listener that closes the modal on Escape. The CH typeahead (`ProfileCompletionFields.js` -> `CompaniesHouseSearch`) had no Escape handler and no click-outside-to-close, so the keystroke bubbled to the modal's listener and nuked the flow.
+
+**Fix (`components/shared/ProfileCompletionFields.js`):** added (1) `wrapRef` + a mousedown click-outside `useEffect` (gated on `open`) so clicking away dismisses the dropdown; (2) an input `onKeyDown` that, when the dropdown is open, calls `preventDefault + stopPropagation + nativeEvent.stopImmediatePropagation` and only `setOpen(false)` — so Escape closes just the dropdown and never reaches the modal's global listener. When the dropdown is closed, Escape still closes the modal as normal.
+
+**Verified:** frontend testing agent 100% (3/3) on `/complete-profile` (same component; signup step-1 is captcha-gated) with the CH search mocked (preview CH API key is rejected) — Escape closes dropdown only + URL unchanged; click-outside dismisses; re-type re-opens; no console errors. Lint clean.
+
+**Note (preview only):** the Companies House API key is REJECTED in preview (`/api/account/companies-house/search` -> "Companies House rejected the API key"), so the live dropdown won't populate here — production has a valid key. **Ships to the live signup on next production redeploy.**
+
+---
+
 ## Iter 220ea·48 — iOS Safari "logged out on resume" bug FIXED ✅ (Feb, 2026)
 
 **Bug (PRODUCTION, Daniel — iOS Safari browser tab, not installed, logs out within seconds of switching apps).**
