@@ -31,12 +31,18 @@ import SuppliersSection from './AccountSettings/suppliers';
 import TeamSection from './AccountSettings/team';
 import DataExportSection from './AccountSettings/data_export';
 
-export default function AccountSettingsModal({ open, onClose }) {
+export default function AccountSettingsModal({ open, onClose, initialSection }) {
   const { user, API: ctxAPI } = useAuth();
   const headers = useAuthHeaders();
   const [section, setSection] = useState('profile');
   const [profile, setProfile] = useState(null);
   const [billing, setBilling] = useState(null);
+
+  // Iter 220w — honour a requested initial section (e.g. returning from
+  // Stripe Connect onboarding opens straight on Plan & Billing).
+  useEffect(() => {
+    if (open && initialSection) setSection(initialSection);
+  }, [open, initialSection]);
 
   const sections = useMemo(() => {
     // Iter 216h113h — MOD tenants don't have Plan & Billing

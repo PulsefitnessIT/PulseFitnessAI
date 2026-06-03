@@ -926,7 +926,7 @@ ONBOARDING_STEPS = [
     # pure CRM/Service-desk/Reporting trials where billing is N/A.
     {"id": "connect_stripe", "label": "Connect Stripe",
      "description": "Take memberships, classes, and product payments online.",
-     "cta_label": "Connect Stripe", "cta_route": "/pricing",
+     "cta_label": "Connect Stripe", "cta_action": "connect_stripe",
      "modules": ["memberships", "marketing", "operations"]},
     {"id": "complete_profile", "label": "Complete profile",
      "description": "Add your photo and phone so teammates and members recognise you.",

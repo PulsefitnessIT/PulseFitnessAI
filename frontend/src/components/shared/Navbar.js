@@ -23,6 +23,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
  const [showPassword, setShowPassword] = useState(false);
  const [showAccount, setShowAccount] = useState(false);
+ const [accountInitialSection, setAccountInitialSection] = useState(null);
  const [showForgotPassword, setShowForgotPassword] = useState(false);
  const [forgotEmail, setForgotEmail] = useState('');
  const [forgotSent, setForgotSent] = useState(false);
@@ -50,6 +51,30 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  }, []);
  const navigate = useNavigate();
  const location = useLocation();
+ // Iter 220w — return from Stripe Connect onboarding (or any deep-link that
+ // wants Account Settings open). `?account=<section>` opens the settings
+ // modal on that section; `?stripe=onboarded|refresh` surfaces a toast.
+ useEffect(() => {
+   const params = new URLSearchParams(location.search);
+   const acct = params.get('account');
+   const stripe = params.get('stripe');
+   if (!acct && !stripe) return;
+   if (acct || stripe) {
+     setAccountInitialSection(acct || 'billing');
+     setShowAccount(true);
+   }
+   if (stripe === 'onboarded') {
+     notify.success('Stripe connected', 'Finish any remaining steps in Stripe to start taking payments.');
+   } else if (stripe === 'refresh') {
+     notify.info('Stripe onboarding paused', 'Pick up where you left off any time from the setup checklist.');
+   }
+   // Strip the params so a refresh doesn't re-trigger.
+   params.delete('account');
+   params.delete('stripe');
+   const qs = params.toString();
+   navigate({ pathname: location.pathname, search: qs ? `?${qs}` : '' }, { replace: true });
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [location.search]);
  const isOnDashboard = location.pathname.startsWith('/dashboard');
  const isOnPulse = location.pathname.startsWith('/pulse');
  // Iter 215bi — Settings should be reachable from any authenticated surface
@@ -868,9 +893,9 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  {/* Account settings — Owners/Managers/Staff get the redesigned modal;
      Master admins keep the legacy panel (they have a dedicated console). */}
  {user?.is_master_admin || user?.is_pulse_admin ? (
-   <AccountPanel open={showAccount} onClose={() => setShowAccount(false)} />
+   <AccountPanel open={showAccount} onClose={() => { setShowAccount(false); setAccountInitialSection(null); }} />
  ) : (
-   <AccountSettingsModal open={showAccount} onClose={() => setShowAccount(false)} />
+   <AccountSettingsModal open={showAccount} onClose={() => { setShowAccount(false); setAccountInitialSection(null); }} initialSection={accountInitialSection} />
  )}
  </>
  );

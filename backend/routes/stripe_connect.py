@@ -143,6 +143,68 @@ async def onboarding_link(
         raise HTTPException(400, f"Stripe error: {exc.user_message or str(exc)}")
 
 
+@router.post("/stripe-connect/me/onboarding-link")
+async def my_onboarding_link(
+    request: Request,
+    body: dict = Body(default={}),
+    user: dict = Depends(get_current_user),
+):
+    """Owner self-serve Stripe Connect Express onboarding for their OWN org.
+
+    A gym owner clicks "Connect Stripe" in the Account Settings setup
+    checklist; this creates/reuses their org's Express account and returns a
+    fresh Stripe-hosted onboarding URL so the client can redirect straight to
+    Stripe. Owners only (master admins manage other orgs via the org-scoped
+    endpoint above).
+    """
+    if (user.get("role") or "").lower() != "owner" and not user.get("is_master_admin"):
+        raise HTTPException(403, "Only the organisation owner can connect Stripe.")
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(400, "No organisation is linked to this account.")
+    org = await _get_org(org_id)
+    acct_id = org.get("stripe_account_id")
+    # Where Stripe sends the owner back to — re-open Account Settings → billing.
+    return_path = (body.get("return_path") or "/dashboard").strip()
+    if not return_path.startswith("/"):
+        return_path = "/" + return_path
+    origin = _origin_or("https://gymaxisai.com", request)
+    sep = "&" if "?" in return_path else "?"
+    try:
+        if not acct_id:
+            account = stripe.Account.create(
+                type="express",
+                country=(body.get("country") or "GB"),
+                email=org.get("contact_email") or org.get("email") or user.get("email"),
+                business_profile={"name": org.get("name")},
+                capabilities={
+                    "card_payments": {"requested": True},
+                    "transfers": {"requested": True},
+                    "bacs_debit_payments": {"requested": True},
+                },
+                metadata={"organization_id": org_id, "source": "gymaxis_owner_self_serve"},
+            )
+            acct_id = account.id
+            await db.organizations.update_one(
+                {"id": org_id},
+                {"$set": {
+                    "stripe_account_id": acct_id,
+                    "stripe_account_type": "express",
+                    "stripe_connected_at": _now(),
+                }},
+            )
+        link = stripe.AccountLink.create(
+            account=acct_id,
+            refresh_url=f"{origin}{return_path}{sep}account=billing&stripe=refresh",
+            return_url=f"{origin}{return_path}{sep}account=billing&stripe=onboarded",
+            type="account_onboarding",
+        )
+        return {"url": link.url, "expires_at": link.expires_at, "account_id": acct_id}
+    except stripe.error.StripeError as exc:
+        log.error("Owner onboarding link failed: %s", exc, exc_info=True)
+        raise HTTPException(400, f"Stripe error: {exc.user_message or str(exc)}")
+
+
 @router.post("/stripe-connect/orgs/{organization_id}/link-existing")
 async def link_existing(
     organization_id: str = Path(...),

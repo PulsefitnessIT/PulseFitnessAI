@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { Check, Loader2 } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 import { useNavigate } from 'react-router-dom';
 import EquipmentImportInline from './EquipmentImportInline';
@@ -11,6 +12,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [stripeBusy, setStripeBusy] = useState(false);
   // Iter 216h108 — inline panel mode for steps that should open IN the
   // settings modal rather than navigating away.
   const [inlinePanel, setInlinePanel] = useState(null);  // 'equipment_import' | 'qr_print' | null
@@ -68,7 +70,36 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
     return route;
   };
 
+  // Iter 220w — "Connect Stripe" self-serve. Previously routed owners to
+  // the marketing /pricing page (never reached Stripe). Now it requests a
+  // fresh Stripe Connect Express onboarding link for the owner's own org
+  // and redirects straight to Stripe; on return they land back on Account
+  // Settings → billing.
+  const startStripeConnect = async () => {
+    setStripeBusy(true);
+    try {
+      const { data: res } = await axios.post(
+        `${API}/stripe-connect/me/onboarding-link`,
+        { return_path: window.location.pathname },
+        { headers: headers() },
+      );
+      if (res?.url) {
+        window.location.href = res.url;
+        return;
+      }
+      toast.error('Could not start Stripe onboarding');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Could not start Stripe onboarding');
+    }
+    setStripeBusy(false);
+  };
+
   const handleStep = (step) => {
+    // Iter 220w — Stripe Connect self-serve action (no route push).
+    if (step.cta_action === 'connect_stripe') {
+      startStripeConnect();
+      return;
+    }
     // Iter 216h108 — inline panels open within the settings modal
     if (step.cta_inline) {
       setInlinePanel(step.cta_inline);
@@ -151,9 +182,13 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
             <button
               type="button"
               onClick={() => handleStep(s)}
+              disabled={s.cta_action === 'connect_stripe' && stripeBusy}
               className="account-btn-secondary flex-shrink-0 w-full sm:w-auto justify-center"
               data-testid={`account-onboarding-cta-${s.id}`}
             >
+              {s.cta_action === 'connect_stripe' && stripeBusy && (
+                <Loader2 size={13} className="animate-spin mr-1" />
+              )}
               {s.completed ? 'Review' : (s.cta_label || 'Open')}
             </button>
           </div>
