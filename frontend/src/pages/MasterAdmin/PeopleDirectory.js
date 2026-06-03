@@ -21,7 +21,7 @@
  * needed.
  */
 import { useMemo, useState } from 'react';
-import { Search, Users, ShieldCheck, Briefcase, UserCog, Archive, AlertTriangle, ChevronRight, Clock } from 'lucide-react';
+import { Search, Users, ShieldCheck, Briefcase, UserCog, Archive, AlertTriangle, ChevronRight, Clock, Wrench } from 'lucide-react';
 import { useBrandContext } from './BrandContext';
 
 const PILLS = [
@@ -29,11 +29,13 @@ const PILLS = [
   { id: 'pulse_admins', label: 'Pulse Admins', icon: ShieldCheck, accent: '#0055FF' },
   { id: 'owners', label: 'Owners', icon: UserCog, accent: '#7C3AED' },
   { id: 'staff', label: 'Staff & Managers', icon: Briefcase, accent: '#10B981' },
+  { id: 'partner_engineers', label: 'Partner Engineers', icon: Wrench, accent: '#4F46E5' },
   { id: 'crm_only', label: 'CRM contacts', icon: Users, accent: '#F59E0B' },
   { id: 'archived', label: 'Archived', icon: Archive, accent: '#71717A' },
 ];
 
 const classifyUser = (u) => {
+  if (u.is_partner_engineer || u.role === 'engineer_partner' || u.display_role === 'Partner Engineer') return 'partner_engineers';
   if (u.is_pulse_master_admin || u.role === 'pulse_master_admin' || u.user_type === 'pulse_master_admin') return 'pulse_admins';
   if (u.role === 'owner') return 'owners';
   if (u.role === 'manager' || u.role === 'staff') return 'staff';
@@ -44,6 +46,7 @@ const classifyUser = (u) => {
 const PortalBadge = ({ portal }) => {
   const styles = {
     service_portal: { bg: 'rgba(16,185,129,0.12)', fg: '#047857', label: 'Service Portal' },
+    engineer_app:   { bg: 'rgba(79,70,229,0.12)',  fg: '#4338CA', label: 'Engineer App' },
     crm:            { bg: 'rgba(245,158,11,0.14)', fg: '#B45309', label: 'CRM' },
     pulse_platform: { bg: 'rgba(0,85,255,0.12)',   fg: '#0055FF', label: 'Pulse Platform' },
   }[portal] || { bg: 'rgba(113,113,122,0.12)', fg: '#52525B', label: portal };
@@ -66,6 +69,7 @@ const RoleChip = ({ user }) => {
     'owner':                 { label: 'Owner',       bg: '#FAF5FF', fg: '#7C3AED' },
     'manager':               { label: 'Manager',     bg: '#ECFDF5', fg: '#047857' },
     'staff':                 { label: 'Staff',       bg: '#F4F4F5', fg: '#3F3F46' },
+    'partner engineer':      { label: 'Partner Engineer', bg: '#EEF2FF', fg: '#4338CA' },
     'master_admin':          { label: 'Master Admin', bg: '#FFEDD5', fg: '#C2410C' },
   };
   const tone = map[role] || map.staff;
@@ -102,7 +106,7 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
   }, [users]);
 
   const stats = useMemo(() => {
-    const c = { total: classified.length, pulse_admins: 0, owners: 0, staff: 0, crm_only: 0, archived: 0, mismatch: 0, invite_pending: 0 };
+    const c = { total: classified.length, pulse_admins: 0, owners: 0, staff: 0, partner_engineers: 0, crm_only: 0, archived: 0, mismatch: 0, invite_pending: 0 };
     for (const u of classified) {
       if (u.status === 'archived' || u.is_archived) { c.archived += 1; continue; }
       c[u._category] = (c[u._category] || 0) + 1;
@@ -145,11 +149,12 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
       </div>
 
       {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3" data-testid="people-stats-strip">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3" data-testid="people-stats-strip">
         <StatTile label="Total active" value={stats.total - stats.archived} icon={Users} accent="#0A0A0A" hint={stats.archived ? `${stats.archived} archived` : ''} />
         <StatTile label="Pulse admins" value={stats.pulse_admins} icon={ShieldCheck} accent="#0055FF" />
         <StatTile label="Owners" value={stats.owners} icon={UserCog} accent="#7C3AED" />
         <StatTile label="Staff / Managers" value={stats.staff} icon={Briefcase} accent="#10B981" />
+        <StatTile label="Partner Engineers" value={stats.partner_engineers} icon={Wrench} accent="#4F46E5" />
         <StatTile label="CRM only" value={stats.crm_only} icon={Users} accent="#F59E0B" />
         <StatTile label="Role mismatches" value={stats.mismatch} icon={AlertTriangle} accent={stats.mismatch ? '#DC2626' : '#71717A'} hint={stats.mismatch ? 'invited ≠ current' : 'all aligned'} />
         <StatTile label="Invites pending" value={stats.invite_pending} icon={Clock} accent={stats.invite_pending ? '#B45309' : '#71717A'} hint={stats.invite_pending ? '72h links unredeemed' : 'all redeemed'} testId="people-stat-invite-pending" />

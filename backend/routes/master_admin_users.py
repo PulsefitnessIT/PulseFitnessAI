@@ -312,6 +312,47 @@ async def _enrich_with_orgs(all_users: list) -> None:
         u["portals"] = portals
 
 
+async def _enrich_partner_engineers(all_users: list) -> None:
+    """Iter 220p — flag Partner Engineers so the People Directory shows
+    them as 'Partner Engineer' on the Engineer App rather than as generic
+    'Staff' on the Operations / Service Portal.
+
+    A user is a Partner Engineer if their `users` row carries the
+    `is_partner_engineer` flag / `engineer_partner` role / `partner_engineer`
+    account_type, OR they're linked to a row in the `partner_engineers`
+    collection (matched by user_id or email). The collection cross-check
+    catches engineers whose `users` row predates the flag (e.g. existing
+    production accounts that haven't re-logged-in since the flag shipped).
+    """
+    if not all_users:
+        return
+    pe_docs = await db.partner_engineers.find(
+        {"status": {"$nin": ["pending", "rejected", "declined", "withdrawn"]}},
+        {"_id": 0, "email": 1, "user_id": 1},
+    ).to_list(length=None)
+    pe_emails = {(d.get("email") or "").lower() for d in pe_docs if d.get("email")}
+    pe_user_ids = {d.get("user_id") for d in pe_docs if d.get("user_id")}
+    for u in all_users:
+        email = (u.get("email") or "").lower()
+        is_pe = (
+            bool(u.get("is_partner_engineer"))
+            or u.get("role") == "engineer_partner"
+            or u.get("account_type") == "partner_engineer"
+            or (email and email in pe_emails)
+            or (u.get("id") and u.get("id") in pe_user_ids)
+        )
+        if not is_pe:
+            continue
+        u["is_partner_engineer"] = True
+        u["display_role"] = "Partner Engineer"
+        # Engineers operate in the Engineer App, not the Operations /
+        # Service Portal — swap the portal chip so the directory is honest.
+        portals = [p for p in (u.get("portals") or []) if p != "service_portal"]
+        if "engineer_app" not in portals:
+            portals.append("engineer_app")
+        u["portals"] = portals
+
+
 async def _enrich_with_invited_role(all_users: list) -> None:
     """Iter 216h3 — flag users whose accepted invite role differs from
     their current role so the People Directory shows a warning badge."""
@@ -396,6 +437,7 @@ async def get_all_users(user: dict = Depends(get_current_user), brand: str = "al
     all_users = _merge_users_by_email(sp_users, crm_list)
     all_users = await _fan_pulse_platform_admins(all_users)
     await _enrich_with_orgs(all_users)
+    await _enrich_partner_engineers(all_users)
     await _enrich_with_invited_role(all_users)
     await _enrich_with_pending_invite(all_users)
     return {"users": all_users}

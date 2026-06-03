@@ -53,7 +53,7 @@ const InstructorsTab = lazy(() => import('@/pages/Memberships/InstructorsTab'));
 const CheckinTab = lazy(() => import('@/pages/Memberships/CheckinTab'));
 const CRMLoopTab = lazy(() => import('@/pages/Memberships/CRMLoopTab'));
 const MembershipsStartTab = lazy(() => import('@/pages/Memberships/MembershipsStartTab'));
-const MobileAppBuilderTab = lazy(() => import('@/pages/Memberships/MobileAppBuilderTab'));
+const MemberAppTab = lazy(() => import('@/pages/Memberships/MemberAppTab'));
 const InvoicingTab = lazy(() => import('@/pages/Memberships/InvoicingTab'));
 const DeskSalesReportTab = lazy(() => import('@/pages/Memberships/DeskSalesReportTab'));
 const CoursesView = lazy(() => import('@/pages/Memberships/CoursesView'));
@@ -136,6 +136,7 @@ function MembershipsConsoleInner() {
     { id: 'checkin', label: 'Check-in', icon: ClipboardCheck },
     // — People
     { id: 'members',   label: t('memberships_console.tab_members'),   icon: Users },
+    { id: 'mobile-app', label: 'Member app', icon: Smartphone },
     { id: 'instructors', label: 'Instructors', icon: Activity },
     // — Commercial
     { id: 'plans',     label: t('memberships_console.tab_plans'),     icon: PackageOpen },
@@ -152,7 +153,6 @@ function MembershipsConsoleInner() {
     // — Cross-platform tools
     { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
     { id: 'booking-rules', label: 'Booking rules', icon: Settings },
-    { id: 'mobile-app', label: 'Member app', icon: Smartphone },
   ], [t]);
 
   // Filter the tab list when Studio Mode is on — keeps UI focused on

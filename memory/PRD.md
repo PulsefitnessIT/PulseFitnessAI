@@ -1,3 +1,17 @@
+## Iter 220p — Production fixes: partner-engineer directory class + Member app white screen + tab move ✅ (Jun, 2026)
+
+Three production (gymaxisai.com) issues reported with screenshot. Fixes are in preview code → **need a redeploy to reach production.**
+
+1. **Partner engineers shown as "Staff" on the Service/Operations Portal in the People Directory.** `master_admin_users.py` now has `_enrich_partner_engineers` (run after `_enrich_with_orgs`): flags a user as a Partner Engineer via `is_partner_engineer`/`role==engineer_partner`/`account_type==partner_engineer` OR a linked **approved** `partner_engineers` doc (matched by `user_id`/email; excludes pending/rejected/declined/withdrawn). For flagged users it sets `display_role='Partner Engineer'` and swaps the `service_portal` portal chip → `engineer_app`. Frontend `PeopleDirectory.js`: `classifyUser` routes them to a new **`partner_engineers`** category; added a **Partner Engineers** stat tile + filter pill (grid → 8 cols), a "Partner Engineer" role chip (indigo) and an "Engineer App" portal badge. Verified: Engineer Smoke now renders Partner Engineer + Engineer App (curl + screenshot). Daniel Thomas (prod) has an approved `partner_engineers` row so he'll classify correctly post-redeploy.
+
+2. **Memberships → "Member app" → white screen.** Root cause: `MembershipsConsole.js` rendered `<MemberAppTab/>` (line 340) but only imported the old `MobileAppBuilderTab` — `MemberAppTab` was **undefined** → ReferenceError → blank tab. Fixed: replaced the dead lazy import with `const MemberAppTab = lazy(() => import('@/pages/Memberships/MemberAppTab'))`. Tab now renders App Builder + Parent Portal sub-tabs.
+
+3. **Moved the "Member app" tab next to Members** (was last in the bar) — now in the People group: Members · **Member app** · Instructors.
+
+Lint clean (py+js). Files: `routes/master_admin_users.py`, `pages/MasterAdmin/PeopleDirectory.js`, `pages/Memberships/MembershipsConsole.js`.
+
+---
+
 ## Iter 220o — Master Admin: split Platform overview vs Operations-only overview ✅ (Jun, 2026)
 
 **User:** the "Operations Portal → Overview" was actually showing platform-wide data (all-module orgs/users/revenue + a cross-module Trial Pipeline). Wanted a dedicated **Platform** overview combining all modules + trials (deduped), and the **Operations** overview to show operations-only data.
