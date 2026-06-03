@@ -741,8 +741,8 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Emergency contact</p>
         <div className="grid grid-cols-2 gap-3">
-          <LabelledInput label={null} value={f.emergency_contact_name}  onChange={up('emergency_contact_name')}  placeholder="Name"          testid="member-reg-eg-name" />
-          <LabelledInput label={null} value={f.emergency_contact_phone} onChange={up('emergency_contact_phone')} placeholder="Phone *" required testid="member-reg-eg-phone" />
+          <LabelledInput label="Name"  value={f.emergency_contact_name}  onChange={up('emergency_contact_name')}  placeholder="e.g. Frank"      testid="member-reg-eg-name" />
+          <LabelledInput label="Phone" value={f.emergency_contact_phone} onChange={up('emergency_contact_phone')} placeholder="+44 7700 900000" required testid="member-reg-eg-phone" />
         </div>
       </div>
 

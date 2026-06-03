@@ -1,3 +1,15 @@
+## Iter 220u — Member app fixes: Check-in QR not generating + sign-up form layout ✅ (Jun, 2026)
+
+Two member-app (`/m/{slug}`) bugs reported with screenshots (preview).
+
+1. **Check-in pass QR never rendered ("Failed to generate pass", spinner + only the numeric code).** Root cause: `tabs/PassTab.js` passed **CSS variables** to `QRCode.toDataURL` colours (`dark: 'var(--color-surface-darker)'`, `light: 'var(--color-white)'`) — the `qrcode` lib needs real hex, so it threw. Fixed to `dark: '#0A0C10', light: '#FFFFFF'`. Verified live: scannable QR renders with the rotating code + countdown (`/member/qr` endpoint was always fine — confirmed via curl, payload `GXM|…|code`).
+
+2. **Sign-up form layout — emergency-contact fields mismatched.** `portalShared.js` `LabelledInput` (a) rendered a stray `' *'` when `label={null}` + `required` (the floating asterisk on the empty phone field) and (b) ignored the `placeholder` prop entirely, so all placeholder hints were invisible and empty labels collapsed → fields misaligned. Fixes: only show `*` when there's a label; wire the `placeholder` prop to the input. Gave the Emergency-contact fields proper **Name** / **Phone** labels (MemberPortal.js). Verified live: aligned labelled fields, placeholders visible across the form.
+
+Lint clean. Files: `tabs/PassTab.js`, `portalShared.js`, `MemberPortal.js`.
+
+---
+
 ## Iter 220t — Member App "Share pack" (social-ready acquisition card) ✅ (Jun, 2026)
 
 Suggested follow-up to 220s. A one-click **Share pack** button (in the App-address card of the Member-App Builder) opens a modal that renders a branded, social-ready image entirely client-side on `<canvas>`: brand-colour gradient background, the studio logo, gym name + tagline, a QR code (existing `qrcode` lib) and the app URL. Two formats — **Square (post)** 1080×1080 and **Story** 1080×1920 — with **Download PNG** + native **Share** (Web Share API with file, falls back to download). Turns the builder into a member-acquisition tool (post to Instagram/Facebook/WhatsApp to drive app installs).

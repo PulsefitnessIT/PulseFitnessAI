@@ -23,7 +23,7 @@ export default function PassTab({ headers, member }) {
       const { data } = await axios.get(`${API}/member/qr`, { headers });
       setQr(data);
       setExpiresIn(data.expires_in || 30);
-      const url = await QRCode.toDataURL(data.payload, { width: 320, margin: 1, color: { dark: 'var(--color-surface-darker)', light: 'var(--color-white)' } });
+      const url = await QRCode.toDataURL(data.payload, { width: 320, margin: 1, color: { dark: '#0A0C10', light: '#FFFFFF' } });
       setDataUrl(url);
     } catch { notify.error('Failed to generate pass'); }
   }, [headers]);

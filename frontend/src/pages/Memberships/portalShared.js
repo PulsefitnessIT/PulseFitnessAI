@@ -54,11 +54,12 @@ export function Row({ label, value }) {
   );
 }
 
-export function LabelledInput({ label, value, onChange, type = 'text', required, testid }) {
+export function LabelledInput({ label, value, onChange, type = 'text', required, testid, placeholder }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">{label}{required ? ' *' : ''}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">{label}{label && required ? ' *' : ''}</span>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required}
+        placeholder={placeholder}
         autoCapitalize={type === 'email' ? 'none' : undefined}
         autoCorrect={type === 'email' ? 'off' : undefined}
         className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
