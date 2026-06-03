@@ -37,6 +37,40 @@ import { StudioVocabProvider, useStudioVocab } from '@/hooks/useStudioVocab';
 import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 import { API, MEMBER_TOKEN_KEY, LabelledInput } from './portalShared';
 
+// Iter 220r — operator-chosen typography + button corner style for the
+// member app. Fonts are loaded from Google Fonts on demand; the button
+// radius is applied via a tiny scoped stylesheet (member app only).
+const FONT_STACKS = {
+  inter:   { family: "'Inter', system-ui, sans-serif",         google: 'Inter:wght@400;600;800' },
+  poppins: { family: "'Poppins', system-ui, sans-serif",       google: 'Poppins:wght@400;600;800' },
+  manrope: { family: "'Manrope', system-ui, sans-serif",       google: 'Manrope:wght@400;600;800' },
+  nunito:  { family: "'Nunito', system-ui, sans-serif",        google: 'Nunito:wght@400;700;800' },
+  space:   { family: "'Space Grotesk', system-ui, sans-serif", google: 'Space+Grotesk:wght@400;600;700' },
+};
+
+function ensureFontLoaded(key) {
+  const f = FONT_STACKS[key];
+  if (!f || typeof document === 'undefined') return;
+  const id = `gym-font-${key}`;
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${f.google}&display=swap`;
+  document.head.appendChild(link);
+}
+
+function ensureMemberBrandStyles() {
+  if (typeof document === 'undefined' || document.getElementById('gym-member-brand-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'gym-member-brand-styles';
+  s.textContent = `
+    [data-gym-btn="pill"] button { border-radius: 9999px !important; }
+    [data-gym-btn="sharp"] button { border-radius: 0 !important; }
+  `;
+  document.head.appendChild(s);
+}
+
 // Iter 216h173 — Each tab is a lazy chunk. Webpack splits these into
 // separate JS files that download on demand, slashing initial JS bundle.
 const BookTab     = lazy(() => import('./tabs/BookTab'));
@@ -102,6 +136,13 @@ export default function MemberPortal({ slug }) {
     document.documentElement.style.setProperty('--gym-accent', c);
     return () => { document.documentElement.style.removeProperty('--gym-accent'); };
   }, [branding]);
+
+  // Iter 220r — typography + button-style theming.
+  const fontKey = branding?.font || 'inter';
+  const fontFamily = (FONT_STACKS[fontKey] || FONT_STACKS.inter).family;
+  const buttonStyle = branding?.button_style || 'soft';
+  useEffect(() => { ensureMemberBrandStyles(); }, []);
+  useEffect(() => { ensureFontLoaded(fontKey); }, [fontKey]);
 
   const handleAuthed = useCallback((t, m) => {
     unifiedAuth.login({ scope: 'member', token: t });
@@ -192,7 +233,7 @@ export default function MemberPortal({ slug }) {
 
   return (
     <StudioVocabProvider vocab={vocab}>
-    <div data-theme="dark" className="dark min-h-screen bg-[var(--color-surface-darker)] text-white pb-24" data-testid="member-portal">
+    <div data-theme="dark" data-gym-btn={buttonStyle} style={{ fontFamily }} className="dark min-h-screen bg-[var(--color-surface-darker)] text-white pb-24" data-testid="member-portal">
       {/* Iter 216h201 — Lee reported the "Failed to book" toast renders
          on a white card. Root cause: the global <Toaster> in App.js
          inherits the operator's `theme` localStorage value (default
@@ -488,9 +529,12 @@ function AuthGate({ onAuthed, branding, slug }) {
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
   const hero = branding?.hero_image_url || null;
   const apiOrigin = API.replace(/\/api\/?$/, '');
+  const fontKey = branding?.font || 'inter';
+  const fontFamily = (FONT_STACKS[fontKey] || FONT_STACKS.inter).family;
+  const buttonStyle = branding?.button_style || 'soft';
 
   return (
-    <div data-theme="dark" className="dark min-h-screen bg-[var(--color-surface-darker)] text-white flex flex-col" data-testid="member-auth-gate">
+    <div data-theme="dark" data-gym-btn={buttonStyle} style={{ fontFamily }} className="dark min-h-screen bg-[var(--color-surface-darker)] text-white flex flex-col" data-testid="member-auth-gate">
       {hero && (
         <div className="relative w-full h-40 sm:h-48 overflow-hidden" data-testid="member-auth-hero">
           <img src={hero.startsWith('http') || hero.startsWith('data:') ? hero : `${apiOrigin}${hero}`} alt="" className="w-full h-full object-cover" loading="eager" decoding="async" />

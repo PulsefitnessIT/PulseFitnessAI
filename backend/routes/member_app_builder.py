@@ -355,14 +355,11 @@ async def get_layout(
     org_doc = await db.organizations.find_one(
         {"id": org_id},
         {"_id": 0, "membership_app_slug": 1, "slug": 1,
-         "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1},
+         "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
+         "member_app_font": 1, "member_app_button_style": 1},
     ) or {}
     app_slug = org_doc.get("membership_app_slug") or org_doc.get("slug") or None
-    branding = {
-        "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
-        "logo_url": org_doc.get("logo_url") or None,
-        "hero_image_url": org_doc.get("member_app_hero_url") or None,
-    }
+    branding = _branding_dict(org_doc)
     query: dict[str, Any] = {"organization_id": org_id, "is_default": True}
     if site_id:
         query["site_id"] = site_id
@@ -487,16 +484,38 @@ def _normalise_hex(value: str | None) -> str | None:
     return "#" + body.upper()
 
 
+_ALLOWED_FONTS = {"inter", "poppins", "manrope", "nunito", "space"}
+_ALLOWED_BTN = {"soft", "pill", "sharp"}
+
+
+def _branding_dict(org_doc: dict) -> dict:
+    """Shared shape for the member-app branding payload (Iter 220r)."""
+    return {
+        "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
+        "logo_url": org_doc.get("logo_url") or None,
+        "hero_image_url": org_doc.get("member_app_hero_url") or None,
+        "font": org_doc.get("member_app_font") or "inter",
+        "button_style": org_doc.get("member_app_button_style") or "soft",
+    }
+
+
+_BRANDING_PROJECTION = {
+    "_id": 0, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
+    "member_app_font": 1, "member_app_button_style": 1,
+}
+
+
 @router.put("/member-app/branding")
 async def save_branding(
     payload: dict = Body(...),
     user: dict = Depends(get_current_user),
 ) -> dict:
-    """Persist member-app branding (brand colour). Owner/manager only.
+    """Persist member-app branding (colour + typography + button style).
 
-    The hero image + logo are uploaded via their own multipart endpoints;
-    this saves the brand colour (and keeps `branding.primary_color` in sync
-    so every reader of org branding picks it up).
+    Owner/manager only. The hero image + logo are uploaded via their own
+    multipart endpoints; this saves the brand colour (keeping
+    `branding.primary_color` in sync so every reader picks it up), the
+    chosen Google font key and the button-corner style.
     """
     _require_owner_or_manager(user)
     org_id, _ = await _resolve_org(user)
@@ -510,19 +529,20 @@ async def save_branding(
         branding = dict(org.get("branding") or {})
         branding["primary_color"] = colour
         updates["branding"] = branding
+    if "font" in payload:
+        f = payload.get("font") or "inter"
+        if f not in _ALLOWED_FONTS:
+            raise HTTPException(400, "Unknown font choice")
+        updates["member_app_font"] = f
+    if "button_style" in payload:
+        b = payload.get("button_style") or "soft"
+        if b not in _ALLOWED_BTN:
+            raise HTTPException(400, "Unknown button style")
+        updates["member_app_button_style"] = b
     if updates:
         await db.organizations.update_one({"id": org_id}, {"$set": updates})
-    org_doc = await db.organizations.find_one(
-        {"id": org_id},
-        {"_id": 0, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1},
-    ) or {}
-    return {
-        "branding": {
-            "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
-            "logo_url": org_doc.get("logo_url") or None,
-            "hero_image_url": org_doc.get("member_app_hero_url") or None,
-        }
-    }
+    org_doc = await db.organizations.find_one({"id": org_id}, _BRANDING_PROJECTION) or {}
+    return {"branding": _branding_dict(org_doc)}
 
 
 @router.post("/member-app/hero-image")

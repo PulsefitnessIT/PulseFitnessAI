@@ -341,6 +341,8 @@ async def public_branding(slug: str, site: str | None = None):
         "primary_brand_colour": eff["primary_color"] or "#19CDFF",
         "secondary_color": eff["secondary_color"] or "",
         "hero_image_url": org.get("member_app_hero_url") or None,
+        "font": org.get("member_app_font") or "inter",
+        "button_style": org.get("member_app_button_style") or "soft",
         "currency": org.get("currency") or "GBP",
         "site_id": (site_doc or {}).get("id"),
         "site_name": (site_doc or {}).get("name"),

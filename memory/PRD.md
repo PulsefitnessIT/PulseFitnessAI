@@ -1,3 +1,17 @@
+## Iter 220r — Member App personalisation: typography + button-corner style ✅ (Jun, 2026)
+
+Follow-up to 220q (the suggested enhancement). Added two app-wide personalisation levers to the **Branding & theme** panel so each studio's member app feels genuinely "theirs":
+- **Typography** — 5 curated Google fonts (Clean/Inter, Friendly/Poppins, Modern/Manrope, Rounded/Nunito, Techy/Space Grotesk), loaded on demand and applied across the whole member app via `font-family` on the portal root.
+- **Button style** — Soft / Pill / Sharp corner radius, applied via a scoped `[data-gym-btn]` stylesheet (member app only).
+
+Light/dark theme toggle was **deliberately deferred**: the member app is hardcoded as a dark premium experience across hundreds of lines — a true light mode is a separate, larger refactor (offered to the user).
+
+**Backend** (`member_app_builder.py`): `PUT /member-app/branding` now accepts validated `font` (∈ inter/poppins/manrope/nunito/space) + `button_style` (∈ soft/pill/sharp); shared `_branding_dict`/`_BRANDING_PROJECTION` helpers; `get_layout` + public `/m/{slug}/branding` return them. **Frontend**: `BrandingPanel` Typography + Button-style chip rows (each font chip renders in its own font; switched `onColour`→generic `onField`/`saveBrandField`). `MemberPortal` loads the chosen Google font + applies `fontFamily` + `data-gym-btn` on both the AuthGate and the main shell.
+
+**Verified end-to-end** on the real member app: curl (font=poppins/button=pill persisted, invalid font→400, public branding returns both); live `/m/member-only-gym` showed computed `font-family: "Space Grotesk"`, Sign-In button `border-radius: 9999px` (pill), green accent + hero banner. Lint clean (py+js).
+
+---
+
 ## Iter 220q — Member App Builder: real live preview + branding/personalisation ✅ (Jun, 2026)
 
 User wanted the Memberships → Member app → **App Builder** "Live preview" to be a **real live app** (so operators see exactly what members see) + the ability to **personalise with their own images and colours**. Chose option A (logo + hero/cover banner). Tested end-to-end by testing_agent (Iter 220q report) — all pass, retest_needed=false.

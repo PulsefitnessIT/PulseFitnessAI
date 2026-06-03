@@ -159,14 +159,14 @@ export default function MobileAppBuilderTab({ API, headers }) {
     }
   };
 
-  // ── Branding & theme (Iter 220q) ──
-  const saveBrandColour = useCallback(async (colour) => {
-    setBranding((b) => ({ ...b, primary_brand_colour: colour }));
+  // ── Branding & theme (Iter 220q/220r) ──
+  const saveBrandField = useCallback(async (patch) => {
+    setBranding((b) => ({ ...b, ...patch }));
     try {
-      await axios.put(`${API}/member-app/branding`, { primary_brand_colour: colour }, { headers });
+      await axios.put(`${API}/member-app/branding`, patch, { headers });
       bumpPreview();
     } catch (e) {
-      notifyApiError(notify, e, 'Could not save brand colour');
+      notifyApiError(notify, e, 'Could not save branding');
     }
   }, [API, headers, bumpPreview]);
 
@@ -268,7 +268,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
       <div className="lg:col-span-7 space-y-3">
         <BrandingPanel
           branding={branding}
-          onColour={saveBrandColour}
+          onField={saveBrandField}
           onUpload={uploadImage}
           onRemoveHero={removeHero}
           apiOrigin={API.replace(/\/api\/?$/, '')}
@@ -763,12 +763,26 @@ function LiveAppPreview({ slug, previewKey }) {
 /* ─────────────────── Branding & theme panel ─────────────────── */
 
 const COLOUR_PRESETS = ['#19CDFF', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#0EA5E9', '#0F172A'];
+const FONT_OPTIONS = [
+  { id: 'inter', label: 'Clean', css: "'Inter', system-ui, sans-serif" },
+  { id: 'poppins', label: 'Friendly', css: "'Poppins', system-ui, sans-serif" },
+  { id: 'manrope', label: 'Modern', css: "'Manrope', system-ui, sans-serif" },
+  { id: 'nunito', label: 'Rounded', css: "'Nunito', system-ui, sans-serif" },
+  { id: 'space', label: 'Techy', css: "'Space Grotesk', system-ui, sans-serif" },
+];
+const BUTTON_OPTIONS = [
+  { id: 'soft', label: 'Soft', radius: 8 },
+  { id: 'pill', label: 'Pill', radius: 999 },
+  { id: 'sharp', label: 'Sharp', radius: 0 },
+];
 
-function BrandingPanel({ branding, onColour, onUpload, onRemoveHero, apiOrigin }) {
+function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin }) {
   const logoRef = useRef(null);
   const heroRef = useRef(null);
   const [busy, setBusy] = useState(null); // 'logo' | 'hero' | null
   const colour = branding?.primary_brand_colour || '#19CDFF';
+  const font = branding?.font || 'inter';
+  const buttonStyle = branding?.button_style || 'soft';
   const hero = branding?.hero_image_url;
   const heroSrc = hero && (hero.startsWith('http') || hero.startsWith('data:')) ? hero : (hero ? `${apiOrigin}${hero}` : null);
   const logo = branding?.logo_url;
@@ -797,7 +811,7 @@ function BrandingPanel({ branding, onColour, onUpload, onRemoveHero, apiOrigin }
           {COLOUR_PRESETS.map((c) => (
             <button
               key={c}
-              onClick={() => onColour(c)}
+              onClick={() => onField({ primary_brand_colour: c })}
               title={c}
               data-testid={`mab-colour-${c.replace('#', '')}`}
               className="w-7 h-7 rounded-full transition"
@@ -808,12 +822,65 @@ function BrandingPanel({ branding, onColour, onUpload, onRemoveHero, apiOrigin }
             <input
               type="color"
               value={colour}
-              onChange={(e) => onColour(e.target.value)}
+              onChange={(e) => onField({ primary_brand_colour: e.target.value })}
               className="absolute inset-0 w-[200%] h-[200%] -left-1/2 -top-1/2 cursor-pointer"
               data-testid="mab-colour-custom"
             />
           </label>
           <span className="text-xs font-mono" style={{ color: 'var(--theme-text-muted)' }}>{colour}</span>
+        </div>
+      </div>
+
+      {/* Typography */}
+      <div className="mb-4">
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Typography</span>
+        <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid="mab-font-options">
+          {FONT_OPTIONS.map((f) => {
+            const active = font === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => onField({ font: f.id })}
+                data-testid={`mab-font-${f.id}`}
+                className="px-3 py-1.5 rounded-lg text-sm transition"
+                style={{
+                  fontFamily: f.css,
+                  background: active ? 'var(--color-brand-cyan)' : 'var(--theme-surface-2)',
+                  color: active ? 'var(--color-ink)' : 'var(--theme-text)',
+                  border: active ? 'none' : '1px solid var(--theme-border)',
+                  fontWeight: 700,
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Button style */}
+      <div className="mb-4">
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Button style</span>
+        <div className="flex gap-1.5 mt-1.5" data-testid="mab-button-options">
+          {BUTTON_OPTIONS.map((b) => {
+            const active = buttonStyle === b.id;
+            return (
+              <button
+                key={b.id}
+                onClick={() => onField({ button_style: b.id })}
+                data-testid={`mab-button-${b.id}`}
+                className="flex-1 py-2 text-xs font-bold uppercase tracking-wider transition"
+                style={{
+                  borderRadius: b.radius,
+                  background: active ? 'var(--color-brand-cyan)' : 'var(--theme-surface-2)',
+                  color: active ? 'var(--color-ink)' : 'var(--theme-text-muted)',
+                  border: active ? 'none' : '1px solid var(--theme-border)',
+                }}
+              >
+                {b.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -868,7 +935,7 @@ function BrandingPanel({ branding, onColour, onUpload, onRemoveHero, apiOrigin }
         </div>
       </div>
       <p className="text-[11px] mt-3" style={{ color: 'var(--theme-text-muted)' }}>
-        Your colour, logo and banner appear on the member app instantly — switch the preview to <strong>Live app</strong> to see exactly what members see.
+        Your colour, fonts, buttons, logo and banner appear on the member app instantly — switch the preview to <strong>Live app</strong> to see exactly what members see.
       </p>
     </div>
   );
