@@ -1,0 +1,70 @@
+{
+  "summary": "Frontend-only validation of GymAxis user-feedback fixes (Trial billing, Analytics consolidation, Mobile App Builder light preview + App address). All 4 items pass. 1 minor browser-permission caveat on clipboard copy toast.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MobileAppBuilderTab — AppAddressCard",
+        "issue": "Clicking the 'Copy link' button (data-testid=mab-app-address-copy) shows a 'Could not copy' red toast instead of 'App link copied' when navigator.clipboard.writeText is denied (headless Chromium without clipboard permission). The fallback to document.execCommand('copy') or selecting+copying the input/textarea is either missing or also fails silently. Real user browsers should mostly succeed, but on permission-denied/secure-context edge cases the user gets only the failure toast. Consider a textarea+execCommand fallback so the toast can still confirm success.",
+        "selector": "[data-testid='mab-app-address-copy']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, LOW) Add execCommand('copy') fallback in AppAddressCard.handleCopy so the success toast still fires when navigator.clipboard.writeText is blocked (permissions-policy / iframed / headless contexts)."
+  ],
+  "critical_code_review_comments": [
+    "All four fixes are wired correctly: trial card, upgrade-now-btn, upgrade-btn, mab-app-address* testids, and the two new analytics sub-tabs render without crashes.",
+    "Top-level 'Studio brain' and 'AI Insights' tabs successfully removed from MembershipsConsole nav (verified DOM count = 0).",
+    "PhoneFrame is now light (white screen, dark bezel/text on the seven preview cards) — confirmed in screenshot.",
+    "QR code image renders and the slug URL https://service-ops-hub-6.preview.emergentagent.com/m/member-only-gym is shown.",
+    "Console only has expected environment-level CSP/403 errors for emergent-main.js, posthog, cloudflareinsights — none originate from the new code paths (billing modal, AnalyticsTab sub-tabs, AppAddressCard qrcode lib)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (all 4 review items pass; 1 LOW clipboard caveat)"},
+  "test_credentials": "memberonly.trial@example.com / TrialTest123! (trial Memberships org 'Member Only Gym', slug=member-only-gym, lands on /memberships)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login API works fine but page.evaluate fetch from /login origin can fail before app shell loads — instead, get the token via curl/server-side and inject with localStorage.setItem('token', …) on origin '/' then goto('/memberships'). The trial banner appears immediately at top: 'Trial ending soon — 2d Xh remaining · Trial · Upgrade Plan'. User dropdown is opened by clicking the 'Member Only' avatar button at top-right (no testid attached to it, find by text+top<100). Account Settings → Plan & Billing renders trial-card + upgrade-now-btn + upgrade-btn. Analytics tab → sub-tabs with testids mbr-analytics-tab-studio-brain and mbr-analytics-tab-ai-insights both render content (Studio Brain headline + retention risk + heatmap; AI Insights exec brief + at-risk + win-back + demand/pricing).",
+  "verification_details": {
+    "test_1_billing": {
+      "trial_card_present": true,
+      "upgrade_now_btn_present": true,
+      "upgrade_btn_present": true,
+      "shows_pro_99_paid_subscription": false,
+      "shows_on_free_trial_payment_due": true,
+      "header_text": "TRIAL ENDING SOON · 2 days remaining · Trial ends 5 June 2026. Upgrade now to avoid losing access."
+    },
+    "test_2_light_preview": {
+      "phone_frame_light_mode": true,
+      "evidence": "Screenshot shows white phone screen with 9:41 status bar, dark text on white card backgrounds (Book a class, My bookings, Personal training enquiry, Equipment status)"
+    },
+    "test_3_app_address": {
+      "mab_app_address": true,
+      "mab_app_address_url_text": "https://service-ops-hub-6.preview.emergentagent.com/m/member-only-gym",
+      "mab_app_address_copy": true,
+      "mab_app_address_open": true,
+      "mab_app_address_qr": true,
+      "copy_toast_success": false,
+      "copy_toast_actual": "Could not copy (clipboard permission denied in headless test browser)"
+    },
+    "test_4_analytics_consolidation": {
+      "top_level_studio_brain_tab_count": 0,
+      "top_level_ai_insights_tab_count": 0,
+      "subtab_studio_brain_testid_present": true,
+      "subtab_ai_insights_testid_present": true,
+      "studio_brain_renders_without_crash": true,
+      "ai_insights_renders_executive_brief": true,
+      "ai_insights_renders_at_risk": true,
+      "ai_insights_renders_win_back": true,
+      "ai_insights_renders_demand_pricing": true
+    },
+    "regression": {"members_tab_ok": true, "plans_tab_ok": true, "mobile_app_tab_ok": true, "analytics_tab_ok": true},
+    "console_errors_from_new_code": "none — only env-level CSP/403 for emergent-main.js, posthog, cloudflareinsights (unrelated to this change set)"
+  }
+}

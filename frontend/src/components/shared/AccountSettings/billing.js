@@ -9,7 +9,9 @@ import { API, useAuthHeaders } from './shared';
 export default function BillingSection({ billing, _onClose }) {
   const { user } = useAuth();
   const headers = useAuthHeaders();
-  const trial = user?.trial;
+  // Prefer the freshly-fetched billing payload's trial state (authoritative)
+  // over useAuth().user.trial, which can be stale inside the settings modal.
+  const trial = billing?.trial || user?.trial;
   const isTrial = !!trial?.is_trial;
   const [pricing, setPricing] = useState(null);
   const [moduleBusy, setModuleBusy] = useState(null);

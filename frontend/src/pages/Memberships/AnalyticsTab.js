@@ -22,15 +22,18 @@ import { Line, BarChart, Bar, AreaChart, Area,
 import {
   TrendingUp, TrendingDown, Users, PoundSterling, Activity,
   AlertTriangle, Sparkles, Download, FileText, UserMinus, Target,
-  Zap, Calendar as CalIcon, Gauge, ArrowRight, RefreshCw, X, Mail,
+  Zap, Calendar as CalIcon, Gauge, ArrowRight, RefreshCw, X, Mail, Brain,
 } from 'lucide-react';
+import StudioBrainTab from '@/pages/Memberships/StudioBrainTab';
+import AIInsightsTab from '@/pages/Memberships/AIInsightsTab';
 
 const SECTIONS = [
   { id: 'overview',  label: 'Overview',   icon: Gauge },
   { id: 'retention', label: 'Retention',  icon: UserMinus },
   { id: 'classes',   label: 'Classes',    icon: Activity },
   { id: 'operations',label: 'Operations', icon: Target },
-  { id: 'ai',        label: 'AI insights',icon: Sparkles },
+  { id: 'studio-brain', label: 'Studio Brain', icon: Brain },
+  { id: 'ai-insights',  label: 'AI Insights',  icon: Sparkles },
 ];
 
 const ROLES = [
@@ -86,7 +89,13 @@ export default function AnalyticsTab({ API, headers }) {
       {section === 'retention'  && <RetentionSection API={API} headers={headers} range={range} openDrill={openDrill} />}
       {section === 'classes'    && <ClassesSection   API={API} headers={headers} range={range} />}
       {section === 'operations' && <OperationsSection API={API} headers={headers} range={range} openDrill={openDrill} />}
-      {section === 'ai'         && <AISection        API={API} headers={headers} range={range} />}
+      {section === 'studio-brain' && <StudioBrainTab API={API} headers={headers} />}
+      {section === 'ai-insights'  && (
+        <div className="space-y-6">
+          <AISection API={API} headers={headers} range={range} />
+          <AIInsightsTab API={API} headers={headers} />
+        </div>
+      )}
 
       {drill && <DrillDrawer API={API} headers={headers} range={range} drill={drill} onClose={() => setDrill(null)} />}
     </div>
@@ -403,33 +412,17 @@ function RetentionSection({ API, headers, range }) {
         </div>
       </ChartCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Churn by plan">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.churn_by_plan} layout="vertical" margin={{ left: 30 }}>
-              <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
-              <XAxis type="number" stroke="rgba(255,255,255,0.5)" style={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="plan" stroke="rgba(255,255,255,0.5)" style={{ fontSize: 11 }} width={110} />
-              <Tooltip contentStyle={{ background: 'var(--color-ink)', border: '1px solid rgba(255,255,255,0.15)' }} />
-              <Bar dataKey="count" fill="var(--color-rose)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="At-risk member preview">
-          <div className="space-y-1.5 pt-2 max-h-[220px] overflow-y-auto">
-            {(data.segment_members.at_risk || []).slice(0, 10).map((m, idx) => (
-              <div key={m.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 text-xs" data-testid={`mbr-at-risk-preview-${idx}`}>
-                <span className="font-semibold">{m.name}</span>
-                <span className="text-white/50">{m.visits_60d} visits · £{m.lifetime_value_gbp}</span>
-              </div>
-            ))}
-            {(!data.segment_members.at_risk || data.segment_members.at_risk.length === 0) && (
-              <div className="text-xs text-white/50 py-6 text-center">No at-risk members in window</div>
-            )}
-          </div>
-        </ChartCard>
-      </div>
+      <ChartCard title="Churn by plan">
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={data.churn_by_plan} layout="vertical" margin={{ left: 30 }}>
+            <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
+            <XAxis type="number" stroke="rgba(255,255,255,0.5)" style={{ fontSize: 11 }} />
+            <YAxis type="category" dataKey="plan" stroke="rgba(255,255,255,0.5)" style={{ fontSize: 11 }} width={110} />
+            <Tooltip contentStyle={{ background: 'var(--color-ink)', border: '1px solid rgba(255,255,255,0.15)' }} />
+            <Bar dataKey="count" fill="var(--color-rose)" />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
       <ExportButton API={API} headers={headers} report="retention" range={range} label="Export retention" />
 

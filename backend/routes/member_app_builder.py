@@ -352,6 +352,10 @@ async def get_layout(
     so brand-new orgs see a working member app on day one.
     """
     org_id, account_type = await _resolve_org(user)
+    org_doc = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "membership_app_slug": 1},
+    ) or {}
+    app_slug = org_doc.get("membership_app_slug") or None
     query: dict[str, Any] = {"organization_id": org_id, "is_default": True}
     if site_id:
         query["site_id"] = site_id
@@ -367,7 +371,7 @@ async def get_layout(
             "updated_by": None,
             "updated_at": None,
         }
-    return {"layout": layout, "account_type": account_type}
+    return {"layout": layout, "account_type": account_type, "app_slug": app_slug}
 
 
 @router.put("/member-app/layout")

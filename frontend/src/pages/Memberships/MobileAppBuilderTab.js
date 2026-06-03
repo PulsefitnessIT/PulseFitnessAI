@@ -16,12 +16,13 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   GripVertical, Plus, Eye, EyeOff, Settings as SettingsIcon, RotateCcw, Save,
-  Smartphone, ChevronDown, ChevronUp, Trash2,
+  Smartphone, ChevronDown, ChevronUp, Trash2, Copy, ExternalLink, Link2,
   // Card icons (must mirror CARD_REGISTRY.icon strings on the backend)
   CalendarDays, ClipboardList, Dumbbell, Wrench, Trophy, Activity,
   ShoppingBag, BarChart3, Megaphone, QrCode, Share2, Sparkles,
 } from 'lucide-react';
 import EmptyState from '@/components/shared/EmptyState';
+import QRCode from 'qrcode';
 
 const ICONS = {
   CalendarDays, ClipboardList, Dumbbell, Wrench, Trophy, Activity,
@@ -37,6 +38,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
   const [registry, setRegistry] = useState([]);
   const [cards, setCards] = useState([]);
   const [accountType, setAccountType] = useState(null);
+  const [appSlug, setAppSlug] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -53,6 +55,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
       setRegistry(reg.data?.cards || []);
       setCards(lay.data?.layout?.cards || []);
       setAccountType(lay.data?.account_type || null);
+      setAppSlug(lay.data?.app_slug || null);
       setDirty(false);
     } catch (e) {
       notify.error('Failed to load mobile app layout');
@@ -204,6 +207,11 @@ export default function MobileAppBuilderTab({ API, headers }) {
             <Save className="w-4 h-4" /> {saving ? 'Saving…' : (dirty ? 'Save layout' : 'Saved')}
           </button>
         </div>
+      </div>
+
+      {/* ── App address (public member-app link) ── */}
+      <div className="lg:col-span-12">
+        <AppAddressCard slug={appSlug} />
       </div>
 
       {/* ── Layout list ── */}
@@ -377,7 +385,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
           <PhoneFrame>
             <div className="space-y-3" data-testid="mab-preview">
               {cards.filter((c) => c.enabled).length === 0 && (
-                <div className="text-center text-xs py-12" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <div className="text-center text-xs py-12" style={{ color: '#64748b' }}>
                   Empty home screen.<br />Add and enable cards to see them here.
                 </div>
               )}
@@ -416,6 +424,92 @@ export default function MobileAppBuilderTab({ API, headers }) {
   );
 }
 
+/* ─────────────────── App address (public member-app link) ─────────────────── */
+
+function AppAddressCard({ slug }) {
+  const [qr, setQr] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const url = slug ? `${window.location.origin}/m/${slug}` : null;
+
+  useEffect(() => {
+    if (!url) { setQr(null); return; }
+    QRCode.toDataURL(url, { width: 220, margin: 1 }).then(setQr).catch(() => setQr(null));
+  }, [url]);
+
+  const copy = async () => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      notify.success('App link copied');
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      notify.error('Could not copy');
+    }
+  };
+
+  return (
+    <div
+      className="rounded-xl border p-4 sm:p-5"
+      style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
+      data-testid="mab-app-address"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <Link2 className="w-4 h-4" style={{ color: 'var(--color-brand-cyan)' }} />
+        <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Your app address</div>
+      </div>
+      {!slug ? (
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }} data-testid="mab-app-address-unset">
+          Set your studio&apos;s app URL in <span className="font-semibold">Memberships → Setup → App URL</span> to get a shareable member-app link and QR code.
+        </p>
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs mb-2" style={{ color: 'var(--theme-text-muted)' }}>
+              Share this link (or the QR code) with your members — it opens your branded mobile app.
+            </p>
+            <div
+              className="rounded-lg border px-3 py-2 text-sm font-mono truncate"
+              style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="mab-app-address-url"
+            >
+              {url}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={copy}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}
+                data-testid="mab-app-address-copy"
+              >
+                <Copy className="w-3.5 h-3.5" /> {copied ? 'Copied' : 'Copy link'}
+              </button>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="mab-app-address-open"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open
+              </a>
+            </div>
+          </div>
+          {qr && (
+            <img
+              src={qr}
+              alt="App QR code"
+              className="w-28 h-28 rounded-lg bg-white p-1.5 flex-shrink-0"
+              data-testid="mab-app-address-qr"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─────────────────── Phone frame ─────────────────── */
 
 function PhoneFrame({ children }) {
@@ -424,20 +518,20 @@ function PhoneFrame({ children }) {
       className="mx-auto rounded-[2rem] p-4 shadow-xl"
       style={{
         width: 280,
-        background: 'var(--color-ink)',
-        border: '8px solid var(--color-ink-coal-alt)',
+        background: '#ffffff',
+        border: '8px solid #0f172a',
         minHeight: 540,
       }}
     >
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] font-semibold text-white">9:41</div>
+        <div className="text-[10px] font-semibold text-slate-900">9:41</div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-1.5 rounded-sm bg-white/70" />
-          <div className="w-3 h-1.5 rounded-sm bg-white/70" />
-          <div className="w-4 h-2 rounded-sm border border-white/70" />
+          <div className="w-3 h-1.5 rounded-sm bg-slate-900/70" />
+          <div className="w-3 h-1.5 rounded-sm bg-slate-900/70" />
+          <div className="w-4 h-2 rounded-sm border border-slate-900/70" />
         </div>
       </div>
-      <div className="text-white text-sm font-semibold mb-3">My gym</div>
+      <div className="text-slate-900 text-sm font-semibold mb-3">My gym</div>
       {children}
     </div>
   );

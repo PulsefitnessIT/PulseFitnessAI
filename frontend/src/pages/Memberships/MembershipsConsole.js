@@ -16,7 +16,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2, Wallet,
+  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2, Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -50,7 +50,6 @@ const AnalyticsTab = lazy(() => import('@/pages/Memberships/AnalyticsTab'));
 const BookingRulesTab = lazy(() => import('@/pages/Memberships/BookingRulesTab'));
 const PromotionsTab = lazy(() => import('@/pages/Memberships/PromotionsTab'));
 const InstructorsTab = lazy(() => import('@/pages/Memberships/InstructorsTab'));
-const AIInsightsTab = lazy(() => import('@/pages/Memberships/AIInsightsTab'));
 const CheckinTab = lazy(() => import('@/pages/Memberships/CheckinTab'));
 const CRMLoopTab = lazy(() => import('@/pages/Memberships/CRMLoopTab'));
 const MembershipsStartTab = lazy(() => import('@/pages/Memberships/MembershipsStartTab'));
@@ -65,7 +64,6 @@ const StudioBuilderTab = lazy(() => import('@/pages/Memberships/StudioBuilderTab
 const FamilyBillingTab = lazy(() => import('@/pages/Memberships/FamilyBillingTab'));
 const ParentPortalTab = lazy(() => import('@/pages/Memberships/ParentPortalTab'));
 const EventsTab = lazy(() => import('@/pages/Memberships/EventsTab'));
-const StudioBrainTab = lazy(() => import('@/pages/Memberships/StudioBrainTab'));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-16 text-zinc-400" data-testid="memberships-tab-loading">
@@ -123,7 +121,7 @@ function MembershipsConsoleInner() {
   // the "+ Add new instructor" option in the Class Template Editor
   // (StudioBuilderTab → ClassTemplateEditor) can route to the Instructors
   // tab without the guard bouncing the operator back to Start.
-  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'studio-brain', 'timetable', 'classes', 'members', 'instructors', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
+  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'analytics', 'timetable', 'classes', 'members', 'instructors', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
 
   // Iter 216h247 — Tab order rationalised for the typical Studio
   // Operator's day:  set up → daily ops → people → commercial →
@@ -151,10 +149,8 @@ function MembershipsConsoleInner() {
     // — Marketing
     { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'ads',       label: t('memberships_console.tab_ads'),       icon: Megaphone },
-    // — Intelligence & analytics
-    { id: 'studio-brain', label: 'Studio brain', icon: Brain },
+    // — Intelligence & analytics (Studio Brain + AI Insights are sub-tabs inside Analytics)
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
-    { id: 'ai-insights', label: 'AI Insights', icon: Brain },
     // — Cross-platform tools
     { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
     { id: 'booking-rules', label: 'Booking rules', icon: Settings },
@@ -330,7 +326,6 @@ function MembershipsConsoleInner() {
         {['schedule', 'studio-builder', 'timetable', 'classes'].includes(tab) && (
           <SchedulingHubTab key={`sch-${reloadKey}`} API={API} headers={headers} activeTabHint={tab} onSetTab={setTab} />
         )}
-        {tab === 'studio-brain' && <StudioBrainTab key={`br-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'members'   && <MembersTab   key={`mbr-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'plans'     && <PlansTab     key={`pln-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'family-billing' && <FamilyBillingTab key={`fb-${reloadKey}`} API={API} headers={headers} />}
@@ -343,7 +338,6 @@ function MembershipsConsoleInner() {
         {tab === 'desk-sales' && <DeskSalesReportTab key={`ds-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'ads'       && <AdsTab       API={API} headers={headers} />}
         {tab === 'analytics' && <AnalyticsTab key={`ana-${reloadKey}`} API={API} headers={headers} />}
-        {tab === 'ai-insights' && <AIInsightsTab API={API} headers={headers} />}
         {tab === 'crm-loop'  && <CRMLoopTab    API={API} headers={headers} />}
         {tab === 'booking-rules' && <BookingRulesTab API={API} headers={headers} />}
         {tab === 'mobile-app' && <MobileAppBuilderTab API={API} headers={headers} />}

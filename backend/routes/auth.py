@@ -1368,10 +1368,15 @@ async def get_billing_info(user: dict = Depends(get_current_user)) -> dict:
         {"user_id": user['id']}, {"_id": 0}
     ).sort("created_at", -1).to_list(50)
 
+    from utils.trial_lifecycle import compute_trial_state
+    trial_state = compute_trial_state(org) if org else {"is_trial": False}
+
     return {
         "current_plan": tier,
         "plan_name": package_names.get(tier, tier.capitalize()),
         "plan_price": package_prices.get(tier, 0),
+        "trial": trial_state,
+        "is_trial": bool(trial_state.get("is_trial")),
         "organization": org.get('name') if org else None,
         "organization_code": org.get('company_code') if org else None,
         "member_since": user.get('created_at', ''),
