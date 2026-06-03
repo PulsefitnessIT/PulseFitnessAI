@@ -317,7 +317,7 @@ export const sectionTitles = {
 };
 
 export const sectionDescriptions = {
-  overview: 'High-level platform metrics — Operations Portal & CRM',
+  overview: 'Platform-wide metrics across all modules · trials · revenue',
   'pending-review': 'Unified inbox: partner applications, PTW requests, parts requests.',
   tasks: 'Auto-ticks itself as integrations + bulk imports complete',
   pricing: 'Module + bundle prices for both brands. Edits flow live to public homepages.',

@@ -1,3 +1,18 @@
+## Iter 220o — Master Admin: split Platform overview vs Operations-only overview ✅ (Jun, 2026)
+
+**User:** the "Operations Portal → Overview" was actually showing platform-wide data (all-module orgs/users/revenue + a cross-module Trial Pipeline). Wanted a dedicated **Platform** overview combining all modules + trials (deduped), and the **Operations** overview to show operations-only data.
+
+**Built:**
+- **New `Platform` pill** (first, default) in the overview module toggle (`OverviewSection.js`) → renders the existing combined `AdminOverview` (platform KPIs + UnifiedTrialsCard cross-module trials + growth + subscriptions + onboarding funnel + NPS). Single source of truth for trials.
+- **Operations Portal → Overview** now renders new **`OperationsOverview.js`** (operations-scoped KPIs: Operations Orgs, Active Users, Operations MRR, Open Cases + secondary Equipment/Resolved/Supplier cases) followed by the operations-specific `AdminPulse` fleet. **No Trial Pipeline** on this tab (per user).
+- **Backend** (`master_admin_stats_audit.py`): `GET /master-admin/stats` accepts `?module=operations|memberships|marketing|crm`. New `_resolve_module_org_ids` narrows org ids to that module's entitled orgs (operations = every non-MOD org unless `modules.operations.enabled==false`; bolt-ons = explicit `enabled==true`), intersected with any Pulse scope, then reuses the existing scoping helpers so every count is module-scoped.
+
+**Verified:** curl — platform=784 orgs / £840 MRR vs operations=772 / £543 vs memberships=4 / £197. Screenshots — Platform tab shows trials, Operations tab shows scoped KPIs + Pulse, no trials. Lint clean (py+js).
+
+**Files:** `routes/master_admin_stats_audit.py`, `pages/MasterAdmin/OperationsOverview.js` (new), `pages/MasterAdmin/OverviewSection.js`, `pages/MasterAdmin/SidebarConfig.js`.
+
+---
+
 ## Iter 220n — Memberships Setup Wizard theme-aware ✅ (Jun, 2026)
 
 4th of the latest UI-feedback batch (items 1–3 done prior: app-address mapping into Member App tab, Print/Download QR, merged Parent Portal + Mobile App → "Member App"). The Setup Wizard (`/memberships/setup`) was hardcoded to dark mode (`DARK_SURFACE='#07090E'` + `text-white` + `rgba(255,255,255,…)` everywhere) and ignored the theme toggle.

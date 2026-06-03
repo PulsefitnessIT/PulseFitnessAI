@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 // only ships the active inner tab (Service Portal · Overview by default)
 // instead of dragging every cross-portal dashboard into the initial bundle.
 const AdminOverview = lazy(() => import('./AdminOverview'));
+const OperationsOverview = lazy(() => import('./OperationsOverview'));
 const AdminPulse = lazy(() => import('./AdminPulse'));
 const AdminOrganizations = lazy(() => import('./AdminOrganizations'));
 const AdminAiUsage = lazy(() => import('./AdminAiUsage'));
@@ -38,7 +39,7 @@ const OverviewSection = ({
 }) => {
  const { user } = useAuth();
  const isPulseAdmin = !!(user?.is_pulse_admin && !user?.is_master_admin);
- const [overviewActiveTab, setOverviewActiveTab] = useState('service-portal');
+ const [overviewActiveTab, setOverviewActiveTab] = useState('platform');
  const [spInnerTab, setSpInnerTab] = useState('pulse');
  const [crmInnerTab, setCrmInnerTab] = useState('dashboard');
  const [modInnerTab, setModInnerTab] = useState('organisations');
@@ -75,19 +76,29 @@ const OverviewSection = ({
    </div>
  );
 
+ const renderPlatform = () => (
+   <div data-testid="platform-overview">
+     <AdminOverview
+       stats={stats}
+       onGoPayments={() => setSection('payments')}
+       onGoSuspended={() => { setOrgFilter('suspended'); setOverviewActiveTab('service-portal'); setSpInnerTab('organisations'); }}
+       onGoOnboardingPackets={() => setSection('onboarding')}
+       onGoTrials={() => setSection('trials')}
+       onGoArchive={() => setSection('archive')}
+       onGoSection={setSection}
+     />
+   </div>
+ );
+
  const renderServicePortal = () => (
    <div>
      {renderTabBar(spTabs, spInnerTab, setSpInnerTab, 'sp')}
  {spInnerTab === 'pulse' && (
  <div className="space-y-6">
- <AdminOverview
- stats={stats}
+ <OperationsOverview
+ token={mainToken}
  onGoPayments={() => setSection('payments')}
  onGoSuspended={() => { setOrgFilter('suspended'); setSpInnerTab('organisations'); }}
- onGoOnboardingPackets={() => setSection('onboarding')}
- onGoTrials={() => setSection('trials')}
- onGoArchive={() => setSection('archive')}
- onGoSection={setSection}
  />
  {pulseData && (
  <AdminPulse
@@ -138,6 +149,7 @@ const OverviewSection = ({
  <div className="space-y-6">
  <SubTabBar
  tabs={[
+ { id: 'platform', label: 'Platform' },
  { id: 'service-portal', label: isPulseAdmin ? 'Operations Portal (Pulse)' : 'Operations Portal' },
  { id: 'crm', label: 'CRM' },
  { id: 'memberships', label: 'Memberships' },
@@ -148,6 +160,7 @@ const OverviewSection = ({
  onChange={setOverviewActiveTab}
  />
  <Suspense fallback={<InnerFallback />}>
+ {overviewActiveTab === 'platform' && renderPlatform()}
  {overviewActiveTab === 'service-portal' && renderServicePortal()}
  {overviewActiveTab === 'crm' && renderCRM()}
  {overviewActiveTab === 'memberships' && <AdminMemberships />}

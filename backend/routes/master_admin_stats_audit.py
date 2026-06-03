@@ -106,10 +106,46 @@ async def _get_growth_data(mrr: int, org_ids: Optional[list[str]] = None) -> lis
     return data
 
 
+async def _resolve_module_org_ids(module: str, base_org_ids: Optional[list[str]]) -> list[str]:
+    """Return the org ids that have the given product module enabled.
+
+    Iter 220o — powers the per-module Master-Admin overview tabs (e.g.
+    Operations Portal must show ONLY operations-enabled orgs, not the
+    whole platform). Mirrors ``utils.module_access`` defaults at the
+    query level:
+
+      • operations — enabled for every non-MOD org unless explicitly
+        switched off (``modules.operations.enabled == False``). MOD
+        orgs (mod_site/mod_branch/mod_org) never carry the gym modules.
+      • memberships / marketing / crm — bolt-ons, so only count orgs
+        with an explicit ``modules.<key>.enabled == True``.
+
+    When ``base_org_ids`` is set (a Pulse-scoped admin) the result is
+    intersected with that scope.
+    """
+    if module == "operations":
+        q: dict = {
+            "account_type": {"$nin": ["mod_site", "mod_branch", "mod_org"]},
+            "modules.operations.enabled": {"$ne": False},
+        }
+    else:
+        q = {f"modules.{module}.enabled": True}
+    if base_org_ids is not None:
+        q["id"] = {"$in": base_org_ids}
+    docs = await db.organizations.find(q, {"id": 1}).to_list(length=None)
+    return [d["id"] for d in docs if d.get("id")]
+
+
 @router.get("/master-admin/stats")
-async def get_master_stats(user: dict = Depends(get_current_user)):
+async def get_master_stats(user: dict = Depends(get_current_user), module: Optional[str] = None):
     require_master_admin(user)
     org_ids = await _resolve_pulse_scope_org_ids(user)
+    # Iter 220o — optional per-module scoping for the Operations-only
+    # overview. A module filter narrows org_ids to that module's orgs
+    # (intersected with any Pulse scope), so every downstream count is
+    # module-scoped via the existing helpers.
+    if module in ("operations", "memberships", "marketing", "crm"):
+        org_ids = await _resolve_module_org_ids(module, org_ids)
     counts = await _get_platform_counts(org_ids)
     subs, mrr = await _get_subscription_stats(org_ids)
     issue_q: dict = {"ai_triage": {"$exists": True, "$ne": None}}
