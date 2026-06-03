@@ -1,3 +1,15 @@
+## Iter 220t — Member App "Share pack" (social-ready acquisition card) ✅ (Jun, 2026)
+
+Suggested follow-up to 220s. A one-click **Share pack** button (in the App-address card of the Member-App Builder) opens a modal that renders a branded, social-ready image entirely client-side on `<canvas>`: brand-colour gradient background, the studio logo, gym name + tagline, a QR code (existing `qrcode` lib) and the app URL. Two formats — **Square (post)** 1080×1080 and **Story** 1080×1920 — with **Download PNG** + native **Share** (Web Share API with file, falls back to download). Turns the builder into a member-acquisition tool (post to Instagram/Facebook/WhatsApp to drive app installs).
+
+**Backend** (`member_app_builder.py`): `_branding_dict` now also returns the org `name` (used as the card title); projections updated.
+
+**Frontend** (`MobileAppBuilderTab.js`): new `SharePackModal` (canvas drawing helpers `_hexToRgb`/`_shade`/`_readableOn`/`_loadImg`/`_roundRect`; auto-contrast text; YIQ-based ink) + `Share pack` button.
+
+**Bug fixed during build:** the modal wouldn't open — its open-state lived in `AppAddressCard` local state which was being reset by a transient remount, and the trigger button defaulted to `type="submit"`. Fix: hoisted `sharePackOpen` to the top-level `MobileAppBuilderTab`, set the trigger `type="button"`, and hardened the backdrop close (`onMouseDown` + `target===currentTarget`). Verified live: modal opens, canvas paints the brand gradient + QR, Square↔Story toggle works. Lint clean (py+js).
+
+---
+
 ## Iter 220s — Member App branding: one-tap "Apply my logo's colours" ✅ (Jun, 2026)
 
 Suggested follow-up to 220r. The logo upload (`/account/logo`) already extracts a 5-colour `brand_palette` via Pillow — now surfaced in the builder so operators get an on-brand member app in one tap.

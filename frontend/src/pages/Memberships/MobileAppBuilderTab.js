@@ -48,6 +48,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [expandedKey, setExpandedKey] = useState(null);
+  const [sharePackOpen, setSharePackOpen] = useState(false);
   const dragIndex = useRef(null);
 
   const load = useCallback(async () => {
@@ -264,8 +265,20 @@ export default function MobileAppBuilderTab({ API, headers }) {
 
       {/* ── App address (public member-app link) ── */}
       <div className="lg:col-span-12">
-        <AppAddressCard slug={appSlug} />
+        <AppAddressCard slug={appSlug} onSharePack={() => setSharePackOpen(true)} />
       </div>
+
+      {sharePackOpen && (
+        <SharePackModal
+          onClose={() => setSharePackOpen(false)}
+          url={appSlug ? `${window.location.origin}/m/${appSlug}` : null}
+          slug={appSlug}
+          gymName={branding?.name || 'Your studio'}
+          brandColour={branding?.primary_brand_colour || '#19CDFF'}
+          logoUrl={branding?.logo_url || null}
+          apiOrigin={API.replace(/\/api\/?$/, '')}
+        />
+      )}
 
       {/* ── Layout list ── */}
       <div className="lg:col-span-7 space-y-3">
@@ -535,7 +548,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
 
 /* ─────────────────── App address (public member-app link) ─────────────────── */
 
-function AppAddressCard({ slug }) {
+function AppAddressCard({ slug, onSharePack }) {
   const [qr, setQr] = useState(null);
   const [copied, setCopied] = useState(false);
   const url = slug ? `${window.location.origin}/m/${slug}` : null;
@@ -667,6 +680,15 @@ function AppAddressCard({ slug }) {
               >
                 <Download className="w-3.5 h-3.5" /> Download
               </button>
+              <button
+                type="button"
+                onClick={onSharePack}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border"
+                style={{ borderColor: 'var(--color-brand-cyan)', color: 'var(--color-brand-cyan)' }}
+                data-testid="mab-app-address-sharepack"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Share pack
+              </button>
             </div>
           </div>
           {qr && (
@@ -679,6 +701,224 @@ function AppAddressCard({ slug }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────── Share pack (social-ready card) ─────────────────── */
+
+const SHARE_FORMATS = [
+  { id: 'square', label: 'Square (post)', w: 1080, h: 1080 },
+  { id: 'story', label: 'Story', w: 1080, h: 1920 },
+];
+
+function _hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || '').trim());
+  if (!m) return { r: 25, g: 205, b: 255 };
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function _shade({ r, g, b }, f) {
+  // f<1 darken, f>1 lighten (clamped)
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${c(r)},${c(g)},${c(b)})`;
+}
+function _readableOn({ r, g, b }) {
+  // YIQ contrast — pick dark or white text over the brand colour
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#0F172A' : '#FFFFFF';
+}
+function _loadImg(src) {
+  return new Promise((res) => {
+    if (!src) { res(null); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, apiOrigin }) {
+  const canvasRef = useRef(null);
+  const [format, setFormat] = useState('square');
+  const [rendering, setRendering] = useState(true);
+
+  const draw = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setRendering(true);
+    const fmt = SHARE_FORMATS.find((f) => f.id === format) || SHARE_FORMATS[0];
+    const W = fmt.w, H = fmt.h;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const rgb = _hexToRgb(brandColour);
+    const ink = _readableOn(rgb);
+    const sub = ink === '#FFFFFF' ? 'rgba(255,255,255,0.78)' : 'rgba(15,23,42,0.72)';
+
+    // Brand gradient background
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, _shade(rgb, 1.12));
+    grad.addColorStop(1, _shade(rgb, 0.62));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W / 2;
+    let y = H === 1920 ? 320 : 150;
+
+    // Logo (optional)
+    const logoSrc = logoUrl
+      ? (logoUrl.startsWith('http') || logoUrl.startsWith('data:') ? logoUrl : `${apiOrigin}${logoUrl}`)
+      : null;
+    const logoImg = await _loadImg(logoSrc);
+    if (logoImg) {
+      const box = 200;
+      const ratio = Math.min(box / logoImg.width, box / logoImg.height);
+      const lw = logoImg.width * ratio, lh = logoImg.height * ratio;
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      _roundRect(ctx, cx - box / 2 - 24, y - 24, box + 48, box + 48, 36);
+      ctx.fill();
+      ctx.drawImage(logoImg, cx - lw / 2, y + (box - lh) / 2, lw, lh);
+      ctx.restore();
+      y += box + 70;
+    }
+
+    ctx.textAlign = 'center';
+    // Gym name
+    ctx.fillStyle = ink;
+    ctx.font = "800 78px Inter, system-ui, sans-serif";
+    const name = (gymName || 'Your studio').slice(0, 28);
+    ctx.fillText(name, cx, y);
+    y += 70;
+    // Tagline
+    ctx.fillStyle = sub;
+    ctx.font = "600 38px Inter, system-ui, sans-serif";
+    ctx.fillText('Book classes · Check in · Manage your plan', cx, y);
+    y += H === 1920 ? 150 : 90;
+
+    // White QR panel
+    const qrSize = H === 1920 ? 560 : 460;
+    const panel = qrSize + 120;
+    const px = cx - panel / 2;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 16;
+    ctx.fillStyle = '#ffffff';
+    _roundRect(ctx, px, y, panel, panel + 90, 44);
+    ctx.fill();
+    ctx.restore();
+
+    const qrDataUrl = await QRCode.toDataURL(url, { width: qrSize, margin: 1, color: { dark: '#0F172A', light: '#FFFFFF' } });
+    const qrImg = await _loadImg(qrDataUrl);
+    if (qrImg) ctx.drawImage(qrImg, cx - qrSize / 2, y + 60, qrSize, qrSize);
+    ctx.fillStyle = '#0F172A';
+    ctx.font = "800 34px Inter, system-ui, sans-serif";
+    ctx.fillText('SCAN TO GET THE APP', cx, y + qrSize + 130);
+    y += panel + 130;
+
+    // App URL chip
+    ctx.fillStyle = ink;
+    ctx.font = "700 36px Inter, system-ui, sans-serif";
+    const shortUrl = (url || '').replace(/^https?:\/\//, '');
+    ctx.fillText(shortUrl, cx, y);
+
+    setRendering(false);
+  }, [format, url, gymName, brandColour, logoUrl, apiOrigin]);
+
+  useEffect(() => { draw(); }, [draw]);
+
+  const getBlob = () => new Promise((res) => canvasRef.current?.toBlob(res, 'image/png', 0.95));
+
+  const download = async () => {
+    const blob = await getBlob();
+    if (!blob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${slug || 'gym'}-app-card-${format}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    notify.success('Card downloaded');
+  };
+
+  const share = async () => {
+    const blob = await getBlob();
+    if (!blob) return;
+    const file = new File([blob], `${slug || 'gym'}-app-card.png`, { type: 'image/png' });
+    const text = `Download the ${gymName} app — book classes, check in and manage your plan: ${url}`;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: `${gymName} app`, text }); return; } catch { /* cancelled */ }
+    }
+    download();
+  };
+
+  const canNativeShare = typeof navigator !== 'undefined' && !!navigator.canShare;
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+      style={{ background: 'rgba(2,6,23,0.6)' }}
+      data-testid="mab-sharepack-modal"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto"
+        style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+          <div className="flex items-center gap-2">
+            <Share2 className="w-4 h-4" style={{ color: 'var(--color-brand-cyan)' }} />
+            <div className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Share pack</div>
+          </div>
+          <button onClick={onClose} data-testid="mab-sharepack-close" className="p-1.5 rounded-lg" style={{ color: 'var(--theme-text-muted)' }}><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+            A ready-to-post image with your logo, colour and QR code — share it on Instagram, Facebook or WhatsApp to get members onto your app.
+          </p>
+          <div className="flex p-1 rounded-lg" style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)' }} data-testid="mab-sharepack-format">
+            {SHARE_FORMATS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFormat(f.id)}
+                data-testid={`mab-sharepack-format-${f.id}`}
+                className="flex-1 text-xs font-bold uppercase tracking-wider py-2 rounded-md transition"
+                style={format === f.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { background: 'transparent', color: 'var(--theme-text-muted)' }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-xl overflow-hidden grid place-items-center" style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)', minHeight: 260 }}>
+            <canvas
+              ref={canvasRef}
+              data-testid="mab-sharepack-canvas"
+              className="max-w-full"
+              style={{ maxHeight: format === 'story' ? 460 : 320, width: 'auto', opacity: rendering ? 0.5 : 1, transition: 'opacity 150ms' }}
+            />
+          </div>
+          <div className="flex gap-2">
+            {canNativeShare && (
+              <button onClick={share} disabled={rendering} className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="mab-sharepack-share">
+                <Share2 className="w-4 h-4" /> Share
+              </button>
+            )}
+            <button onClick={download} disabled={rendering} className={`${canNativeShare ? '' : 'flex-1'} inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-bold border disabled:opacity-50`} style={canNativeShare ? { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' } : { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', border: 'none' }} data-testid="mab-sharepack-download">
+              <Download className="w-4 h-4" /> Download PNG
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

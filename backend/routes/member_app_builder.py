@@ -354,7 +354,7 @@ async def get_layout(
     org_id, account_type = await _resolve_org(user)
     org_doc = await db.organizations.find_one(
         {"id": org_id},
-        {"_id": 0, "membership_app_slug": 1, "slug": 1,
+        {"_id": 0, "membership_app_slug": 1, "slug": 1, "name": 1,
          "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
          "member_app_font": 1, "member_app_button_style": 1, "brand_palette": 1},
     ) or {}
@@ -491,6 +491,7 @@ _ALLOWED_BTN = {"soft", "pill", "sharp"}
 def _branding_dict(org_doc: dict) -> dict:
     """Shared shape for the member-app branding payload (Iter 220r)."""
     return {
+        "name": org_doc.get("name") or None,
         "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
         "logo_url": org_doc.get("logo_url") or None,
         "hero_image_url": org_doc.get("member_app_hero_url") or None,
@@ -501,7 +502,7 @@ def _branding_dict(org_doc: dict) -> dict:
 
 
 _BRANDING_PROJECTION = {
-    "_id": 0, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
+    "_id": 0, "name": 1, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
     "member_app_font": 1, "member_app_button_style": 1, "brand_palette": 1,
 }
 
