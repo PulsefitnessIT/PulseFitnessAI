@@ -1,3 +1,11 @@
+## Iter 220n — Memberships Setup Wizard theme-aware ✅ (Jun, 2026)
+
+4th of the latest UI-feedback batch (items 1–3 done prior: app-address mapping into Member App tab, Print/Download QR, merged Parent Portal + Mobile App → "Member App"). The Setup Wizard (`/memberships/setup`) was hardcoded to dark mode (`DARK_SURFACE='#07090E'` + `text-white` + `rgba(255,255,255,…)` everywhere) and ignored the theme toggle.
+
+**Fix (`pages/Memberships/SetupWizard.js`, theme-only — logic untouched):** removed `DARK_SURFACE`; swapped all hardcoded hex/white-alpha colours to CSS theme variables (`var(--theme-bg|surface|surface-2|surface-3|text|text-muted|border|border-soft)`). Brand-cyan accents + the cyan selection tints (`rgba(25,205,255,…)`) kept (read fine on both themes); the intentional white logo-tile background kept. Native `<select>` option inline bg removed so options inherit theme. Verified live in BOTH light (white bg / dark text) and dark (dark bg / light text) via screenshot on the Member Only Gym trial. Lint clean.
+
+---
+
 ## Iter 220m — Trial billing fix + Memberships analytics merge + Mobile App Builder (light preview, app address) ✅ (Jun, 2026)
 
 User testing feedback (4 items), all DONE + testing-agent verified 100% (iteration_220l.json):

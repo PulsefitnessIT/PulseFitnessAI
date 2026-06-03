@@ -7,22 +7,25 @@
  *                        drag-and-drop, address + contact, currency,
  *                        brand colour.
  *   2. Payment         — Manual / Direct Debit (soon) / Stripe Connect
- *                        (soon). Dark-mode safe.
+ *                        (soon).
  *   3. Plans           — 3 starter plan templates.
  *   4. Instructor      — add your first instructor (functional).
  *   5. Class           — first class with instructor dropdown.
  *   6. Done            — your app URL.
  *
  * Progress persists on the org doc (setup_step + setup_completed).
+ *
+ * Iter 220n — theme-aware: previously hardcoded to dark mode
+ * (DARK_SURFACE + text-white + rgba(255,255,255,…)). Now inherits the
+ * app's light/dark theme via CSS variables so the wizard respects the
+ * tenant's theme toggle. Brand-cyan accents + selection tints are kept
+ * (they read fine on both themes).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-
-// Iter 216h259 — pull dark surface from tokens so eslint no-inline-hex passes
-const DARK_SURFACE = '#07090E'; /* eslint-disable-line gymaxis/no-inline-hex */
 import {
   CheckCircle2, ChevronRight, ChevronLeft, Sparkles, Link as LinkIcon,
   Copy, CreditCard, Banknote, Check, Loader2, Upload, Image as ImageIcon,
@@ -66,14 +69,14 @@ export default function SetupWizard() {
   const current = STEPS[stepIdx];
 
   return (
-    <div className="min-h-screen text-white" style={{ background: DARK_SURFACE }} data-testid="mbr-setup">
-      <header className="border-b" style={{ borderColor: 'rgba(255,255,255,0.1)', background: '#0a0c10' }}>
+    <div className="min-h-screen" style={{ background: 'var(--theme-bg)', color: 'var(--theme-text)' }} data-testid="mbr-setup">
+      <header className="border-b" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: 'var(--color-brand-cyan)' }}>Setup</div>
-            <div className="text-lg font-extrabold mt-0.5">Welcome to Memberships</div>
+            <div className="text-lg font-extrabold mt-0.5" style={{ color: 'var(--theme-text)' }}>Welcome to Memberships</div>
           </div>
-          <button onClick={() => navigate('/memberships')} className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.6)' }} data-testid="mbr-setup-skip">
+          <button onClick={() => navigate('/memberships')} className="text-xs font-bold" style={{ color: 'var(--theme-text-muted)' }} data-testid="mbr-setup-skip">
             Skip for now
           </button>
         </div>
@@ -111,14 +114,14 @@ function StepBar({ stepIdx, setStepIdx }) {
                 disabled={!done}>
                 <span className="w-6 h-6 rounded-full grid place-items-center text-[10px] font-extrabold"
                   style={{
-                    background: done ? '#10b981' : active ? 'var(--color-brand-cyan)' : 'rgba(255,255,255,0.1)',
-                    color: done || active ? '#000' : '#fff',
+                    background: done ? '#10b981' : active ? 'var(--color-brand-cyan)' : 'var(--theme-surface-3)',
+                    color: done || active ? '#000' : 'var(--theme-text-muted)',
                   }}>
                   {done ? <Check size={12} /> : i + 1}
                 </span>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap" style={{ color: active ? '#fff' : 'rgba(255,255,255,0.6)' }}>{s.label}</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap" style={{ color: active ? 'var(--theme-text)' : 'var(--theme-text-muted)' }}>{s.label}</span>
               </button>
-              {i < STEPS.length - 1 && <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.1)' }} />}
+              {i < STEPS.length - 1 && <div className="h-px flex-1" style={{ background: 'var(--theme-border)' }} />}
             </li>
           );
         })}
@@ -265,10 +268,10 @@ function StudioBasics({ headers, status, onNext }) {
         <SectionLabel>Brand</SectionLabel>
         <div className="flex items-center gap-3">
           <label className="block">
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>Brand colour</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Brand colour</span>
             <input type="color" value={f.primary_brand_colour} onChange={(e) => up('primary_brand_colour')(e.target.value)} className="mt-1 h-10 w-16 rounded cursor-pointer bg-transparent" data-testid="mbr-setup-colour" />
           </label>
-          <div className="flex-1 text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <div className="flex-1 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
             Used for buttons + accents on your member app.
           </div>
         </div>
@@ -283,27 +286,27 @@ function SlugField({ value, onChange, status, onUseSuggestion }) {
   const portal = typeof window !== 'undefined' ? window.location.origin : '';
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>Your member app address</span>
-      <div className="mt-1 flex rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)' }}>
-        <span className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.04)' }}>
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Your member app address</span>
+      <div className="mt-1 flex rounded-lg overflow-hidden" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
+        <span className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: 'var(--theme-text-muted)', background: 'var(--theme-surface-2)' }}>
           {portal.replace(/^https?:\/\//, '')}/m/
         </span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
-          style={{ background: 'transparent', color: '#fff' }}
+          style={{ background: 'transparent', color: 'var(--theme-text)' }}
           data-testid="mbr-setup-slug"
           placeholder="your-studio"
         />
-        <span className="px-3 py-2.5 grid place-items-center" style={{ background: 'rgba(255,255,255,0.04)' }} data-testid="mbr-setup-slug-status">
-          {status.checking ? <Loader2 size={14} className="animate-spin" style={{ color: 'rgba(255,255,255,0.4)' }} />
+        <span className="px-3 py-2.5 grid place-items-center" style={{ background: 'var(--theme-surface-2)' }} data-testid="mbr-setup-slug-status">
+          {status.checking ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} />
             : status.available === true ? <Check size={14} style={{ color: '#10b981' }} />
             : status.available === false ? <AlertCircle size={14} style={{ color: '#f59e0b' }} />
             : null}
         </span>
       </div>
-      <span className="text-[11px] mt-1 block" style={{ color: 'rgba(255,255,255,0.55)' }}>
+      <span className="text-[11px] mt-1 block" style={{ color: 'var(--theme-text-muted)' }}>
         Members will visit this URL to book, pay and check in. Use letters, numbers and hyphens.
       </span>
       {status.available === false && status.suggestion && (
@@ -349,7 +352,7 @@ function LogoDropzone({ headers, value, onChange }) {
 
   return (
     <div>
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>Studio logo</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Studio logo</span>
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -357,29 +360,29 @@ function LogoDropzone({ headers, value, onChange }) {
         onClick={() => inputRef.current?.click()}
         className="mt-1 rounded-xl p-4 cursor-pointer transition flex items-center gap-3"
         style={{
-          background: dragging ? 'rgba(25,205,255,0.08)' : 'rgba(255,255,255,0.04)',
-          border: `1.5px dashed ${dragging ? 'var(--color-brand-cyan)' : 'rgba(255,255,255,0.22)'}`,
+          background: dragging ? 'rgba(25,205,255,0.08)' : 'var(--theme-surface-2)',
+          border: `1.5px dashed ${dragging ? 'var(--color-brand-cyan)' : 'var(--theme-border)'}`,
         }}
         data-testid="mbr-setup-logo-drop"
       >
         {value ? (
           <img src={value.startsWith('http') ? value : `${BACKEND_URL}${value}`} alt="logo" className="h-14 w-14 rounded-lg object-cover" style={{ background: '#fff' }} />
         ) : (
-          <div className="h-14 w-14 rounded-lg grid place-items-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <ImageIcon size={20} style={{ color: 'rgba(255,255,255,0.5)' }} />
+          <div className="h-14 w-14 rounded-lg grid place-items-center" style={{ background: 'var(--theme-surface-3)' }}>
+            <ImageIcon size={20} style={{ color: 'var(--theme-text-muted)' }} />
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold" style={{ color: '#fff' }}>
+          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>
             {value ? 'Replace logo' : 'Drop your logo here or click to choose'}
           </p>
-          <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
             PNG, JPEG, SVG or WEBP. Square works best — appears on your portal, emails and invoices.
           </p>
         </div>
         {uploading
           ? <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} />
-          : <Upload size={16} style={{ color: 'rgba(255,255,255,0.6)' }} />}
+          : <Upload size={16} style={{ color: 'var(--theme-text-muted)' }} />}
         <input
           ref={inputRef}
           type="file"
@@ -394,7 +397,7 @@ function LogoDropzone({ headers, value, onChange }) {
 }
 
 
-/* ─────────────────── Step 2 — Payment Method (dark-mode safe) ─────────────────── */
+/* ─────────────────── Step 2 — Payment Method ─────────────────── */
 
 function PaymentMethod({ headers, status, onNext, onBack }) {
   const [choice, setChoice] = useState(status.organization.payment_method || 'manual');
@@ -418,8 +421,6 @@ function PaymentMethod({ headers, status, onNext, onBack }) {
       <div className="space-y-2" data-testid="mbr-setup-payment">
         {options.map((o) => {
           const active = choice === o.id;
-          // Iter 216h252 — explicit rgba colours so the cards stay dark
-          // even when the surrounding tenant runs the Pulse-light theme.
           return (
             <button
               key={o.id}
@@ -427,21 +428,21 @@ function PaymentMethod({ headers, status, onNext, onBack }) {
               data-testid={`mbr-setup-pay-${o.id}`}
               className="w-full text-left rounded-xl p-4 transition flex items-start gap-3"
               style={{
-                background: active ? 'rgba(25,205,255,0.10)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${active ? 'var(--color-brand-cyan)' : 'rgba(255,255,255,0.14)'}`,
+                background: active ? 'rgba(25,205,255,0.10)' : 'var(--theme-surface-2)',
+                border: `1px solid ${active ? 'var(--color-brand-cyan)' : 'var(--theme-border)'}`,
               }}
             >
-              <o.icon size={18} style={{ color: active ? 'var(--color-brand-cyan)' : 'rgba(255,255,255,0.65)' }} />
+              <o.icon size={18} style={{ color: active ? 'var(--color-brand-cyan)' : 'var(--theme-text-muted)' }} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm" style={{ color: '#fff' }}>{o.label}</span>
+                  <span className="font-bold text-sm" style={{ color: 'var(--theme-text)' }}>{o.label}</span>
                   {o.soon && (
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.18)', color: '#fcd34d' }}>
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.18)', color: '#b45309' }}>
                       Soon
                     </span>
                   )}
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>{o.desc}</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{o.desc}</div>
               </div>
             </button>
           );
@@ -484,13 +485,13 @@ function StarterPlans({ headers, status: _s, onNext, onBack }) {
             <div key={p.name} onClick={() => toggle(idx)} data-testid={`mbr-setup-plan-${idx}`}
               className="cursor-pointer rounded-xl p-4 flex items-center gap-3 transition"
               style={{
-                background: on ? 'rgba(25,205,255,0.10)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${on ? 'var(--color-brand-cyan)' : 'rgba(255,255,255,0.14)'}`,
+                background: on ? 'rgba(25,205,255,0.10)' : 'var(--theme-surface-2)',
+                border: `1px solid ${on ? 'var(--color-brand-cyan)' : 'var(--theme-border)'}`,
               }}>
               <span className="w-3 h-3 rounded-full" style={{ background: p.colour }} />
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm" style={{ color: '#fff' }}>{p.name}</div>
-                <div className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>£{(p.price_pence / 100).toFixed(2)} · {p.kind.replace('_', ' ')} · {p.billing_cycle}</div>
+                <div className="font-bold text-sm" style={{ color: 'var(--theme-text)' }}>{p.name}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>£{(p.price_pence / 100).toFixed(2)} · {p.kind.replace('_', ' ')} · {p.billing_cycle}</div>
               </div>
             </div>
           );
@@ -548,16 +549,16 @@ function InstructorStep({ headers, status: _s, onNext, onBack }) {
         <Input label="Specialties (comma-separated)" value={f.specialties} onChange={up('specialties')} testid="mbr-setup-instructor-specialties" placeholder="Ballet, Contemporary, Jazz" />
         <label className="flex items-start gap-2 mt-2 cursor-pointer" data-testid="mbr-setup-instructor-gdpr-row">
           <input type="checkbox" checked={f.gdpr_consent} onChange={(e) => up('gdpr_consent')(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[color:var(--color-brand-cyan)]" data-testid="mbr-setup-instructor-gdpr" />
-          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
             I confirm this instructor consents to having their name, photo and contact details
             processed for payroll, member-app display and class scheduling.
           </span>
         </label>
       </div>
       <div className="flex items-center justify-between gap-3 mt-6">
-        <button onClick={onBack} className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}><ChevronLeft size={12} className="inline" /> Back</button>
+        <button onClick={onBack} className="text-xs font-bold" style={{ color: 'var(--theme-text-muted)' }}><ChevronLeft size={12} className="inline" /> Back</button>
         <div className="flex gap-2">
-          <button onClick={skip} className="rounded-lg px-3 py-2 text-xs font-bold" style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }} data-testid="mbr-setup-instructor-skip">Skip</button>
+          <button onClick={skip} className="rounded-lg px-3 py-2 text-xs font-bold" style={{ border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }} data-testid="mbr-setup-instructor-skip">Skip</button>
           <button onClick={save} disabled={saving} className="rounded-lg px-4 py-2 text-xs font-extrabold uppercase tracking-wider disabled:opacity-50"
             style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="mbr-setup-instructor-next">
             {saving ? '…' : 'Add instructor'} <ChevronRight size={12} className="inline ml-1" />
@@ -641,7 +642,7 @@ function FirstClass({ headers, _status, onNext, onBack }) {
           <Input label="Start time" type="time" value={f.start_time} onChange={up('start_time')} testid="mbr-setup-class-time" />
         </div>
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>Days</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Days</span>
           <div className="flex gap-1.5 mt-1 flex-wrap">
             {DAYS.map((d) => {
               const on = f.recurs_days.includes(d.v);
@@ -650,8 +651,8 @@ function FirstClass({ headers, _status, onNext, onBack }) {
                   className="px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase transition"
                   style={{
                     background: on ? 'var(--color-brand-cyan)' : 'transparent',
-                    color: on ? 'var(--color-surface-darker)' : 'rgba(255,255,255,0.65)',
-                    border: on ? 'none' : '1px solid rgba(255,255,255,0.15)',
+                    color: on ? 'var(--color-surface-darker)' : 'var(--theme-text-muted)',
+                    border: on ? 'none' : '1px solid var(--theme-border)',
                   }}
                   data-testid={`mbr-setup-class-day-${d.v}`}>
                   {d.l}
@@ -668,19 +669,19 @@ function FirstClass({ headers, _status, onNext, onBack }) {
 
         {/* Iter 216h252 — instructor DROPDOWN with "Other / custom" escape hatch. */}
         <label className="block">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>Instructor</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Instructor</span>
           <select
             value={f.instructor_id || (f.instructor_name ? '__custom__' : '')}
             onChange={(e) => onInstructorChange(e.target.value)}
             className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff' }}
+            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="mbr-setup-class-instructor-select"
           >
-            <option value="" style={{ background: '#0a0c10' }}>— Select instructor —</option>
+            <option value="">— Select instructor —</option>
             {instructors.map((i) => (
-              <option key={i.id} value={i.id} style={{ background: '#0a0c10' }}>{i.name}</option>
+              <option key={i.id} value={i.id}>{i.name}</option>
             ))}
-            <option value="__custom__" style={{ background: '#0a0c10' }}>Type custom name…</option>
+            <option value="__custom__">Type custom name…</option>
           </select>
           {f.instructor_id === '' && (f.instructor_name !== '' || (!instructors.length)) && (
             <input
@@ -688,16 +689,16 @@ function FirstClass({ headers, _status, onNext, onBack }) {
               onChange={(e) => up('instructor_name')(e.target.value)}
               placeholder="Instructor name"
               className="mt-2 w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff' }}
+              style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="mbr-setup-class-instructor-custom"
             />
           )}
         </label>
       </div>
       <div className="flex items-center justify-between gap-3 mt-6">
-        <button onClick={onBack} className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}><ChevronLeft size={12} className="inline" /> Back</button>
+        <button onClick={onBack} className="text-xs font-bold" style={{ color: 'var(--theme-text-muted)' }}><ChevronLeft size={12} className="inline" /> Back</button>
         <div className="flex gap-2">
-          <button onClick={skip} className="rounded-lg px-3 py-2 text-xs font-bold" style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }} data-testid="mbr-setup-class-skip">Skip</button>
+          <button onClick={skip} className="rounded-lg px-3 py-2 text-xs font-bold" style={{ border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }} data-testid="mbr-setup-class-skip">Skip</button>
           <button onClick={save} disabled={saving} className="rounded-lg px-4 py-2 text-xs font-extrabold uppercase tracking-wider disabled:opacity-50"
             style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="mbr-setup-class-next">
             {saving ? '…' : 'Save & continue'} <ChevronRight size={12} className="inline ml-1" />
@@ -728,15 +729,15 @@ function AllDone({ headers, status, onFinish }) {
     <StepShell title="You're live." subtitle="Share the link below with your members — they'll land on your branded app.">
       <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(25,205,255,0.06)', border: '1px solid rgba(25,205,255,0.3)' }} data-testid="mbr-setup-done">
         <div className="w-16 h-16 rounded-full mx-auto grid place-items-center mb-4" style={{ background: 'rgba(16,185,129,0.2)' }}>
-          <CheckCircle2 style={{ color: '#6ee7b7' }} size={32} />
+          <CheckCircle2 style={{ color: '#10b981' }} size={32} />
         </div>
-        <h3 className="text-2xl font-extrabold tracking-tight" style={{ color: '#fff' }}>All set, {org.name}</h3>
-        <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.6)' }}>Your members can book, pay, and check in — all from the link below.</p>
-        <div className="mt-5 rounded-xl p-4" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <h3 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--theme-text)' }}>All set, {org.name}</h3>
+        <p className="text-sm mt-2" style={{ color: 'var(--theme-text-muted)' }}>Your members can book, pay, and check in — all from the link below.</p>
+        <div className="mt-5 rounded-xl p-4" style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)' }}>
           <div className="text-[10px] uppercase tracking-[0.25em] font-extrabold mb-1" style={{ color: 'var(--color-brand-cyan)' }}>Your app URL</div>
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-left text-sm font-mono truncate" style={{ color: '#fff' }} data-testid="mbr-setup-app-url">{appUrl}</code>
-            <button onClick={copy} className="p-2 rounded-lg" style={{ color: 'rgba(255,255,255,0.7)' }} data-testid="mbr-setup-copy"><Copy size={14} /></button>
+            <code className="flex-1 text-left text-sm font-mono truncate" style={{ color: 'var(--theme-text)' }} data-testid="mbr-setup-app-url">{appUrl}</code>
+            <button onClick={copy} className="p-2 rounded-lg" style={{ color: 'var(--theme-text-muted)' }} data-testid="mbr-setup-copy"><Copy size={14} /></button>
           </div>
         </div>
       </div>
@@ -751,8 +752,8 @@ function AllDone({ headers, status, onFinish }) {
 function StepShell({ title, subtitle, children }) {
   return (
     <div>
-      <h1 className="text-3xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.025em', color: '#ffffff' }}>{title}</h1>
-      {subtitle && <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.7)' }}>{subtitle}</p>}
+      <h1 className="text-3xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.025em', color: 'var(--theme-text)' }}>{title}</h1>
+      {subtitle && <p className="text-sm mt-2" style={{ color: 'var(--theme-text-muted)' }}>{subtitle}</p>}
       <div className="mt-6">{children}</div>
     </div>
   );
@@ -760,8 +761,8 @@ function StepShell({ title, subtitle, children }) {
 
 function SectionLabel({ children }) {
   return (
-    <div className="pt-2 mt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-      <span className="text-[9px] font-extrabold uppercase tracking-[0.3em]" style={{ color: 'rgba(255,255,255,0.45)' }}>{children}</span>
+    <div className="pt-2 mt-2 border-t" style={{ borderColor: 'var(--theme-border-soft)' }}>
+      <span className="text-[9px] font-extrabold uppercase tracking-[0.3em]" style={{ color: 'var(--theme-text-muted)' }}>{children}</span>
     </div>
   );
 }
@@ -770,7 +771,7 @@ function StepActions({ onBack, primaryLabel, onPrimary, saving, testId }) {
   return (
     <div className="flex items-center justify-between gap-3 mt-6">
       {onBack ? (
-        <button onClick={onBack} className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.6)' }} data-testid="mbr-setup-back">
+        <button onClick={onBack} className="text-xs font-bold" style={{ color: 'var(--theme-text-muted)' }} data-testid="mbr-setup-back">
           <ChevronLeft size={12} className="inline" /> Back
         </button>
       ) : <span />}
@@ -790,7 +791,7 @@ function StepActions({ onBack, primaryLabel, onPrimary, saving, testId }) {
 function Input({ label, value, onChange, type = 'text', required, testid, hint, placeholder }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}{required ? ' *' : ''}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{label}{required ? ' *' : ''}</span>
       <input
         type={type}
         value={value}
@@ -799,13 +800,13 @@ function Input({ label, value, onChange, type = 'text', required, testid, hint, 
         placeholder={placeholder}
         className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
         style={{
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.18)',
-          color: '#ffffff',
+          background: 'var(--theme-surface)',
+          border: '1px solid var(--theme-border)',
+          color: 'var(--theme-text)',
         }}
         data-testid={testid}
       />
-      {hint && <span className="text-[10px] mt-1 block" style={{ color: 'rgba(255,255,255,0.5)' }}>{hint}</span>}
+      {hint && <span className="text-[10px] mt-1 block" style={{ color: 'var(--theme-text-muted)' }}>{hint}</span>}
     </label>
   );
 }
@@ -813,19 +814,19 @@ function Input({ label, value, onChange, type = 'text', required, testid, hint, 
 function Select({ label, value, onChange, options, testid }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         data-testid={testid}
         className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
         style={{
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.18)',
-          color: '#ffffff',
+          background: 'var(--theme-surface)',
+          border: '1px solid var(--theme-border)',
+          color: 'var(--theme-text)',
         }}
       >
-        {options.map((o) => <option key={o} value={o} style={{ background: '#0a0c10', color: '#fff' }}>{o}</option>)}
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
     </label>
   );
@@ -833,7 +834,7 @@ function Select({ label, value, onChange, options, testid }) {
 
 function FullPageLoader() {
   return (
-    <div className="min-h-screen grid place-items-center" style={{ background: DARK_SURFACE }}>
+    <div className="min-h-screen grid place-items-center" style={{ background: 'var(--theme-bg)' }}>
       <Loader2 className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} />
     </div>
   );
