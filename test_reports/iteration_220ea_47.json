@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend UI end-to-end test of Legacy report import wizard (Engineer app) covering: customer pick -> CSV upload + AI extraction -> Review (photos, comments, two signature pads) -> Save -> Done -> PDF download. All UI mechanics work. AI extracts 3 machines from sample CSV in ~3s. Photo add/preview/remove + 3-max cap, comments textarea, both signature canvases (mouse-drag), engineer name pre-fill (Engineer Smoke), today's date defaults (2026-06-03), Clear button, Save POST 200, PDF GET 200 application/pdf all verified. ONE FUNCTIONAL CONCERN: PDF size remains ~12KB when 1 photo was uploaded — payload correctly includes file_id+storage_path+url so embedding gap is on the backend/PDF builder side, not the UI.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Legacy report PDF (photos embedding)",
+        "issue": "Generated PDF byte-size stays ~11-13KB even after uploading 1+ photos via the Review step. The frontend correctly POSTs photos (verified payload: visit[0].machine[0].photos = [{file_id, storage_path, url}]) and the /api/files/upload call returns 200 with valid id+storage_path. Backend either (a) isn't persisting the photos array against machines, or (b) the PDF builder isn't fetching/embedding them from storage_path. Per task spec a non-trivial PDF (>~20KB) is required to confirm image embedding.",
+        "affected_selectors": ["legacy-photo-input-{id}", "legacy-done-view-pdf"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Step 1 Customer",
+        "issues": ["Cookie consent banner overlaps the 'Next: Upload' primary action button at 1440x900 viewport, forcing users to scroll or dismiss it. Worth raising banner z-index awareness or repositioning."]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate why uploaded photos are not embedded in the generated PDF when the flow runs through the browser UI. Frontend payload is correct (photos:[{file_id, storage_path, url}]). Inspect POST /api/svc/legacy/reports handler to confirm it stores per-machine photos and that /pdf endpoint passes them to legacy_report_pdf.py for embedding (or that storage_path read is succeeding).",
+    "Reproduce locally: save a report with photos via UI, then call GET /api/svc/legacy/reports/{id} to see if photos persist; and call GET /pdf to compare byte-size with the direct-API smoke from iter 220i."
+  ],
+  "critical_code_review_comments": [
+    "EngineerLegacyImport.js save payload (line ~276-279) filters photos by p.storage_path which is fine; matches what backend received in capture.",
+    "PDF download is via blob fetch (downloadPdf), so the legacy-done-view-pdf button is a <button> not an <a>; tests must use page.expect_response to capture the GET. Working as intended.",
+    "Machine accordions are collapsed on entry to Review even though spec notes 'machines auto-expand'. Photo block (legacy-photos-{id}) is only mounted while expanded. Consider auto-expanding the first machine (or all) on Review entry to make photos discoverable without an extra click.",
+    "Customer signature name input is not pre-filled (engineer is pre-filled with 'Engineer Smoke'). Acceptable per spec since it's customer acceptance, but signal to user could be clearer (placeholder)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "95% (all UI flows pass; PDF photo-embedding outcome failed)"},
+  "test_credentials": "engineer.smoke@gymaxisai.com / EngTest123!",
+  "seed_data_creation": "Saved 2 legacy reports for customer 'E2E Test Gym' during this session (ids 5ba89ef2-... and 89f98543-... and one more). Photos uploaded via /api/files/upload as 'service-photos' category.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login OK, navigate to /svc/engineer/legacy-import. Cookie banner overlaps the Next button — dismiss it via 'Accept All' first. Machine cards in Review are COLLAPSED by default; you must click [data-testid=legacy-machine-toggle-{id}] to render [data-testid=legacy-photos-{id}] (and thus the photo add button). AI extraction returned 3 machines from the sample CSV in ~3s. Signature canvases respond to multi-point page.mouse.move/down/up. Save POST returns {report:{id,...}} and PDF download is via blob (no href on the button — capture via page.expect_response on /legacy/reports/.../pdf).",
+  "rca of the issue": "Frontend behaviour confirmed correct via payload capture: POST /api/svc/legacy/reports body contains visits[0].machines[0].photos = [{file_id, storage_path, url}], comments string, and both signatures with non-empty data_url (~9.2KB base64 each). Despite this, the subsequent GET /api/svc/legacy/reports/{id}/pdf returns 11-13KB regardless of whether 0 or 1 photo was attached. Therefore: (1) photos may not be persisted by backend, or (2) PDF builder cannot resolve storage_path → image bytes (e.g., wrong bucket / signed-url failure). Recommend asserting `len(report.visits[0].machines[0].photos) > 0` server-side after save and adding a log in legacy_report_pdf.py for each photo embed attempt."
+}
