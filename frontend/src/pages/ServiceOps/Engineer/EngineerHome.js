@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wrench, MapPin, Clock, AlertTriangle, ChevronRight, Loader2, RefreshCw,
   PlayCircle, WifiOff,
@@ -91,8 +91,17 @@ function ActiveTimerBanner({ timer, onView }) {
 
 export default function EngineerHome() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Iter 220ec — honour the ?when= filter passed by the home KPI tiles
+  // (Overdue/Today/Awaiting parts) so they actually open a filtered list.
+  const VALID_TABS = ['today', 'upcoming', 'open', 'closed'];
+  const initialTab = VALID_TABS.includes(searchParams.get('when')) ? searchParams.get('when') : 'today';
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('today');
+  const [tab, setTabState] = useState(initialTab);
+  const setTab = (t) => {
+    setTabState(t);
+    setSearchParams(t === 'today' ? {} : { when: t }, { replace: true });
+  };
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -175,6 +184,7 @@ export default function EngineerHome() {
             { id: 'today', label: 'Today' },
             { id: 'upcoming', label: 'Upcoming' },
             { id: 'open', label: 'All open' },
+            { id: 'closed', label: 'Closed' },
           ].map((t) => (
             <button
               key={t.id}
@@ -209,7 +219,7 @@ export default function EngineerHome() {
         ) : jobs.length === 0 ? (
           <div className="text-center py-12 px-6 rounded-2xl border" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="engineer-empty">
             <Wrench size={28} className="mx-auto opacity-40 mb-2" />
-            <p className="font-bold" style={{ color: 'var(--theme-text)' }}>No {tab === 'today' ? "jobs scheduled today" : tab === 'upcoming' ? 'upcoming jobs' : 'open jobs'}</p>
+            <p className="font-bold" style={{ color: 'var(--theme-text)' }}>No {tab === 'today' ? "jobs scheduled today" : tab === 'upcoming' ? 'upcoming jobs' : tab === 'closed' ? 'closed jobs yet' : 'open jobs'}</p>
             <p className="text-xs opacity-70 mt-1">Pull down to refresh, or check back later.</p>
           </div>
         ) : jobs.map((j) => {

@@ -80,10 +80,15 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
     # behaviour for back-compat with intake calls that omit the field.
     case_type = (payload.get("case_type") or "repair").lower()
     # Iter 220dt — extended job-type taxonomy.
-    # ``inspection`` / ``callout`` / ``audit`` give customers and
-    # service desk more accurate intent labels so reporting (and
-    # auto-loaded custom fields) can branch correctly.
-    if case_type not in {"repair", "ppm", "install", "inspection", "callout", "audit"}:
+    # Iter 220ec — case types are now org-configurable (Account Settings
+    # → Case Types). Accept any active type the org has defined, falling
+    # back to "repair" for unknown values.
+    try:
+        from routes.svc.case_types import active_slugs as _active_case_type_slugs
+        _allowed = await _active_case_type_slugs(org_id)
+    except Exception:
+        _allowed = {"repair", "ppm", "install", "inspection", "callout", "audit"}
+    if case_type not in _allowed:
         case_type = "repair"
 
     sla = await compute_sla_targets(

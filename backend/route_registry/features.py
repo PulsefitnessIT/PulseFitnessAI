@@ -174,6 +174,8 @@ from routes.svc.inbound_email import (
 from routes.svc.engineer_customers import router as svc_engineer_customers_router
 # Iter 220 — Work Report custom fields (engineer + admin configurable)
 from routes.svc.work_report_fields import router as svc_work_report_fields_router
+# Iter 220ec — Configurable case types (Repair / PPM / custom)
+from routes.svc.case_types import router as svc_case_types_router
 # Iter 220d — Per-machine work reports + quick-add note presets
 from routes.svc.per_machine_reports import router as svc_per_machine_reports_router
 # Iter 220ci — Engineer-side strict-validation equipment create
@@ -336,6 +338,8 @@ _UNGATED_ROUTERS = (
     svc_engineer_customers_router,
     # Iter 220 — Work Report custom fields
     svc_work_report_fields_router,
+    # Iter 220ec — Configurable case types
+    svc_case_types_router,
     # Iter 220d — Per-machine work reports + quick-add presets
     svc_per_machine_reports_router,
     # Iter 220ci — Engineer-side strict-validation equipment create

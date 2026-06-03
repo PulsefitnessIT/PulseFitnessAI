@@ -422,6 +422,12 @@ async def startup() -> None:
         logger.error(f"ensure_all_indexes failed: {e}")
 
     try:
+        from routes.svc.case_types import ensure_indexes as _case_type_indexes
+        await _case_type_indexes()
+    except Exception as e:
+        logger.error(f"case_types index setup failed: {e}")
+
+    try:
         from utils.sicon_poller import start_poller
         start_poller()
         logger.info("Sicon poller started")

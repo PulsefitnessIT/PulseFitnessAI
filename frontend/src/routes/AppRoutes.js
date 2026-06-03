@@ -173,6 +173,7 @@ const ServiceOpsEngineerEquipmentForm = lazy(() =>
 );
 // Iter 220 — Work Report custom fields (engineer self-serve)
 const ServiceOpsEngineerWorkReportFields = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerWorkReportFields'));
+const ServiceOpsEngineerCaseTypes = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCaseTypes'));
 // Iter 220i — Upcoming jobs list (drill-in from home tile)
 const ServiceOpsEngineerUpcoming = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerUpcomingList'));
 const ServiceOpsEngineerBranding = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerBrandingSettings'));
@@ -486,6 +487,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/legacy-import" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerLegacyImport /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220 — Work Report custom fields manager */}
       <Route path="/svc/engineer/work-report-fields" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerWorkReportFields /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/case-types" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerCaseTypes /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220i — Upcoming jobs list */}
       <Route path="/svc/engineer/upcoming" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerUpcoming /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/branding" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerBranding /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />

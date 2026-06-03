@@ -454,12 +454,19 @@ async def engineer_today_rollup(user=Depends(get_current_user)):
 
 @router.get("/jobs")
 async def engineer_jobs(
-    when: str = Query("today", description="today | upcoming | open"),
+    when: str = Query("today", description="today | upcoming | open | closed"),
     user=Depends(get_current_user),
 ):
     """List jobs assigned to the calling engineer, mobile-friendly subset."""
     of = _of(user)
-    q = {**of, "assigned_engineer_id": user["id"], "status": {"$in": list(OPEN_STATES)}}
+    # Iter 220ec — "closed" lets engineers browse/re-open their recently
+    # completed jobs (closed / invoiced / repaired / awaiting sign-off),
+    # which were previously invisible once they left the open states.
+    if when == "closed":
+        q = {**of, "assigned_engineer_id": user["id"],
+             "status": {"$in": ["closed", "invoiced", "repaired", "awaiting_sign_off", "cancelled"]}}
+    else:
+        q = {**of, "assigned_engineer_id": user["id"], "status": {"$in": list(OPEN_STATES)}}
     if when == "today":
         today = datetime.now(timezone.utc).date().isoformat()
         q["$or"] = [
@@ -469,19 +476,24 @@ async def engineer_jobs(
     elif when == "upcoming":
         tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date().isoformat()
         q["scheduled_at"] = {"$gte": tomorrow}
-    rows = (
-        await db.svc_cases.find(
-            q,
-            {
-                "_id": 0,
-                # Keep payload lean for mobile.
-                "id": 1, "reference": 1, "title": 1, "priority": 1, "status": 1,
-                "site_name": 1, "asset_name": 1, "fault_code": 1, "scheduled_at": 1,
-                "estimated_minutes": 1, "sla_resolve_at": 1, "customer_name": 1,
-                "customer_phone": 1,
-            },
-        ).sort([("scheduled_at", 1), ("sla_resolve_at", 1)]).to_list(200)
-    )
+    projection = {
+        "_id": 0,
+        # Keep payload lean for mobile.
+        "id": 1, "reference": 1, "title": 1, "priority": 1, "status": 1,
+        "site_name": 1, "asset_name": 1, "fault_code": 1, "scheduled_at": 1,
+        "estimated_minutes": 1, "sla_resolve_at": 1, "customer_name": 1,
+        "customer_phone": 1, "closed_at": 1,
+    }
+    if when == "closed":
+        rows = (
+            await db.svc_cases.find(q, projection)
+            .sort([("closed_at", -1), ("updated_at", -1)]).to_list(100)
+        )
+    else:
+        rows = (
+            await db.svc_cases.find(q, projection)
+            .sort([("scheduled_at", 1), ("sla_resolve_at", 1)]).to_list(200)
+        )
     return {"jobs": rows, "count": len(rows)}
 
 

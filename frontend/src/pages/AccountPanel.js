@@ -228,6 +228,14 @@ const AccountPanel = ({ open, onClose }) => {
                 >
                   Manage custom fields <ArrowUpRight size={12} />
                 </Link>
+                <Link
+                  to="/svc/engineer/case-types"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1 mt-2 ml-3 text-xs font-bold text-[var(--color-brand-blue)] hover:underline"
+                  data-testid="account-link-case-types"
+                >
+                  Manage case types <ArrowUpRight size={12} />
+                </Link>
               </div>
             </div>
           </Card>

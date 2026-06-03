@@ -357,7 +357,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     ]))
     meta_rows = [
         ["Site",     "<br/>".join(cust_lines) or "—"],
-        ["Job type", _case_type_label(case.get("case_type")) or "—"],
+        ["Job type", case.get("_case_type_label") or _case_type_label(case.get("case_type")) or "—"],
     ]
     # Iter 220eb — Only show a machine/asset row when it's a real,
     # customer-meaningful value. Empty fields and internal scheduling
@@ -916,6 +916,15 @@ async def _build_report(case_id: str, user: dict) -> tuple[bytes, dict]:
             raise HTTPException(404, "Job not found")
 
     payload["fix_summary"] = await _resolve_fix_summary(case_id, of)
+    # Iter 220ec — resolve the org's friendly label for this case type
+    # (supports custom types defined in Account Settings → Case Types).
+    try:
+        from routes.svc.case_types import resolve_case_type_label
+        payload["case"]["_case_type_label"] = await resolve_case_type_label(
+            of["organization_id"], payload["case"].get("case_type"),
+        )
+    except Exception as e:
+        logger.warning(f"service-report: case type label resolve failed: {e!r}")
 
     # Iter 220e — Resolve image bytes for per-machine photos in parallel
     # with the global photos. Also exclude any already-tagged photo from

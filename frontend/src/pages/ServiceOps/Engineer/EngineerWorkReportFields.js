@@ -20,7 +20,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Loader2, Archive, Edit3, Save, X,
   Eye, EyeOff, Sparkles, Check, ChevronRight,
-  Share2, Link2, Copy, Download,
+  Share2, Link2, Copy, Download, Tags,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -49,6 +49,8 @@ const TYPE_OPTIONS = [
 
 // Iter 220du — Job-type filter chips. Empty selection = all jobs
 // (the historic behaviour, fully backwards compatible).
+// Iter 220ec — these are now fetched live from the org's configurable
+// case types; this constant is only a fallback before the fetch lands.
 const JOB_TYPE_OPTIONS = [
   { id: 'repair',     label: 'Repair' },
   { id: 'ppm',        label: 'PPM Service' },
@@ -72,6 +74,22 @@ export default function EngineerWorkReportFields() {
   // inbound share (?share=<token>) straight into import-preview.
   const [showShare, setShowShare] = useState(false);
   const [shareToken, setShareToken] = useState('');
+  // Iter 220ec — live job-type options from configurable case types.
+  const [jobTypeOptions, setJobTypeOptions] = useState(JOB_TYPE_OPTIONS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/svc/case-types`, auth());
+        const opts = (r.data?.case_types || [])
+          .filter((t) => t.active !== false)
+          .map((t) => ({ id: t.slug, label: t.label }));
+        if (!cancelled && opts.length) setJobTypeOptions(opts);
+      } catch { /* fall back to defaults */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,6 +146,14 @@ export default function EngineerWorkReportFields() {
             </p>
           </div>
           <button
+            onClick={() => navigate('/svc/engineer/case-types')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50"
+            data-testid="wrf-case-types-btn"
+            title="Manage your case types (Repair / PPM / custom)"
+          >
+            <Tags size={14} /> Case types
+          </button>
+          <button
             onClick={() => setShowTemplates(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-bold hover:bg-indigo-100"
             data-testid="wrf-templates-btn"
@@ -171,6 +197,7 @@ export default function EngineerWorkReportFields() {
         {creating && (
           <FieldEditor
             mode="create"
+            jobTypeOptions={jobTypeOptions}
             onCancel={() => setCreating(false)}
             onSaved={() => { setCreating(false); load(); }}
           />
@@ -214,6 +241,7 @@ export default function EngineerWorkReportFields() {
                   key={row.id}
                   mode="edit"
                   row={row}
+                  jobTypeOptions={jobTypeOptions}
                   onCancel={() => setEditing(null)}
                   onSaved={() => { setEditing(null); load(); }}
                 />
@@ -221,6 +249,7 @@ export default function EngineerWorkReportFields() {
                 <FieldCard
                   key={row.id}
                   row={row}
+                  jobTypeOptions={jobTypeOptions}
                   onEdit={() => setEditing(row.id)}
                   onArchive={async () => {
                     if (!window.confirm(`Archive "${row.name}"? It will stop appearing on new work reports.`)) return;
@@ -274,7 +303,7 @@ function scopeLabel(row) {
   return `${opt.label.split(' (')[0]}: ${row.scope_value || '—'}`;
 }
 
-function FieldCard({ row, onEdit, onArchive, onRestore }) {
+function FieldCard({ row, onEdit, onArchive, onRestore, jobTypeOptions = JOB_TYPE_OPTIONS }) {
   return (
     <div
       className={`rounded-2xl border bg-white p-4 ${row.archived ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}
@@ -312,7 +341,7 @@ function FieldCard({ row, onEdit, onArchive, onRestore }) {
                   key={jt}
                   className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-bold uppercase"
                 >
-                  {JOB_TYPE_OPTIONS.find((o) => o.id === jt)?.label || jt}
+                  {jobTypeOptions.find((o) => o.id === jt)?.label || jt}
                 </span>
               ))}
             </p>
@@ -364,7 +393,7 @@ function FieldCard({ row, onEdit, onArchive, onRestore }) {
   );
 }
 
-export function FieldEditor({ mode, row, onCancel, onSaved }) {
+export function FieldEditor({ mode, row, onCancel, onSaved, jobTypeOptions = JOB_TYPE_OPTIONS }) {
   const isEdit = mode === 'edit';
   const [name, setName] = useState(row?.name || '');
   const [fieldType, setFieldType] = useState(row?.field_type || 'text');
@@ -518,7 +547,7 @@ export function FieldEditor({ mode, row, onCancel, onSaved }) {
           </span>
         </p>
         <div className="flex flex-wrap gap-1.5 mt-1">
-          {JOB_TYPE_OPTIONS.map((j) => {
+          {jobTypeOptions.map((j) => {
             const on = jobTypes.includes(j.id);
             return (
               <button

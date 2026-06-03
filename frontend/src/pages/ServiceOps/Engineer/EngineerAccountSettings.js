@@ -22,7 +22,7 @@ import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
   Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
-  Boxes, Warehouse, Wand2,
+  Boxes, Warehouse, Wand2, Tags,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
@@ -425,6 +425,14 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           {/* Iter 220 — Work-report custom fields */}
           <section data-testid="engineer-settings-section-work-reports">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Work reports</p>
+            <Row
+              icon={Tags}
+              accent="#0891b2"
+              title="Case types"
+              subtitle="Repair, PPM & your own job types — each with its own report questions."
+              onClick={() => { onClose(); navigate('/svc/engineer/case-types'); }}
+              testid="engineer-settings-case-types-row"
+            />
             <Row
               icon={Sliders}
               accent="#7c3aed"

@@ -57,6 +57,19 @@ SCOPE_SPECIFICITY = {
 # case_type is in the list; an empty list matches every job type
 # (the default, fully backwards-compatible with iter 220 fields).
 JOB_TYPES = ("repair", "ppm", "install", "inspection", "callout", "audit")
+# Iter 220ec — job_types are now org-configurable case-type slugs
+# (managed in Account Settings → Case Types), not a fixed enum. Accept
+# any slug-formatted value so custom types can scope questions too.
+_SLUG_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+
+
+def _clean_job_types(values) -> list[str]:
+    out: list[str] = []
+    for v in (values or []):
+        s = str(v or "").strip().lower()
+        if s and _SLUG_RE.match(s) and s not in out:
+            out.append(s)
+    return out
 MAX_NAME_LEN = 60
 MAX_FIELDS_PER_ORG = 200
 
@@ -229,11 +242,12 @@ def _validate_payload(p: WorkReportFieldIn) -> None:
         raise HTTPException(400, f"scope_kind must be one of {SCOPE_KINDS}")
     if p.scope_kind != "global" and not (p.scope_value or "").strip():
         raise HTTPException(400, "scope_value is required when scope_kind is not 'global'")
-    # Iter 220du — validate job-type filter when set.
+    # Iter 220ec — job_types entries are org case-type slugs; validate
+    # format only (membership is no longer a fixed enum).
     if p.job_types:
         for jt in p.job_types:
-            if jt not in JOB_TYPES:
-                raise HTTPException(400, f"job_types entries must be one of {JOB_TYPES}")
+            if not _SLUG_RE.match(str(jt or "").strip().lower()):
+                raise HTTPException(400, "job_types entries must be valid case-type slugs")
     if p.field_type == "dropdown":
         opts = [o.strip() for o in (p.options or []) if (o or "").strip()]
         if len(opts) < 2:
@@ -502,7 +516,7 @@ async def create_work_report_field(
         "scope_kind": payload.scope_kind,
         "scope_value": (payload.scope_value or None) if payload.scope_kind != "global" else None,
         # Iter 220du — persisted job-type filter (empty = all).
-        "job_types": [jt for jt in (payload.job_types or []) if jt in JOB_TYPES],
+        "job_types": _clean_job_types(payload.job_types),
         "options": [o.strip() for o in (payload.options or []) if o and o.strip()],
         "required": bool(payload.required),
         "help_text": (payload.help_text or "").strip() or None,
@@ -550,9 +564,7 @@ async def update_work_report_field(
         updates["archived"] = bool(payload.archived)
     if payload.job_types is not None:
         # Iter 220du — allow admins to retarget an existing field.
-        updates["job_types"] = [
-            jt for jt in payload.job_types if jt in JOB_TYPES
-        ]
+        updates["job_types"] = _clean_job_types(payload.job_types)
     await db.svc_work_report_field_defs.update_one({"id": field_id, **of}, {"$set": updates})
     refreshed = await db.svc_work_report_field_defs.find_one({"id": field_id, **of}, {"_id": 0})
     return _strip(refreshed)
@@ -639,10 +651,9 @@ async def apply_field_template(
         if scope_kind != "global"
         else None
     )
-    job_types = [
-        jt for jt in (payload.job_types if payload.job_types is not None else template["job_types"])
-        if jt in JOB_TYPES
-    ]
+    job_types = _clean_job_types(
+        payload.job_types if payload.job_types is not None else template["job_types"]
+    )
 
     # Respect the per-org field cap.
     total = await db.svc_work_report_field_defs.count_documents(
@@ -863,7 +874,7 @@ async def import_shared_fields(token: str, user=Depends(get_current_user)):
             "field_type": spec.get("field_type"),
             "scope_kind": scope_kind,
             "scope_value": scope_value,
-            "job_types": [jt for jt in (spec.get("job_types") or []) if jt in JOB_TYPES],
+            "job_types": _clean_job_types(spec.get("job_types")),
             "options": list(spec.get("options") or []),
             "required": bool(spec.get("required")),
             "help_text": (spec.get("help_text") or "").strip() or None,

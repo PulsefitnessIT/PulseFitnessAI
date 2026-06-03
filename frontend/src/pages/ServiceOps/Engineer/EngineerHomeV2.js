@@ -366,13 +366,13 @@ export default function EngineerHomeV2() {
             {/* KPI Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
               <KPITile icon={Calendar} label="Today" value={kpis.today_jobs} accent="#1d4ed8"
-                       testid="kpi-today" onClick={() => navigate('/svc/engineer?tab=today')} />
+                       testid="kpi-today" onClick={() => navigate('/svc/engineer/jobs?when=today')} />
               <KPITile icon={Clock} label="Upcoming" value={kpis.upcoming_jobs} accent="#6366f1"
                        testid="kpi-upcoming" onClick={() => navigate('/svc/engineer/upcoming')} />
               <KPITile icon={AlertTriangle} label="Overdue" value={kpis.overdue_jobs} accent="#dc2626"
-                       testid="kpi-overdue" onClick={() => navigate('/svc/engineer?tab=open')} />
+                       testid="kpi-overdue" onClick={() => navigate('/svc/engineer/jobs?when=open')} />
               <KPITile icon={Package} label="Awaiting parts" value={kpis.awaiting_parts} accent="#f59e0b"
-                       testid="kpi-parts" onClick={() => navigate('/svc/engineer?tab=open')} />
+                       testid="kpi-parts" onClick={() => navigate('/svc/engineer/jobs?when=open')} />
               <KPITile icon={FileText} label="Pending quotes" value={kpis.quote_pending} accent="#0891b2"
                        testid="kpi-pending-quotes" onClick={() => navigate('/svc/engineer/quotes')} />
               <KPITile icon={CheckCircle2} label="Accepted" value={kpis.quote_accepted} accent="#059669"
