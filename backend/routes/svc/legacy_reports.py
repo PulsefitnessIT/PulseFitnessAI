@@ -62,6 +62,32 @@ async def _fetch_logo_bytes(url: str | None) -> bytes | None:
         return None
 
 
+async def _attach_photo_bytes(report: dict) -> None:
+    """Fetch each machine photo's bytes from object storage and stash them
+    on the photo dict (``_bytes``) for the sync PDF builder to embed."""
+    import asyncio
+    from utils.database import get_object
+
+    paths: list[tuple[dict, str]] = []
+    for visit in report.get("visits") or []:
+        for m in visit.get("machines") or []:
+            for ph in (m.get("photos") or [])[:3]:
+                sp = ph.get("storage_path")
+                if sp:
+                    paths.append((ph, sp))
+
+    def _load(sp: str):
+        try:
+            data, _ct = get_object(sp)
+            return data
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[legacy] photo fetch failed %s: %s", sp, exc)
+            return None
+
+    for ph, sp in paths:
+        ph["_bytes"] = await asyncio.to_thread(_load, sp)
+
+
 # ── Customers ────────────────────────────────────────────────────────
 
 class CustomerInput(BaseModel):
@@ -157,6 +183,12 @@ class CustomField(BaseModel):
     value: str = Field(default="", max_length=500)
 
 
+class Photo(BaseModel):
+    file_id: str | None = Field(default=None, max_length=64)
+    storage_path: str = Field(..., max_length=400)
+    url: str | None = Field(default=None, max_length=600)
+
+
 class Machine(BaseModel):
     name: str = Field(default="Machine", max_length=160)
     model: str | None = Field(default=None, max_length=160)
@@ -165,6 +197,7 @@ class Machine(BaseModel):
     status: str | None = Field(default=None, max_length=80)
     work_done: str | None = Field(default=None, max_length=4000)
     custom_fields: list[CustomField] = Field(default_factory=list)
+    photos: list[Photo] = Field(default_factory=list)
 
 
 class Visit(BaseModel):
@@ -175,11 +208,24 @@ class Visit(BaseModel):
     machines: list[Machine] = Field(default_factory=list)
 
 
+class SignaturePart(BaseModel):
+    name: str | None = Field(default=None, max_length=160)
+    data_url: str | None = Field(default=None, max_length=600000)  # base64 PNG
+    signed_date: str | None = Field(default=None, max_length=40)
+
+
+class Signatures(BaseModel):
+    engineer: SignaturePart | None = None
+    customer: SignaturePart | None = None
+
+
 class SaveReport(BaseModel):
     title: str | None = Field(default=None, max_length=200)
     customer_id: str | None = Field(default=None, max_length=64)
     customer: CustomerInput | None = None
     visits: list[Visit] = Field(default_factory=list)
+    comments: str | None = Field(default=None, max_length=4000)
+    signatures: Signatures | None = None
 
 
 @router.post("/reports")
@@ -208,6 +254,14 @@ async def save_report(payload: SaveReport, user: dict = Depends(get_current_user
         "phone": cust_doc.get("phone"),
     }
     machine_count = sum(len(v.machines) for v in payload.visits)
+    # Cap photos at 3 per machine (defensive — also enforced client-side).
+    visits_data = []
+    for v in payload.visits:
+        vd = v.model_dump()
+        for m in vd.get("machines", []):
+            if m.get("photos"):
+                m["photos"] = m["photos"][:3]
+        visits_data.append(vd)
     report = {
         "id": str(uuid.uuid4()),
         "scope": scope,
@@ -215,9 +269,11 @@ async def save_report(payload: SaveReport, user: dict = Depends(get_current_user
         "customer_id": cust_doc["id"],
         "customer": customer_snapshot,
         "title": (payload.title or "").strip() or f"Service report — {customer_snapshot['name']}",
-        "visits": [v.model_dump() for v in payload.visits],
+        "visits": visits_data,
         "visit_count": len(payload.visits),
         "machine_count": machine_count,
+        "comments": (payload.comments or "").strip() or None,
+        "signatures": payload.signatures.model_dump() if payload.signatures else None,
         "created_at": _now(),
         "updated_at": _now(),
     }
@@ -264,6 +320,10 @@ async def report_pdf(report_id: str, user: dict = Depends(get_current_user)):
     if not branding.get("company_name"):
         branding["company_name"] = user.get("full_name") or ""
     logo_bytes = await _fetch_logo_bytes(branding.get("logo_url"))
+
+    # Pre-fetch machine photo bytes from object storage so the PDF builder
+    # (a pure sync function) can embed them without doing any I/O.
+    await _attach_photo_bytes(r)
     try:
         pdf = build_legacy_pdf(r, branding, logo_bytes)
     except Exception:

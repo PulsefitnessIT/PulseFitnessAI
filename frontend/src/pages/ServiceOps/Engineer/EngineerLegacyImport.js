@@ -18,6 +18,7 @@ import {
   ArrowLeft, ArrowRight, Upload, FileText, FileSpreadsheet, Loader2, X,
   Check, Plus, Trash2, Building2, Search, Wand2, Download, Eye,
   CheckCircle2, AlertTriangle, Cog, ChevronDown, ChevronUp, History,
+  Camera, PenLine, RotateCcw, MessageSquare,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -26,6 +27,49 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const ACCEPT = '.pdf,.csv,.xlsx,.xls';
+const MAX_PHOTOS = 3;
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// Compress an image client-side: resize to a max long-edge and re-encode as
+// JPEG — small files that still look great in the branded PDF.
+async function compressImage(file, maxEdge = 1600, quality = 0.82) {
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(file);
+  });
+  const img = await new Promise((res, rej) => {
+    const im = new window.Image();
+    im.onload = () => res(im);
+    im.onerror = rej;
+    im.src = dataUrl;
+  });
+  let { width, height } = img;
+  const longest = Math.max(width, height);
+  if (longest > maxEdge) {
+    const r = maxEdge / longest;
+    width = Math.round(width * r);
+    height = Math.round(height * r);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff'; // flatten transparency for JPEG
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+  return new Promise((res) => canvas.toBlob((b) => res(b), 'image/jpeg', quality));
+}
+
+async function uploadPhoto(blob) {
+  const fd = new FormData();
+  fd.append('file', blob, `photo-${Date.now()}.jpg`);
+  const r = await axios.post(`${API}/files/upload?category=service-photos`, fd, {
+    headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+  });
+  return { file_id: r.data?.id, storage_path: r.data?.storage_path, url: r.data?.download_url };
+}
 
 const fileIcon = (name) => {
   const ext = (name || '').toLowerCase().split('.').pop();
@@ -102,6 +146,26 @@ export default function EngineerLegacyImport() {
   // Save
   const [saving, setSaving] = useState(false);
   const [savedReport, setSavedReport] = useState(null);
+
+  // Report-level comments + sign-off (engineer + customer)
+  const [comments, setComments] = useState('');
+  const [signatures, setSignatures] = useState({
+    engineer: { name: '', data_url: '', signed_date: todayISO() },
+    customer: { name: '', data_url: '', signed_date: todayISO() },
+  });
+  const updateSig = (who, patch) =>
+    setSignatures((s) => ({ ...s, [who]: { ...s[who], ...patch } }));
+
+  // Pre-fill the engineer's signature name from their profile.
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/auth/me`, auth());
+        const nm = r.data?.full_name || r.data?.name || '';
+        if (nm) setSignatures((s) => ({ ...s, engineer: { ...s.engineer, name: s.engineer.name || nm } }));
+      } catch { /* non-fatal */ }
+    })();
+  }, []);
 
   // Saved-reports panel
   const [savedList, setSavedList] = useState([]);
@@ -209,11 +273,23 @@ export default function EngineerLegacyImport() {
             custom_fields: (m.custom_fields || [])
               .filter((cf) => (cf.label || '').trim())
               .map((cf) => ({ label: cf.label, value: cf.value || '' })),
+            photos: (m.photos || [])
+              .filter((p) => p.storage_path)
+              .slice(0, MAX_PHOTOS)
+              .map((p) => ({ file_id: p.file_id || null, storage_path: p.storage_path, url: p.url || null })),
           })),
         })),
       };
       if (selected) payload.customer_id = selected.id;
       else payload.customer = newCust;
+
+      // Report-level comments + sign-off
+      payload.comments = comments.trim() || null;
+      const sigContent = (p) => !!((p.name || '').trim() || p.data_url);
+      payload.signatures = {
+        engineer: sigContent(signatures.engineer) ? signatures.engineer : null,
+        customer: sigContent(signatures.customer) ? signatures.customer : null,
+      };
 
       const r = await axios.post(`${API}/svc/legacy/reports`, payload, auth());
       setSavedReport(r.data?.report || null);
@@ -533,6 +609,45 @@ export default function EngineerLegacyImport() {
                 </div>
               </div>
             ))}
+
+            {/* Report comments */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2" data-testid="legacy-comments-card">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={15} className="text-blue-600" />
+                <p className="text-sm font-bold text-slate-900">Additional comments</p>
+              </div>
+              <textarea
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                rows={3}
+                maxLength={4000}
+                placeholder="Any overall notes for this report — recommendations, follow-ups, parts on order…"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-blue-400 focus:outline-none"
+                data-testid="legacy-comments-input"
+              />
+            </div>
+
+            {/* Sign-off */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="legacy-signoff-card">
+              <div className="flex items-center gap-2">
+                <PenLine size={15} className="text-blue-600" />
+                <p className="text-sm font-bold text-slate-900">Sign-off</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <SignaturePad
+                  title="Engineer"
+                  who="engineer"
+                  value={signatures.engineer}
+                  onChange={(patch) => updateSig('engineer', patch)}
+                />
+                <SignaturePad
+                  title="Customer acceptance"
+                  who="customer"
+                  value={signatures.customer}
+                  onChange={(patch) => updateSig('customer', patch)}
+                />
+              </div>
+            </div>
           </section>
         )}
 
@@ -564,6 +679,11 @@ export default function EngineerLegacyImport() {
                   setStep(1); setVisits([]); setSavedReport(null);
                   setSelected(null); setNewCust({ name: '', site_name: '', address: '', contact_name: '', email: '', phone: '' });
                   setQuery('');
+                  setComments('');
+                  setSignatures((s) => ({
+                    engineer: { name: s.engineer.name, data_url: '', signed_date: todayISO() },
+                    customer: { name: '', data_url: '', signed_date: todayISO() },
+                  }));
                 }}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-700"
                 data-testid="legacy-done-another"
@@ -730,6 +850,13 @@ function MachineEditor({ machine, onChange, onRemove, index }) {
             </button>
           </div>
 
+          {/* Photos (max 3) */}
+          <MachinePhotos
+            photos={machine.photos || []}
+            onChange={(photos) => onChange({ photos })}
+            machineId={machine._id}
+          />
+
           <button
             type="button"
             onClick={onRemove}
@@ -740,6 +867,178 @@ function MachineEditor({ machine, onChange, onRemove, index }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── MachinePhotos ────────────────────────────────────────────────
+function MachinePhotos({ photos, onChange, machineId }) {
+  const inputRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const remaining = MAX_PHOTOS - photos.length;
+
+  const onPick = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (inputRef.current) inputRef.current.value = '';
+    if (!files.length) return;
+    const slots = Math.min(remaining, files.length);
+    if (files.length > remaining) {
+      notify.error('Photo limit', `Up to ${MAX_PHOTOS} photos per machine.`);
+    }
+    setBusy(true);
+    const added = [];
+    for (const f of files.slice(0, slots)) {
+      if (!f.type.startsWith('image/')) {
+        notify.error('Not an image', `${f.name} isn't a photo.`);
+        continue;
+      }
+      try {
+        const blob = await compressImage(f);
+        const meta = await uploadPhoto(blob);
+        added.push({ ...meta, _preview: URL.createObjectURL(blob) });
+      } catch (err) {
+        notify.error('Upload failed', err?.response?.data?.detail || err?.message);
+      }
+    }
+    if (added.length) onChange([...photos, ...added].slice(0, MAX_PHOTOS));
+    setBusy(false);
+  };
+
+  const removeAt = (i) => onChange(photos.filter((_, idx) => idx !== i));
+
+  return (
+    <div data-testid={`legacy-photos-${machineId}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+        Photos <span className="text-slate-400 normal-case font-medium">({photos.length}/{MAX_PHOTOS})</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {photos.map((p, i) => (
+          <div key={p.file_id || i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-100" data-testid={`legacy-photo-${machineId}-${i}`}>
+            <img src={p._preview || p.url} alt="machine" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => removeAt(i)}
+              className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+              data-testid={`legacy-photo-remove-${machineId}-${i}`}
+              aria-label="Remove photo"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+        {remaining > 0 && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="w-20 h-20 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 flex flex-col items-center justify-center gap-1 text-blue-600 disabled:opacity-50"
+            data-testid={`legacy-photo-add-${machineId}`}
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+            <span className="text-[9px] font-bold">Add photo</span>
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        capture="environment"
+        onChange={onPick}
+        className="hidden"
+        data-testid={`legacy-photo-input-${machineId}`}
+      />
+    </div>
+  );
+}
+
+// ─── SignaturePad ─────────────────────────────────────────────────
+function SignaturePad({ title, who, value, onChange }) {
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+  const dirty = useRef(false);
+
+  const ctxOf = () => {
+    const c = canvasRef.current;
+    const ctx = c.getContext('2d');
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    return ctx;
+  };
+  const posOf = (e) => {
+    const c = canvasRef.current;
+    const rect = c.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {
+      x: (t.clientX - rect.left) * (c.width / rect.width),
+      y: (t.clientY - rect.top) * (c.height / rect.height),
+    };
+  };
+  const start = (e) => { e.preventDefault(); drawing.current = true; const ctx = ctxOf(); const p = posOf(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  const move = (e) => { if (!drawing.current) return; e.preventDefault(); const ctx = ctxOf(); const p = posOf(e); ctx.lineTo(p.x, p.y); ctx.stroke(); dirty.current = true; };
+  const end = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    if (dirty.current) onChange({ data_url: canvasRef.current.toDataURL('image/png') });
+  };
+  const clear = () => {
+    const c = canvasRef.current;
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    dirty.current = false;
+    onChange({ data_url: '' });
+  };
+
+  return (
+    <div className="space-y-2" data-testid={`legacy-sig-${who}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{title}</p>
+      <div className="relative rounded-lg border border-slate-300 bg-white">
+        <canvas
+          ref={canvasRef}
+          width={560}
+          height={170}
+          className="w-full h-[110px] touch-none rounded-lg"
+          onMouseDown={start}
+          onMouseMove={move}
+          onMouseUp={end}
+          onMouseLeave={end}
+          onTouchStart={start}
+          onTouchMove={move}
+          onTouchEnd={end}
+          data-testid={`legacy-sig-canvas-${who}`}
+        />
+        {!value.data_url && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-slate-300">
+            Sign here
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={clear}
+          className="absolute top-1 right-1 inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-white/90 border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-50"
+          data-testid={`legacy-sig-clear-${who}`}
+        >
+          <RotateCcw size={10} /> Clear
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          value={value.name || ''}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder={who === 'customer' ? 'Customer name' : 'Name'}
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:border-blue-400 focus:outline-none"
+          data-testid={`legacy-sig-name-${who}`}
+        />
+        <input
+          type="date"
+          value={value.signed_date || ''}
+          onChange={(e) => onChange({ signed_date: e.target.value })}
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:border-blue-400 focus:outline-none"
+          data-testid={`legacy-sig-date-${who}`}
+        />
+      </div>
     </div>
   );
 }

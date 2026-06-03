@@ -1,3 +1,20 @@
+## Iter 220z — Legacy reports: machine photos, comments & dual sign-off ✅ (Jun, 2026)
+
+Engineer app → Legacy report import → Review step now supports:
+- **Per-machine photos (max 3):** `MachinePhotos` in `EngineerLegacyImport.js` — client-side compression (`compressImage`: resize ≤1600px long edge, JPEG q0.82) then upload to object storage via `POST /api/files/upload?category=service-photos`; thumbnail previews (local blob) with remove ×. Embedded as a thumbnail row under each machine in the PDF.
+- **Report comments:** report-level textarea at the bottom of Review; rendered as a "Comments" box in the PDF.
+- **Dual sign-off:** two `SignaturePad` canvases (engineer — name prefilled from `/api/auth/me`, date=today, editable; + customer acceptance — blank). Stored as base64 PNG `data_url` + name + date; rendered side-by-side as a "Sign-off" block at the end of the PDF.
+
+**Backend (`routes/svc/legacy_reports.py`, `utils/legacy_report_pdf.py`):**
+- Models: `Photo` on `Machine` (capped to 3 in save), `comments` + `Signatures{engineer,customer}` on `SaveReport`/report doc.
+- PDF route pre-fetches photo bytes from object storage (`_attach_photo_bytes` → `get_object`) and the sync builder embeds photos, comments, and both signatures.
+- Scope: **Legacy reports only** (per user choice). Live job reports unchanged.
+
+**Tested:** Full backend e2e (login → real JPEG upload to object storage → save report w/ photo+comments+2 signatures → PDF 27KB, valid `%PDF`). 3 builder/model unit tests pass (`tests/test_iter_220z_legacy_report_photos.py`). Frontend lint clean; page renders. UI photo/signature interactions live on Review step (reachable post AI-extraction) — verified at API level, not browser-driven.
+
+---
+
+
 ## Iter 220y(3) — Per-category Reply-To routing ✅ (Jun, 2026)
 
 Added env-overridable per-category Reply-To so customer replies land in the right inbox:

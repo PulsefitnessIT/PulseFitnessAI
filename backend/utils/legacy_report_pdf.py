@@ -38,6 +38,8 @@ def build_legacy_pdf(report: dict, branding: dict, logo_bytes: bytes | None) -> 
         BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table,
         TableStyle, Image, KeepTogether,
     )
+    from reportlab.lib.utils import ImageReader
+    import base64 as _b64
 
     primary = colors.HexColor(_hex(branding.get("primary_color"), "#0055FF"))
     ink = colors.HexColor("#0F172A")
@@ -70,6 +72,40 @@ def build_legacy_pdf(report: dict, branding: dict, logo_bytes: bytes | None) -> 
     PW, PH = A4
     MARGIN = 16 * mm
     BAND_H = 34 * mm
+
+    def _img_flowable(raw: bytes, max_w: float, max_h: float):
+        """An Image flowable scaled to fit max_w×max_h, preserving aspect."""
+        try:
+            ir = ImageReader(io.BytesIO(raw))
+            iw, ih = ir.getSize()
+            if not iw or not ih:
+                return None
+            ratio = min(max_w / iw, max_h / ih)
+            return Image(io.BytesIO(raw), width=iw * ratio, height=ih * ratio)
+        except Exception:
+            return None
+
+    def _photo_row(photos_bytes: list, total_w: float):
+        """A row of up to 3 thumbnails inside a machine card."""
+        gap = 3 * mm
+        n = min(3, len(photos_bytes))
+        cell_w = (total_w - gap * (n - 1)) / n
+        cell_h = 40 * mm
+        cells = []
+        for raw in photos_bytes[:3]:
+            img = _img_flowable(raw, cell_w - 4, cell_h)
+            cells.append(img if img is not None else Paragraph("", small))
+        tbl = Table([cells], colWidths=[cell_w] * n)
+        tbl.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("BOX", (0, 0), (-1, -1), 0.5, line),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, line),
+            ("BACKGROUND", (0, 0), (-1, -1), soft),
+        ]))
+        return tbl
 
     def header_footer(canvas, doc):
         canvas.saveState()
@@ -209,6 +245,12 @@ def build_legacy_pdf(report: dict, branding: dict, logo_bytes: bytes | None) -> 
                 cf_tbl.setStyle(TableStyle(style))
                 card += [Spacer(1, 2 * mm), cf_tbl]
 
+            # Machine photos (up to 3)
+            photo_bytes = [p.get("_bytes") for p in (m.get("photos") or []) if p.get("_bytes")]
+            if photo_bytes:
+                card += [Spacer(1, 2.5 * mm), Paragraph("PHOTOS", label),
+                         Spacer(1, 1 * mm), _photo_row(photo_bytes, cw - 20)]
+
             wrapper = Table([[card]], colWidths=[cw])
             wrapper.setStyle(TableStyle([
                 ("BOX", (0, 0), (-1, -1), 0.75, line),
@@ -218,6 +260,63 @@ def build_legacy_pdf(report: dict, branding: dict, logo_bytes: bytes | None) -> 
             ]))
             story += [Spacer(1, 3 * mm), wrapper]
         story.append(Spacer(1, 5 * mm))
+
+    # ── Comments ─────────────────────────────────────────────────────
+    comments = (report.get("comments") or "").strip()
+    if comments:
+        cbody = Paragraph(comments.replace("\n", "<br/>"), body)
+        cbox = Table([[cbody]], colWidths=[cw])
+        cbox.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.75, line),
+            ("BACKGROUND", (0, 0), (-1, -1), soft),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("ROUNDEDCORNERS", [6, 6, 6, 6]),
+        ]))
+        story += [Spacer(1, 2 * mm),
+                  KeepTogether([Paragraph("Comments", sect), Spacer(1, 2 * mm), cbox]),
+                  Spacer(1, 4 * mm)]
+
+    # ── Signatures (engineer + customer acceptance) ──────────────────
+    sigs = report.get("signatures") or {}
+
+    def _sig_cell(title: str, part: dict | None):
+        part = part or {}
+        cell = [Paragraph(title.upper(), label), Spacer(1, 1.5 * mm)]
+        data_url = part.get("data_url") or ""
+        sig_img = None
+        if data_url.startswith("data:") and "," in data_url:
+            try:
+                raw = _b64.b64decode(data_url.split(",", 1)[1])
+                sig_img = _img_flowable(raw, cw / 2 - 24, 22 * mm)
+            except Exception:
+                sig_img = None
+        cell.append(sig_img if sig_img is not None else Spacer(1, 22 * mm))
+        cell.append(Spacer(1, 1 * mm))
+        line_tbl = Table([[""]], colWidths=[cw / 2 - 16], rowHeights=[1])
+        line_tbl.setStyle(TableStyle([("LINEABOVE", (0, 0), (-1, -1), 0.75, ink)]))
+        cell.append(line_tbl)
+        nm = (part.get("name") or "").strip()
+        dt = _fmt_date(part.get("signed_date")) or (part.get("signed_date") or "")
+        cell.append(Paragraph(nm or "&nbsp;", val))
+        cell.append(Paragraph(f"Date: {dt}" if dt else "&nbsp;", small))
+        return cell
+
+    if sigs.get("engineer") or sigs.get("customer"):
+        sig_tbl = Table(
+            [[_sig_cell("Engineer", sigs.get("engineer")),
+              _sig_cell("Customer acceptance", sigs.get("customer"))]],
+            colWidths=[cw / 2, cw / 2],
+        )
+        sig_tbl.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (0, 0), 0), ("RIGHTPADDING", (0, 0), (0, 0), 12),
+            ("LEFTPADDING", (1, 0), (1, 0), 12), ("RIGHTPADDING", (1, 0), (1, 0), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story += [Spacer(1, 2 * mm),
+                  KeepTogether([Paragraph("Sign-off", sect), Spacer(1, 3 * mm), sig_tbl]),
+                  Spacer(1, 4 * mm)]
 
     gen = datetime.now(timezone.utc).strftime("%-d %B %Y")
     story.append(Paragraph(f"This report was compiled from the engineer's historic records on {gen}.", small))
