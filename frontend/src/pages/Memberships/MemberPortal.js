@@ -486,12 +486,20 @@ function AuthGate({ onAuthed, branding, slug }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const gymName = branding?.name || 'GymAxis';
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
+  const hero = branding?.hero_image_url || null;
+  const apiOrigin = API.replace(/\/api\/?$/, '');
 
   return (
     <div data-theme="dark" className="dark min-h-screen bg-[var(--color-surface-darker)] text-white flex flex-col" data-testid="member-auth-gate">
-      <header className="px-6 pt-10 pb-6 text-center">
+      {hero && (
+        <div className="relative w-full h-40 sm:h-48 overflow-hidden" data-testid="member-auth-hero">
+          <img src={hero.startsWith('http') || hero.startsWith('data:') ? hero : `${apiOrigin}${hero}`} alt="" className="w-full h-full object-cover" loading="eager" decoding="async" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(8,9,14,0.10) 0%, var(--color-surface-darker) 100%)' }} />
+        </div>
+      )}
+      <header className={`px-6 ${hero ? 'pt-5' : 'pt-10'} pb-6 text-center`}>
         {branding?.logo_url ? (
-          <img src={branding.logo_url} alt={gymName} className="mx-auto h-12 mb-4 rounded" loading="eager" decoding="async" />
+          <img src={branding.logo_url} alt={gymName} className={`mx-auto h-12 rounded ${hero ? '-mt-10 mb-4 ring-4 ring-[var(--color-surface-darker)] bg-[var(--color-surface-darker)]' : 'mb-4'}`} loading="eager" decoding="async" />
         ) : (
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}>
             <Sparkles size={12} style={{ color: accent }} />

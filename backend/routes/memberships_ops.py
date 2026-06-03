@@ -315,7 +315,10 @@ async def public_branding(slug: str, site: str | None = None):
     Pulse under the same parent org). Falls back to org-level when the
     site has no override or the param isn't supplied.
     """
-    org = await db.organizations.find_one({"slug": slug}, {"_id": 0})
+    org = await db.organizations.find_one(
+        {"$or": [{"membership_app_slug": slug.lower()}, {"slug": slug}]},
+        {"_id": 0},
+    )
     if not org:
         raise HTTPException(404, "Studio not found")
 
@@ -337,6 +340,7 @@ async def public_branding(slug: str, site: str | None = None):
         "logo_url": eff["logo_url"] or org.get("logo_url"),
         "primary_brand_colour": eff["primary_color"] or "#19CDFF",
         "secondary_color": eff["secondary_color"] or "",
+        "hero_image_url": org.get("member_app_hero_url") or None,
         "currency": org.get("currency") or "GBP",
         "site_id": (site_doc or {}).get("id"),
         "site_name": (site_doc or {}).get("name"),

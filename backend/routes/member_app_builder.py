@@ -353,9 +353,16 @@ async def get_layout(
     """
     org_id, account_type = await _resolve_org(user)
     org_doc = await db.organizations.find_one(
-        {"id": org_id}, {"_id": 0, "membership_app_slug": 1, "slug": 1},
+        {"id": org_id},
+        {"_id": 0, "membership_app_slug": 1, "slug": 1,
+         "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1},
     ) or {}
     app_slug = org_doc.get("membership_app_slug") or org_doc.get("slug") or None
+    branding = {
+        "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
+        "logo_url": org_doc.get("logo_url") or None,
+        "hero_image_url": org_doc.get("member_app_hero_url") or None,
+    }
     query: dict[str, Any] = {"organization_id": org_id, "is_default": True}
     if site_id:
         query["site_id"] = site_id
@@ -371,7 +378,7 @@ async def get_layout(
             "updated_by": None,
             "updated_at": None,
         }
-    return {"layout": layout, "account_type": account_type, "app_slug": app_slug}
+    return {"layout": layout, "account_type": account_type, "app_slug": app_slug, "branding": branding}
 
 
 @router.put("/member-app/layout")
@@ -448,3 +455,151 @@ async def reset_layout(
         upsert=True,
     )
     return {"layout": {"cards": cards, "is_default": True}, "reset": True}
+
+
+# ── Member-app branding & theme (Iter 220q) ─────────────────────────
+#
+# Lets operators personalise the public member app (colour + logo +
+# hero/cover banner) straight from the App Builder, with the changes
+# reflected in the live preview and the real /m/{slug} app.
+
+import base64  # noqa: E402
+import io  # noqa: E402
+
+from fastapi import File, Response, UploadFile  # noqa: E402
+from PIL import Image  # noqa: E402
+
+from utils.database import APP_NAME, put_object, get_object  # noqa: E402
+
+
+def _normalise_hex(value: str | None) -> str | None:
+    """Accept #RGB / #RRGGBB (case-insensitive); return #RRGGBB or None."""
+    if not value:
+        return None
+    v = str(value).strip()
+    if not v.startswith("#"):
+        v = "#" + v
+    body = v[1:]
+    if len(body) == 3 and all(c in "0123456789abcdefABCDEF" for c in body):
+        body = "".join(c * 2 for c in body)
+    if len(body) != 6 or any(c not in "0123456789abcdefABCDEF" for c in body):
+        return None
+    return "#" + body.upper()
+
+
+@router.put("/member-app/branding")
+async def save_branding(
+    payload: dict = Body(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Persist member-app branding (brand colour). Owner/manager only.
+
+    The hero image + logo are uploaded via their own multipart endpoints;
+    this saves the brand colour (and keeps `branding.primary_color` in sync
+    so every reader of org branding picks it up).
+    """
+    _require_owner_or_manager(user)
+    org_id, _ = await _resolve_org(user)
+    updates: dict[str, Any] = {}
+    if "primary_brand_colour" in payload:
+        colour = _normalise_hex(payload.get("primary_brand_colour"))
+        if not colour:
+            raise HTTPException(400, "Invalid brand colour — use a hex value like #19CDFF")
+        updates["primary_brand_colour"] = colour
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "branding": 1}) or {}
+        branding = dict(org.get("branding") or {})
+        branding["primary_color"] = colour
+        updates["branding"] = branding
+    if updates:
+        await db.organizations.update_one({"id": org_id}, {"$set": updates})
+    org_doc = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1},
+    ) or {}
+    return {
+        "branding": {
+            "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
+            "logo_url": org_doc.get("logo_url") or None,
+            "hero_image_url": org_doc.get("member_app_hero_url") or None,
+        }
+    }
+
+
+@router.post("/member-app/hero-image")
+async def upload_hero_image(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Upload the member-app hero/cover banner (PNG/JPEG/WEBP). Owner/manager only."""
+    _require_owner_or_manager(user)
+    org_id, _ = await _resolve_org(user)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty file")
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(413, "Image must be 8 MB or smaller")
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+    except Exception as exc:
+        raise HTTPException(400, "Could not parse image") from exc
+    # Banner: fit within 1600×900, JPEG for size (no transparency needed).
+    img = img.convert("RGB")
+    img.thumbnail((1600, 900), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=86, optimize=True)
+    compressed = buf.getvalue()
+    content_type = "image/jpeg"
+    path = f"{APP_NAME}/member_hero/{org_id}/{uuid.uuid4()}.jpg"
+    hero_path: str | None = None
+    try:
+        put_object(path, compressed, content_type)
+        hero_path = path
+        hero_url = f"/api/member-app/hero-image/{org_id}?v={uuid.uuid4().hex[:8]}"
+    except Exception as exc:
+        logger.warning(f"[member-app] hero object-store put failed, embedding inline: {exc}")
+        hero_url = f"data:{content_type};base64," + base64.b64encode(compressed).decode("ascii")
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {
+            "member_app_hero_url": hero_url,
+            "member_app_hero_path": hero_path,
+            "member_app_hero_content_type": content_type,
+        }},
+    )
+    return {"hero_image_url": hero_url}
+
+
+@router.delete("/member-app/hero-image")
+async def delete_hero_image(user: dict = Depends(get_current_user)) -> dict:
+    _require_owner_or_manager(user)
+    org_id, _ = await _resolve_org(user)
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"member_app_hero_url": None, "member_app_hero_path": None}},
+    )
+    return {"hero_image_url": None}
+
+
+@router.get("/member-app/hero-image/{org_id}")
+async def serve_hero_image(org_id: str) -> Response:
+    """Public proxy for the member-app hero banner (used by /m/{slug})."""
+    rec = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "member_app_hero_path": 1, "member_app_hero_url": 1,
+         "member_app_hero_content_type": 1},
+    )
+    if not rec:
+        raise HTTPException(404, "Organisation not found")
+    path = rec.get("member_app_hero_path")
+    if not path:
+        raise HTTPException(404, "No hero image")
+    try:
+        data, content_type = get_object(path)
+    except Exception as exc:
+        raise HTTPException(404, "Hero image not available") from exc
+    return Response(
+        content=data,
+        media_type=rec.get("member_app_hero_content_type") or content_type or "image/jpeg",
+        headers={"Cache-Control": "public, max-age=300"},
+    )

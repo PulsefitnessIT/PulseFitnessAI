@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 220q — full E2E validation of the new Member App Builder live preview + branding (logo, hero banner, brand colour). Backend: PUT /api/member-app/branding, POST/DELETE /api/member-app/hero-image, POST /api/account/logo, GET /api/member-app/layout (with branding object), GET /api/m/{slug}/branding all return 200 and round-trip correctly. Frontend: all required testids render, colour swatch click persists via PUT branding 200, live iframe loads /m/<slug>?preview=1, AuthGate inside renders both data-testid 'member-auth-gate' AND data-testid 'member-auth-hero' (the hero banner image at the top of the member app), and the chosen brand colour propagates to the AuthGate buttons (true live preview confirmed). Member app tab sits after Members. One minor flake: mab-preview-mode-home button click reported 'not visible' on a single attempt right after a state-mutating PUT — the element IS in the DOM and live-mode toggling itself works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "App Builder — switching preview mode immediately after a branding PUT",
+        "issue": "When mab-preview-mode-home is clicked moments after a colour swatch triggers PUT /member-app/branding, the click occasionally raised 'Element is not visible' in playwright (the element exists in the DOM but is reported off-screen). The page body briefly shows 'Loading...' while bumpPreview/state refetch runs. Functionally the toggle works on a subsequent attempt and the home-mode phone mock testid 'mab-preview' renders. Suspected cause: the BrandingPanel re-mounts/scrolls during the bumpPreview refetch. Worth adding a guard so the preview-mode toggle buttons stay visible during refetch.",
+        "affected_selectors": ["[data-testid='mab-preview-mode-home']", "[data-testid='mab-preview']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(LOW) Keep the preview header (mab-preview-toggle / refresh / open) mounted and visible during the post-branding-PUT refetch — currently the panel briefly collapses to 'Loading...' which can race with a user clicking the Home/Live toggle."
+  ],
+  "critical_code_review_comments": [
+    "BrandingPanel correctly wires colour preset → PUT /api/member-app/branding with optimistic UI (hex label updates immediately) — verified via network capture (200 OK).",
+    "Public /api/m/{slug}/branding endpoint correctly resolves the org via membership_app_slug (the org has slug=null but membership_app_slug='member-only-gym'), and returns logo_url, primary_brand_colour AND hero_image_url with branding_source='organization'.",
+    "MemberPortal AuthGate consumes the public branding (renders member-auth-hero banner from hero_image_url, applies primary_brand_colour to the active SIGN IN tab/button) — confirmed by visiting /m/member-only-gym?preview=1 directly; teal #10B981 sign-in button reflected the latest PUT.",
+    "uploadImage in MobileAppBuilderTab sends FormData field name 'file' for both logo and hero, which matches both backend endpoints (account.upload_logo and member_app_builder hero handler accept UploadFile=File(..., alias-not-used) named 'file').",
+    "Live preview iframe uses src=/m/<slug>?preview=1 with a key bump for refresh — verified mab-preview-refresh click does NOT navigate the parent, only the iframe.",
+    "Member app tab moved correctly: tab order is Dashboard, Classes & Timetable, Check-in, Members, Member app, Instructors, Plans, ... — verified in DOM.",
+    "MobileAppBuilderTab.js is 944 lines — over the 700-line guideline; consider extracting BrandingPanel and LiveAppPreview into separate files for maintainability.",
+    "Console only emits expected env-level CSP/403 errors for emergent-main.js, posthog, cloudflareinsights — no new errors from the BrandingPanel / LiveAppPreview / hero upload code paths."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (6/6 endpoints)", "frontend": "~95% (all testids + live preview + branding propagation pass; one transient toggle visibility flake)"},
+  "test_credentials": "memberonly.trial@example.com / TrialTest123! (owner of Member Only Gym, membership_app_slug='member-only-gym')",
+  "seed_data_creation": "Uploaded a hero JPEG and a logo JPEG to the trial org via the live API during testing. Brand colour was bounced between #10B981 and #7C3AED — final state left at #7C3AED. Hero image left in place.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "1) Use X-RateLimit-Bypass: <RATE_LIMIT_BYPASS_SECRET from backend/.env> on /api/auth/login to avoid login throttling. 2) Login token comes back as 'token' (not 'access_token'). 3) The org's slug is null; routing uses membership_app_slug. Public branding works at /api/m/member-only-gym/branding. 4) The cookie banner inside the member-portal iframe is separate from the staff console banner — accept both. 5) When testing the home-mode phone mock, click mab-preview-mode-home twice or add a wait_for_timeout(800) after any branding PUT to avoid hitting the brief 'Loading...' state during bumpPreview refetch. 6) AuthGate testids inside /m/<slug>: member-auth-gate, member-auth-hero, member-auth-tab-login, member-auth-tab-register, member-login-*.",
+  "rca_of_the_issue": "Not a bug — the user request is fully implemented. The only observable wobble is a brief 'Loading...' state in the App Builder body after a successful PUT /member-app/branding while the layout is refetched (bumpPreview increments a key that re-mounts the panel), which can race with an immediate follow-up click on the preview mode toggle. Mitigation: keep the preview header (toggle + refresh + open) mounted during the refetch, or show a non-collapsing skeleton inside the panel instead of replacing the whole body with 'Loading...'."
+}
