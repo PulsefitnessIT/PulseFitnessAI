@@ -1,3 +1,17 @@
+## Iter 220q — Member App Builder: real live preview + branding/personalisation ✅ (Jun, 2026)
+
+User wanted the Memberships → Member app → **App Builder** "Live preview" to be a **real live app** (so operators see exactly what members see) + the ability to **personalise with their own images and colours**. Chose option A (logo + hero/cover banner). Tested end-to-end by testing_agent (Iter 220q report) — all pass, retest_needed=false.
+
+**Backend** (`member_app_builder.py`): `get_layout` now returns a `branding` object; new `PUT /member-app/branding` (brand colour, syncs `branding.primary_color`), `POST/DELETE/GET /member-app/hero-image` (Pillow-resized JPEG, object-store with base64 fallback, public serve route, owner/manager-gated). `memberships_ops.py`: `GET /m/{slug}/branding` now returns `hero_image_url` and resolves the org by **`membership_app_slug` OR `slug`** (fixed a latent bug — member-app slugs live on `membership_app_slug`; this org had no `slug`).
+
+**Frontend**:
+- `MobileAppBuilderTab.js`: new **Branding & theme** panel (colour preset swatches + custom picker → saves instantly; logo drag-upload via `/account/logo`; hero banner upload/remove via `/member-app/hero-image`). New **Live preview** with a toggle — **Live app** = real `<iframe>` of `/m/<slug>` (reloads on save via `previewKey`, Refresh + Open-full-screen buttons, "set your app URL" hint when no slug) and **Home screen** = themed card mock (hero banner + logo + accent). `PhoneFrame` now renders hero/logo/accent.
+- `MemberPortal.js` AuthGate renders `branding.hero_image_url` as a banner (`data-testid member-auth-hero`) + brand colour as accent — confirmed live inside the iframe by the testing agent.
+
+Lint clean (py+js). LOW polish note (deferred): keep preview header mounted during the post-PUT refetch to avoid a brief flicker.
+
+---
+
 ## Iter 220p — Production fixes: partner-engineer directory class + Member app white screen + tab move ✅ (Jun, 2026)
 
 Three production (gymaxisai.com) issues reported with screenshot. Fixes are in preview code → **need a redeploy to reach production.**
