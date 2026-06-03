@@ -27438,3 +27438,46 @@ that:
   (~+180 LOC: toggle + ServiceHistory + Stat components, new
   lucide icons)
 - ``Makefile`` (regression entry — TAB-indented)
+
+
+---
+
+## Iter 220eb — Live Job Engineer App: 6-bug batch (Jun 3, 2026)
+
+Fixed a batch of field-blocking bugs in the *live job* Engineer App
+(`EngineerJobDetailV2.js`, `WorkVisitMachinesCard.js`, `engineerOfflineQueue.js`,
+backend `engineer.py` + `service_report.py`). All 6 verified.
+
+1. **Report "Asset" → "Job type"** — `service_report.py` VISIT DETAILS now
+   shows a `Job type` row via `_case_type_label()` (Repair / PPM Service / …),
+   and only renders an `Asset` row when `asset_name` is a real value (hides
+   empty + internal `ASSET_…` slugs). *Verified: PDF shows "Job type: Repair".*
+2. **Timer stuck on "syncing" + manual entry** — Root cause: `engineerSendOrQueue`
+   was queueing 4xx errors (incl. the 412 H&S gate) as if offline, stranding the
+   timer at 0m with a false "queued/Syncing" chip. Now 4xx errors throw with
+   `status`/`detail` and the UI surfaces the real reason ("Complete the H&S
+   checklist first"). Added `POST /api/svc/engineer/time/manual` (category +
+   minutes) and an "Add time manually" card on the Time tab. *Verified by testing agent.*
+3. **Equipment per-machine photo button** — verified working end-to-end
+   (upload → grid). The cursor-jump fix removed the re-render thrash that made it
+   feel unreliable. *Verified: photo grid populated.*
+4. **Textarea cursor jump on spacebar** — Root cause: per-keystroke async PATCH
+   replaced the whole row object on response, yanking the caret. New
+   `MachineTextField` component (local state + 600ms debounce, ignores prop
+   updates while focused) for the Work-actioned + Further-work fields.
+   *Verified: full sentence preserved, no jump.*
+5. **Signature missing on report** — Root cause: signature was saved only if the
+   "Signed by" name field was also filled; engineers drew the signature but left
+   the name blank, so it was silently dropped. Now saves whenever a signature is
+   drawn, defaulting the name to the case customer ("Customer" fallback).
+   *Verified: signature persisted with blank name + embedded in PDF.*
+6. **Logo missing on report** — Org had no logo configured. Added a default
+   GymAxis brand mark (`backend/static/brand/gymaxis-full.png`) fallback so every
+   report ships branded. Org/engineer logo still takes precedence.
+   *Verified: GYMAXIS logo in PDF header.*
+
+### Next phase (user-requested, NOT yet built)
+**Configurable Case Types** in Account Settings — let orgs edit case types, define
+**custom questions per type**, and ship **distinct report templates per type**
+(a PPM report should look different from a Repair report). See ROADMAP P1.
+

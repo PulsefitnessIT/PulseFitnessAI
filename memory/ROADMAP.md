@@ -34,6 +34,7 @@ _Last refreshed: Iter 220m · May 26, 2026._
 
 ## P1 — Ready to build on green light
 
+- **Configurable Case Types (user-requested, Jun 3 2026)** — In Account Settings, let orgs add/edit case types, define **custom questions per case type**, and produce **distinct report templates per type** (a PPM report should look different from a Repair report). Today `case_type` is a fixed enum (`repair`/`ppm`/`install`/`inspection`/`callout`/`audit`) with one shared `service_report.py` PDF layout. Build: case-type config model + CRUD UI, per-type question schema wired into the engineer Complete/Equipment flow, and a per-type report renderer. **Next major piece.**
 - **Return-day welcome-back digest email** — when an engineer's `resumes_on` date arrives, fire a digest of "what changed while you were away" (new jobs, customer requests, rating activity).
 - **Wall of Reviews** at `/engineers/{slug}/reviews` — public SEO-indexed page each Partner Engineer can link from their socials. Reuses `/me/ratings` endpoint + schema.org/Review structured data for Google ★ stars in search.
 - **Instagram-attributed apply form** — auto-detect `?utm_source=instagram` on `/partner-engineer`, swap hero copy to "Came from Instagram? Here's your free first month." Boosts conversion ~25%.
