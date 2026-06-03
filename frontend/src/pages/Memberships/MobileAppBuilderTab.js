@@ -183,6 +183,9 @@ export default function MobileAppBuilderTab({ API, headers }) {
       setBranding((b) => ({
         ...b,
         logo_url: kind === 'logo' ? data.logo_url : b.logo_url,
+        brand_palette: kind === 'logo' && Array.isArray(data.brand_palette) && data.brand_palette.length
+          ? data.brand_palette
+          : b.brand_palette,
         hero_image_url: kind === 'hero' ? data.hero_image_url : b.hero_image_url,
       }));
       bumpPreview();
@@ -783,6 +786,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
   const colour = branding?.primary_brand_colour || '#19CDFF';
   const font = branding?.font || 'inter';
   const buttonStyle = branding?.button_style || 'soft';
+  const palette = Array.isArray(branding?.brand_palette) ? branding.brand_palette.slice(0, 6) : [];
   const hero = branding?.hero_image_url;
   const heroSrc = hero && (hero.startsWith('http') || hero.startsWith('data:')) ? hero : (hero ? `${apiOrigin}${hero}` : null);
   const logo = branding?.logo_url;
@@ -829,6 +833,23 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
           </label>
           <span className="text-xs font-mono" style={{ color: 'var(--theme-text-muted)' }}>{colour}</span>
         </div>
+        {palette.length > 0 && (
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap" data-testid="mab-logo-palette">
+            <span className="text-[10px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}>
+              <Sparkles className="w-3 h-3" style={{ color: 'var(--color-brand-cyan)' }} /> From your logo:
+            </span>
+            {palette.map((c) => (
+              <button
+                key={c}
+                onClick={() => onField({ primary_brand_colour: c })}
+                title={`Apply ${c}`}
+                data-testid={`mab-logo-colour-${c.replace('#', '')}`}
+                className="w-6 h-6 rounded-md transition"
+                style={{ background: c, outline: colour.toUpperCase() === c.toUpperCase() ? '2px solid var(--theme-text)' : '1px solid var(--theme-border)', outlineOffset: 1 }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Typography */}

@@ -1,3 +1,14 @@
+## Iter 220s — Member App branding: one-tap "Apply my logo's colours" ✅ (Jun, 2026)
+
+Suggested follow-up to 220r. The logo upload (`/account/logo`) already extracts a 5-colour `brand_palette` via Pillow — now surfaced in the builder so operators get an on-brand member app in one tap.
+
+- **Backend** (`member_app_builder.py`): `_branding_dict` + `_BRANDING_PROJECTION` + `get_layout` projection now include `brand_palette`, so the saved palette is returned with branding.
+- **Frontend** (`MobileAppBuilderTab.js`): logo upload now captures `data.brand_palette` into state; `BrandingPanel` renders a **"⚡ From your logo:"** swatch row (up to 6 colours) under the brand-colour picker — each chip one-taps `onField({primary_brand_colour})`.
+
+Verified: curl — 4-colour test logo → `['#F59E0B','#2563EB','#10B981','#DC2626']` returned via layout branding. Screenshot — swatch row renders, tapping the blue chip set the brand colour to `#2563EB`. Lint clean (py+js).
+
+---
+
 ## Iter 220r — Member App personalisation: typography + button-corner style ✅ (Jun, 2026)
 
 Follow-up to 220q (the suggested enhancement). Added two app-wide personalisation levers to the **Branding & theme** panel so each studio's member app feels genuinely "theirs":

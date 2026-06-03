@@ -356,7 +356,7 @@ async def get_layout(
         {"id": org_id},
         {"_id": 0, "membership_app_slug": 1, "slug": 1,
          "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
-         "member_app_font": 1, "member_app_button_style": 1},
+         "member_app_font": 1, "member_app_button_style": 1, "brand_palette": 1},
     ) or {}
     app_slug = org_doc.get("membership_app_slug") or org_doc.get("slug") or None
     branding = _branding_dict(org_doc)
@@ -496,12 +496,13 @@ def _branding_dict(org_doc: dict) -> dict:
         "hero_image_url": org_doc.get("member_app_hero_url") or None,
         "font": org_doc.get("member_app_font") or "inter",
         "button_style": org_doc.get("member_app_button_style") or "soft",
+        "brand_palette": org_doc.get("brand_palette") or [],
     }
 
 
 _BRANDING_PROJECTION = {
     "_id": 0, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
-    "member_app_font": 1, "member_app_button_style": 1,
+    "member_app_font": 1, "member_app_button_style": 1, "brand_palette": 1,
 }
 
 
