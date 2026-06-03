@@ -27481,3 +27481,42 @@ backend `engineer.py` + `service_report.py`). All 6 verified.
 **custom questions per type**, and ship **distinct report templates per type**
 (a PPM report should look different from a Repair report). See ROADMAP P1.
 
+
+
+---
+
+## Iter 220ec — Overdue tile fix · Closed-jobs visibility · Phase 2 Case Types (Jun 3, 2026)
+
+All verified by testing agent (iteration_220ea_49.json — 5/5 PASS, DB left clean).
+
+**Fix A — Overdue KPI tile interactive.** The home tiles navigated to
+`/svc/engineer?tab=open`, which the home screen ignored. Repointed Overdue/Today/
+Awaiting-parts to `/svc/engineer/jobs?when=…`; `EngineerHome.js` now reads `?when=`
+via `useSearchParams`.
+
+**Fix B — Engineers can see closed jobs.** The engineer jobs API only ever returned
+open statuses. Added `when=closed` (closed/invoiced/repaired/awaiting_sign_off/
+cancelled, sorted by `closed_at`) + a **Closed** tab on the jobs list. (12 closed
+jobs surfaced in the test org.)
+
+**Phase 2 (slice 1) — Configurable Case Types.**
+- New `routes/svc/case_types.py` + `svc_case_types` collection. Lazy-seeds 6 builtins
+  per org. CRUD + reorder. Builtins can be deactivated but not deleted (400); custom
+  types fully editable/deletable. Manage permission = any org user (owners + engineers).
+- New `EngineerCaseTypes.js` manager at `/svc/engineer/case-types` (label/colour/
+  description/active/reorder/delete). Linked from engineer Account Settings + owner
+  AccountPanel + the Custom Report Fields header.
+- **Custom questions per type already existed** via the mature `work_report_fields`
+  engine (`job_types` filter; types text/number/dropdown/checkbox/date/file; per-case
+  + per-machine; rendered into report). Relaxed its `job_types` validation to accept
+  custom case-type slugs, and made the question editor's job-type chips fetch live
+  from `/api/svc/case-types`.
+- `intake.py` case_type validation now accepts any active org type slug.
+- Report `Job type` row resolves the org's friendly label (`resolve_case_type_label`),
+  so custom type labels render. (Option (a): same layout + type-specific Q&A section.)
+
+### Phase 2 — remaining (deferred, user chose "evolve later")
+- Option (b): genuinely different report LAYOUTS per type (e.g. PPM = checklist grid +
+  compliance section; Repair = fault/diagnosis/parts narrative). Today all types share
+  one layout that surfaces their type-scoped questions as a section.
+
