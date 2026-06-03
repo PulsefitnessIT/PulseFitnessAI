@@ -71,8 +71,12 @@ async def member_register(body: MemberRegister, request: Request):
     # Resolve organization_id from slug if provided (public white-label app)
     org_id = body.organization_id
     if not org_id and body.organization_slug:
+        # Member-app addresses live on `membership_app_slug`; older orgs may
+        # also carry a matching `slug`. Resolve by either (Iter 220v).
+        slug = body.organization_slug.lower().strip()
         org = await db.organizations.find_one(
-            {"slug": body.organization_slug}, {"_id": 0, "id": 1})
+            {"$or": [{"membership_app_slug": slug}, {"slug": body.organization_slug}]},
+            {"_id": 0, "id": 1})
         if not org:
             raise HTTPException(404, "Studio not found")
         org_id = org["id"]
