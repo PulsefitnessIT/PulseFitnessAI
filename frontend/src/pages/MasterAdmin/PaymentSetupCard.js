@@ -23,6 +23,8 @@ const PaymentSetupCard = ({ organizationId }) => {
   const [busy, setBusy] = useState(false);
   const [acctIdInput, setAcctIdInput] = useState('');
   const [connectError, setConnectError] = useState(null);
+  const [feeInput, setFeeInput] = useState('');
+  const [feeSaving, setFeeSaving] = useState(false);
 
   const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
@@ -31,6 +33,7 @@ const PaymentSetupCard = ({ organizationId }) => {
     try {
       const r = await axios.get(`${API}/stripe-connect/orgs/${organizationId}/status`, { headers: headers() });
       setData(r.data);
+      if (r.data?.platform_fee_percent != null) setFeeInput(String(r.data.platform_fee_percent));
     } catch (e) {
       notify.error('Could not load Stripe status', e.response?.data?.detail);
     }
@@ -38,6 +41,19 @@ const PaymentSetupCard = ({ organizationId }) => {
   }, [API, organizationId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const saveFee = async () => {
+    setFeeSaving(true);
+    try {
+      const payload = feeInput.trim() === '' ? { platform_fee_percent: null } : { platform_fee_percent: Number(feeInput) };
+      const r = await axios.put(`${API}/stripe-connect/orgs/${organizationId}/fee`, payload, { headers: headers() });
+      notify.success('Platform fee updated', `Now ${r.data.platform_fee_percent}% on member transactions.`);
+      await load();
+    } catch (e) {
+      notify.error('Could not update fee', e.response?.data?.detail);
+    }
+    setFeeSaving(false);
+  };
 
   const startOnboarding = async () => {
     setBusy(true);
@@ -207,6 +223,28 @@ const PaymentSetupCard = ({ organizationId }) => {
             <Button onClick={disconnect} disabled={busy} variant="ghost" size="sm" className="text-rose-600 hover:bg-rose-50" data-testid="payment-setup-disconnect-2">
               <Unplug size={11} />
             </Button>
+          </div>
+          <div className="border-t border-zinc-100 pt-3">
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400 font-semibold mb-1.5">
+              Platform fee {data?.custom_fee && <span className="text-fuchsia-600 normal-case font-bold">· custom</span>}
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type="number" min="0" max="100" step="0.1"
+                  value={feeInput}
+                  onChange={(e) => setFeeInput(e.target.value)}
+                  className="h-9 pr-7 text-sm"
+                  placeholder="1.0"
+                  data-testid="payment-setup-fee-input"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">%</span>
+              </div>
+              <Button onClick={saveFee} disabled={feeSaving} size="sm" className="h-9 whitespace-nowrap" data-testid="payment-setup-fee-save">
+                {feeSaving ? <Loader2 size={12} className="animate-spin" /> : 'Save'}
+              </Button>
+            </div>
+            <p className="text-[10px] text-zinc-400 mt-1">Applied to every member card payment for this gym. Blank = platform default.</p>
           </div>
         </div>
       )}

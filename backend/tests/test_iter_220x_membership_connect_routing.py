@@ -40,3 +40,45 @@ def test_subscription_fragment_uses_percent():
     frag = subscription_connect_kwargs(routing)
     assert frag["transfer_data"] == {"destination": "acct_xyz"}
     assert frag["application_fee_percent"] == 1.5
+
+
+def test_effective_fee_override_resolution():
+    from routes.stripe_connect import _effective_fee
+    assert _effective_fee(None) == 1.0
+    assert _effective_fee({}) == 1.0
+    assert _effective_fee({"membership_platform_fee_pct": 2.5}) == 2.5
+    assert _effective_fee({"membership_platform_fee_pct": 0}) == 0.0
+
+
+def test_routing_uses_per_org_fee_override(monkeypatch):
+    """When the gym is verified, routing picks up its per-org fee override."""
+    import asyncio
+    import utils.stripe_connect_routing as scr
+
+    class _Acct:
+        charges_enabled = True
+        capabilities = {"transfers": "active"}
+
+    monkeypatch.setattr(scr.stripe.Account, "retrieve", lambda *a, **k: _Acct())
+    # cached flag already matches computed value → no DB write path hit.
+    routing = asyncio.run(scr.resolve_org_connect_routing(
+        {"id": "o1", "stripe_account_id": "acct_x",
+         "membership_platform_fee_pct": 3.0, "stripe_charges_enabled": True},
+    ))
+    assert routing == {"destination": "acct_x", "fee_pct": 3.0}
+
+
+def test_routing_gates_when_transfers_inactive(monkeypatch):
+    """charges_enabled but transfers capability pending → no routing (fallback)."""
+    import asyncio
+    import utils.stripe_connect_routing as scr
+
+    class _Acct:
+        charges_enabled = True
+        capabilities = {"transfers": "pending"}
+
+    monkeypatch.setattr(scr.stripe.Account, "retrieve", lambda *a, **k: _Acct())
+    routing = asyncio.run(scr.resolve_org_connect_routing(
+        {"id": "o1", "stripe_account_id": "acct_x", "stripe_charges_enabled": False},
+    ))
+    assert routing is None

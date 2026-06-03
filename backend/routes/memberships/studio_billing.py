@@ -1113,7 +1113,8 @@ async def _build_invoice_checkout_url(invoice: dict, org: dict) -> Optional[str]
     )
     routing_org = await db.organizations.find_one(
         {"id": invoice.get("organization_id")},
-        {"_id": 0, "id": 1, "stripe_account_id": 1, "stripe_charges_enabled": 1},
+        {"_id": 0, "id": 1, "stripe_account_id": 1, "stripe_charges_enabled": 1,
+         "membership_platform_fee_pct": 1},
     ) or {}
     routing = await resolve_org_connect_routing(routing_org)
     pi_data = payment_intent_connect_kwargs(routing, int(invoice["total_pence"]))
@@ -1368,7 +1369,8 @@ async def member_pay_all_outstanding(member: dict = Depends(_require_current_mem
     org = await db.organizations.find_one(
         {"id": member["organization_id"]},
         {"_id": 0, "id": 1, "name": 1, "primary_color": 1,
-         "stripe_account_id": 1, "stripe_charges_enabled": 1},
+         "stripe_account_id": 1, "stripe_charges_enabled": 1,
+         "membership_platform_fee_pct": 1},
     ) or {}
     frontend = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
     success_url = f"{frontend}/members?paid_all=1"

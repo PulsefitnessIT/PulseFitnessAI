@@ -59,6 +59,21 @@ export default function InvoicingTab({ API, headers }) {
   const [siblingPct, setSiblingPct] = useState(0);
   const [siblingSaving, setSiblingSaving] = useState(false);
   const [autoPayMembers, setAutoPayMembers] = useState(new Set());
+  const [connectStatus, setConnectStatus] = useState(null);
+
+  // Iter 220y — fetch the gym's own Stripe Connect status so the billing
+  // screen can reassure operators that member card payments land in their
+  // connected account once charges are enabled.
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/stripe-connect/me/status`, { headers });
+        if (!cancel) setConnectStatus(data);
+      } catch { /* non-fatal */ }
+    })();
+    return () => { cancel = true; };
+  }, [API, headers]);
 
   // Load sibling-discount setting + auto-pay roster once on mount
   useEffect(() => {
@@ -198,6 +213,23 @@ export default function InvoicingTab({ API, headers }) {
     <div data-testid="mbr-invoicing">
       {/* Iter 216h245 — sub-header removed (Billing eyebrow + H1 +
           description). The tab pill above already names this section. */}
+
+      {/* Iter 220y — payouts reassurance once Stripe Connect is live */}
+      {connectStatus?.charges_enabled && (
+        <div
+          className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 flex items-start gap-3"
+          data-testid="mbr-billing-payouts-banner"
+        >
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-emerald-900">
+            <span className="font-bold">Payouts go straight to your Stripe account.</span>{' '}
+            Member card payments are deposited into your connected Stripe account
+            {typeof connectStatus.platform_fee_percent === 'number'
+              ? ` minus a ${connectStatus.platform_fee_percent}% platform fee`
+              : ''}, and paid out by Stripe on your schedule.
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="rounded-xl border border-[color:var(--theme-border)] p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

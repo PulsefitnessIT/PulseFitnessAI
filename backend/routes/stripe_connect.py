@@ -37,6 +37,13 @@ log = logging.getLogger("stripe_connect")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 PLATFORM_FEE_PERCENT = 1.0  # 1% application fee on every member transaction
 
+
+def _effective_fee(org: dict | None) -> float:
+    """Per-gym fee override (`org.membership_platform_fee_pct`) or the global default."""
+    if org and org.get("membership_platform_fee_pct") is not None:
+        return float(org["membership_platform_fee_pct"])
+    return PLATFORM_FEE_PERCENT
+
 router = APIRouter(tags=["stripe-connect"])
 
 
@@ -80,7 +87,8 @@ async def status(organization_id: str = Path(...), user: dict = Depends(get_curr
         return {
             "connected": False,
             "ready": False,
-            "platform_fee_percent": PLATFORM_FEE_PERCENT,
+            "platform_fee_percent": _effective_fee(org),
+            "custom_fee": org.get("membership_platform_fee_pct") is not None,
             "account": None,
         }
     try:
@@ -92,8 +100,67 @@ async def status(organization_id: str = Path(...), user: dict = Depends(get_curr
     return {
         "connected": True,
         "ready": summary["charges_enabled"] and summary["payouts_enabled"],
-        "platform_fee_percent": PLATFORM_FEE_PERCENT,
+        "platform_fee_percent": _effective_fee(org),
+        "custom_fee": org.get("membership_platform_fee_pct") is not None,
         "account": summary,
+    }
+
+
+@router.put("/stripe-connect/orgs/{organization_id}/fee")
+async def set_org_fee(
+    organization_id: str = Path(...),
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+):
+    """Master-admin: set (or clear) the per-gym platform fee % on member
+    transactions. Send `{"platform_fee_percent": null}` (or omit) to reset to
+    the global default."""
+    require_master_admin(user)
+    await _get_org(organization_id)
+    raw = body.get("platform_fee_percent", None)
+    if raw is None or raw == "":
+        await db.organizations.update_one(
+            {"id": organization_id}, {"$unset": {"membership_platform_fee_pct": ""}},
+        )
+        return {"platform_fee_percent": PLATFORM_FEE_PERCENT, "custom_fee": False}
+    try:
+        pct = float(raw)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "platform_fee_percent must be a number")
+    if pct < 0 or pct > 100:
+        raise HTTPException(400, "platform_fee_percent must be between 0 and 100")
+    await db.organizations.update_one(
+        {"id": organization_id}, {"$set": {"membership_platform_fee_pct": pct}},
+    )
+    return {"platform_fee_percent": pct, "custom_fee": True}
+
+
+@router.get("/stripe-connect/me/status")
+async def my_status(user: dict = Depends(get_current_user)):
+    """Operator-facing: the caller's OWN org Connect status (for billing UI)."""
+    org_id = user.get("organization_id")
+    if not org_id:
+        return {"connected": False, "ready": False, "charges_enabled": False,
+                "platform_fee_percent": PLATFORM_FEE_PERCENT}
+    org = await _get_org(org_id)
+    fee = _effective_fee(org)
+    acct_id = org.get("stripe_account_id")
+    if not acct_id:
+        return {"connected": False, "ready": False, "charges_enabled": False,
+                "platform_fee_percent": fee}
+    try:
+        account = stripe.Account.retrieve(acct_id)
+    except stripe.error.StripeError:
+        return {"connected": True, "ready": False,
+                "charges_enabled": bool(org.get("stripe_charges_enabled")),
+                "platform_fee_percent": fee}
+    summary = _account_summary(account)
+    return {
+        "connected": True,
+        "ready": summary["charges_enabled"] and summary["payouts_enabled"],
+        "charges_enabled": summary["charges_enabled"],
+        "payouts_enabled": summary["payouts_enabled"],
+        "platform_fee_percent": fee,
     }
 
 

@@ -54,7 +54,10 @@ async def resolve_org_connect_routing(org: dict | None) -> dict | None:
         enabled = bool(org.get("stripe_charges_enabled"))
     if not enabled:
         return None
-    return {"destination": acct_id, "fee_pct": MEMBERSHIP_PLATFORM_FEE_PCT}
+    fee_pct = org.get("membership_platform_fee_pct")
+    if fee_pct is None:
+        fee_pct = MEMBERSHIP_PLATFORM_FEE_PCT
+    return {"destination": acct_id, "fee_pct": float(fee_pct)}
 
 
 def payment_intent_connect_kwargs(routing: dict | None, amount_cents: int) -> dict:

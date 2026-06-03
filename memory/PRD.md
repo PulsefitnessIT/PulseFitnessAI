@@ -1,3 +1,22 @@
+## Iter 220y — Per-gym Stripe fee override + payouts copy + secret/SECURITY backlog ✅ (Jun, 2026)
+
+**1. Per-gym platform fee override + Master-Admin control:**
+- `org.membership_platform_fee_pct` (nullable) overrides the global `MEMBERSHIP_PLATFORM_FEE_PCT` default. `resolve_org_connect_routing` now reads the per-org override.
+- Backend (`stripe_connect.py`): `_effective_fee(org)` helper; status endpoint returns `platform_fee_percent` + `custom_fee`; new `PUT /api/stripe-connect/orgs/{id}/fee` (master-admin, 0–100 validation, null=reset) and `GET /api/stripe-connect/me/status` (operator-facing own-org status).
+- Frontend (`MasterAdmin/PaymentSetupCard.js`): fee % input + Save in the connected/ready state (`data-testid=payment-setup-fee-input` / `-fee-save`), shows "· custom" when overridden.
+- Verified via curl: GET(1.0,false) → PUT 2.5 → GET(2.5,true) → invalid 150=400 → reset null=1.0,false. /me/status returns connected/charges_enabled/fee.
+
+**2. "Payouts go to your Stripe account" copy:** `Memberships/InvoicingTab.js` fetches `/stripe-connect/me/status` and renders an emerald reassurance banner (`data-testid=mbr-billing-payouts-banner`) only when `charges_enabled`, naming the platform fee %.
+
+**3. P2 backlog:**
+- Removed `backend/.env.bak` + `backend/.env.live.bak` from working tree & git index (`.env.*` already git-ignored; full history purge still needs a one-off rewrite during GitHub sync).
+- `SECURITY.md` already existed — appended Stripe Connect routing control + secret-sprawl cleanup rows.
+
+**Tests:** `tests/test_iter_220x_*` now 8 pass (added `_effective_fee` resolution, routing-uses-override, transfers-capability gating). Lint clean (py+js).
+
+---
+
+
 ## Iter 220x — Membership member payments route to the gym's connected Stripe account (Connect destination charges) ✅ (Jun, 2026)
 
 **Goal (user picked option a):** Member invoice + subscription + pay-all payments should land in the gym's OWN connected Stripe account (minus a platform fee), gated on `charges_enabled`, with graceful fallback to the platform account when the gym isn't connected.
