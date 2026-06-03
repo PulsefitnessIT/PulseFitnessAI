@@ -622,6 +622,23 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
             ).sort([("scheduled_at", 1), ("created_at", 1)]).limit(5).to_list(5)
         )
 
+    # Iter 220ed — completed-job recap data (read-only). Surface the
+    # captured customer signature + the resolution summary so a closed
+    # job's Complete tab can show the engineer's notes & sign-off.
+    signature_recap = await db.svc_signatures.find_one(
+        {"case_id": case_id, **of}, {"_id": 0},
+        sort=[("signed_at", -1)],
+    )
+    fix_summary_recap = case.get("resolution_notes") or ""
+    if not fix_summary_recap:
+        try:
+            from routes.svc.service_report import _resolve_fix_summary
+            fix_summary_recap = await _resolve_fix_summary(case_id, of)
+        except Exception:
+            fix_summary_recap = ""
+    if not fix_summary_recap and signature_recap:
+        fix_summary_recap = signature_recap.get("summary") or ""
+
     return {
         **case,
         "events": events,
@@ -632,6 +649,11 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         "safety_template": safety_template,
         "overrun": overrun,
         "sibling_jobs": sibling_jobs,
+        # Iter 220ed — completed-job recap (read-only) for the Complete
+        # tab: the captured customer signature + the work summary so a
+        # closed job still shows the engineer's notes & sign-off.
+        "signature": signature_recap,
+        "fix_summary": fix_summary_recap,
         # Iter 220ds — surface the current viewer's id so the
         # Engineer App can filter handoff notes to "from the
         # previous engineer" on the Summary tab.

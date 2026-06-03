@@ -491,7 +491,12 @@ _ALLOWED_BTN = {"soft", "pill", "sharp"}
 def _branding_dict(org_doc: dict) -> dict:
     """Shared shape for the member-app branding payload (Iter 220r)."""
     return {
-        "name": org_doc.get("name") or None,
+        # Iter 220ed — the member app shows the GYM's brand name (the
+        # operator running the member portal), which can differ from the
+        # GymAxis account's legal org name. Prefer the explicit
+        # member-app display name, fall back to the org name.
+        "name": org_doc.get("member_app_display_name") or org_doc.get("name") or None,
+        "display_name": org_doc.get("member_app_display_name") or None,
         "primary_brand_colour": org_doc.get("primary_brand_colour") or "#19CDFF",
         "logo_url": org_doc.get("logo_url") or None,
         "hero_image_url": org_doc.get("member_app_hero_url") or None,
@@ -502,7 +507,8 @@ def _branding_dict(org_doc: dict) -> dict:
 
 
 _BRANDING_PROJECTION = {
-    "_id": 0, "name": 1, "primary_brand_colour": 1, "logo_url": 1, "member_app_hero_url": 1,
+    "_id": 0, "name": 1, "member_app_display_name": 1, "primary_brand_colour": 1,
+    "logo_url": 1, "member_app_hero_url": 1,
     "member_app_font": 1, "member_app_button_style": 1, "brand_palette": 1,
 }
 
@@ -522,6 +528,11 @@ async def save_branding(
     _require_owner_or_manager(user)
     org_id, _ = await _resolve_org(user)
     updates: dict[str, Any] = {}
+    # Iter 220ed — the member-app display name (what members see on the
+    # login / welcome screen), independent of the GymAxis org name.
+    if "display_name" in payload:
+        dn = (payload.get("display_name") or "").strip()[:80]
+        updates["member_app_display_name"] = dn or None
     if "primary_brand_colour" in payload:
         colour = _normalise_hex(payload.get("primary_brand_colour"))
         if not colour:

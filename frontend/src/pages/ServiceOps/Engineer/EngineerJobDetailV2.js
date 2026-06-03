@@ -328,6 +328,24 @@ export default function EngineerJobDetailV2() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 pb-28 space-y-4">
+        {/* Iter 220ed — read-only banner shown on every tab once the job
+            is closed, so the engineer knows it can't be edited. */}
+        {lockedComplete && (
+          <div
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-3"
+            data-testid="job-closed-banner"
+          >
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-emerald-900">
+                This job is <span className="capitalize">{job.status.replace(/_/g, ' ')}</span> — read-only
+              </p>
+              <p className="text-xs text-emerald-700">
+                Notes &amp; signatures are locked. Open the <span className="font-semibold">Complete</span> tab to view the sign-off.
+              </p>
+            </div>
+          </div>
+        )}
         {/* Iter 220dn — JobAtAGlance lives in the Summary tab ONLY.
             Iter 220dr — Capture-media (PhotosTab) moved OUT of
             Summary into Equipment (per-machine evidence) and the
@@ -3468,13 +3486,49 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   };
 
   if (locked) {
+    // Iter 220ed — read-only recap for a closed job: work summary +
+    // captured customer signature + report actions. Nothing editable.
+    const sig = job.signature || null;
+    const summaryText = job.fix_summary || (sig && sig.summary) || '';
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 text-center" data-testid="complete-locked">
-        <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
-        <p className="text-sm font-bold text-slate-900 capitalize">{job.status.replace('_', ' ')}</p>
-        <p className="text-xs text-slate-500 mt-1">This job is already wrapped up.</p>
+      <div className="space-y-4" data-testid="complete-locked">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={20} className="text-emerald-500" />
+            <p className="text-sm font-bold text-slate-900 capitalize">{job.status.replace(/_/g, ' ')}</p>
+            <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Read-only</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">This job is wrapped up — the details below are locked.</p>
+        </div>
+
+        {summaryText ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-summary">
+            <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Work summary</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{summaryText}</p>
+          </div>
+        ) : null}
+
+        {sig && sig.image_data ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-signature">
+            <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Customer sign-off</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 inline-block">
+              <img src={sig.image_data} alt="Customer signature" className="max-h-28" />
+            </div>
+            <p className="text-xs text-slate-600 mt-2">
+              Signed by <span className="font-bold">{sig.signed_by_name || 'Customer'}</span>
+              {sig.signed_at ? ` · ${new Date(sig.signed_at).toLocaleString()}` : ''}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 text-xs text-slate-500" data-testid="complete-locked-no-signature">
+            No customer signature was captured on this job.
+          </div>
+        )}
+
+        <ReportActionsCard job={job} />
+
         {job.invoice_draft_id ? (
-          <button onClick={() => navigate(`/svc/engineer/invoices/${job.invoice_draft_id}`)} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold" data-testid="complete-open-invoice">
+          <button onClick={() => navigate(`/svc/engineer/invoices/${job.invoice_draft_id}`)} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold" data-testid="complete-open-invoice">
             <Receipt size={14} /> Open invoice {job.invoice_draft_number}
           </button>
         ) : null}

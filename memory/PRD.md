@@ -27520,3 +27520,36 @@ jobs surfaced in the test org.)
   compliance section; Repair = fault/diagnosis/parts narrative). Today all types share
   one layout that surfaces their type-scoped questions as a section.
 
+
+
+---
+
+## Iter 220ed — Closed-job read-only recap · Member-app display name (Jun 3, 2026)
+
+Both reported on preview; verified live (screenshots + curl).
+
+**1. Closed jobs — read-only recap (Engineer app).** Opening a closed/invoiced/
+awaiting-sign-off job now shows: a green **"This job is … — read-only"** banner on
+every tab, and a **Complete tab recap** with the work summary + the captured customer
+signature (image + signed-by + date) + the Service Report card (Download/Email PDF).
+Nothing is editable. Backend: `engineer_job_detail` now returns `signature`
+(latest `svc_signatures`) + `fix_summary` (resolution notes → fix-summary event →
+signature summary). Frontend: rebuilt the locked Complete branch in
+`EngineerJobDetailV2.js` (`complete-locked-summary`, `complete-locked-signature`,
+reuses `ReportActionsCard`).
+
+**2. Member app login showed the wrong gym name.** Root cause: the **Third Space org**
+(slug `thirdspace`) had a stale `branding.company_name = "Pulse Fitness"` that
+`_effective_site_branding` returned as the member-app name — overriding its real name,
+even though the Third Space logo was set. Fix: added a **member-app display name**
+override (`org.member_app_display_name`). `member_app_builder.save_branding` accepts
+`display_name`; `_branding_dict` + `memberships_ops.public_branding` prefer it over the
+effective/org name. New "Gym name shown to members" field in the member-app builder
+branding panel (`MobileAppBuilderTab.js` → `mab-display-name`). Set Third Space's org
+display name to "Third Space" (preview data fix). Member login now reads
+**"Welcome to Third Space."**, centred + balanced (`text-balance`, logo verified).
+
+Note: Third Space is a customer/gym of the Pulse Fitness account — the member app is
+theirs and should carry their brand, which the display-name override now guarantees
+without renaming the underlying org.
+

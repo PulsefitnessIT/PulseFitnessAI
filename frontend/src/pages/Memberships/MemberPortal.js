@@ -541,7 +541,7 @@ function AuthGate({ onAuthed, branding, slug }) {
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(8,9,14,0.10) 0%, var(--color-surface-darker) 100%)' }} />
         </div>
       )}
-      <header className={`px-6 ${hero ? 'pt-5' : 'pt-10'} pb-6 text-center`}>
+      <header className={`px-6 ${hero ? 'pt-5' : 'pt-10'} pb-6 text-center flex flex-col items-center`}>
         {branding?.logo_url ? (
           <img src={branding.logo_url} alt={gymName} className={`mx-auto h-12 rounded ${hero ? '-mt-10 mb-4 ring-4 ring-[var(--color-surface-darker)] bg-[var(--color-surface-darker)]' : 'mb-4'}`} loading="eager" decoding="async" />
         ) : (
@@ -550,10 +550,10 @@ function AuthGate({ onAuthed, branding, slug }) {
             <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: accent }}>{slug ? gymName : 'GymAxis Member'}</span>
           </div>
         )}
-        <h1 className="text-4xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.03em' }}>
+        <h1 className="text-4xl font-extrabold tracking-tight text-center text-balance max-w-md mx-auto" style={{ letterSpacing: '-0.03em' }} data-testid="member-auth-welcome">
           {slug ? `Welcome to ${gymName}.` : 'Your studio, in your pocket.'}
         </h1>
-        <p className="text-sm text-white/60 mt-2">Book classes, show your QR pass, manage your plan.</p>
+        <p className="text-sm text-white/60 mt-2 text-center max-w-xs mx-auto">Book classes, show your QR pass, manage your plan.</p>
       </header>
 
       <div className="flex-1 flex items-start justify-center px-4 pb-10">

@@ -335,7 +335,7 @@ async def public_branding(slug: str, site: str | None = None):
     eff = _effective_site_branding(org, site_doc)
     return {
         "organization_id": org["id"],
-        "name": eff["name"] or org.get("name"),
+        "name": org.get("member_app_display_name") or eff["name"] or org.get("name"),
         "slug": org.get("slug"),
         "logo_url": eff["logo_url"] or org.get("logo_url"),
         "primary_brand_colour": eff["primary_color"] or "#19CDFF",

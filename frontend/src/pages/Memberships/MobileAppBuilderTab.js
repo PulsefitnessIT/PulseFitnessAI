@@ -1023,6 +1023,9 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
   const logoRef = useRef(null);
   const heroRef = useRef(null);
   const [busy, setBusy] = useState(null); // 'logo' | 'hero' | null
+  // Iter 220ed — member-app display name (what members see on login).
+  const [displayName, setDisplayName] = useState(branding?.display_name || '');
+  useEffect(() => { setDisplayName(branding?.display_name || ''); }, [branding?.display_name]);
   const colour = branding?.primary_brand_colour || '#19CDFF';
   const font = branding?.font || 'inter';
   const buttonStyle = branding?.button_style || 'soft';
@@ -1046,6 +1049,26 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
       <div className="flex items-center gap-2 mb-3">
         <Palette className="w-4 h-4" style={{ color: 'var(--color-brand-cyan)' }} />
         <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Branding &amp; theme</div>
+      </div>
+
+      {/* Iter 220ed — Gym name shown to members on the login screen */}
+      <div className="mb-4">
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Gym name shown to members</span>
+        <input
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          onBlur={(e) => onField({ display_name: e.target.value.trim() })}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          placeholder="e.g. Third Space"
+          maxLength={80}
+          className="w-full mt-1.5 text-sm rounded-lg border px-3 py-2"
+          style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+          data-testid="mab-display-name"
+        />
+        <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+          Appears on the member login &amp; welcome screen. Leave blank to use your account name.
+        </p>
       </div>
 
       {/* Brand colour */}
