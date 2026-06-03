@@ -1103,30 +1103,47 @@ async def _build_invoice_checkout_url(invoice: dict, org: dict) -> Optional[str]
     ).rstrip("/")
     success_url = f"{frontend}/members?paid_invoice={invoice['id']}"
     cancel_url = f"{frontend}/members?cancelled_invoice={invoice['id']}"
-    try:
-        session = stripe.checkout.Session.create(
-            mode="payment",
-            success_url=success_url,
-            cancel_url=cancel_url,
-            customer_email=invoice.get("member_email") or None,
-            line_items=[{
-                "quantity": 1,
-                "price_data": {
-                    "currency": "gbp",
-                    "unit_amount": int(invoice["total_pence"]),
-                    "product_data": {
-                        "name": f"{org.get('name') or 'Studio'} · {_period_label(invoice['period'])} invoice",
-                        "description": f"{len(invoice.get('lines') or [])} line item(s)",
-                    },
+    # Stripe Connect — route into the gym's connected account (destination
+    # charge + platform fee) when onboarded; else charge the platform account.
+    # Resolve from the invoice's org id so it's independent of the caller's
+    # (often slim) `org` projection.
+    from utils.stripe_connect_routing import (
+        resolve_org_connect_routing,
+        payment_intent_connect_kwargs,
+    )
+    routing_org = await db.organizations.find_one(
+        {"id": invoice.get("organization_id")},
+        {"_id": 0, "id": 1, "stripe_account_id": 1, "stripe_charges_enabled": 1},
+    ) or {}
+    routing = await resolve_org_connect_routing(routing_org)
+    pi_data = payment_intent_connect_kwargs(routing, int(invoice["total_pence"]))
+    session_kwargs: dict = {
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "customer_email": invoice.get("member_email") or None,
+        "line_items": [{
+            "quantity": 1,
+            "price_data": {
+                "currency": "gbp",
+                "unit_amount": int(invoice["total_pence"]),
+                "product_data": {
+                    "name": f"{org.get('name') or 'Studio'} · {_period_label(invoice['period'])} invoice",
+                    "description": f"{len(invoice.get('lines') or [])} line item(s)",
                 },
-            }],
-            metadata={
-                "gymaxis_kind": "class_invoice",
-                "gymaxis_invoice_id": invoice["id"],
-                "gymaxis_org_id": invoice.get("organization_id") or "",
-                "gymaxis_member_id": invoice.get("member_id") or "",
             },
-        )
+        }],
+        "metadata": {
+            "gymaxis_kind": "class_invoice",
+            "gymaxis_invoice_id": invoice["id"],
+            "gymaxis_org_id": invoice.get("organization_id") or "",
+            "gymaxis_member_id": invoice.get("member_id") or "",
+        },
+    }
+    if pi_data:
+        session_kwargs["payment_intent_data"] = pi_data
+    try:
+        session = stripe.checkout.Session.create(**session_kwargs)
     except Exception as exc:  # noqa: BLE001
         logger.warning("invoice checkout: stripe failed (%s)", exc)
         return None
@@ -1350,7 +1367,8 @@ async def member_pay_all_outstanding(member: dict = Depends(_require_current_mem
         raise HTTPException(400, "Nothing outstanding — you're all paid up 🎉")
     org = await db.organizations.find_one(
         {"id": member["organization_id"]},
-        {"_id": 0, "name": 1, "primary_color": 1},
+        {"_id": 0, "id": 1, "name": 1, "primary_color": 1,
+         "stripe_account_id": 1, "stripe_charges_enabled": 1},
     ) or {}
     frontend = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
     success_url = f"{frontend}/members?paid_all=1"
@@ -1373,20 +1391,30 @@ async def member_pay_all_outstanding(member: dict = Depends(_require_current_mem
     # Stripe metadata values are capped at 500 chars; a comma-joined list of
     # uuids fits ~13 invoices which is already extreme for a month.
     invoice_ids = [inv["id"] for inv in unpaid][:20]
+    # Route the bundle into the gym's connected account when onboarded.
+    from utils.stripe_connect_routing import (
+        resolve_org_connect_routing,
+        payment_intent_connect_kwargs,
+    )
+    routing = await resolve_org_connect_routing(org)
+    pi_data = payment_intent_connect_kwargs(routing, total_pence)
+    bundle_kwargs: dict = {
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "customer_email": member.get("email") or None,
+        "line_items": line_items,
+        "metadata": {
+            "gymaxis_kind": "class_invoice_bundle",
+            "gymaxis_invoice_ids": ",".join(invoice_ids),
+            "gymaxis_org_id": member["organization_id"],
+            "gymaxis_member_id": member["id"],
+        },
+    }
+    if pi_data:
+        bundle_kwargs["payment_intent_data"] = pi_data
     try:
-        session = stripe.checkout.Session.create(
-            mode="payment",
-            success_url=success_url,
-            cancel_url=cancel_url,
-            customer_email=member.get("email") or None,
-            line_items=line_items,
-            metadata={
-                "gymaxis_kind": "class_invoice_bundle",
-                "gymaxis_invoice_ids": ",".join(invoice_ids),
-                "gymaxis_org_id": member["organization_id"],
-                "gymaxis_member_id": member["id"],
-            },
-        )
+        session = stripe.checkout.Session.create(**bundle_kwargs)
     except Exception as exc:  # noqa: BLE001
         logger.warning("pay-all: stripe failed (%s)", exc)
         raise HTTPException(502, "Could not create Stripe session") from exc

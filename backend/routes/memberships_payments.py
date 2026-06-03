@@ -247,6 +247,29 @@ async def create_checkout(request: Request, body: dict = Body(...)):
             {"promotion_code": promo_preview["stripe_promotion_code_id"]},
         ]
 
+    # ── Stripe Connect routing — when the gym has finished Connect onboarding,
+    # the member's payment is a destination charge into the gym's own account
+    # (minus the platform fee). Falls back to the platform account otherwise.
+    from utils.stripe_connect_routing import (
+        resolve_org_connect_routing,
+        payment_intent_connect_kwargs,
+        subscription_connect_kwargs,
+    )
+    org_doc = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+    routing = await resolve_org_connect_routing(org_doc)
+    if routing:
+        if mode == "subscription":
+            sub_data = session_kwargs.get("subscription_data") or {}
+            sub_data.update(subscription_connect_kwargs(routing))
+            session_kwargs["subscription_data"] = sub_data
+        else:
+            net_pence = int(plan["price_pence"])
+            if promo_preview:
+                net_pence = max(0, net_pence - int(promo_preview.get("savings_pence") or 0))
+            pi_data = payment_intent_connect_kwargs(routing, net_pence)
+            if pi_data:
+                session_kwargs["payment_intent_data"] = pi_data
+
     try:
         session = stripe.checkout.Session.create(**session_kwargs)
     except stripe.StripeError as e:

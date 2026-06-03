@@ -1,3 +1,25 @@
+## Iter 220x — Membership member payments route to the gym's connected Stripe account (Connect destination charges) ✅ (Jun, 2026)
+
+**Goal (user picked option a):** Member invoice + subscription + pay-all payments should land in the gym's OWN connected Stripe account (minus a platform fee), gated on `charges_enabled`, with graceful fallback to the platform account when the gym isn't connected.
+
+**Implementation (destination charges — platform stays merchant of record so existing webhooks keep working):**
+- New `utils/stripe_connect_routing.py`:
+  - `resolve_org_connect_routing(org)` → `{destination, fee_pct}` only when the org's Express account is retrievable AND `charges_enabled` AND `capabilities.transfers == "active"`; else `None` (→ platform). Caches `stripe_charges_enabled` on the org.
+  - `payment_intent_connect_kwargs(routing, amount_cents)` → `{transfer_data.destination, application_fee_amount}` (fee capped < amount) for mode=payment.
+  - `subscription_connect_kwargs(routing)` → `{transfer_data.destination, application_fee_percent}` for mode=subscription.
+  - Fee: `MEMBERSHIP_PLATFORM_FEE_PCT` env, default **1.0%**.
+- Wired into: `memberships_payments.py::create_checkout` (subscription + one-time, fee computed on post-promo net), `memberships/studio_billing.py::_build_invoice_checkout_url` (resolves org by `invoice.organization_id` — projection-safe) and the member `pay-all` bundle.
+
+**Validation:**
+- 5 unit tests (`tests/test_iter_220x_membership_connect_routing.py`) — kwargs shape, fee cap, zero-fee omit, subscription percent. All pass.
+- Live Stripe accepted the destination-charge param shape (`stripe.checkout.Session.create` with `payment_intent_data.transfer_data.destination` + `application_fee_amount`) — only rejected with `insufficient_capabilities_for_transfer` because no test gym has finished KYC yet, which is exactly the gated condition.
+- Gating verified live: connected gym with `charges_enabled=false` → routing returns `None` → platform fallback. `_build_invoice_checkout_url` still returns a valid `cs_live` session on fallback (no regression).
+
+**Status:** Money will flow to the gym's account automatically once each gym completes Stripe KYC (transfers capability active). Until then, payments collect into the platform account as before. Engineer invoices already use Direct Charges (unchanged).
+
+---
+
+
 ## Iter 220w — Stripe Connect P0 fix + full Stripe audit + Connect now LIVE ✅ (Jun, 2026)
 
 **Reported bug:** "Connect Stripe" in Account Settings → Setup checklist sent gym owners to the marketing `/pricing` page instead of Stripe. Root cause: `routes/account.py` ONBOARDING_STEPS `connect_stripe` had `cta_route:"/pricing"`; the real org Connect onboarding existed but was master-admin-only.
