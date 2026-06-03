@@ -930,6 +930,73 @@ function MachineRowPartsForReturn({ row, caseId, onChange }) {
 }
 
 
+// Iter 220eb — Isolated, debounced text field for per-machine notes.
+// Fixes the "cursor jumps on spacebar" bug: previously every keystroke
+// fired an async PATCH that replaced the whole row object on response,
+// yanking the caret to the end / dropping characters. This component
+// owns its value while the engineer types and only commits (debounced +
+// on blur) to the parent, ignoring incoming prop updates while focused.
+function MachineTextField({
+  value, onCommit, presetChips = false, label, placeholder,
+  rows = 3, testId,
+}) {
+  const [local, setLocal] = useState(value || '');
+  const focusedRef = useRef(false);
+  const timerRef = useRef(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!focusedRef.current) setLocal(value || '');
+  }, [value]);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const schedule = (v) => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onCommit(v), 600);
+  };
+  const commitNow = (v) => {
+    clearTimeout(timerRef.current);
+    onCommit(v);
+  };
+  const handleChange = (e) => {
+    const v = e.target.value;
+    setLocal(v);
+    schedule(v);
+  };
+  const insert = (text) => {
+    const next = (local.trim() ? `${local}\n` : '') + text;
+    setLocal(next);
+    commitNow(next);
+    setTimeout(() => ref.current?.focus(), 50);
+  };
+
+  return (
+    <div>
+      {label && (
+        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          {label}
+        </label>
+      )}
+      <textarea
+        ref={ref}
+        value={local}
+        onChange={handleChange}
+        onFocus={() => { focusedRef.current = true; }}
+        onBlur={() => { focusedRef.current = false; commitNow(local); }}
+        rows={rows}
+        className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+        placeholder={placeholder}
+        maxLength={4000}
+        data-testid={testId}
+      />
+      {presetChips && (
+        <NotePresetChips onInsert={insert} currentText={local} />
+      )}
+    </div>
+  );
+}
+
 function MachineRow({
   row, index, caseId, expanded, onExpand, onPatch, onDelete, onCopyDown,
   onAttachPhoto, onRemovePhoto,
@@ -937,15 +1004,7 @@ function MachineRow({
   assetSearch: _assetSearch, setAssetSearch: _setAssetSearch,
   refreshRows,
 }) {
-  const notesRef = useRef(null);
   const photoInputRef = useRef(null);
-  const insertNote = (text) => {
-    const existing = (row.notes || '').trim();
-    const next = existing ? `${existing}\n${text}` : text;
-    onPatch({ notes: next });
-    // Re-focus the textarea so the engineer can keep typing.
-    setTimeout(() => notesRef.current?.focus(), 50);
-  };
 
   // Iter 220ea·10 — Row header redesign. Name no longer truncates;
   // serial + type sit on a dedicated meta line. Serviced / Cleaned
@@ -1025,22 +1084,15 @@ function MachineRow({
               asset is locked from "From site" / "New asset", so
               the engineer shouldn't be able to overwrite it inline. */}
 
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              Work actioned
-            </label>
-            <textarea
-              ref={notesRef}
-              value={row.notes || ''}
-              onChange={(e) => onPatch({ notes: e.target.value })}
-              rows={3}
-              className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
-              placeholder="e.g. Replaced drive belt, calibrated speed sensor, lubricated deck."
-              maxLength={4000}
-              data-testid={`machine-notes-${row.id}`}
-            />
-            <NotePresetChips onInsert={insertNote} currentText={row.notes || ''} />
-          </div>
+          <MachineTextField
+            label="Work actioned"
+            value={row.notes || ''}
+            onCommit={(v) => onPatch({ notes: v })}
+            presetChips
+            rows={3}
+            placeholder="e.g. Replaced drive belt, calibrated speed sensor, lubricated deck."
+            testId={`machine-notes-${row.id}`}
+          />
 
           {/* Iter 220ea·12 — Parts used on this visit. Surfaces
               the existing parts-tagging flow inline on the row so
@@ -1048,20 +1100,14 @@ function MachineRow({
               without leaving the Equipment tab. */}
           <MachineRowPartsUsed row={row} caseId={caseId} onChange={refreshRows} />
 
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              Further work required
-            </label>
-            <textarea
-              value={row.further_work || ''}
-              onChange={(e) => onPatch({ further_work: e.target.value })}
-              rows={2}
-              className="w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
-              placeholder="e.g. Console PCB needs replacing on return visit."
-              maxLength={4000}
-              data-testid={`machine-further-work-${row.id}`}
-            />
-          </div>
+          <MachineTextField
+            label="Further work required"
+            value={row.further_work || ''}
+            onCommit={(v) => onPatch({ further_work: v })}
+            rows={2}
+            placeholder="e.g. Console PCB needs replacing on return visit."
+            testId={`machine-further-work-${row.id}`}
+          />
 
           {/* Iter 220ea·12 — Parts to order for the return visit.
               Wraps the existing parts-request endpoint with a

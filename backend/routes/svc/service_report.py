@@ -58,6 +58,27 @@ def _fmt_date(iso: str | None) -> str:
         return iso.split("T")[0] if "T" in iso else iso
 
 
+# Iter 220eb — Friendly job-type labels mirrored from the engineer app
+# (CASE_TYPE_LABELS in EngineerJobDetailV2.js). Drives the report's
+# "Job type" row so a PPM visit reads "PPM Service", not the raw slug.
+CASE_TYPE_LABELS = {
+    "repair": "Repair",
+    "ppm": "PPM Service",
+    "install": "Installation",
+    "inspection": "Inspection",
+    "callout": "Emergency callout",
+    "audit": "Asset audit",
+}
+
+
+def _case_type_label(slug: str | None) -> str:
+    if not slug:
+        return ""
+    return CASE_TYPE_LABELS.get(
+        str(slug).lower(), str(slug).replace("_", " ").title(),
+    )
+
+
 def _fmt_minutes(mins: float | int) -> str:
     mins = int(round(mins or 0))
     if mins <= 0:
@@ -336,7 +357,15 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     ]))
     meta_rows = [
         ["Site",     "<br/>".join(cust_lines) or "—"],
-        ["Asset",    case.get("asset_name") or "—"],
+        ["Job type", _case_type_label(case.get("case_type")) or "—"],
+    ]
+    # Iter 220eb — Only show a machine/asset row when it's a real,
+    # customer-meaningful value. Empty fields and internal scheduling
+    # slugs (e.g. "ASSET_Sched_Case_…") are noise on a customer report.
+    asset_name = (case.get("asset_name") or "").strip()
+    if asset_name and not asset_name.upper().startswith("ASSET_"):
+        meta_rows.append(["Asset", asset_name])
+    meta_rows += [
         ["Issue",    case.get("title") or "—"],
         ["Priority", (case.get("priority") or "p3").upper()],
         ["Status",   (case.get("status") or "").replace("_", " ").title() or "—"],
@@ -916,6 +945,20 @@ async def _build_report(case_id: str, user: dict) -> tuple[bytes, dict]:
         or (f"/api/account/logo/{org_doc.get('id')}" if org_doc.get("id") and org_doc.get("logo_path") else None)
     )
     logo_bytes = await _fetch_image_bytes(logo_src) if logo_src else None
+    # Iter 220eb — Default GymAxis brand mark so every report ships
+    # branded even before the org uploads their own logo
+    # (Account Settings → Upload logo writes org.logo_url).
+    if not logo_bytes:
+        try:
+            default_logo = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "static", "brand", "gymaxis-full.png",
+            )
+            with open(default_logo, "rb") as fh:
+                logo_bytes = fh.read()
+        except Exception as e:
+            logger.warning(f"service-report: default logo load failed: {e!r}")
+            logo_bytes = None
 
     pdf = _build_pdf(payload, photo_bytes, sig_bytes, logo_bytes=logo_bytes)
     return pdf, payload

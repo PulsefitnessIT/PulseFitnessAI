@@ -1,0 +1,48 @@
+{
+  "summary": "Frontend smoke of 6-bug batch on Engineer App live job. BUG2-timer-error and BUG2-manual-time both PASS cleanly on SVC-00468. BUG4 cursor-jump and BUG3 photo upload could not be exercised because the Equipment tab had 0 machine rows and the machines-load-from-site-btn was not present in the DOM on SVC-00468 — need a case with at least one machine already added (or the load-from-site button must remain visible when empty). BUG5 signature flow: Complete tab loaded and complete-summary was filled, but clicking complete-open-signature did not surface the signature-canvas element within 6s — needs a retry with a longer wait / verify modal renders above cookie banner. BUG1+6 report row + logo: already curl-verified by main agent, did not re-smoke.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EngineerJobDetailV2 → EquipmentTab",
+        "issue": "When the case has 0 machines, the 'Load from site' button (data-testid=machines-load-from-site-btn) is not rendered, so engineers/tests have no way to add a machine to exercise BUG4/BUG3. Either keep this button always visible while machines list is empty, or surface another 'Add machine' affordance.",
+        "selector": "[data-testid=machines-load-from-site-btn]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "EngineerJobDetailV2 → CompleteTab signature dialog",
+        "issue": "After clicking [data-testid=complete-open-signature] on SVC-00461, the [data-testid=signature-canvas] did not become visible within 6s. Either the dialog mounts behind the cookie-consent overlay or animation/portal takes longer. Couldn't verify BUG5 fix end-to-end via UI; main agent should re-verify (or dismiss cookie banner first in tests).",
+        "selector": "[data-testid=signature-canvas]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Engineer job detail (all tabs)",
+        "issues": ["Cookie consent banner is fixed at bottom and overlaps action buttons / can intercept clicks on modals — recommend auto-dismissing for engineer-app routes or raising z-index of modals above it."]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Confirm BUG4 cursor-jump fix on a job that already has at least one WorkVisit machine attached (or expose an 'Add machine manually' button when the equipment list is empty so the test can seed one). Test cases SVC-00468/00461/00410 all appear empty.",
+    "Verify BUG3 photo upload end-to-end once a machine row exists (same blocker as above).",
+    "Re-validate BUG5: ensure clicking complete-open-signature reliably opens the signature-canvas dialog (auto-dismiss cookie banner or increase z-index). Then confirm leaving complete-signed-by blank still saves the signature and the PDF embeds it.",
+    "Optional polish: surface a toast confirming the H&S gate redirect target (existing toast 'Complete the H&S checklist first' is clear)."
+  ],
+  "critical_code_review_comments": [
+    "BUG2-timer-error fix verified — 412 now surfaces a clean error toast ('Complete the H&S checklist first' + sub-text) and sync-status-syncing chip stays hidden. No queued offline entry created. Excellent.",
+    "BUG2-manual-time fix verified — empty/0 minutes blocked with 'Enter minutes greater than 0' validation toast (no entry created), valid 30m+On site posts to /api/svc/engineer/time/manual, totals refresh from 0m → 30m and History shows the new on_site 30m row immediately. Toast 'Logged 30m on site' shown.",
+    "Equipment tab UX gap: empty state must include an 'Add machine' affordance or always show the 'Load from site' picker — otherwise the Equipment workflow is unreachable on jobs with no pre-seeded machines.",
+    "Cookie consent banner should be auto-suppressed inside Engineer App route (engineers reuse devices, banner adds friction and can intercept Capture signature / Submit clicks)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only)", "frontend": "2/4 testable bugs PASS (BUG2-timer, BUG2-manual). BUG3/4/5 not reachable in this session." },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Created one manual time entry on SVC-00468 (30m, on_site, 03/06/2026 18:55) as part of BUG2-manual-time verification.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login flow: use placeholder selector get_by_placeholder('you@gym.com') for email — there is no input[type=email]. The job page renders all tabs from data-testid=job-tab-{summary|travel|time|equipment|parts|complete}. Cookie banner [data-testid=cookie-consent-banner] sits at the bottom — dismiss it before interacting with modals (signature dialog can render under it). On SVC-00468 the Equipment tab is EMPTY and the machines-load-from-site-btn is NOT in DOM, so BUG3/BUG4 cannot be exercised without seeding a machine first (try POST /api/svc/cases/{caseId}/work-visit/machines or use a different repair case that already has assets). On SVC-00461 the Complete tab loads and complete-summary works; complete-open-signature needs more wait time and the cookie banner dismissed before the canvas reliably appears.",
+  "rca of the issue": "BUG2-timer: confirmed engineerSendOrQueue now throws on 4xx; UI shows toast variant=destructive instead of mis-queueing. BUG2-manual: new endpoint POST /api/svc/engineer/time/manual returns 200, frontend updates totals via onChange refetch. Both fixes validated end-to-end. BUG4/3/5 not reproducible in this session due to empty Equipment list and cookie banner overlay on Complete tab — these are test-environment issues, not necessarily code regressions."
+}

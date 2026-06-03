@@ -1841,6 +1841,13 @@ function TimeTab({ job, busy, setBusy, onChange }) {
   const entries = job.time_entries || [];
   const active = entries.find(e => !e.end_at);
 
+  // Iter 220eb — manual time entry (field fallback when the live
+  // timer wasn't running). Minutes + category, posted as an already-
+  // closed entry so it lands in History + report totals immediately.
+  const [manualMins, setManualMins] = useState('');
+  const [manualCat, setManualCat] = useState('on_site');
+  const [savingManual, setSavingManual] = useState(false);
+
   const start = async (category) => {
     setBusy(true);
     try {
@@ -1853,17 +1860,43 @@ function TimeTab({ job, busy, setBusy, onChange }) {
       if (r.ok) {
         notify.success(`${category.replace('_', ' ')} timer started`);
       } else if (r.offline) {
-        notify.success(`Timer start queued — will sync when you reconnect`);
+        notify.success('Timer start queued — will sync when you reconnect');
       }
       await onChange();
     } catch (e) {
-      const d = e?.response?.data?.detail;
-      if (d?.code === 'safety_signoff_required') {
-        notify.error('Complete the H&S checklist first (on the existing job detail page).');
+      // Iter 220eb — engineerSendOrQueue now throws real 4xx errors
+      // (e.g. the 412 H&S gate) instead of silently queueing them.
+      const d = e?.detail;
+      if (d?.code === 'safety_signoff_required' || e?.status === 412) {
+        notify.error(
+          'Complete the H&S checklist first',
+          (d && d.message) || 'Tick off the pre-job safety sign-off, then start the on-site timer.',
+        );
       } else {
-        notify.error('Could not start timer');
+        notify.error('Could not start timer', (d && (d.message || d)) || e?.message || '');
       }
     } finally { setBusy(false); }
+  };
+
+  const addManual = async () => {
+    const mins = parseInt(manualMins, 10);
+    if (!mins || mins <= 0) { notify.error('Enter minutes greater than 0'); return; }
+    if (mins > 24 * 60) { notify.error('That is more than 24 hours'); return; }
+    setSavingManual(true);
+    try {
+      const r = await engineerSendOrQueue({
+        method: 'POST',
+        path: '/svc/engineer/time/manual',
+        body: { case_id: job.id, category: manualCat, minutes: mins },
+        label: `Log ${mins}m ${manualCat.replace('_', ' ')}`,
+      });
+      if (r.ok) notify.success(`Logged ${mins}m ${manualCat.replace('_', ' ')}`);
+      else if (r.offline) notify.success('Manual time queued — will sync when you reconnect');
+      setManualMins('');
+      await onChange();
+    } catch (e) {
+      notify.error('Could not log time', e?.detail?.message || e?.detail || e?.message || '');
+    } finally { setSavingManual(false); }
   };
 
   const totalsByCategory = entries.reduce((acc, e) => {
@@ -1905,6 +1938,52 @@ function TimeTab({ job, busy, setBusy, onChange }) {
           </div>
         </div>
       ) : null}
+
+      {/* Iter 220eb — Manual time entry. Always available so an
+          engineer who forgot to start the timer (or worked offline)
+          can still log time. Minutes + category → completed entry. */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="time-manual-card">
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Add time manually</p>
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">Minutes</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={1440}
+              value={manualMins}
+              onChange={(e) => setManualMins(e.target.value)}
+              placeholder="e.g. 45"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+              data-testid="time-manual-minutes"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">Category</label>
+            <select
+              value={manualCat}
+              onChange={(e) => setManualCat(e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+              data-testid="time-manual-category"
+            >
+              <option value="on_site">On site</option>
+              <option value="travel">Travel</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            disabled={savingManual || !manualMins}
+            onClick={addManual}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-50"
+            data-testid="time-manual-add"
+          >
+            {savingManual ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
+          </button>
+        </div>
+        <p className="text-[10px] text-slate-400 mt-2">Logs a completed entry — use this if you forgot to start the timer.</p>
+      </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="time-history">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">History</p>
@@ -3258,9 +3337,14 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
     if (!summary.trim()) { notify.error('Add a work summary'); return; }
     setBusy(true);
     try {
-      if (signatureData && signatureName.trim()) {
+      if (signatureData) {
+        // Iter 220eb — Save the signature whenever one was drawn, even
+        // if the engineer left "Signed by" blank (the #1 reason
+        // signatures went missing on reports). Default to the
+        // customer's name on the case, falling back to "Customer".
+        const sigName = signatureName.trim() || job.customer_name || 'Customer';
         await outboxPost(`${API}/svc/engineer/signature`, {
-          case_id: job.id, signed_by_name: signatureName.trim(),
+          case_id: job.id, signed_by_name: sigName,
           image_data: signatureData, summary: summary.trim(),
         }, { headers: auth().headers, kind: 'signature',
             label: `Sign-off · ${job.reference || job.id}` });
@@ -3323,10 +3407,11 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         } catch { /* non-blocking */ }
       }
       // 2. Capture signature if the engineer drew one.
-      if (signatureData && signatureName.trim()) {
+      if (signatureData) {
+        const sigName = signatureName.trim() || job.customer_name || 'Customer';
         try {
           await axios.post(`${API}/svc/engineer/signature`, {
-            case_id: job.id, signed_by_name: signatureName.trim(),
+            case_id: job.id, signed_by_name: sigName,
             image_data: signatureData, summary: summary.trim(),
           }, auth());
         } catch { /* non-blocking */ }

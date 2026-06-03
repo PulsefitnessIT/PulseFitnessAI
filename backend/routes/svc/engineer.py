@@ -735,6 +735,75 @@ async def time_start(
     return entry
 
 
+@router.post("/time/manual")
+async def time_manual(
+    data: dict,
+    user=Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
+    """Log a completed time entry manually (duration + category).
+
+    Field fallback for when the live timer wasn't running (engineer
+    forgot to start it, or worked offline). Inserts an already-closed
+    entry so it appears in the History + report totals immediately.
+
+    Body: {case_id, category?: 'on_site'|'travel'|'admin', minutes: int,
+           notes?: str, chargeable?: bool}
+    """
+    of = _of(user)
+    case_id = (data or {}).get("case_id")
+    if not case_id:
+        raise HTTPException(400, "case_id required")
+    try:
+        minutes = int(round(float((data or {}).get("minutes") or 0)))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "minutes must be a number")
+    if minutes <= 0:
+        raise HTTPException(400, "minutes must be a positive number")
+    if minutes > 24 * 60:
+        raise HTTPException(400, "minutes cannot exceed 24 hours")
+    category = (data.get("category") or "on_site")
+    if category not in ("on_site", "travel", "admin"):
+        category = "on_site"
+    replay = await _check_idempotent(db.svc_time_entries, idempotency_key)
+    if replay:
+        return replay
+    case = await db.svc_cases.find_one({"id": case_id, **of})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    eng = await _ensure_engineer(user)
+    now = datetime.now(timezone.utc)
+    start_dt = now - timedelta(minutes=minutes)
+    entry = {
+        "id": str(uuid.uuid4()),
+        "organization_id": of["organization_id"],
+        "case_id": case_id,
+        "case_reference": case.get("reference"),
+        "engineer_id": user["id"],
+        "engineer_sage_user_id": eng.get("sage_user_id") or "",
+        "engineer_name": eng.get("full_name") or "",
+        "category": category,
+        "chargeable": bool(data.get("chargeable")),
+        "start_at": start_dt.isoformat(),
+        "end_at": now.isoformat(),
+        "duration_minutes": minutes,
+        "manual_entry": True,
+        "notes": (data.get("notes") or "").strip(),
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    entry = await _idempotent_insert(db.svc_time_entries, entry, idempotency_key)
+    await append_event(
+        case_id=case_id, organization_id=of["organization_id"],
+        event_type="time_manual", actor=user,
+        body=f"Engineer logged {minutes}m {category} manually",
+        extra={"time_entry_id": entry["id"], "category": category,
+               "duration_minutes": minutes, "manual": True},
+    )
+    await sicon_sync.push_time_entry(entry, case_reference=case.get("reference"))
+    return entry
+
+
 @router.post("/time/stop")
 async def time_stop(
     data: dict,

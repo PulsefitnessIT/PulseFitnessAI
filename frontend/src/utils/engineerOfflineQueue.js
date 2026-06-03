@@ -256,12 +256,31 @@ export const engineerSendOrQueue = async ({ method, path, body, label, multipart
       return { ok: true, data };
     }
     if (res.status >= 400 && res.status < 500) {
-      const txt = await res.text();
-      throw new Error(`HTTP ${res.status}: ${txt}`);
+      // Iter 220eb — a 4xx is a real validation/business error (e.g. the
+      // 412 H&S-signoff gate on the on-site timer). It will NEVER succeed
+      // on replay, so do NOT queue it — surface it to the caller so the
+      // UI can show the real reason instead of a misleading
+      // "queued — will sync" toast that strands the timer at 0m.
+      let detail = null;
+      let raw = '';
+      try {
+        raw = await res.text();
+        const parsed = JSON.parse(raw);
+        detail = parsed?.detail ?? parsed;
+      } catch { /* non-JSON body */ }
+      const err = new Error(`HTTP ${res.status}: ${raw || res.statusText}`);
+      err.status = res.status;
+      err.detail = detail;
+      err.is4xx = true;
+      throw err;
     }
+    // 5xx — server is up but unhappy; safe to retry later.
     const queued = await engineerEnqueue(op);
     return { ok: false, server_5xx: true, queued: queued.id };
   } catch (e) {
+    // Re-throw genuine 4xx errors so callers can handle them.
+    if (e && e.is4xx) throw e;
+    // Network/transport failure → queue for replay on reconnect.
     const queued = await engineerEnqueue(op);
     return { ok: false, offline: true, queued: queued.id, error: e?.message || String(e) };
   }
