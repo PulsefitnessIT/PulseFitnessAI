@@ -564,7 +564,7 @@ async def _send_payment_failed_email(member: dict, plan: dict) -> None:
     <p style="color:#6b7280;font-size:11px;margin:0;">GymAxis Memberships · Billing</p>
   </div>
 </div>"""
-    await send_email(member["email"], f"Payment failed · {plan.get('name') or 'membership'}", html)
+    await send_email(member["email"], f"Payment failed · {plan.get('name') or 'membership'}", html, category="billing")
 
 
 @router.post("/memberships/webhook/stripe")

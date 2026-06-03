@@ -245,6 +245,7 @@ async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe",
                 subject=f"Receipt · {invoice.get('invoice_number')} · GymAxis",
                 html=html,
                 organization_id=invoice.get("organization_id"),
+                category="billing",
             )
         except Exception as exc:
             logger.info("[engineer_invoice_payment] receipt email failed: %s", exc)

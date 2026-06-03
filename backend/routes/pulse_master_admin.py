@@ -153,6 +153,7 @@ async def _send_pulse_admin_invite(email: str, name: str, temp_password: str) ->
             to=email,
             subject="Your Pulse Master Admin temporary password",
             html=html,
+            category="support",
         )
         return True
     except Exception as exc:

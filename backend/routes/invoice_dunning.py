@@ -243,6 +243,7 @@ async def _fire_reminder(
         share["subject"],
         html,
         attachments=attachments,
+        category="billing",
     )
 
     reminder = {

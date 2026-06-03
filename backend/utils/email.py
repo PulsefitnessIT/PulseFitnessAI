@@ -204,6 +204,68 @@ except ImportError:
     resend = None
 
 
+# ── Per-category sending domains ──────────────────────────────────────
+# The platform owns four verified Resend domains. Each outbound email is
+# sent from the domain that matches its purpose (better deliverability +
+# clear brand separation). Each is env-overridable; defaults use the
+# verified gymaxisai.com sending subdomains. `support`/default fall back
+# to the configured root SENDER_EMAIL.
+_CATEGORY_SENDER_ENV = {
+    "billing": "SENDER_EMAIL_BILLING",
+    "support": "SENDER_EMAIL_SUPPORT",
+    "service": "SENDER_EMAIL_SERVICE",
+}
+_CATEGORY_SENDER_DEFAULT = {
+    "billing": "GymAxis Billing <billing@billing.gymaxisai.com>",
+    "support": "GymAxis Support <support@support.gymaxisai.com>",
+    "service": "GymAxis Service <service@service.gymaxisai.com>",
+}
+
+
+def _bare_addr(sender: str) -> str:
+    """Return the bare address from 'Name <addr@dom>' (or the string as-is)."""
+    if sender and "<" in sender and ">" in sender:
+        return sender[sender.index("<") + 1: sender.index(">")].strip()
+    return (sender or "").strip()
+
+
+def _category_sender(category: str | None) -> str:
+    """Resolve the From address for a category, falling back to the root
+    SENDER_EMAIL when the category is unknown / unset."""
+    if category in _CATEGORY_SENDER_ENV:
+        configured = (os.environ.get(_CATEGORY_SENDER_ENV[category]) or "").strip()
+        sender = configured or _CATEGORY_SENDER_DEFAULT[category]
+        # Lowercase the domain segment (Resend rejects mixed-case domains).
+        bare = _bare_addr(sender)
+        local, _, domain = bare.partition("@")
+        if domain:
+            fixed = f"{local}@{domain.lower()}"
+            sender = sender.replace(bare, fixed)
+        return sender
+    return SENDER_EMAIL
+
+
+def _category_for_kind(kind: str | None) -> str | None:
+    """Best-effort kind → category mapping for call sites that pass a
+    ``kind`` but not an explicit ``category``."""
+    if not kind:
+        return None
+    k = kind.lower()
+    # Billing first so `engineer.invoice*` routes to billing, not service.
+    if k.startswith((
+        "billing", "invoice", "payment", "engineer.invoice",
+        "partner.commission", "membership.invoice", "membership.payment",
+        "autopay", "dunning", "receipt", "sales_pack",
+    )):
+        return "billing"
+    if k.startswith(("service", "svc", "engineer.", "supplier.case", "job", "case.")):
+        return "service"
+    if k.startswith(("auth", "account", "support", "public", "system")):
+        return "support"
+    return None
+
+
+
 async def _record_email_event(
     *,
     to: str,
@@ -257,6 +319,7 @@ async def send_email(
     *,
     organization_id: str | None = None,
     kind: str | None = None,
+    category: str | None = None,
 ):
     """Send an email via Resend.
 
@@ -298,7 +361,12 @@ async def send_email(
         return False
 
     # Resolve per-org branding
-    from_addr = SENDER_EMAIL
+    # Iter 220y — pick the sending domain by category (billing / service /
+    # support), falling back to the configured root SENDER_EMAIL. An
+    # explicit `category` wins; otherwise we infer it from `kind`.
+    resolved_category = category or _category_for_kind(kind)
+    base_sender = _category_sender(resolved_category)
+    from_addr = base_sender
     reply_to: str | None = None
     if organization_id:
         try:
@@ -310,9 +378,9 @@ async def send_email(
                 friendly = (org.get("email_sender_friendly_name") or org.get("name") or "").strip()
                 reply_to = (org.get("email_sender_reply_to") or "").strip() or None
                 if friendly:
-                    # Resend accepts "Display Name <addr@dom.com>"
+                    # Keep the verified category address; swap the display name.
                     safe = friendly.replace('"', '').replace('<', '').replace('>', '')
-                    from_addr = f"{safe} <{SENDER_EMAIL}>"
+                    from_addr = f"{safe} <{_bare_addr(base_sender)}>"
         except Exception:
             # Branding lookup failure must never block real email sends.
             pass
@@ -381,7 +449,7 @@ async def send_welcome_email(email: str, name: str):
         <a href="#" style="display: inline-block; background: #0055FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Go to Dashboard</a>
     </div>
     </div>"""
-    await send_email(email, "Welcome to GymAxis AI", html)
+    await send_email(email, "Welcome to GymAxis AI", html, category="support")
 
 
 async def send_report_notification(email: str, name: str, report_type: str, report_id: str):
@@ -399,7 +467,7 @@ async def send_report_notification(email: str, name: str, report_type: str, repo
     test_mode = 'resend.dev' in (os.environ.get('SENDER_EMAIL', '') or '')
     test_recipient = os.environ.get('TEST_RECIPIENT_EMAIL', '')
     recipient = (test_recipient or email) if test_mode else email
-    await send_email(recipient, f"GymAxis AI - {report_type} Ready", html)
+    await send_email(recipient, f"GymAxis AI - {report_type} Ready", html, category="service")
 
 
 async def send_password_reset_email(email: str, name: str, reset_url: str):
@@ -422,7 +490,7 @@ async def send_password_reset_email(email: str, name: str, reset_url: str):
         <p style="color: #aaa; font-size: 11px; margin: 0;">GymAxis AI · Gym Equipment Maintenance Platform</p>
     </div>
     </div>"""
-    return await send_email(email, "Reset Your Password — GymAxis AI", html)
+    return await send_email(email, "Reset Your Password — GymAxis AI", html, category="support")
 
 
 
@@ -472,7 +540,7 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
         <p style="color: #aaa; font-size: 11px; margin: 4px 0 0;">Sent by {sender_name}</p>
     </div>
     </div>"""
-    return await send_email(email, f"Onboarding invitation for {customer_name or 'your organisation'}", html)
+    return await send_email(email, f"Onboarding invitation for {customer_name or 'your organisation'}", html, category="support")
 
 
 

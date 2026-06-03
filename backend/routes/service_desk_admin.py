@@ -93,6 +93,7 @@ async def _send_service_desk_invite(email: str, name: str, temp_password: str, b
             to=email,
             subject=f"Your {brand_name} Service Desk temporary password",
             html=html,
+            category="support",
         )
         return True
     except Exception as exc:

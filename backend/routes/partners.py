@@ -2726,6 +2726,7 @@ async def _handle_partner_loss_of_access(partner_id: str, reason: str) -> dict:
                 subject=f"Action needed: {len(org_cases)} job(s) need reassignment",
                 html=html,
                 organization_id=org_id,
+                category="service",
             )
     except Exception:
         logger.exception("[partners] reassignment notification email failed")

@@ -643,6 +643,7 @@ async def send_invoice(invoice_id: str, body: InvoiceSend, user=Depends(get_curr
         to=to_addr, subject=subject, html=html,
         attachments=[attachment],
         organization_id=user.get("organization_id"),
+        category="billing",
     )
     if not ok:
         raise HTTPException(502, "Email send failed (check Resend configuration)")

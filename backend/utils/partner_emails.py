@@ -20,7 +20,18 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from utils.email import send_email
+from utils.email import send_email as _send_email
+
+
+async def send_email(*args, **kwargs):
+    """Partner/engineer account comms default to the `support` sending domain.
+
+    Iter 220y — every email in this module is recruitment / trial / account
+    lifecycle, so route them all from support.gymaxisai.com unless a caller
+    overrides `category` explicitly.
+    """
+    kwargs.setdefault("category", "support")
+    return await _send_email(*args, **kwargs)
 
 logger = logging.getLogger(__name__)
 

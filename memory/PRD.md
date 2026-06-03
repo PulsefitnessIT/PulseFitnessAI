@@ -1,3 +1,22 @@
+## Iter 220y(2) — Outbound email routed per verified sending domain ✅ (Jun, 2026)
+
+**Goal:** Platform now has 4 verified Resend domains (`gymaxisai.com`, `billing.`, `support.`, `service.`). Route each outbound email from the domain matching its purpose.
+
+**Core (`utils/email.py`):**
+- `send_email(..., category=None)` new param. Sender resolved by category → verified subdomain; unknown/None → root `SENDER_EMAIL` (`support@gymaxisai.com`). Env-overridable: `SENDER_EMAIL_BILLING|SUPPORT|SERVICE`.
+- Defaults: billing→`billing@billing.gymaxisai.com`, support→`support@support.gymaxisai.com`, service→`service@service.gymaxisai.com`. Domain segment lowercased (Resend requirement).
+- `_category_for_kind()` fallback maps a passed `kind` → category. Org branding friendly-name still applied, now on the correct verified address.
+
+**Wired call sites:**
+- Billing: engineer invoices + receipts, membership class invoices (bulk + single), family autopay success/decline, invoice dunning, invoice share, SaaS + membership payment-failed.
+- Service: service reports (×2), engineer ETA updates, engineer quotes, job-reassignment alert.
+- Support/auth: welcome, password reset, onboarding invite (email.py helpers), service-desk + master-admin temp passwords; all `partner_emails.py` (recruitment/trial/account) via a DRY module wrapper defaulting to support.
+
+**Verified:** 5 unit tests pass (`tests/test_iter_220y_email_domain_routing.py`); **real Resend send test returned True for all 4 categories** (billing/support/service subdomains + root all verified & sending). Lint clean; backend healthy.
+
+---
+
+
 ## Iter 220y — Per-gym Stripe fee override + payouts copy + secret/SECURITY backlog ✅ (Jun, 2026)
 
 **1. Per-gym platform fee override + Master-Admin control:**

@@ -978,6 +978,7 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
         html=html,
         attachments=attachments,
         organization_id=user.get("organization_id"),
+        category="service",
     )
     if not ok:
         raise HTTPException(502, "Email send failed — check sender domain verification.")
@@ -1078,6 +1079,7 @@ async def send_feedback_request(
     ok = await send_email(
         to=to, subject=subject, html=html,
         organization_id=user.get("organization_id"),
+        category="service",
     )
     if not ok:
         raise HTTPException(502, "Email send failed — check sender domain verification.")

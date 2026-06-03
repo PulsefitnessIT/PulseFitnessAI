@@ -461,7 +461,7 @@ async def _handle_invoice_payment_failed(data: dict) -> None:
         </div>
         """
         try:
-            await send_email(target_email, "Action required: payment for GymAxis failed", html)
+            await send_email(target_email, "Action required: payment for GymAxis failed", html, category="billing")
         except Exception:
             logger.exception("[stripe-dunning] Failed to send dunning email")
 

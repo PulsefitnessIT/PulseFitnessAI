@@ -248,7 +248,7 @@ async def _send_eta_email(
         html += ctx["tracking_link_html"]
 
     try:
-        ok = await send_email(to=to, subject=subject, html=html)
+        ok = await send_email(to=to, subject=subject, html=html, category="service")
     except Exception as exc:  # pragma: no cover
         logger.warning("eta-update send failed for %s: %s", case_id, exc)
         ok = False

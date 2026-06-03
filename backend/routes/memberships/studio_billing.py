@@ -942,6 +942,7 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
                     f"Your {period_label} invoice · {brand['name']}",
                     html,
                     attachments=attachments,
+                    category="billing",
                 )
                 if ok:
                     email_results["sent"] += 1
@@ -1329,6 +1330,7 @@ async def send_single_invoice(invoice_id: str, user: dict = Depends(get_current_
         f"Your {period_label} invoice · {brand['name']}",
         html, attachments=attachments,
         organization_id=org_id,
+        category="billing",
     )
     if not ok:
         raise HTTPException(502, "Email failed to send")

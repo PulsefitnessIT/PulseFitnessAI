@@ -250,6 +250,7 @@ async def send_invoice_to_client(
         share["subject"],
         html,
         attachments=attachments,
+        category="billing",
     )
 
     # Append a send record on the invoice for the in-app audit trail.
