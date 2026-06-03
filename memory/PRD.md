@@ -1,4 +1,15 @@
-## Iter 220y(2) — Outbound email routed per verified sending domain ✅ (Jun, 2026)
+## Iter 220y(3) — Per-category Reply-To routing ✅ (Jun, 2026)
+
+Added env-overridable per-category Reply-To so customer replies land in the right inbox:
+- billing → `billing@gymaxisai.com`, support → `support@gymaxisai.com`, service → `service@gymaxisai.com` (env: `REPLY_TO_BILLING|SUPPORT|SERVICE`).
+- Precedence: an operator org's `email_sender_reply_to` still wins (replies reach the gym); category Reply-To is the fallback for platform-originated mail; uncategorised/root mail gets no override (unchanged).
+- `utils/email.py`: `_category_reply_to()` helper; applied in `send_email` after org branding.
+- Verified: 6 unit tests pass; live Resend sends with the category Reply-To header returned success.
+- NOTE: replies only arrive if `billing@`/`service@gymaxisai.com` mailboxes exist (support@ confirmed working as the current sender); override via env if inboxes live elsewhere.
+
+---
+
+
 
 **Goal:** Platform now has 4 verified Resend domains (`gymaxisai.com`, `billing.`, `support.`, `service.`). Route each outbound email from the domain matching its purpose.
 

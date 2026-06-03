@@ -245,6 +245,29 @@ def _category_sender(category: str | None) -> str:
     return SENDER_EMAIL
 
 
+# Per-category Reply-To. The operator org's own `email_sender_reply_to`
+# always wins (so customer replies reach the gym); these are the canonical
+# fallback inboxes for platform-originated mail. Env-overridable; defaults
+# consolidate replies onto the root-domain mailboxes.
+_CATEGORY_REPLY_ENV = {
+    "billing": "REPLY_TO_BILLING",
+    "support": "REPLY_TO_SUPPORT",
+    "service": "REPLY_TO_SERVICE",
+}
+_CATEGORY_REPLY_DEFAULT = {
+    "billing": "billing@gymaxisai.com",
+    "support": "support@gymaxisai.com",
+    "service": "service@gymaxisai.com",
+}
+
+
+def _category_reply_to(category: str | None) -> str | None:
+    """Canonical Reply-To for a category (env-overridable), else None."""
+    if category in _CATEGORY_REPLY_ENV:
+        return (os.environ.get(_CATEGORY_REPLY_ENV[category]) or "").strip() or _CATEGORY_REPLY_DEFAULT[category]
+    return None
+
+
 def _category_for_kind(kind: str | None) -> str | None:
     """Best-effort kind → category mapping for call sites that pass a
     ``kind`` but not an explicit ``category``."""
@@ -384,6 +407,11 @@ async def send_email(
         except Exception:
             # Branding lookup failure must never block real email sends.
             pass
+
+    # Operator's own reply-to wins; otherwise route replies to the canonical
+    # per-category inbox so billing/support/service responses aren't lost.
+    if not reply_to:
+        reply_to = _category_reply_to(resolved_category)
 
     try:
         # Iter 216h64 — auto-wrap in the co-branded shell (operator

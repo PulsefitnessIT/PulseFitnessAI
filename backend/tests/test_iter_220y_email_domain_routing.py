@@ -47,3 +47,13 @@ def test_kind_to_category_mapping():
     assert _category_for_kind("account.welcome") == "support"
     assert _category_for_kind(None) is None
     assert _category_for_kind("marketing.newsletter") is None
+
+
+def test_category_reply_to_defaults_and_none():
+    from utils.email import _category_reply_to
+    assert _category_reply_to("billing") == "billing@gymaxisai.com"
+    assert _category_reply_to("support") == "support@gymaxisai.com"
+    assert _category_reply_to("service") == "service@gymaxisai.com"
+    # Unknown / default category gets no reply-to override.
+    assert _category_reply_to(None) is None
+    assert _category_reply_to("marketing") is None
