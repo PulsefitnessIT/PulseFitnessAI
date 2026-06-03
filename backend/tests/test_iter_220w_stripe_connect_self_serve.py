@@ -49,3 +49,38 @@ def test_owner_reaches_stripe_not_pricing(regular_user_token):
         assert r.json().get("url", "").startswith("http")
     else:
         assert "stripe" in r.text.lower()
+
+
+def test_connect_error_helper_maps_platform_profile():
+    """Platform-profile blocker → structured code + dashboard help link."""
+    from utils.stripe_connect_errors import stripe_connect_http_exception
+
+    class _Exc(Exception):
+        user_message = (
+            "Please review the responsibilities of managing losses for connected "
+            "accounts at https://dashboard.stripe.com/settings/connect/platform-profile."
+        )
+
+        def __str__(self):
+            return self.user_message
+
+    http = stripe_connect_http_exception(_Exc())
+    assert http.status_code == 400
+    assert isinstance(http.detail, dict)
+    assert http.detail["code"] == "stripe_connect_profile_incomplete"
+    assert "platform-profile" in http.detail["help_url"]
+
+
+def test_connect_error_helper_passthrough_generic():
+    from utils.stripe_connect_errors import stripe_connect_http_exception
+
+    class _Exc(Exception):
+        user_message = "Your card was declined."
+
+        def __str__(self):
+            return self.user_message
+
+    http = stripe_connect_http_exception(_Exc())
+    # Unknown errors fall through as a plain string detail (not the banner code).
+    assert isinstance(http.detail, str)
+    assert "Stripe error" in http.detail

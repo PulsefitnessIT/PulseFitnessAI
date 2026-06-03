@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CreditCard, ExternalLink, Link2, ShieldCheck, AlertCircle, Loader2, RefreshCw, Unplug, Banknote } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import StripeConnectErrorBanner from '@/components/shared/StripeConnectErrorBanner';
 
 const PaymentSetupCard = ({ organizationId }) => {
   const { API } = useAuth();
@@ -21,6 +22,7 @@ const PaymentSetupCard = ({ organizationId }) => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [acctIdInput, setAcctIdInput] = useState('');
+  const [connectError, setConnectError] = useState(null);
 
   const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
@@ -39,6 +41,7 @@ const PaymentSetupCard = ({ organizationId }) => {
 
   const startOnboarding = async () => {
     setBusy(true);
+    setConnectError(null);
     try {
       const r = await axios.post(
         `${API}/stripe-connect/orgs/${organizationId}/onboarding-link`,
@@ -50,7 +53,12 @@ const PaymentSetupCard = ({ organizationId }) => {
         notify.success('Onboarding link opened', 'Complete the form in the new tab. Refresh this card after you finish.');
       }
     } catch (e) {
-      notify.error('Could not start onboarding', e.response?.data?.detail);
+      const detail = e.response?.data?.detail;
+      const code = (typeof detail === 'object' && detail) ? detail.code : null;
+      if (code === 'stripe_connect_profile_incomplete' || code === 'stripe_connect_not_enabled') {
+        setConnectError(detail);
+      }
+      notify.error('Could not start onboarding', typeof detail === 'object' ? detail?.message : detail);
     }
     setBusy(false);
   };
@@ -124,6 +132,7 @@ const PaymentSetupCard = ({ organizationId }) => {
 
       {!data?.connected ? (
         <div className="space-y-3" data-testid="payment-setup-empty">
+          <StripeConnectErrorBanner error={connectError} />
           <p className="text-xs text-zinc-500">
             Connect a Stripe account so members can sign up and pay online. We charge a {fee}% platform fee on each transaction (members pay this; you don't).
           </p>

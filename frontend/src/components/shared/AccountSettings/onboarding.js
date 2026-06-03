@@ -6,6 +6,7 @@ import { API, useAuthHeaders } from './shared';
 import { useNavigate } from 'react-router-dom';
 import EquipmentImportInline from './EquipmentImportInline';
 import QrPrintInline from './QrPrintInline';
+import StripeConnectErrorBanner from '@/components/shared/StripeConnectErrorBanner';
 
 export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const headers = useAuthHeaders();
@@ -13,6 +14,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stripeBusy, setStripeBusy] = useState(false);
+  const [stripeError, setStripeError] = useState(null);
   // Iter 216h108 — inline panel mode for steps that should open IN the
   // settings modal rather than navigating away.
   const [inlinePanel, setInlinePanel] = useState(null);  // 'equipment_import' | 'qr_print' | null
@@ -89,7 +91,13 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
       }
       toast.error('Could not start Stripe onboarding');
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Could not start Stripe onboarding');
+      const detail = e.response?.data?.detail;
+      const code = (typeof detail === 'object' && detail) ? detail.code : null;
+      if (code === 'stripe_connect_profile_incomplete' || code === 'stripe_connect_not_enabled') {
+        // Persistent banner with the fix link (survives the failed redirect).
+        setStripeError(detail);
+      }
+      toast.error((typeof detail === 'object' ? detail?.message : detail) || 'Could not start Stripe onboarding');
     }
     setStripeBusy(false);
   };
@@ -138,6 +146,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
           {data?.completed_count ?? 0} of {data?.total ?? 0} steps complete — finish them in any order.
         </p>
       </div>
+      <StripeConnectErrorBanner error={stripeError} />
       <div className="rounded-full overflow-hidden h-2 w-full" style={{ background: 'var(--theme-border-soft)' }}>
         <div
           className="h-full rounded-full transition-all"

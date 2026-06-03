@@ -36,6 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from routes.partners import require_engineer_app_access
 from utils.auth import get_current_user
 from utils.database import db
+from utils.stripe_connect_errors import stripe_connect_http_exception
 
 logger = logging.getLogger(__name__)
 
@@ -202,17 +203,7 @@ async def create_onboarding_link(user=Depends(get_current_user)):
             await _persist_flags(partner["id"], account_id, flags)
         except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
             logger.warning("[stripe_connect] Account.create failed: %s", exc)
-            msg = exc.user_message or str(exc)
-            # If the platform hasn't enabled Stripe Connect yet, surface
-            # a clear, actionable error code so the UI can guide them.
-            if "signed up for Connect" in (str(exc) or ""):
-                raise HTTPException(503, {
-                    "code": "stripe_connect_not_enabled",
-                    "message": "GymAxis hasn't enabled Stripe Connect yet. "
-                                "An admin needs to enable Connect at "
-                                "https://dashboard.stripe.com/connect.",
-                })
-            raise HTTPException(502, f"Stripe error: {msg}")
+            raise stripe_connect_http_exception(exc)
 
     origin = _origin()
     refresh_url = f"{origin}/svc/engineer/payouts?onboarding=refresh" if origin else "https://gymaxis.com/"

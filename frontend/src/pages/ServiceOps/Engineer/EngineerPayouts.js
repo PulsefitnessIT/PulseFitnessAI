@@ -19,6 +19,7 @@ import {
   CheckCircle2, AlertTriangle, RefreshCw, Banknote,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import StripeConnectErrorBanner from '@/components/shared/StripeConnectErrorBanner';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -35,6 +36,7 @@ export default function EngineerPayouts() {
   const [loading, setLoading] = useState(true);
   const [onboarding, setOnboarding] = useState(false);
   const [dashboarding, setDashboarding] = useState(false);
+  const [connectError, setConnectError] = useState(null);
 
   const load = useCallback(async ({ refresh = false } = {}) => {
     setLoading(true);
@@ -67,6 +69,7 @@ export default function EngineerPayouts() {
 
   const startOnboarding = useCallback(async () => {
     setOnboarding(true);
+    setConnectError(null);
     try {
       const r = await axios.post(
         `${API}/svc/engineer/stripe/connect/onboarding`, {}, auth(),
@@ -79,6 +82,10 @@ export default function EngineerPayouts() {
     } catch (e) {
       const detail = e.response?.data?.detail;
       const code = (typeof detail === 'object' && detail) ? detail.code : null;
+      // Platform-level Connect blockers → persistent banner with a fix link.
+      if (code === 'stripe_connect_profile_incomplete' || code === 'stripe_connect_not_enabled') {
+        setConnectError(detail);
+      }
       let msg = (typeof detail === 'string')
         ? detail : (detail?.message || 'Stripe onboarding failed — try again');
       if (code === 'stripe_connect_not_enabled') {
@@ -144,6 +151,7 @@ export default function EngineerPayouts() {
           </div>
         ) : (
           <>
+            <StripeConnectErrorBanner error={connectError} />
             <StatusCard
               status={status}
               onConnect={startOnboarding}

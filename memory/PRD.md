@@ -1,3 +1,27 @@
+## Iter 220w — Stripe Connect P0 fix + full Stripe audit + Connect now LIVE ✅ (Jun, 2026)
+
+**Reported bug:** "Connect Stripe" in Account Settings → Setup checklist sent gym owners to the marketing `/pricing` page instead of Stripe. Root cause: `routes/account.py` ONBOARDING_STEPS `connect_stripe` had `cta_route:"/pricing"`; the real org Connect onboarding existed but was master-admin-only.
+
+**Fix:**
+- New owner self-serve endpoint `POST /api/stripe-connect/me/onboarding-link` (owners only) — creates/reuses the org's Stripe Express account, returns a hosted onboarding URL; return_url re-opens Account Settings → Billing (`?account=billing&stripe=onboarded`).
+- Onboarding step now sends `cta_action:"connect_stripe"`; `AccountSettings/onboarding.js` calls the endpoint and `window.location`→Stripe.
+- `Navbar.js` reads `?account=<section>`/`?stripe=onboarded` on return to auto-open Account Settings + toast; `AccountSettingsModal` accepts `initialSection`.
+
+**Full Stripe audit (live keys active — running backend resolves live key via `utils/database.py` os.environ patch; subscription checkout produced a real `cs_live_…` session):**
+- Subscriptions/SaaS billing for gyms: ✅ fully working.
+- **Stripe Connect (gyms + engineers): initially blocked** by an incomplete Stripe *Connect platform profile* (loss-liability) — both gym (`/stripe-connect/me/onboarding-link`) and engineer (`/svc/engineer/stripe/connect/onboarding`) returned the same "review the responsibilities of managing losses … platform-profile" error. NOT a code bug.
+
+**(a) Friendly error banner:** new `utils/stripe_connect_errors.py` maps Connect errors → structured `{code, message, help_url}`. Codes: `stripe_connect_profile_incomplete` (→ platform-profile dashboard link), `stripe_connect_not_enabled`. Wired into gym + engineer onboarding endpoints. New `components/shared/StripeConnectErrorBanner.js` rendered on all 3 Connect surfaces: `EngineerPayouts.js`, `MasterAdmin/PaymentSetupCard.js`, `AccountSettings/onboarding.js`.
+
+**Re-test after user completed the Stripe platform profile: Connect is NOW LIVE for both.** Gym → real onboarding URL + Express acct `acct_1TeHG0QqF4pNkzAT` (Member Only Gym, GB/gbp); Engineer → acct `acct_1TeHG4JRf4C42S1U`. Status endpoints show `connected:true`, `charges_enabled:false` with the normal KYC `requirements_currently_due` (address/DOB/bank/TOS) — flips to enabled once each completes the hosted form.
+
+**Note:** testing created 2 real (incomplete, non-charging) Express accounts on the live Connect platform — on the `memberonly.trial` gym org + `engineer.smoke`. Harmless; can be disconnected via the org disconnect endpoint if cleanup wanted.
+
+Tests: `tests/test_iter_220w_stripe_connect_self_serve.py` (5 pass: step config, auth gate, owner reaches Stripe, error-helper maps platform-profile + generic passthrough). Lint clean (py+js).
+
+---
+
+
 ## Iter 220u — Member app fixes: Check-in QR not generating + sign-up form layout ✅ (Jun, 2026)
 
 Two member-app (`/m/{slug}`) bugs reported with screenshots (preview).

@@ -29,6 +29,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path, Request
 from routes.auth import get_current_user
 from routes.master_admin import require_master_admin
 from utils.database import db
+from utils.stripe_connect_errors import stripe_connect_http_exception
 
 load_dotenv()
 log = logging.getLogger("stripe_connect")
@@ -140,7 +141,7 @@ async def onboarding_link(
         return {"url": link.url, "expires_at": link.expires_at, "account_id": acct_id}
     except stripe.error.StripeError as exc:
         log.error("Onboarding link failed: %s", exc, exc_info=True)
-        raise HTTPException(400, f"Stripe error: {exc.user_message or str(exc)}")
+        raise stripe_connect_http_exception(exc)
 
 
 @router.post("/stripe-connect/me/onboarding-link")
@@ -202,7 +203,7 @@ async def my_onboarding_link(
         return {"url": link.url, "expires_at": link.expires_at, "account_id": acct_id}
     except stripe.error.StripeError as exc:
         log.error("Owner onboarding link failed: %s", exc, exc_info=True)
-        raise HTTPException(400, f"Stripe error: {exc.user_message or str(exc)}")
+        raise stripe_connect_http_exception(exc)
 
 
 @router.post("/stripe-connect/orgs/{organization_id}/link-existing")
