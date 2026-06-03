@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only verification of the Companies House typeahead Escape/click-outside fix in ProfileCompletionFields.js. Registered a throwaway user via /api/auth/register, stashed token in localStorage, navigated to /complete-profile, mocked /api/account/companies-house/status and /search, and validated all three required behaviors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "escape_closes_dropdown_only": "PASS - dropdown closed, URL remained /complete-profile, profile-co-ch-search still present",
+    "dropdown_reopens_on_retype": "PASS - typing BARCLAYS again re-opened profile-co-ch-results",
+    "click_outside_dismisses_dropdown": "PASS - clicking page heading area at (10,10) hid the results dropdown",
+    "console_errors_from_new_code": "NONE - only unrelated pre-existing CSP warnings for emergent-main.js, posthog, cloudflare beacon"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix correctly uses preventDefault + stopPropagation + nativeEvent.stopImmediatePropagation to defeat the parent window-level Escape listener in TrialSignupModal.",
+    "mousedown click-outside effect is correctly gated on `open` and cleans up on unmount/state change.",
+    "Minor: click-outside uses mousedown which is correct (fires before blur), no change needed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "Throwaway user registered each run: chtest+<unixtime>@example.com / TestPass123! (no cleanup required per request)",
+  "seed_data_creation": "One throwaway user per run via POST /api/auth/register",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Mocks required because preview CH API key is rejected: route '**/account/companies-house/search**' -> {items:[...]} and '**/account/companies-house/status**' -> {enabled:true}. Auth bootstrap on /complete-profile worked first try with the documented localStorage token approach. Component path: /app/frontend/src/components/shared/ProfileCompletionFields.js lines 99-300. data-testids: profile-co-ch-search (input), profile-co-ch-results (dropdown ul), profile-co-ch-pick-<co_no> (rows).",
+  "rca of the issue": "Original bug: TrialSignupModal.js registers a window-level keydown listener that closes the entire signup on Escape. The CH dropdown had no Escape handler of its own, so the keystroke bubbled up and dismissed the whole flow. Fix in CompaniesHouseSearch adds an input-level onKeyDown that, when dropdown is open, calls preventDefault + stopPropagation + nativeEvent.stopImmediatePropagation and only calls setOpen(false). It also adds a wrapRef + mousedown listener to support click-outside dismissal. Verified: Escape no longer navigates/closes the page; click-outside hides dropdown; re-typing re-opens it; no new console errors."
+}

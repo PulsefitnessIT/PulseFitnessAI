@@ -105,6 +105,20 @@ function CompaniesHouseSearch({ form, setForm }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const debounceRef = useRef(null);
+  const wrapRef = useRef(null);
+
+  // Close the results dropdown when clicking anywhere outside it, so the
+  // box can be dismissed without resorting to Escape (which the parent
+  // signup modal listens for globally and would otherwise close the
+  // whole flow).
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDocDown = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, [open]);
 
   // Check whether CH is enabled on mount.
   useEffect(() => {
@@ -230,7 +244,7 @@ function CompaniesHouseSearch({ form, setForm }) {
           </button>
         </div>
       ) : (
-        <div className="relative">
+        <div className="relative" ref={wrapRef}>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -238,6 +252,19 @@ function CompaniesHouseSearch({ form, setForm }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => results.length && setOpen(true)}
+              onKeyDown={(e) => {
+                // Escape should dismiss ONLY the results dropdown, not the
+                // whole signup modal. The modal has a global window keydown
+                // listener for Escape, so when the dropdown is open we
+                // swallow the event here (stopPropagation + stopImmediate)
+                // to keep the user in the flow.
+                if (e.key === 'Escape' && open) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.nativeEvent?.stopImmediatePropagation?.();
+                  setOpen(false);
+                }
+              }}
               placeholder="Start typing your company name…"
               className="w-full h-11 pl-9 pr-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
               data-testid="profile-co-ch-search"
