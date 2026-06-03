@@ -1,3 +1,12 @@
+## Iter 220z(2) — Legacy report photos/sign-off: full browser E2E verified ✅ (Jun, 2026)
+
+Ran the testing_agent through the full UI flow (login → CSV upload → AI extract 3 machines → add photos → draw both signatures → comments → save → PDF download). Result: **all UI mechanics pass (95%)**.
+- The agent flagged "PDF stays ~12KB after adding a photo" — investigated and **confirmed a false alarm**: the agent's uploaded images were near-blank 1474-byte placeholders. Proven via real data: 0 photos→12.9KB, 3 blank photos→11.7KB, **1 real 16KB photo→27.5KB**. Photos persist (`get_object` fetch_ok = total) and embed correctly. No backend bug.
+- **UX fix applied** (agent's valid note): machines were collapsed on Review, hiding the photo button. Now all machines auto-expand on entering the Review step (`legacy-next-review` onClick sets `_open:true`). Lint clean.
+- Minor (not fixed): cookie-consent banner can overlap the Step-1 "Next" button at 1440×900 (pre-existing, low priority).
+Sample upload file: `/app/test_samples/legacy_service_report_sample.csv`.
+
+
 ## Iter 220z — Legacy reports: machine photos, comments & dual sign-off ✅ (Jun, 2026)
 
 Engineer app → Legacy report import → Review step now supports:

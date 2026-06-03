@@ -733,7 +733,15 @@ export default function EngineerLegacyImport() {
               <button
                 type="button"
                 disabled={doneVisits.length === 0 || extracting}
-                onClick={() => setStep(3)}
+                onClick={() => {
+                  // Auto-expand all machines on entering Review so the photo,
+                  // field and (per-report) sign-off controls are discoverable.
+                  setVisits((prev) => prev.map((v) => ({
+                    ...v,
+                    machines: (v.machines || []).map((m) => ({ ...m, _open: true })),
+                  })));
+                  setStep(3);
+                }}
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-bold"
                 data-testid="legacy-next-review"
               >
