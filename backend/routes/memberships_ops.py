@@ -118,7 +118,8 @@ async def setup_basics(body: BasicsBody, user: dict = Depends(get_current_user))
     # the redesigned Step 1. Only $set fields the operator provided so
     # we never overwrite values already entered via other surfaces.
     update: dict = {
-        "name": body.name, "slug": slug, "timezone": body.timezone,
+        "name": body.name, "slug": slug, "membership_app_slug": slug,
+        "timezone": body.timezone,
         "currency": body.currency, "primary_brand_colour": body.primary_brand_colour,
         "logo_url": body.logo_url, "setup_step": "payment",
     }

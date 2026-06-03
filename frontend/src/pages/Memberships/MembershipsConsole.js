@@ -16,7 +16,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2, Wallet,
+  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, Theater, Loader2, Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -62,7 +62,6 @@ const MemberEditDrawer = lazy(() => import('@/pages/Memberships/MemberEditDrawer
 const SellPackAtDeskModal = lazy(() => import('@/pages/Memberships/modals/SellPackAtDeskModal'));
 const StudioBuilderTab = lazy(() => import('@/pages/Memberships/StudioBuilderTab'));
 const FamilyBillingTab = lazy(() => import('@/pages/Memberships/FamilyBillingTab'));
-const ParentPortalTab = lazy(() => import('@/pages/Memberships/ParentPortalTab'));
 const EventsTab = lazy(() => import('@/pages/Memberships/EventsTab'));
 
 const TabFallback = () => (
@@ -121,7 +120,7 @@ function MembershipsConsoleInner() {
   // the "+ Add new instructor" option in the Class Template Editor
   // (StudioBuilderTab → ClassTemplateEditor) can route to the Instructors
   // tab without the guard bouncing the operator back to Start.
-  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'analytics', 'timetable', 'classes', 'members', 'instructors', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
+  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'analytics', 'timetable', 'classes', 'members', 'instructors', 'plans', 'family-billing', 'mobile-app', 'events', 'checkin', 'invoicing']), []);
 
   // Iter 216h247 — Tab order rationalised for the typical Studio
   // Operator's day:  set up → daily ops → people → commercial →
@@ -144,7 +143,6 @@ function MembershipsConsoleInner() {
     { id: 'desk-sales', label: 'Desk sales', icon: Wallet },
     { id: 'family-billing', label: 'Family billing', icon: HeartHandshake },
     // — Family / events
-    { id: 'parent-portal', label: 'Parent portal', icon: ShieldCheck },
     { id: 'events', label: 'Events', icon: Theater },
     // — Marketing
     { id: 'promotions', label: 'Promotions', icon: Tag },
@@ -154,7 +152,7 @@ function MembershipsConsoleInner() {
     // — Cross-platform tools
     { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
     { id: 'booking-rules', label: 'Booking rules', icon: Settings },
-    { id: 'mobile-app', label: 'Mobile app', icon: Smartphone },
+    { id: 'mobile-app', label: 'Member app', icon: Smartphone },
   ], [t]);
 
   // Filter the tab list when Studio Mode is on — keeps UI focused on
@@ -329,7 +327,6 @@ function MembershipsConsoleInner() {
         {tab === 'members'   && <MembersTab   key={`mbr-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'plans'     && <PlansTab     key={`pln-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'family-billing' && <FamilyBillingTab key={`fb-${reloadKey}`} API={API} headers={headers} />}
-        {tab === 'parent-portal' && <ParentPortalTab key={`pp-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'events' && <EventsTab key={`ev-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'instructors' && <InstructorsTab key={`ins-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'promotions' && <PromotionsTab key={`pro-${reloadKey}`} API={API} headers={headers} />}
@@ -340,7 +337,7 @@ function MembershipsConsoleInner() {
         {tab === 'analytics' && <AnalyticsTab key={`ana-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'crm-loop'  && <CRMLoopTab    API={API} headers={headers} />}
         {tab === 'booking-rules' && <BookingRulesTab API={API} headers={headers} />}
-        {tab === 'mobile-app' && <MobileAppBuilderTab API={API} headers={headers} />}
+        {tab === 'mobile-app' && <MemberAppTab key={`ma-${reloadKey}`} API={API} headers={headers} />}
         </Suspense>
         </PullToRefresh>
       </main>

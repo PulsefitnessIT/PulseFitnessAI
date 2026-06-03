@@ -16,7 +16,7 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   GripVertical, Plus, Eye, EyeOff, Settings as SettingsIcon, RotateCcw, Save,
-  Smartphone, ChevronDown, ChevronUp, Trash2, Copy, ExternalLink, Link2,
+  Smartphone, ChevronDown, ChevronUp, Trash2, Copy, ExternalLink, Link2, Printer, Download,
   // Card icons (must mirror CARD_REGISTRY.icon strings on the backend)
   CalendarDays, ClipboardList, Dumbbell, Wrench, Trophy, Activity,
   ShoppingBag, BarChart3, Megaphone, QrCode, Share2, Sparkles,
@@ -467,6 +467,33 @@ function AppAddressCard({ slug }) {
     }
   };
 
+  const downloadPng = () => {
+    if (!qr) return;
+    const a = document.createElement('a');
+    a.href = qr;
+    a.download = `${slug || 'member-app'}-qr.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const printQr = () => {
+    if (!qr || !url) return;
+    const w = window.open('', '_blank', 'width=480,height=680');
+    if (!w) { notify.error('Allow pop-ups to print the QR code'); return; }
+    w.document.write(
+      '<html><head><title>Member app QR</title><style>'
+      + 'body{font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:48px 24px;color:#0f172a}'
+      + 'h1{font-size:22px;margin:0 0 6px}p{color:#475569;margin:0 0 24px}'
+      + 'img{width:340px;height:340px}.u{margin-top:18px;font-family:monospace;font-size:14px;word-break:break-all}'
+      + '</style></head><body><h1>Scan to open our app</h1><p>Point your phone camera at the code</p>'
+      + '<img src="' + qr + '" alt="QR code"/><div class="u">' + url + '</div>'
+      + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print();window.close();},300);}</scr' + 'ipt>'
+      + '</body></html>',
+    );
+    w.document.close();
+  };
+
   return (
     <div
       className="rounded-xl border p-4 sm:p-5"
@@ -513,6 +540,24 @@ function AppAddressCard({ slug }) {
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Open
               </a>
+              <button
+                onClick={printQr}
+                disabled={!qr}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="mab-app-address-print"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print QR
+              </button>
+              <button
+                onClick={downloadPng}
+                disabled={!qr}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="mab-app-address-download"
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </button>
             </div>
           </div>
           {qr && (
