@@ -1,3 +1,19 @@
+## Iter 220m — Trial billing fix + Memberships analytics merge + Mobile App Builder (light preview, app address) ✅ (Jun, 2026)
+
+User testing feedback (4 items), all DONE + testing-agent verified 100% (iteration_220l.json):
+
+1. **Billing showed paid "Pro £99/month" while org was on a TRIAL (BUG).** `/account/billing` (auth.py) ignored trial state. Now returns `trial` (compute_trial_state) + `is_trial`. Frontend `AccountSettings/billing.js` now reads `billing?.trial || user?.trial` (fresh payload, not stale auth user) → Plan & Billing shows "Free trial / ending soon — N days" + **Upgrade Plan** instead of "Pro / Change plan". Verified via API: trialing user returns is_trial=true.
+
+2. **Memberships Mobile App "Live Preview" now LIGHT.** `MobileAppBuilderTab.js` PhoneFrame + preview cards switched to white screen / dark bezel / dark text.
+
+3. **Mobile App Builder now shows the public member-app address.** New `AppAddressCard` (top of builder) shows `https://<host>/m/<slug>` with Copy (clipboard + execCommand fallback) + Open + **QR code** (`qrcode` lib). Backend `member_app_builder.get_layout` now returns `app_slug` (org.membership_app_slug). Shows a "set your app URL" hint when slug unset.
+
+4. **Merged "Studio Brain" + "AI Insights" under "Analytics" as sub-tabs.** Removed the two top-level Memberships tabs (`MembershipsConsole.js`); `AnalyticsTab.js` SECTIONS now = Overview · Retention · Classes · Operations · **Studio Brain** · **AI Insights** (rendering StudioBrainTab and AISection+AIInsightsTab). Dedup: removed the duplicate "At-risk member preview" card from the Retention section (at-risk now lives in AI Insights + Studio Brain churn). STUDIO_TAB_IDS now references 'analytics'.
+
+Test data: set `membership_app_slug='member-only-gym'` on the **Member Only Gym** trial org (memberonly.trial@example.com) so the app-address URL+QR path is testable.
+
+---
+
 ## Iter 220k — FIX: signup "stuck on Companies House" + Escape killed the whole signup ✅ (Jun, 2026)
 
 **Bug (user testing signup):** on step-2 "Tell us about your gym", the Companies House typeahead box couldn't be dismissed, and pressing Escape (to close the dropdown) closed the ENTIRE signup.

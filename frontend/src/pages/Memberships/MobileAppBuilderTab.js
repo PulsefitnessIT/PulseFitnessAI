@@ -438,12 +438,31 @@ function AppAddressCard({ slug }) {
 
   const copy = async () => {
     if (!url) return;
+    let ok = false;
     try {
-      await navigator.clipboard.writeText(url);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        ok = true;
+      }
+    } catch { /* fall through to legacy copy */ }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ok = document.execCommand('copy');
+        ta.remove();
+      } catch { ok = false; }
+    }
+    if (ok) {
       setCopied(true);
       notify.success('App link copied');
       setTimeout(() => setCopied(false), 1800);
-    } catch {
+    } else {
       notify.error('Could not copy');
     }
   };
