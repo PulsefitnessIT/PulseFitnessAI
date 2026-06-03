@@ -27553,3 +27553,15 @@ Note: Third Space is a customer/gym of the Pulse Fitness account — the member 
 theirs and should carry their brand, which the display-name override now guarantees
 without renaming the underlying org.
 
+
+
+## Iter 220ee — One-tap "Email report" on closed-job banner (Jun 3, 2026)
+
+Enhancement on top of 220ed. The closed-job read-only banner (shown on every tab) now
+has a one-tap **Email report** button (`closed-banner-email-report`) that POSTs to
+`/svc/cases/{id}/service-report/email` using the customer email on file — so engineers
+can re-send the branded PDF from the field without opening the Complete tab. If no
+customer email is on file, it shows an info toast and jumps to the Complete tab.
+Refactored the banner into a `ClosedJobBanner` component in `EngineerJobDetailV2.js`.
+Verified live on SVC-00410.
+

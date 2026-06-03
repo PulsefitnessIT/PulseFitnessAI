@@ -329,22 +329,10 @@ export default function EngineerJobDetailV2() {
 
       <main className="max-w-4xl mx-auto px-4 py-5 pb-28 space-y-4">
         {/* Iter 220ed — read-only banner shown on every tab once the job
-            is closed, so the engineer knows it can't be edited. */}
+            is closed, so the engineer knows it can't be edited.
+            Iter 220ee — one-tap "Email report" straight from the banner. */}
         {lockedComplete && (
-          <div
-            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-3"
-            data-testid="job-closed-banner"
-          >
-            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-emerald-900">
-                This job is <span className="capitalize">{job.status.replace(/_/g, ' ')}</span> — read-only
-              </p>
-              <p className="text-xs text-emerald-700">
-                Notes &amp; signatures are locked. Open the <span className="font-semibold">Complete</span> tab to view the sign-off.
-              </p>
-            </div>
-          </div>
+          <ClosedJobBanner job={job} onGoComplete={() => setActiveTab('complete')} />
         )}
         {/* Iter 220dn — JobAtAGlance lives in the Summary tab ONLY.
             Iter 220dr — Capture-media (PhotosTab) moved OUT of
@@ -3717,6 +3705,59 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           Or set status manually
         </button>
       </div>
+    </div>
+  );
+}
+
+// Iter 220ee — Read-only banner for a closed job, shown on every tab.
+// Includes a one-tap "Email report" so an engineer can re-send the
+// branded PDF to the customer from the field without digging into the
+// Complete tab. If no customer email is on file, it jumps to Complete
+// where the engineer can type one.
+function ClosedJobBanner({ job, onGoComplete }) {
+  const [emailing, setEmailing] = useState(false);
+  const hasEmail = !!(job.customer_email && job.customer_email.trim());
+
+  const emailReport = async () => {
+    if (!hasEmail) {
+      notify.info('No customer email on file', 'Add one on the Complete tab to send the report.');
+      onGoComplete?.();
+      return;
+    }
+    setEmailing(true);
+    try {
+      await axios.post(`${API}/svc/cases/${job.id}/service-report/email`, {}, auth());
+      notify.success('Report emailed', `Sent to ${job.customer_email}`);
+    } catch (err) {
+      notify.error('Email failed', err?.response?.data?.detail || err?.message || '');
+    } finally { setEmailing(false); }
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-3"
+      data-testid="job-closed-banner"
+    >
+      <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-emerald-900">
+          This job is <span className="capitalize">{job.status.replace(/_/g, ' ')}</span> — read-only
+        </p>
+        <p className="text-xs text-emerald-700">
+          Notes &amp; signatures are locked. Open the <span className="font-semibold">Complete</span> tab to view the sign-off.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={emailReport}
+        disabled={emailing}
+        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50"
+        data-testid="closed-banner-email-report"
+        title={hasEmail ? `Email the report to ${job.customer_email}` : 'Add a customer email to send the report'}
+      >
+        {emailing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+        Email report
+      </button>
     </div>
   );
 }
