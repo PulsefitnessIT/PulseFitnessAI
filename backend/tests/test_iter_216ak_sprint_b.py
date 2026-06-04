@@ -18,7 +18,7 @@ import requests
 import secrets
 import time
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://service-ops-hub-6.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://engineer-jobs-live.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 # Test credentials

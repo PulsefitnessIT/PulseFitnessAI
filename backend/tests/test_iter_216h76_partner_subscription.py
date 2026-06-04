@@ -21,7 +21,7 @@ import requests
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://service-ops-hub-6.preview.emergentagent.com"
+    or "https://engineer-jobs-live.preview.emergentagent.com"
 ).rstrip("/")
 
 OPERATOR_EMAIL = "e1.agent@gymaxisai.com"

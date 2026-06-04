@@ -13,7 +13,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://service-ops-hub-6.preview.emergentagent.com"
+    BASE_URL = "https://engineer-jobs-live.preview.emergentagent.com"
 
 # Master admin credentials
 ADMIN_EMAIL = "admin@gymaxisai.com"

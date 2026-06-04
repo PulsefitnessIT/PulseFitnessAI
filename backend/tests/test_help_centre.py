@@ -12,7 +12,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://service-ops-hub-6.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://engineer-jobs-live.preview.emergentagent.com')
 
 # Test credentials
 MASTER_ADMIN = {"email": "admin@gymaxisai.com", "password": "MasterAdmin123!"}

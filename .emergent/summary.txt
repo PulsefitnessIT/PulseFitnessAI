@@ -1,0 +1,135 @@
+<analysis>**original_problem_statement**: EVOLVE the GymAxis platform into the BEST workforce operations platform in the fitness industry. Build an enterprise-grade CRM with advanced service ops. PRODUCT REQUIREMENTS: CRM Evolution, GDPR Workflows, Pre-launch ops hardening, Enterprise Security Hardening, Social Media Autopilot, Stock Control and Parts Management System, Sicon Integration, SEO & Growth Hub. Immediate focus: Resolve a batch of bugs in the Live Job Engineer app, add Configurable Case Types, fix KPI navigation, expose closed jobs to engineers, and fix member app branding (login screen names).
+
+**User's preferred language**: English (INSTRUCT NEXT AGENT: The user's primary language is English. You MUST respond in English only.)
+
+**what currently exists?**: A mature React/FastAPI/MongoDB platform. Includes CRM, Service Ops, Partner/Engineer apps, Memberships portal. Stripe Connect and Resend are fully integrated. The Live Job Engineer App is offline-first with an IndexedDB outbox. Dynamic custom work report fields exist and are now linked to dynamic editable Case Types.
+
+**Last working item**:
+    - Last item agent was working: Implemented a one-tap Email report action button on the closed-job banner so engineers can instantly resend branded PDFs to customers from the field. 
+    - Status: USER VERIFICATION PENDING
+    - Agent Testing Done: Y
+    - Which testing method agent to use? NA (Testing already done via curl and Playwright screenshot tool).
+    - User Testing Done: N (User must redeploy to production to see these changes live).
+
+**All Pending/In progress Issue list**:  
+  *(No code-breaking issues are currently pending; all reported bugs were resolved in the preview environment. User verification on production is pending deployment.)*
+
+**In progress Task List**: 
+  *(None currently active. Phase 2 Case Types was completed.)*
+
+**Upcoming and Future Tasks**:
+    - P1: Phase 2 (Slice 2) - Configurable Report Layouts per Case Type (e.g., PPM checklist grid vs. Repair fault/diagnosis narrative).
+    - P2: SEO Rich results + Core Web Vitals (structured data like Article, FAQPage).
+    - P2: Sage 200 / Sicon ledger posting on payment (BLOCKED - Credentials).
+    - P2: PulseFitness Multi-Domain / White-label Deployment (BLOCKED).
+    - P2: Sicon Mobile App API / Live Credentials (BLOCKED).
+    - P2: Outlook Calendar & CRM Quote DocuSign Integration (BLOCKED - Credentials).
+    - P3: Twilio SMS real integration (PARKED).
+    - P3: Instagram Graph API auto-publish (PARKED).
+
+**Completed work in this session**:
+- Fixed 6 P0 Live Job Engineer App Bugs:
+  1. Replaced Asset with dynamic  (Job type) on the PDF report.
+  2. Fixed offline queue bug causing the timer to get stuck on syncing (4xx errors are no longer queued as offline).
+  3. Added manual time entry UI fallback.
+  4. Fixed Equipment photo upload button.
+  5. Fixed textarea cursor jump bug (isolated debounced component).
+  6. Fixed missing signature drops (saves even if Signed by name is left blank) and added Logo fallback embedding to PDFs.
+- Built Phase 2: Editable Case Types CRUD UI () in Account Settings, linked to dynamic custom work report questions.
+- Fixed Engineer Home KPI tiles (Overdue, Today) to properly route to .
+- Added a Closed tab to the Engineer jobs list so engineers can access completed cases.
+- Added a read-only recap (Summary, Signature, Download/Email PDF buttons) to locked Complete tabs for closed jobs.
+- Added a Member App Display Name override for the Membership Portal to fix the login screen showing the parent org's legal name instead of the Gym's operational name (e.g., Pulse Fitness vs. Third Space).
+- Added a one-tap Email Report button to the closed job banner.
+
+**Earlier issues found/mentioned but not fixed**:
+   - None.
+
+**Known issue recurrence from previous fork**:
+  - Issue recurrence in previous fork: UI Testing via screenshot tool sometimes fails due to SPA hydration timing, token expiration, and cookie-consent banners masking forms.
+  - Recurrence count: 6+
+  - Status: RESOLVED FOR NOW (Agent successfully used explicit waits and real URLs to bypass).
+
+**Code Architecture**:
+- Frontend: React SPA ()
+- Backend: FastAPI modular routes ()
+- Offline Engine:  / 
+
+**Key Technical Concepts**:
+- **Offline-first Queue**: Engineer App handles network instability via IndexedDB.
+- **Idempotency**: High-value mutating calls in the Engineer app use idempotency keys.
+- **Dynamic Branding**: The member app and PDF generator pull dynamic branding (logos, colors, display names) via .
+
+**key DB schema**:
+  - : 
+  - :  (NEW)
+  - : 
+  - : 
+
+**changes in tech stack**:
+  - None.
+
+**All files of reference**:
+-  (Extensively edited for bugs, timers, closed-job recap, and banner)
+-  (Updated to embed dynamic labels, logos, and signatures)
+-  (NEW - Case Types manager UI)
+-  (NEW - Case Types API)
+-  (Updated with filters and 'Closed' tab)
+-  (Added  save logic)
+-  (Updated to use dynamic display name on login screen)
+
+**Areas that need refactoring**:
+-  is massive (nearly 4000 lines). While some components were extracted, it still handles too much state. Consider breaking down tabs into separate files if more features are added.
+
+**key api endpoints**:
+- 
+- 
+- 
+- 
+
+**Critical Info for New Agent**:
+- **PREVIEW VS PRODUCTION DISCONNECT**: The user has deployed the app to production (). At the end of the session, the user complained that the Member app still said Pulse Fitness and the Closed jobs were still hidden. The agent had already fixed these in the **preview environment**. If the user complains about missing fixes, gently remind them they must click **Deploy** to push the preview changes to their live production site.
+- **Case Types vs Report Fields**: Do not build a new custom questions engine. It already exists in . The newly created  handles the taxonomy, and  filters by those type slugs.
+
+**documents and test reports created in this job**:
+  - 
+  - 
+  -  (Updated)
+  -  (Updated)
+
+**Last 10 User Messages and any pending HUMAN messages**:
+ 1. User: Chose configuration options for Case Types.
+ 2. User: Chose permission/visibility options for Case Types. 
+ 3. User: *[System Notif: App is deployed to prod]* Engineer app - Closed jobs should show notes/signatures. Member app login should say Third Space not Pulse Fitness.
+ 4. User: Ensure banner shows job is closed. Confirmed Third Space is the gym selling to members, so login should show their name centered.
+ 5. User: Continue potential improvement (Requested the one-tap email report button). *(Completed)*
+
+**Project Health Check**:
+- Broken: None in preview environment.
+- Mocked: DocuSign, Outlook, Sicon, Twilio, Sage 200 integrations.
+
+**3rd Party Integrations**:
+- Stripe (Payments) — requires User API Key
+- Resend (Emails) — requires User API Key
+- Claude / OpenAI (AI Content) — Uses Emergent LLM Key
+
+**Testing status**:
+  - Testing agent used after significant changes: YES (Generated  and ).
+  - Troubleshoot agent used after agent stuck in loop: NO.
+  - Test files created: NO.
+  - Known regressions: None.
+
+**Credentials to test flow**:
+- Read 
+- Master Admin:  / 
+
+**What agent forgot to execute**:
+- Nothing. The agent successfully addressed all user requests, pushed the Phase 2 feature, and implemented the final requested enhancement.
+
+**Debugging checklist for current issue**:
+*(No active bugs, but if the user states the Member App login name or Closed Job view is still broken, refer below)*
+    Issue: User claims fixes are not visible.
+    Frontend/Backend files to check: None needed for code logic.
+    Checklist:
+    - Confirm with the user whether they are testing on  (Production) or the  link.
+    - Instruct the user to Deploy to Production to sync the code.</analysis>
