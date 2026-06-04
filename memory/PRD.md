@@ -1,3 +1,30 @@
+## Iter 220 P1 — USA readiness, slice 1: localization foundation ✅ (Jun, 2026)
+
+**Request:** Customer asked if the platform is ready for USA customers (Operations + Engineers modules). Audit found the platform was hard-wired UK (GBP/`£` in ~20 backend + 149 frontend files, VAT 20%, Companies House, DBS/RTW engineer compliance, `Europe/London` tz, Stripe country GB). User approved **1c + 2a + 3c**: foundation-first (org country/currency/timezone + USD/$ + US Stripe), VAT relabeled to a manual tax line, US engineer compliance deferred.
+
+**Shipped (slice 1 — foundation, defaults to UK so existing customers are unaffected):**
+- **`utils/localization.py`** (new) — single source of truth. `COUNTRY_CONFIG` (GB/US/IE/CA/AU) → currency, timezone, tax_label, default_tax_rate, locale, payment_method. `org_localization(org)` resolves from `org.country_code` (+ optional `currency`/`timezone` overrides), defaults GB. `format_currency`, `supported_countries`, `currency_symbol`.
+- **`routes/localization.py`** (new, registered in `route_registry/core.py`) — `GET /api/org/localization` (resolved loc + supported countries + can_edit) and `PUT /api/org/localization` (owner/master-admin; picking a country snaps currency+tz to defaults, explicit overrides win; validates country/currency/tz → 400). New org fields: `country_code`, `currency`, `timezone` (added to `account.py` ORG_ALLOWED_FIELDS + serialiser; master-admin org-create accepts `country_code` via `_localization_fields`).
+- **Engineer invoices** (`routes/svc/engineer_invoices.py`) — `_build_invoice_payload` now snapshots `currency`/`currency_symbol`/`tax_label`/`country_code` from the org market, defaults the tax rate to the market rate (0% US, 20% GB), localizes default payment method (ACH vs BACS) and drops the UK Late-Payment-Act terms for non-GB. `engineer_invoice_payments.py` Stripe checkout currency now from `invoice.currency` (was hard `gbp`).
+- **Stripe Connect** (`routes/stripe_connect.py`) — new `_express_account_kwargs` sources country from org `country_code` (was hard GB) and only requests the UK-only `bacs_debit_payments` capability for GB accounts (US/other would be rejected otherwise).
+- **Frontend** — `utils/localization.js` (`useLocalization` hook, `formatMoney`, cache + `invalidateLocalization`). `components/shared/AccountSettings/LocalizationPanel.js` (new "Region & currency" panel: country/currency/timezone selects + Save) embedded in BOTH the new `AccountSettingsModal` (OrganisationSection, for owners) AND the legacy `AccountPanel.js` (for master/pulse admins). `EngineerInvoiceBuilder.js` now uses `useLocalization` → currency symbol + `loc.tax_label` label + market default tax rate.
+
+**Tested:** pytest `tests/test_iter_220p1_localization.py` **8/8** (util defaults/US/override, format_currency, GET/PUT endpoint incl. validation + GB→US→revert, invoice payload snapshot US vs GB). testing_agent frontend **100% (5/5)** after fix — panel reachable for master admin, GB default shows VAT, switching to US auto-snaps USD + 'Sales Tax', save toast, GB revert. Admin org left on GB. (First FE run flagged the panel was unreachable for master admins → fixed by embedding in legacy AccountPanel.)
+
+**USA-readiness BACKLOG (remaining slices — none started):**
+- **P1 currency sweep**: ~149 frontend files still hard-code `£`/`en-GB`. Migrate high-traffic Operations + Engineer surfaces (engineer **quote** builder, quotes/invoices lists, dashboards, supplier/parts costs) to `formatMoney(useLocalization())`. (Slice 1 did the engineer invoice builder only.)
+- **P1 PDF/email localization**: engineer invoice/quote/service-report PDFs + emails still render `£` and UK terms — thread `format_currency`/tax_label through `utils/*_pdf.py` + email templates.
+- **P1 timezone threading**: `Europe/London` still hard-coded in scheduling/notifications/memberships loops — read org `timezone` for reminder windows, booking times, digests.
+- **P1 capture market at signup**: `TrialSignupModal` + `/auth/register` should capture `country_code` (currently only settable post-signup or by master admin).
+- **P2 US sales tax**: user chose manual tax line for now (2a). Proper jurisdiction sales tax (Stripe Tax / TaxJar) is a later, larger slice (needs API key).
+- **P2 US engineer compliance**: deferred (3c). Replace DBS/RTW gate with US background-check + I-9/E-Verify when US engineers onboard.
+- **P2 Companies House alternative**: signup company lookup is UK-only; offer a US registry or graceful skip for non-GB.
+- **P2 phone/address**: `+44`/postcode assumptions → ZIP/state for US.
+- **Stripe Connect US**: code now passes `country=US`; requires the Stripe **Connect platform to be enabled for US payouts** (operational, not code) before US engineer/gym payouts work.
+
+---
+
+
 ## Iter 220 P1 — Signup CRM mode selection (Gym / Corporate / Both) ✅ (Jun, 2026)
 
 **Request:** At trial signup, a prospect who picks the CRM module should choose their CRM audience so the new org lands on the right mode without a master-admin conversion (the Pulse "they're set to Gym but should be Corporate" pain point). User choices: option C (orgs running both gym + B2B can run Both) + A.
