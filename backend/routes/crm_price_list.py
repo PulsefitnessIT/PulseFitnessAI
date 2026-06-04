@@ -369,6 +369,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
 
     created = updated = skipped = 0
     ops: list[UpdateOne] = []
+    snaps: list[dict] = []
     seen_skus: set[str] = set()
     for cfg in sheets_cfg:
         if not cfg.get("selected", True):
@@ -393,6 +394,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
                 pdoc["updated_by"] = user.get("id", "")
                 ops.append(UpdateOne({"id": pid, **_of(user)}, {"$set": pdoc}))
                 updated += 1
+                snaps.append(_snapshot_entry(pid, pdoc, version_id, user))
             else:
                 if not do_create:
                     skipped += 1
@@ -403,11 +405,17 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
                 pdoc["updated_at"] = _now()
                 ops.append(UpdateOne({"id": pdoc["id"]}, {"$setOnInsert": pdoc}, upsert=True))
                 created += 1
+                snaps.append(_snapshot_entry(pdoc["id"], pdoc, version_id, user))
             if len(ops) >= 500:
                 await db.crm_products.bulk_write(ops, ordered=False)
                 ops = []
+        if len(snaps) >= 1000:
+            await db.crm_price_list_version_items.insert_many(snaps)
+            snaps = []
     if ops:
         await db.crm_products.bulk_write(ops, ordered=False)
+    if snaps:
+        await db.crm_price_list_version_items.insert_many(snaps)
     wb.close()
 
     if mode == "live":
@@ -443,10 +451,203 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
 # ── Versions + data quality ────────────────────────────────────────
 
 
+def _snapshot_entry(product_id: str, pdoc: dict, version_id: str, user: dict) -> dict:
+    """Compact price snapshot of a product at version-commit time — the
+    basis for version compare + rollback."""
+    return {
+        "version_id": version_id,
+        "organization_id": user.get("organization_id"),
+        "product_id": product_id,
+        "sku": pdoc.get("sku"),
+        "name": pdoc.get("name"),
+        "category": pdoc.get("category"),
+        "cost_price": pdoc.get("cost_price", 0),
+        "sell_price": pdoc.get("sell_price", 0),
+        "markup_percent": pdoc.get("markup_percent", 0),
+        "sage_code": pdoc.get("sage_code", ""),
+        "archived": bool(pdoc.get("archived")),
+    }
+
+
+def _is_approver(user: dict) -> bool:
+    return (
+        bool(user.get("is_master_admin"))
+        or bool(user.get("is_pulse_admin"))
+        or (user.get("role") or "").lower() in ("admin", "owner")
+    )
+
+
 @router.get("/versions")
 async def list_versions(user=Depends(get_crm_user)) -> dict:
     cur = db.crm_price_list_versions.find(_of(user), {"_id": 0}).sort("created_at", -1).limit(50)
     return {"versions": await cur.to_list(50)}
+
+
+@router.post("/versions/snapshot-current")
+async def snapshot_current(body: dict = Body(default={}), user=Depends(get_crm_user)) -> dict:
+    """Capture a snapshot of the CURRENT live catalogue as a new version —
+    a baseline so compare/rollback works for data imported before snapshots
+    existed (or for ad-hoc checkpoints)."""
+    if not _is_approver(user):
+        raise HTTPException(403, "Only owners / admins can publish versions")
+    label = (body.get("label") or "").strip() or f"Snapshot {datetime.now(timezone.utc):%d %b %Y %H:%M}"
+    version_id = str(uuid.uuid4())
+    cur = db.crm_products.find({**_of(user), "active": True}, {"_id": 0})
+    snaps: list[dict] = []
+    count = 0
+    async for p in cur:
+        snaps.append(_snapshot_entry(p["id"], p, version_id, user))
+        count += 1
+        if len(snaps) >= 1000:
+            await db.crm_price_list_version_items.insert_many(snaps)
+            snaps = []
+    if snaps:
+        await db.crm_price_list_version_items.insert_many(snaps)
+    vdoc = {
+        "id": version_id, "organization_id": user.get("organization_id"),
+        "label": label, "status": "snapshot", "product_count": count,
+        "created_at": _now(), "created_by": user.get("id", ""),
+        "created_by_name": user.get("full_name", ""),
+        "summary": {"snapshot": count},
+    }
+    await db.crm_price_list_versions.insert_one(dict(vdoc))
+    await log_audit(user, "price_list_version", version_id, "snapshot", {"count": count})
+    vdoc.pop("_id", None)
+    return {"version": vdoc}
+
+
+async def _version_items_map(version_id: str, user: dict) -> dict[str, dict]:
+    cur = db.crm_price_list_version_items.find({"version_id": version_id, **_of(user)}, {"_id": 0})
+    items = await cur.to_list(None)
+    return {it["sku"]: it for it in items if it.get("sku")}
+
+
+@router.get("/versions/{version_id}/compare")
+async def compare_versions(version_id: str, to: str = "", user=Depends(get_crm_user)) -> dict:
+    """Diff two versions by SKU: added / removed / changed (cost, sell,
+    margin, Sage code). ``version_id`` is the base (older), ``to`` the
+    target (newer). If ``to`` is omitted, compares against the current
+    live catalogue snapshot-on-the-fly."""
+    base = await db.crm_price_list_versions.find_one({"id": version_id, **_of(user)}, {"_id": 0})
+    if not base:
+        raise HTTPException(404, "Base version not found")
+    base_map = await _version_items_map(version_id, user)
+    if to:
+        target = await db.crm_price_list_versions.find_one({"id": to, **_of(user)}, {"_id": 0})
+        if not target:
+            raise HTTPException(404, "Target version not found")
+        target_map = await _version_items_map(to, user)
+        target_label = target.get("label")
+    else:
+        # live catalogue as target
+        cur = db.crm_products.find({**_of(user), "active": True}, {"_id": 0, "id": 1, "sku": 1, "name": 1, "cost_price": 1, "sell_price": 1, "markup_percent": 1, "sage_code": 1})
+        target_map = {p["sku"]: p for p in await cur.to_list(None) if p.get("sku")}
+        target_label = "Current live"
+
+    added, removed, changed = [], [], []
+    for sku, t in target_map.items():
+        if sku not in base_map:
+            added.append({"sku": sku, "name": t.get("name"), "sell_price": t.get("sell_price")})
+    for sku, b in base_map.items():
+        if sku not in target_map:
+            removed.append({"sku": sku, "name": b.get("name"), "sell_price": b.get("sell_price")})
+            continue
+        t = target_map[sku]
+        diffs = {}
+        for f in ("cost_price", "sell_price", "markup_percent", "sage_code"):
+            ov, nv = b.get(f), t.get(f)
+            if f == "sage_code":
+                same = (ov or "") == (nv or "")
+            else:
+                same = round(float(ov or 0), 2) == round(float(nv or 0), 2)
+            if not same:
+                diffs[f] = {"old": ov, "new": nv}
+        if diffs:
+            changed.append({"sku": sku, "name": t.get("name") or b.get("name"), "changes": diffs})
+    return {
+        "base": {"id": version_id, "label": base.get("label")},
+        "target": {"id": to or None, "label": target_label},
+        "counts": {"added": len(added), "removed": len(removed), "changed": len(changed)},
+        "added": added[:200], "removed": removed[:200], "changed": changed[:300],
+    }
+
+
+@router.post("/versions/{version_id}/rollback")
+async def rollback_version(version_id: str, body: dict = Body(default={}), user=Depends(get_crm_user)) -> dict:
+    """Restore prices (cost / sell / Sage code) from a version snapshot onto
+    the live catalogue, creating a new live 'Rollback of …' version. Existing
+    quotes keep their quoted prices (quotes store line prices at creation)."""
+    if not _is_approver(user):
+        raise HTTPException(403, "Only owners / admins can roll back versions")
+    src = await db.crm_price_list_versions.find_one({"id": version_id, **_of(user)}, {"_id": 0})
+    if not src:
+        raise HTTPException(404, "Version not found")
+    items = await _version_items_map(version_id, user)
+    if not items:
+        raise HTTPException(400, "This version has no snapshot to restore")
+    new_vid = str(uuid.uuid4())
+    ops: list[UpdateOne] = []
+    snaps: list[dict] = []
+    restored = 0
+    existing = await db.crm_products.find(_of(user), {"_id": 0, "id": 1, "sku": 1}).to_list(None)
+    by_sku = {p["sku"]: p["id"] for p in existing if p.get("sku")}
+    for sku, snap in items.items():
+        pid = by_sku.get(sku)
+        if not pid:
+            continue
+        upd = {
+            "cost_price": snap.get("cost_price", 0),
+            "sell_price": snap.get("sell_price", 0),
+            "markup_percent": snap.get("markup_percent", 0),
+            "sage_code": snap.get("sage_code", ""),
+            "version_id": new_vid,
+            "updated_at": _now(), "updated_by": user.get("id", ""),
+        }
+        ops.append(UpdateOne({"id": pid, **_of(user)}, {"$set": upd,
+                    "$push": {"price_history": {"$each": [{
+                        "field": "rollback", "old": None, "new": None,
+                        "reason": f"Rolled back to {src.get('label')}",
+                        "by": user.get("full_name", ""), "at": _now(),
+                    }], "$slice": -50}}}))
+        snaps.append({**snap, "version_id": new_vid, "product_id": pid})
+        restored += 1
+        if len(ops) >= 500:
+            await db.crm_products.bulk_write(ops, ordered=False)
+            ops = []
+        if len(snaps) >= 1000:
+            await db.crm_price_list_version_items.insert_many(snaps)
+            snaps = []
+    if ops:
+        await db.crm_products.bulk_write(ops, ordered=False)
+    if snaps:
+        await db.crm_price_list_version_items.insert_many(snaps)
+    await db.crm_price_list_versions.update_many({**_of(user), "status": "live"}, {"$set": {"status": "archived", "archived_at": _now()}})
+    vdoc = {
+        "id": new_vid, "organization_id": user.get("organization_id"),
+        "label": f"Rollback of {src.get('label')}", "status": "live",
+        "rolled_back_from": version_id, "product_count": restored,
+        "created_at": _now(), "created_by": user.get("id", ""),
+        "created_by_name": user.get("full_name", ""), "summary": {"restored": restored},
+    }
+    await db.crm_price_list_versions.insert_one(dict(vdoc))
+    await log_audit(user, "price_list_version", new_vid, "rollback", {"from": version_id, "restored": restored})
+    vdoc.pop("_id", None)
+    return {"version": vdoc, "restored": restored}
+
+
+@router.post("/versions/{version_id}/publish")
+async def publish_version(version_id: str, user=Depends(get_crm_user)) -> dict:
+    """Mark a draft/snapshot version as the live version (archives the
+    previous live)."""
+    if not _is_approver(user):
+        raise HTTPException(403, "Only owners / admins can publish versions")
+    v = await db.crm_price_list_versions.find_one({"id": version_id, **_of(user)}, {"_id": 0})
+    if not v:
+        raise HTTPException(404, "Version not found")
+    await db.crm_price_list_versions.update_many({**_of(user), "status": "live"}, {"$set": {"status": "archived", "archived_at": _now()}})
+    await db.crm_price_list_versions.update_one({"id": version_id, **_of(user)}, {"$set": {"status": "live", "published_at": _now()}})
+    await log_audit(user, "price_list_version", version_id, "published")
+    return {"published": True, "id": version_id}
 
 
 @router.get("/stats")
@@ -474,5 +675,7 @@ async def ensure_price_list_indexes() -> None:
         await db.crm_price_import_files.create_index([("import_id", 1)])
         await db.crm_price_list_versions.create_index([("organization_id", 1), ("created_at", -1)])
         await db.crm_products.create_index([("organization_id", 1), ("import_batch_id", 1)])
+        await db.crm_price_list_version_items.create_index([("version_id", 1), ("organization_id", 1)])
+        await db.crm_price_list_version_items.create_index([("version_id", 1), ("sku", 1)])
     except Exception:
         logger.exception("ensure_price_list_indexes failed (non-fatal)")

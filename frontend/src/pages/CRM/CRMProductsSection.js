@@ -9,9 +9,12 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database } from 'lucide-react';
+import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock } from 'lucide-react';
 import CRMPriceListImportWizard from './CRMPriceListImportWizard';
 import CRMProductDrawer from './CRMProductDrawer';
+import CRMBulkPriceModal from './CRMBulkPriceModal';
+import CRMPriceVersionsModal from './CRMPriceVersionsModal';
+import CRMPriceChangesModal from './CRMPriceChangesModal';
 
 const EDITOR_ROLES = ['admin', 'owner', 'manager'];
 
@@ -40,6 +43,11 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   const [showWizard, setShowWizard] = useState(false);
   const [drawerProduct, setDrawerProduct] = useState(null);
   const [stats, setStats] = useState(null);
+  const [showVersions, setShowVersions] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
+  const [showChanges, setShowChanges] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isApprover, setIsApprover] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +70,14 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
     } catch (e) { /* silent */ }
   }, [API, headers]);
 
+  const loadChangesMeta = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/crm/price-list/price-changes`, { headers: headers(), params: { status: 'pending' } });
+      setPendingCount(r.data.pending_count || 0);
+      setIsApprover(!!r.data.is_approver);
+    } catch (e) { /* silent */ }
+  }, [API, headers]);
+
   const loadCategories = useCallback(async () => {
     try {
       const r = await axios.get(`${API}/crm/products/categories`, { headers: headers() });
@@ -72,6 +88,7 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadCategories(); }, [loadCategories]);
   useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { loadChangesMeta(); }, [loadChangesMeta]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -176,7 +193,37 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
           </h3>
           <p className="text-xs mt-0.5" style={{ color: c.textDim }}>Products + services with cost & sell prices. Powers margin calculations on quotes.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setShowBulk(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+              style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+              data-testid="products-bulk-price-btn"
+            >
+              <Calculator size={12} /> Bulk price change
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowVersions(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+            style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+            data-testid="products-versions-btn"
+          >
+            <GitCompare size={12} /> Versions
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowChanges(true)}
+            className="relative inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+            style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+            data-testid="products-approvals-btn"
+          >
+            <Clock size={12} /> Approvals
+            {pendingCount > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--color-accent-amber)' }} data-testid="products-pending-badge">{pendingCount}</span>}
+          </button>
           {canEdit && (
             <button
               type="button"
@@ -337,6 +384,23 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
           product={drawerProduct} canEdit={canEdit}
           onClose={() => setDrawerProduct(null)}
           onSaved={() => { load(); loadStats(); }} />
+      )}
+      {showBulk && (
+        <CRMBulkPriceModal API={API} headers={headers} c={c} isDark={isDark}
+          categories={categories} suppliers={stats?.suppliers || []}
+          onClose={() => setShowBulk(false)}
+          onDone={() => { load(); loadStats(); loadChangesMeta(); }} />
+      )}
+      {showVersions && (
+        <CRMPriceVersionsModal API={API} headers={headers} c={c} isDark={isDark}
+          isApprover={isApprover}
+          onClose={() => setShowVersions(false)}
+          onChanged={() => { load(); loadStats(); }} />
+      )}
+      {showChanges && (
+        <CRMPriceChangesModal API={API} headers={headers} c={c} isDark={isDark}
+          onClose={() => setShowChanges(false)}
+          onChanged={() => { load(); loadStats(); loadChangesMeta(); }} />
       )}
 
       {/* Create / edit modal */}

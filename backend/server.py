@@ -570,6 +570,17 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"gdpr erasure auto-executor start failed: {e}")
 
+    # Iter 220 P1 — CRM Master Price List scheduled price-change sweep.
+    # Applies approved/scheduled bulk or single price changes when their
+    # effective date arrives. Idempotent (status flips to 'applied').
+    try:
+        from routes.crm_price_changes import run_scheduled_price_changes_loop
+        _pc_int = int(os.environ.get("PRICE_CHANGE_SWEEP_MIN", "30"))
+        asyncio.create_task(run_scheduled_price_changes_loop(interval_minutes=_pc_int))
+        logger.info("[price-changes] scheduled sweep registered (interval=%dm)", _pc_int)
+    except Exception as e:
+        logger.error(f"price-change sweep start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:

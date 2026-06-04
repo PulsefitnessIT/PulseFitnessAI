@@ -115,6 +115,25 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
               </div>
             </div>
           )}
+          {/* Price history */}
+          {Array.isArray(product.price_history) && product.price_history.length > 0 && (
+            <div className="rounded-lg border" style={{ borderColor: border }} data-testid="product-drawer-history">
+              <div className="px-3 py-1.5 text-xs font-semibold border-b" style={{ color: c.text, borderColor: border }}>
+                Price history ({product.price_history.length})
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {[...product.price_history].reverse().map((h, i) => (
+                  <div key={i} className="px-3 py-1.5 border-t text-xs flex items-center justify-between gap-2" style={{ borderColor: border }}>
+                    <span style={{ color: c.textMuted }}>
+                      {(h.field || '').replace('_', ' ')} {h.old != null ? <><s style={{ color: c.textDim }}>£{h.old}</s> → <strong style={{ color: c.text }}>£{h.new}</strong></> : null}
+                      {h.reason ? <span style={{ color: c.textDim }}> · {h.reason}</span> : null}
+                    </span>
+                    <span style={{ color: c.textDim }} className="whitespace-nowrap">{h.by} · {h.at ? new Date(h.at).toLocaleDateString() : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {canEdit && (
