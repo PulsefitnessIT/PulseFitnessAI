@@ -29,6 +29,11 @@ _Last refreshed: Iter 220m · May 26, 2026._
 - **Data-Quality Dashboard** (final slice) — `crm_price_quality.py` (`/quality`, `/quality/list`, `/quality/report.csv`) wired into the Master Price List UI via `CRMDataQualityModal` (button `products-quality-btn` in `CRMProductsSection.js`). Health score, 11 issue cards (missing Sage/price/cost/category, low margin, cost>sell, duplicate SKU, obsolete, never-quoted, has-imported-data, recently re-priced), drill-down lists, per-issue CSV export, margin-by-category. Tested: backend 9/9 pytest + full frontend e2e (PASS, no bugs).
 - Earlier slices (same engine): zero-data-loss import wizard + AI mapping, version compare/rollback, price-change approval workflow, Quote intelligence + Sage 200 export prep, secure weekly/manual backup exports.
 
+## ✅ Reusable mapping templates — SHIPPED (iter 220p1, Jun 4 2026)
+- New `GET/POST /crm/price-list/import-templates` (upsert by name) + `DELETE /import-templates/{id}`. Wizard mapping step has a template toolbar: **Save current mapping** (names + stores the per-sheet column→field map) and **Apply a saved template** (re-applies it to a new import, matching sheets by name; single-sheet templates apply anywhere).
+- Lets a recurring supplier file be re-mapped in one click each month.
+- Verified: 4/4 pytest (`test_iter_220p1_import_templates.py`) + frontend e2e (save/apply/preview PASS).
+
 ## P1 — Next (Master Price List follow-ups)
 
 - ✅ **AI Support enhancements — SHIPPED (iter 220p1, Jun 4 2026)** — `crm_price_ai.py` (reuses Claude Sonnet via Emergent LLM key): (1) per-product **AI improve grammar** in the product drawer (grammar-only, meaning preserved, reviewable Use/Discard); (2) import-wizard Preview **AI explain issues** (plain-English summary + flagged rows + next steps); (3) Master Price List **Suggest bundles** (3-5 AI suggestions, one-click create, suggestions only). Tested: backend 7/7 pytest + full frontend e2e on all 3 (PASS).
