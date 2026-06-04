@@ -24,6 +24,16 @@ _Last refreshed: Iter 220m · May 26, 2026._
 
 - _none — Partner Engineer P0 gates all sealed (iter 220k). Awaiting soft-launch traction data._
 
+## ✅ P0 shipped — Master Price List engine (iter 220p1, Jun 4 2026)
+
+- **Data-Quality Dashboard** (final slice) — `crm_price_quality.py` (`/quality`, `/quality/list`, `/quality/report.csv`) wired into the Master Price List UI via `CRMDataQualityModal` (button `products-quality-btn` in `CRMProductsSection.js`). Health score, 11 issue cards (missing Sage/price/cost/category, low margin, cost>sell, duplicate SKU, obsolete, never-quoted, has-imported-data, recently re-priced), drill-down lists, per-issue CSV export, margin-by-category. Tested: backend 9/9 pytest + full frontend e2e (PASS, no bugs).
+- Earlier slices (same engine): zero-data-loss import wizard + AI mapping, version compare/rollback, price-change approval workflow, Quote intelligence + Sage 200 export prep, secure weekly/manual backup exports.
+
+## P1 — Next (Master Price List follow-ups)
+
+- **AI Support enhancements** — clean product descriptions, summarise import errors, suggest bundles (beyond column mapping).
+- **Field-level permission hardening** — ensure Sales users cannot see cost/margin unless permitted (verify across quality dashboard, drill-downs, CSV exports too).
+
 ---
 
 ## P1 — Outstanding integrations (blocked on credentials)
