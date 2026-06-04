@@ -704,6 +704,11 @@ ORG_ALLOWED_FIELDS = {
     # step-2 form is filled. The ProfileCompletionGate on the
     # frontend reads this to decide whether to block the dashboard.
     "profile_completed_at",
+    # Iter 220p1 — localization market (USA readiness). country_code is
+    # ISO-3166 alpha-2 and drives currency/timezone/tax defaults via
+    # utils.localization. Editable from Account Settings → Organisation
+    # or the dedicated /api/org/localization endpoint.
+    "country_code", "currency", "timezone",
 }
 
 

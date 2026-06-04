@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { Camera, Loader2, Trash2 } from 'lucide-react';
 import { API, useAuthHeaders, FieldRow } from './shared';
+import LocalizationPanel from './LocalizationPanel';
 
 
 export default function OrganisationSection({ billing, profile }) {
@@ -150,6 +151,8 @@ export default function OrganisationSection({ billing, profile }) {
           Joined {billing?.member_since ? new Date(billing.member_since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
         </div>
       </div>
+
+      <LocalizationPanel />
 
       {/* Iter 216h58 — drag-and-drop logo zone with auto-extracted
           brand-colour palette. Replaces the static button-only layout

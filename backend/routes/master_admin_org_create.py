@@ -46,6 +46,25 @@ from routes.master_admin import (
 router = APIRouter()
 
 
+def _localization_fields(body: dict) -> dict:
+    """Iter 220p1 — resolve country/currency/timezone for a new org.
+
+    A ``country_code`` derives the currency + timezone defaults; explicit
+    ``currency`` / ``timezone`` in the body override. Only emits keys that
+    were resolved (defaults to GB when nothing supplied)."""
+    from utils.localization import country_config, COUNTRY_CONFIG, CURRENCY_SYMBOLS
+    code = (body.get("country_code") or "").strip().upper()
+    if not code or code not in COUNTRY_CONFIG:
+        code = "GB"
+    cfg = country_config(code)
+    currency = (body.get("currency") or cfg["currency"]).strip().upper()
+    if currency not in CURRENCY_SYMBOLS:
+        currency = cfg["currency"]
+    timezone_ = (body.get("timezone") or cfg["timezone"]).strip()
+    return {"country_code": code, "currency": currency, "timezone": timezone_}
+
+
+
 @router.post("/master-admin/organizations")
 async def create_organization(body: dict = Body(...), user: dict = Depends(get_current_user)):
     """Create a new organisation (Service Portal, CRM, or both)."""
@@ -106,6 +125,9 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
         "primary_contact_name": body.get("primary_contact_name", ""),
         "primary_contact_email": body.get("primary_contact_email", ""),
         "primary_contact_phone": body.get("primary_contact_phone", ""),
+        # Iter 220p1 — localization market. Defaults to UK when unset;
+        # picking a country auto-derives currency + timezone defaults.
+        **_localization_fields(body),
         "notes": body.get("notes", ""),
         "features": body.get("features", {}),
     }

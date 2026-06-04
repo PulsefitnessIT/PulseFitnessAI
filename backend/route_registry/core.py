@@ -24,12 +24,13 @@ from routes.ui_errors import router as ui_errors_router
 from routes.client_errors import router as client_errors_router
 from routes.platform_issues import router as platform_issues_router
 from routes.marketing_downloads import router as marketing_downloads_router
+from routes.localization import router as localization_router
 
 
 def register_core(api_router: APIRouter) -> None:
     for r in (
         auth_router, account_router, site_data_export_router,
-        master_admin_perf_router,
+        master_admin_perf_router, localization_router,
         equipment_router, issues_router, files_router, files_chunked_router,
         payments_router, sites_router, fault_codes_router, fault_templates_router,
         support_router, support_escalate_router, nudges_router, security_manifest_router,

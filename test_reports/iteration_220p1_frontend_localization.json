@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend verification of Iter 220p1 USA localization UI. The new LocalizationPanel (data-testid=account-section-localization) is correctly implemented in /app/frontend/src/components/shared/AccountSettings/LocalizationPanel.js and is referenced by OrganisationSection in AccountSettingsModal. HOWEVER, when logging in as the master admin (admin@gymaxisai.com / MasterAdmin123!), the navbar avatar menu → Account opens the LEGACY AccountPanel (pages/AccountPanel.js, titled 'Account Details'), NOT the new AccountSettingsModal. Because Navbar.js gates which modal is shown on user.is_master_admin || user.is_pulse_admin and renders the legacy AccountPanel for those users, the LocalizationPanel is UNREACHABLE for the provided test credentials. EngineerInvoiceBuilder code-level no-regression looks correct (uses useLocalization, fmt, loc.tax_label, sym from loc.currency_symbol). UI-level engineer invoice run was skipped (no engineer credentials).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Navbar.js / AccountPanel.js",
+        "issue": "Master admin (and Pulse admin) accounts are routed to the legacy AccountPanel which does NOT render the new LocalizationPanel. Per task brief, master admin admin@gymaxisai.com is OWNER+master admin of 'GymAxis AI Admin' org and is intended to edit localization via the Organisation section of Account Settings, but the new Region & currency panel is unreachable for this user via the navbar avatar menu.",
+        "selector": "[data-testid=nav-user-menu-btn] → [data-testid=nav-account-btn] (currently opens legacy 'Account Details' modal instead of AccountSettingsModal)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Org owner sets US market → save toast → revert to GB → save toast",
+        "issue": "Could not exercise end-to-end because LocalizationPanel is not rendered in the modal shown to master admin / owner of GymAxis AI Admin org. Switch-Country auto-update of currency/timezone/tax label, Save market toast, and the GB→US→GB revert flow are therefore NOT-VERIFIED through the UI.",
+        "affected_selectors": ["account-section-localization", "localization-country-select", "localization-currency-select", "localization-timezone-select", "localization-save-btn"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Make the master-admin (and pulse-admin) Account menu render the new AccountSettingsModal (which contains OrganisationSection → LocalizationPanel) when the user is also an org owner. Quick fix: update the gate in /app/frontend/src/components/shared/Navbar.js (lines ~895-899) so master admins still get the new modal, e.g. always render AccountSettingsModal OR render BOTH so they can pick. Alternative: embed <LocalizationPanel/> inside the legacy /app/frontend/src/pages/AccountPanel.js Organisation section.",
+    "After the routing fix, re-run the LocalizationPanel UI verification flow (default GB/GBP/Europe/London + 'VAT' note → switch to US → currency snaps USD, timezone snaps US zone, tax note → 'Sales Tax' → Save market success toast naming 'United States · USD' → REVERT to United Kingdom and Save again → toast 'United Kingdom · GBP'). CRITICAL: leave org as GB at the end.",
+    "Engineer Invoice Builder no-regression UI check still pending (no engineer credentials in test_credentials.md). Code review shows it correctly uses loc.tax_label and loc.currency_symbol, so likely fine."
+  ],
+  "critical_code_review_comments": [
+    "Navbar.js gates new vs legacy account modal on is_master_admin/is_pulse_admin. This conflicts with the Iter 220p1 design where the same master-admin user is also an org owner that should be able to edit localization. Either unify on AccountSettingsModal for all roles, or add LocalizationPanel to the legacy AccountPanel.",
+    "LocalizationPanel.js itself is clean: proper data-testids, disables controls when !can_edit, snaps currency+timezone to selected country, calls invalidateLocalization() after save, shows success toast with country + currency. No code-level issues spotted."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per task)", "frontend": "0% — UI flow blocked by master-admin modal routing"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (master admin + owner of GymAxis AI Admin org). Login works, lands at /master-admin. Switching to GymAxis Portal → /dashboard?as=operator. Clicking the avatar → Account opens the legacy 'Account Details' modal, not the new settings modal.",
+  "seed_data_creation": "None. Master-admin org left untouched (still GB / GBP / Europe/London because the US change could not be triggered through the UI).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent updates Navbar.js to render AccountSettingsModal for master-admin/owner users (or embeds LocalizationPanel in legacy AccountPanel), re-run: (1) avatar → Account → Organisation section → assert account-section-localization visible with country=GB, currency=GBP, timezone=Europe/London and 'Tax is shown as VAT' note; (2) select Country=US → assert currency auto-updates to USD, timezone to a US zone, tax note becomes 'Sales Tax'; (3) click localization-save-btn → assert toast contains 'United States' and 'USD'; (4) select Country=GB again → assert currency back to GBP → click Save → assert toast contains 'United Kingdom' and 'GBP'. Verify final state is GB. Engineer invoice builder UI run can be skipped if engineer creds unavailable; code is already correctly wired.",
+  "rca of the issue": "Root cause: /app/frontend/src/components/shared/Navbar.js lines 895-899: `{user?.is_master_admin || user?.is_pulse_admin ? <AccountPanel.../> : <AccountSettingsModal.../>}`. Since the test credentials are a master admin, the legacy AccountPanel renders. The legacy AccountPanel (/app/frontend/src/pages/AccountPanel.js) does not import or render LocalizationPanel. The new AccountSettingsModal → OrganisationSection (which DOES render <LocalizationPanel/>) is therefore unreachable. Reproduction: log in as admin@gymaxisai.com → click avatar → Account → modal title is 'Account Details' with sections SUBSCRIPTION/ORGANISATION/MEMBERSHIP/PAYMENT HISTORY only, no Region & currency panel. Mitigation: remove the master-admin gate OR include LocalizationPanel inside the legacy panel's Organisation block."
+}

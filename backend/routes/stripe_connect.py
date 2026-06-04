@@ -44,6 +44,32 @@ def _effective_fee(org: dict | None) -> float:
         return float(org["membership_platform_fee_pct"])
     return PLATFORM_FEE_PERCENT
 
+
+def _express_account_kwargs(org: dict, body: dict, *, source: str, org_id: str) -> dict:
+    """Build Stripe Account.create kwargs with country-aware capabilities.
+
+    Iter 220p1 — USA readiness. Country resolves from the request, then the
+    org's ``country_code``, defaulting to GB. ``bacs_debit_payments`` is a
+    UK-only capability, so it's only requested for GB accounts (Stripe rejects
+    it for US/other-country accounts).
+    """
+    country = (body.get("country") or org.get("country_code") or "GB").strip().upper()
+    capabilities = {
+        "card_payments": {"requested": True},
+        "transfers": {"requested": True},
+    }
+    if country == "GB":
+        capabilities["bacs_debit_payments"] = {"requested": True}
+    return {
+        "type": "express",
+        "country": country,
+        "email": org.get("contact_email") or org.get("email") or "",
+        "business_profile": {"name": org.get("name")},
+        "capabilities": capabilities,
+        "metadata": {"organization_id": org_id, "source": source},
+    }
+
+
 router = APIRouter(tags=["stripe-connect"])
 
 
@@ -178,16 +204,7 @@ async def onboarding_link(
     try:
         if not acct_id:
             account = stripe.Account.create(
-                type="express",
-                country=(body.get("country") or "GB"),
-                email=org.get("contact_email") or org.get("email"),
-                business_profile={"name": org.get("name")},
-                capabilities={
-                    "card_payments": {"requested": True},
-                    "transfers": {"requested": True},
-                    "bacs_debit_payments": {"requested": True},
-                },
-                metadata={"organization_id": organization_id, "source": "gymaxis"},
+                **_express_account_kwargs(org, body, source="gymaxis", org_id=organization_id),
             )
             acct_id = account.id
             await db.organizations.update_one(
@@ -240,18 +257,9 @@ async def my_onboarding_link(
     sep = "&" if "?" in return_path else "?"
     try:
         if not acct_id:
-            account = stripe.Account.create(
-                type="express",
-                country=(body.get("country") or "GB"),
-                email=org.get("contact_email") or org.get("email") or user.get("email"),
-                business_profile={"name": org.get("name")},
-                capabilities={
-                    "card_payments": {"requested": True},
-                    "transfers": {"requested": True},
-                    "bacs_debit_payments": {"requested": True},
-                },
-                metadata={"organization_id": org_id, "source": "gymaxis_owner_self_serve"},
-            )
+            _kw = _express_account_kwargs(org, body, source="gymaxis_owner_self_serve", org_id=org_id)
+            _kw["email"] = org.get("contact_email") or org.get("email") or user.get("email") or ""
+            account = stripe.Account.create(**_kw)
             acct_id = account.id
             await db.organizations.update_one(
                 {"id": org_id},

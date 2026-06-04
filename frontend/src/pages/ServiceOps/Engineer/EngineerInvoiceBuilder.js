@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { outboxPost } from '@/utils/engineerOutbox';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -22,7 +23,6 @@ const KIND_OPTIONS = [
   { id: 'other',   label: 'Other' },
 ];
 const emptyLine = (kind = 'labour') => ({ kind, description: '', quantity: 1, unit_price: 0, notes: '' });
-const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function computeTotals(lines, vatRate, discountPct) {
   const sub = lines.reduce((a, ln) => a + (Number(ln.quantity) || 0) * (Number(ln.unit_price) || 0), 0);
@@ -41,6 +41,10 @@ export default function EngineerInvoiceBuilder() {
   const navigate = useNavigate();
   const { id: invoiceId } = useParams();
   const isNew = !invoiceId;
+  // Iter 220p1 — localization (currency + tax vocabulary). Defaults to UK.
+  const loc = useLocalization();
+  const fmt = useCallback((n) => formatMoney(n, loc), [loc]);
+  const sym = loc.currency_symbol || '£';
   // Iter 220ct — quote → invoice continuity. When the engineer
   // taps "Create invoice" from a job, we land here with ?case_id=…
   // and pull labour / mileage / parts directly from the case.
@@ -67,6 +71,16 @@ export default function EngineerInvoiceBuilder() {
   // warning. Loaded lazily when we open the modal so a missing token
   // (engineer hasn't connected yet) doesn't block invoice editing.
   const [connect, setConnect] = useState(null);
+
+  // Iter 220p1 — for a brand-new invoice, seed the tax rate from the org's
+  // market default (e.g. 0% for the US where tax is a manual line). Only
+  // applies before the engineer has touched the field.
+  const [taxTouched, setTaxTouched] = useState(false);
+  useEffect(() => {
+    if (isNew && !taxTouched && loc && typeof loc.default_tax_rate === 'number') {
+      setForm((f) => ({ ...f, vat_rate: loc.default_tax_rate }));
+    }
+  }, [isNew, taxTouched, loc]);
 
   const load = useCallback(async () => {
     if (isNew) return;
@@ -347,8 +361,8 @@ export default function EngineerInvoiceBuilder() {
                 <th className="text-left py-2 pr-2">Type</th>
                 <th className="text-left py-2 pr-2">Description</th>
                 <th className="text-right py-2 pr-2 w-20">Qty</th>
-                <th className="text-right py-2 pr-2 w-28">Unit £</th>
-                <th className="text-right py-2 pr-2 w-28">Total £</th>
+                <th className="text-right py-2 pr-2 w-28">Unit {sym}</th>
+                <th className="text-right py-2 pr-2 w-28">Total {sym}</th>
                 <th className="w-8"></th>
               </tr></thead>
               <tbody>
@@ -370,7 +384,7 @@ export default function EngineerInvoiceBuilder() {
                       <td className="py-1.5 pr-2">
                         <input type="number" step="0.01" className="w-full text-sm text-right border border-slate-200 rounded px-2 py-1 bg-white tabular-nums" value={ln.unit_price} disabled={readOnly} onChange={e => lineChange(i, 'unit_price', e.target.value)} data-testid={`ib-line-${i}-unit`} />
                       </td>
-                      <td className="py-1.5 pr-2 text-right font-semibold text-slate-700 tabular-nums">£{total.toFixed(2)}</td>
+                      <td className="py-1.5 pr-2 text-right font-semibold text-slate-700 tabular-nums">{fmt(total)}</td>
                       <td className="py-1.5">
                         {!readOnly && <button onClick={() => removeLine(i)} className="p-1 text-slate-400 hover:text-rose-600" aria-label="Remove" data-testid={`ib-line-${i}-remove`}><Trash2 size={14} /></button>}
                       </td>
@@ -395,8 +409,8 @@ export default function EngineerInvoiceBuilder() {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 w-28">VAT %</label>
-                <input type="number" step="0.5" className="w-24 text-sm text-right border border-slate-200 rounded px-2 py-1 bg-white tabular-nums" value={form.vat_rate} disabled={readOnly} onChange={e => setForm(f => ({ ...f, vat_rate: Number(e.target.value) }))} data-testid="ib-vat-rate" />
+                <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 w-28">{loc.tax_label} %</label>
+                <input type="number" step="0.5" className="w-24 text-sm text-right border border-slate-200 rounded px-2 py-1 bg-white tabular-nums" value={form.vat_rate} disabled={readOnly} onChange={e => { setTaxTouched(true); setForm(f => ({ ...f, vat_rate: Number(e.target.value) })); }} data-testid="ib-vat-rate" />
               </div>
               <div className="flex items-center gap-3">
                 <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 w-28">Discount %</label>
@@ -408,12 +422,12 @@ export default function EngineerInvoiceBuilder() {
               </div>
             </div>
             <div className="space-y-1.5 text-sm bg-slate-50 rounded-xl p-4" data-testid="ib-totals-summary">
-              <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="tabular-nums">{fmtGBP(totals.subtotal)}</span></div>
+              <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="tabular-nums">{fmt(totals.subtotal)}</span></div>
               {totals.discountAmount > 0 && (
-                <div className="flex justify-between text-rose-600"><span>Discount ({form.discount_pct}%)</span><span className="tabular-nums">-{fmtGBP(totals.discountAmount)}</span></div>
+                <div className="flex justify-between text-rose-600"><span>Discount ({form.discount_pct}%)</span><span className="tabular-nums">-{fmt(totals.discountAmount)}</span></div>
               )}
-              <div className="flex justify-between text-slate-600"><span>VAT ({form.vat_rate}%)</span><span className="tabular-nums">{fmtGBP(totals.vatAmount)}</span></div>
-              <div className="border-t border-slate-200 pt-2 flex justify-between text-lg font-extrabold text-slate-900"><span>Total due</span><span className="tabular-nums text-blue-700">{fmtGBP(totals.total)}</span></div>
+              <div className="flex justify-between text-slate-600"><span>{loc.tax_label} ({form.vat_rate}%)</span><span className="tabular-nums">{fmt(totals.vatAmount)}</span></div>
+              <div className="border-t border-slate-200 pt-2 flex justify-between text-lg font-extrabold text-slate-900"><span>Total due</span><span className="tabular-nums text-blue-700">{fmt(totals.total)}</span></div>
             </div>
           </div>
         </Section>

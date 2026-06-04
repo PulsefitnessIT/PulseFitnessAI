@@ -156,7 +156,7 @@ async def _ensure_payment_link(invoice: dict) -> dict:
             mode="payment",
             line_items=[{
                 "price_data": {
-                    "currency": "gbp",
+                    "currency": (invoice.get("currency") or "GBP").lower(),
                     "product_data": {
                         "name": f"{invoice.get('invoice_number') or 'Invoice'} · {invoice.get('description_of_work') or 'Engineer invoice'}",
                         "description": (invoice.get("description_of_work") or "")[:300] or None,

@@ -77,6 +77,18 @@ async def _engineer_vat_settings(user: dict) -> dict:
     }
 
 
+async def _org_loc(user: dict) -> dict:
+    """Iter 220p1 — resolve the org's localization (currency / tax / market).
+    Defaults to UK/GBP/VAT when the org is unset or not found."""
+    from utils.localization import org_localization
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")},
+        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    )
+    return org_localization(org)
+
+
+
 def _compute_totals(lines: list[dict], vat_rate: float, discount_pct: float = 0) -> dict:
     subtotal = 0.0
     for ln in lines:
@@ -199,8 +211,13 @@ def _build_invoice_payload(
     issue_date: datetime, payment_terms_days: int,
     body: dict, case_snapshot: dict | None = None,
     vat_settings: dict | None = None,
+    loc: dict | None = None,
 ) -> dict:
     case = case_snapshot or {}
+    # Iter 220p1 — localization. Currency, tax vocabulary and the default
+    # tax rate now follow the org's market (defaults to UK/GBP/VAT 20%).
+    from utils.localization import org_localization
+    loc = loc or org_localization(None)
     due_date = (issue_date + timedelta(days=payment_terms_days)).date().isoformat()
     lines_dicts = [
         ln if isinstance(ln, dict) else ln.model_dump()
@@ -209,8 +226,11 @@ def _build_invoice_payload(
     # Iter 220l — honour the engineer's VAT-registered flag. If they
     # ticked "Not VAT registered", force vat_rate=0 on the invoice so
     # they can't accidentally charge VAT they aren't entitled to.
+    # Iter 220p1 — when no rate is supplied, fall back to the market's
+    # default tax rate (e.g. 0% for the US, where tax is a manual line).
     vat = vat_settings or {"vat_registered": True, "vat_number": None}
-    requested_rate = body.get("vat_rate", 20) or 20
+    requested = body.get("vat_rate")
+    requested_rate = float(requested) if requested is not None else float(loc["default_tax_rate"])
     effective_rate = 0 if not vat.get("vat_registered") else requested_rate
     totals = _compute_totals(lines_dicts, effective_rate,
                               body.get("discount_pct", 0) or 0)
@@ -237,6 +257,11 @@ def _build_invoice_payload(
         "description_of_work": body.get("description_of_work") or "",
         "lines": lines_dicts,
         **totals,
+        # Iter 220p1 — localization snapshot (frozen at issue time).
+        "currency": loc["currency"],
+        "currency_symbol": loc["currency_symbol"],
+        "tax_label": loc["tax_label"],
+        "country_code": loc["country_code"],
         # Iter 220l — VAT exemption snapshot (frozen at issue time so
         # later toggles don't retroactively rewrite history).
         "vat_exempt": not vat.get("vat_registered"),
@@ -244,7 +269,7 @@ def _build_invoice_payload(
         "issue_date": issue_date.date().isoformat(),
         "payment_terms_days": payment_terms_days,
         "due_date": due_date,
-        "payment_method": body.get("payment_method") or "BACS",
+        "payment_method": body.get("payment_method") or loc["payment_method"],
         "payment_instructions": body.get("payment_instructions") or "",
         "bank_name": body.get("bank_name") or "",
         "bank_account_name": body.get("bank_account_name") or "",
@@ -254,6 +279,8 @@ def _build_invoice_payload(
         "terms": body.get("terms") or (
             f"Payment due within {payment_terms_days} days. Late payment may "
             "incur interest under the Late Payment of Commercial Debts Act 1998."
+            if loc["country_code"] == "GB"
+            else f"Payment due within {payment_terms_days} days."
         ),
         "status": "draft",
         "status_history": [{"status": "draft", "at": _now(), "by": user.get("email")}],
@@ -429,6 +456,7 @@ async def create_invoice(
     ) if body.case_id else {}
     engineer = await _engineer_profile(user)
     vat_settings = await _engineer_vat_settings(user)
+    loc = await _org_loc(user)
     issue_date = datetime.now(timezone.utc)
     inv = _build_invoice_payload(
         user=user, engineer=engineer,
@@ -437,6 +465,7 @@ async def create_invoice(
         body=body.model_dump(),
         case_snapshot=case or {},
         vat_settings=vat_settings,
+        loc=loc,
     )
     inv["idempotency_key"] = idempotency_key or None
     await db.svc_engineer_invoices.insert_one({**inv})
@@ -472,6 +501,7 @@ async def create_invoice_from_quote(quote_id: str, user=Depends(get_current_user
         raise HTTPException(409, "Only accepted (or sent) quotes can be invoiced")
     engineer = await _engineer_profile(user)
     vat_settings = await _engineer_vat_settings(user)
+    loc = await _org_loc(user)
     issue_date = datetime.now(timezone.utc)
     body = {
         "case_id": quote.get("case_id"),
@@ -497,6 +527,7 @@ async def create_invoice_from_quote(quote_id: str, user=Depends(get_current_user
         issue_date=issue_date, payment_terms_days=14,
         body=body, case_snapshot=case_snapshot,
         vat_settings=vat_settings,
+        loc=loc,
     )
     await db.svc_engineer_invoices.insert_one({**inv})
     # Mark quote as invoiced
