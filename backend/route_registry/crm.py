@@ -27,6 +27,7 @@ from routes.crm_forecast import router as crm_forecast_router
 from routes.crm_picklists import router as crm_picklists_router
 from routes.crm_stakeholders import router as crm_stakeholders_router
 from routes.crm_products import router as crm_products_router
+from routes.crm_price_list import router as crm_price_list_router
 from routes.crm_website_recognize import router as crm_website_recognize_router
 from routes.crm_reports import router as crm_reports_router
 from routes.crm_phase3 import router as crm_phase3_router
@@ -46,6 +47,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_modes_router, crm_territories_router,
         crm_audit_router, crm_permissions_router, crm_forecast_router,
         crm_picklists_router, crm_stakeholders_router, crm_products_router,
+        crm_price_list_router,
         crm_website_recognize_router,
         crm_reports_router, crm_phase3_router,
         crm_journey_enrol_router,

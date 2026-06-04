@@ -134,12 +134,14 @@ async def seed_services() -> None:
         from routes.crm_picklists import seed_global_picklists
         from routes.crm_stakeholders import ensure_stakeholder_indexes
         from routes.crm_products import ensure_product_indexes
+        from routes.crm_price_list import ensure_price_list_indexes
         from routes.crm_website_recognize import ensure_website_cache_indexes
         from utils.tenant_mirror import ensure_tenant_mirror_indexes, mirror_pulse_tenants_to_crm
         from routes.incidents import ensure_incident_indexes
         await seed_global_picklists()
         await ensure_stakeholder_indexes()
         await ensure_product_indexes()
+        await ensure_price_list_indexes()
         await ensure_website_cache_indexes()
         await ensure_tenant_mirror_indexes()
         await ensure_incident_indexes()

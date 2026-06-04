@@ -9,18 +9,25 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save } from 'lucide-react';
+import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database } from 'lucide-react';
+import CRMPriceListImportWizard from './CRMPriceListImportWizard';
+import CRMProductDrawer from './CRMProductDrawer';
+
+const EDITOR_ROLES = ['admin', 'owner', 'manager'];
 
 const DEFAULT_CATEGORIES = [
   'Equipment', 'Service', 'Labour', 'Callout',
   'Maintenance Plan', 'Membership', 'Parts', 'Discount', 'Other',
 ];
 
-export default function CRMProductsSection({ API, headers, c, isDark }) {
+export default function CRMProductsSection({ API, headers, c, isDark, user }) {
+  const canEdit = !!(user?.is_master_admin || user?.is_pulse_admin || EDITOR_ROLES.includes((user?.role || '').toLowerCase())) || !user;
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
+  const [filterStatus, setFilterStatus] = useState('active');
+  const [onlyUnmapped, setOnlyUnmapped] = useState(false);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -30,16 +37,30 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
   const [editingId, setEditingId] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [showWizard, setShowWizard] = useState(false);
+  const [drawerProduct, setDrawerProduct] = useState(null);
+  const [stats, setStats] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await axios.get(`${API}/crm/products`, { headers: headers(), params: { search, category: filterCat, active: true } });
+      const params = { search, category: filterCat };
+      if (filterStatus === 'active') params.active = true;
+      else if (filterStatus === 'archived') params.active = false;
+      if (onlyUnmapped) params.has_unmapped = true;
+      const r = await axios.get(`${API}/crm/products`, { headers: headers(), params });
       setProducts(r.data.products || []);
       setTotal(r.data.total || 0);
     } catch (e) { /* silent */ }
     setLoading(false);
-  }, [API, headers, search, filterCat]);
+  }, [API, headers, search, filterCat, filterStatus, onlyUnmapped]);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/crm/price-list/stats`, { headers: headers() });
+      setStats(r.data);
+    } catch (e) { /* silent */ }
+  }, [API, headers]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -50,6 +71,7 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadCategories(); }, [loadCategories]);
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -155,21 +177,54 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
           <p className="text-xs mt-0.5" style={{ color: c.textDim }}>Products + services with cost & sell prices. Powers margin calculations on quotes.</p>
         </div>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setShowWizard(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md text-white"
+              style={{ background: 'var(--color-success-alt)' }}
+              data-testid="products-import-wizard-btn"
+            >
+              <FileSpreadsheet size={12} /> Import spreadsheet
+            </button>
+          )}
           <input type="file" accept=".csv" onChange={onImport} className="hidden" id="products-csv-upload" data-testid="products-csv-input" />
-          <label htmlFor="products-csv-upload" className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border" style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textMuted }}>
-            {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />} Import CSV
-          </label>
-          <button
-            type="button"
-            onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '', is_bundle: false, bundle_items: [] }); }}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md text-white"
-            style={{ background: 'var(--color-info-ios)' }}
-            data-testid="products-add-btn"
-          >
-            <Plus size={12} /> Add product
-          </button>
+          {canEdit && (
+            <label htmlFor="products-csv-upload" className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border" style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textMuted }}>
+              {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />} Quick CSV
+            </label>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '', is_bundle: false, bundle_items: [] }); }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md text-white"
+              style={{ background: 'var(--color-info-ios)' }}
+              data-testid="products-add-btn"
+            >
+              <Plus size={12} /> Add product
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Data-quality strip */}
+      {stats && (
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3" data-testid="products-stats">
+          {[
+            ['Products', stats.total, c.text],
+            ['Archived', stats.archived, c.textMuted],
+            ['Missing Sage', stats.missing_sage, 'var(--color-accent-amber)'],
+            ['Missing price', stats.missing_price, 'var(--color-danger-alt)'],
+            ['With imported data', stats.with_unmapped, 'var(--color-info-ios)'],
+          ].map(([label, val, col]) => (
+            <div key={label} className="rounded-md border px-2.5 py-1.5" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', background: isDark ? 'var(--color-surface-dark-2)' : 'rgba(241,245,249,0.4)' }}>
+              <div className="text-base font-bold leading-none" style={{ color: col }}>{val}</div>
+              <div className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: c.textDim }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {importResult && (
         <div className="mb-3 px-3 py-2 rounded-md text-xs" style={{
@@ -207,6 +262,20 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
           <option value="">All categories</option>
           {categories.map(c2 => <option key={c2} value={c2}>{c2}</option>)}
         </select>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="h-9 px-2 text-xs rounded-md border"
+          style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+          data-testid="products-filter-status"
+        >
+          <option value="active">Active</option>
+          <option value="archived">Archived</option>
+          <option value="all">All</option>
+        </select>
+        <label className="flex items-center gap-1.5 text-xs px-2 h-9 rounded-md border cursor-pointer" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textMuted }} data-testid="products-filter-unmapped">
+          <input type="checkbox" checked={onlyUnmapped} onChange={e => setOnlyUnmapped(e.target.checked)} /> Imported data
+        </label>
       </div>
 
       {error && <div className="mb-2 text-xs px-3 py-1.5 rounded-md" style={{ background: 'rgba(239,68,68,0.06)', color: 'var(--color-danger-alt)' }} data-testid="products-error">{error}</div>}
@@ -237,10 +306,15 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
                   <td className="text-right px-3 py-2 font-mono" style={{ color: c.text }}>£{Number(p.sell_price).toFixed(2)}</td>
                   <td className="text-right px-3 py-2 font-mono font-semibold" style={{ color: p.markup_percent >= 30 ? 'var(--color-success-alt)' : p.markup_percent >= 15 ? 'var(--color-accent-amber)' : 'var(--color-danger-alt)' }}>{markup(p)}{p.cost_price > 0 ? '%' : ''}</td>
                   <td className="text-right px-3 py-2">
-                    <button type="button" onClick={() => onEdit(p)} className="text-[11px] underline opacity-70 hover:opacity-100 mr-3" data-testid={`products-edit-${p.id}`}>Edit</button>
-                    <button type="button" onClick={() => onDeactivate(p)} className="text-[11px] opacity-70 hover:opacity-100" style={{ color: 'var(--color-danger-alt)' }} data-testid={`products-deactivate-${p.id}`}>
-                      <Trash2 size={11} />
+                    <button type="button" onClick={() => setDrawerProduct(p)} className="text-[11px] opacity-70 hover:opacity-100 mr-3 inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid={`products-view-${p.id}`}>
+                      <Eye size={11} /> View
                     </button>
+                    {canEdit && <button type="button" onClick={() => onEdit(p)} className="text-[11px] underline opacity-70 hover:opacity-100 mr-3" data-testid={`products-edit-${p.id}`}>Edit</button>}
+                    {canEdit && p.active !== false && (
+                      <button type="button" onClick={() => onDeactivate(p)} className="text-[11px] opacity-70 hover:opacity-100" style={{ color: 'var(--color-danger-alt)' }} data-testid={`products-deactivate-${p.id}`}>
+                        <Trash2 size={11} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -251,7 +325,19 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
           </table>
         </div>
       )}
-      <div className="mt-2 text-[10px] opacity-60" style={{ color: c.textDim }}>{total} total · CSV columns: name, sku, category, unit, cost_price, sell_price, tax_rate, supplier_name, description</div>
+      <div className="mt-2 text-[10px] opacity-60 flex items-center gap-1.5" style={{ color: c.textDim }}><Database size={11} /> {total} products · Import a spreadsheet once, then manage everything here — every original cell is preserved.</div>
+
+      {showWizard && (
+        <CRMPriceListImportWizard API={API} headers={headers} c={c} isDark={isDark}
+          onClose={() => setShowWizard(false)}
+          onDone={() => { load(); loadStats(); loadCategories(); }} />
+      )}
+      {drawerProduct && (
+        <CRMProductDrawer API={API} headers={headers} c={c} isDark={isDark}
+          product={drawerProduct} canEdit={canEdit}
+          onClose={() => setDrawerProduct(null)}
+          onSaved={() => { load(); loadStats(); }} />
+      )}
 
       {/* Create / edit modal */}
       {showCreate && (

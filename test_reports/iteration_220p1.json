@@ -1,0 +1,47 @@
+{
+  "summary": "Tested CRM Master Price List (iter 220 P1) backend + frontend end-to-end. Backend pytest suite (12 API tests, plus 7 parser tests already passing) all GREEN. Frontend wizard verified through upload + mapping step (4 sheets, 229 column-mapping selects, 4 AI suggest buttons detected). Preview/commit step not fully driven via UI in this run — see notes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/crm/price-list/import/upload", "issue": "Response payload is nested under top-level 'import' key (not flat). Works correctly; test had to flatten. Worth documenting in client SDKs."},
+      {"endpoint": "/api/crm/price-list/import/{id}/preview", "issue": "Response payload nested under 'preview' key (not flat). Same note."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PWA install prompt", "issue": "An 'Install App' overlay appears at the bottom of the import wizard during the mapping step and can occlude the Preview/Back buttons, blocking clicks in automated tests. Consider suppressing PWA prompts while a modal wizard is open.", "selector": "[data-testid='plw-to-preview'] (potentially obscured)", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Import wizard - Preview step at full selection", "issue": "When Main Gym (3951 rows) + Functional Training (174) + Studio Equipment (50) are all selected, the /preview API took >90s in the browser test run. Backend pytest with a tiny sheet returned promptly. Recommend either showing a progress spinner with longer client timeout, or chunking preview server-side for sheets >2k rows.", "affected_selectors": ["[data-testid='plw-to-preview']", "[data-testid='plw-preview-step']"]}
+    ],
+    "design_issues": [
+      {"screen": "Settings → Price List", "issues": ["Workspace already contains 47 imported products from a prior commit (main agent had said data was deleted — verify clean state if a re-import is intended)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220p1_price_list_api.py",
+    "/app/backend/tests/test_iter_220p1_price_list_import.py",
+    "/app/test_reports/pytest/iter220p1_api_results.xml"
+  ],
+  "action_items": [
+    "Suppress PWA install prompt while CRM modals are open (or raise its z-index below modal/overlay).",
+    "Add front-end loading indicator for preview step and bump client timeout (or chunk preview) for sheets >2k rows.",
+    "Optional: flatten the upload/preview response shapes (or document the {import:{...}} / {preview:{...}} envelope).",
+    "Verify the org's product list was actually cleared as expected before next run (47 products still present)."
+  ],
+  "critical_code_review_comments": [
+    "Two response payloads (upload, preview) use a non-obvious top-level envelope key. Either always wrap consistently or document.",
+    "Front-end should not let a PWA prompt overlay a critical wizard CTA; add a CSS rule or feature flag while wizard open.",
+    "Preview heuristic for thousands of rows is expensive — consider returning preview summaries incrementally."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_220p1_price_list_api.py"
+  ],
+  "success_rate": {"backend": "100% (12/12 new API + 7/7 parser)", "frontend": "~70% (auth, navigation, wizard open, file upload, mapping step verified; preview/commit/drawer not driven through UI this run)"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (CRM master admin / editor — confirmed working)",
+  "seed_data_creation": "Pytest commit created 1 product version + a few products from the smallest sheet (Studio Equipment) labelled 'TEST_iter220p1_*'. No bulk data was written via the UI in this session.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest: `pytest backend/tests/test_iter_220p1_price_list_api.py backend/tests/test_iter_220p1_price_list_import.py -v` — all green. UI: at the import wizard mapping step, the PWA install prompt overlays the bottom action bar. Either dismiss it via the close button before clicking Preview, or deselect every sheet except the smallest (Studio Equipment, 50 rows) to keep things fast. The selectors `plw-sheet-select-{name}` work but require force-click; verify checkbox state via the `:checked` attribute on the underlying input.",
+  "rca of the issue": "Frontend preview timeout RCA: with 4175 rows selected, the synchronous /preview endpoint + UI render of warnings/issues blocks past 90s. Mitigation: deselect Main Gym in the wizard before clicking Preview (the wizard supports this), or have main agent chunk the preview server-side."
+}

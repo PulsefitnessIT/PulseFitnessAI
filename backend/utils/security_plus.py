@@ -309,6 +309,7 @@ BULK_IMPORT_PATH_PREFIXES = (
     "/api/master-admin/bulk-import/",
     "/api/master-admin/sites/import",
     "/api/master-admin/equipment/import",
+    "/api/crm/price-list/import/",
 )
 
 

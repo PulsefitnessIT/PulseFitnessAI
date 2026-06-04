@@ -71,6 +71,22 @@ PRODUCT_CATEGORIES: list[str] = [
     "Maintenance Plan", "Membership", "Parts", "Discount", "Other",
 ]
 
+# Iter 220 p1 — extended Master Price List fields preserved on create/edit.
+_EXTENDED_STR_FIELDS = {
+    "sage_code", "model", "sub_category", "product_family", "manufacturer",
+    "supplier_part_number", "manufacturer_part_number", "warranty",
+    "compatibility", "internal_notes", "customer_notes", "status",
+    "effective_date",
+}
+_EXTENDED_NUM_FIELDS = {
+    "retail_price", "trade_price", "list_price", "discount", "margin",
+    "installation_cost", "delivery_cost",
+}
+_PROVENANCE_FIELDS = {
+    "source_sheet", "source_row", "section", "import_batch_id", "version_id",
+    "unmapped_fields",
+}
+
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -107,21 +123,48 @@ async def list_products(
     search: str = "",
     category: str = "",
     active: bool | None = None,
+    supplier: str = "",
+    status: str = "",
+    import_batch: str = "",
+    has_unmapped: bool | None = None,
+    missing_sage: bool | None = None,
+    missing_price: bool | None = None,
+    sort: str = "",
     skip: int = 0,
     limit: int = 100,
     user=Depends(get_crm_user),
 ) -> dict:
-    """Paged list with text search across name / sku / description."""
+    """Paged list with text search + Master Price List filters."""
     q: dict[str, Any] = {**_of(user)}
     if category:
         q["category"] = category
     if active is not None:
         q["active"] = active
+    if supplier:
+        q["supplier_name"] = supplier
+    if import_batch:
+        q["import_batch_id"] = import_batch
+    if status:
+        q["status"] = status
+    if has_unmapped:
+        q["unmapped_fields.0"] = {"$exists": True}
+    if missing_sage:
+        q["$and"] = q.get("$and", []) + [{"$or": [{"sage_code": {"$exists": False}}, {"sage_code": ""}]}]
+    if missing_price:
+        q["sell_price"] = {"$lte": 0}
+        q["cost_price"] = {"$lte": 0}
     if search:
         rx = {"$regex": search, "$options": "i"}
-        q["$or"] = [{"name": rx}, {"sku": rx}, {"description": rx}]
+        q["$or"] = [{"name": rx}, {"sku": rx}, {"description": rx},
+                    {"sage_code": rx}, {"manufacturer": rx}, {"model": rx}]
 
-    cursor = db.crm_products.find(q, {"_id": 0}).sort([("sort_order", 1), ("name", 1)]).skip(skip).limit(limit)
+    sort_map = {
+        "name": [("name", 1)], "sku": [("sku", 1)],
+        "cost": [("cost_price", 1)], "sell": [("sell_price", 1)],
+        "updated": [("updated_at", -1)],
+    }
+    order = sort_map.get(sort, [("sort_order", 1), ("name", 1)])
+    cursor = db.crm_products.find(q, {"_id": 0}).sort(order).skip(skip).limit(limit)
     items = await cursor.to_list(limit)
     total = await db.crm_products.count_documents(q)
     return {"products": items, "total": total, "skip": skip, "limit": limit}
@@ -290,7 +333,7 @@ def _validate(data: dict) -> dict:
                 except (TypeError, ValueError) as exc:
                     raise HTTPException(422, f"bundle_items[{idx}].override_sell_price must be numeric") from exc
             bundle_items.append(entry)
-    return {
+    out = {
         "name": name,
         "description": (data.get("description") or "").strip(),
         "category": category,
@@ -310,6 +353,24 @@ def _validate(data: dict) -> dict:
         "is_bundle": is_bundle,
         "bundle_items": bundle_items,
     }
+    # Iter 220 p1 — Master Price List migration: carry through the extended
+    # catalogue fields + spreadsheet provenance + preserved unmapped data so
+    # an in-CRM edit never strips imported information.
+    for f in _EXTENDED_STR_FIELDS:
+        if f in data and data.get(f) not in (None,):
+            out[f] = str(data.get(f) or "").strip()
+    for f in _EXTENDED_NUM_FIELDS:
+        if f in data and data.get(f) not in (None, ""):
+            try:
+                out[f] = round(float(data.get(f)), 2)
+            except (TypeError, ValueError):
+                pass
+    for f in _PROVENANCE_FIELDS:
+        if f in data:
+            out[f] = data.get(f)
+    if "archived" in data:
+        out["archived"] = bool(data.get("archived"))
+    return out
 
 
 @router.post("")
@@ -379,6 +440,21 @@ async def delete_product(product_id: str, user=Depends(get_crm_user)) -> dict:
         raise HTTPException(404, "Product not found")
     await log_audit(user, "product", product_id, "deactivated")
     return {"deactivated": True, "id": product_id}
+
+
+@router.post("/{product_id}/restore")
+async def restore_product(product_id: str, user=Depends(get_crm_user)) -> dict:
+    """Restore an archived (soft-deleted) product back to active."""
+    if not _is_admin(user):
+        raise HTTPException(403, "Only CRM admins / owners can manage the master price list")
+    res = await db.crm_products.update_one(
+        {"id": product_id, **_of(user)},
+        {"$set": {"active": True, "archived": False, "updated_at": _now()}},
+    )
+    if not res.matched_count:
+        raise HTTPException(404, "Product not found")
+    await log_audit(user, "product", product_id, "restored")
+    return {"restored": True, "id": product_id}
 
 
 @router.post("/bulk-import")

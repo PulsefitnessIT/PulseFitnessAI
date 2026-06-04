@@ -550,7 +550,7 @@ export default function CRMSettings() {
 
           {/* Products / Master Price List — Iter 216h224 */}
           {activeSection === 'products' && (
-            <CRMProductsSection API={API} headers={headers} c={c} isDark={isDark} />
+            <CRMProductsSection API={API} headers={headers} c={c} isDark={isDark} user={user} />
           )}
 
           {/* Security / 2FA */}
