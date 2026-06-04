@@ -34,6 +34,11 @@ _Last refreshed: Iter 220m · May 26, 2026._
 - Lets a recurring supplier file be re-mapped in one click each month.
 - Verified: 4/4 pytest (`test_iter_220p1_import_templates.py`) + frontend e2e (save/apply/preview PASS).
 
+## ✅ BUG FIX — Master Admin Gym↔Corporate CRM toggle (iter 220p1, Jun 4 2026)
+- Root cause: `PUT /master-admin/organizations/{id}/features` rebuilt each module entry as `{enabled, tier}` and silently dropped `modules.crm.business_enabled` from the payload — so an org could never be switched to Corporate; there was also no UI control.
+- Fix: backend now accepts `business_enabled` (and treats Corporate ON as implying CRM enabled); Feature Control Panel → CRM module card has a new "Corporate (Business CRM)" toggle (`module-crm-business-toggle-<orgId>`).
+- Pulse Fitness set to Corporate (preview). Verified: 2/2 pytest (`test_iter_220p1_crm_corporate_toggle.py`) + frontend e2e (toggle persists across reload, CRM stays enabled). NOTE: data change was in PREVIEW only — production needs a redeploy + flipping the toggle in the live Master Admin.
+
 ## P1 — Next (Master Price List follow-ups)
 
 - ✅ **AI Support enhancements — SHIPPED (iter 220p1, Jun 4 2026)** — `crm_price_ai.py` (reuses Claude Sonnet via Emergent LLM key): (1) per-product **AI improve grammar** in the product drawer (grammar-only, meaning preserved, reviewable Use/Discard); (2) import-wizard Preview **AI explain issues** (plain-English summary + flagged rows + next steps); (3) Master Price List **Suggest bundles** (3-5 AI suggestions, one-click create, suggestions only). Tested: backend 7/7 pytest + full frontend e2e on all 3 (PASS).
