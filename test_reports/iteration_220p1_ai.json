@@ -1,0 +1,42 @@
+{
+  "summary": "FE-tested the 3 AI features under CRM Settings → Price List. Bundle Suggest (suggestions only) works end-to-end up to suggestion rendering (5 items returned by AI). Create-bundle action FAILS silently (no bundle-created-<idx> state appears). Drawer AI-clean could NOT be reached: product rows expose text links ('View' / 'Edit') with NO data-testid='product-view-*' (or any product-view testid) – the spec implies such a testid; main agent should add it. Import-wizard AI summary could NOT be reached: uploading the provided sample xlsx returns HTTP 413 (Payload Too Large) at upload step, so preview never renders.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/crm/products (from Suggest Bundles 'Create bundle')", "issue": "Click on bundle-create-0 with 5 suggestions present did not produce bundle-created-0 within 3.5s; no JS console error captured but the success state never appeared. Likely API error response not surfaced in the modal (only setError fallback). Needs investigation: server logs / response body.", "priority": "HIGH"},
+      {"endpoint": "Import wizard upload (likely /api/crm/price-list/import/upload)", "issue": "413 Payload Too Large when uploading /app/test_samples/pulse_master_price_list_sample.xlsx (~7193 rows). Blocks the entire AI-summary preview flow.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CRMProductsSection product table rows", "issue": "Row 'View' / 'Edit' links have no data-testid (expected product-view-<id>) – cannot deterministically open product drawer for AI-clean testing.", "selector": "tbody tr View link", "priority": "HIGH"},
+      {"component": "CRMBundleSuggestModal", "issue": "After clicking Create bundle the 'Created' state never appears; modal lacks visible error feedback when /crm/products POST fails (error rendered only via setError but no toast/inline feedback near the row).", "selector": "[data-testid=bundle-create-0]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Suggest bundles → Create bundle", "issue": "Create-bundle API call presumably failing or extremely slow; success state not observed in 3.5s. No bundle-created-0 element present.", "affected_selectors": ["[data-testid=bundle-create-0]","[data-testid=bundle-created-0]"]},
+      {"flow": "Import wizard preview → AI explain issues", "issue": "Upload fails with 413, so plw-ai-summary-block never renders.", "affected_selectors": ["[data-testid=plw-ai-summary-block]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add data-testid='product-view-<id>' (and/or product-row-<id>) to the View/Edit links in CRMProductsSection so the product drawer can be opened in tests and so spec test-ids match.",
+    "Debug 'Create bundle' POST /api/crm/products – check backend logs; surface API error in CRMBundleSuggestModal (current error only set via setError but is in the same scroll area – add inline error per row).",
+    "Raise upload size / row limit (or stream) for the import wizard so the supplied 7193-row sample workbook does NOT return 413. Alternatively, add a frontend pre-trim option BEFORE upload (deselect sheets pre-upload) – currently sheet checkboxes only appear after a successful upload, so users can't avoid 413.",
+    "Once the above is fixed, re-test plw-ai-summary-block / plw-ai-summary-btn / plw-ai-summary-result and bundle-created-<idx> flow end-to-end."
+  ],
+  "critical_code_review_comments": [
+    "CRMBundleSuggestModal.createBundle: on success it sets createdIdx but does NOT verify the API response (no id check). If POST returns 2xx with empty body the Created flag still flips; if it errors it falls through to setError shown once at top – consider per-row error feedback.",
+    "CRMProductsSection should expose data-testid='product-view-<id>' on the table-row view affordance to align with the documented spec.",
+    "Import wizard appears to upload the whole xlsx then ask the user to pick sheets – inefficient for 7k-row files. Consider streaming parse or chunked upload to avoid 413.",
+    "Cookie/install-app prompt overlay covers controls near the bottom of the screen on first load – consider auto-suppressing during onboarding flows."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (FE-only request)", "frontend": "~33% (1 of 3 features partially verified end-to-end: bundle suggestions rendered; create-bundle, drawer AI clean, and wizard AI summary all blocked)"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (CRM master admin via inline /crm login)",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login via inline CRM login on /crm (placeholder you@gym.com). Navigate to Settings using URL ?tab=settings then click [data-testid=settings-tab-products] (NOT 'settings-products' – that testid is absent). Suggest Bundles button works and AI returned 5 suggestions in ~19s. To exercise the drawer AI clean, main agent must FIRST add product-view-<id> testids OR test by clicking the 'View' link text in the row. Import wizard returns 413 on the provided sample xlsx – use a much smaller workbook (~50 rows) to reach the Preview step and verify plw-ai-summary-block.",
+  "rca of the issue": "Spec mentions data-testid='settings-products' & 'product-drawer' open via 'view button'; in the live build the settings-tab uses 'settings-tab-products' and product rows use plain anchor text 'View' with no testid. Wizard upload endpoint rejects ~7k-row file with 413. Bundle 'Create bundle' click does not flip to Created – likely the POST /api/crm/products call failed; needs backend log inspection."
+}

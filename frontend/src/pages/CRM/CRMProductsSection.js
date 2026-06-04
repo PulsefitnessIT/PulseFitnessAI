@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock, FileDown, Activity } from 'lucide-react';
+import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock, FileDown, Activity, Sparkles } from 'lucide-react';
 import CRMPriceListImportWizard from './CRMPriceListImportWizard';
 import CRMProductDrawer from './CRMProductDrawer';
 import CRMBulkPriceModal from './CRMBulkPriceModal';
@@ -17,6 +17,7 @@ import CRMPriceVersionsModal from './CRMPriceVersionsModal';
 import CRMPriceChangesModal from './CRMPriceChangesModal';
 import CRMPriceExportModal from './CRMPriceExportModal';
 import CRMDataQualityModal from './CRMDataQualityModal';
+import CRMBundleSuggestModal from './CRMBundleSuggestModal';
 
 const EDITOR_ROLES = ['admin', 'owner', 'manager'];
 
@@ -52,6 +53,7 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   const [isApprover, setIsApprover] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
+  const [showBundles, setShowBundles] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -228,6 +230,17 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
             <Clock size={12} /> Approvals
             {pendingCount > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--color-accent-amber)' }} data-testid="products-pending-badge">{pendingCount}</span>}
           </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setShowBundles(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+              style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+              data-testid="products-bundle-suggest-btn"
+            >
+              <Sparkles size={12} /> Suggest bundles
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowQuality(true)}
@@ -440,6 +453,12 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
             } catch { setDrawerProduct(p); }
             setShowQuality(false);
           }} />
+      )}
+
+      {showBundles && (
+        <CRMBundleSuggestModal API={API} headers={headers} c={c} isDark={isDark}
+          onClose={() => setShowBundles(false)}
+          onCreated={() => { load(); loadStats(); }} />
       )}
 
       {/* Create / edit modal */}

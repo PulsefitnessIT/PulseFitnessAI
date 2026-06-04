@@ -8,7 +8,7 @@
  */
 import { useState } from 'react';
 import axios from 'axios';
-import { X, Save, Loader2, FileSpreadsheet, Archive, RotateCcw } from 'lucide-react';
+import { X, Save, Loader2, FileSpreadsheet, Archive, RotateCcw, Sparkles, Check } from 'lucide-react';
 
 export default function CRMProductDrawer({ API, headers, c, isDark, product, canEdit, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -21,6 +21,9 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  const [aiError, setAiError] = useState('');
 
   const surface = isDark ? 'var(--color-surface-dark-1)' : '#fff';
   const surface2 = isDark ? 'var(--color-surface-dark-2)' : '#fff';
@@ -47,6 +50,18 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
       onClose();
     } catch (err) { setError(err?.response?.data?.detail || 'Failed'); }
     setSaving(false);
+  };
+
+  const aiClean = async () => {
+    setAiBusy(true); setAiError(''); setAiSuggestion(null);
+    try {
+      const r = await axios.post(`${API}/crm/products/${product.id}/ai-clean-description`,
+        { description: form.description }, { headers: headers() });
+      setAiSuggestion(r.data.suggestion || '');
+    } catch (err) {
+      setAiError(err?.response?.data?.detail || 'AI is unavailable — please try again.');
+    }
+    setAiBusy(false);
   };
 
   const fld = (key, label, type = 'text') => (
@@ -87,7 +102,43 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
             {fld('model', 'Model')}
           </div>
 
-          {/* Provenance */}
+          {/* Description + AI clean */}
+          <div data-testid="product-drawer-description-block">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Description</label>
+              {canEdit && (
+                <button type="button" onClick={aiClean} disabled={aiBusy || !form.description.trim()}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded border disabled:opacity-50"
+                  style={{ borderColor: border, color: 'var(--color-info-ios)' }}
+                  data-testid="product-drawer-ai-clean">
+                  {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI improve grammar
+                </button>
+              )}
+            </div>
+            <textarea value={form.description} disabled={!canEdit} rows={4}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              className="w-full px-3 py-1.5 text-sm rounded-md border disabled:opacity-70"
+              style={{ background: surface2, borderColor: border, color: c.text }}
+              data-testid="product-drawer-description" />
+            {aiError && <div className="text-[11px] mt-1" style={{ color: 'var(--color-danger-alt)' }} data-testid="product-drawer-ai-error">{aiError}</div>}
+            {aiSuggestion != null && (
+              <div className="mt-2 rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--color-info-ios)', background: surface2 }} data-testid="product-drawer-ai-suggestion">
+                <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-info-ios)' }}>Suggested (grammar only — meaning preserved)</div>
+                <p className="text-sm whitespace-pre-wrap" style={{ color: c.text }}>{aiSuggestion}</p>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => { setForm(f => ({ ...f, description: aiSuggestion })); setAiSuggestion(null); }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-md text-white"
+                    style={{ background: 'var(--color-success-alt)' }} data-testid="product-drawer-ai-accept">
+                    <Check size={11} /> Use this
+                  </button>
+                  <button type="button" onClick={() => setAiSuggestion(null)}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-md border" style={{ borderColor: border, color: c.textMuted }}
+                    data-testid="product-drawer-ai-reject">Discard</button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {product.source_sheet && (
             <div className="rounded-lg border px-3 py-2 text-xs flex items-center gap-2" style={{ borderColor: border, background: surface2, color: c.textMuted }} data-testid="product-drawer-provenance">
               <FileSpreadsheet size={13} />

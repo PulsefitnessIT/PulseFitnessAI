@@ -28,6 +28,8 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
   const [preview, setPreview] = useState(null);
   const [options, setOptions] = useState({ mode: 'live', version_label: '', create: true, update: true });
   const [result, setResult] = useState(null);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiSummaryBusy, setAiSummaryBusy] = useState(false);
 
   const surface = isDark ? 'var(--color-surface-dark-1)' : '#fff';
   const surface2 = isDark ? 'var(--color-surface-dark-2)' : '#fff';
@@ -85,7 +87,7 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
     })), [imp, selected, mappings]);
 
   const runPreview = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setAiSummary(null);
     try {
       const r = await axios.post(`${API}/crm/price-list/import/${imp.id}/preview`, { sheets: buildSheetCfgs() }, { headers: headers() });
       setPreview(r.data.preview);
@@ -94,6 +96,17 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
       setError(err?.response?.data?.detail || 'Preview failed');
     }
     setBusy(false);
+  };
+
+  const runAiSummary = async () => {
+    setAiSummaryBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/price-list/import/ai-error-summary`, { preview }, { headers: headers() });
+      setAiSummary(r.data);
+    } catch (err) {
+      setAiSummary({ summary: err?.response?.data?.detail || 'AI summary is unavailable — please review the rows below manually.', flagged: [], next_steps: [], severity: 'info' });
+    }
+    setAiSummaryBusy(false);
   };
 
   const runCommit = async () => {
@@ -248,6 +261,43 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                   <label className="flex items-center gap-1.5"><input type="checkbox" checked={options.update} onChange={e => setOptions(o => ({ ...o, update: e.target.checked }))} /> Update existing</label>
                 </div>
               </div>
+
+              {/* AI error summary */}
+              {(preview.warnings > 0 || preview.errors > 0) && (
+                <div className="rounded-lg border" style={{ borderColor: border }} data-testid="plw-ai-summary-block">
+                  <div className="flex items-center justify-between px-3 py-1.5 border-b" style={{ borderColor: border }}>
+                    <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: c.text }}><Sparkles size={12} style={{ color: 'var(--color-info-ios)' }} /> AI explain issues</span>
+                    {!aiSummary && (
+                      <button type="button" onClick={runAiSummary} disabled={aiSummaryBusy}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border disabled:opacity-50"
+                        style={{ borderColor: border, color: 'var(--color-info-ios)' }} data-testid="plw-ai-summary-btn">
+                        {aiSummaryBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} Summarise
+                      </button>
+                    )}
+                  </div>
+                  {aiSummary && (
+                    <div className="px-3 py-2 space-y-2 text-xs" data-testid="plw-ai-summary-result">
+                      <p style={{ color: c.text }}>{aiSummary.summary}</p>
+                      {(aiSummary.flagged || []).length > 0 && (
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide mb-1" style={{ color: c.textDim }}>Worst rows</div>
+                          {aiSummary.flagged.map((f, i) => (
+                            <div key={i} className="flex items-center gap-2 py-0.5">
+                              <span style={{ color: c.textDim }}>{f.sheet} · row {f.row}{f.code ? ` · ${f.code}` : ''}</span>
+                              <span style={{ color: 'var(--color-accent-amber)' }}>— {f.reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {(aiSummary.next_steps || []).length > 0 && (
+                        <ul className="list-disc pl-4" style={{ color: c.textMuted }}>
+                          {aiSummary.next_steps.map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Issues */}
               {preview.issues?.length > 0 && (
