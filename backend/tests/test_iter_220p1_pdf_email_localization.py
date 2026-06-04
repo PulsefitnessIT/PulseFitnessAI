@@ -97,3 +97,50 @@ def test_quote_pdf_builds(market):
     pdf = build_engineer_quote_pdf(_quote(market))
     assert isinstance(pdf, bytes) and len(pdf) > 1000
     assert pdf[:4] == b"%PDF"
+
+
+# ── CRM quote / contract PDFs (localized symbol + tax label) ──────
+
+def _crm_quote(market):
+    return {
+        "quote_number": "QT-1", "company_name": "Acme Inc", "contact_name": "Jo",
+        "status": "draft", "valid_until": "2026-07-30",
+        "currency": market["currency"], "tax_label": market["tax_label"],
+        "subtotal": 100.0, "tax_rate": 0 if market["country_code"] == "US" else 20,
+        "tax_amount": 0.0 if market["country_code"] == "US" else 20.0,
+        "total": 100.0 if market["country_code"] == "US" else 120.0,
+        "line_items": [{"description": "Service", "quantity": 1,
+                        "unit_price": 100, "discount_percent": 0, "subtotal": 100}],
+    }
+
+
+@pytest.mark.parametrize("market", [GB, US])
+def test_crm_quote_pdf_builds(market):
+    from utils.crm_quote_pdf import build_crm_quote_pdf
+    org = {"name": "Acme", "primary_color": "#1D4ED8", "country_code": market["country_code"]}
+    pdf = build_crm_quote_pdf(_crm_quote(market), org)
+    assert isinstance(pdf, bytes) and pdf[:4] == b"%PDF" and len(pdf) > 1000
+
+
+@pytest.mark.parametrize("market", [GB, US])
+def test_crm_contract_pdf_builds(market):
+    from utils.crm_contract_pdf import build_contract_pdf
+    org = {"name": "Acme", "primary_color": "#0055FF", "country_code": market["country_code"]}
+    contract = {
+        "contract_number": "CT-1", "tier": "premium", "title": "Service contract",
+        "annual_value": 1200, "consumables": [{"name": "Belt", "included": True, "charge": 5.0}],
+        "pricing": {"annual_value": 1200, "monthly_value": 100, "setup_fee": 50,
+                    "vat_percent": 0 if market["country_code"] == "US" else 20},
+    }
+    pdf = build_contract_pdf(contract, org, {})
+    assert isinstance(pdf, bytes) and pdf[:4] == b"%PDF" and len(pdf) > 1000
+
+
+def test_crm_quote_pdf_falls_back_to_org_currency():
+    """A quote without its own currency snapshot inherits the org market."""
+    from utils.crm_quote_pdf import build_crm_quote_pdf
+    q = _crm_quote(US)
+    q.pop("currency"); q.pop("tax_label")
+    org = {"name": "Acme", "primary_color": "#1D4ED8", "country_code": "US"}
+    pdf = build_crm_quote_pdf(q, org)
+    assert pdf[:4] == b"%PDF"

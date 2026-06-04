@@ -144,9 +144,17 @@ async def send_low_attendance_checkin(member: dict, attended_count: int, days: i
 async def send_high_engagement_celebration(member: dict, attended_count: int, days: int = 30) -> bool:
     """Phase 6 CRM: high-attendance member — celebrate + ask for referral."""
     first = member.get("first_name") or "there"
+    # Iter 220p1 — referral-credit symbol follows the gym's market currency.
+    from utils.database import db
+    from utils.localization import org_localization
+    _org = await db.organizations.find_one(
+        {"id": member.get("organization_id")},
+        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    )
+    _sym = org_localization(_org)["currency_symbol"]
     body = f"""<p>Hi {first},</p>
     <p>You've smashed <strong style="color:#fff;">{attended_count} sessions</strong> in the last {days} days. That's the top tier of our community — well done.</p>
-    <p>Know someone who'd love training with you? Share your referral code from the <strong style="color:#fff;">Profile</strong> tab — you both get £5 credit when they join.</p>
+    <p>Know someone who'd love training with you? Share your referral code from the <strong style="color:#fff;">Profile</strong> tab — you both get {_sym}5 credit when they join.</p>
     <p style="color:#9ca3af;font-size:13px;">Keep showing up. We see you.</p>"""
     html = _shell("You're flying", f"{attended_count} sessions · {days} days", body)
     return await send_email(

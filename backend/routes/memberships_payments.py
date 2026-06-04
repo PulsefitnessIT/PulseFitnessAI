@@ -549,7 +549,14 @@ async def _mark_subscription_cancelled(sub_id: str) -> None:
 
 async def _send_payment_failed_email(member: dict, plan: dict) -> None:
     first = member.get("first_name") or "there"
-    amount = f"£{plan['price_pence']/100:.2f}"
+    # Iter 220p1 — amount shown in the org's currency.
+    from utils.localization import org_localization
+    _org = await db.organizations.find_one(
+        {"id": member.get("organization_id")},
+        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    )
+    _sym = org_localization(_org)["currency_symbol"]
+    amount = f"{_sym}{plan['price_pence']/100:.2f}"
     html = f"""<div style="font-family:-apple-system,sans-serif;max-width:540px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
   <div style="padding:28px 32px;border-bottom:1px solid rgba(239,68,68,0.3);">
     <div style="color:#EF4444;font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">Payment failed</div>

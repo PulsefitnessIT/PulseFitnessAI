@@ -92,6 +92,11 @@ def build_contract_pdf(contract: dict, org: dict, catalog: dict) -> bytes:
         topMargin=18 * mm, bottomMargin=18 * mm,
     )
     brand = _hex(org.get("primary_color") or "#0055FF")
+    # Iter 220p1 — localized currency symbol + tax label (defaults to UK/£/VAT).
+    from utils.localization import org_localization, currency_symbol as _cur_sym
+    _loc = org_localization(org)
+    _sym = _cur_sym(contract.get("currency") or _loc["currency"])
+    _tax_label = contract.get("tax_label") or _loc["tax_label"]
     muted = colors.Color(0.45, 0.50, 0.58)
     border = colors.Color(0.88, 0.91, 0.95)
 
@@ -200,7 +205,7 @@ def build_contract_pdf(contract: dict, org: dict, catalog: dict) -> bytes:
             rows.append([
                 c.get("name") or "—",
                 "Yes" if c.get("included") else "No",
-                f"£{float(c.get('charge') or 0):.2f}",
+                f"{_sym}{float(c.get('charge') or 0):.2f}",
             ])
         ct = Table(rows, colWidths=[100 * mm, 30 * mm, 40 * mm])
         ct.setStyle(TableStyle([
@@ -246,10 +251,10 @@ def build_contract_pdf(contract: dict, org: dict, catalog: dict) -> bytes:
     setup = float(p.get("setup_fee") or 0)
     vat_pct = float(p.get("vat_percent") or 0)
     rows = [
-        ["Annual value",      f"£{annual:,.2f}"],
-        ["Monthly equivalent", f"£{monthly:,.2f}"],
-        ["Setup fee",         f"£{setup:,.2f}"],
-        ["VAT",               f"{vat_pct:.1f}%"],
+        ["Annual value",      f"{_sym}{annual:,.2f}"],
+        ["Monthly equivalent", f"{_sym}{monthly:,.2f}"],
+        ["Setup fee",         f"{_sym}{setup:,.2f}"],
+        [_tax_label,          f"{vat_pct:.1f}%"],
     ]
     if (p.get("discount_percent") or 0) > 0:
         rows.append(["Discount", f"{p.get('discount_percent'):.1f}%"])

@@ -1,3 +1,26 @@
+## Iter 220 P1 — USA readiness, slice 6: CRM PDF + membership email currency ✅ (Jun, 2026)
+
+**Request:** CRM quote/contract PDFs and membership emails still rendered `£`/VAT (needed if CRM/Memberships sell to the US).
+
+**Shipped (documents snapshot currency/tax_label where created; PDFs/emails fall back to the org market, then £/VAT):**
+- **CRM quote** — creation (`crm_v2.py create_quote`) now snapshots `currency`/`tax_label`/`country_code` from the org market and defaults the tax rate to the market (0% US / 20% GB); also writes `tax_rate` in sync with `vat_rate` (the PDF read `tax_rate`, which never existed → always showed 20% — now correct). **CRM quote PDF** (`utils/crm_quote_pdf.py`) upgraded from a GBP/USD-only symbol switch to the full `currency_symbol` map (+ EUR/CAD/AUD) with org fallback, and a localized tax label.
+- **CRM contract PDF** (`utils/crm_contract_pdf.py`) — consumable charges, annual/monthly/setup pricing and the tax-label row now use the org's symbol + tax label.
+- **CRM contract renewal email** (`routes/crm_contract_lifecycle.py`) — `{sym}{annual}/yr` in the customer email + text + activity note.
+- **Membership emails** — referral-credit email (`utils/memberships_emails.py`) and payment-failed email (`routes/memberships_payments.py`) now show the gym's currency symbol. CRM **invoice dunning** (`routes/invoice_dunning.py`) was already currency-aware (no change).
+- **Left as-is:** partner platform emails (£30/mo plan), SaaS bundle pricing in `lifecycle_emails.py`, internal CRM AI prompts + operator activity-feed notes (not customer-facing money).
+
+**Tested:** `tests/test_iter_220p1_pdf_email_localization.py` extended — CRM quote & contract PDFs build (valid `%PDF`) for GB and US; quote PDF falls back to org currency when the quote lacks a snapshot. Full localization suite **31/31**.
+
+### 🇺🇸 USA-readiness epic — localization now COMPLETE across all customer-facing money (slices 1-6)
+Org settings + signup, UI currency sweep, Engineer + CRM + Membership PDFs/emails, timezone threading. Existing UK customers unaffected.
+
+**Remaining backlog (optional / external):**
+- P2: US **sales tax** (Stripe Tax/TaxJar — needs key), US **engineer compliance** (I-9/E-Verify vs DBS/RTW), **Companies House** US alternative, phone/ZIP/state formats, per-org marketing-autopilot scheduling.
+- **Operational:** enable Stripe Connect **US payouts** before US engineer/gym money flows.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 5: per-org timezone threading ✅ (Jun, 2026)
 
 **Request:** `Europe/London` was hard-coded in scheduling/notifications/reminders, so a US org's reminders & booking windows fired on UK time. Thread the org's timezone through.

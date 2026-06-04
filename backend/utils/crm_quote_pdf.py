@@ -130,10 +130,13 @@ def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
         Paragraph("<b>Disc %</b>", BoldRight),
         Paragraph("<b>Subtotal</b>", BoldRight),
     ]
-    currency_symbol = "£" if (quote.get("currency") or "GBP").upper() == "GBP" else (
-        "$" if (quote.get("currency") or "GBP").upper() == "USD" else
-        (quote.get("currency") or "GBP")
-    )
+    # Iter 220p1 — full currency map + market fallback (EUR/CAD/AUD), and
+    # localized tax label (VAT / Sales Tax / GST) snapshotted on the quote.
+    from utils.localization import org_localization, currency_symbol as _cur_sym
+    _loc = org_localization(org)
+    _ccy = (quote.get("currency") or _loc["currency"])
+    currency_symbol = _cur_sym(_ccy)
+    _tax_label = quote.get("tax_label") or _loc["tax_label"]
     rows = [head]
     for item in quote.get("line_items", []):
         rows.append([
@@ -161,7 +164,7 @@ def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
     # ── Totals box (right-aligned) ───────────────────────────────
     totals_rows = [
         ["Subtotal", f"{currency_symbol}{quote.get('subtotal', 0):,.2f}"],
-        [f"VAT ({quote.get('tax_rate', 20):g}%)", f"{currency_symbol}{quote.get('tax_amount', 0):,.2f}"],
+        [f"{_tax_label} ({quote.get('tax_rate', quote.get('vat_rate', 20)):g}%)", f"{currency_symbol}{quote.get('tax_amount', 0):,.2f}"],
         ["Total", f"{currency_symbol}{quote.get('total', 0):,.2f}"],
     ]
     totals_table = Table(totals_rows, colWidths=[40 * mm, 32 * mm])

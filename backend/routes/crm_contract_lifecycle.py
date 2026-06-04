@@ -321,8 +321,11 @@ async def auto_send_renewals(user: dict = Depends(get_crm_user)):
         # 3. PDF + email send.
         org = await db.organizations.find_one(
             {"id": user.get("organization_id")},
-            {"_id": 0, "name": 1, "primary_color": 1, "logo_url": 1},
+            {"_id": 0, "name": 1, "primary_color": 1, "logo_url": 1,
+             "country_code": 1, "currency": 1, "timezone": 1},
         ) or {}
+        from utils.localization import org_localization
+        _sym = org_localization(org)["currency_symbol"]
         try:
             pdf_bytes = build_contract_pdf(renewal_doc, org, catalog)
         except Exception:
@@ -340,7 +343,7 @@ async def auto_send_renewals(user: dict = Depends(get_crm_user)):
                 html = (
                     f"<p>Hi,</p>"
                     f"<p>Your service contract is due for renewal. We've drafted the "
-                    f"next term at <strong>£{new_annual:,.0f}/yr</strong> "
+                    f"next term at <strong>{_sym}{new_annual:,.0f}/yr</strong> "
                     f"(+{uplift['uplift_percent']}% — {uplift['rationale']}).</p>"
                     f"<p>Review and accept online: "
                     f"<a href=\"{accept_path}\">{accept_path}</a>.</p>"
@@ -348,7 +351,7 @@ async def auto_send_renewals(user: dict = Depends(get_crm_user)):
                 )
                 email_ok = await send_email(
                     to=to_email, subject=subject, html=html,
-                    text=f"Your renewal is ready — £{new_annual:,.0f}/yr. Accept at {accept_path}",
+                    text=f"Your renewal is ready — {_sym}{new_annual:,.0f}/yr. Accept at {accept_path}",
                     attachments=[{
                         "filename": f"renewal_{renewal_doc['contract_number']}.pdf",
                         "content": base64.b64encode(pdf_bytes).decode("ascii"),
@@ -372,7 +375,7 @@ async def auto_send_renewals(user: dict = Depends(get_crm_user)):
             "subject": f"Auto-renewal dispatched: {c.get('contract_number')}",
             "body": (
                 f"Renewal {renewal_doc['contract_number']} (+{uplift['uplift_percent']}% — "
-                f"£{new_annual:,.0f}/yr) emailed to {to_email}"
+                f"{_sym}{new_annual:,.0f}/yr) emailed to {to_email}"
                 + ("" if email_ok else " (delivery deferred — share link manually)")
             ),
             "company_id": c.get("company_id", ""),

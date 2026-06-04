@@ -1751,9 +1751,17 @@ async def list_quotes(
 @router.post("/quotes")
 async def create_quote(data: dict, user=Depends(get_crm_user)):
     from routes.crm_quote_sage import hydrate_quote_lines
+    from utils.localization import org_localization
     lines = await hydrate_quote_lines(data.get("lines", []), user)
     subtotal = sum(float(line.get("quantity", 0)) * float(line.get("unit_price", 0)) * (1 - float(line.get("discount", 0) or 0) / 100) for line in lines)
-    vat_rate = float(data.get("vat_rate", 20))
+    # Iter 220p1 — tax rate follows the org market when not supplied
+    # (0% US, 20% GB); currency/tax label snapshotted onto the quote.
+    _org = await db.organizations.find_one(
+        {"id": user.get("organization_id")},
+        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    )
+    loc = org_localization(_org)
+    vat_rate = float(data["vat_rate"]) if data.get("vat_rate") is not None else float(loc["default_tax_rate"])
     vat = subtotal * vat_rate / 100
     # Resolve company and contact names
     company_name = ""
@@ -1777,7 +1785,11 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
         "lines": lines,
         "subtotal": round(subtotal, 2),
         "vat_rate": vat_rate, "vat_amount": round(vat, 2),
+        "tax_rate": vat_rate,  # PDF reads `tax_rate`; keep in sync with vat_rate
         "total": round(subtotal + vat, 2),
+        # Iter 220p1 — localization snapshot (frozen at creation).
+        "currency": loc["currency"], "tax_label": loc["tax_label"],
+        "country_code": loc["country_code"],
         "valid_until": data.get("valid_until", ""),
         "notes": data.get("notes", ""),
         "version": 1,
