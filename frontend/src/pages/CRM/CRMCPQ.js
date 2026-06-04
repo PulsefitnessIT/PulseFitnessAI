@@ -590,7 +590,7 @@ export default function CRMCPQ() {
   // and `from_bundle_id` / `from_bundle_name` (set when a bundle
   // exploded into N lines so the rep can see the provenance).
   const [products, setProducts] = useState([]);
-  const [canSeeCost, setCanSeeCost] = useState(true);
+  const [canSeeCost, setCanSeeCost] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [expanding, setExpanding] = useState(null);  // product id being expanded

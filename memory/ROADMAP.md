@@ -32,7 +32,7 @@ _Last refreshed: Iter 220m · May 26, 2026._
 ## P1 — Next (Master Price List follow-ups)
 
 - ✅ **AI Support enhancements — SHIPPED (iter 220p1, Jun 4 2026)** — `crm_price_ai.py` (reuses Claude Sonnet via Emergent LLM key): (1) per-product **AI improve grammar** in the product drawer (grammar-only, meaning preserved, reviewable Use/Discard); (2) import-wizard Preview **AI explain issues** (plain-English summary + flagged rows + next steps); (3) Master Price List **Suggest bundles** (3-5 AI suggestions, one-click create, suggestions only). Tested: backend 7/7 pytest + full frontend e2e on all 3 (PASS).
-- **Field-level permission hardening** — ensure Sales users cannot see cost/margin unless permitted (verify across quality dashboard, drill-downs, CSV exports, AI bundle totals too).
+- ✅ **Field-level permission hardening — SHIPPED (iter 220p1, Jun 4 2026)** — secure-by-default product cost/margin visibility. Restricted roles (sales_rep/rep/support/user) never see cost/markup/trade/list/retail/installation/delivery/discount/margin on products, quotes, or the quality dashboard (403) unless an admin grants their role via CRM Settings → Permissions → "Product cost & margin visibility". Privileged roles: owner/admin/manager/finance/analyst (+master/pulse admin). New `crm_product_perms.py` (`/crm/product-perms`, `/me`), redaction wired into products list/get/expand, quotes list, quality endpoints, and the CPQ margin badge. Tested: 6/6 pytest + frontend e2e (PASS).
 
 ## Known infra note
 - Import wizard upload: the full 2.7MB+ sample workbook 413s at the **k8s ingress** (app tier already allows 200MB for `/api/crm/price-list/import/`). For very large catalogues a chunked/streamed upload would be needed. Small workbooks upload fine.
