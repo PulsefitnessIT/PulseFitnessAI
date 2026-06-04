@@ -57,6 +57,10 @@ class UserRegister(BaseModel):
     # Subset of MODULE_KEYS ('operations'|'memberships'|'marketing'|'crm').
     # Empty/absent ⇒ all modules (back-compat with legacy CTAs).
     trial_modules: Optional[list[str]] = None
+    # Iter 220p1 — when the prospect picks CRM, which audience is it for?
+    # 'gym' (Members / leisure), 'corporate' (B2B / business), or 'both'.
+    # Maps to org.modules.crm.{leisure_enabled, business_enabled}. Default gym.
+    crm_mode: Optional[str] = None
 
 
 class UserLogin(BaseModel):

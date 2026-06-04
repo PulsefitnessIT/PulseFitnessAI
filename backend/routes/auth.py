@@ -102,6 +102,15 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
         org_doc["modules"] = {
             key: {"enabled": key in chosen} for key in MODULE_KEYS
         }
+        # Iter 220p1 — CRM audience choice (Gym / Corporate / Both). Sets the
+        # leisure & business mode flags so the operator lands on the right CRM.
+        if "crm" in chosen:
+            cmode = (getattr(user, "crm_mode", None) or "gym").strip().lower()
+            if cmode not in ("gym", "corporate", "both"):
+                cmode = "gym"
+            org_doc["modules"]["crm"]["leisure_enabled"] = cmode in ("gym", "both")
+            org_doc["modules"]["crm"]["business_enabled"] = cmode in ("corporate", "both")
+            org_doc["crm_mode_choice"] = cmode
         # Landing module for routing: honour an explicit primary_module if
         # it's one of the chosen, else default to the single chosen module
         # (or operations when several were picked / it's in the set).

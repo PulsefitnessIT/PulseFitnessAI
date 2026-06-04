@@ -79,6 +79,8 @@ export default function TrialSignupModal() {
   // ALL (the recommended "trial everything"); a module-specific CTA narrows
   // it to just that one. Only chosen modules are entitled post-signup.
   const [selectedModules, setSelectedModules] = useState(ALL_MODULE_KEYS);
+  // Iter 220p1 — CRM audience: 'gym' (Members/leisure), 'corporate' (B2B), 'both'.
+  const [crmMode, setCrmMode] = useState('gym');
   const utmRef = useRef({});
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -164,6 +166,8 @@ export default function TrialSignupModal() {
         // Iter 220ea·42 — the modules the prospect chose to trial. Backend
         // entitles only these; the landing module is derived from them.
         trial_modules: selectedModules,
+        // Iter 220p1 — CRM audience choice (only relevant if CRM is picked).
+        crm_mode: selectedModules.includes('crm') ? crmMode : undefined,
         // Module intent — see useState comment above.
         primary_module: primaryModule || undefined,
         // Silent attribution — forwarded straight from the landing URL.
@@ -334,6 +338,35 @@ export default function TrialSignupModal() {
                 <p className="mt-1.5 text-[10px] text-slate-400">
                   You can add or remove modules anytime during your trial.
                 </p>
+                {selectedModules.includes('crm') && (
+                  <div className="mt-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 p-2.5" data-testid="trial-crm-mode">
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
+                      Who is your CRM for?
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { key: 'gym', label: 'Gym / Members', blurb: 'Membership lifecycle' },
+                        { key: 'corporate', label: 'Corporate / B2B', blurb: 'Companies, quotes & CPQ' },
+                        { key: 'both', label: 'Both', blurb: 'Members + B2B' },
+                      ].map((o) => {
+                        const on = crmMode === o.key;
+                        return (
+                          <button
+                            type="button"
+                            key={o.key}
+                            onClick={() => setCrmMode(o.key)}
+                            aria-pressed={on}
+                            className={`text-left rounded-lg border p-2 transition ${on ? 'border-slate-900 bg-slate-50 dark:bg-zinc-800 dark:border-zinc-200' : 'border-slate-200 hover:border-slate-300 dark:border-zinc-800'}`}
+                            data-testid={`trial-crm-mode-${o.key}`}
+                          >
+                            <span className="font-bold text-[12px] text-slate-900 dark:text-zinc-100 block">{o.label}</span>
+                            <span className="text-[10px] leading-snug text-slate-500 block mt-0.5">{o.blurb}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               <Field label="Full name *" value={form.full_name} onChange={update('full_name')} placeholder="Jane Smith" testid="trial-name" />
               <Field label="Work email *" type="email" value={form.email} onChange={update('email')} placeholder="jane@yourgym.com" testid="trial-email" />

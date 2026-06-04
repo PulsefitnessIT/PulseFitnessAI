@@ -219,18 +219,33 @@ const FeatureControlPanel = ({ org, allOrgs, onClose, onUpdateFeatures }) => {
  </SelectContent>
  </Select>
               {m.key === 'crm' && (
-                <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-zinc-100" data-testid={`module-crm-business-${org.id}`}>
-                  <div>
-                    <p className="text-[11px] font-bold text-zinc-700">Corporate (Business CRM)</p>
-                    <p className="text-[10px] text-zinc-400">Quotes / CPQ, companies &amp; B2B pipeline</p>
+                <div className="pt-1.5 mt-0.5 border-t border-zinc-100 space-y-1.5" data-testid={`module-crm-modes-${org.id}`}>
+                  <div className="flex items-center justify-between" data-testid={`module-crm-leisure-${org.id}`}>
+                    <div>
+                      <p className="text-[11px] font-bold text-zinc-700">Gym (Members)</p>
+                      <p className="text-[10px] text-zinc-400">Membership-style CRM (leisure)</p>
+                    </div>
+                    <Switch
+                      checked={cfg.leisure_enabled !== false}
+                      onCheckedChange={(val) => onUpdateFeatures && onUpdateFeatures(org.id, {
+                        modules: { ...(org.modules || {}), crm: { ...cfg, enabled: (val || cfg.business_enabled) ? true : cfg.enabled, leisure_enabled: val } },
+                      })}
+                      className={ADMIN_SWITCH}
+                      data-testid={`module-crm-leisure-toggle-${org.id}`} />
                   </div>
-                  <Switch
-                    checked={!!cfg.business_enabled}
-                    onCheckedChange={(val) => onUpdateFeatures && onUpdateFeatures(org.id, {
-                      modules: { ...(org.modules || {}), crm: { ...cfg, enabled: val ? true : cfg.enabled, business_enabled: val } },
-                    })}
-                    className={ADMIN_SWITCH}
-                    data-testid={`module-crm-business-toggle-${org.id}`} />
+                  <div className="flex items-center justify-between" data-testid={`module-crm-business-${org.id}`}>
+                    <div>
+                      <p className="text-[11px] font-bold text-zinc-700">Corporate (Business CRM)</p>
+                      <p className="text-[10px] text-zinc-400">Quotes / CPQ, companies &amp; B2B pipeline</p>
+                    </div>
+                    <Switch
+                      checked={!!cfg.business_enabled}
+                      onCheckedChange={(val) => onUpdateFeatures && onUpdateFeatures(org.id, {
+                        modules: { ...(org.modules || {}), crm: { ...cfg, enabled: val ? true : cfg.enabled, business_enabled: val } },
+                      })}
+                      className={ADMIN_SWITCH}
+                      data-testid={`module-crm-business-toggle-${org.id}`} />
+                  </div>
                 </div>
               )}
  </div>

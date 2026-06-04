@@ -824,6 +824,22 @@ useEffect(() => {
  <Badge className={`text-[10px] border ${ACCOUNT_TYPE_STYLES[org.account_type || 'full']}`} data-testid={`org-account-type-badge-${org.id}`}>
  {ACCOUNT_TYPE_LABELS[org.account_type || 'full']}
  </Badge>
+              {(() => {
+                const crm = (org.modules || {}).crm || {};
+                const crmOn = crm.enabled === true || crm.business_enabled === true;
+                if (!crmOn) return null;
+                const biz = !!crm.business_enabled;
+                const lei = crm.leisure_enabled !== false;
+                const label = biz && lei ? 'CRM: Both' : biz ? 'CRM: Corporate' : 'CRM: Gym';
+                const style = biz && lei
+                  ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                  : biz ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                return (
+                  <Badge className={`text-[10px] border ${style}`} data-testid={`org-crm-mode-badge-${org.id}`}>
+                    {label}
+                  </Badge>
+                );
+              })()}
  {(() => {
  const ms = moduleStatus[org.id];
  if (!ms) return null;

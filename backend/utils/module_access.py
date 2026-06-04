@@ -162,8 +162,10 @@ def crm_modes(user: dict, org: Optional[dict]) -> dict[str, bool]:
     if user.get("is_master_admin"):
         return {"leisure": True, "business": True}
     access = resolve_module_access(user, org)
-    # Leisure CRM requires CRM module to be ON.
-    leisure = bool(access.get("crm"))
+    crm_cfg = ((org.get("modules") or {}).get("crm") or {}) if org else {}
+    # Leisure (Members) CRM requires the CRM module ON, and is on by default
+    # unless an admin / signup choice explicitly turns it off (Corporate-only).
+    leisure = bool(access.get("crm")) and bool(crm_cfg.get("leisure_enabled", True))
     # Business CRM is the explicit per-org opt-in on top of CRM access.
     business = bool(_business_crm_flag(org)) and bool(access.get("crm"))
     return {"leisure": leisure, "business": business}

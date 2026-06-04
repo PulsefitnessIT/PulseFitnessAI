@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend verification of Iter 220p1 CRM Gym/Corporate signup + master-admin work. All three deliverables PASS: (1) TrialSignupModal CRM mode picker — trial-crm-mode block appears when CRM module selected (and is pre-selected by the generic 'Start free trial' CTA which defaults to ALL modules); shows three options (gym/corporate/both) with default 'gym' (aria-pressed=true), clicking each correctly flips aria-pressed and de-selects the others; deselecting the CRM module hides the block; reselecting brings it back. (2) Master Admin → Organisations → Pulse Fitness → Modules tab — both module-crm-leisure-toggle-<id> and module-crm-business-toggle-<id> render with initial aria-checked=true; toggling each OFF then ON triggers a 'Features updated — changes take effect on users' next login or page reload' toast every time (4/4 toasts captured); state persists on full reload (leisure=true, business=true). (3) Org list — org-crm-mode-badge-1e3fb1af-... renders text 'CRM: Both' for Pulse Fitness both before and after the toggle exercise. Pulse left with BOTH Gym (leisure) and Corporate (business) ON, as required.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TrialSignupModal.js — crmMode payload is conditionally sent only when CRM is in selectedModules (line 170 `crm_mode: selectedModules.includes('crm') ? crmMode : undefined`). Good: no orphan crm_mode leaks when CRM is deselected.",
+    "Default selection 'gym' is hard-coded in useState; if marketing later wants a CRM-only landing where 'both' is the default, this would need to be parameterised via the openTrial event detail. Not a blocker.",
+    "Master Admin success toast wording is 'Features updated — changes take effect on users' next login or page reload' — clearer than a bare 'Features updated' and matches what the original spec asked for. Resolves the prior iteration's concern (220p1_corporate_toggle) about the toast not rendering — it does render via [data-sonner-toast]/[role=status]."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% (3/3 deliverables verified end-to-end)"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (Master Admin) — used for org list/badge + Modules tab. Trial signup picker tested without logging in.",
+  "seed_data_creation": "None. Pulse Fitness left in 'CRM: Both' state (leisure_enabled=true, business_enabled=true).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Trial modal opens via window event 'gymaxis:open-trial' (also dispatched by any 'Start free trial' CTA on the marketing site). With a generic CTA all modules are pre-selected by default, so the trial-crm-mode block is visible immediately on Step 1. To deep-link the org Modules drawer: /master-admin?section=organizations&expand=<orgId>&view=features — needs ~6-8s post-domcontentloaded for the drawer + toggle DOM to mount. Pulse Fitness id: 1e3fb1af-5c03-48db-bb18-c9ff9bb9d7a3.",
+  "rca of the issue": "N/A — feature verification passed."
+}

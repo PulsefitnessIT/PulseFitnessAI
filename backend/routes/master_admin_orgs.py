@@ -394,12 +394,15 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             for k, v in existing.items():
                 if k not in entry:
                     entry[k] = v
-            # CRM "Corporate" (Business CRM) toggle — accept it from the
-            # incoming payload (previously dropped) and treat it as implying
-            # CRM is enabled, since Business CRM cannot exist without CRM.
-            if m_key == "crm" and "business_enabled" in cfg:
-                entry["business_enabled"] = bool(cfg["business_enabled"])
-                if entry["business_enabled"]:
+            # CRM mode flags — Gym (leisure) and Corporate (business). Accept
+            # them from the incoming payload (previously dropped) and treat
+            # either mode being on as implying CRM itself is enabled.
+            if m_key == "crm":
+                if "business_enabled" in cfg:
+                    entry["business_enabled"] = bool(cfg["business_enabled"])
+                if "leisure_enabled" in cfg:
+                    entry["leisure_enabled"] = bool(cfg["leisure_enabled"])
+                if entry.get("business_enabled") or entry.get("leisure_enabled"):
                     entry["enabled"] = True
             merged[m_key] = entry
             if old_modules.get(m_key) != entry:
