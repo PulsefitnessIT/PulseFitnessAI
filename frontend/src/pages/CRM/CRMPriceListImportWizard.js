@@ -10,7 +10,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  Upload, Loader2, X, Check, ChevronRight, ChevronLeft, Sparkles,
+  Upload, Loader2, X, Check, ChevronRight, ChevronLeft, Sparkles, Wand2,
   FileSpreadsheet, AlertTriangle, CheckCircle2, Database,
 } from 'lucide-react';
 
@@ -73,6 +73,19 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
       setMappings(m => ({ ...m, [sheet]: { ...(r.data.mapping || {}) } }));
     } catch (err) {
       setError('AI suggestion unavailable — heuristic mapping kept.');
+    }
+    setAiBusy('');
+  };
+
+  const aiAnalyze = async (sheet) => {
+    setAiBusy(`layout:${sheet}`); setError('');
+    try {
+      const r = await axios.post(`${API}/crm/price-list/import/${imp.id}/ai-analyze`, { sheet }, { headers: headers() });
+      const updated = r.data.sheet;
+      setImp(prev => ({ ...prev, sheets: (prev.sheets || []).map(s => s.name === sheet ? updated : s) }));
+      setMappings(m => ({ ...m, [sheet]: { ...(r.data.mapping || {}) } }));
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'AI layout detection unavailable — adjust the header row manually.');
     }
     setAiBusy('');
   };
@@ -190,12 +203,29 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                   <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: border, background: surface2 }}>
                     <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: c.text }}>
                       <input type="checkbox" checked={!!selected[s.name]} onChange={e => setSelected(v => ({ ...v, [s.name]: e.target.checked }))} data-testid={`plw-sheet-select-${s.name.replace(/\s+/g, '-')}`} />
-                      {s.name} <span className="font-normal" style={{ color: c.textDim }}>· {s.product_count} rows · {s.max_col} cols</span>
+                      {s.name} <span className="font-normal" style={{ color: c.textDim }}>· {s.product_count} rows · {s.max_col} cols · hdr row {s.header_row}{s.has_code ? '' : ' · name-keyed'}</span>
+                      {typeof s.confidence === 'number' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" data-testid={`plw-confidence-${s.name.replace(/\s+/g, '-')}`}
+                          style={{ background: s.confidence >= 70 ? 'rgba(34,197,94,0.15)' : s.confidence >= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)', color: s.confidence >= 70 ? 'var(--color-success-alt)' : s.confidence >= 40 ? 'var(--color-accent-amber)' : 'var(--color-danger-alt)' }}>
+                          {s.confidence}% match
+                        </span>
+                      )}
                     </label>
-                    <button type="button" onClick={() => aiSuggest(s.name)} disabled={!!aiBusy} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border disabled:opacity-50" style={{ borderColor: border, color: 'var(--color-info-ios)' }} data-testid={`plw-ai-suggest-${s.name.replace(/\s+/g, '-')}`}>
-                      {aiBusy === s.name ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI suggest
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => aiAnalyze(s.name)} disabled={!!aiBusy} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border disabled:opacity-50" style={{ borderColor: border, color: 'var(--color-accent-amber)' }} data-testid={`plw-ai-analyze-${s.name.replace(/\s+/g, '-')}`}>
+                        {aiBusy === `layout:${s.name}` ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />} AI auto-detect layout
+                      </button>
+                      <button type="button" onClick={() => aiSuggest(s.name)} disabled={!!aiBusy} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border disabled:opacity-50" style={{ borderColor: border, color: 'var(--color-info-ios)' }} data-testid={`plw-ai-suggest-${s.name.replace(/\s+/g, '-')}`}>
+                        {aiBusy === s.name ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI suggest fields
+                      </button>
+                    </div>
                   </div>
+                  {(s.warnings || []).length > 0 && (
+                    <div className="px-3 py-1.5 text-[11px] border-b" style={{ borderColor: border, color: 'var(--color-accent-amber)' }} data-testid={`plw-warnings-${s.name.replace(/\s+/g, '-')}`}>
+                      {s.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+                      {s.ai_note ? <div style={{ color: c.textDim }}>AI: {s.ai_note}</div> : null}
+                    </div>
+                  )}
                   {selected[s.name] && (
                     <div className="max-h-56 overflow-y-auto">
                       <table className="w-full text-xs">

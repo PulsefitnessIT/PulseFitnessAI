@@ -33,8 +33,8 @@ from routes.crm_auth import get_crm_user
 from routes.crm_core import log_audit
 from routes.crm_products import _is_admin, _calc_markup
 from utils.price_list_import import (
-    CANONICAL_FIELDS, NUMERIC_FIELDS, analyze_workbook, extract_products,
-    extract_products_from_wb, load_workbook,
+    CANONICAL_FIELDS, NUMERIC_FIELDS, analyze_workbook, analyze_sheet,
+    extract_products, extract_products_from_wb, load_workbook,
 )
 
 logger = logging.getLogger(__name__)
@@ -208,6 +208,110 @@ async def _ai_suggest(sheet: dict) -> dict:
     raw = json.loads(t[start:end + 1]) if start != -1 else {}
     valid = {f["key"] for f in CANONICAL_FIELDS}
     return {str(k): v for k, v in raw.items() if v in valid}
+
+
+@router.post("/import/{import_id}/ai-analyze")
+async def ai_analyze_sheet(import_id: str, body: dict = Body(...), user=Depends(get_crm_user)) -> dict:
+    """Whole-sheet AI layout detection for messy spreadsheets.
+
+    Sends a small sample of RAW rows to the LLM, which identifies the
+    header row, the product-code / name columns and the field mapping.
+    The sheet is then re-analyzed deterministically with those overrides
+    and returned (same shape as upload analysis) so the wizard can swap it
+    in. Advisory only — the user still confirms before any data is written.
+    """
+    _require_admin(user)
+    doc = await db.crm_price_imports.find_one({"id": import_id, **_of(user)}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Import not found")
+    sheet_name = body.get("sheet")
+    if not any(s["name"] == sheet_name for s in doc["sheets"]):
+        raise HTTPException(404, "Sheet not found in this import")
+
+    raw = await _load_file_bytes(import_id, user)
+    wb = load_workbook(raw)
+    try:
+        suggestion = await _ai_detect_layout(wb, sheet_name)
+        sheet = analyze_sheet(
+            wb, sheet_name,
+            header_row=suggestion["header_row"],
+            code_col=suggestion.get("code_col", 0),
+            name_col=suggestion.get("name_col"),
+        )
+        # merge AI field mappings (validated) over the heuristic ones
+        valid = {f["key"] for f in CANONICAL_FIELDS}
+        ai_map = {str(k): v for k, v in (suggestion.get("mappings") or {}).items() if v in valid}
+        merged = {**sheet.get("auto_mapping", {}), **ai_map}
+        sheet["auto_mapping"] = merged
+        sheet["ai_note"] = suggestion.get("note", "")
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("AI sheet analyze failed: %s", exc)
+        raise HTTPException(503, "AI layout detection is unavailable — adjust the header row manually") from exc
+    finally:
+        wb.close()
+
+    # persist the refreshed sheet structure back onto the import doc
+    sheets = [sheet if s["name"] == sheet_name else s for s in doc["sheets"]]
+    await db.crm_price_imports.update_one({"id": import_id, **_of(user)}, {"$set": {"sheets": sheets}})
+    return {"sheet": sheet, "mapping": sheet["auto_mapping"], "source": "ai"}
+
+
+async def _ai_detect_layout(wb, sheet_name: str) -> dict:
+    """Ask the LLM to identify header row + identity columns + mapping from a
+    raw sample. Returns {header_row, code_col, name_col, mappings, note}."""
+    import json
+    import os
+    from openpyxl.utils import get_column_letter
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise RuntimeError("EMERGENT_LLM_KEY not configured")
+    ws = wb[sheet_name]
+    max_col = min(ws.max_column or 1, 30)
+    max_row = min(ws.max_row or 1, 25)
+    grid = []
+    for r in range(1, max_row + 1):
+        cells = {}
+        for c in range(1, max_col + 1):
+            v = ws.cell(row=r, column=c).value
+            if v is not None and str(v).strip():
+                cells[c] = str(v).strip()[:60]
+        if cells:
+            grid.append({"row": r, "cells": cells})
+    fields_desc = "\n".join(f"- {f['key']}: {f['label']}" for f in CANONICAL_FIELDS)
+    prompt = (
+        "You are analysing a raw product price-list spreadsheet to import it "
+        "into a CRM. Columns are 1-based. From the sampled rows below, identify:\n"
+        "- header_row: the row number containing the column titles\n"
+        "- code_col: 1-based column number of the product code/SKU column, or 0 "
+        "if there is none (some catalogues are keyed by product name only)\n"
+        "- name_col: 1-based column number of the product NAME/description column\n"
+        "- mappings: object of {column_number: crm_field_key} for columns you "
+        "can confidently map (omit unknown columns — they're preserved as data)\n"
+        "- note: one short sentence describing the layout.\n\n"
+        f"CRM field keys:\n{fields_desc}\n\n"
+        f"Sampled rows (row · {{column: value}}):\n{json.dumps(grid, ensure_ascii=False)}\n\n"
+        'Return ONLY JSON, e.g. {"header_row":3,"code_col":1,"name_col":2,'
+        '"mappings":{"1":"sku","2":"name","5":"cost_price"},"note":"..."}'
+    )
+    chat = LlmChat(api_key=api_key, session_id=f"pllayout-{uuid.uuid4()}",
+                   system_message="You are a precise spreadsheet-structure analyst. Output JSON only.").with_model("anthropic", "claude-sonnet-4-6")
+    resp = await chat.send_message(UserMessage(text=prompt))
+    t = (resp or "").strip()
+    if "```" in t:
+        t = t.split("```")[1].replace("json", "", 1).strip()
+    start, end = t.find("{"), t.rfind("}")
+    raw = json.loads(t[start:end + 1]) if start != -1 else {}
+    hr = int(raw.get("header_row") or 1)
+    cc = int(raw.get("code_col") or 0)
+    nc = raw.get("name_col")
+    nc = int(nc) if nc else None
+    return {"header_row": max(1, hr), "code_col": max(0, cc), "name_col": nc,
+            "mappings": raw.get("mappings") or {}, "note": str(raw.get("note") or "")[:200]}
+
 
 
 # ── Preview / validate ─────────────────────────────────────────────
