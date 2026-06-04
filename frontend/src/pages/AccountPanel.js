@@ -12,6 +12,7 @@ import DigestPreferencesCard from '../components/shared/DigestPreferencesCard';
 import UsageMeterCard from '../components/shared/UsageMeterCard';
 import NotificationPreferencesPanel from '../components/shared/NotificationPreferencesPanel';
 import SubscriptionManagementPanel from '../components/shared/SubscriptionManagementPanel';
+import LocalizationPanel from '../components/shared/AccountSettings/LocalizationPanel';
 import {
   CreditCard, Calendar, Building2, ArrowUpRight, Clock, Wrench
 } from 'lucide-react';
@@ -134,6 +135,10 @@ const AccountPanel = ({ open, onClose }) => {
                     Invite code: <span className="font-mono text-[var(--color-brand-blue)]" data-testid="account-org-code">{billing.organization_code}</span>
                   </p>
                 )}
+                {/* Iter 220p1 — region & currency (USA readiness) */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <LocalizationPanel />
+                </div>
               </Card>
             )}
 
