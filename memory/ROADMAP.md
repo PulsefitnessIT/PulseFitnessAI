@@ -35,7 +35,11 @@ _Last refreshed: Iter 220m · May 26, 2026._
 - ✅ **Field-level permission hardening — SHIPPED (iter 220p1, Jun 4 2026)** — secure-by-default product cost/margin visibility. Restricted roles (sales_rep/rep/support/user) never see cost/markup/trade/list/retail/installation/delivery/discount/margin on products, quotes, or the quality dashboard (403) unless an admin grants their role via CRM Settings → Permissions → "Product cost & margin visibility". Privileged roles: owner/admin/manager/finance/analyst (+master/pulse admin). New `crm_product_perms.py` (`/crm/product-perms`, `/me`), redaction wired into products list/get/expand, quotes list, quality endpoints, and the CPQ margin badge. Tested: 6/6 pytest + frontend e2e (PASS).
 
 ## Known infra note
-- Import wizard upload: the full 2.7MB+ sample workbook 413s at the **k8s ingress** (app tier already allows 200MB for `/api/crm/price-list/import/`). For very large catalogues a chunked/streamed upload would be needed. Small workbooks upload fine.
+- Import wizard upload: files >1.2MB are now uploaded in 512KB chunks (`upload-chunk` → `upload-finalize`) so large catalogues bypass the proxy/ingress body-size limit. Single-request upload retained for small files.
+
+## ✅ Chunked / streamed large-file upload — SHIPPED (iter 220p1, Jun 4 2026)
+- New `POST /crm/price-list/import/upload-chunk` + `upload-finalize`; shared `_store_and_analyze` pipeline. Frontend auto-routes files >1.2MB to 512KB slices with a live % progress indicator, then reassembles + analyses server-side.
+- Verified: real 2.7MB Pulse workbook (7269 rows / 4 sheets) uploads via 6 chunks with no 413; 4/4 pytest (`test_iter_220p1_chunked_upload.py`) + frontend e2e (PASS).
 
 ## ✅ Generalized spreadsheet import engine — SHIPPED (iter 220p1, Jun 4 2026)
 Import *any* company's complicated price list, not just Pulse's:
