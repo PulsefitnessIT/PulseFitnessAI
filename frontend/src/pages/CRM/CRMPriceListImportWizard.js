@@ -124,7 +124,7 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
   );
 
   return (
-    <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3" data-testid="price-list-import-wizard">
+    <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3" data-testid="price-list-import-wizard">
       <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl border" style={{ background: surface, borderColor: border }}>
         {/* Header + stepper */}
         <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: border }}>

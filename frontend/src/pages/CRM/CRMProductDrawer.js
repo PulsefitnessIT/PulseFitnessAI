@@ -61,7 +61,7 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
   );
 
   return (
-    <div className="fixed inset-0 z-[210] flex justify-end bg-black/40" onMouseDown={e => e.target === e.currentTarget && onClose()} data-testid="product-drawer">
+    <div className="fixed inset-0 z-[260] flex justify-end bg-black/40" onMouseDown={e => e.target === e.currentTarget && onClose()} data-testid="product-drawer">
       <div className="w-full max-w-xl h-full overflow-y-auto shadow-2xl border-l" style={{ background: surface, borderColor: border }}>
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b" style={{ background: surface, borderColor: border }}>
           <div>

@@ -34,6 +34,7 @@ from routes.crm_core import log_audit
 from routes.crm_products import _is_admin, _calc_markup
 from utils.price_list_import import (
     CANONICAL_FIELDS, NUMERIC_FIELDS, analyze_workbook, extract_products,
+    extract_products_from_wb, load_workbook,
 )
 
 logger = logging.getLogger(__name__)
@@ -272,6 +273,7 @@ async def preview_import(import_id: str, body: dict = Body(...), user=Depends(ge
         raise HTTPException(404, "Import not found")
     sheets_cfg = body.get("sheets") or []
     raw = await _load_file_bytes(import_id, user)
+    wb = load_workbook(raw)
     existing = await db.crm_products.distinct("sku", _of(user))
     existing_skus = {s for s in existing if s}
     all_products: list[dict] = []
@@ -279,9 +281,10 @@ async def preview_import(import_id: str, body: dict = Body(...), user=Depends(ge
     for cfg in sheets_cfg:
         if not cfg.get("selected", True):
             continue
-        prods = extract_products(raw, cfg)
+        prods = extract_products_from_wb(wb, cfg)
         all_products.extend(prods)
         per_sheet.append({"sheet": cfg["name"], "count": len(prods)})
+    wb.close()
     seen: dict[str, int] = {}
     summary = _validate_products(all_products, existing_skus, seen)
     summary["per_sheet"] = per_sheet
@@ -358,6 +361,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
     version_label = (opts.get("version_label") or "").strip() or f"Import {datetime.now(timezone.utc):%d %b %Y %H:%M}"
 
     raw = await _load_file_bytes(import_id, user)
+    wb = load_workbook(raw)
     version_id = str(uuid.uuid4())
 
     existing = await db.crm_products.find(_of(user), {"_id": 0, "id": 1, "sku": 1}).to_list(None)
@@ -369,7 +373,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
     for cfg in sheets_cfg:
         if not cfg.get("selected", True):
             continue
-        for p in extract_products(raw, cfg):
+        for p in extract_products_from_wb(wb, cfg):
             sku = (p.get("sku") or "").strip()
             if not sku:
                 skipped += 1
@@ -404,6 +408,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
                 ops = []
     if ops:
         await db.crm_products.bulk_write(ops, ordered=False)
+    wb.close()
 
     if mode == "live":
         await db.crm_price_list_versions.update_many(

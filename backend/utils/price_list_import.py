@@ -284,7 +284,15 @@ def _coerce_number(v: Any) -> float | None:
 
 
 def extract_products(file_bytes: bytes, sheet_cfg: dict) -> list[dict]:
-    """Extract structured product rows for ONE sheet given a mapping cfg.
+    """Extract structured product rows for ONE sheet (loads the workbook).
+    Thin wrapper used by tests; the route loads the workbook ONCE and calls
+    :func:`extract_products_from_wb` per sheet for speed."""
+    return extract_products_from_wb(load_workbook(file_bytes), sheet_cfg)
+
+
+def extract_products_from_wb(wb, sheet_cfg: dict) -> list[dict]:
+    """Extract structured product rows for ONE sheet from an already-loaded
+    workbook given a mapping cfg.
 
     sheet_cfg = {
       name, header_row, header_band, code_col, name_col,
@@ -293,7 +301,6 @@ def extract_products(file_bytes: bytes, sheet_cfg: dict) -> list[dict]:
     Returns a list of product dicts with mapped fields + ``unmapped_fields``
     (every non-empty, non-mapped cell) + ``source_*`` provenance + ``section``.
     """
-    wb = load_workbook(file_bytes)
     ws = wb[sheet_cfg["name"]]
     header_row = int(sheet_cfg["header_row"])
     band = int(sheet_cfg.get("header_band", 0))
@@ -353,5 +360,4 @@ def extract_products(file_bytes: bytes, sheet_cfg: dict) -> list[dict]:
             prod["name"] = prod.get("description") or (current_section and f"{current_section} — {prod['sku']}") or prod["sku"]
         prod["unmapped_fields"] = prod["unmapped_fields"][:120]
         products.append(prod)
-    wb.close()
     return products

@@ -1,3 +1,22 @@
+## Iter 220 P1 — CRM Master Price List: zero-data-loss spreadsheet migration + management ✅ (Jun 4, 2026)
+
+**Request:** Turn the existing CRM → Master Price List into an enterprise product/pricing system. Migrate Pulse's master spreadsheet ONCE with **no data loss**, then manage everything inside CRM (stop spreadsheet dependence). User confirmed: AI assist ON (advisory), cost/margin NOT hidden, org-scoped to the Pulse org, "continue as you see best" for later phases. The source is a messy cost-engineering workbook (4 sheets: Main Gym/Rigs/Functional Training/Studio Equipment, multi-row headers, exchange-rate preamble, section headings, ~7193 rows, up to 73 cols).
+
+**Shipped (Phase 1 — extends `crm_products`, NO duplicate module):**
+- **Parser `utils/price_list_import.py`**: detects header row (handles "Product Code"/"System No" + fallback), builds **composite column labels** from the multi-row header band, captures preamble + section headings, extracts product rows. `extract_products_from_wb` lets the route load the workbook ONCE (full 4-sheet preview ~4s, was >90s). Heuristic `auto_map` + AI suggestions.
+- **Route `routes/crm_price_list.py`** (`/api/crm/price-list`): `import/upload` (stores original file verbatim base64 + analysis), `import/{id}/suggest-mapping` (Claude via Emergent key, advisory, heuristic fallback), `import/{id}/preview` (dry-run validation: ready/warnings/errors/new/updates/duplicates/missing/unmapped — no write), `import/{id}/commit` (writes products + creates a `crm_price_list_versions` doc draft/live, idempotent on SKU, 409 if already committed), `imports`, `versions`, `stats` (data-quality). Editor-gated (admin/owner/manager or master/pulse admin) → others read-only. Audit via `log_audit`.
+- **ZERO DATA LOSS:** original file stored; every product carries provenance (`source_sheet`, `source_row`, `section`, `import_batch_id`, `version_id`) + `unmapped_fields[]` (every non-mapped cell, labelled). Verified: ~75k cells preserved across Main Gym.
+- **Product model extended** (`crm_products.py`): `_validate` now preserves extended catalogue fields (sage_code, manufacturer, model, family, sub_category, part numbers, warranty, retail/trade/list price, etc.) + provenance + unmapped on edit; list filters (active/archived, supplier, status, import_batch, has_unmapped, missing_sage/price, sort); `POST /{id}/restore`.
+- **Frontend**: `CRMPriceListImportWizard.js` (Upload→Worksheets&Mapping→Preview→Done, per-sheet AI suggest, column-map selects, options draft/live + version label), `CRMProductDrawer.js` (full record + provenance + "Additional imported data" + edit/archive/restore), integrated into `CRMProductsSection.js` (Import-spreadsheet button, data-quality stats strip, status/unmapped filters, View action). Read-only users see no editor buttons. Wizard/drawer at z-[260] (above PWA banner z-200).
+- Body-size middleware allowlist extended for `/api/crm/price-list/import/` (large workbook uploads).
+
+**Tested:** pytest `tests/test_iter_220p1_price_list_import.py` (7/7). testing_agent `iteration_220p1.json`: backend 100% (12/12 API + 7/7 parser), frontend wizard upload+mapping verified. Fixed post-test: preview perf (>90s→4s, load-once) + wizard z-index. Sample workbook: `/app/test_samples/pulse_master_price_list_sample.xlsx`.
+
+**Next phases (P1/P2, user said continue as best):** version compare/rollback + price-change & approval workflow; quote intelligence + Sage 200 export prep; weekly secure backup exports; data-quality dashboard page + reporting; field-level cost/margin permissions.
+
+---
+
+
 ## Iter 220z(2) — Legacy report photos/sign-off: full browser E2E verified ✅ (Jun, 2026)
 
 Ran the testing_agent through the full UI flow (login → CSV upload → AI extract 3 machines → add photos → draw both signatures → comments → save → PDF download). Result: **all UI mechanics pass (95%)**.
