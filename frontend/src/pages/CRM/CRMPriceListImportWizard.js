@@ -30,35 +30,68 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
   const [result, setResult] = useState(null);
   const [aiSummary, setAiSummary] = useState(null);
   const [aiSummaryBusy, setAiSummaryBusy] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
+
+  const CHUNK_SIZE = 512 * 1024;          // 512 KB slices
+  const SINGLE_MAX = 1.2 * 1024 * 1024;   // files under this go in one request
 
   const surface = isDark ? 'var(--color-surface-dark-1)' : '#fff';
   const surface2 = isDark ? 'var(--color-surface-dark-2)' : '#fff';
   const border = isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)';
 
+  const applyUploadResult = (data) => {
+    const im = data.import;
+    setImp(im);
+    setFields(data.canonical_fields || []);
+    const sel = {}; const maps = {};
+    (im.sheets || []).forEach(s => {
+      sel[s.name] = true;
+      maps[s.name] = { ...(s.auto_mapping || {}) };
+    });
+    setSelected(sel); setMappings(maps);
+    setStep(1);
+  };
+
+  const uploadChunked = async (file) => {
+    const uploadId = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random()}`;
+    const total = Math.ceil(file.size / CHUNK_SIZE);
+    for (let i = 0; i < total; i++) {
+      const fd = new FormData();
+      fd.append('upload_id', uploadId);
+      fd.append('chunk_index', String(i));
+      fd.append('total_chunks', String(total));
+      fd.append('filename', file.name);
+      fd.append('chunk', file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE), file.name);
+      await axios.post(`${API}/crm/price-list/import/upload-chunk`, fd, {
+        headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+      });
+      setUploadPct(Math.round(((i + 1) / total) * 100));
+    }
+    const r = await axios.post(`${API}/crm/price-list/import/upload-finalize`, { upload_id: uploadId }, { headers: headers() });
+    return r.data;
+  };
+
   const onUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setUploadPct(0);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const r = await axios.post(`${API}/crm/price-list/import/upload`, fd, {
-        headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
-      });
-      const im = r.data.import;
-      setImp(im);
-      setFields(r.data.canonical_fields || []);
-      const sel = {}; const maps = {};
-      (im.sheets || []).forEach(s => {
-        sel[s.name] = true;
-        maps[s.name] = { ...(s.auto_mapping || {}) };
-      });
-      setSelected(sel); setMappings(maps);
-      setStep(1);
+      let data;
+      if (file.size > SINGLE_MAX) {
+        data = await uploadChunked(file);
+      } else {
+        const fd = new FormData();
+        fd.append('file', file);
+        const r = await axios.post(`${API}/crm/price-list/import/upload`, fd, {
+          headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+        });
+        data = r.data;
+      }
+      applyUploadResult(data);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Upload failed');
     }
-    setBusy(false);
+    setBusy(false); setUploadPct(0);
     e.target.value = '';
   };
 
@@ -185,8 +218,8 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
               <input type="file" accept=".xlsx,.xls,.csv" onChange={onUpload} className="hidden" id="plw-file" data-testid="plw-file-input" />
               <label htmlFor="plw-file" className="cursor-pointer inline-flex flex-col items-center gap-3 px-8 py-10 rounded-xl border-2 border-dashed" style={{ borderColor: border, color: c.textMuted }}>
                 {busy ? <Loader2 size={28} className="animate-spin" /> : <Upload size={28} />}
-                <span className="text-sm font-semibold" style={{ color: c.text }}>{busy ? 'Reading spreadsheet…' : 'Choose an XLSX or CSV file'}</span>
-                <span className="text-xs">Every worksheet, row and cell is preserved — nothing is lost. Large files supported.</span>
+                <span className="text-sm font-semibold" style={{ color: c.text }} data-testid="plw-upload-status">{busy ? (uploadPct > 0 ? `Uploading… ${uploadPct}%` : 'Reading spreadsheet…') : 'Choose an XLSX or CSV file'}</span>
+                <span className="text-xs">Every worksheet, row and cell is preserved — nothing is lost. Large files are uploaded in chunks.</span>
               </label>
             </div>
           )}

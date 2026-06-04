@@ -22,11 +22,12 @@ from __future__ import annotations
 import base64
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from pymongo import UpdateOne
+from bson.binary import Binary
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
@@ -61,19 +62,92 @@ def _require_admin(user: dict) -> None:
 
 @router.post("/import/upload")
 async def upload_import(file: UploadFile = File(...), user=Depends(get_crm_user)) -> dict:
-    """Upload an XLSX/CSV, parse its structure, store the original file
-    verbatim, and return the per-sheet analysis for the mapping step."""
+    """Upload an XLSX/CSV (single request — best for files under ~1.5 MB),
+    parse its structure, store the original file verbatim, and return the
+    per-sheet analysis for the mapping step. Larger files should use the
+    chunked endpoints (upload-chunk / upload-finalize) to bypass proxy
+    body-size limits."""
     _require_admin(user)
     name = (file.filename or "import").strip()
-    lower = name.lower()
-    if not (lower.endswith(".xlsx") or lower.endswith(".xls") or lower.endswith(".csv")):
-        raise HTTPException(415, "Upload an .xlsx or .csv file")
+    _validate_filename(name)
     raw = await file.read()
     if not raw:
         raise HTTPException(400, "The uploaded file is empty")
     if len(raw) > _MAX_BYTES:
         raise HTTPException(413, "File too large (max 30 MB)")
+    return await _store_and_analyze(raw, name, user)
 
+
+_CHUNK_MAX = 4 * 1024 * 1024  # generous per-chunk ceiling (clients send ~512 KB)
+
+
+@router.post("/import/upload-chunk")
+async def upload_chunk(
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    filename: str = Form(...),
+    chunk: UploadFile = File(...),
+    user=Depends(get_crm_user),
+) -> dict:
+    """Receive one slice of a large spreadsheet. Slices are reassembled by
+    upload-finalize. Keeps every request small enough to pass the ingress
+    body-size limit."""
+    _require_admin(user)
+    _validate_filename(filename.strip())
+    if total_chunks < 1 or chunk_index < 0 or chunk_index >= total_chunks:
+        raise HTTPException(400, "Invalid chunk index")
+    data = await chunk.read()
+    if len(data) > _CHUNK_MAX:
+        raise HTTPException(413, "Chunk too large")
+    await db.crm_price_upload_chunks.update_one(
+        {"upload_id": upload_id, "organization_id": user.get("organization_id"), "chunk_index": chunk_index},
+        {"$set": {"data": Binary(data), "total_chunks": total_chunks,
+                  "filename": filename.strip(), "created_at": _now()}},
+        upsert=True,
+    )
+    return {"received": chunk_index, "total_chunks": total_chunks}
+
+
+@router.post("/import/upload-finalize")
+async def upload_finalize(body: dict = Body(...), user=Depends(get_crm_user)) -> dict:
+    """Reassemble the uploaded chunks, then analyze & store exactly like a
+    single-request upload."""
+    _require_admin(user)
+    upload_id = body.get("upload_id")
+    if not upload_id:
+        raise HTTPException(400, "upload_id required")
+    of = {"upload_id": upload_id, "organization_id": user.get("organization_id")}
+    chunks = await db.crm_price_upload_chunks.find(of).sort("chunk_index", 1).to_list(20000)
+    if not chunks:
+        raise HTTPException(404, "No uploaded chunks found — please re-upload")
+    expected = chunks[0]["total_chunks"]
+    indices = {c["chunk_index"] for c in chunks}
+    if len(chunks) != expected or indices != set(range(expected)):
+        raise HTTPException(400, f"Upload incomplete — received {len(chunks)} of {expected} chunks")
+    raw = b"".join(bytes(c["data"]) for c in chunks)
+    name = chunks[0]["filename"]
+    await db.crm_price_upload_chunks.delete_many(of)
+    # opportunistic cleanup of abandoned chunk sets (>1 day old)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    await db.crm_price_upload_chunks.delete_many(
+        {"organization_id": user.get("organization_id"), "created_at": {"$lt": cutoff}})
+    if not raw:
+        raise HTTPException(400, "The uploaded file is empty")
+    if len(raw) > _MAX_BYTES:
+        raise HTTPException(413, "File too large (max 30 MB)")
+    return await _store_and_analyze(raw, name, user)
+
+
+def _validate_filename(name: str) -> None:
+    lower = name.lower()
+    if not (lower.endswith(".xlsx") or lower.endswith(".xls") or lower.endswith(".csv")):
+        raise HTTPException(415, "Upload an .xlsx or .csv file")
+
+
+async def _store_and_analyze(raw: bytes, name: str, user: dict) -> dict:
+    """Shared pipeline: CSV-wrap → analyze structure → persist file + doc."""
+    lower = name.lower()
     # CSV → wrap into a one-sheet workbook so the same engine handles both.
     if lower.endswith(".csv"):
         raw = _csv_to_xlsx_bytes(raw)
