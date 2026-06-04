@@ -25,6 +25,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from utils.database import db
 from routes.crm_auth import get_crm_user
 from routes.crm_permissions import is_unrestricted
+from routes.crm_core import log_audit
 
 router = APIRouter(prefix="/crm/product-perms", tags=["CRM Product Cost Permissions"])
 
@@ -135,6 +136,11 @@ async def set_product_perm(data: dict = Body(...), user=Depends(get_crm_user)) -
         )
     else:
         await db.crm_product_perms.delete_one({**_of(user), "role": role})
+    await log_audit(
+        user, "product_cost_permission", role,
+        "granted" if can_see else "revoked",
+        {"role": role, "can_see_cost": can_see},
+    )
     return {"success": True, "role": role, "can_see_cost": can_see}
 
 
