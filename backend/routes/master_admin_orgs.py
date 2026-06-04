@@ -387,12 +387,20 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             if not isinstance(cfg, dict):
                 continue
             tier = cfg.get("tier") if cfg.get("tier") in {"lite", "pro", "enterprise"} else (old_modules.get(m_key) or {}).get("tier", "pro")
-            entry = {"enabled": bool(cfg.get("enabled", False)), "tier": tier}
-            # Preserve any legacy/extension keys (e.g. business_enabled)
             existing = old_modules.get(m_key) or {}
+            enabled = bool(cfg.get("enabled", existing.get("enabled", False)))
+            entry = {"enabled": enabled, "tier": tier}
+            # Preserve any legacy/extension keys (e.g. business_enabled)
             for k, v in existing.items():
                 if k not in entry:
                     entry[k] = v
+            # CRM "Corporate" (Business CRM) toggle — accept it from the
+            # incoming payload (previously dropped) and treat it as implying
+            # CRM is enabled, since Business CRM cannot exist without CRM.
+            if m_key == "crm" and "business_enabled" in cfg:
+                entry["business_enabled"] = bool(cfg["business_enabled"])
+                if entry["business_enabled"]:
+                    entry["enabled"] = True
             merged[m_key] = entry
             if old_modules.get(m_key) != entry:
                 changes[f"module:{m_key}"] = {"from": old_modules.get(m_key), "to": entry}

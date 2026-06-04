@@ -1,0 +1,21 @@
+{
+  "summary": "Verified Master Admin → Pulse Fitness → Modules → CRM card 'Corporate (Business CRM)' toggle. Toggle renders with correct testid, initial state=checked, toggling OFF/ON works end-to-end and persists across full reload. CRM main module toggle remains ON when Corporate is ON (business implies CRM enabled). Left Pulse with Corporate ON as required.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Master Admin Organisations drawer", "issues": ["No visible success toast appeared after PUT /features (toast scrape returned empty). PUT call appears to succeed (state persists across reload + CRM main toggles ON consistently), but main agent should verify notify('Features updated') is firing — could be a missing toast or toast portal not rendered into [role=status]/[data-sonner-toast]."]}
+  ],
+  "test_report_links": [],
+  "action_items": ["Verify the 'Features updated' success toast actually renders to screen (notify call vs. sonner/toast mount). Functional behavior is correct; only the visual confirmation is missing."],
+  "critical_code_review_comments": ["FeatureControlPanel.js correctly forces enabled=true when business_enabled is toggled ON (matches backend coercion in master_admin_orgs.py) — good.", "Module Access matrix uses module-crm-business-toggle-<orgId> testid as specified."],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only test)", "frontend": "100% (toggle render + flip + persistence verified)"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! — Master Admin",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To reach Pulse modules tab directly: navigate to /master-admin?section=organizations&expand=<orgId>&view=features — opens the org drawer pre-scrolled to Modules tab. The drawer overlay sits on top of the org list page; testid module-crm-business-toggle-<orgId> is in DOM immediately. Pulse Fitness org id: 1e3fb1af-5c03-48db-bb18-c9ff9bb9d7a3. Left in ON/Corporate state.",
+  "rca of the issue": "N/A — bug fix verified working."
+}
