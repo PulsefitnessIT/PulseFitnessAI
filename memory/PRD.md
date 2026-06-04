@@ -1,3 +1,25 @@
+## Iter 220 P1 — USA readiness, slice 2: frontend currency sweep ✅ (Jun, 2026)
+
+**Request:** Migrate the ~149 hard-coded `£` frontend surfaces to the org's market currency. Scope: the **Engineer + Operations** modules (the USA target); platform/SaaS billing left in GBP.
+
+**Shipped — migrated to `useLocalization()` + `formatMoney`/`formatMoneySync` (`utils/localization.js`, extended with `formatMoneySync`/`getCachedLocalization` + options on `formatMoney`):**
+- **Engineer:** `EngineerQuoteBuilder` (currency + `loc.tax_label` + market default rate + `Unit/Total {sym}` headers), `EngineerInvoices` & `EngineerQuotes` lists, `EngineerHomeV2` dashboard, `EngineerEndOfDay`, `EngineerJobDetailV2` (incl. chargeable badge symbol), `EngineerCustomers`, `EngineerEquipment` (dropped the misleading £-icon hack), `EngineerStock`, `AdminStock`, `PartsCatalogue`, `EngineerAccountSettings` (rate unit labels £→{sym}).
+- **Operations:** `BillingPage` (+`Unit/Line {sym}` headers), `ServiceOpsReportsPage`, `PartsInventoryPage` (+`Cost/Unit {sym}` labels), `StaffingConsole` (week/labour cost, hourly rate `{sym}/hr`, `Labour {sym}` header), staffing `TimeClockTab`, `WorkforceDashboardTab`, `AIWorkforceTab`.
+- **Pattern:** files with money in module-level sub-components use `formatMoneySync` (reads the shared cache) + a `useLocalization()` warm-call in the page's top component so the subtree re-renders when the market loads; simpler files use the `formatMoney(n, loc)` hook directly.
+
+**Deliberately LEFT as GBP (platform billing, not customer-facing):** all PartnerEngineer files (`PartnerDashboard` £30/£15/mo plan + GymAxis→partner commission payouts, `TrialFeedback`, `PartnerEngineerActivate`, `PartnerComplianceCard` UK liability), the `£85k VAT threshold` UK-tax helper text, and one demo placeholder string in `CommsHubPage`.
+
+**Tested:** lint clean, frontend compiles. testing_agent `iteration_220p1_frontend_currency_sweep.json` — flipped market GB→US→GB: **Reports £1,080→$1,080**, **Parts COST £→$**, no console errors, no blank screens, org reverted to GB. Engineer-app surfaces were NOT UI-reachable as master admin (need a partner_engineer account) → **code-verified only** (identical proven `useLocalization`/`formatMoney` pattern, lint clean, compiles).
+
+**Still remaining in the USA-readiness backlog (next slices):**
+- P1: **PDF/email currency localization** — invoice/quote/service-report PDFs + emails still render £/UK terms (highest-impact next step).
+- P1: thread per-org **timezone** into scheduling/notifications/reminders.
+- P1: capture `country_code` at **signup**.
+- P2: proper US **sales tax** (Stripe Tax/TaxJar), US **engineer compliance** (I-9/E-Verify vs DBS/RTW), **Companies House** US alternative, phone/ZIP/state. Operational: enable Stripe Connect **US payouts**.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 1: localization foundation ✅ (Jun, 2026)
 
 **Request:** Customer asked if the platform is ready for USA customers (Operations + Engineers modules). Audit found the platform was hard-wired UK (GBP/`£` in ~20 backend + 149 frontend files, VAT 20%, Companies House, DBS/RTW engineer compliance, `Europe/London` tz, Stripe country GB). User approved **1c + 2a + 3c**: foundation-first (org country/currency/timezone + USD/$ + US Stripe), VAT relabeled to a manual tax line, US engineer compliance deferred.
