@@ -35,22 +35,24 @@ def client(token):
 
 @pytest.fixture(scope="module")
 def products(client):
-    """Pick: one product WITH a sage_code, one WITHOUT."""
-    r = client.get(f"{BASE_URL}/api/crm/products?limit=200", timeout=30)
-    assert r.status_code == 200, r.text
-    payload = r.json()
-    items = payload.get("products") or payload.get("items") or payload if isinstance(payload, list) else payload.get("data") or []
-    if isinstance(payload, dict) and not items:
-        # try common keys
-        for k in ("products", "items", "data", "results"):
-            if isinstance(payload.get(k), list):
-                items = payload[k]
-                break
-    assert items, f"No products returned: {str(payload)[:200]}"
-    with_sage = next((p for p in items if (p.get("sage_code") or "").strip()), None)
-    without_sage = next((p for p in items if not (p.get("sage_code") or "").strip()), None)
-    assert with_sage, "Need at least one product with sage_code in seed data"
-    assert without_sage, "Need at least one product without sage_code in seed data"
+    """Self-seed two deterministic products: one WITH a Sage code + a
+    non-zero price (so price_changed can be exercised), one WITHOUT a Sage
+    code. Avoids depending on ambient catalogue state."""
+    suffix = uuid.uuid4().hex[:6].upper()
+    with_body = {"name": f"TEST Sage Tread {suffix}", "sku": f"TST-WS-{suffix}",
+                 "sage_code": f"SAGE-{suffix}", "category": "Equipment",
+                 "cost_price": 300, "sell_price": 500, "tax_rate": 20}
+    without_body = {"name": f"TEST NoSage Bike {suffix}", "sku": f"TST-NS-{suffix}",
+                    "category": "Equipment", "cost_price": 300, "sell_price": 400, "tax_rate": 20}
+    rw = client.post(f"{BASE_URL}/api/crm/products", json=with_body, timeout=30)
+    assert rw.status_code in (200, 201), f"create with_sage failed: {rw.status_code} {rw.text[:300]}"
+    rn = client.post(f"{BASE_URL}/api/crm/products", json=without_body, timeout=30)
+    assert rn.status_code in (200, 201), f"create without_sage failed: {rn.status_code} {rn.text[:300]}"
+    with_sage = rw.json()
+    without_sage = rn.json()
+    with_sage = with_sage.get("product", with_sage)
+    without_sage = without_sage.get("product", without_sage)
+    assert (with_sage.get("sage_code") or "").strip(), f"sage_code not saved: {with_sage}"
     return {"with_sage": with_sage, "without_sage": without_sage}
 
 

@@ -1,0 +1,25 @@
+{
+  "summary": "Iter 220 P1 slice 4 (CRM Master Price List exports + weekly backups) fully validated. Backend pytest 5/5 (test_iter_220p1_price_backup.py) and a new E2E HTTP suite 10/10 covering manual export (csv+cost+margin), token-gated download (valid → 200 w/ CSV header containing Cost+Margin cols; wrong/empty token → 404), xlsx validity (PK header), exports list, fresh link endpoint, backup config GET/PUT (next_run_at computed for next Monday 06:00), and run-now. Frontend modal opens from CRM Settings → Price List, all 17 expected data-testids present, manual CSV generate produced a download link, backup-save shows 'Next run 6/8/2026, 6:00:00 AM', Run-backup-now adds a new history row, sensitive rows display lock 🔒. No console/page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220p1_price_backup.py",
+    "/app/backend/tests/test_iter_220p1_slice4_price_backup_e2e.py",
+    "/app/test_reports/pytest/iter_220p1_slice4_e2e.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "API responses wrap payload under top-level keys ('export', 'config', 'link'). FE handles this; tests had to unwrap. Fine but worth keeping consistent for future endpoints.",
+    "GET /api/crm/price-list/backup/config returns is_approver at the TOP level (not inside config). FE relies on this (cf.data.is_approver). Document the contract in the route docstring to prevent regressions."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_220p1_slice4_price_backup_e2e.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10 E2E + 5/5 unit)", "frontend": "100% (all flows verified)"},
+  "test_credentials": "CRM admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None. Used existing org (47-51 products, varied across history rows).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "E2E test pattern uses _STATE module dict for cross-test fixture data (pytest wraps test fns so attribute attachment fails). BASE_URL is resolved from REACT_APP_BACKEND_URL with fallback to /app/frontend/.env. To reach the Export/Backup modal in the UI: login → /crm?tab=settings → click [data-testid=settings-tab-products] → [data-testid=products-export-btn]. The modal is data-testid=price-export-modal. Backend response envelopes: POST export → {export:{...}}; GET config → {config:{...}, is_approver:bool}; GET .../link → {link:{download_url, expires_at}} (or flat — tests fallback).",
+  "rca of the issue": "N/A — no issues found."
+}

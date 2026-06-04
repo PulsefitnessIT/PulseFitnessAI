@@ -581,6 +581,15 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"price-change sweep start failed: {e}")
 
+    # Iter 220 P1 — Master Price List weekly backup + retention purge.
+    try:
+        from routes.crm_price_backup import run_weekly_backup_loop
+        _bk_int = int(os.environ.get("PRICE_BACKUP_SWEEP_MIN", "60"))
+        asyncio.create_task(run_weekly_backup_loop(interval_minutes=_bk_int))
+        logger.info("[price-backup] weekly backup loop registered (interval=%dm)", _bk_int)
+    except Exception as e:
+        logger.error(f"price-backup loop start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:

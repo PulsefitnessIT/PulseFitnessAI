@@ -137,6 +137,7 @@ async def seed_services() -> None:
         from routes.crm_price_list import ensure_price_list_indexes
         from routes.crm_price_changes import ensure_price_change_indexes
         from routes.crm_quote_sage import ensure_quote_sage_indexes
+        from routes.crm_price_backup import ensure_price_backup_indexes
         from routes.crm_website_recognize import ensure_website_cache_indexes
         from utils.tenant_mirror import ensure_tenant_mirror_indexes, mirror_pulse_tenants_to_crm
         from routes.incidents import ensure_incident_indexes
@@ -146,6 +147,7 @@ async def seed_services() -> None:
         await ensure_price_list_indexes()
         await ensure_price_change_indexes()
         await ensure_quote_sage_indexes()
+        await ensure_price_backup_indexes()
         await ensure_website_cache_indexes()
         await ensure_tenant_mirror_indexes()
         await ensure_incident_indexes()

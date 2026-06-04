@@ -9,12 +9,13 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock } from 'lucide-react';
+import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock, FileDown } from 'lucide-react';
 import CRMPriceListImportWizard from './CRMPriceListImportWizard';
 import CRMProductDrawer from './CRMProductDrawer';
 import CRMBulkPriceModal from './CRMBulkPriceModal';
 import CRMPriceVersionsModal from './CRMPriceVersionsModal';
 import CRMPriceChangesModal from './CRMPriceChangesModal';
+import CRMPriceExportModal from './CRMPriceExportModal';
 
 const EDITOR_ROLES = ['admin', 'owner', 'manager'];
 
@@ -48,6 +49,7 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   const [showChanges, setShowChanges] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [isApprover, setIsApprover] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -223,6 +225,15 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
           >
             <Clock size={12} /> Approvals
             {pendingCount > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--color-accent-amber)' }} data-testid="products-pending-badge">{pendingCount}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowExport(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+            style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+            data-testid="products-export-btn"
+          >
+            <FileDown size={12} /> Export / Backup
           </button>
           {canEdit && (
             <button
@@ -401,6 +412,11 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
         <CRMPriceChangesModal API={API} headers={headers} c={c} isDark={isDark}
           onClose={() => setShowChanges(false)}
           onChanged={() => { load(); loadStats(); loadChangesMeta(); }} />
+      )}
+      {showExport && (
+        <CRMPriceExportModal API={API} headers={headers} c={c} isDark={isDark}
+          categories={categories}
+          onClose={() => setShowExport(false)} />
       )}
 
       {/* Create / edit modal */}
