@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { OutboxStatusPill } from '@/utils/engineerStatusBoot';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -34,12 +35,13 @@ const FILTERS = [
   { id: 'void',    label: 'Void' },
 ];
 
-const fmtGBP = (n) => n == null ? '—' : `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 export default function EngineerInvoices() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const loc = useLocalization();
+  const fmtGBP = (n) => formatMoney(n, loc, { nullDisplay: '—' });
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const filter = params.get('status') || 'unpaid';

@@ -16,13 +16,15 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
+import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
-function gbp(n) { return `£${(Number(n) || 0).toFixed(2)}`; }
+function gbp(n) { return formatMoneySync(n); }
 
 export default function BillingPage() {
+  useLocalization();  // warm currency cache
   const [rows, setRows] = useState([]);
   const [filter, setFilter] = useState('ready');
   const [openCase, setOpenCase] = useState(null);
@@ -252,8 +254,8 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
                   <th className="px-2 py-1.5">Kind</th>
                   <th className="px-2 py-1.5">Description</th>
                   <th className="px-2 py-1.5 text-right">Qty</th>
-                  <th className="px-2 py-1.5 text-right">Unit £</th>
-                  <th className="px-2 py-1.5 text-right">Line £</th>
+                  <th className="px-2 py-1.5 text-right">Unit {getCachedLocalization().currency_symbol}</th>
+                  <th className="px-2 py-1.5 text-right">Line {getCachedLocalization().currency_symbol}</th>
                   <th className="px-2 py-1.5"></th>
                 </tr>
               </thead>

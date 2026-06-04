@@ -32,17 +32,20 @@ export function currencySymbol(currency) {
   return CURRENCY_SYMBOLS[(currency || '').toUpperCase()] || currency || '£';
 }
 
-/** Format an amount with the given currency. Symbol-prefixed, 2dp. */
-export function formatMoney(amount, loc = DEFAULT_LOCALIZATION) {
+/** Format an amount with the given currency. Symbol-prefixed, 2dp by default.
+ *  opts: { nullDisplay, minimumFractionDigits, maximumFractionDigits } */
+export function formatMoney(amount, loc = DEFAULT_LOCALIZATION, opts = {}) {
+  const { nullDisplay, minimumFractionDigits = 2, maximumFractionDigits = 2 } = opts;
+  if (amount == null && nullDisplay !== undefined) return nullDisplay;
   const currency = (loc && loc.currency) || 'GBP';
   const localeTag = (loc && loc.locale) || 'en-GB';
   try {
     return new Intl.NumberFormat(localeTag, {
-      style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2,
+      style: 'currency', currency, minimumFractionDigits, maximumFractionDigits,
     }).format(Number(amount || 0));
   } catch {
     const sym = currencySymbol(currency);
-    return `${sym}${Number(amount || 0).toFixed(2)}`;
+    return `${sym}${Number(amount || 0).toFixed(minimumFractionDigits)}`;
   }
 }
 
@@ -68,6 +71,18 @@ export async function fetchLocalization() {
 /** Clear the cache after a localization change so the next read is fresh. */
 export function invalidateLocalization() {
   _cache = null;
+}
+
+/** Synchronous read of the cached localization (UK default until warmed). */
+export function getCachedLocalization() {
+  return _cache || DEFAULT_LOCALIZATION;
+}
+
+/** Sync money formatter for module-level helpers/sub-components. Reads the
+ *  shared cache; pair with a `useLocalization()` call in the page's top
+ *  component so the subtree re-renders once the real market loads. */
+export function formatMoneySync(amount, opts = {}) {
+  return formatMoney(amount, getCachedLocalization(), opts);
 }
 
 /** React hook — returns the resolved localization (UK default until loaded). */

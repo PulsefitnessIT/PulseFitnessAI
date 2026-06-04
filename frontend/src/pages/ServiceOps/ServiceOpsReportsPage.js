@@ -22,6 +22,7 @@ import {
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
 import { resolveChannel } from '@/utils/channelLabel';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -32,7 +33,7 @@ const RANGES = [
   { id: '90', label: 'Last 90 days', days: 90 },
 ];
 
-function gbp(n) { return `£${(Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`; }
+function gbp(n) { return formatMoneySync(n, { minimumFractionDigits: 0 }); }
 function pct(n) { return `${Math.round((Number(n) || 0) * 100)}%`; }
 
 function isoFromDaysAgo(d) {
@@ -63,6 +64,7 @@ function KPI({ label, value, sub, testid }) {
 }
 
 export default function ServiceOpsReportsPage() {
+  useLocalization();  // warm currency cache
   const [rangeId, setRangeId] = useState('30');
   const range = RANGES.find((r) => r.id === rangeId) || RANGES[1];
   const fromIso = useMemo(() => isoFromDaysAgo(range.days), [range.days]);

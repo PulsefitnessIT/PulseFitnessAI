@@ -12,6 +12,7 @@ import axios from 'axios';
 import {
   Sparkles, Wand2, Loader2, Download, CheckCircle2, RefreshCw, ShieldAlert, FileSpreadsheet,
 } from 'lucide-react';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -137,7 +138,7 @@ function RotaBuilderPanel({ headers }) {
             <Stat label="Engine"        value={result.engine === 'claude-sonnet-4-5' ? 'AI · Claude' : 'Heuristic'} testId="rota-engine" />
             <Stat label="Shifts planned" value={result.suggestions?.length || 0}                                      testId="rota-shift-count" />
             <Stat label="People covered" value={Object.keys(result.hours_per_staff || {}).length}                     testId="rota-people-count" />
-            <Stat label="Total cost"     value={`£${(result.cost_total || 0).toFixed(2)}`}                            testId="rota-total-cost" />
+            <Stat label="Total cost"     value={formatMoneySync(result.cost_total || 0)}                            testId="rota-total-cost" />
           </div>
           <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
             <table className="w-full text-xs">
@@ -325,6 +326,7 @@ function SagePayrollPanel({ headers }) {
 // ───────────────────────── Hub ───────────────────────────────────
 
 export default function AIWorkforceTab({ headers }) {
+  useLocalization();  // warm currency cache
   const [sub, setSub] = useState(() => localStorage.getItem('staffing.ai.sub') || 'rota');
   useEffect(() => { localStorage.setItem('staffing.ai.sub', sub); }, [sub]);
   return (

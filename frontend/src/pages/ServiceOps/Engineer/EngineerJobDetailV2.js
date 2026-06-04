@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
+import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
 // Iter 220ds — WorkReportCustomFields temporarily not rendered on
@@ -54,7 +55,7 @@ import { outboxPost } from '@/utils/engineerOutbox';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
-const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtGBP = (n) => formatMoneySync(n);
 const fmtMins = (m) => {
   const total = Math.max(0, Math.round(m || 0));
   const h = Math.floor(total / 60);
@@ -181,6 +182,7 @@ const TABS = [
 
 export default function EngineerJobDetailV2() {
   const navigate = useNavigate();
+  useLocalization();  // warm currency cache + re-render subtree on load
   const { caseId } = useParams();
   const [searchParams] = useSearchParams();
   // Iter 220dn — when the engineer claims a job from Up-for-grabs we
@@ -2008,7 +2010,7 @@ function TimeTab({ job, busy, setBusy, onChange }) {
                   <p className="text-sm font-semibold text-slate-900">{fmtMins(e.duration_minutes)} {!e.end_at && <span className="text-emerald-600">· running</span>}</p>
                   <p className="text-[11px] text-slate-500">{new Date(e.start_at).toLocaleString('en-GB')}</p>
                 </div>
-                {e.chargeable && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">£</span>}
+                {e.chargeable && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{getCachedLocalization().currency_symbol}</span>}
               </li>
             ))}
           </ul>

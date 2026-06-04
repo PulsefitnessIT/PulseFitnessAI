@@ -21,6 +21,7 @@ import {
   Building2, ChevronRight, PackageCheck, Trash2, FileText, Download, ShoppingCart,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -29,7 +30,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const gbp = (n) => `£${(Number(n) || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const gbp = (n) => formatMoneySync(n);
 const num = (n) => (Number(n) || 0).toLocaleString('en-GB');
 const newIdem = () => (crypto?.randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
@@ -45,6 +46,7 @@ const Stat = ({ label, value, icon: Icon, tid }) => (
 
 export default function AdminStock() {
   const navigate = useNavigate();
+  useLocalization();  // warm currency cache + re-render subtree on load
   const [tab, setTab] = useState('overview');
   const [overview, setOverview] = useState(null);
   const [locations, setLocations] = useState({ engineers: [] });

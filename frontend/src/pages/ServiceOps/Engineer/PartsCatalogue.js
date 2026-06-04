@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import PartsImportWizard from './PartsImportWizard';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -30,6 +31,7 @@ const STATUS = [
 
 export default function PartsCatalogue() {
   const navigate = useNavigate();
+  const loc = useLocalization();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState({ items: [], total: 0, pages: 1, show_cost: false, can_manage: false });
   const [facets, setFacets] = useState({ categories: [], manufacturers: [], total: 0 });
@@ -150,7 +152,7 @@ export default function PartsCatalogue() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-bold text-slate-800 inline-flex items-center"><PoundSterling className="w-3 h-3" />{(p.list_price || 0).toFixed(2)}</p>
-                  {data.show_cost && <p className="text-[11px] text-slate-400">cost £{(p.cost || 0).toFixed(2)}</p>}
+                  {data.show_cost && <p className="text-[11px] text-slate-400">cost {formatMoney(p.cost || 0, loc)}</p>}
                 </div>
                 {data.can_manage && (
                   <button onClick={() => setEdit(p)} className="p-2 text-slate-400 hover:text-blue-600" data-testid={`catalogue-edit-${p.sku}`} aria-label="Edit">

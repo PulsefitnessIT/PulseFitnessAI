@@ -23,6 +23,7 @@ import {
   ChevronRight, PoundSterling, CheckCircle2, XCircle, Hourglass, Package,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -52,7 +53,7 @@ const REQ_STATUS = {
   cancelled: { label: 'Cancelled', cls: 'bg-slate-100 text-slate-500 border-slate-200', icon: XCircle },
 };
 
-const gbp = (n) => `£${(Number(n) || 0).toFixed(2)}`;
+const gbp = (n) => formatMoneySync(n);
 const ago = (iso) => {
   if (!iso) return '—';
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -156,6 +157,7 @@ const ReplenishModal = ({ open, part, defaultQty, onClose, onDone }) => {
 
 export default function EngineerStock() {
   const navigate = useNavigate();
+  useLocalization();  // warm currency cache
   const [tab, setTab] = useState('van');
   const [loading, setLoading] = useState(true);
   const [van, setVan] = useState({ items: [], summary: {}, show_cost: false });

@@ -39,6 +39,7 @@ import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
 import ProductTour from '@/components/shared/ProductTour';
+import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -74,6 +75,7 @@ const TABS_ALL = [
 
 export default function StaffingConsole() {
   const { user } = useAuth();
+  useLocalization();  // warm currency cache
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   // Iter 216h264 — when a manager opens this console with ?as=staff
@@ -376,7 +378,7 @@ function RotaTab({ headers, isManager }) {
         <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
           <span data-testid="rota-week-hours">{weekHours.toFixed(1)}h</span>
           <span>·</span>
-          <span data-testid="rota-week-cost">£{weekCost.toFixed(2)} labour</span>
+          <span data-testid="rota-week-cost">{formatMoneySync(weekCost)} labour</span>
           {isManager && conflicts.length > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }} data-testid="rota-conflicts-badge">
               <AlertTriangle size={10} /> {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
@@ -469,7 +471,7 @@ function RotaTab({ headers, isManager }) {
                     return (
                       <td key={d} className="py-2 px-2" data-testid={`rota-day-total-${d}`}>
                         <div className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{t.hours.toFixed(1)}h</div>
-                        {isManager && <div className="text-[10px] tabular-nums" style={{ color: 'var(--theme-text-muted)' }}>£{t.cost.toFixed(2)}</div>}
+                        {isManager && <div className="text-[10px] tabular-nums" style={{ color: 'var(--theme-text-muted)' }}>{formatMoneySync(t.cost)}</div>}
                       </td>
                     );
                   })}
@@ -650,7 +652,7 @@ function StaffTab({ headers }) {
                   <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</td>
                   <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.contract_type || '—'}</td>
                   <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hrs`}>{s.hours_per_week ? `${s.hours_per_week}h` : '—'}</td>
-                  <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hourly`}>£{Number(s.hourly_cost || 0).toFixed(2)}</td>
+                  <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hourly`}>{formatMoneySync(s.hourly_cost || 0)}</td>
                   <td className="py-2 px-2 text-right">
                     <button
                       type="button"
@@ -742,7 +744,7 @@ function StaffTab({ headers }) {
                   {/* Iter 216h242 — labels above each number input. Without
                       these the two zeros looked identical and operators
                       had no way to tell which was £/hr vs hours/week. */}
-                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Hourly rate (£/hr)</label>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Hourly rate ({getCachedLocalization().currency_symbol}/hr)</label>
                   <input type="number" step="0.5" min="0" value={form.hourly_cost} onChange={(e) => setForm({ ...form, hourly_cost: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hourly" />
                 </div>
                 <div>
@@ -952,13 +954,13 @@ function PerformanceTab({ headers }) {
           classes / attendees columns don't clip on mobile. */}
       <div className="overflow-x-auto -mx-2 sm:mx-0">
       <table className="w-full text-sm min-w-[36rem]">
-        <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2 whitespace-nowrap">Staff</th><th className="text-right py-2 px-2 whitespace-nowrap">Hours</th><th className="text-right py-2 px-2 whitespace-nowrap">Labour £</th><th className="text-right py-2 px-2 whitespace-nowrap">Classes</th><th className="text-right py-2 px-2 whitespace-nowrap">Attendees</th></tr></thead>
+        <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2 whitespace-nowrap">Staff</th><th className="text-right py-2 px-2 whitespace-nowrap">Hours</th><th className="text-right py-2 px-2 whitespace-nowrap">Labour {getCachedLocalization().currency_symbol}</th><th className="text-right py-2 px-2 whitespace-nowrap">Classes</th><th className="text-right py-2 px-2 whitespace-nowrap">Attendees</th></tr></thead>
         <tbody>
           {data.staff.map((s) => (
             <tr key={s.staff_id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`perf-row-${s.staff_id}`}>
               <td className="py-2 px-2"><div className="font-medium" style={{ color: 'var(--theme-text)' }}>{s.full_name}</div><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</div></td>
               <td className="py-2 px-2 text-right tabular-nums">{s.hours_scheduled}</td>
-              <td className="py-2 px-2 text-right tabular-nums">£{s.labour_cost}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{formatMoneySync(s.labour_cost)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{s.classes_delivered}</td>
               <td className="py-2 px-2 text-right tabular-nums">{s.attendees}</td>
             </tr>

@@ -21,6 +21,7 @@ import {
   Users, Loader2, Circle, Clock, AlertTriangle, PoundSterling,
   TrendingUp, RefreshCw, ShieldCheck, Zap,
 } from 'lucide-react';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -68,9 +69,10 @@ function HeatmapCell({ value, peak }) {
   );
 }
 
-function formatGBP(n) { return `£${(Number(n) || 0).toFixed(2)}`; }
+function formatGBP(n) { return formatMoneySync(n); }
 
 export default function WorkforceDashboardTab({ headers }) {
+  useLocalization();  // warm currency cache
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

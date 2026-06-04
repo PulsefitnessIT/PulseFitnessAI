@@ -1,0 +1,24 @@
+{
+  "summary": "Iter 220p1 USA currency sweep verified on migrated Engineer/Operations surfaces reachable as master admin (admin@gymaxisai.com). Flipped market GB->US->GB via PUT /api/org/localization (token from UI login) and reloaded Service Desk between switches. On GB: Reports renders £1,080/£900/£650 and Parts header reads 'COST £'. On US: SAME Reports surface renders $1,080/$900/$650 and Parts header reads 'COST $'. After revert to GB the surfaces are back to £. localStorage token-based REST switch is functionally equivalent to clicking Save in the LocalizationPanel (which was already verified in iteration_220p1_frontend_localization_retest). No console errors from the migrated surfaces, no blank screens. Org left on GB/GBP/VAT as required.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ServiceOpsReportsPage (gbp helper using formatMoneySync) and PartsInventoryPage (currency_symbol on column headers via getCachedLocalization) correctly follow org localization after a reload. Cache-warming pattern (page calls useLocalization() at top, sub-helpers read getCachedLocalization()/formatMoneySync) works as designed.",
+    "BillingPage rendered an empty list state in this test environment, so no money lines were visible to assert against. The code review (BillingPage.js line 257-258 column headers using getCachedLocalization().currency_symbol and formatMoneySync everywhere) shows the migration is in place — but recommend the next agent seed an open billing case so that ib-totals-summary / line totals can be visually re-checked.",
+    "Engineer-app routes (/engineer/invoice/new, /engineer/quote/new, /engineer/invoices, /engineer/quotes, /engineer/home) are gated to partner_engineer accounts and not reachable as master admin — agreed as NOT-REACHABLE per the task brief. Code review confirms they all import {useLocalization, formatMoney} and use loc.tax_label / loc.currency_symbol — implementation looks correct, just not exercised end-to-end."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "Reachable surfaces: 2/2 PASS (Reports, Parts). Billing: empty-state, no money to assert but no crash. Engineer-app surfaces: NOT-REACHABLE as master admin (expected)."},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (master admin, owner of 'GymAxis AI Admin' org).",
+  "seed_data_creation": "None. CRITICAL CLEANUP verified — org is back on GB / GBP / VAT (final GET /api/org/localization shows country_code=GB).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Currency sweep is verified on the master-admin-reachable Service Ops surfaces (Reports £↔$ and Parts £↔$ headers swap correctly after GB↔US flip + reload). LocalizationPanel UI was already proven in iteration 220p1_frontend_localization_retest, so this run used the API directly to switch market (functionally identical, invalidateLocalization runs on the Save path and a page reload re-warms the cache the same way). Engineer-app surfaces remain unreachable without a partner_engineer login; code review of EngineerInvoiceBuilder/QuoteBuilder/Invoices/Quotes/HomeV2 confirms they use useLocalization+loc.tax_label+loc.currency_symbol, so when a partner_engineer credential is seeded a quick spot-check there will close out the slice. BillingPage was rendered but empty (no open billable cases), so its line-item £/$ rendering wasn't exercised — seed a chargeable case if a follow-up wants visual coverage. No console errors caused by the migrated code (the only console errors are pre-existing CSP-blocked third-party scripts: posthog/cloudflare/emergent-main).",
+  "rca of the issue": "Not a bug fix — verification only. The migration from hard-coded GBP to localization-driven currency in /app/frontend/src/pages/ServiceOps/* (ServiceOpsReportsPage, PartsInventoryPage, BillingPage, StaffingConsole, etc.) and /app/frontend/src/pages/ServiceOps/Engineer/* renders org.currency_symbol via formatMoneySync+getCachedLocalization warmed by a top-level useLocalization() call. PUT /api/org/localization persists the change and invalidateLocalization() on Save clears the module cache so a fresh GET on next page mount picks up the new market. Verified visually: Service Desk → Reports tab Revenue (Gross) flipped from £1,080 to $1,080 between the two states and back to £1,080 after revert."
+}

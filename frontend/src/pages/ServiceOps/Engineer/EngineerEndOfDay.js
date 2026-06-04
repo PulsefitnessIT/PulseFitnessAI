@@ -17,6 +17,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -24,10 +25,6 @@ const API = process.env.REACT_APP_BACKEND_URL
 const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
-
-const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', {
-  minimumFractionDigits: 2, maximumFractionDigits: 2,
-})}`;
 
 function Stat({ icon: Icon, label, value, sub, accent, testid }) {
   return (
@@ -53,6 +50,8 @@ function Stat({ icon: Icon, label, value, sub, accent, testid }) {
 
 export default function EngineerEndOfDay() {
   const navigate = useNavigate();
+  const loc = useLocalization();
+  const fmtGBP = (n) => formatMoney(n, loc);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 

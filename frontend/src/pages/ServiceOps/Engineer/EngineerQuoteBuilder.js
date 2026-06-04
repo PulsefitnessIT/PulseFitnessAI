@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { outboxPost } from '@/utils/engineerOutbox';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -49,8 +50,6 @@ const DEFAULT_DESCRIPTIONS = {
   travel:  'Mileage',
 };
 
-const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 function computeTotals(lines, vatRate, discountPct) {
   const subtotal = lines.reduce((acc, ln) => acc + (Number(ln.quantity) || 0) * (Number(ln.unit_price) || 0), 0);
   const discountAmount = Number(discountPct) > 0 ? subtotal * (Number(discountPct) / 100) : 0;
@@ -71,6 +70,10 @@ export default function EngineerQuoteBuilder() {
   const [params] = useSearchParams();
   const isNew = !quoteId;
   const caseHint = params.get('case_id');
+  // Iter 220p1 — localization (currency + tax vocabulary). Defaults to UK.
+  const loc = useLocalization();
+  const fmtGBP = useCallback((n) => formatMoney(n, loc), [loc]);
+  const sym = loc.currency_symbol || '£';
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -605,8 +608,8 @@ export default function EngineerQuoteBuilder() {
                   <th className="text-left py-2 pr-2">Type</th>
                   <th className="text-left py-2 pr-2">Description</th>
                   <th className="text-right py-2 pr-2 w-20">Qty</th>
-                  <th className="text-right py-2 pr-2 w-28">Unit £</th>
-                  <th className="text-right py-2 pr-2 w-28">Total £</th>
+                  <th className="text-right py-2 pr-2 w-28">Unit {sym}</th>
+                  <th className="text-right py-2 pr-2 w-28">Total {sym}</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
@@ -658,7 +661,7 @@ export default function EngineerQuoteBuilder() {
                         />
                       </td>
                       <td className="py-1.5 pr-2 text-right font-semibold text-slate-700 tabular-nums">
-                        £{lineTotal.toFixed(2)}
+                        {fmtGBP(lineTotal)}
                       </td>
                       <td className="py-1.5">
                         {!readOnly && (
@@ -701,7 +704,7 @@ export default function EngineerQuoteBuilder() {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 w-28">VAT rate %</label>
+                <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 w-28">{loc.tax_label} rate %</label>
                 <input
                   type="number" step="0.5"
                   className="w-24 text-sm text-right border border-slate-200 rounded px-2 py-1 bg-white tabular-nums"
@@ -746,7 +749,7 @@ export default function EngineerQuoteBuilder() {
                 </div>
               )}
               <div className="flex justify-between text-slate-600">
-                <span>VAT ({form.vat_rate}%)</span><span className="tabular-nums">{fmtGBP(totals.vatAmount)}</span>
+                <span>{loc.tax_label} ({form.vat_rate}%)</span><span className="tabular-nums">{fmtGBP(totals.vatAmount)}</span>
               </div>
               <div className="border-t border-slate-200 pt-2 flex justify-between text-lg font-extrabold text-slate-900">
                 <span>Total</span><span className="tabular-nums text-blue-700">{fmtGBP(totals.total)}</span>

@@ -18,6 +18,7 @@ import {
   ChevronRight, Download, Upload,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -201,6 +202,7 @@ const CrmLinkRow = ({ customerId, crmCompany, onChanged }) => {
 
 export default function EngineerCustomers() {
   const navigate = useNavigate();
+  const loc = useLocalization();
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
@@ -663,7 +665,7 @@ export default function EngineerCustomers() {
                                       <b>{qq.quote_number}</b>
                                       <span className="text-slate-500 ml-1 capitalize">· {qq.status}</span>
                                     </span>
-                                    <span className="tabular-nums font-semibold">£{Number(qq.total || 0).toFixed(2)}</span>
+                                    <span className="tabular-nums font-semibold">{formatMoney(qq.total || 0, loc)}</span>
                                   </button>
                                 </li>
                               ))}
@@ -688,7 +690,7 @@ export default function EngineerCustomers() {
                                       <b>{inv.invoice_number}</b>
                                       <span className="text-slate-500 ml-1 capitalize">· {inv.status}</span>
                                     </span>
-                                    <span className="tabular-nums font-semibold">£{Number(inv.total || 0).toFixed(2)}</span>
+                                    <span className="tabular-nums font-semibold">{formatMoney(inv.total || 0, loc)}</span>
                                   </button>
                                 </li>
                               ))}

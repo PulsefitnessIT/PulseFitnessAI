@@ -19,6 +19,7 @@ import {
   Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, X, ClipboardCheck, Smartphone, RefreshCw,
 } from 'lucide-react';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -34,7 +35,7 @@ function fmtTime(iso) {
   try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
   catch { return iso; }
 }
-function fmtGBP(n) { return `£${(Number(n) || 0).toFixed(2)}`; }
+function fmtGBP(n) { return formatMoneySync(n); }
 function startOfWeek() {
   const d = new Date(); d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
@@ -416,6 +417,7 @@ function KiosksPanel({ headers }) {
 }
 
 export default function TimeClockTab({ headers }) {
+  useLocalization();  // warm currency cache
   return (
     <div className="space-y-4" data-testid="time-clock-tab">
       <ClockBoard headers={headers} />

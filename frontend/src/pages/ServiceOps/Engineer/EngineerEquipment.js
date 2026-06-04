@@ -29,6 +29,7 @@ import {
   Sparkles, Camera, FileText, Clock, PoundSterling, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useLocalization, formatMoney } from '@/utils/localization';
 import BarcodeScanModal from './BarcodeScanModal';
 
 const API = process.env.REACT_APP_BACKEND_URL
@@ -356,6 +357,7 @@ function EquipmentRow({ item, sites }) {
 // ─────────────────────────────────────────────────────────────────────
 
 function ServiceHistory({ data }) {
+  const loc = useLocalization();
   const totals = data.totals || {};
   const visits = data.visits || [];
   const partsCost = totals.parts_cost || {};
@@ -369,9 +371,7 @@ function ServiceHistory({ data }) {
       return iso.slice(0, 10);
     }
   };
-  const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', {
-    minimumFractionDigits: 0, maximumFractionDigits: 2,
-  })}`;
+  const fmtGBP = (n) => formatMoney(n, loc, { minimumFractionDigits: 0 });
   const approvedSpend = Number(partsCost.approved_gbp || 0);
   const pendingSpend = Number(partsCost.pending_gbp || 0);
   const hasSpend = approvedSpend > 0 || pendingSpend > 0;
@@ -472,7 +472,7 @@ function ServiceHistory({ data }) {
                       className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 font-bold inline-flex items-center gap-0.5 tabular-nums"
                       data-testid={`equipment-history-visit-cost-${v.machine_row_id}`}
                     >
-                      <PoundSterling size={9} />{fmtGBP(visitApproved).replace('£', '')}
+                      {fmtGBP(visitApproved)}
                     </span>
                   )}
                   {visitApproved === 0 && visitPending > 0 && (
@@ -481,7 +481,7 @@ function ServiceHistory({ data }) {
                       data-testid={`equipment-history-visit-cost-pending-${v.machine_row_id}`}
                       title="Parts requested, awaiting admin approval"
                     >
-                      <PoundSterling size={9} />{fmtGBP(visitPending).replace('£', '')} pending
+                      {fmtGBP(visitPending)} pending
                     </span>
                   )}
                 </div>

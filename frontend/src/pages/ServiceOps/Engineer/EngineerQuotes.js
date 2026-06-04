@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { OutboxStatusPill } from '@/utils/engineerStatusBoot';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -27,7 +28,6 @@ const STATUS_BADGES = {
   expired:   { label: 'Expired',   bg: 'bg-slate-50 text-slate-500 border-slate-200',       icon: XCircle },
 };
 
-const fmtGBP = (n) => n == null ? '—' : `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const FILTERS = [
@@ -43,6 +43,8 @@ const FILTERS = [
 export default function EngineerQuotes() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const loc = useLocalization();
+  const fmtGBP = (n) => formatMoney(n, loc, { nullDisplay: '—' });
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const filter = params.get('status') || 'active';

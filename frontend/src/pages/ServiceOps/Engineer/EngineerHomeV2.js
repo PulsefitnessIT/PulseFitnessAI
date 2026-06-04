@@ -33,11 +33,11 @@ import { OutboxStatusPill, installEngineerErrorReporters } from '@/utils/enginee
 import PausedUploadsPill from './PausedUploadsPill';
 import useEngineerAttention from './hooks/useEngineerAttention';
 import EngineerAppShellNudge from './EngineerAppShellNudge';
+import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
-const fmtGBP = (n) => n == null ? '—' : `£${Number(n).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
 const fmtRelative = (iso) => {
   if (!iso) return '—';
   const ms = new Date(iso).getTime() - Date.now();
@@ -143,7 +143,9 @@ const JobRow = ({ job, onClick }) => (
   </button>
 );
 
-const QuoteRow = ({ quote, onClick }) => (
+const QuoteRow = ({ quote, onClick }) => {
+  const loc = useLocalization();
+  return (
   <button
     type="button"
     onClick={onClick}
@@ -158,11 +160,12 @@ const QuoteRow = ({ quote, onClick }) => (
       <p className="text-xs text-slate-500 truncate">{quote.customer_name || 'Unknown customer'}</p>
     </div>
     <div className="text-right flex-shrink-0">
-      <p className="text-sm font-bold text-slate-900 tabular-nums">{fmtGBP(quote.total)}</p>
+      <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(quote.total, loc, { nullDisplay: '—', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
       <p className="text-[10px] text-slate-400 capitalize">{quote.status}</p>
     </div>
   </button>
-);
+  );
+};
 
 export default function EngineerHomeV2() {
   const navigate = useNavigate();

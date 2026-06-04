@@ -21,6 +21,7 @@ import {
 import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
+import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -35,9 +36,10 @@ const PO_STATUS_COLOUR = {
   draft: '#6b7280', submitted: '#1d4ed8', received: '#10b981', cancelled: '#ef4444',
 };
 
-function gbp(n) { return `£${(Number(n) || 0).toFixed(2)}`; }
+function gbp(n) { return formatMoneySync(n); }
 
 export default function PartsInventoryPage() {
+  useLocalization();  // warm currency cache
   const [tab, setTab] = useState('catalogue');
   return (
     <ServiceOpsShell
@@ -151,7 +153,7 @@ function CatalogueTab() {
             testid="catalogue-add-supplier"
           />
         </Field>
-        <Field className="col-span-1" label="Cost £"><input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} className="ip tabular-nums" data-testid="catalogue-add-cost" /></Field>
+        <Field className="col-span-1" label={`Cost ${getCachedLocalization().currency_symbol}`}><input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} className="ip tabular-nums" data-testid="catalogue-add-cost" /></Field>
         <button
           type="button"
           onClick={create}
@@ -474,7 +476,7 @@ function POTab() {
                   <div key={i} className="grid grid-cols-12 gap-2 items-center">
                     <input value={line.part_sku} onChange={(e) => { const ls = [...draft.lines]; ls[i].part_sku = e.target.value.toUpperCase(); setDraft({ ...draft, lines: ls }); }} placeholder="SKU" className="col-span-3 ip" data-testid={`po-line-sku-${i}`} />
                     <input type="number" value={line.qty} onChange={(e) => { const ls = [...draft.lines]; ls[i].qty = Number(e.target.value); setDraft({ ...draft, lines: ls }); }} placeholder="Qty" className="col-span-2 ip tabular-nums" data-testid={`po-line-qty-${i}`} />
-                    <input type="number" value={line.unit_cost} onChange={(e) => { const ls = [...draft.lines]; ls[i].unit_cost = Number(e.target.value); setDraft({ ...draft, lines: ls }); }} placeholder="Unit £" className="col-span-2 ip tabular-nums" data-testid={`po-line-cost-${i}`} />
+                    <input type="number" value={line.unit_cost} onChange={(e) => { const ls = [...draft.lines]; ls[i].unit_cost = Number(e.target.value); setDraft({ ...draft, lines: ls }); }} placeholder={`Unit ${getCachedLocalization().currency_symbol}`} className="col-span-2 ip tabular-nums" data-testid={`po-line-cost-${i}`} />
                     <input value={line.description || ''} onChange={(e) => { const ls = [...draft.lines]; ls[i].description = e.target.value; setDraft({ ...draft, lines: ls }); }} placeholder="Description (optional)" className="col-span-4 ip" data-testid={`po-line-desc-${i}`} />
                     <button type="button" aria-label="Remove line" onClick={() => { const ls = [...draft.lines]; ls.splice(i, 1); setDraft({ ...draft, lines: ls.length ? ls : [{ part_sku: '', qty: 1, unit_cost: 0 }] }); }} className="col-span-1 opacity-60 hover:opacity-100 inline-flex justify-center" data-testid={`po-line-remove-${i}`}><Trash2 size={11} /></button>
                   </div>

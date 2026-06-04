@@ -25,6 +25,7 @@ import {
   Boxes, Warehouse, Wand2, Tags,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useLocalization } from '@/utils/localization';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
 import NotificationSettings from './NotificationSettings';
 
@@ -562,6 +563,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 // labour rate + mileage rate + parts markup ONCE, so every new
 // quote/invoice line auto-fills with the right number.
 function RatesEditor({ partner, onSaved }) {
+  const sym = useLocalization().currency_symbol || '£';
   const initial = partner?.rates || {};
   const [callout, setCallout] = useState(initial.callout_fee ?? '');
   const [hourly, setHourly] = useState(initial.labour_rate_per_hour ?? '');
@@ -608,7 +610,7 @@ function RatesEditor({ partner, onSaved }) {
         <RateField
           icon={PoundSterling}
           label="Callout fee"
-          unit="£"
+          unit={sym}
           value={callout}
           onChange={setCallout}
           testid="engineer-rate-callout"
@@ -616,7 +618,7 @@ function RatesEditor({ partner, onSaved }) {
         <RateField
           icon={PoundSterling}
           label="Hourly labour"
-          unit="£/hr"
+          unit={`${sym}/hr`}
           value={hourly}
           onChange={setHourly}
           testid="engineer-rate-hourly"
@@ -624,7 +626,7 @@ function RatesEditor({ partner, onSaved }) {
         <RateField
           icon={PoundSterling}
           label="Mileage"
-          unit="£/mi"
+          unit={`${sym}/mi`}
           value={mileage}
           onChange={setMileage}
           testid="engineer-rate-mileage"
