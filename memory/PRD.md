@@ -1,3 +1,16 @@
+## Iter 220 P1 — Signup CRM mode selection (Gym / Corporate / Both) ✅ (Jun, 2026)
+
+**Request:** At trial signup, a prospect who picks the CRM module should choose their CRM audience so the new org lands on the right mode without a master-admin conversion (the Pulse "they're set to Gym but should be Corporate" pain point). User choices: option C (orgs running both gym + B2B can run Both) + A.
+
+**Shipped (already implemented prior; this iter finalised + tested):**
+- **Frontend** (`pages/Marketing/TrialSignupModal.js`): when CRM is in the selected modules, a "Who is your CRM for?" selector appears (`trial-crm-mode` + `trial-crm-mode-gym|corporate|both`), default `gym`. Submit sends `crm_mode` only when CRM is chosen (line 170).
+- **Backend** (`routes/auth.py` register, lines 107-113): maps `crm_mode` → `org.modules.crm.leisure_enabled` / `business_enabled` (gym→leisure only, corporate→business only, both→both); persists `crm_mode_choice`. Exposed via `GET /api/me/crm-modes`.
+
+**Tested:** Fixed the previously-failing `tests/test_iter_220p1_signup_crm_mode.py` (was crashing "Event loop is closed" from async DB cleanup) → now uses conftest backend-url helper + captcha bypass + synchronous pymongo cleanup. **pytest 4/4.** Frontend testing_agent `iteration_220p1_signup_crm_mode_fe.json`: **100% (8/8)** — selector visibility bound to CRM toggle, default gym, three-way switching with correct aria-pressed. Full submit intentionally skipped (Turnstile captcha gates step-1 in preview). No bugs.
+
+---
+
+
 ## Iter 220 P1 (slice 4) — Master Price List secure backup + manual exports ✅ (Jun 4, 2026)
 
 **User choices:** link expiry 7d; retention 90d; email = secure LINK (not raw file); owners/admins configure backup + include cost/margin (managers get cost/margin-free manual exports).
