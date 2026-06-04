@@ -7,10 +7,10 @@
  *
  * Backend: routes/crm_price_list.py (prefix /api/crm/price-list).
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  Upload, Loader2, X, Check, ChevronRight, ChevronLeft, Sparkles, Wand2,
+  Upload, Loader2, X, Check, ChevronRight, ChevronLeft, Sparkles, Wand2, Bookmark, Save,
   FileSpreadsheet, AlertTriangle, CheckCircle2, Database,
 } from 'lucide-react';
 
@@ -156,6 +156,48 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
   };
 
   const [commitJob, setCommitJob] = useState(null);   // background commit progress
+  const [templates, setTemplates] = useState([]);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/crm/price-list/import-templates`, { headers: headers() });
+      setTemplates(r.data.templates || []);
+    } catch { /* non-fatal */ }
+  }, [API, headers]);
+
+  useEffect(() => { if (step === 1) loadTemplates(); }, [step, loadTemplates]);
+
+  const saveTemplate = async () => {
+    const name = window.prompt('Save this column mapping as a template (e.g. supplier or file name):');
+    if (!name || !name.trim()) return;
+    setError('');
+    try {
+      const sheets = (imp?.sheets || []).map(s => ({
+        name: s.name,
+        mappings: Object.fromEntries(Object.entries(mappings[s.name] || {}).filter(([, v]) => v)),
+        header_row: s.header_row, header_band: s.header_band, code_col: s.code_col, name_col: s.name_col,
+      }));
+      await axios.post(`${API}/crm/price-list/import-templates`, { name: name.trim(), sheets }, { headers: headers() });
+      await loadTemplates();
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Could not save template');
+    }
+  };
+
+  const applyTemplate = (templateId) => {
+    const t = templates.find(x => x.id === templateId);
+    if (!t) return;
+    const bySheet = {}; (t.sheets || []).forEach(ts => { bySheet[ts.name] = ts; });
+    const single = (t.sheets || []).length === 1 ? t.sheets[0] : null;
+    setMappings(prev => {
+      const next = { ...prev };
+      (imp?.sheets || []).forEach(s => {
+        const ts = bySheet[s.name] || single;       // match by name, else single-sheet template
+        if (ts && ts.mappings) next[s.name] = { ...ts.mappings };
+      });
+      return next;
+    });
+  };
 
   const runCommit = async () => {
     setBusy(true); setError(''); setCommitJob(null);
@@ -263,6 +305,29 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                 <strong style={{ color: c.text }}>{imp.filename}</strong> · {imp.total_detected_rows} product rows across {imp.sheets.length} worksheet(s).
                 Map columns to CRM fields — anything left as <em>imported data</em> is still saved against each product.
               </p>
+
+              {/* Mapping templates — reuse a saved column map for recurring imports */}
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: border, background: surface2 }} data-testid="plw-templates-bar">
+                <Bookmark size={13} style={{ color: 'var(--color-info-ios)' }} />
+                <span className="text-[11px] font-semibold" style={{ color: c.text }}>Mapping template</span>
+                <select
+                  defaultValue=""
+                  onChange={e => { applyTemplate(e.target.value); e.target.value = ''; }}
+                  disabled={templates.length === 0}
+                  className="text-[11px] px-2 py-1 rounded border disabled:opacity-50"
+                  style={{ background: surface, borderColor: border, color: c.text }}
+                  data-testid="plw-template-apply"
+                >
+                  <option value="">{templates.length ? 'Apply a saved template…' : 'No templates yet'}</option>
+                  {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <button type="button" onClick={saveTemplate}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border"
+                  style={{ borderColor: border, color: 'var(--color-info-ios)' }} data-testid="plw-template-save">
+                  <Save size={11} /> Save current mapping
+                </button>
+                <span className="text-[10px]" style={{ color: c.textDim }}>Reuse this layout for next month's file in one click.</span>
+              </div>
               {imp.sheets.map(s => (
                 <div key={s.name} className="rounded-lg border" style={{ borderColor: border }}>
                   <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: border, background: surface2 }}>

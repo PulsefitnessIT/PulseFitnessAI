@@ -227,6 +227,70 @@ async def get_import(import_id: str, user=Depends(get_crm_user)) -> dict:
     return doc
 
 
+# ── Mapping templates (reusable column maps for recurring imports) ──
+
+
+@router.get("/import-templates")
+async def list_import_templates(user=Depends(get_crm_user)) -> dict:
+    _require_admin(user)
+    cur = db.crm_price_import_templates.find(_of(user), {"_id": 0}).sort("created_at", -1).limit(100)
+    return {"templates": await cur.to_list(100)}
+
+
+@router.post("/import-templates")
+async def save_import_template(body: dict = Body(...), user=Depends(get_crm_user)) -> dict:
+    """Save the current per-sheet column mapping as a reusable template so a
+    recurring supplier spreadsheet can be re-mapped in one click next time."""
+    _require_admin(user)
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Template name is required")
+    sheets = []
+    for s in (body.get("sheets") or []):
+        sname = (s.get("name") or "").strip()
+        mappings = {str(k): v for k, v in (s.get("mappings") or {}).items() if v}
+        if sname:
+            sheets.append({
+                "name": sname,
+                "mappings": mappings,
+                "header_row": s.get("header_row"),
+                "header_band": s.get("header_band"),
+                "code_col": s.get("code_col"),
+                "name_col": s.get("name_col"),
+            })
+    if not sheets:
+        raise HTTPException(400, "Nothing to save — map at least one column first")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "organization_id": user.get("organization_id"),
+        "name": name,
+        "sheets": sheets,
+        "created_at": _now(),
+        "created_by": user.get("id", ""),
+        "created_by_name": user.get("full_name", ""),
+    }
+    # upsert by name within the org so re-saving updates rather than duplicates
+    await db.crm_price_import_templates.update_one(
+        {**_of(user), "name": name},
+        {"$set": {k: v for k, v in doc.items() if k not in ("id", "created_at")},
+         "$setOnInsert": {"id": doc["id"], "created_at": doc["created_at"]}},
+        upsert=True,
+    )
+    saved = await db.crm_price_import_templates.find_one({**_of(user), "name": name}, {"_id": 0})
+    return {"template": saved}
+
+
+@router.delete("/import-templates/{template_id}")
+async def delete_import_template(template_id: str, user=Depends(get_crm_user)) -> dict:
+    _require_admin(user)
+    r = await db.crm_price_import_templates.delete_one({"id": template_id, **_of(user)})
+    if not r.deleted_count:
+        raise HTTPException(404, "Template not found")
+    return {"success": True}
+
+
+
+
 # ── AI mapping suggestions ─────────────────────────────────────────
 
 
@@ -972,5 +1036,6 @@ async def ensure_price_list_indexes() -> None:
         await db.crm_price_list_version_items.create_index([("version_id", 1), ("sku", 1)])
         await db.crm_price_commit_jobs.create_index([("organization_id", 1), ("created_at", -1)])
         await db.crm_price_commit_jobs.create_index([("id", 1)])
+        await db.crm_price_import_templates.create_index([("organization_id", 1), ("name", 1)], unique=True)
     except Exception:
         logger.exception("ensure_price_list_indexes failed (non-fatal)")
