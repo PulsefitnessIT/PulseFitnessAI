@@ -47,6 +47,11 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
         "owner_id": user_id, "created_at": datetime.now(timezone.utc).isoformat(),
         "subscription_tier": "none",
     }
+    # Iter 220p1 — USA readiness. Capture the prospect's market at signup so
+    # currency / timezone / tax defaults are right from day one (defaults to
+    # United Kingdom when the modal doesn't send a country).
+    from utils.localization import resolve_org_fields
+    org_doc.update(resolve_org_fields(getattr(user, "country_code", None)))
     # Iter 216h219 — Trial signup org-profile enrichment. The trial
     # modal's step-2 captures Industry / Employees / Website / referral
     # source + silent UTM tags from `window.location.search`. Persist

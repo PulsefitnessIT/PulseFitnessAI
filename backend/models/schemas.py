@@ -61,6 +61,10 @@ class UserRegister(BaseModel):
     # 'gym' (Members / leisure), 'corporate' (B2B / business), or 'both'.
     # Maps to org.modules.crm.{leisure_enabled, business_enabled}. Default gym.
     crm_mode: Optional[str] = None
+    # Iter 220p1 — USA readiness. ISO-3166 alpha-2 market for the new org
+    # (e.g. 'GB', 'US'). Drives currency/timezone/tax defaults via
+    # utils.localization. Empty/absent ⇒ United Kingdom (back-compat).
+    country_code: Optional[str] = None
 
 
 class UserLogin(BaseModel):

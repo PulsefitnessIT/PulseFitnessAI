@@ -43,7 +43,7 @@ def _bypass_secret() -> str:
     return secret
 
 
-def _register(crm_mode=None):
+def _register(crm_mode=None, country_code=None):
     tag = uuid.uuid4().hex[:8]
     email = f"crmmode_pytest_{tag}@example.com"
     name = f"CRMMode Pytest {tag}"
@@ -54,10 +54,19 @@ def _register(crm_mode=None):
     }
     if crm_mode is not None:
         payload["crm_mode"] = crm_mode
+    if country_code is not None:
+        payload["country_code"] = country_code
     r = requests.post(f"{BASE_URL}/api/auth/register", json=payload, timeout=30)
     _CREATED["orgs"].append(name)
     _CREATED["emails"].append(email)
     return r
+
+
+def _localization(token):
+    r = requests.get(f"{BASE_URL}/api/org/localization",
+                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
+    assert r.status_code == 200, r.text[:200]
+    return r.json()["localization"]
 
 
 def _modes(token):
@@ -102,3 +111,20 @@ def test_signup_crm_mode_defaults_to_gym():
     m = _modes(r.json()["token"])
     assert m["leisure"] is True
     assert m["business"] is False
+
+
+def test_signup_country_code_us_sets_usd_market():
+    r = _register(country_code="US")
+    assert r.status_code == 200, r.text[:200]
+    loc = _localization(r.json()["token"])
+    assert loc["country_code"] == "US"
+    assert loc["currency"] == "USD"
+    assert loc["tax_label"] == "Sales Tax"
+
+
+def test_signup_country_code_default_is_gb():
+    r = _register()
+    assert r.status_code == 200, r.text[:200]
+    loc = _localization(r.json()["token"])
+    assert loc["country_code"] == "GB"
+    assert loc["currency"] == "GBP"

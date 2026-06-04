@@ -1,3 +1,21 @@
+## Iter 220 P1 — USA readiness, slice 4: capture country at signup ✅ (Jun, 2026)
+
+**Request:** A US prospect was signing up as a UK org and had to flip the market in settings afterwards. Capture `country_code` at signup so the org is localized from day one.
+
+**Shipped:**
+- **Backend** — `UserRegister.country_code` (ISO-2, optional) added (`models/schemas.py`); `/auth/register` now stamps `country_code`/`currency`/`timezone` on the new org via a shared `resolve_org_fields()` helper (new in `utils/localization.py`). Refactored `master_admin_org_create._localization_fields` to use the same helper (DRY — both signup paths localize identically). Defaults to GB when no country is sent (back-compat).
+- **Frontend** — `TrialSignupModal` step-1 now has a **Country** picker (`data-testid=trial-country`, 5 markets GB/US/IE/CA/AU with currency hint) between Company name and Phone; sends `country_code` in the register payload. Helper text: "Sets your currency, timezone & tax labels. You can change this later in settings."
+
+**Tested:** `tests/test_iter_220p1_signup_crm_mode.py` extended — register with `country_code=US` → `/api/org/localization` returns USD / Sales Tax; default → GB/GBP. Full suite **22/22** (signup + localization + pdf/email). Frontend: screenshot-verified the picker renders with 5 options and US is selectable (full submit is Turnstile-gated in preview, so payload wiring is backend-test-covered).
+
+**Remaining USA-readiness backlog:**
+- P1: thread per-org **timezone** into scheduling/notifications/reminders (`Europe/London` still hard-coded) — last big P1.
+- P1 (lower): CRM quote/contract PDFs + membership emails still £ (only if CRM/Memberships sell to the US).
+- P2: US **sales tax** (Stripe Tax/TaxJar), US **engineer compliance** (I-9/E-Verify vs DBS/RTW), **Companies House** US alternative, phone/ZIP/state. Operational: enable Stripe Connect **US payouts**.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 3: PDF & email currency localization ✅ (Jun, 2026)
 
 **Request:** Engineer invoice/quote PDFs + emails and the service-ops report PDF still rendered `£`/`VAT`/UK terms — localize them to the org market (highest-impact USA signal: a US customer's invoice was emailing/printing in £).

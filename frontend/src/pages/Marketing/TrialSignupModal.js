@@ -81,6 +81,8 @@ export default function TrialSignupModal() {
   const [selectedModules, setSelectedModules] = useState(ALL_MODULE_KEYS);
   // Iter 220p1 — CRM audience: 'gym' (Members/leisure), 'corporate' (B2B), 'both'.
   const [crmMode, setCrmMode] = useState('gym');
+  // Iter 220p1 — USA readiness. The new org's market (drives currency/timezone/tax).
+  const [countryCode, setCountryCode] = useState('GB');
   const utmRef = useRef({});
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -168,6 +170,8 @@ export default function TrialSignupModal() {
         trial_modules: selectedModules,
         // Iter 220p1 — CRM audience choice (only relevant if CRM is picked).
         crm_mode: selectedModules.includes('crm') ? crmMode : undefined,
+        // Iter 220p1 — market (currency/timezone/tax defaults). Defaults to GB.
+        country_code: countryCode,
         // Module intent — see useState comment above.
         primary_module: primaryModule || undefined,
         // Silent attribution — forwarded straight from the landing URL.
@@ -371,6 +375,22 @@ export default function TrialSignupModal() {
               <Field label="Full name *" value={form.full_name} onChange={update('full_name')} placeholder="Jane Smith" testid="trial-name" />
               <Field label="Work email *" type="email" value={form.email} onChange={update('email')} placeholder="jane@yourgym.com" testid="trial-email" />
               <Field label="Gym / Company name *" value={form.company_name} onChange={update('company_name')} placeholder="Acme Fitness" testid="trial-company" />
+              <div data-testid="trial-country-wrap">
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Country *</label>
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
+                  data-testid="trial-country"
+                >
+                  <option value="GB">United Kingdom (£ GBP)</option>
+                  <option value="US">United States ($ USD)</option>
+                  <option value="IE">Ireland (€ EUR)</option>
+                  <option value="CA">Canada (C$ CAD)</option>
+                  <option value="AU">Australia (A$ AUD)</option>
+                </select>
+                <p className="mt-1 text-[10px] text-slate-400">Sets your currency, timezone &amp; tax labels. You can change this later in settings.</p>
+              </div>
               <Field label="Phone *" type="tel" value={form.phone} onChange={update('phone')} placeholder="+44 7700 900123" testid="trial-phone" />
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Password *</label>

@@ -47,21 +47,11 @@ router = APIRouter()
 
 
 def _localization_fields(body: dict) -> dict:
-    """Iter 220p1 — resolve country/currency/timezone for a new org.
-
-    A ``country_code`` derives the currency + timezone defaults; explicit
-    ``currency`` / ``timezone`` in the body override. Only emits keys that
-    were resolved (defaults to GB when nothing supplied)."""
-    from utils.localization import country_config, COUNTRY_CONFIG, CURRENCY_SYMBOLS
-    code = (body.get("country_code") or "").strip().upper()
-    if not code or code not in COUNTRY_CONFIG:
-        code = "GB"
-    cfg = country_config(code)
-    currency = (body.get("currency") or cfg["currency"]).strip().upper()
-    if currency not in CURRENCY_SYMBOLS:
-        currency = cfg["currency"]
-    timezone_ = (body.get("timezone") or cfg["timezone"]).strip()
-    return {"country_code": code, "currency": currency, "timezone": timezone_}
+    """Iter 220p1 — resolve country/currency/timezone for a new org."""
+    from utils.localization import resolve_org_fields
+    return resolve_org_fields(
+        body.get("country_code"), body.get("currency"), body.get("timezone"),
+    )
 
 
 

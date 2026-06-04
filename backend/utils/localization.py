@@ -115,6 +115,23 @@ def format_currency(amount: float, currency: Optional[str]) -> str:
         return f"{sym}0.00"
 
 
+def resolve_org_fields(country_code=None, currency=None, timezone=None) -> dict:
+    """Iter 220p1 — normalise a (country_code, currency, timezone) triple into
+    the org fields to persist. A country drives currency + timezone defaults;
+    explicit currency/timezone override. Defaults to GB. Used at signup and
+    master-admin org creation so both paths localize identically."""
+    code = (country_code or "").strip().upper()
+    if not code or code not in COUNTRY_CONFIG:
+        code = DEFAULT_COUNTRY
+    cfg = country_config(code)
+    cur = (currency or cfg["currency"]).strip().upper()
+    if cur not in CURRENCY_SYMBOLS:
+        cur = cfg["currency"]
+    tz = (timezone or cfg["timezone"]).strip()
+    return {"country_code": code, "currency": cur, "timezone": tz}
+
+
+
 def supported_countries() -> list[dict]:
     """List for the settings dropdown: code, name, default currency/tz, symbol."""
     out = []
