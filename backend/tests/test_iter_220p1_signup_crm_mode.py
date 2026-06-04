@@ -5,25 +5,53 @@ org lands on the right CRM mode (verified via GET /api/me/crm-modes):
   gym       -> {leisure: True,  business: False}
   corporate -> {leisure: False, business: True}
   both      -> {leisure: True,  business: True}
+
+Notes for the next agent:
+- The backend URL comes from conftest._test_backend_url() (REACT_APP_BACKEND_URL
+  with a fall-back), NOT a bare os.environ read.
+- Trial signups are captcha-gated; we pass the `bypass:<RATE_LIMIT_BYPASS_SECRET>`
+  token (verify_captcha accepts it). The X-RateLimit-Bypass header is attached
+  automatically by the autouse conftest fixture.
+- Cleanup uses a SYNCHRONOUS pymongo client so it never touches / closes the
+  shared Motor event loop (the old asyncio.run cleanup raised
+  "RuntimeError: Event loop is closed").
 """
-import asyncio
 import os
 import uuid
 
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
+from conftest import _test_backend_url
+
+BASE_URL = _test_backend_url()
 
 _CREATED = {"orgs": [], "emails": []}
+
+
+def _bypass_secret() -> str:
+    secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
+    if not secret:
+        try:
+            with open("/app/backend/.env", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("RATE_LIMIT_BYPASS_SECRET="):
+                        secret = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+        except OSError:
+            pass
+    return secret
 
 
 def _register(crm_mode=None):
     tag = uuid.uuid4().hex[:8]
     email = f"crmmode_pytest_{tag}@example.com"
     name = f"CRMMode Pytest {tag}"
-    payload = {"email": email, "password": "Test1234!", "full_name": "Pytest",
-               "company_name": name, "is_trial": True, "trial_modules": ["crm"]}
+    payload = {
+        "email": email, "password": "Test1234!", "full_name": "Pytest",
+        "company_name": name, "is_trial": True, "trial_modules": ["crm"],
+        "cf_turnstile_response": f"bypass:{_bypass_secret()}",
+    }
     if crm_mode is not None:
         payload["crm_mode"] = crm_mode
     r = requests.post(f"{BASE_URL}/api/auth/register", json=payload, timeout=30)
@@ -42,14 +70,16 @@ def _modes(token):
 @pytest.fixture(scope="module", autouse=True)
 def _cleanup_after():
     yield
-    async def go():
-        from motor.motor_asyncio import AsyncIOMotorClient
-        client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+    # Synchronous pymongo — does NOT touch the shared Motor event loop.
+    try:
+        from pymongo import MongoClient
+        client = MongoClient(os.environ["MONGO_URL"])
         db = client[os.environ["DB_NAME"]]
-        await db.organizations.delete_many({"name": {"$in": _CREATED["orgs"]}})
-        await db.users.delete_many({"email": {"$in": _CREATED["emails"]}})
+        db.organizations.delete_many({"name": {"$in": _CREATED["orgs"]}})
+        db.users.delete_many({"email": {"$in": _CREATED["emails"]}})
         client.close()
-    asyncio.run(go())
+    except Exception:
+        pass
 
 
 @pytest.mark.parametrize("mode,leisure,business", [
