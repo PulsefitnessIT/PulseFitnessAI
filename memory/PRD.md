@@ -1,3 +1,21 @@
+## Iter 220 P1 (slice 4) — Master Price List secure backup + manual exports ✅ (Jun 4, 2026)
+
+**User choices:** link expiry 7d; retention 90d; email = secure LINK (not raw file); owners/admins configure backup + include cost/margin (managers get cost/margin-free manual exports).
+
+**Shipped (`routes/crm_price_backup.py`, prefix `/crm/price-list`):**
+- **Manual export** `POST /export` {format csv|xlsx, scope live|archived|all|category, include_cost, include_margin} → CSV (UTF-8 BOM) or XLSX; **cost/margin columns gated** (forced off for non-approvers); stored base64 + secure token + 7d expiry.
+- **Token-gated download** `GET /export/download/{id}?token=` — UNAUTHENTICATED by design (32-byte secret + expiry, 410 when expired, 404 on wrong token); no public listing. `GET /export/{id}/link` (auth) returns a fresh link; `GET /exports` lists history meta (no content/token).
+- **Weekly backup** `GET/PUT /backup/config` (approver PUT) {enabled, day_of_week, time, recipients[], file_format, include_cost, include_margin, retention_days} → computes next_run (next matching weekday/time). `POST /backup/run` (approver) generates backup + emails recipients a secure link (Resend, best-effort try/except so it never blocks the backup).
+- **Scheduler** `run_weekly_backup_loop` (server.py, hourly, `PRICE_BACKUP_SWEEP_MIN`) runs due backups + `purge_expired_exports` (retention cleanup).
+- **Frontend** `CRMPriceExportModal.js` (Export/Backup button in CRMProductsSection): manual export + download link, weekly backup config + run-now, export history with per-row download + 🔒 on sensitive exports.
+
+**Tested:** pytest 55/55 (added `test_iter_220p1_price_backup.py` 5; also fixed a brittle ambient-data fixture in the agent-authored `test_iter_220p1_quote_sage_api.py` → self-seeds products). testing_agent `iteration_220p1_slice4.json`: backend 100% (10 E2E + 5 unit), frontend 100% (all 17 testids, generate→link, save→next-run, run-now→history). No issues.
+
+**Next P2:** data-quality dashboard page + reporting; field-level cost/margin permissions; live Sage 200 push (needs OAuth creds).
+
+---
+
+
 ## Iter 220 P1 (slice 3) — Quote intelligence + Sage 200 export prep ✅ (Jun 4, 2026)
 
 **Built on the live quote builder (`crm2_quotes`, `/crm/v2/quotes`). User choices:** VAT 20→T1/0→T0/5→T5/else→T2; default nominal blank (set per export); customer Sage account ref from linked company else editable on quote; actual Sage POST blocked (no live creds) → Export generates Sage-ready CSV + records intent, real push activates when Sage connected.
