@@ -1,0 +1,27 @@
+{
+  "summary": "Iter 220 P1 slice 3 — FRONTEND verification of CRM Quote Intelligence + Sage 200 export panel. With the mode-switch fix (clicking data-testid 'crm-mode-business' / Corporate) the Quotes (CPQ) tab becomes visible. End-to-end UI flow now PASSES: opened quote QT-726251, panel renders, intelligence summary visible ('1 price changed' + Suggested add-ons: Spin Studio + per-line flag '· Quoted £150.00 vs catalogue £824.42' on SKU 224B-AAA), Save meta → Validate → Status badge 'READY FOR SAGE' + report 'Ready for Sage 200 · account PULSE001 · net £300' → Export to Sage → result 'Exported · 1 lines · net £300 · VAT £60 · gross £360' + note 'Sage-ready file generated. Live posting activates once Sage 200 is connected.' All 9 expected data-testids present and functional. No JS pageerrors. Only console errors are 3rd-party CSP blocks (assets.emergent.sh, posthog, cloudflare beacon) — pre-existing, unrelated to this slice.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_220p1_slice3.json (previous backend run)"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMQuoteSagePanel.downloadCsv swallows ALL errors as 'No export to download yet' — if the request fails for any other reason (CORS, 5xx, network), the user still sees that message. Consider distinguishing 404 from generic failure.",
+    "Suggestions block always says 'Suggested add-ons: X' even when intel.suggestions has no usable items — currently falls back to 'related items available'. UX nit: if neither accessories nor related exist on any suggestion, hide the row entirely.",
+    "useEffect calls loadIntel only on mount (quote.lines reference is stable across rerenders unless parent rebuilds quote). If user edits lines elsewhere and re-opens detail, intel may be stale. Consider passing a refresh trigger or watching quote.id.",
+    "Same pre-existing concern as backend slice: per-line VAT mixing — UI shows quote-level VAT (20%) only; if lines mix VAT rates the UI total may mismatch the CSV per-line VATCode."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request — 100% from previous run)", "frontend": "100%"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (CRM)",
+  "seed_data_creation": "Test left quote QT-726251 with sage_account_ref=PULSE001, sage_default_nominal=4000, sage_status=exported, plus an export record. If a follow-up run needs a clean quote, pick a different QT-* (8 others available in the list, all DRAFT).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Mode switch is critical: in 'Members' (leisure) mode the Quotes tab is hidden via MEMBERS_HIDDEN_TABS in CRMApp.js. Always click [data-testid='crm-mode-business'] right after login before looking for the Quotes tab. The quote list uses QT-XXXXXX text on cards — get_by_text(/QT-\\d+/) works. After opening, scroll to [data-testid='quote-sage-panel'] (it lives below the line items + notes/approval flow).",
+  "rca of the issue": "Not a bug — previous frontend iteration assumed Quotes tab was always visible. It is gated behind business mode. Fix applied in test approach (click crm-mode-business first). All Sage panel functionality verified working end-to-end including intelligence flags, validate, export, and status transitions."
+}
