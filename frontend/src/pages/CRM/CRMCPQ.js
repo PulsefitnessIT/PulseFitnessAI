@@ -6,6 +6,7 @@ import {
   Printer, Mail, AlertTriangle, Loader2, Package, Search, Layers,
 } from 'lucide-react';
 import axios from 'axios';
+import CRMQuoteSagePanel from './CRMQuoteSagePanel';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', sent: 'var(--color-info-ios)', accepted: 'var(--color-success-alt)', rejected: 'var(--color-danger)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', superseded: 'var(--color-accent-violet)' };
 const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
@@ -313,6 +314,9 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
             <p className="text-sm mt-1" style={{ color: c.text }}>{quote.notes}</p>
           </div>
         )}
+
+        {/* Iter 220 P1 — Quote intelligence + Sage 200 export prep */}
+        <CRMQuoteSagePanel API={API} headers={headers} c={c} isDark={isDark} quote={quote} onChanged={load} />
 
         {/* Approval Workflow */}
         <div className="mt-6 pt-4" style={{ borderTop: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}` }}>

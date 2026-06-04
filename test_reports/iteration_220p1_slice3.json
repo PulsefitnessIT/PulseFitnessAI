@@ -1,0 +1,36 @@
+{
+  "summary": "Iter 220 P1 slice 3 (CRM Quote Intelligence + Sage 200 Export Prep) — Backend 100% verified end-to-end (13/13 pytest passing: 4 unit + 9 live API integration). All endpoints covered: intelligence flags (missing_sage/price_changed/missing_description), quote create hydration of sku/sage_code onto lines, PUT sage/meta persistence, POST sage/validate failing on missing line sage_code & passing on clean quote (account ref TESTACCT-CLEAN, net 300 / vat 60 / gross 360 on 2x150 line), POST sage/export 422-on-fail + exported record on success, GET export.csv with correct Sage header + T1 + nominal 4000, GET sage/exports history (csv excluded from list). Frontend: source-code inspection confirms all required data-testids exist on CRMQuoteSagePanel.js. Live UI navigation to a quote detail could not be completed because the CRM top navigation in this build does not expose a 'Quotes' tab directly (top tabs visible: Dashboard / Companies / Members / Leads / Activity Feed / Calendar / Workflows / Reports). The panel itself is wired in CRMCPQ.js and the backend is fully functional — recommend main agent verify the Quotes/CPQ navigation surface is exposed for admins.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "CRM → Quotes (CPQ) navigation", "issue": "No visible 'Quotes' tab in the CRM top navigation (Members tab is active by default; visible tabs are Dashboard/Companies/Members/Leads/Activity Feed/Calendar/Workflows/Reports). Could not reach Quote detail to exercise the new Sage panel via UI — quotes route is rendered by CRMApp.js case 'quotes' but no obvious entry point in current header.", "affected_selectors": ["quote-sage-panel", "quote-sage-validate", "quote-sage-export"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220p1_quote_sage.py",
+    "/app/backend/tests/test_iter_220p1_quote_sage_api.py",
+    "/app/test_reports/pytest/iter_220p1_slice3.xml"
+  ],
+  "action_items": [
+    "Confirm CRM Quotes/CPQ tab is exposed in the top nav for admins (currently appears hidden from the rendered header for this org). Once visible, the Sage panel is verified-ready by source review and backend integration tests."
+  ],
+  "critical_code_review_comments": [
+    "crm_quote_sage._validate computes net_total but uses unrounded float accumulation — minor accuracy risk on long quotes; consider summing rounded line nets.",
+    "Export VAT total is computed as net*vat_rate/100 at the QUOTE level, ignoring per-line tax_rate; if a quote mixes 20%/0% lines the CSV per-line VATCode is correct but the export record's vat_total/gross_total are wrong. Recommend computing vat_total as sum(line_net * line_vat) to stay consistent with VATCode-per-line.",
+    "_resolve_account_ref falls back to company sage_account_ref but companies query does not include organization_id scoping via _of(user) on cid lookup? Actually it does ({'id': cid, **_of(user)}) — OK.",
+    "GET /quotes/{id} single-resource endpoint missing in crm_v2.py — frontend has to list+filter. Consider adding a single-GET for cleaner client code (and easier deep-linking).",
+    "crm_quote_sage.py uses VAT_CODE_MAP with int rounding — fine for {0,5,20} but ensure UI input is constrained to these; otherwise everything else silently maps to T2 exempt which could be surprising."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_220p1_quote_sage_api.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a (panel could not be reached via UI — source-level verification only)"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (CRM admin)",
+  "seed_data_creation": "Created two TEST_Iter220 quotes via API during testing (with-sage + without-sage product lines; one clean quote that progressed validate→ready_for_sage and exported). Sage account refs used: TEST-ACCT-001, TESTACCT-CLEAN.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend integration tests live in /app/backend/tests/test_iter_220p1_quote_sage_api.py — they use REACT_APP_BACKEND_URL + crm/auth/login, pick products with/without sage_code from /api/crm/products?limit=200, and exercise the full flow. The CRM v2 routes do NOT expose GET /quotes/{id} — use GET /quotes (list+filter). For UI testing, frontend tab to reach Quote detail is via case 'quotes' in CRMApp.js but not visible in the current top-nav rendering for the admin org; need to figure out the activator (likely a sub-tab inside another section or a settings flag).",
+  "rca of the issue": "Frontend UI smoke for the Sage panel could not be completed: after CRM login the top-nav exposes Dashboard/Companies/Members/Leads/Activity Feed/Calendar/Workflows/Reports but no Quotes/CPQ — clicking 'Quotes' text in the page is not present; no 'Quotes' link rendered. Backend code path is fine; only UI activator is missing in current navigation. Recommend exposing the Quotes tab or providing the URL/deep-link in the testing context."
+}

@@ -10,6 +10,7 @@ from routes.crm_cpq import router as crm_cpq_router
 from routes.crm_sage200 import router as crm_sage200_router
 from routes.crm_documents import router as crm_documents_router
 from routes.crm_v2 import router as crm_v2_router
+from routes.crm_quote_sage import router as crm_quote_sage_router
 from routes.crm_contracts import router as crm_contracts_router
 from routes.crm_contract_templates import router as crm_contract_templates_router
 from routes.crm_contract_send import router as crm_contract_send_router
@@ -41,6 +42,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_auth_router, crm_core_router, crm_ai_router,
         crm_inbox_router, crm_workflows_router, crm_cpq_router,
         crm_sage200_router, crm_documents_router, crm_v2_router,
+        crm_quote_sage_router,
         crm_contracts_router, crm_contract_templates_router,
         crm_contract_send_router, crm_contract_lifecycle_router,
         crm_contract_workspace_router, crm_contract_engineer_router,

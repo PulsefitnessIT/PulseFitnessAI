@@ -1748,8 +1748,9 @@ async def list_quotes(
 
 @router.post("/quotes")
 async def create_quote(data: dict, user=Depends(get_crm_user)):
-    lines = data.get("lines", [])
-    subtotal = sum(float(line.get("quantity", 0)) * float(line.get("unit_price", 0)) for line in lines)
+    from routes.crm_quote_sage import hydrate_quote_lines
+    lines = await hydrate_quote_lines(data.get("lines", []), user)
+    subtotal = sum(float(line.get("quantity", 0)) * float(line.get("unit_price", 0)) * (1 - float(line.get("discount", 0) or 0) / 100) for line in lines)
     vat_rate = float(data.get("vat_rate", 20))
     vat = subtotal * vat_rate / 100
     # Resolve company and contact names
@@ -1825,7 +1826,8 @@ async def revise_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
 
     new_version = original.get("version", 1) + 1
     base_number = original.get("quote_number", "").split("/")[0]
-    lines = data.get("lines", original.get("lines", []))
+    from routes.crm_quote_sage import hydrate_quote_lines
+    lines = await hydrate_quote_lines(data.get("lines", original.get("lines", [])), user)
     subtotal = sum(float(ln.get("quantity", 0)) * float(ln.get("unit_price", 0)) * (1 - float(ln.get("discount", 0)) / 100) for ln in lines)
     vat_rate = float(data.get("vat_rate", original.get("vat_rate", 20)))
     vat = subtotal * vat_rate / 100
