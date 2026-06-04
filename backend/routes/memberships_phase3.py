@@ -108,9 +108,12 @@ async def announce_to_class(
     starts_h = ""
     if occ.get("starts_at"):
         try:
+            from utils.localization import get_org_timezone
+            from zoneinfo import ZoneInfo
+            _tz = ZoneInfo(await get_org_timezone(org_id))
             starts_h = datetime.fromisoformat(
                 occ["starts_at"].replace("Z", "+00:00"),
-            ).astimezone().strftime("%a %d %b · %H:%M")
+            ).astimezone(_tz).strftime("%a %d %b · %H:%M")
         except Exception:
             starts_h = occ.get("starts_at") or ""
 

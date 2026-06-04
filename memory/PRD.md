@@ -1,3 +1,29 @@
+## Iter 220 P1 — USA readiness, slice 5: per-org timezone threading ✅ (Jun, 2026)
+
+**Request:** `Europe/London` was hard-coded in scheduling/notifications/reminders, so a US org's reminders & booking windows fired on UK time. Thread the org's timezone through.
+
+**Shipped:**
+- **`utils/localization.py`** — new centralised `async get_org_timezone(organization_id)` (UK default) so every scheduling surface resolves the same org clock.
+- **Notification quiet-hours** (`routes/svc/notifications.py`) — the gate that suppresses push reminders during quiet hours now evaluates in the **org's timezone** when the user hasn't pinned their own (`_load_push_prefs` injects org tz; `update_push_prefs` stores `None` instead of forcing Europe/London on clear). This governs *all* engineer/service push reminders.
+- **Membership setup wizard** (`routes/memberships_ops.py`) — `BasicsBody.timezone`/`currency` are now `Optional` (None ⇒ inherit org market); `setup_basics` no longer clobbers a US org back to UK/£ with hard defaults (was a localization-overwrite bug).
+- **Class announcement/reminder time** (`routes/memberships_phase3.py`) — start-time now formatted in the org tz (was `.astimezone()` → server/UTC).
+- **Tour bookings** (`routes/tour_bookings.py`) — `_fetch_config` defaults the booking-availability timezone to the org tz, so slot generation fires on local time.
+
+**Deliberately NOT changed:** the marketing **social/SEO autopilots** fire their daily run at a fixed 09:00 Europe/London — that's a platform-level content schedule, not a customer reminder/booking; per-org local-hour scheduling there is a separate, larger change (backlog).
+
+**Tested:** `tests/test_iter_220p1_timezone.py` **4/4** — `get_org_timezone(None)`=Europe/London; quiet-hours gates the *same instant* differently for London vs New York (02:00 UTC → UK quiet, US not); `BasicsBody` defaults None. Full localization suite **26/26**. E2E curl: set org US → `GET /svc/engineer/notification-prefs` returns `America/New_York`; revert GB → `Europe/London`. Org left on GB.
+
+### 🇺🇸 USA-readiness epic — localization core COMPLETE (slices 1-5)
+Org country/currency/timezone settings + signup capture; UI currency sweep; PDF/email localization; timezone threading. Existing UK customers unaffected (everything defaults to GB).
+
+**Remaining backlog (optional / lower priority):**
+- P1 (lower): CRM quote/contract PDFs + membership emails still render £ — only needed if CRM/Memberships sell to the US.
+- P2: US **sales tax** (Stripe Tax/TaxJar — needs key), US **engineer compliance** (I-9/E-Verify vs DBS/RTW), **Companies House** US alternative, phone/ZIP/state formats, marketing-autopilot per-org local-hour scheduling.
+- **Operational:** enable Stripe Connect **US payouts** before US engineer/gym money flows.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 4: capture country at signup ✅ (Jun, 2026)
 
 **Request:** A US prospect was signing up as a UK org and had to flip the market in settings afterwards. Capture `country_code` at signup so the org is localized from day one.

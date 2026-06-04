@@ -81,11 +81,18 @@ async def _resolve_gym_by_slug(slug: str) -> dict:
 
 
 async def _fetch_config(org_id: str) -> dict:
+    # Iter 220p1 — booking slots resolve in the org's timezone, not a
+    # hard-coded Europe/London, so US tour slots fire on local time.
+    from utils.localization import get_org_timezone
+    org_tz = await get_org_timezone(org_id)
     doc = await db.tour_configs.find_one({"organization_id": org_id}, {"_id": 0})
     if not doc:
-        return {**DEFAULT_TOUR_CONFIG, "organization_id": org_id, "_is_default": True}
+        return {**DEFAULT_TOUR_CONFIG, "timezone": org_tz,
+                "organization_id": org_id, "_is_default": True}
     # Merge defaults so a partial config still resolves the missing keys.
     merged = {**DEFAULT_TOUR_CONFIG, **doc}
+    if not doc.get("timezone"):
+        merged["timezone"] = org_tz
     merged["_is_default"] = False
     return merged
 

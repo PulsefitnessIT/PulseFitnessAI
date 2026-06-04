@@ -198,7 +198,14 @@ async def _load_push_prefs(user_id: str, organization_id: str) -> dict:
         {"user_id": user_id, "organization_id": organization_id},
         {"_id": 0},
     ) or {}
-    return {**_DEFAULT_PREFS, **doc}
+    prefs = {**_DEFAULT_PREFS, **doc}
+    # Iter 220p1 — when the user hasn't pinned their own timezone, quiet
+    # hours are evaluated in the ORG's timezone (US orgs fire on local time,
+    # not UK time). An explicit per-user timezone still wins.
+    if not doc.get("timezone"):
+        from utils.localization import get_org_timezone
+        prefs["timezone"] = await get_org_timezone(organization_id)
+    return prefs
 
 
 def _parse_hhmm(s: Optional[str]) -> Optional[_time]:
@@ -291,7 +298,8 @@ async def update_push_prefs(body: PushPrefsIn, user=Depends(get_current_user)):
     of = _of(user)
     upd: dict = {}
     if body.timezone is not None:
-        upd["timezone"] = body.timezone or "Europe/London"
+        # Empty ⇒ clear the override so quiet hours follow the org timezone.
+        upd["timezone"] = body.timezone or None
     if body.quiet_hours_start is not None:
         upd["quiet_hours_start"] = body.quiet_hours_start or None
     if body.quiet_hours_end is not None:

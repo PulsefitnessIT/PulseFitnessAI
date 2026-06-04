@@ -106,6 +106,21 @@ def org_localization(org: Optional[dict]) -> dict:
     }
 
 
+async def get_org_timezone(organization_id: Optional[str]) -> str:
+    """Iter 220p1 — resolve an org's effective IANA timezone (UK default).
+    Centralised so scheduling/notifications/reminders all fire on the org's
+    local clock instead of a hard-coded Europe/London."""
+    if not organization_id:
+        return COUNTRY_CONFIG[DEFAULT_COUNTRY]["timezone"]
+    from utils.database import db
+    org = await db.organizations.find_one(
+        {"id": organization_id},
+        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    )
+    return org_localization(org)["timezone"]
+
+
+
 def format_currency(amount: float, currency: Optional[str]) -> str:
     """Backend money formatter for PDFs / emails. Symbol-prefixed, 2dp."""
     sym = currency_symbol(currency)

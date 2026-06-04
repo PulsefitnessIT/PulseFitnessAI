@@ -68,8 +68,10 @@ async def setup_status(user: dict = Depends(get_current_user)):
 
 class BasicsBody(BaseModel):
     name: str
-    timezone: str = "Europe/London"
-    currency: str = "GBP"
+    # Iter 220p1 — None ⇒ inherit the org's market (set at signup / settings)
+    # so the membership wizard never clobbers a US org back to UK time/£.
+    timezone: str | None = None
+    currency: str | None = None
     primary_brand_colour: str = "#19CDFF"
     logo_url: str | None = None
     slug: str | None = None  # operator can override auto-slug
@@ -114,13 +116,20 @@ async def setup_basics(body: BasicsBody, user: dict = Depends(get_current_user))
         {"slug": slug, "id": {"$ne": org_id}}, {"_id": 0, "id": 1})
     if conflict:
         slug = f"{slug}-{uuid.uuid4().hex[:4]}"
+    # Iter 220p1 — inherit the org's localized market when the wizard
+    # doesn't override, so a US studio keeps USD / US timezone.
+    from utils.localization import org_localization
+    _org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    ) or {}
+    _loc = org_localization(_org)
     # Iter 216h252 — persist the optional address + contact captured in
     # the redesigned Step 1. Only $set fields the operator provided so
     # we never overwrite values already entered via other surfaces.
     update: dict = {
         "name": body.name, "slug": slug, "membership_app_slug": slug,
-        "timezone": body.timezone,
-        "currency": body.currency, "primary_brand_colour": body.primary_brand_colour,
+        "timezone": body.timezone or _loc["timezone"],
+        "currency": body.currency or _loc["currency"], "primary_brand_colour": body.primary_brand_colour,
         "logo_url": body.logo_url, "setup_step": "payment",
     }
     for key in (
