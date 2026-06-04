@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend validation of Iter 220p1 product cost/margin field-level security. (1) Admin Permissions panel renders correctly with permissions-product-cost panel + 4 grantable role toggles (rep, sales_rep, support, user); all initially 'Hidden'. Toggling product-cost-toggle-sales_rep flips Hidden→Allowed (success toast) and back. (2) Backend redaction confirmed live via the public ingress: sales.rep.test sees zero cost/markup/trade/margin keys in /api/crm/products payload and gets HTTP 403 on /api/crm/price-list/quality, while admin sees cost_price + markup_percent. (3) /api/crm/product-perms/me returns can_see_cost:false for sales_rep and true for admin, so the CPQ quote-margin-badge gating (canSeeCost && hasCostedLines) is data-driven correctly — badge will not render for sales_rep and will render for admin once a costed product line is added.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM Settings → Permissions", "issues": ["Cookie consent banner overlays the bottom-most product-cost rows (support, user) at 1440x900 — fine on larger viewports / after dismissal; cosmetic only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220p1_product_perms.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMPermissions.js ProductCostPerms panel is well-isolated and silently swallows 403 in load() — fine since the parent CRMPermissions component renders permissions-forbidden for non-admins; consider surfacing a small inline 'admin only' notice if 403 occurs here too.",
+    "GRANTABLE roles list is hardcoded in CRMPermissions.js (rep, sales_rep, support, user). If the org introduces new restricted roles, the panel must be updated; consider sourcing this from the /crm/product-perms GET response instead.",
+    "CRMCPQ.js canSeeCost defaults to true on /crm/product-perms/me fetch failure — preferable to default to false (secure-by-default) so a transient API failure does not leak the margin badge to a restricted role."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "Master admin: admin@gymaxisai.com / MasterAdmin123!  |  Restricted sales_rep: sales.rep.test@gymaxisai.com / SalesRep123!",
+  "seed_data_creation": "None (used existing seeded accounts).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Permissions UI lives at /crm?tab=settings → Permissions sidebar item. The product-cost panel sits below Sharing rules + Field-level security. Sales_rep test user is in the same org as the master admin so their grants apply. The CRM inline login at /crm posts to /api/crm/auth/login and stores token in localStorage as 'crm_token'. To assert quote-margin-badge presence in a future run, log in as admin, switch to Corporate mode, open Quotes → New Quote, add any product with a non-zero cost_price as a line, and assert data-testid=quote-margin-badge is visible.",
+  "evidence": {
+    "admin_toggle_sequence": "sales_rep toggle: 'Hidden' → click → 'Allowed' → click → 'Hidden' (toast 'sales_rep can now see cost' / 'sales_rep cost access removed')",
+    "sales_rep_products_keys": ["active","archived","bundle_items","category","created_at","currency","description","id","is_bundle","name","sage_code","sell_price","sku","supplier_name","tax_rate","unit"],
+    "sales_rep_cost_fields_leaked": [],
+    "admin_products_cost_keys": ["cost_price","markup_percent","sell_price"],
+    "price_list_quality_status_sales_rep": 403,
+    "product_perms_me_sales_rep": {"can_see_cost": false},
+    "product_perms_me_admin": {"can_see_cost": true}
+  }
+}

@@ -60,6 +60,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from utils.database import db
 from routes.crm_auth import get_crm_user
 from routes.crm_core import log_audit
+from routes.crm_product_perms import redact_product_cost
 
 
 logger = logging.getLogger(__name__)
@@ -167,6 +168,7 @@ async def list_products(
     cursor = db.crm_products.find(q, {"_id": 0}).sort(order).skip(skip).limit(limit)
     items = await cursor.to_list(limit)
     total = await db.crm_products.count_documents(q)
+    items = await redact_product_cost(user, items)
     return {"products": items, "total": total, "skip": skip, "limit": limit}
 
 
@@ -187,7 +189,7 @@ async def get_product(product_id: str, user=Depends(get_crm_user)) -> dict:
     p = await db.crm_products.find_one({"id": product_id, **_of(user)}, {"_id": 0})
     if not p:
         raise HTTPException(404, "Product not found")
-    return p
+    return await redact_product_cost(user, p)
 
 
 @router.get("/{product_id}/expand")
@@ -209,7 +211,7 @@ async def expand_product(product_id: str, user=Depends(get_crm_user)) -> dict:
     if not bundle:
         raise HTTPException(404, "Product not found")
     if not bundle.get("is_bundle"):
-        return {"is_bundle": False, "items": [
+        return await redact_product_cost(user, {"is_bundle": False, "items": [
             {
                 "product_id": bundle["id"],
                 "sku": bundle.get("sku"),
@@ -224,7 +226,7 @@ async def expand_product(product_id: str, user=Depends(get_crm_user)) -> dict:
                 "supplier_name": bundle.get("supplier_name"),
                 "image_url": bundle.get("image_url"),
             }
-        ]}
+        ]})
     item_ids = [it["product_id"] for it in (bundle.get("bundle_items") or [])]
     rows: list[dict] = []
     if item_ids:
@@ -271,7 +273,7 @@ async def expand_product(product_id: str, user=Depends(get_crm_user)) -> dict:
         })
     rollup_cost = sum(float(e["cost_price"]) * float(e["quantity"]) for e in expanded)
     rollup_sell = sum(float(e["sell_price"]) * float(e["quantity"]) for e in expanded)
-    return {
+    return await redact_product_cost(user, {
         "is_bundle": True,
         "bundle_id": bundle["id"],
         "bundle_name": bundle["name"],
@@ -282,7 +284,7 @@ async def expand_product(product_id: str, user=Depends(get_crm_user)) -> dict:
             ((rollup_sell - rollup_cost) / rollup_sell * 100) if rollup_sell > 0 else 0,
             2,
         ),
-    }
+    })
 
 
 # ── Write ──────────────────────────────────────────────────────────

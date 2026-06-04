@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
+from routes.crm_product_perms import can_see_product_cost
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/crm/price-list", tags=["CRM Price List · Quality"])
@@ -100,6 +101,8 @@ def _issue_query(issue: str, threshold: float, dup_skus: list[str], quoted_ids: 
 
 @router.get("/quality")
 async def quality_dashboard(user=Depends(get_crm_user)) -> dict:
+    if not await can_see_product_cost(user):
+        raise HTTPException(403, "You do not have permission to view cost / margin data")
     of = _of(user)
     threshold = await _threshold(user)
     dup_skus = await _duplicate_skus(user)
@@ -154,6 +157,8 @@ async def quality_dashboard(user=Depends(get_crm_user)) -> dict:
 
 @router.get("/quality/list")
 async def quality_list(issue: str, skip: int = 0, limit: int = 50, user=Depends(get_crm_user)) -> dict:
+    if not await can_see_product_cost(user):
+        raise HTTPException(403, "You do not have permission to view cost / margin data")
     of = _of(user)
     threshold = await _threshold(user)
     dup_skus = await _duplicate_skus(user) if issue == "duplicate_sku" else []
@@ -173,6 +178,8 @@ async def quality_list(issue: str, skip: int = 0, limit: int = 50, user=Depends(
 
 @router.get("/quality/report.csv")
 async def quality_report_csv(issue: str, user=Depends(get_crm_user)):
+    if not await can_see_product_cost(user):
+        raise HTTPException(403, "You do not have permission to view cost / margin data")
     of = _of(user)
     threshold = await _threshold(user)
     dup_skus = await _duplicate_skus(user) if issue == "duplicate_sku" else []

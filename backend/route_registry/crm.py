@@ -33,6 +33,7 @@ from routes.crm_price_changes import router as crm_price_changes_router
 from routes.crm_price_backup import router as crm_price_backup_router
 from routes.crm_price_quality import router as crm_price_quality_router
 from routes.crm_price_ai import router as crm_price_ai_router
+from routes.crm_product_perms import router as crm_product_perms_router
 from routes.crm_website_recognize import router as crm_website_recognize_router
 from routes.crm_reports import router as crm_reports_router
 from routes.crm_phase3 import router as crm_phase3_router
@@ -58,6 +59,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_price_backup_router,
         crm_price_quality_router,
         crm_price_ai_router,
+        crm_product_perms_router,
         crm_website_recognize_router,
         crm_reports_router, crm_phase3_router,
         crm_journey_enrol_router,

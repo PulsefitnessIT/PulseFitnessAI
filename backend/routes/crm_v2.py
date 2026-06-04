@@ -11,6 +11,7 @@ from utils.crm_audit import record_audit
 from utils.web_security import sanitize_rich_text, sanitize_rich_text_dict
 from utils.audit_log import audit_export
 from routes.crm_permissions import compute_visibility, redact
+from routes.crm_product_perms import redact_quote_cost
 import uuid
 import re
 import json
@@ -1743,6 +1744,7 @@ async def list_quotes(
         q["status"] = status
     total = await db.crm2_quotes.count_documents(q)
     items = await db.crm2_quotes.find(q, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    items = await redact_quote_cost(user, items)
     return {"quotes": items, "total": total}
 
 

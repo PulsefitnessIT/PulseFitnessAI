@@ -226,6 +226,80 @@ function FieldPerms({ perms, entityTypes, onChange }) {
   );
 }
 
+function ProductCostPerms() {
+  const [data, setData] = useState({ grants: [], privileged_roles: [], cost_fields: [] });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState('');
+  const GRANTABLE = ['rep', 'sales_rep', 'support', 'user'];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/crm/product-perms`, auth());
+      setData(r.data);
+    } catch (e) { /* admin-gated; parent handles 403 */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (role, can) => {
+    setSaving(role);
+    try {
+      await axios.put(`${API}/crm/product-perms`, { role, can_see_cost: can }, auth());
+      toast.success(can ? `${role} can now see cost` : `${role} cost access removed`);
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Save failed'); }
+    finally { setSaving(''); }
+  };
+
+  return (
+    <Section
+      title="Product cost & margin visibility"
+      subtitle="Secure by default: only owner/admin/manager/finance/analyst see product cost & margin. Grant other roles access here."
+      icon={Lock}
+      testid="permissions-product-cost"
+    >
+      {loading ? <p className="text-sm opacity-60">Loading…</p> : (
+        <>
+          <div className="text-[11px] mb-3 opacity-70">
+            Always-visible roles: {(data.privileged_roles || []).join(', ')}. Hidden fields: <code className="text-[10px]">{(data.cost_fields || []).join(', ')}</code>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left opacity-60 text-[11px] uppercase tracking-wider">
+                <th className="px-2 py-1.5">Role</th>
+                <th className="px-2 py-1.5">Can see cost / margin?</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GRANTABLE.map((role) => {
+                const granted = (data.grants || []).includes(role);
+                return (
+                  <tr key={role} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`product-cost-row-${role}`}>
+                    <td className="px-2 py-2 font-semibold">{role}</td>
+                    <td className="px-2 py-2">
+                      <button
+                        onClick={() => toggle(role, !granted)}
+                        disabled={saving === role}
+                        className="px-3 py-1 rounded-md text-xs font-bold"
+                        style={{ background: granted ? 'var(--color-success-alt)' : 'var(--theme-surface)', color: granted ? '#fff' : 'var(--theme-text)', border: `1px solid ${granted ? 'transparent' : 'var(--theme-border)'}` }}
+                        data-testid={`product-cost-toggle-${role}`}
+                      >
+                        {saving === role ? 'Saving…' : granted ? 'Allowed' : 'Hidden'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+    </Section>
+  );
+}
+
 export default function CRMPermissions() {
   const [rules, setRules] = useState([]);
   const [perms, setPerms] = useState([]);
@@ -274,6 +348,7 @@ export default function CRMPermissions() {
     <div className="space-y-5" data-testid="crm-permissions-page">
       <SharingRules rules={rules} entityTypes={entityTypes} accessLevels={accessLevels} onChange={load} />
       <FieldPerms perms={perms} entityTypes={entityTypes} onChange={load} />
+      <ProductCostPerms />
     </div>
   );
 }

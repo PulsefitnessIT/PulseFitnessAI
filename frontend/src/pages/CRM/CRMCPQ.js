@@ -590,6 +590,7 @@ export default function CRMCPQ() {
   // and `from_bundle_id` / `from_bundle_name` (set when a bundle
   // exploded into N lines so the rep can see the provenance).
   const [products, setProducts] = useState([]);
+  const [canSeeCost, setCanSeeCost] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [expanding, setExpanding] = useState(null);  // product id being expanded
@@ -619,16 +620,18 @@ export default function CRMCPQ() {
 
   const loadLookups = useCallback(async () => {
     try {
-      const [coRes, ctRes, oppRes, prodRes] = await Promise.all([
+      const [coRes, ctRes, oppRes, prodRes, permRes] = await Promise.all([
         axios.get(`${API}/crm/v2/companies?limit=200`, { headers: headers() }),
         axios.get(`${API}/crm/v2/contacts?limit=200`, { headers: headers() }),
         axios.get(`${API}/crm/v2/opportunities?limit=200`, { headers: headers() }),
         axios.get(`${API}/crm/products?active=true&limit=500`, { headers: headers() }),
+        axios.get(`${API}/crm/product-perms/me`, { headers: headers() }).catch(() => ({ data: { can_see_cost: true } })),
       ]);
       setCompanies(coRes.data.companies);
       setContacts(ctRes.data.contacts);
       setOpps(oppRes.data.opportunities);
       setProducts(prodRes.data.products || []);
+      setCanSeeCost(permRes.data?.can_see_cost !== false);
     } catch (e) { console.error(e); }
   }, [API, headers]);
 
@@ -947,7 +950,7 @@ export default function CRMCPQ() {
                 <div className="flex justify-between font-bold pt-1" style={{ borderTop: `1px solid ${c.border}` }}>
                   <span style={{ color: c.text }}>Total</span><span style={{ color: 'var(--color-success-alt)' }}>{fmt(grandTotal)}</span>
                 </div>
-                {hasCostedLines && (
+                {canSeeCost && hasCostedLines && (
                   <div
                     className="mt-2 px-2.5 py-1.5 rounded-md flex items-center justify-between text-[11px]"
                     style={{
