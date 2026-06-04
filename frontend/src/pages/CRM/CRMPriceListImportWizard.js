@@ -155,16 +155,48 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
     setAiSummaryBusy(false);
   };
 
+  const [commitJob, setCommitJob] = useState(null);   // background commit progress
+
   const runCommit = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setCommitJob(null);
+    const sheets = buildSheetCfgs();
     try {
-      const r = await axios.post(`${API}/crm/price-list/import/${imp.id}/commit`, { sheets: buildSheetCfgs(), options }, { headers: headers() });
-      setResult(r.data);
-      setStep(3);
+      if (selectedCount > 2000) {
+        await runCommitAsync(sheets);
+      } else {
+        const r = await axios.post(`${API}/crm/price-list/import/${imp.id}/commit`, { sheets, options }, { headers: headers() });
+        setResult(r.data);
+        setStep(3);
+        setBusy(false);
+      }
     } catch (err) {
       setError(err?.response?.data?.detail || 'Import failed');
+      setBusy(false);
     }
-    setBusy(false);
+  };
+
+  const runCommitAsync = async (sheets) => {
+    const start = await axios.post(`${API}/crm/price-list/import/${imp.id}/commit-async`, { sheets, options }, { headers: headers() });
+    const jobId = start.data.job_id;
+    setCommitJob({ status: 'running', processed: 0, total: start.data.total });
+    const poll = async () => {
+      try {
+        const r = await axios.get(`${API}/crm/price-list/import/commit-jobs/${jobId}`, { headers: headers() });
+        const job = r.data;
+        setCommitJob(job);
+        if (job.status === 'done') {
+          setResult({ version: { label: job.version_label, status: job.version_status }, summary: { created: job.created, updated: job.updated, skipped: job.skipped } });
+          setStep(3); setBusy(false); return;
+        }
+        if (job.status === 'error') {
+          setError(job.message || 'Background import failed'); setBusy(false); return;
+        }
+        setTimeout(poll, 1500);
+      } catch (err) {
+        setError('Lost contact with the import job — check Import history.'); setBusy(false);
+      }
+    };
+    setTimeout(poll, 1200);
   };
 
   const selectedCount = useMemo(() => (imp?.sheets || []).filter(s => selected[s.name]).reduce((a, s) => a + s.product_count, 0), [imp, selected]);
@@ -377,10 +409,21 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                   </div>
                 </div>
               )}
+              {/* Background commit progress */}
+              {commitJob && commitJob.status === 'running' && (
+                <div className="rounded-lg border p-3" style={{ borderColor: 'var(--color-info-ios)' }} data-testid="plw-commit-progress">
+                  <div className="flex items-center justify-between text-xs font-semibold mb-2" style={{ color: c.text }}>
+                    <span className="flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" style={{ color: 'var(--color-info-ios)' }} /> Importing in the background…</span>
+                    <span data-testid="plw-commit-progress-count">{commitJob.processed || 0} / {commitJob.total || selectedCount}</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: surface2 }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.round(((commitJob.processed || 0) / Math.max(1, commitJob.total || selectedCount)) * 100))}%`, background: 'var(--color-info-ios)' }} />
+                  </div>
+                  <div className="text-[11px] mt-2" style={{ color: c.textDim }}>You'll get an email when it's done — it's safe to keep this open.</div>
+                </div>
+              )}
             </div>
           )}
-
-          {/* STEP 3 — Done */}
           {step === 3 && result && (
             <div className="text-center py-10" data-testid="plw-done-step">
               <CheckCircle2 size={40} className="mx-auto mb-3" style={{ color: 'var(--color-success-alt)' }} />

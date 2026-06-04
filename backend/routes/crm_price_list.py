@@ -19,6 +19,7 @@ traceable. No duplicate product module is created.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import uuid
@@ -528,7 +529,23 @@ def _build_product_doc(p: dict, user: dict, version_id: str, import_id: str) -> 
 @router.post("/import/{import_id}/commit")
 async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get_crm_user)) -> dict:
     """Write the mapped products into the Master Price List, creating a
-    new price-list version. Idempotent on SKU within the org."""
+    new price-list version (synchronous — best for smaller imports).
+    Idempotent on SKU within the org."""
+    _require_admin(user)
+    doc = await db.crm_price_imports.find_one({"id": import_id, **_of(user)}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Import not found")
+    if doc.get("status") == "committed":
+        raise HTTPException(409, "This import has already been committed")
+    version_doc = await _execute_commit(import_id, doc, body.get("sheets") or [], body.get("options") or {}, user)
+    return {"version": version_doc, "summary": version_doc["summary"]}
+
+
+@router.post("/import/{import_id}/commit-async")
+async def commit_import_async(import_id: str, body: dict = Body(...), user=Depends(get_crm_user)) -> dict:
+    """Commit a large import in the background. Returns a job id to poll via
+    GET /import/commit-jobs/{job_id}. An email is sent to the requester when
+    the commit finishes."""
     _require_admin(user)
     doc = await db.crm_price_imports.find_one({"id": import_id, **_of(user)}, {"_id": 0})
     if not doc:
@@ -537,7 +554,93 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
         raise HTTPException(409, "This import has already been committed")
 
     sheets_cfg = body.get("sheets") or []
-    opts = body.get("options") or {}
+    selected = {c["name"] for c in sheets_cfg if c.get("selected", True)}
+    total = sum(s["product_count"] for s in doc.get("sheets", []) if s["name"] in selected) or doc.get("total_detected_rows", 0)
+
+    job_id = str(uuid.uuid4())
+    await db.crm_price_commit_jobs.insert_one({
+        "id": job_id,
+        "organization_id": user.get("organization_id"),
+        "import_id": import_id,
+        "status": "running",
+        "total": total,
+        "processed": 0,
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "version_id": None,
+        "message": "",
+        "requested_by": user.get("id", ""),
+        "requested_email": user.get("email", ""),
+        "created_at": _now(),
+        "updated_at": _now(),
+    })
+    asyncio.create_task(_run_commit_job(job_id, import_id, doc, sheets_cfg, body.get("options") or {}, user))
+    return {"job_id": job_id, "total": total}
+
+
+@router.get("/import/commit-jobs/{job_id}")
+async def get_commit_job(job_id: str, user=Depends(get_crm_user)) -> dict:
+    _require_admin(user)
+    job = await db.crm_price_commit_jobs.find_one({"id": job_id, **_of(user)}, {"_id": 0})
+    if not job:
+        raise HTTPException(404, "Commit job not found")
+    return job
+
+
+async def _run_commit_job(job_id, import_id, doc, sheets_cfg, opts, user):
+    """Background worker: run the commit, update the job doc, email on done."""
+    try:
+        version_doc = await _execute_commit(import_id, doc, sheets_cfg, opts, user, job_id=job_id)
+        await db.crm_price_commit_jobs.update_one(
+            {"id": job_id},
+            {"$set": {"status": "done", "version_id": version_doc["id"],
+                      "version_label": version_doc["label"],
+                      "version_status": version_doc["status"],
+                      "created": version_doc["summary"]["created"],
+                      "updated": version_doc["summary"]["updated"],
+                      "skipped": version_doc["summary"]["skipped"],
+                      "message": "", "finished_at": _now(), "updated_at": _now()}},
+        )
+        await _email_commit_done(user, version_doc)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[price-commit] background commit failed")
+        await db.crm_price_commit_jobs.update_one(
+            {"id": job_id},
+            {"$set": {"status": "error", "message": str(exc)[:300], "finished_at": _now(), "updated_at": _now()}},
+        )
+
+
+async def _email_commit_done(user: dict, version_doc: dict) -> None:
+    to = user.get("email")
+    if not to:
+        return
+    s = version_doc["summary"]
+    try:
+        from utils.email import send_email
+        await send_email(
+            to=to,
+            subject="GymAxis — price list import complete",
+            html=(
+                f"<div style=\"font-family:Arial,sans-serif;color:#1e293b\">"
+                f"<h2 style=\"color:#0055FF\">Master Price List — import complete</h2>"
+                f"<p>Your import has finished and version <strong>{version_doc['label']}</strong> "
+                f"({version_doc['status']}) is ready.</p>"
+                f"<ul><li>{s['created']} created</li><li>{s['updated']} updated</li>"
+                f"<li>{s['skipped']} skipped</li></ul>"
+                f"</div>"
+            ),
+            organization_id=user.get("organization_id"),
+            kind="price_list_import",
+            category="import",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("[price-commit] completion email to %s failed", to)
+
+
+async def _execute_commit(import_id: str, doc: dict, sheets_cfg: list, opts: dict,
+                          user: dict, job_id: str | None = None) -> dict:
+    """Shared commit pipeline (used by both sync and background commit)."""
     mode = "live" if opts.get("mode") == "live" else "draft"
     do_create = opts.get("create", True)
     do_update = opts.get("update", True)
@@ -550,20 +653,26 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
     existing = await db.crm_products.find(_of(user), {"_id": 0, "id": 1, "sku": 1}).to_list(None)
     existing_by_sku = {p["sku"]: p["id"] for p in existing if p.get("sku")}
 
-    created = updated = skipped = 0
+    created = updated = skipped = processed = 0
     ops: list[UpdateOne] = []
     snaps: list[dict] = []
     seen_skus: set[str] = set()
+
+    async def _progress():
+        if job_id:
+            await db.crm_price_commit_jobs.update_one(
+                {"id": job_id},
+                {"$set": {"processed": processed, "created": created, "updated": updated,
+                          "skipped": skipped, "updated_at": _now()}},
+            )
+
     for cfg in sheets_cfg:
         if not cfg.get("selected", True):
             continue
         for p in extract_products_from_wb(wb, cfg):
+            processed += 1
             sku = (p.get("sku") or "").strip()
-            if not sku:
-                skipped += 1
-                continue
-            if sku in seen_skus:
-                # first occurrence wins; duplicates within the same import skipped
+            if not sku or sku in seen_skus:
                 skipped += 1
                 continue
             seen_skus.add(sku)
@@ -592,6 +701,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
             if len(ops) >= 500:
                 await db.crm_products.bulk_write(ops, ordered=False)
                 ops = []
+                await _progress()
         if len(snaps) >= 1000:
             await db.crm_price_list_version_items.insert_many(snaps)
             snaps = []
@@ -628,7 +738,7 @@ async def commit_import(import_id: str, body: dict = Body(...), user=Depends(get
     await log_audit(user, "price_list_import", import_id, "committed",
                     {"created": created, "updated": updated, "skipped": skipped, "mode": mode})
     version_doc.pop("_id", None)
-    return {"version": version_doc, "summary": version_doc["summary"]}
+    return version_doc
 
 
 # ── Versions + data quality ────────────────────────────────────────
@@ -860,5 +970,7 @@ async def ensure_price_list_indexes() -> None:
         await db.crm_products.create_index([("organization_id", 1), ("import_batch_id", 1)])
         await db.crm_price_list_version_items.create_index([("version_id", 1), ("organization_id", 1)])
         await db.crm_price_list_version_items.create_index([("version_id", 1), ("sku", 1)])
+        await db.crm_price_commit_jobs.create_index([("organization_id", 1), ("created_at", -1)])
+        await db.crm_price_commit_jobs.create_index([("id", 1)])
     except Exception:
         logger.exception("ensure_price_list_indexes failed (non-fatal)")

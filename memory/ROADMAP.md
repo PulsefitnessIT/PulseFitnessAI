@@ -41,6 +41,11 @@ _Last refreshed: Iter 220m · May 26, 2026._
 - New `POST /crm/price-list/import/upload-chunk` + `upload-finalize`; shared `_store_and_analyze` pipeline. Frontend auto-routes files >1.2MB to 512KB slices with a live % progress indicator, then reassembles + analyses server-side.
 - Verified: real 2.7MB Pulse workbook (7269 rows / 4 sheets) uploads via 6 chunks with no 413; 4/4 pytest (`test_iter_220p1_chunked_upload.py`) + frontend e2e (PASS).
 
+## ✅ Background commit for large imports — SHIPPED (iter 220p1, Jun 4 2026)
+- New `POST /crm/price-list/import/{id}/commit-async` (job-based) + `GET /import/commit-jobs/{job_id}` polling; shared `_execute_commit` with periodic progress writes. Emails the requester on completion (`utils.email.send_email`).
+- Frontend auto-uses the async path when >2000 rows selected, showing a live progress bar; ≤2000 rows keep the instant sync commit.
+- Verified: 250-row async commit → done with version created + self-clean; 2/2 pytest (`test_iter_220p1_async_commit.py`). Full price-list suite: 32/32 passing.
+
 ## ✅ Generalized spreadsheet import engine — SHIPPED (iter 220p1, Jun 4 2026)
 Import *any* company's complicated price list, not just Pulse's:
 - Optional product code — name-only catalogues import with a synthesised, readable SKU (re-imports still match).
