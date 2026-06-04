@@ -1,3 +1,22 @@
+## Iter 220 P1 (slice 2) — Version compare/rollback + price-change & approval workflow ✅ (Jun 4, 2026)
+
+**Built on the Master Price List foundation. User choices:** approvers = owners+admins only (managers request, can't self-approve); per-org "Require approval for price changes" toggle **default OFF**; scheduled effective dates auto-applied by a background sweep.
+
+**Shipped:**
+- **Version snapshots** (`crm_price_list_version_items`) written on every import commit + a `POST /versions/snapshot-current` baseline. `_snapshot_entry` captures sku/name/category/cost/sell/markup/sage/archived.
+- **Compare** `GET /crm/price-list/versions/{id}/compare?to={id|omit=live}` → added/removed/changed (cost, sell, margin, Sage). **Rollback** `POST /versions/{id}/rollback` (approver) restores prices → new "Rollback of …" live version, appends price_history; existing quotes keep their prices. **Publish** `POST /versions/{id}/publish` flips a version live + archives prior live.
+- **Price-change workflow** (`routes/crm_price_changes.py`, `crm_price_changes` coll): `preview` (dry-run: affected + old→new + warnings below-margin/negative/cost>sell), `create` (decides applied|pending|scheduled), `list`, `approve`/`reject`/`cancel`. Modes: pct, fixed, set, margin (margin → sell from cost). Scope: all / category / supplier / single product. Per-product `price_history` (capped 50).
+- **Settings** `crm_price_list_settings` per org: `require_approval` + `margin_threshold_pct` (approver-only PUT). `_is_approver` = owner/admin/master/pulse.
+- **Scheduled sweep** `run_scheduled_price_changes_loop` (server.py, every 30m, `PRICE_CHANGE_SWEEP_MIN`) applies due scheduled changes idempotently.
+- **Frontend**: 3 new header buttons in `CRMProductsSection` — Bulk price change (`CRMBulkPriceModal`), Versions (`CRMPriceVersionsModal` compare/rollback/publish/snapshot), Approvals (`CRMPriceChangesModal` list + approve/reject/cancel + approval toggle) with pending badge. Product drawer shows price history. Modals at z-[260].
+
+**Tested:** pytest 12/12 (`test_iter_220p1_price_list_import.py` 7 + `test_iter_220p1_price_changes.py` 5). testing_agent `iteration_220p1_slice2.json`: backend 100% (13/13), frontend buttons + Bulk modal verified, no UI bugs. Main agent curl-verified full flow incl. scheduler sweep (applied 47) + pending→approve.
+
+**Next P1/P2:** Quote intelligence + Sage 200 export prep; weekly secure backup exports; data-quality dashboard page + reporting; field-level cost/margin permissions.
+
+---
+
+
 ## Iter 220 P1 — CRM Master Price List: zero-data-loss spreadsheet migration + management ✅ (Jun 4, 2026)
 
 **Request:** Turn the existing CRM → Master Price List into an enterprise product/pricing system. Migrate Pulse's master spreadsheet ONCE with **no data loss**, then manage everything inside CRM (stop spreadsheet dependence). User confirmed: AI assist ON (advisory), cost/margin NOT hidden, org-scoped to the Pulse org, "continue as you see best" for later phases. The source is a messy cost-engineering workbook (4 sheets: Main Gym/Rigs/Functional Training/Studio Equipment, multi-row headers, exchange-rate preamble, section headings, ~7193 rows, up to 73 cols).
