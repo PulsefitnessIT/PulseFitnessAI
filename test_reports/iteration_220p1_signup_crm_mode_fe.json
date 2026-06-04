@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only verification of the new CRM mode selector in TrialSignupModal (Iter 220p1). All UI interaction expectations pass: visibility tied to CRM module toggle, default 'gym', three-way switching with aria-pressed reflecting selection. Captcha-gated submission was intentionally NOT exercised per task note.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    "Open trial modal via window event 'gymaxis:open-trial' — modal renders",
+    "Default state: all modules selected → CRM mode selector ([data-testid=trial-crm-mode]) is visible",
+    "Default CRM mode is 'gym' (aria-pressed=true on trial-crm-mode-gym; others false)",
+    "Click trial-crm-mode-corporate → aria-pressed flips correctly (corporate=true, gym=false)",
+    "Click trial-crm-mode-both → aria-pressed updates (both=true, corporate=false)",
+    "Click trial-crm-mode-gym → aria-pressed=true on gym again",
+    "Click trial-module-crm to toggle CRM OFF → trial-crm-mode container is removed from DOM (hidden)",
+    "Click trial-module-crm to toggle CRM back ON → trial-crm-mode reappears, default 'gym' aria-pressed=true preserved"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note on spec wording: the request says the mode selector is 'HIDDEN by default and only APPEARS after the user selects/toggles ON the CRM module'. In practice the modal opens with ALL modules pre-selected (selectedModules defaults to ALL_MODULE_KEYS), so the CRM mode selector IS visible at first paint for the generic CTA path. The selector correctly tracks selectedModules.includes('crm'): toggling CRM off hides it, toggling back on re-shows it with default 'gym'. If the product intent is for the selector to be hidden until an explicit user action, the default selectedModules state would need to change (currently considered correct per the existing module-selector design).",
+    "Payload logic at line 170 (crm_mode: selectedModules.includes('crm') ? crmMode : undefined) is correct — crm_mode is only sent when CRM is in the chosen modules. crmMode state is not reset when CRM is toggled off/on, which is fine because default is 'gym' and re-enabling preserves the user's last choice (verified empirically as 'gym' default in this run)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% (8/8 UI assertions)"},
+  "test_credentials": "n/a — public trial signup modal",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "TrialSignupModal CRM mode selector UI is fully working: data-testids trial-crm-mode, trial-crm-mode-gym/-corporate/-both, default 'gym', aria-pressed correct, visibility bound to selectedModules.includes('crm'). Full submit was intentionally skipped (Turnstile captcha gates step-1 in preview). Backend mapping (gym→leisure only, corporate→business only, both→both) is reported as already verified by 4/4 backend tests in tests/test_iter_220p1_signup_crm_mode.py."
+}
