@@ -13,6 +13,7 @@ export default function CRMBundleSuggestModal({ API, headers, c, isDark, onClose
   const [suggestions, setSuggestions] = useState([]);
   const [creatingIdx, setCreatingIdx] = useState(null);
   const [createdIdx, setCreatedIdx] = useState({});
+  const [rowError, setRowError] = useState({});
 
   const border = isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)';
   const surface2 = isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-50)';
@@ -32,8 +33,9 @@ export default function CRMBundleSuggestModal({ API, headers, c, isDark, onClose
 
   const createBundle = async (s, idx) => {
     setCreatingIdx(idx);
+    setRowError(m => ({ ...m, [idx]: '' }));
     try {
-      await axios.post(`${API}/crm/products`, {
+      const r = await axios.post(`${API}/crm/products`, {
         name: s.name,
         category: 'Other',
         is_bundle: true,
@@ -41,10 +43,14 @@ export default function CRMBundleSuggestModal({ API, headers, c, isDark, onClose
         description: s.rationale,
         bundle_items: s.components.map(comp => ({ product_id: comp.product_id, quantity: 1 })),
       }, { headers: headers() });
-      setCreatedIdx(m => ({ ...m, [idx]: true }));
-      onCreated?.();
+      if (r.data?.id) {
+        setCreatedIdx(m => ({ ...m, [idx]: true }));
+        onCreated?.();
+      } else {
+        setRowError(m => ({ ...m, [idx]: 'Unexpected response — bundle may not have been created.' }));
+      }
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Could not create bundle.');
+      setRowError(m => ({ ...m, [idx]: err?.response?.data?.detail || 'Could not create bundle.' }));
     }
     setCreatingIdx(null);
   };
@@ -92,6 +98,7 @@ export default function CRMBundleSuggestModal({ API, headers, c, isDark, onClose
                 <div className="flex items-center justify-between text-xs pt-1 mt-1 border-t font-semibold" style={{ borderColor: border, color: c.text }}>
                   <span>Total</span><span>£{s.total_sell_price}</span>
                 </div>
+                {rowError[idx] && <div className="text-[11px] mt-1.5" style={{ color: 'var(--color-danger-alt)' }} data-testid={`bundle-error-${idx}`}>{rowError[idx]}</div>}
               </div>
             </div>
           ))}

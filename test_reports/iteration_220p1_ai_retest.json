@@ -1,0 +1,38 @@
+{
+  "summary": "Retest of 3 AI features under CRM Settings -> Price List. (1) AI bundle suggestions: WORKS end-to-end - 5 suggestions render, POST /api/crm/products returns 200 and the 'Created' green badge appears on the suggestion row (verified visually in screenshot bundle_after_create.png on first run). (2) Drawer AI improve grammar: FULLY WORKING - typed text with typos, clicked product-drawer-ai-clean -> suggestion appeared in ~3s with corrected grammar, 'Use this' replaced the textarea, Save persisted (PATCH /api/crm/products/<id> -> 200). (3) Import wizard AI explain issues: BLOCKED by a 500 on upload - the small workbook /app/test_samples/pulse_price_list_small_with_errors.xlsx is POSTed to /api/crm/products/bulk-import (CSV endpoint) instead of the price-list xlsx import endpoint; backend raises _csv.Error: new-line character seen in unquoted field, so the wizard never advances past step 1 and plw-to-preview / plw-ai-summary-block never render.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/crm/products/bulk-import", "issue": "Import wizard (CRMPriceListImportWizard.js) is uploading the XLSX file to the CSV bulk-import endpoint. Backend tries csv.DictReader on binary xlsx bytes and raises _csv.Error -> 500. This blocks the entire Preview step and the new plw-ai-summary-block AI feature.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CRMBundleSuggestModal", "issue": "After successful POST /api/crm/products (HTTP 200), the modal re-fetches AI suggestions and replaces the entire list. The bundle-created-<idx> badge IS rendered for the just-created suggestion (Spin Studio Starter Pack showed 'Created' green pill in screenshot), but the index moves so an automated test pinned to bundle-created-0 may time-out. Consider keeping the index stable post-create (or do not auto-refetch) and ensure data-testid='bundle-created-<idx>' remains attached to the same row that was clicked.", "selector": "[data-testid=bundle-created-0]", "priority": "MEDIUM"},
+      {"component": "Install App / Cookie banners", "issue": "Bottom-right Install App prompt and bottom-center cookie banner overlay action controls in the modal; can intercept clicks on lower create-bundle rows.", "selector": "Install App prompt", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Import wizard preview -> AI explain issues", "issue": "Wizard upload posts to /api/crm/products/bulk-import (CSV endpoint) -> 500 from _csv.Error. Should target the xlsx import-wizard endpoint (e.g. /api/crm/price-list/import/upload). Result: cannot reach Preview step -> plw-ai-summary-block / plw-ai-summary-btn / plw-ai-summary-result never appear.", "affected_selectors": ["[data-testid=plw-to-preview]","[data-testid=plw-ai-summary-block]","[data-testid=plw-ai-summary-btn]","[data-testid=plw-ai-summary-result]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix CRMPriceListImportWizard.js to POST the .xlsx upload to the correct price-list import endpoint (not /api/crm/products/bulk-import). After fix, the Preview step should render and plw-ai-summary-block should appear with the Summarise button.",
+    "(Minor) In CRMBundleSuggestModal.js, do NOT re-fetch /price-list/ai-bundle-suggestions immediately after a successful create — it reorders the rows and makes the 'Created' badge appear on a different index than the one the user clicked. Either freeze the list once shown or key the Created/Error state by suggestion id rather than index.",
+    "(Minor) Auto-suppress the 'Install App' PWA prompt and cookie banner while wizard / drawer modals are open so they cannot intercept clicks."
+  ],
+  "critical_code_review_comments": [
+    "Import wizard wiring bug: front-end uploads XLSX to the CSV /api/crm/products/bulk-import handler; backend csv.DictReader chokes (_csv.Error: new-line character seen in unquoted field). Either route to the dedicated price-list xlsx endpoint or branch in the backend by Content-Type.",
+    "CRMBundleSuggestModal refetches the suggestions list right after a successful create — combined with index-based data-testid this confuses automation and users (the row they just created visually jumps).",
+    "Backend tracebacks show no input-validation guard before csv.DictReader; should pre-check file extension/content-type and return a 400 with a clear message rather than 500."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "~67% — 2 of 3 AI features fully working (bundles + drawer grammar). Wizard AI summary blocked by upload-routing bug."},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (CRM master admin via inline /crm login).",
+  "seed_data_creation": "None. (One product description was updated by the drawer Save during testing; visible in PATCH /api/crm/products/<id>.)",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login on /crm with admin@gymaxisai.com / MasterAdmin123!. Navigate to ?tab=settings then click [data-testid=settings-tab-products]. Dismiss the bottom Install App banner (button text 'Later') before opening drawers/modals as it can intercept clicks. Verified: Suggest Bundles modal lists 5 AI suggestions and creating one returns POST /api/crm/products 200 (green Created badge visible). Verified: drawer flow via [data-testid=products-view-<id>] -> [data-testid=product-drawer-description] -> [data-testid=product-drawer-ai-clean] -> [data-testid=product-drawer-ai-suggestion] -> [data-testid=product-drawer-ai-accept] -> [data-testid=product-drawer-save] all work. NOT verified: plw-ai-summary-block because the wizard upload fails (see RCA).",
+  "rca of the issue": "Repro: open import wizard, set file /app/test_samples/pulse_price_list_small_with_errors.xlsx. Network: POST https://.../api/crm/products/bulk-import -> 500. Backend log: csv.DictReader -> _csv.Error: new-line character seen in unquoted field. Root cause: the wizard front-end is calling the CSV bulk-import endpoint (/api/crm/products/bulk-import in routes/crm_products.py) with a binary .xlsx file. It should call the price-list xlsx upload endpoint (the same one whose pytest /app/backend/tests/test_iter_220p1_price_ai.py passes 7/7). Mitigation: change the wizard upload URL OR add an xlsx branch in the backend bulk-import handler. Once fixed, re-run UI test to confirm plw-to-preview, plw-ai-summary-block, plw-ai-summary-btn and plw-ai-summary-result."
+}
