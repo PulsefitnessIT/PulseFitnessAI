@@ -1,3 +1,22 @@
+## Iter 220 P1 (slice 3) — Quote intelligence + Sage 200 export prep ✅ (Jun 4, 2026)
+
+**Built on the live quote builder (`crm2_quotes`, `/crm/v2/quotes`). User choices:** VAT 20→T1/0→T0/5→T5/else→T2; default nominal blank (set per export); customer Sage account ref from linked company else editable on quote; actual Sage POST blocked (no live creds) → Export generates Sage-ready CSV + records intent, real push activates when Sage connected.
+
+**Shipped (`routes/crm_quote_sage.py`):**
+- **Line hydration** on quote create/revise (`hydrate_quote_lines`, called from crm_v2): snapshots sku, sage_code, product_status, catalogue_sell_at_quote, price_list_version_id onto each product line (rep's quoted price preserved).
+- **Quote intelligence** `POST /crm/v2/quotes/intelligence {lines}` → per-line flags (missing_sage[err], obsolete[warn], price_changed[info]=quoted≠catalogue, missing_description[err], low_margin[warn] vs org floor) + totals + suggestions (bundle accessories + related-by-category).
+- **Sage export prep**: `PUT /{id}/sage/meta` (account ref / default nominal / ack obsolete), `POST /{id}/sage/validate` (→ sage_status ready_for_sage|validation_failed, errors/warnings/account_ref/net_total), `POST /{id}/sage/export` (422 on fail; else records `crm_sage_exports` {net/vat/gross, pushed_to_sage:false, csv, sage_payload} + sets sage_status='exported'), `GET /{id}/sage/export.csv` (Sage-ready CSV: QuoteNumber,AccountRef,ProductCode,SageItemCode,Description,Quantity,UnitPrice,DiscountPercent,NetAmount,VATCode,NominalCode), `GET /{id}/sage/exports`.
+- **Frontend** `CRMQuoteSagePanel.js` in CRMCPQ QuoteDetail: intelligence summary + per-line flags + suggestions, account ref/nominal/ack inputs, Validate/Export/Download CSV, status badge + report + export result.
+
+**IMPORTANT — Quotes tab is mode-gated:** the CRM 'Quotes' (CPQ) tab is HIDDEN in 'Members'/leisure mode and only shows in 'Corporate'/business mode (toggle via `crm-mode-business` switcher). Pulse's B2B sales org runs business mode. Business CRM mode was enabled for the GymAxis admin org (preview) for verification.
+
+**Tested:** pytest 16/16 (added `test_iter_220p1_quote_sage.py` 4). testing_agent: backend `iteration_220p1_slice3.json` 100% (13 cases), frontend `iteration_220p1_slice3_fe.json` 100% (full UI flow: intelligence → validate READY FOR SAGE → export net£300/VAT£60/gross£360). No UI bugs.
+
+**Next P1/P2:** weekly secure backup exports (cost/margin-protected) + manual exports; data-quality dashboard page + reporting; field-level cost/margin permissions; (when Sage creds available) live Sage 200 push.
+
+---
+
+
 ## Iter 220 P1 (slice 2) — Version compare/rollback + price-change & approval workflow ✅ (Jun 4, 2026)
 
 **Built on the Master Price List foundation. User choices:** approvers = owners+admins only (managers request, can't self-approve); per-org "Require approval for price changes" toggle **default OFF**; scheduled effective dates auto-applied by a background sweep.
