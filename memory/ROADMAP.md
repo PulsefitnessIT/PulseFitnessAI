@@ -31,8 +31,11 @@ _Last refreshed: Iter 220m · May 26, 2026._
 
 ## P1 — Next (Master Price List follow-ups)
 
-- **AI Support enhancements** — clean product descriptions, summarise import errors, suggest bundles (beyond column mapping).
-- **Field-level permission hardening** — ensure Sales users cannot see cost/margin unless permitted (verify across quality dashboard, drill-downs, CSV exports too).
+- ✅ **AI Support enhancements — SHIPPED (iter 220p1, Jun 4 2026)** — `crm_price_ai.py` (reuses Claude Sonnet via Emergent LLM key): (1) per-product **AI improve grammar** in the product drawer (grammar-only, meaning preserved, reviewable Use/Discard); (2) import-wizard Preview **AI explain issues** (plain-English summary + flagged rows + next steps); (3) Master Price List **Suggest bundles** (3-5 AI suggestions, one-click create, suggestions only). Tested: backend 7/7 pytest + full frontend e2e on all 3 (PASS).
+- **Field-level permission hardening** — ensure Sales users cannot see cost/margin unless permitted (verify across quality dashboard, drill-downs, CSV exports, AI bundle totals too).
+
+## Known infra note
+- Import wizard upload: the full 2.7MB+ sample workbook 413s at the **k8s ingress** (app tier already allows 200MB for `/api/crm/price-list/import/`). For very large catalogues a chunked/streamed upload would be needed. Small workbooks upload fine.
 
 ---
 
