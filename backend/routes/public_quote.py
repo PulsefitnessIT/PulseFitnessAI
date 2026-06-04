@@ -131,7 +131,7 @@ async def accept_public_quote(shortcode: str, body: QuoteAcceptBody):
             "actor_id": q.get("engineer_id"),
             "kind": "notification",
             "subject": f"Quote {q['quote_number']} accepted",
-            "body": f"{body.name.strip()} accepted your quote — £{q.get('total', 0):,.2f}.",
+            "body": f"{body.name.strip()} accepted your quote — {q.get('currency_symbol') or '£'}{q.get('total', 0):,.2f}.",
             "ref_kind": "engineer_quote",
             "ref_id": q["id"],
             "created_at": _now(),

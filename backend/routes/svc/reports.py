@@ -640,8 +640,13 @@ async def export_pdf(
     ftfr_d = await first_time_fix(from_, to, user)
     sla_d = await sla(from_, to, user)
     downtime_d = await downtime(days, user)
-    org = await db.organizations.find_one({"id": of["organization_id"]}, {"_id": 0, "name": 1})
+    org = await db.organizations.find_one(
+        {"id": of["organization_id"]},
+        {"_id": 0, "name": 1, "country_code": 1, "currency": 1, "timezone": 1},
+    )
     org_name = (org or {}).get("name") or "GymAxis"
+    from utils.localization import org_localization
+    sym = org_localization(org)["currency_symbol"]
 
     # Render with reportlab — already used elsewhere in the codebase.
     from reportlab.lib.pagesizes import A4
@@ -680,7 +685,7 @@ async def export_pdf(
         ["Open cases", "Closed", "Chargeable invoiced", "Revenue (gross)", "AI calls", "Downtime"],
         [str(k.get("open_cases", 0)), str(k.get("cases_closed", 0)),
          str(k.get("chargeable_invoiced", 0)),
-         f"£{float(k.get('revenue_gross') or 0):,.0f}",
+         f"{sym}{float(k.get('revenue_gross') or 0):,.0f}",
          str(k.get("ai_calls", 0)),
          f"{downtime_d.get('total_hours', 0):,}h"],
     ], colWidths=[28 * mm] * 6)
@@ -736,7 +741,7 @@ async def export_pdf(
             rev_rows.append([r.get("engineer_name", "—"),
                              f"{r.get('hours', 0):.1f}",
                              str(r.get("cases", 0)),
-                             f"£{float(r.get('revenue') or 0):,.2f}"])
+                             f"{sym}{float(r.get('revenue') or 0):,.2f}"])
         rev_table = Table(rev_rows, colWidths=[60 * mm, 24 * mm, 24 * mm, 32 * mm])
         rev_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),

@@ -743,6 +743,9 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
     engineer = invoice.get("engineer_name") or "Your engineer"
     ino = invoice.get("invoice_number")
     total = invoice.get("total") or 0
+    sym = invoice.get("currency_symbol") or "£"
+    tax_label = invoice.get("tax_label") or "VAT"
+    pay_method = invoice.get("payment_method") or "bank transfer"
     due_date = invoice.get("due_date") or ""
     description = invoice.get("description_of_work") or ""
     pay_url = invoice.get("stripe_payment_url")
@@ -765,7 +768,7 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
             f'style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,{primary} 0%,{accent} 100%);'
             f'color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;'
             f'box-shadow:0 6px 14px rgba(99,102,241,0.35);">'
-            f'Pay £{total:,.2f} now by card →</a>'
+            f'Pay {sym}{total:,.2f} now by card →</a>'
             f'<p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">'
             f'Secured by Stripe. Card payment marks this invoice paid automatically.</p></div>'
         )
@@ -786,13 +789,13 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
         <p style="margin:6px 0 0;font-size:14px;color:#0f172a;line-height:1.5;">{description or '—'}</p>
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:14px 0;">
         <table style="width:100%;font-size:13px;color:#334155;">
-          <tr><td>{"Total due" if invoice.get('vat_exempt') else "Total due (incl. VAT)"}</td><td style="text-align:right;font-weight:700;color:{primary};">£{total:,.2f}</td></tr>
+          <tr><td>{"Total due" if invoice.get('vat_exempt') else f"Total due (incl. {tax_label})"}</td><td style="text-align:right;font-weight:700;color:{primary};">{sym}{total:,.2f}</td></tr>
           <tr><td>Due by</td><td style="text-align:right;">{due_date}</td></tr>
         </table>
       </div>
       {pay_block}
       <p style="font-size:13px;line-height:1.6;color:#64748b;">
-        Prefer BACS? Payment instructions are on the attached PDF.
+        Prefer {pay_method}? Payment instructions are on the attached PDF.
       </p>
       <p style="font-size:14px;margin-top:24px;">Thanks,<br/><strong>{engineer}</strong></p>
       <p style="font-size:11px;color:#94a3b8;margin-top:30px;">

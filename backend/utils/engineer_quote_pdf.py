@@ -125,7 +125,8 @@ def _two_col_block(s, left_label: str, left_lines: list[str],
 
 
 def _lines_table(s, quote: dict) -> Table:
-    header = ["Description", "Qty", "Unit £", "Total £"]
+    sym = quote.get("currency_symbol") or "£"
+    header = ["Description", "Qty", f"Unit {sym}", f"Total {sym}"]
     data = [header]
     lines = quote.get("lines") or []
     if not lines:
@@ -164,22 +165,24 @@ def _lines_table(s, quote: dict) -> Table:
 
 
 def _totals_block(s, quote: dict) -> Table:
+    sym = quote.get("currency_symbol") or "£"
+    tax_label = quote.get("tax_label") or "VAT"
     rows = [
         [Paragraph("Subtotal", s["total_label"]),
-         Paragraph(f"£{float(quote.get('subtotal', 0)):,.2f}", s["total_value"])],
+         Paragraph(f"{sym}{float(quote.get('subtotal', 0)):,.2f}", s["total_value"])],
     ]
     if quote.get("discount_amount"):
         rows.append([
             Paragraph(f"Discount ({quote.get('discount_pct', 0):g}%)", s["total_label"]),
-            Paragraph(f"-£{float(quote['discount_amount']):,.2f}", s["total_value"]),
+            Paragraph(f"-{sym}{float(quote['discount_amount']):,.2f}", s["total_value"]),
         ])
     rows.append([
-        Paragraph(f"VAT ({quote.get('vat_rate', 0):g}%)", s["total_label"]),
-        Paragraph(f"£{float(quote.get('vat_amount', 0)):,.2f}", s["total_value"]),
+        Paragraph(f"{tax_label} ({quote.get('vat_rate', 0):g}%)", s["total_label"]),
+        Paragraph(f"{sym}{float(quote.get('vat_amount', 0)):,.2f}", s["total_value"]),
     ])
     rows.append([
         Paragraph("<b>TOTAL DUE</b>", s["total_label"]),
-        Paragraph(f"£{float(quote.get('total', 0)):,.2f}", s["grand_value"]),
+        Paragraph(f"{sym}{float(quote.get('total', 0)):,.2f}", s["grand_value"]),
     ])
     table = Table(rows, colWidths=[60 * mm, 40 * mm], hAlign="RIGHT")
     table.setStyle(TableStyle([

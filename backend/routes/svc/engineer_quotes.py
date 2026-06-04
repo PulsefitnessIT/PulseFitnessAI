@@ -60,6 +60,18 @@ def _of(user: dict) -> dict:
     return {"organization_id": org_id}
 
 
+async def _org_loc(user: dict) -> dict:
+    """Iter 220p1 — resolve the org's localization (currency / tax / market).
+    Defaults to UK/GBP/VAT when the org is unset or not found."""
+    from utils.localization import org_localization
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")},
+        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+    )
+    return org_localization(org)
+
+
+
 def _new_quote_number() -> str:
     """EQ-YYYYMMDD-XXXX (Engineer Quote)."""
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
@@ -147,7 +159,7 @@ class QuoteCreate(BaseModel):
     machines: list[QuoteMachine] = Field(default_factory=list)
     description_of_work: str | None = None
     lines: list[QuoteLine] = Field(default_factory=list)
-    vat_rate: float = 20
+    vat_rate: float | None = None  # Iter 220p1 — None ⇒ use org market default
     discount_pct: float = 0
     valid_days: int = 30
     terms: str | None = None
@@ -209,8 +221,12 @@ async def create_quote(
             return existing
     case = await _case_snapshot(body.case_id, user)
     engineer = await _engineer_profile(user)
+    loc = await _org_loc(user)
     lines_dicts = [ln.model_dump() for ln in body.lines]
-    totals = _compute_totals(lines_dicts, body.vat_rate or 20, body.discount_pct or 0)
+    # Iter 220p1 — tax rate follows the org market when not explicitly set
+    # (0% US, 20% GB). Guard against the `0 or 20` falsy-zero trap.
+    vat_rate = body.vat_rate if body.vat_rate is not None else float(loc["default_tax_rate"])
+    totals = _compute_totals(lines_dicts, vat_rate, body.discount_pct or 0)
     valid_until = (
         datetime.now(timezone.utc) + timedelta(days=body.valid_days or 30)
     ).date().isoformat()
@@ -237,6 +253,11 @@ async def create_quote(
         "description_of_work": body.description_of_work or "",
         "lines": lines_dicts,
         **totals,
+        # Iter 220p1 — localization snapshot (frozen at creation).
+        "currency": loc["currency"],
+        "currency_symbol": loc["currency_symbol"],
+        "tax_label": loc["tax_label"],
+        "country_code": loc["country_code"],
         "valid_until": valid_until,
         "terms": body.terms or (
             "Quote valid for 30 days. Pricing excludes any additional work "
@@ -362,9 +383,10 @@ async def update_quote(
     # Recompute totals when lines/vat/discount changed
     merged = {**quote, **patch}
     if any(k in patch for k in ("lines", "vat_rate", "discount_pct")):
+        _vr = merged.get("vat_rate")
         totals = _compute_totals(
             merged.get("lines") or [],
-            float(merged.get("vat_rate") or 20),
+            float(_vr if _vr is not None else 20),
             float(merged.get("discount_pct") or 0),
         )
         patch.update(totals)
@@ -754,6 +776,8 @@ def _email_html(quote: dict, custom_message: str = "") -> str:
     engineer = quote.get("engineer_name") or "Your engineer"
     qno = quote.get("quote_number")
     total = quote.get("total") or 0
+    sym = quote.get("currency_symbol") or "£"
+    tax_label = quote.get("tax_label") or "VAT"
     valid_until = quote.get("valid_until") or ""
     description = quote.get("description_of_work") or ""
     shortcode = quote.get("public_shortcode")
@@ -801,7 +825,7 @@ def _email_html(quote: dict, custom_message: str = "") -> str:
         <p style="margin:6px 0 0;font-size:14px;color:#0f172a;line-height:1.5;">{description or '—'}</p>
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:14px 0;">
         <table style="width:100%;font-size:13px;color:#334155;">
-          <tr><td>Total (incl. VAT)</td><td style="text-align:right;font-weight:700;color:{primary};">£{total:,.2f}</td></tr>
+          <tr><td>Total (incl. {tax_label})</td><td style="text-align:right;font-weight:700;color:{primary};">{sym}{total:,.2f}</td></tr>
           <tr><td>Valid until</td><td style="text-align:right;">{valid_until}</td></tr>
         </table>
       </div>

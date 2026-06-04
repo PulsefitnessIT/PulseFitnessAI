@@ -1,3 +1,26 @@
+## Iter 220 P1 — USA readiness, slice 3: PDF & email currency localization ✅ (Jun, 2026)
+
+**Request:** Engineer invoice/quote PDFs + emails and the service-ops report PDF still rendered `£`/`VAT`/UK terms — localize them to the org market (highest-impact USA signal: a US customer's invoice was emailing/printing in £).
+
+**Shipped (documents snapshot `currency`/`currency_symbol`/`tax_label`/`country_code` at creation; legacy docs without these fields fall back to £/VAT):**
+- **Engineer invoice PDF** (`utils/engineer_invoice_pdf.py`) — line-item `Unit/Total {sym}` headers, subtotal/discount/tax/total use `inv.currency_symbol` + `inv.tax_label`. (Terms already localized in slice 1 — UK Late-Payment-Act text only for GB.)
+- **Engineer quote PDF** (`utils/engineer_quote_pdf.py`) — same symbol + tax-label localization. Quote creation now **snapshots the localization** (`routes/svc/engineer_quotes.py` `create_quote` via new `_org_loc`), and **fixes a `0 or 20` falsy-zero bug** that would have forced 20% tax on a US (0%) quote — both in create and in the update-recompute path. `QuoteCreate.vat_rate` default changed `20 → None` (None ⇒ market default).
+- **Engineer invoice email** (`engineer_invoices.py _email_html`) — Pay button, "Total due (incl. {tax_label})", and the "Prefer {payment_method}?" line all localized (ACH vs BACS).
+- **Engineer quote email** (`engineer_quotes.py _email_html`) — "Total (incl. {tax_label})" + symbol.
+- **Public quote accept notification** (`routes/public_quote.py`) — uses `q.currency_symbol`.
+- **Service-ops report PDF** (`routes/svc/reports.py export_pdf`) — KPI "Revenue (gross)" + per-engineer revenue use the org's symbol (resolved via `org_localization`).
+
+**Tested:** `tests/test_iter_220p1_pdf_email_localization.py` **8/8** — invoice/quote email HTML asserts `$`/"Sales Tax"/"ACH" for US and `£`/"VAT" for GB; invoice/quote PDFs build (valid `%PDF` bytes) for both markets. Regression: localization + signup-mode suites **12/12**. Backend-only change; rendering logic directly unit-tested (engineer-app routes need a partner_engineer account for live e2e, not available).
+
+**Remaining USA-readiness backlog:**
+- P1: thread per-org **timezone** into scheduling/notifications/reminders (`Europe/London` still hard-coded).
+- P1: capture `country_code` at **signup** (`TrialSignupModal` + `/auth/register`).
+- P1 (lower): CRM quote/contract PDFs (`crm_quote_pdf.py`, `crm_contract_pdf.py`) + membership emails still £ — out of the Operations/Engineers scope but needed if CRM/Memberships sell to the US.
+- P2: US **sales tax** (Stripe Tax/TaxJar), US **engineer compliance** (I-9/E-Verify vs DBS/RTW), **Companies House** US alternative, phone/ZIP/state. Operational: enable Stripe Connect **US payouts**.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 2: frontend currency sweep ✅ (Jun, 2026)
 
 **Request:** Migrate the ~149 hard-coded `£` frontend surfaces to the org's market currency. Scope: the **Engineer + Operations** modules (the USA target); platform/SaaS billing left in GBP.

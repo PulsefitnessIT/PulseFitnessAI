@@ -107,7 +107,8 @@ def _two_col(s, left_label, left_lines, right_label, right_lines):
 
 
 def _lines_table(s, inv):
-    data = [["Description", "Qty", "Unit £", "Total £"]]
+    sym = inv.get("currency_symbol") or "£"
+    data = [["Description", "Qty", f"Unit {sym}", f"Total {sym}"]]
     lines = inv.get("lines") or []
     if not lines:
         data.append(["No line items.", "", "", ""])
@@ -143,21 +144,23 @@ def _lines_table(s, inv):
 
 
 def _totals_block(s, inv):
+    sym = inv.get("currency_symbol") or "£"
+    tax_label = inv.get("tax_label") or "VAT"
     rows = [[Paragraph("Subtotal", s["total_label"]),
-             Paragraph(f"£{float(inv.get('subtotal', 0)):,.2f}", s["total_value"])]]
+             Paragraph(f"{sym}{float(inv.get('subtotal', 0)):,.2f}", s["total_value"])]]
     if inv.get("discount_amount"):
         rows.append([Paragraph(f"Discount ({inv.get('discount_pct', 0):g}%)", s["total_label"]),
-                     Paragraph(f"-£{float(inv['discount_amount']):,.2f}", s["total_value"])])
+                     Paragraph(f"-{sym}{float(inv['discount_amount']):,.2f}", s["total_value"])])
     # Iter 220l — if the engineer is VAT-exempt (below £85k threshold),
     # show a clarifying row instead of "VAT (0%): £0.00".
     if inv.get("vat_exempt"):
-        rows.append([Paragraph("VAT", s["total_label"]),
+        rows.append([Paragraph(tax_label, s["total_label"]),
                      Paragraph("Not chargeable", s["total_value"])])
     else:
-        rows.append([Paragraph(f"VAT ({inv.get('vat_rate', 0):g}%)", s["total_label"]),
-                     Paragraph(f"£{float(inv.get('vat_amount', 0)):,.2f}", s["total_value"])])
+        rows.append([Paragraph(f"{tax_label} ({inv.get('vat_rate', 0):g}%)", s["total_label"]),
+                     Paragraph(f"{sym}{float(inv.get('vat_amount', 0)):,.2f}", s["total_value"])])
     rows.append([Paragraph("<b>TOTAL DUE</b>", s["total_label"]),
-                 Paragraph(f"£{float(inv.get('total', 0)):,.2f}", s["grand_value"])])
+                 Paragraph(f"{sym}{float(inv.get('total', 0)):,.2f}", s["grand_value"])])
     t = Table(rows, colWidths=[60 * mm, 40 * mm], hAlign="RIGHT")
     t.setStyle(TableStyle([
         ("LINEBELOW", (0, -2), (-1, -2), 0.5, GX_BORDER),
