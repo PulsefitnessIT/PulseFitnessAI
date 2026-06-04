@@ -9,13 +9,14 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock, FileDown } from 'lucide-react';
+import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save, FileSpreadsheet, Eye, Database, GitCompare, Calculator, Clock, FileDown, Activity } from 'lucide-react';
 import CRMPriceListImportWizard from './CRMPriceListImportWizard';
 import CRMProductDrawer from './CRMProductDrawer';
 import CRMBulkPriceModal from './CRMBulkPriceModal';
 import CRMPriceVersionsModal from './CRMPriceVersionsModal';
 import CRMPriceChangesModal from './CRMPriceChangesModal';
 import CRMPriceExportModal from './CRMPriceExportModal';
+import CRMDataQualityModal from './CRMDataQualityModal';
 
 const EDITOR_ROLES = ['admin', 'owner', 'manager'];
 
@@ -50,6 +51,7 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isApprover, setIsApprover] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showQuality, setShowQuality] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,6 +227,15 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
           >
             <Clock size={12} /> Approvals
             {pendingCount > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--color-accent-amber)' }} data-testid="products-pending-badge">{pendingCount}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowQuality(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+            style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+            data-testid="products-quality-btn"
+          >
+            <Activity size={12} /> Data quality
           </button>
           <button
             type="button"
@@ -417,6 +428,18 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
         <CRMPriceExportModal API={API} headers={headers} c={c} isDark={isDark}
           categories={categories}
           onClose={() => setShowExport(false)} />
+      )}
+
+      {showQuality && (
+        <CRMDataQualityModal API={API} headers={headers} c={c} isDark={isDark}
+          onClose={() => setShowQuality(false)}
+          onOpenProduct={async (p) => {
+            try {
+              const r = await axios.get(`${API}/crm/products/${p.id}`, { headers: headers() });
+              setDrawerProduct(r.data);
+            } catch { setDrawerProduct(p); }
+            setShowQuality(false);
+          }} />
       )}
 
       {/* Create / edit modal */}

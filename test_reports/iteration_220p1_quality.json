@@ -1,0 +1,54 @@
+{
+  "summary": "Iter 220p1 — Data Quality Dashboard (Master Price List). Backend 9/9 pytest pass. Frontend end-to-end (login -> Settings -> Price List -> Data quality -> modal -> drill-down -> CSV -> product drawer) verified against the real preview URL.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220p1_quality.py",
+    "/app/test_reports/pytest/iter_220p1_quality.xml"
+  ],
+  "tests_executed": {
+    "backend_pytest": [
+      "test_quality_dashboard_shape — 200, all 11 issue keys + by_category + health_score (typed)",
+      "test_quality_list_drilldown[missing_sage|never_quoted|with_unmapped|recently_changed] — 200, items have margin_percent + id",
+      "test_quality_list_unknown_issue_returns_422",
+      "test_quality_requires_auth — 401/403 without token",
+      "test_quality_report_csv_attachment — text/csv, attachment, BOM, exact header row Product Code,Name,Category,Sage Code,Cost Price,Sell Price,Margin %,Status",
+      "test_quality_report_csv_unknown_issue_422"
+    ],
+    "frontend_playwright": [
+      "Login via /login (placeholder you@gym.com) with admin@gymaxisai.com / MasterAdmin123! lands on /crm",
+      "crm-toolbar-settings -> settings-tab-products renders Master Price List section",
+      "products-quality-btn present in header actions row",
+      "Click opens data-quality-modal; quality-health-score = 4% (51 products, 49 need attention)",
+      "11 quality-card-<issue> cards render with correct counts (missing_sage=49, missing_sell=7, missing_cost=47, never_quoted=43, with_unmapped=47, recently_changed=51, others=0)",
+      "Click non-zero quality-card-missing_sage opens quality-drill (49 rows, quality-item-* per row)",
+      "quality-download-report triggers download quality_missing_sage.csv",
+      "quality-by-category table shows Equipment | 51 | 93.9% | £17733.52",
+      "Click drill row opens product-drawer with full product details (Name/SKU/Sage/Cost/Sell/Price history) — confirms GET /api/crm/products/{id} integration",
+      "Row click intentionally closes modal (per code: setShowQuality(false))"
+    ]
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMDataQualityModal.js swallows axios errors silently (catch blocks empty) — fine for graceful degradation but consider surfacing a toast/inline error on load/drill failure so users know data is stale.",
+    "After clicking a drill-down row the modal is closed (intentional) and the product drawer opens — verify this is the desired UX; some users may expect modal to remain open behind drawer for quick back-navigation.",
+    "_issue_query in crm_price_quality.py uses {sku: '\\x00__none__'} as a no-match sentinel when dup_skus is empty — works, but a {$expr:{$eq:[1,0]}} sentinel would be more explicit and avoid relying on a magic SKU never existing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_220p1_quality.py"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all P0 flows)"},
+  "test_credentials": "CRM Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "No new seed data created — used existing tenant catalogue (51 live products)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend test uses REACT_APP_BACKEND_URL env (no default). Run from /app/backend with: REACT_APP_BACKEND_URL=$URL python -m pytest tests/test_iter_220p1_quality.py. CRM login goes via /api/crm/auth/login token field 'token'. UI nav: /login -> /crm -> crm-toolbar-settings -> settings-tab-products -> products-quality-btn -> data-quality-modal. Clicking a drill row closes modal and opens product-drawer (by design).",
+  "rca_of_the_issue": "n/a — no bugs found"
+}
