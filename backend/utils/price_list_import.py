@@ -423,6 +423,12 @@ def _analyze_one(ws, header_row: int, band: int, code_col: int,
                 })
 
     mapping = auto_map(columns)
+    # Always reflect the identity columns in the mapping so the wizard shows
+    # them (extraction uses them regardless, but the UI should make it clear).
+    if code_col and code_col not in mapping:
+        mapping[code_col] = "sku"
+    if name_col and name_col not in mapping:
+        mapping[name_col] = "name"
     warnings: list[str] = []
     if not code_col:
         warnings.append("No product-code column detected — a SKU will be generated from each product name.")

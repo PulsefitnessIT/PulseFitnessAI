@@ -242,6 +242,11 @@ async def ai_analyze_sheet(import_id: str, body: dict = Body(...), user=Depends(
         valid = {f["key"] for f in CANONICAL_FIELDS}
         ai_map = {str(k): v for k, v in (suggestion.get("mappings") or {}).items() if v in valid}
         merged = {**sheet.get("auto_mapping", {}), **ai_map}
+        # Ensure the identity columns the AI identified are reflected in the UI.
+        if sheet.get("name_col") and str(sheet["name_col"]) not in merged:
+            merged[str(sheet["name_col"])] = "name"
+        if sheet.get("code_col") and str(sheet["code_col"]) not in merged:
+            merged[str(sheet["code_col"])] = "sku"
         sheet["auto_mapping"] = merged
         sheet["ai_note"] = suggestion.get("note", "")
     except HTTPException:

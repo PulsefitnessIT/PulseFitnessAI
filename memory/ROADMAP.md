@@ -37,6 +37,15 @@ _Last refreshed: Iter 220m · May 26, 2026._
 ## Known infra note
 - Import wizard upload: the full 2.7MB+ sample workbook 413s at the **k8s ingress** (app tier already allows 200MB for `/api/crm/price-list/import/`). For very large catalogues a chunked/streamed upload would be needed. Small workbooks upload fine.
 
+## ✅ Generalized spreadsheet import engine — SHIPPED (iter 220p1, Jun 4 2026)
+Import *any* company's complicated price list, not just Pulse's:
+- Optional product code — name-only catalogues import with a synthesised, readable SKU (re-imports still match).
+- Score-based header detection fallback; repeated header rows / stacked tables skipped; section bands applied.
+- Robust number parsing (currency, %, thousands, accounting negatives `(123)`).
+- Per-sheet **confidence score** + warnings shown in the wizard.
+- **AI auto-detect layout** (`POST /crm/price-list/import/{id}/ai-analyze`) — LLM identifies header row + identity columns + field mapping when detection is uncertain.
+- Tested: 13/13 unit tests (`test_iter_220p1_import_general.py` + existing) + frontend e2e (PASS).
+
 ---
 
 ## P1 — Outstanding integrations (blocked on credentials)
