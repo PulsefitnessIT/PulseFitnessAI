@@ -34,6 +34,12 @@ _Last refreshed: Iter 220m · May 26, 2026._
 - Lets a recurring supplier file be re-mapped in one click each month.
 - Verified: 4/4 pytest (`test_iter_220p1_import_templates.py`) + frontend e2e (save/apply/preview PASS).
 
+## ✅ CRM mode at signup + Master Admin visibility (iter 220p1, Jun 4 2026)
+- **Signup choice**: trial modal now asks "Who is your CRM for?" (Gym / Corporate / Both) when CRM is selected → sets `org.modules.crm.{leisure_enabled, business_enabled}` (default Gym). New `crm_mode` field on register.
+- **Independent mode flags**: `leisure_enabled` (back-compat default True) added so Corporate-only orgs can hide Gym mode; `crm_modes()` honors it.
+- **Master Admin**: Feature Control Panel CRM card has BOTH "Gym (Members)" and "Corporate (Business CRM)" toggles; org list shows a `CRM: Gym/Corporate/Both` badge.
+- Tested: 4/4 signup pytest + 2/2 toggle pytest + frontend e2e (PASS). Pulse Fitness = Both (preview).
+
 ## ✅ BUG FIX — Master Admin Gym↔Corporate CRM toggle (iter 220p1, Jun 4 2026)
 - Root cause: `PUT /master-admin/organizations/{id}/features` rebuilt each module entry as `{enabled, tier}` and silently dropped `modules.crm.business_enabled` from the payload — so an org could never be switched to Corporate; there was also no UI control.
 - Fix: backend now accepts `business_enabled` (and treats Corporate ON as implying CRM enabled); Feature Control Panel → CRM module card has a new "Corporate (Business CRM)" toggle (`module-crm-business-toggle-<orgId>`).
