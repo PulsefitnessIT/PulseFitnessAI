@@ -1,3 +1,23 @@
+## Iter 220 P1 — USA readiness, slice 7: Companies House gating + US address/phone formats ✅ (Jun, 2026)
+
+**Request:** P2 bundle — US sales tax, US engineer compliance, Companies House US alternative, phone/ZIP/state formats, per-org marketing-autopilot scheduling. Built the no-external-key items; the rest are decision/key-gated or N/A (below).
+
+**Shipped:**
+- **Companies House gated to UK** (`routes/companies_house.py`) — new `_org_is_uk(user)`; `/account/companies-house/status` now returns `enabled:false` + `region_supported:false` for non-UK orgs (CH is a UK-only registry), and the search endpoint returns empty for non-UK. The React profile form already falls back to manual address entry when `enabled:false`, so US signups skip the CH typeahead automatically. Orgs without a `country_code` default to UK (no regression).
+- **US-aware address/phone labels** (`components/shared/ProfileCompletionFields.js`) — via `useLocalization()`: postcode label → "ZIP code" (US) / "Postal code" (CA) / "Post code" (GB), placeholders and phone hints adapt per market (`(555) 123-4567` vs `+44 …`). Covers both the contact + company address blocks in signup step-2 and the standalone complete-profile page.
+
+**Tested:** `tests/test_iter_220p1_localization.py` extended — US org → CH `region_supported:false` + `enabled:false`; GB org → `region_supported:true` (reverts to GB). Full file **9/9**. Frontend compiles; labels are screenshot-trivial.
+
+### P2 items NOT built (with reason):
+- **US sales tax (Stripe Tax/TaxJar)** — DEFERRED: needs you to enable "Tax" in your Stripe dashboard + declare registered states (Stripe Tax), or a TaxJar key. Slice 1's manual tax line covers the interim. Route through integration_expert once you decide.
+- **US engineer compliance (I-9/E-Verify vs DBS/RTW)** — NOT STARTED: substantial feature (replace the partner-engineer DBS/RTW onboarding gate with a US doc set + admin verify). Recommended as its own focused slice. No external API needed for the lightweight (doc-upload) version.
+- **Per-org marketing-autopilot scheduling** — N/A: the social/SEO autopilot (`routes/marketing/*_autopilot.py`) is a **platform-level singleton** (run stamped by date only, single config with a master-admin-configurable hour) — it's GymAxis's own marketing content, not per-customer-org, so there's no per-org timezone to thread.
+
+**Operational (not code):** enable Stripe Connect **US payouts** before US engineer/gym money clears.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 6: CRM PDF + membership email currency ✅ (Jun, 2026)
 
 **Request:** CRM quote/contract PDFs and membership emails still rendered `£`/VAT (needed if CRM/Memberships sell to the US).

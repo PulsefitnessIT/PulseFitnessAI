@@ -86,6 +86,27 @@ def test_get_localization_default(admin_token):
     assert {"GB", "US"}.issubset(codes)
 
 
+def test_companies_house_region_gated(admin_token):
+    """Companies House is UK-only: a US org gets region_supported=False,
+    a UK org gets region_supported=True. Always reverts to GB."""
+    h = {"Authorization": f"Bearer {admin_token}"}
+    try:
+        requests.put(f"{BASE_URL}/api/org/localization", json={"country_code": "US"},
+                     headers=h, timeout=30)
+        r = requests.get(f"{BASE_URL}/api/account/companies-house/status",
+                         headers=h, timeout=30)
+        assert r.status_code == 200, r.text[:200]
+        assert r.json()["region_supported"] is False
+        assert r.json()["enabled"] is False  # UK-only registry off for US
+    finally:
+        requests.put(f"{BASE_URL}/api/org/localization", json={"country_code": "GB"},
+                     headers=h, timeout=30)
+    r = requests.get(f"{BASE_URL}/api/account/companies-house/status",
+                     headers=h, timeout=30)
+    assert r.json()["region_supported"] is True
+
+
+
 def test_set_localization_us_then_revert(admin_token):
     h = {"Authorization": f"Bearer {admin_token}"}
     try:

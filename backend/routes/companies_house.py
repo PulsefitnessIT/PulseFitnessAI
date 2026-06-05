@@ -40,6 +40,17 @@ def _map_ch_error(exc: CompaniesHouseError) -> HTTPException:
     return HTTPException(status_code=exc.status, detail=exc.message)
 
 
+async def _org_is_uk(user: dict) -> bool:
+    """Iter 220p1 — Companies House is a UK-only registry. Non-UK orgs
+    (e.g. US) skip the lookup and use manual address entry. Orgs without a
+    country_code are treated as UK (back-compat)."""
+    from utils.database import db
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "country_code": 1},
+    )
+    return (org or {}).get("country_code", "GB").upper() == "GB"
+
+
 # ─── Endpoints ───────────────────────────────────────────────────────
 
 
@@ -123,9 +134,12 @@ async def account_companies_house_status(
     """Health probe the React profile-completion form hits on mount
     to decide whether to render the typeahead or fall back to manual
     address entry."""
+    # Iter 220p1 — only offer Companies House for UK orgs.
+    region_ok = await _org_is_uk(user)
     return {
-        "enabled": is_enabled(),
-        "base_url": base_url() if is_enabled() else None,
+        "enabled": is_enabled() and region_ok,
+        "base_url": base_url() if (is_enabled() and region_ok) else None,
+        "region_supported": region_ok,
     }
 
 
@@ -146,7 +160,7 @@ async def account_companies_house_search(
         window_seconds=300,
     )
     qs = (q or "").strip()
-    if not is_enabled():
+    if not is_enabled() or not await _org_is_uk(user):
         return {"enabled": False, "items": [], "query": qs}
     if len(qs) < 2:
         return {"enabled": True, "items": [], "query": qs}

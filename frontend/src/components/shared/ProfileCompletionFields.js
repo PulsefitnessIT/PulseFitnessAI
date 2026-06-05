@@ -25,6 +25,7 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { User, Building2, MapPin, Search, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useLocalization } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -315,6 +316,11 @@ function CompaniesHouseSearch({ form, setForm }) {
 export default function ProfileCompletionFields({ form, setForm }) {
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const toggle = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.checked }));
+  // Iter 220p1 — US-aware address labels (ZIP vs Post code) + phone hint.
+  const loc = useLocalization();
+  const isUS = loc.country_code === 'US';
+  const zipLabel = isUS ? 'ZIP code' : (loc.country_code === 'CA' ? 'Postal code' : 'Post code');
+  const zipPlaceholder = isUS ? '10001' : 'SW1A 1AA';
 
   return (
     <div className="space-y-6" data-testid="profile-completion-fields">
@@ -342,7 +348,7 @@ export default function ProfileCompletionFields({ form, setForm }) {
                 name="primary_contact_phone"
                 value={form.primary_contact_phone}
                 onChange={update('primary_contact_phone')}
-                placeholder="+44 7700 900123"
+                placeholder={isUS ? '(555) 123-4567' : '+44 7700 900123'}
                 type="tel"
                 required
                 testid="profile-pc-phone"
@@ -400,12 +406,12 @@ export default function ProfileCompletionFields({ form, setForm }) {
               />
             </div>
             <div>
-              <Lbl required>Post code</Lbl>
+              <Lbl required>{zipLabel}</Lbl>
               <Inp
                 name="primary_contact_postcode"
                 value={form.primary_contact_postcode}
                 onChange={update('primary_contact_postcode')}
-                placeholder="SW1A 1AA"
+                placeholder={zipPlaceholder}
                 required
                 testid="profile-pc-postcode"
               />
@@ -472,12 +478,12 @@ export default function ProfileCompletionFields({ form, setForm }) {
               />
             </div>
             <div>
-              <Lbl required>Post code</Lbl>
+              <Lbl required>{zipLabel}</Lbl>
               <Inp
                 name="postcode"
                 value={form.postcode}
                 onChange={update('postcode')}
-                placeholder="EC1A 1BB"
+                placeholder={isUS ? '10001' : 'EC1A 1BB'}
                 required
                 testid="profile-co-postcode"
               />
@@ -513,7 +519,7 @@ export default function ProfileCompletionFields({ form, setForm }) {
                   name="company_phone"
                   value={form.company_phone}
                   onChange={update('company_phone')}
-                  placeholder="+44 20 1234 5678"
+                  placeholder={isUS ? '(212) 555-0100' : '+44 20 1234 5678'}
                   type="tel"
                   required
                   testid="profile-co-phone"
