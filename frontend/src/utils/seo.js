@@ -114,6 +114,7 @@ export const softwareJsonLd = () => ({
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description: 'Multi-tenant fitness operations platform for gyms, leisure centres, and studios.',
+  image: ['https://www.gymaxisai.com/brand/og-cover.jpg'],
   offers: {
     '@type': 'AggregateOffer',
     lowPrice: '29.00',
