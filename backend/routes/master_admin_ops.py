@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -150,7 +151,7 @@ async def all_sites_across_orgs(
     elif site_type == "branch":
         site_query["is_head_office"] = {"$ne": True}
     if q:
-        site_query["name"] = {"$regex": q, "$options": "i"}
+        site_query["name"] = safe_regex(q)
 
     sites = await db.sites.find(site_query, {"_id": 0}).sort([("organization_id", 1), ("name", 1)]).to_list(limit)
 

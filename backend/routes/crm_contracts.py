@@ -11,6 +11,7 @@ Source of Truth Rules:
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from utils.security_plus import safe_regex
 from datetime import datetime, timezone, timedelta
 from utils.database import db
 from routes.crm_auth import get_crm_user
@@ -287,7 +288,7 @@ async def get_contract(contract_id: str, user=Depends(get_crm_user)):
         {"parent_contract_id": contract_id, **_of(user)}, {"_id": 0, "id": 1, "title": 1, "status": 1, "annual_value": 1, "company_name": 1}
     ).to_list(50)
     c["activities"] = await db.crm2_activities.find(
-        {"$or": [{"contract_id": contract_id}, {"subject": {"$regex": c.get("contract_number", ""), "$options": "i"}}], **_of(user)}, {"_id": 0}
+        {"$or": [{"contract_id": contract_id}, {"subject": safe_regex(c.get("contract_number", ""))}], **_of(user)}, {"_id": 0}
     ).sort("created_at", -1).limit(20).to_list(20)
     c["documents"] = await db.crm2_documents.find({"contract_id": contract_id, **_of(user)}, {"_id": 0}).to_list(50)
     c["service_cases"] = await db.crm2_service_cases.find({"contract_id": contract_id}, {"_id": 0}).to_list(50)

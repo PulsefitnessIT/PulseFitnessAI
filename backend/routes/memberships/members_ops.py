@@ -31,6 +31,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -240,10 +241,10 @@ async def members_list_filtered(
     if q:
         ql = q.lower()
         query["$or"] = [
-            {"email": {"$regex": ql, "$options": "i"}},
-            {"first_name": {"$regex": ql, "$options": "i"}},
-            {"last_name": {"$regex": ql, "$options": "i"}},
-            {"phone": {"$regex": ql, "$options": "i"}},
+            {"email": safe_regex(ql)},
+            {"first_name": safe_regex(ql)},
+            {"last_name": safe_regex(ql)},
+            {"phone": safe_regex(ql)},
         ]
 
     if preset:

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from utils.security_plus import safe_regex
 from datetime import datetime, timezone
 import uuid
 import logging
@@ -221,7 +222,7 @@ async def _build_supplier_groups(unsent_alerts: list, org_filter: dict) -> dict:
         if not manufacturer:
             continue
         supplier_doc = await db.suppliers.find_one(
-            {"name": {"$regex": manufacturer, "$options": "i"}, **org_filter}, {"_id": 0},
+            {"name": safe_regex(manufacturer), **org_filter}, {"_id": 0},
         )
         if supplier_doc and supplier_doc.get("email"):
             key = supplier_doc["email"]

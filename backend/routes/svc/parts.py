@@ -46,6 +46,7 @@ from datetime import datetime, timezone
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 
 from utils.database import db
 from utils.auth import get_current_user
@@ -88,9 +89,9 @@ async def list_parts(
     q: dict = {**of, "active": {"$ne": False}}
     if search:
         q["$or"] = [
-            {"sku": {"$regex": search, "$options": "i"}},
-            {"name": {"$regex": search, "$options": "i"}},
-            {"manufacturer": {"$regex": search, "$options": "i"}},
+            {"sku": safe_regex(search)},
+            {"name": safe_regex(search)},
+            {"manufacturer": safe_regex(search)},
         ]
     rows = (
         await db.svc_parts.find(q, {"_id": 0})

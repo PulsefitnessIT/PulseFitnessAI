@@ -57,6 +57,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from utils.security_plus import safe_regex_exact
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
@@ -410,7 +411,7 @@ async def create_picklist_value(key: str, data: dict, user=Depends(get_crm_user)
     # visibility scope (case-insensitive).
     existing = await db.crm_picklists.find_one({
         "key": key,
-        "label": {"$regex": f"^{label}$", "$options": "i"},
+        "label": safe_regex_exact(label),
         "$or": [
             {"organization_id": None},
             {"organization_id": target_org},

@@ -36,6 +36,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from utils.security_plus import safe_regex_exact
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -315,7 +316,7 @@ async def _ensure_staff_for_org_users(org_id: str) -> int:
             # Match by email — bind the user_id so future lookups are
             # O(1) and self-healing.
             await db.staff_members.update_one(
-                {"organization_id": org_id, "email": {"$regex": f"^{em}$", "$options": "i"}, "user_id": {"$exists": False}},
+                {"organization_id": org_id, "email": safe_regex_exact(em), "user_id": {"$exists": False}},
                 {"$set": {"user_id": u["id"], "updated_at": now_iso}},
             )
             continue

@@ -70,6 +70,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 
 from utils.database import db
 from utils.auth import get_current_user
@@ -127,8 +128,8 @@ async def list_stock(
     cat_q = {**of, "sku": {"$in": list(skus)}}
     if search:
         cat_q["$or"] = [
-            {"sku": {"$regex": search, "$options": "i"}},
-            {"name": {"$regex": search, "$options": "i"}},
+            {"sku": safe_regex(search)},
+            {"name": safe_regex(search)},
         ]
     catalogue = await db.svc_parts.find(cat_q, {"_id": 0}).to_list(len(skus))
     by_sku = {p["sku"]: p for p in catalogue}

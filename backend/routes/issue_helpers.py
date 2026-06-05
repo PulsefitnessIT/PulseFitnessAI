@@ -5,6 +5,7 @@ import asyncio
 import logging
 
 from utils.database import db, RESEND_API_KEY, SENDER_EMAIL
+from utils.security_plus import safe_regex
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json as json_module
 import os
@@ -83,7 +84,7 @@ async def append_past_fixes(prompt: str, machine_type: str, org_id: Optional[str
     """Append proven past fixes to the triage prompt."""
     org_filter = {"organization_id": org_id} if org_id else {"organization_id": None}
     past_fixes = await db.fix_history.find(
-        {**org_filter, "machine_type": {"$regex": machine_type, "$options": "i"}}, {"_id": 0}
+        {**org_filter, "machine_type": safe_regex(machine_type)}, {"_id": 0}
     ).sort("created_at", -1).to_list(10)
 
     if not past_fixes:

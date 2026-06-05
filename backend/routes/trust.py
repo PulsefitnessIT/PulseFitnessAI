@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
+import re
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -227,7 +228,7 @@ async def list_trust_events(
     if severity:
         query["severity"] = severity
     if event_type:
-        query["type"] = {"$regex": f"^{event_type}"}
+        query["type"] = {"$regex": f"^{re.escape(event_type)}"}
     events = await db.trust_events.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
     return {"events": events, "total": len(events)}
 

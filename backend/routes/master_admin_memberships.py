@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 from pydantic import BaseModel, Field
 
 from routes.master_admin import require_master_admin
@@ -240,7 +241,7 @@ async def memberships_organizations(
         else:
             query["memberships_tier"] = "pro"
     if q:
-        query["name"] = {"$regex": q, "$options": "i"}
+        query["name"] = safe_regex(q)
 
     orgs = await db.organizations.find(query, {
         "_id": 0, "id": 1, "name": 1, "slug": 1, "subscription_tier": 1,

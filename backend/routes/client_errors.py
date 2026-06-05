@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -85,7 +86,7 @@ async def list_client_errors(
     limit_i = max(1, min(int(limit or 100), 500))
     query: dict[str, Any] = {}
     if label:
-        query["label"] = {"$regex": label.strip(), "$options": "i"}
+        query["label"] = safe_regex(label)
     cursor = db.client_errors.find(query, {"_id": 0}).sort("server_ts", -1).limit(limit_i)
     rows = await cursor.to_list(length=limit_i)
     # Group counts by label so the dashboard can show "Class Builder: 4 errors".

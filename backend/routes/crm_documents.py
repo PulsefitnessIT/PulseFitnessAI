@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
+from utils.security_plus import safe_regex
 from datetime import datetime, timezone
 
 import uuid
@@ -23,8 +24,8 @@ async def list_documents(
     query = {}
     if search:
         query["$or"] = [
-            {"original_filename": {"$regex": search, "$options": "i"}},
-            {"notes": {"$regex": search, "$options": "i"}},
+            {"original_filename": safe_regex(search)},
+            {"notes": safe_regex(search)},
         ]
     if category:
         query["category"] = category

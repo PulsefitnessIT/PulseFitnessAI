@@ -66,6 +66,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from utils.security_plus import safe_regex
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
@@ -481,9 +482,9 @@ async def list_incidents(
     if q:
         # Mongo regex is fine here — incidents are bounded per-org.
         base["$or"] = [
-            {"reference": {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
-            {"injured_party.name": {"$regex": q, "$options": "i"}},
+            {"reference": safe_regex(q)},
+            {"description": safe_regex(q)},
+            {"injured_party.name": safe_regex(q)},
         ]
     final = await _scope_filter(user, base)
     rows = await db.incidents.find(final, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)

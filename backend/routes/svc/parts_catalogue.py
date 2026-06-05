@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -75,10 +76,10 @@ async def browse_catalogue(
         q["status"] = "obsolete"
     if search:
         q["$or"] = [
-            {"sku": {"$regex": search, "$options": "i"}},
-            {"name": {"$regex": search, "$options": "i"}},
-            {"manufacturer": {"$regex": search, "$options": "i"}},
-            {"mfr_part_number": {"$regex": search, "$options": "i"}},
+            {"sku": safe_regex(search)},
+            {"name": safe_regex(search)},
+            {"manufacturer": safe_regex(search)},
+            {"mfr_part_number": safe_regex(search)},
         ]
     if category:
         q["category"] = category

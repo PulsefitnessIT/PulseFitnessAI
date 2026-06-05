@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from utils.security_plus import safe_regex_exact
 from fastapi.responses import Response
 from datetime import datetime, timezone
 from typing import Dict, Any
@@ -178,7 +179,7 @@ async def lookup_supplier_for_po(equipment_serial: str = "", supplier_name: str 
     # Look up the supplier from suppliers collection (including pricing fields)
     if result["supplier_name"] and org_id:
         supplier_doc = await db.suppliers.find_one(
-            {"organization_id": org_id, "name": {"$regex": f"^{result['supplier_name']}$", "$options": "i"}},
+            {"organization_id": org_id, "name": safe_regex_exact(result['supplier_name'])},
             {"_id": 0}
         )
         if supplier_doc:
@@ -267,7 +268,7 @@ async def _resolve_supplier_contact(supplier_name: str, org_id: str | None) -> s
     if not supplier_name or not org_id:
         return ""
     doc = await db.suppliers.find_one(
-        {"organization_id": org_id, "name": {"$regex": f"^{supplier_name}$", "$options": "i"}},
+        {"organization_id": org_id, "name": safe_regex_exact(supplier_name)},
         {"_id": 0, "email": 1},
     )
     return (doc or {}).get("email", "")

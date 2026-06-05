@@ -55,6 +55,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from utils.security_plus import safe_regex_exact
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
 from utils.auth import get_current_user
@@ -1323,7 +1324,7 @@ async def send_partner_signin_link(
 
     # Does the engineer already have a GymAxis account? Case-insensitive.
     existing_user = await db.users.find_one(
-        {"email": {"$regex": f"^{target_email}$", "$options": "i"}},
+        {"email": safe_regex_exact(target_email)},
         {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1},
     )
 
@@ -1439,7 +1440,7 @@ async def get_partner_activation_info(body: dict = Body(default_factory=dict)):
         raise HTTPException(404, "This activation link is invalid or has expired. Ask the GymAxis team for a new one.")
     email = app.get("email") or ""
     has_account = bool(await db.users.find_one(
-        {"email": {"$regex": f"^{email}$", "$options": "i"}},
+        {"email": safe_regex_exact(email)},
         {"_id": 0, "id": 1},
     )) if email else False
     return {
@@ -1483,7 +1484,7 @@ async def complete_partner_activation(
     validate_password_strength(password)
 
     existing_user = await db.users.find_one(
-        {"email": {"$regex": f"^{email}$", "$options": "i"}}, {"_id": 0},
+        {"email": safe_regex_exact(email)}, {"_id": 0},
     )
     if existing_user:
         # User already exists — refuse to silently overwrite their

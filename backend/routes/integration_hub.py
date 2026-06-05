@@ -13,6 +13,7 @@ Architecture:
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from utils.security_plus import safe_regex
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 import logging
@@ -145,7 +146,7 @@ async def _handle_service_to_crm_case(event: dict):
     company_id = None
     if payload.get("organization_name"):
         company = await db.crm2_companies.find_one(
-            {"organization_id": org_id, "name": {"$regex": payload["organization_name"], "$options": "i"}},
+            {"organization_id": org_id, "name": safe_regex(payload["organization_name"])},
             {"_id": 0, "id": 1}
         )
         if company:

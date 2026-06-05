@@ -29,6 +29,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -64,7 +65,7 @@ async def list_marketing_contacts(
     org_id = await _org_id(user)
     q: dict = {"organization_id": org_id}
     if search:
-        rx = {"$regex": search, "$options": "i"}
+        rx = safe_regex(search)
         q["$or"] = [
             {"first_name": rx}, {"last_name": rx}, {"email": rx}, {"phone": rx},
         ]

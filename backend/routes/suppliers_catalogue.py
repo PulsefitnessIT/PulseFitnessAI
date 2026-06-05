@@ -29,6 +29,7 @@ Why these brands?
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from utils.security_plus import safe_regex_exact
 
 from utils.auth import get_current_user, get_organization_filter
 from utils.database import db
@@ -224,8 +225,8 @@ async def supplier_photo_lookup(
     # 1) Exact spec-sheet match on (supplier, model).
     if model_key:
         spec = await db.spec_sheets.find_one(
-            {"manufacturer": {"$regex": f"^{supplier_key}$", "$options": "i"},
-             "model": {"$regex": f"^{model_key}$", "$options": "i"}},
+            {"manufacturer": safe_regex_exact(supplier_key),
+             "model": safe_regex_exact(model_key)},
             {"_id": 0, "photo_url": 1, "image_url": 1},
         )
         if spec:
@@ -235,7 +236,7 @@ async def supplier_photo_lookup(
 
     # 2) Supplier-level fallback: pick *any* spec sheet for this supplier.
     spec = await db.spec_sheets.find_one(
-        {"manufacturer": {"$regex": f"^{supplier_key}$", "$options": "i"}},
+        {"manufacturer": safe_regex_exact(supplier_key)},
         {"_id": 0, "photo_url": 1, "image_url": 1},
     )
     if spec:

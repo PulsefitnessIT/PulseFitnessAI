@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -201,11 +202,11 @@ async def list_audit_logs(
     skip = max(skip, 0)
     query: dict = {}
     if action:
-        query["action"] = {"$regex": action, "$options": "i"}
+        query["action"] = safe_regex(action)
     if user_id:
         query["user_id"] = user_id
     if user_email:
-        query["user_email"] = {"$regex": user_email, "$options": "i"}
+        query["user_email"] = safe_regex(user_email)
     if resource_type:
         query["resource_type"] = resource_type
     if resource_id:
@@ -220,10 +221,10 @@ async def list_audit_logs(
     if q:
         # Free-text — search across action, email, details, resource id.
         query.setdefault("$or", []).extend([
-            {"action": {"$regex": q, "$options": "i"}},
-            {"user_email": {"$regex": q, "$options": "i"}},
-            {"details": {"$regex": q, "$options": "i"}},
-            {"resource_id": {"$regex": q, "$options": "i"}},
+            {"action": safe_regex(q)},
+            {"user_email": safe_regex(q)},
+            {"details": safe_regex(q)},
+            {"resource_id": safe_regex(q)},
         ])
     cursor = db.audit_logs.find(
         query, {"_id": 0},
@@ -268,9 +269,9 @@ async def export_audit_logs_csv(
     limit = max(1, min(limit, 50000))
     query: dict = {}
     if action:
-        query["action"] = {"$regex": action, "$options": "i"}
+        query["action"] = safe_regex(action)
     if user_email:
-        query["user_email"] = {"$regex": user_email, "$options": "i"}
+        query["user_email"] = safe_regex(user_email)
     if resource_type:
         query["resource_type"] = resource_type
     if since or until:
@@ -282,10 +283,10 @@ async def export_audit_logs_csv(
         query["timestamp"] = ts
     if q:
         query.setdefault("$or", []).extend([
-            {"action": {"$regex": q, "$options": "i"}},
-            {"user_email": {"$regex": q, "$options": "i"}},
-            {"details": {"$regex": q, "$options": "i"}},
-            {"resource_id": {"$regex": q, "$options": "i"}},
+            {"action": safe_regex(q)},
+            {"user_email": safe_regex(q)},
+            {"details": safe_regex(q)},
+            {"resource_id": safe_regex(q)},
         ])
     rows = await db.audit_logs.find(
         query, {"_id": 0},

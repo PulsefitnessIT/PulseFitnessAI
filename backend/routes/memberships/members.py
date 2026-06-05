@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import pyotp
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -83,10 +84,10 @@ async def members_list(
     if q:
         ql = q.lower()
         query["$or"] = [
-            {"email": {"$regex": ql, "$options": "i"}},
-            {"first_name": {"$regex": ql, "$options": "i"}},
-            {"last_name": {"$regex": ql, "$options": "i"}},
-            {"phone": {"$regex": ql, "$options": "i"}},
+            {"email": safe_regex(ql)},
+            {"first_name": safe_regex(ql)},
+            {"last_name": safe_regex(ql)},
+            {"phone": safe_regex(ql)},
         ]
     rows = await db.members.find(query, {"_id": 0, "password": 0}).sort("created_at", -1).limit(200).to_list(200)
     # Iter 216h174 — Payload-size + N+1 pass. Previously we shipped the

@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from utils.security_plus import safe_regex
 from pydantic import BaseModel, Field, field_validator
 
 from utils.auth import get_current_user
@@ -245,10 +246,10 @@ async def list_engineer_equipment(
         needle = q.strip()
         if needle:
             flt["$or"] = [
-                {"name": {"$regex": needle, "$options": "i"}},
-                {"serial_number": {"$regex": needle, "$options": "i"}},
-                {"model": {"$regex": needle, "$options": "i"}},
-                {"manufacturer": {"$regex": needle, "$options": "i"}},
+                {"name": safe_regex(needle)},
+                {"serial_number": safe_regex(needle)},
+                {"model": safe_regex(needle)},
+                {"manufacturer": safe_regex(needle)},
             ]
     rows = (
         await db.equipment.find(

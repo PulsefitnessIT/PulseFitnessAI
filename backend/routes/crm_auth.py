@@ -5,8 +5,11 @@ import jwt
 import bcrypt
 import uuid
 import secrets
+import logging
 
 from utils.database import db, JWT_SECRET, JWT_ALGORITHM
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm/auth", tags=["CRM Auth"])
 security = HTTPBearer()
@@ -485,7 +488,17 @@ async def _resolve_crm_brand_flags(main_user: dict, is_admin: bool):
 
 
 async def _seed_crm_user(email: str, password: str, full_name: str, role: str = "admin", organization_id: str = None) -> None:
-    """Seed a CRM user — creates if missing, ALWAYS resets password to ensure login works."""
+    """Seed a CRM user — creates if missing, ALWAYS resets password to ensure login works.
+
+    Fail-closed: if ``password`` is empty (env var unset) we SKIP seeding
+    rather than fall back to a well-known default. This prevents shipping a
+    guessable admin password to any deployment that forgot to configure it.
+    """
+    if not (password or "").strip():
+        logger.warning(
+            "[crm_seed] skipping seed for %s — password env var not set (fail-closed)", email,
+        )
+        return
     hashed = crm_hash_password(password)
     existing = await db.crm_users.find_one({"email": email})
     if not existing:
@@ -541,7 +554,7 @@ async def seed_crm_admin():
         if master_org_id:
             await _seed_crm_user(
                 os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com"),
-                os.environ.get("MASTER_ADMIN_PASSWORD", "MasterAdmin123!"),
+                os.environ.get("MASTER_ADMIN_PASSWORD", ""),
                 "Master Admin", organization_id=master_org_id,
             )
         return
@@ -561,12 +574,12 @@ async def seed_crm_admin():
     # 2. Seed admin CRM users (passwords always reset on deploy)
     await _seed_crm_user(
         os.environ.get("CRM_ADMIN_EMAIL", "crm@gymaxisai.com"),
-        os.environ.get("CRM_ADMIN_PASSWORD", "CRMAdmin123!"),
+        os.environ.get("CRM_ADMIN_PASSWORD", ""),
         "CRM Admin", organization_id=admin_crm_org_id,
     )
     await _seed_crm_user(
         os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com"),
-        os.environ.get("MASTER_ADMIN_PASSWORD", "MasterAdmin123!"),
+        os.environ.get("MASTER_ADMIN_PASSWORD", ""),
         "Master Admin", organization_id=admin_crm_org_id,
     )
 

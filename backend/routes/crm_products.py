@@ -56,6 +56,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from utils.security_plus import safe_regex
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
@@ -155,7 +156,7 @@ async def list_products(
         q["sell_price"] = {"$lte": 0}
         q["cost_price"] = {"$lte": 0}
     if search:
-        rx = {"$regex": search, "$options": "i"}
+        rx = safe_regex(search)
         q["$or"] = [{"name": rx}, {"sku": rx}, {"description": rx},
                     {"sage_code": rx}, {"manufacturer": rx}, {"model": rx}]
 

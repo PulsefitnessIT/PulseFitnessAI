@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from utils.security_plus import safe_regex
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
 from typing import Optional
@@ -86,10 +87,10 @@ async def list_contacts(
     query = {**of}
     if search:
         query["$or"] = [
-            {"first_name": {"$regex": search, "$options": "i"}},
-            {"last_name": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
-            {"company_name": {"$regex": search, "$options": "i"}},
+            {"first_name": safe_regex(search)},
+            {"last_name": safe_regex(search)},
+            {"email": safe_regex(search)},
+            {"company_name": safe_regex(search)},
         ]
     if tag:
         query["tags"] = tag
@@ -171,8 +172,8 @@ async def list_companies(search: str = "", skip: int = 0, limit: int = 50, user=
     query = {**of}
     if search:
         query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"industry": {"$regex": search, "$options": "i"}},
+            {"name": safe_regex(search)},
+            {"industry": safe_regex(search)},
         ]
     total = await db.crm_companies.count_documents(query)
     companies = await db.crm_companies.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)

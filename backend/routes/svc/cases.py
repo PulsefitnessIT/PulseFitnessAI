@@ -72,6 +72,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 
 from utils.audit import audit_log
 from utils.database import db
@@ -145,10 +146,10 @@ async def list_cases(
         q["case_type"] = case_type
     if search:
         q["$or"] = [
-            {"reference": {"$regex": search, "$options": "i"}},
-            {"title": {"$regex": search, "$options": "i"}},
-            {"customer_name": {"$regex": search, "$options": "i"}},
-            {"site_name": {"$regex": search, "$options": "i"}},
+            {"reference": safe_regex(search)},
+            {"title": safe_regex(search)},
+            {"customer_name": safe_regex(search)},
+            {"site_name": safe_regex(search)},
         ]
     # Iter 216h174 — Payload-size pass. Exclude heavy detail-only fields
     # from the case list response. The desk-page list only needs ~15

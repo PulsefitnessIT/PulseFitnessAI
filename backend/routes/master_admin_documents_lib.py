@@ -56,6 +56,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Form
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -167,7 +168,7 @@ async def list_documents(
     if q:
         # Cheap case-insensitive contains. Index is on (scope, uploaded_at)
         # so this is fine for libraries up to a few thousand docs.
-        query["title"] = {"$regex": q.strip(), "$options": "i"}
+        query["title"] = safe_regex(q)
     cursor = db.documents.find(query, {"_id": 0}).sort("uploaded_at", -1).limit(min(int(limit or 100), 500))
     rows = await cursor.to_list(length=500)
     return {

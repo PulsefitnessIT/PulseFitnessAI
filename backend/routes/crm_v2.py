@@ -3,6 +3,7 @@ CRM v2 — Core Data Model & Activity Engine
 All CRM entities with full cross-linking and org-scoped queries.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from utils.database import db
@@ -198,8 +199,8 @@ async def list_companies(
     q = await compute_visibility(user, "company")
     if search:
         q["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"sector": {"$regex": search, "$options": "i"}},
+            {"name": safe_regex(search)},
+            {"sector": safe_regex(search)},
         ]
     if sector:
         q["sector"] = sector
@@ -478,9 +479,9 @@ async def list_contacts(
     q["gdpr_erased"] = {"$ne": True}
     if search:
         q["$or"] = [
-            {"first_name": {"$regex": search, "$options": "i"}},
-            {"last_name": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
+            {"first_name": safe_regex(search)},
+            {"last_name": safe_regex(search)},
+            {"email": safe_regex(search)},
         ]
     if company_id:
         q["company_id"] = company_id
@@ -1916,7 +1917,7 @@ async def list_contracts(
 async def global_search(q: str = Query("", min_length=1), user=Depends(get_crm_user)):
     """Search across all entity types."""
     of = _of(user)
-    regex = {"$regex": q, "$options": "i"}
+    regex = safe_regex(q)
     results = []
 
     # Companies
@@ -2556,12 +2557,12 @@ async def _search_portal_collections(company_name: str) -> list:
     """Search across service portal equipment collections for a company name."""
     equipment = []
     query = {"$or": [
-        {"site_name": {"$regex": company_name, "$options": "i"}},
-        {"location": {"$regex": company_name, "$options": "i"}},
-        {"site": {"$regex": company_name, "$options": "i"}},
-        {"organization_name": {"$regex": company_name, "$options": "i"}},
-        {"gym_name": {"$regex": company_name, "$options": "i"}},
-        {"company": {"$regex": company_name, "$options": "i"}},
+        {"site_name": safe_regex(company_name)},
+        {"location": safe_regex(company_name)},
+        {"site": safe_regex(company_name)},
+        {"organization_name": safe_regex(company_name)},
+        {"gym_name": safe_regex(company_name)},
+        {"company": safe_regex(company_name)},
     ]}
     for coll_name in ["equipment", "gym_items", "items", "site_equipment"]:
         try:
@@ -2612,7 +2613,7 @@ async def list_v2_documents(
     if category:
         q["category"] = category
     if search:
-        q["original_filename"] = {"$regex": search, "$options": "i"}
+        q["original_filename"] = safe_regex(search)
     total = await db.crm2_documents.count_documents(q)
     items = await db.crm2_documents.find(q, {"_id": 0, "data_b64": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return {"documents": items, "total": total, "categories": DOCUMENT_CATEGORIES}

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import secrets
 import string
 import urllib.parse
@@ -369,12 +370,12 @@ async def hard_purge_user_by_email(email: str = Query(...), user: dict = Depends
     prefix = local_part.split(".")[0] if "." in local_part else local_part
     email_filter = {"$or": [
         {"email": email_clean},
-        {"email": {"$regex": f"^{prefix}(\\.|@)", "$options": "i"}},
+        {"email": {"$regex": f"^{re.escape(prefix)}(\\.|@)", "$options": "i"}},
     ]}
     # Tighten the regex match to the same domain so we don't accidentally
     # wipe 'craig@other-domain.com'.
     email_filter["$or"][1]["email"] = {
-        "$regex": f"^{prefix}(\\..*)?@{domain}$", "$options": "i",
+        "$regex": f"^{re.escape(prefix)}(\\..*)?@{re.escape(domain)}$", "$options": "i",
     }
 
     matched = await db.users.find(

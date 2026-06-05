@@ -3,6 +3,7 @@
 All mutating endpoints write a row to `service_desk_audit_log` via `log_desk_action`.
 """
 from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
+from utils.security_plus import safe_regex
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 
@@ -40,9 +41,9 @@ def _build_customer_query(q: str, account_type: str, status: str) -> dict:
     query: dict = {}
     if q:
         query["$or"] = [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"sicon_customer_ref": {"$regex": q, "$options": "i"}},
-            {"head_office_ref": {"$regex": q, "$options": "i"}},
+            {"name": safe_regex(q)},
+            {"sicon_customer_ref": safe_regex(q)},
+            {"head_office_ref": safe_regex(q)},
         ]
     if account_type:
         query["account_type"] = account_type

@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body, Response
+from utils.security_plus import safe_regex, safe_regex_exact
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -104,7 +105,7 @@ async def search_customers(q: str = "", user: dict = Depends(get_current_user)):
     scope = _scope(user)
     query: dict = {"organization_id": scope}
     if q.strip():
-        query["name"] = {"$regex": q.strip(), "$options": "i"}
+        query["name"] = safe_regex(q)
     cur = db.svc_engineer_customers.find(query, {"_id": 0}).sort("updated_at", -1).limit(20)
     rows = await cur.to_list(20)
     return {"customers": [{
@@ -120,7 +121,7 @@ async def _upsert_customer(scope: str, engineer_id: str, c: dict) -> dict:
     if not name:
         raise HTTPException(400, "Customer name is required")
     existing = await db.svc_engineer_customers.find_one(
-        {"organization_id": scope, "name": {"$regex": f"^{name}$", "$options": "i"}}, {"_id": 0})
+        {"organization_id": scope, "name": safe_regex_exact(name)}, {"_id": 0})
     if existing:
         return existing
     doc = {

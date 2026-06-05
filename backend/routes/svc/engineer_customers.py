@@ -32,6 +32,7 @@ import re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from utils.security_plus import safe_regex
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -263,11 +264,11 @@ async def list_customers(
         needle = re.escape(q.strip())
         if needle:
             query["$or"] = [
-                {"name":  {"$regex": needle, "$options": "i"}},
-                {"email": {"$regex": needle, "$options": "i"}},
-                {"phone": {"$regex": needle, "$options": "i"}},
-                {"site_name":    {"$regex": needle, "$options": "i"}},
-                {"site_address": {"$regex": needle, "$options": "i"}},
+                {"name":  safe_regex(needle)},
+                {"email": safe_regex(needle)},
+                {"phone": safe_regex(needle)},
+                {"site_name":    safe_regex(needle)},
+                {"site_address": safe_regex(needle)},
             ]
     cur = db.svc_engineer_customers.find(query, {"_id": 0}).sort("updated_at", -1).limit(limit)
     rows = await cur.to_list(length=limit)
@@ -403,10 +404,10 @@ async def search_customers(
         {
             "organization_id": org_id,
             "$or": [
-                {"name":  {"$regex": needle, "$options": "i"}},
-                {"email": {"$regex": needle, "$options": "i"}},
-                {"phone": {"$regex": needle, "$options": "i"}},
-                {"site_name":    {"$regex": needle, "$options": "i"}},
+                {"name":  safe_regex(needle)},
+                {"email": safe_regex(needle)},
+                {"phone": safe_regex(needle)},
+                {"site_name":    safe_regex(needle)},
             ],
         },
         {
@@ -447,10 +448,10 @@ async def typeahead_customers(
         {
             "organization_id": org_id,
             "$or": [
-                {"name":      {"$regex": needle, "$options": "i"}},
-                {"email":     {"$regex": needle, "$options": "i"}},
-                {"phone":     {"$regex": needle, "$options": "i"}},
-                {"site_name": {"$regex": needle, "$options": "i"}},
+                {"name":      safe_regex(needle)},
+                {"email":     safe_regex(needle)},
+                {"phone":     safe_regex(needle)},
+                {"site_name": safe_regex(needle)},
             ],
         },
         {
@@ -472,11 +473,11 @@ async def typeahead_customers(
             {
                 "organization_id": org_id,
                 "$or": [
-                    {"customer_name":  {"$regex": needle, "$options": "i"}},
-                    {"customer_email": {"$regex": needle, "$options": "i"}},
-                    {"customer_phone": {"$regex": needle, "$options": "i"}},
-                    {"site_name":      {"$regex": needle, "$options": "i"}},
-                    {"site_postcode":  {"$regex": needle, "$options": "i"}},
+                    {"customer_name":  safe_regex(needle)},
+                    {"customer_email": safe_regex(needle)},
+                    {"customer_phone": safe_regex(needle)},
+                    {"site_name":      safe_regex(needle)},
+                    {"site_postcode":  safe_regex(needle)},
                 ],
             },
             {

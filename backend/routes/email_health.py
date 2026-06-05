@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from utils.security_plus import safe_regex
 
 from utils.auth import get_current_user
 from utils.database import db, RESEND_API_KEY, SENDER_EMAIL
@@ -207,10 +208,10 @@ async def list_outbound_emails(
     if search:
         s = search.strip()
         q["$or"] = [
-            {"to":      {"$regex": s, "$options": "i"}},
-            {"subject": {"$regex": s, "$options": "i"}},
-            {"sender":  {"$regex": s, "$options": "i"}},
-            {"error":   {"$regex": s, "$options": "i"}},
+            {"to":      safe_regex(s)},
+            {"subject": safe_regex(s)},
+            {"sender":  safe_regex(s)},
+            {"error":   safe_regex(s)},
         ]
 
     cursor = (

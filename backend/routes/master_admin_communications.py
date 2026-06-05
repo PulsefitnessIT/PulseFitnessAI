@@ -39,6 +39,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from utils.security_plus import safe_regex
 from pydantic import BaseModel, EmailStr, Field
 
 from routes.master_admin import require_master_admin
@@ -158,10 +159,10 @@ async def list_enquiries(
         s = search.strip()
         # Don't clobber a $or set by the unassigned filter.
         clause = [
-            {"name":    {"$regex": s, "$options": "i"}},
-            {"email":   {"$regex": s, "$options": "i"}},
-            {"company": {"$regex": s, "$options": "i"}},
-            {"message": {"$regex": s, "$options": "i"}},
+            {"name":    safe_regex(s)},
+            {"email":   safe_regex(s)},
+            {"company": safe_regex(s)},
+            {"message": safe_regex(s)},
         ]
         if "$or" in q:
             q = {"$and": [q, {"$or": clause}]}

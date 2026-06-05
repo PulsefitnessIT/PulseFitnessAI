@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import logging
 import os
+import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -31,6 +32,31 @@ from fastapi import HTTPException, Request
 from utils.database import db
 
 logger = logging.getLogger(__name__)
+
+
+# ════════════════════ P2.16 — Safe regex search ═══════════════════
+# Build Mongo ``$regex`` clauses from UNTRUSTED user input without
+# opening the door to regex-injection / ReDoS. Every metacharacter in
+# the supplied term is escaped, so a value like ``.*`` or a
+# catastrophic-backtracking pattern is treated as a literal substring.
+# Case-insensitive substring search semantics are preserved.
+
+
+def safe_regex(value: Optional[str], options: str = "i") -> dict:
+    """Return a Mongo ``$regex`` clause for a case-insensitive substring
+    match on UNTRUSTED ``value``. All regex metacharacters are escaped to
+    prevent regex-injection and ReDoS. Empty/None input matches everything
+    (``""``) which callers should gate behind a truthiness check anyway."""
+    return {"$regex": re.escape((value or "").strip()), "$options": options}
+
+
+def safe_regex_exact(value: Optional[str], options: str = "i") -> dict:
+    """Like :func:`safe_regex` but anchored for a WHOLE-string (case-
+    insensitive) match — ``^value$`` with every metacharacter escaped.
+    Use for lookups that intend an exact match (e.g. unique name/email)
+    without exposing a regex-injection surface."""
+    return {"$regex": f"^{re.escape((value or '').strip())}$", "$options": options}
+
 
 # ════════════════════ P1.6 — Rate limiter ═════════════════════════
 # Sliding window backed by MongoDB. Each hit appends {ts} to a capped array,
