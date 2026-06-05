@@ -2030,6 +2030,18 @@ async def _store_compliance_attachment(file: UploadFile, partner_id: str, kind: 
     }, data, file.content_type or "application/octet-stream")
 
 
+async def _compliance_country(user: dict) -> str:
+    """Iter 220p1 — the engineer's compliance market (drives which docs are
+    required: UK→DBS/RTW, US→work authorization/background check). Resolved
+    from the user's org country_code; defaults to GB."""
+    from utils.localization import org_localization
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "country_code": 1},
+    )
+    return org_localization(org)["country_code"]
+
+
+
 @router.put("/partners/me/compliance-docs/{kind}")
 async def upload_my_compliance_doc(
     kind: str,
@@ -2053,6 +2065,13 @@ async def upload_my_compliance_doc(
     pl_provider: str = Form(""),
     pl_policy_number: str = Form(""),
     pl_cover_amount: str = Form(""),
+    # Iter 220p1 — US work-authorization (I-9 / work eligibility)
+    wa_document_type: str = Form(""),
+    wa_reference: str = Form(""),
+    # Iter 220p1 — US background check
+    bg_provider: str = Form(""),
+    bg_completed_at: str = Form(""),
+    bg_reference: str = Form(""),
 ):
     """Engineer self-service compliance doc submission.
 
@@ -2062,7 +2081,7 @@ async def upload_my_compliance_doc(
     re-signs off on every new upload.
     """
     from utils.partner_compliance_docs import (
-        DBS_LEVELS, DOC_KINDS, RTW_DOC_TYPES,
+        DBS_LEVELS, DOC_KINDS, RTW_DOC_TYPES, WA_DOC_TYPES,
         ai_check_document, default_doc_shell, encrypt_field, last4, validate_kind,
     )
     validate_kind(kind)
@@ -2110,6 +2129,25 @@ async def upload_my_compliance_doc(
         cover = _parse_int(pl_cover_amount)
         if cover is not None:
             blob["cover_amount"] = cover
+    elif kind == "work_authorization":
+        # Iter 220p1 — US I-9 / work-eligibility evidence.
+        if wa_document_type:
+            wa_t = wa_document_type.strip().lower()
+            if wa_t not in WA_DOC_TYPES:
+                raise HTTPException(400, f"wa_document_type must be one of {sorted(WA_DOC_TYPES)}")
+            blob["document_type"] = wa_t
+        if wa_reference:
+            blob["reference_enc"] = encrypt_field(wa_reference)
+            blob["reference_last4"] = last4(wa_reference)
+    elif kind == "background_check":
+        # Iter 220p1 — US criminal background check (e.g. Checkr).
+        if bg_provider:
+            blob["provider"] = bg_provider.strip()[:200]
+        if bg_completed_at:
+            blob["completed_at"] = _parse_iso_date(bg_completed_at)
+        if bg_reference:
+            blob["reference_enc"] = encrypt_field(bg_reference)
+            blob["reference_last4"] = last4(bg_reference)
 
     if expires_at:
         blob["expires_at"] = _parse_iso_date(expires_at)
@@ -2138,9 +2176,12 @@ async def upload_my_compliance_doc(
 
     # Soft auto-unpause: if every uploaded doc with an expiry is still
     # in the future, drop the compliance_paused flag.
+    from utils.partner_compliance_docs import required_doc_kinds
+    _country = await _compliance_country(user)
+    _req_kinds = required_doc_kinds(_country)
     paused = bool(partner.get("compliance_paused"))
     if paused:
-        all_ok = all(_is_doc_valid((docs.get(k) or {}).get("expires_at")) for k in DOC_KINDS)
+        all_ok = all(_is_doc_valid((docs.get(k) or {}).get("expires_at")) for k in _req_kinds)
         if all_ok:
             paused = False
 
@@ -2159,28 +2200,36 @@ async def upload_my_compliance_doc(
     return {
         "ok": True,
         "compliance_docs": sanitise_docs_for_response(docs),
-        "status": overall_status(docs),
+        "status": overall_status(docs, _country),
     }
 
 
 @router.get("/partners/me/compliance-docs")
 async def get_my_compliance_docs(user: dict = Depends(get_current_user)):
     """Sanitised compliance docs for the engineer dashboard."""
-    from utils.partner_compliance_docs import sanitise_docs_for_response, overall_status, DOC_KINDS, default_doc_shell
+    from utils.partner_compliance_docs import (
+        sanitise_docs_for_response, overall_status, required_doc_kinds, default_doc_shell,
+    )
     partner = await _get_partner_by_user(user["id"])
     if not partner:
         raise HTTPException(404, "Not a partner — apply first.")
     docs = partner.get("compliance_docs") or {}
+    # Iter 220p1 — the required doc set follows the engineer's market
+    # (UK: DBS/RTW/Safeguarding; US: work authorization/background check).
+    country = await _compliance_country(user)
+    kinds = required_doc_kinds(country)
     # Make sure the UI never has to handle missing keys.
-    full = {k: docs.get(k) or default_doc_shell() for k in DOC_KINDS}
+    full = {k: docs.get(k) or default_doc_shell() for k in kinds}
     return {
         "compliance_docs": sanitise_docs_for_response(full),
-        "status": overall_status(docs),
+        "status": overall_status(docs, country),
         "compliance_paused": bool(partner.get("compliance_paused")),
+        "country_code": country,
+        "required_kinds": list(kinds),
         # Iter 220ea·47 — trial grace window so the dashboard can show the
         # "upload within X days" countdown instead of an alarming 0/4.
         "grace": _compliance_grace_info(partner),
-        "claim_doc_kinds": list(_CLAIM_REQUIRED_KINDS),
+        "claim_doc_kinds": list(_claim_required_kinds(country)),
     }
 
 
@@ -2228,19 +2277,41 @@ async def admin_verify_compliance_doc(
     return {"ok": True, "compliance_docs": sanitise_docs_for_response(docs)}
 
 
+async def _partner_country(partner: dict) -> str:
+    """Iter 220p1 — resolve a partner engineer's compliance market from the
+    org they operate under (their user's org), defaulting to GB."""
+    from utils.localization import org_localization
+    org_id = partner.get("owner_organization_id") or partner.get("organization_id")
+    if not org_id:
+        u = await db.users.find_one(
+            {"id": partner.get("user_id")}, {"_id": 0, "organization_id": 1},
+        )
+        org_id = (u or {}).get("organization_id")
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "country_code": 1},
+    ) if org_id else None
+    return org_localization(org)["country_code"]
+
+
 @router.get("/master-admin/partners/{partner_id}/compliance-docs")
 async def admin_get_compliance_docs(partner_id: str, user: dict = Depends(get_current_user)):
     """Full compliance view for the admin verification panel."""
-    from utils.partner_compliance_docs import sanitise_docs_for_response, overall_status, DOC_KINDS, default_doc_shell
+    from utils.partner_compliance_docs import (
+        sanitise_docs_for_response, overall_status, required_doc_kinds, default_doc_shell,
+    )
     _require_master_admin(user)
     partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
     if not partner:
         raise HTTPException(404, "Partner not found")
     docs = partner.get("compliance_docs") or {}
-    full = {k: docs.get(k) or default_doc_shell() for k in DOC_KINDS}
+    country = await _partner_country(partner)
+    kinds = required_doc_kinds(country)
+    full = {k: docs.get(k) or default_doc_shell() for k in kinds}
     return {
         "compliance_docs": sanitise_docs_for_response(full),
-        "status": overall_status(docs),
+        "status": overall_status(docs, country),
+        "country_code": country,
+        "required_kinds": list(kinds),
     }
 
 
@@ -4527,13 +4598,26 @@ _BLOCK_MESSAGES = {
 #   • partner.compliance_paused == False, AND
 #   • at least one of {dbs, rtw} has a file uploaded with no expiry,
 #     or an expiry strictly in the future.
-_CLAIM_REQUIRED_KINDS = ("dbs", "rtw")
+# Required for partner-track engineers (market-specific):
+#   • partner.compliance_paused == False, AND
+#   • at least one of the market's identity/eligibility docs has a file
+#     uploaded with no expiry, or an expiry strictly in the future.
+#   UK: {dbs, rtw} ; US: {work_authorization, background_check}.
+_CLAIM_REQUIRED_KINDS = ("dbs", "rtw")  # legacy default (UK)
+_CLAIM_KINDS_BY_COUNTRY = {
+    "GB": ("dbs", "rtw"),
+    "US": ("work_authorization", "background_check"),
+}
 
 
-def _has_valid_claim_doc(partner: dict) -> bool:
+def _claim_required_kinds(country_code: str | None) -> tuple:
+    return _CLAIM_KINDS_BY_COUNTRY.get((country_code or "GB").strip().upper(), _CLAIM_REQUIRED_KINDS)
+
+
+def _has_valid_claim_doc(partner: dict, kinds: tuple = _CLAIM_REQUIRED_KINDS) -> bool:
     docs = (partner or {}).get("compliance_docs") or {}
     now = datetime.now(timezone.utc)
-    for kind in _CLAIM_REQUIRED_KINDS:
+    for kind in kinds:
         blob = docs.get(kind) or {}
         if not isinstance(blob, dict) or not blob.get("file"):
             continue
@@ -4630,14 +4714,16 @@ async def require_engineer_compliance_to_claim(user: dict = Depends(get_current_
                 "message": _BLOCK_MESSAGES["compliance_paused"],
             },
         )
-    if not _has_valid_claim_doc(partner):
+    _claim_country = await _compliance_country(user)
+    _claim_kinds = _claim_required_kinds(_claim_country)
+    if not _has_valid_claim_doc(partner, _claim_kinds):
         raise HTTPException(
             status_code=403,
             detail={
                 "code": "engineer_app_blocked",
                 "reason": "compliance_required",
                 "message": _BLOCK_MESSAGES["compliance_required"],
-                "required_one_of": list(_CLAIM_REQUIRED_KINDS),
+                "required_one_of": list(_claim_kinds),
             },
         )
     return user

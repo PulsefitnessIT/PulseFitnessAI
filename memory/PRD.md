@@ -1,3 +1,24 @@
+## Iter 220 P1 — USA readiness, slice 8: US engineer compliance (I-9 / background check) ✅ (Jun, 2026)
+
+**Request:** Replace the UK-only DBS/RTW partner-engineer compliance gate with a US document set so US engineers can onboard (lightweight: upload + admin verify, no external API).
+
+**Shipped — the required compliance doc set + claim gate now follow the engineer's market (resolved from their org `country_code`, defaults to GB):**
+- **`utils/partner_compliance_docs.py`** — `DOC_KINDS` is now the UK+US union; new `COUNTRY_DOC_KINDS` + `required_doc_kinds(country)`: UK = DBS/RTW/Safeguarding/Public-liability, **US = Work authorization (I-9) / Background check / Public liability**. New `WA_DOC_TYPES` (i9, us_passport, green_card, ead, ssn_card, drivers_license, visa). `overall_status(docs, country_code)` now scores against the market set (a stray UK doc doesn't count for a US engineer). AI verifier prompt + match rules made generic + US-aware (i-9/passport/green card/EAD; background/criminal/Checkr).
+- **`routes/partners.py`** — new `_compliance_country(user)` / `_partner_country(partner)`. Upload route accepts US metadata (`wa_document_type`+`wa_reference`, `bg_provider`+`bg_completed_at`+`bg_reference`; references encrypted, last-4 kept). The job-**claim gate** is now market-specific (`_claim_required_kinds`: UK={dbs,rtw}, US={work_authorization,background_check}); `_has_valid_claim_doc(partner, kinds)`. The engineer + admin compliance endpoints return `country_code` + `required_kinds` and build the doc shell from the market set.
+- **`utils/partner_compliance.py`** — expiry-reminder sweep now covers the US doc kinds too.
+- **Frontend `PartnerComplianceCard.js`** — renders the doc list from the backend's `required_kinds`; added US doc forms (work-auth type dropdown + reference; background-check provider/date/reference) and labels; the "start taking jobs / upload to claim" banners now name the market's claim docs dynamically.
+
+**Tested:** `tests/test_iter_220p1_us_compliance.py` **7/7** (per-market required kinds, US status scoring ignores UK docs, expiry-block, claim-kind gating). Full localization suite **39/39**. E2E curl (engineer.smoke, org temporarily flipped US→reverted): GB → DBS/RTW set; **US → work_authorization/background_check/public_liability** + US claim kinds. Frontend compiles + lints clean. (Engineer-app UI card is code+contract-verified; admin verify panel renders generically — friendly labels for the 2 new kinds in the *admin* view are a minor polish backlog item.)
+
+### 🇺🇸 USA-readiness epic — now functionally complete for onboarding US Operations + Engineer customers (slices 1-8)
+Remaining are external/decision-gated only:
+- **US sales tax** — needs you to enable Stripe Tax (+ states) or a TaxJar key (manual tax line works today).
+- **Operational:** enable Stripe Connect **US payouts** before US money clears.
+- Polish: admin-panel friendly labels for US doc kinds; per-org marketing-autopilot scheduling is N/A (platform singleton).
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 7: Companies House gating + US address/phone formats ✅ (Jun, 2026)
 
 **Request:** P2 bundle — US sales tax, US engineer compliance, Companies House US alternative, phone/ZIP/state formats, per-org marketing-autopilot scheduling. Built the no-external-key items; the rest are decision/key-gated or N/A (below).

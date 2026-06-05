@@ -62,10 +62,39 @@ from utils.mfa import encrypt_secret, decrypt_secret
 
 logger = logging.getLogger(__name__)
 
-# The four doc kinds we capture. Drives validation + sweep + UI.
-DOC_KINDS = ("dbs", "rtw", "safeguarding", "public_liability")
+# Every doc kind the platform can store (UK + US). Drives validation.
+DOC_KINDS = (
+    "dbs", "rtw", "safeguarding", "public_liability",
+    # Iter 220p1 — US equivalents (lightweight: upload + admin verify).
+    "work_authorization", "background_check",
+)
+
+# Iter 220p1 — the REQUIRED doc set depends on the engineer's market.
+# UK gyms ask for DBS/RTW/Safeguarding; US uses work authorization (I-9)
+# + a background check. Public liability insurance is asked for in both.
+COUNTRY_DOC_KINDS = {
+    "GB": ("dbs", "rtw", "safeguarding", "public_liability"),
+    "US": ("work_authorization", "background_check", "public_liability"),
+}
+
+
+def required_doc_kinds(country_code: Optional[str]) -> tuple:
+    """The compliance docs an engineer must provide for their market.
+    Defaults to the UK set (back-compat for orgs without a country)."""
+    return COUNTRY_DOC_KINDS.get((country_code or "GB").strip().upper(), COUNTRY_DOC_KINDS["GB"])
+
 
 DBS_LEVELS = {"basic", "standard", "enhanced", "enhanced_barred"}
+# Iter 220p1 — US work-authorization document types (I-9 List A/C evidence).
+WA_DOC_TYPES = {
+    "i9",                 # completed Form I-9
+    "us_passport",
+    "green_card",         # permanent resident card
+    "ead",                # employment authorization document
+    "ssn_card",
+    "drivers_license",    # + SSN (List B+C combo)
+    "visa",
+}
 RTW_DOC_TYPES = {
     "passport_uk",
     "passport_eu",
@@ -140,10 +169,12 @@ def default_doc_shell() -> dict:
 
 
 _AI_SYSTEM = (
-    "You are a compliance officer verifying a UK fitness-industry engineer's certificate. "
+    "You are a compliance officer verifying a fitness-industry engineer's "
+    "certificate or work-eligibility document (UK or US). "
     "Look at the supplied image (or PDF first page) and return ONLY a single JSON object with: "
     "`document_type` (lowercase string — e.g. 'dbs_basic', 'dbs_enhanced', 'right_to_work', "
-    "'safeguarding', 'public_liability', 'other'); "
+    "'safeguarding', 'public_liability', 'work_authorization', 'i9', 'us_passport', "
+    "'green_card', 'background_check', 'other'); "
     "`issuee_name` (string or null); "
     "`issuer` (string or null); "
     "`issue_date` (ISO date or null); "
@@ -251,6 +282,11 @@ async def ai_check_document(
             "rtw": "right_to_work" in doc_type_raw or "right to work" in doc_type_raw or "passport" in doc_type_raw,
             "safeguarding": "safeguard" in doc_type_raw or "child_protect" in doc_type_raw,
             "public_liability": "public_liability" in doc_type_raw or "liability" in doc_type_raw or "insurance" in doc_type_raw,
+            "work_authorization": any(t in doc_type_raw for t in (
+                "work_authorization", "work auth", "i9", "i-9", "passport",
+                "green_card", "green card", "ead", "employment authorization", "visa")),
+            "background_check": any(t in doc_type_raw for t in (
+                "background", "criminal", "checkr", "screening")),
         }.get(expected_kind, False)
     )
 
@@ -291,17 +327,18 @@ def sanitise_docs_for_response(docs: dict | None) -> dict:
     return cleaned
 
 
-def overall_status(docs: dict | None) -> dict:
+def overall_status(docs: dict | None, country_code: Optional[str] = None) -> dict:
     """Aggregate flag the dashboard reads to render a single traffic-
-    light badge. Returns ``{verified_count, total: len(DOC_KINDS),
-    blocked: bool}`` where ``blocked`` is True if any uploaded doc
-    has expired."""
+    light badge, evaluated against the engineer's market-specific
+    required doc set. Returns ``{verified_count, total, blocked, complete}``
+    where ``blocked`` is True if any uploaded doc has expired."""
+    kinds = required_doc_kinds(country_code)
     if not docs:
-        return {"verified_count": 0, "total": len(DOC_KINDS), "blocked": False, "complete": False}
+        return {"verified_count": 0, "total": len(kinds), "blocked": False, "complete": False}
     verified = 0
     blocked = False
     now = datetime.now(timezone.utc)
-    for kind in DOC_KINDS:
+    for kind in kinds:
         blob = docs.get(kind) or {}
         if blob.get("verified_at"):
             verified += 1
@@ -313,7 +350,7 @@ def overall_status(docs: dict | None) -> dict:
                 blocked = True
     return {
         "verified_count": verified,
-        "total": len(DOC_KINDS),
+        "total": len(kinds),
         "blocked": blocked,
-        "complete": verified == len(DOC_KINDS),
+        "complete": verified == len(kinds),
     }

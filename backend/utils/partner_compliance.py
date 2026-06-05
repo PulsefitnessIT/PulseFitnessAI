@@ -101,11 +101,15 @@ async def sweep_once() -> dict:
             {"compliance_docs.rtw.expires_at": {"$lte": cutoff}},
             {"compliance_docs.safeguarding.expires_at": {"$lte": cutoff}},
             {"compliance_docs.public_liability.expires_at": {"$lte": cutoff}},
+            # Iter 220p1 — US doc expiries also trigger reminders.
+            {"compliance_docs.work_authorization.expires_at": {"$lte": cutoff}},
+            {"compliance_docs.background_check.expires_at": {"$lte": cutoff}},
         ],
     }
     partners = await db.partner_engineers.find(query, {"_id": 0}).to_list(2000)
     summary = {"checked": len(partners), "reminders_sent": 0, "paused": 0}
-    DOC_KINDS_NESTED = ("dbs", "rtw", "safeguarding", "public_liability")
+    # Iter 220p1 — sweep every supported doc kind (UK + US).
+    from utils.partner_compliance_docs import DOC_KINDS as DOC_KINDS_NESTED
     for partner in partners:
         patch: dict = {}
         # Legacy top-level fields (insurance + qualifications).

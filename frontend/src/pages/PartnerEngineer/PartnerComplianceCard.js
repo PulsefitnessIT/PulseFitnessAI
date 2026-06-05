@@ -26,7 +26,10 @@ const KIND_META = {
   dbs:              { label: 'DBS Disclosure', help: 'Basic, Standard, Enhanced or Enhanced + Barred List' },
   rtw:              { label: 'Right to Work', help: 'Passport, BRP or share code from gov.uk' },
   safeguarding:     { label: 'Safeguarding',  help: 'NSPCC or equivalent — refreshed every 3 years' },
-  public_liability: { label: 'Public Liability', help: 'Minimum £5 m cover recommended' },
+  public_liability: { label: 'Public Liability', help: 'General/public liability insurance — recommended minimum cover' },
+  // Iter 220p1 — US compliance equivalents.
+  work_authorization: { label: 'Work Authorization', help: 'Form I-9, US passport, Green Card, EAD or visa' },
+  background_check:   { label: 'Background Check', help: 'Criminal background screening (e.g. Checkr) — refreshed periodically' },
 };
 
 const DBS_LEVELS = [
@@ -158,6 +161,30 @@ function DocRow({ kind, blob, onUpload }) {
               <input className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white" placeholder="Policy number" value={fields.pl_policy_number || ''} onChange={(e) => setFields((f) => ({ ...f, pl_policy_number: e.target.value }))} data-testid="pl-policy" />
             </>
           )}
+          {kind === 'work_authorization' && (
+            <>
+              <select className="border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white w-full" value={fields.wa_document_type || ''} onChange={(e) => setFields((f) => ({ ...f, wa_document_type: e.target.value }))} data-testid="wa-doc-type">
+                <option value="">Document type…</option>
+                <option value="i9">Form I-9</option>
+                <option value="us_passport">US Passport</option>
+                <option value="green_card">Green Card (Permanent Resident)</option>
+                <option value="ead">Employment Authorization (EAD)</option>
+                <option value="ssn_card">Social Security Card</option>
+                <option value="drivers_license">Driver's License (+ SSN)</option>
+                <option value="visa">Work Visa</option>
+              </select>
+              <input className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white" placeholder="Document / reference number (optional)" value={fields.wa_reference || ''} onChange={(e) => setFields((f) => ({ ...f, wa_reference: e.target.value }))} data-testid="wa-reference" />
+            </>
+          )}
+          {kind === 'background_check' && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white" placeholder="Provider (e.g. Checkr)" value={fields.bg_provider || ''} onChange={(e) => setFields((f) => ({ ...f, bg_provider: e.target.value }))} data-testid="bg-provider" />
+                <input type="date" className="border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white" placeholder="Completed" value={fields.bg_completed_at || ''} onChange={(e) => setFields((f) => ({ ...f, bg_completed_at: e.target.value }))} data-testid="bg-completed" />
+              </div>
+              <input className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white" placeholder="Reference number (optional)" value={fields.bg_reference || ''} onChange={(e) => setFields((f) => ({ ...f, bg_reference: e.target.value }))} data-testid="bg-reference" />
+            </>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <input type="date" className="border border-zinc-200 rounded px-2 py-1.5 text-sm bg-white" placeholder="Expires" value={fields.expires_at || ''} onChange={(e) => setFields((f) => ({ ...f, expires_at: e.target.value }))} data-testid={`compliance-expires-${kind}`} />
             <input type="file" accept=".pdf,.png,.jpg,.jpeg" className="text-xs" onChange={(e) => setFile(e.target.files?.[0] || null)} data-testid={`compliance-file-${kind}`} />
@@ -212,6 +239,10 @@ export default function PartnerComplianceCard() {
   };
 
   const { status, compliance_docs: docs, grace } = data;
+  // Iter 220p1 — claim-unlock docs are market-specific (UK: DBS/RTW;
+  // US: Work Authorization/Background Check).
+  const claimKinds = data.claim_doc_kinds?.length ? data.claim_doc_kinds : ['dbs', 'rtw'];
+  const claimLabels = claimKinds.map((k) => KIND_META[k]?.label || k).join(' or ');
   const verifiedColor = status.complete ? 'text-emerald-700' : status.verified_count > 0 ? 'text-amber-700' : 'text-zinc-500';
 
   return (
@@ -235,7 +266,7 @@ export default function PartnerComplianceCard() {
           <Clock size={14} className="text-blue-600 mt-0.5 shrink-0" />
           <div className="text-[12px] text-blue-900 leading-relaxed">
             <span className="font-bold">You can start taking jobs right away.</span>{' '}
-            Upload your <strong>DBS</strong> or <strong>Right-to-Work</strong> within{' '}
+            Upload your <strong>{claimLabels}</strong> within{' '}
             <strong>{grace.days_left} day{grace.days_left === 1 ? '' : 's'}</strong>
             {grace.until ? <> (by {new Date(grace.until).toLocaleDateString('en-GB')})</> : null}{' '}
             to keep claiming jobs once your trial ends.
@@ -245,8 +276,8 @@ export default function PartnerComplianceCard() {
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2" data-testid="compliance-required-banner">
           <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />
           <div className="text-[12px] text-amber-900 leading-relaxed">
-            <span className="font-bold">Upload your DBS or Right-to-Work to claim new jobs.</span>{' '}
-            Just one of those two unlocks claiming — you don't need all four to get started.
+            <span className="font-bold">Upload your {claimLabels} to claim new jobs.</span>{' '}
+            Just one of those unlocks claiming — you don't need everything to get started.
           </div>
         </div>
       ) : null}
@@ -258,7 +289,7 @@ export default function PartnerComplianceCard() {
         <p className="text-xs text-zinc-400 py-4 text-center">Loading…</p>
       ) : (
         <div className="space-y-2">
-          {['dbs', 'rtw', 'safeguarding', 'public_liability'].map((k) => (
+          {(data.required_kinds && data.required_kinds.length ? data.required_kinds : ['dbs', 'rtw', 'safeguarding', 'public_liability']).map((k) => (
             <DocRow key={k} kind={k} blob={docs[k]} onUpload={upload} />
           ))}
         </div>
