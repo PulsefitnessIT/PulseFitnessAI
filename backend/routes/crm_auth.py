@@ -600,12 +600,10 @@ async def seed_crm_admin():
         "Craig Henshall", role="manager", organization_id=pulse_crm_org_id,
     )
 
-    existing_pipeline = await db.crm_pipelines.find_one({"is_default": True})
-    if not existing_pipeline:
-        await db.crm_pipelines.insert_one({
-            "id": str(uuid.uuid4()), "name": "Sales Pipeline", "is_default": True,
-            "stages": _DEFAULT_PIPELINE_STAGES, "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+    # SEC-008: pipelines are org-scoped — migrate any legacy global pipeline
+    # and ensure every CRM org has its own default pipeline.
+    from utils.crm_pipeline import backfill_org_pipelines
+    await backfill_org_pipelines()
 
 
 

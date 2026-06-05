@@ -21,7 +21,7 @@ async def list_documents(
     user=Depends(get_crm_user),
 ):
     """List CRM documents with optional filters."""
-    query = {}
+    query = {"organization_id": user.get("organization_id")}
     if search:
         query["$or"] = [
             {"original_filename": safe_regex(search)},
@@ -66,6 +66,7 @@ async def upload_document(
 
     doc = {
         "id": str(uuid.uuid4()),
+        "organization_id": user.get("organization_id"),
         "original_filename": file.filename,
         "storage_path": result["path"],
         "download_url": result.get("url", result["path"]),
@@ -89,7 +90,7 @@ async def upload_document(
 @router.get("/{doc_id}")
 async def get_document(doc_id: str, user=Depends(get_crm_user)):
     """Get document metadata."""
-    doc = await db.crm_documents.find_one({"id": doc_id}, {"_id": 0})
+    doc = await db.crm_documents.find_one({"id": doc_id, "organization_id": user.get("organization_id")}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
@@ -98,7 +99,7 @@ async def get_document(doc_id: str, user=Depends(get_crm_user)):
 @router.delete("/{doc_id}")
 async def delete_document(doc_id: str, user=Depends(get_crm_user)):
     """Delete a document."""
-    result = await db.crm_documents.delete_one({"id": doc_id})
+    result = await db.crm_documents.delete_one({"id": doc_id, "organization_id": user.get("organization_id")})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Document not found")
     return {"message": "Document deleted"}

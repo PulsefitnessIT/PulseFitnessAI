@@ -7,7 +7,7 @@
 > Severity: 🔴 High · 🟠 Medium · 🟡 Low · 🟢 Resolved / Good
 > Status: `OPEN` · `FIXED` · `MITIGATED` · `ACCEPTED` · `CONFIG` (deploy-time)
 
-Last full review: **2026-06-05**
+Last full review: **2026-06-05** (incl. authorization/IDOR pass)
 
 ---
 
@@ -21,6 +21,9 @@ Last full review: **2026-06-05**
 | SEC-004 | 🟢 Good | Startup secrets audit (JWT/CORS/Stripe/admin-pw) | ✅ In place |
 | SEC-005 | 🟢 Good | Admin recovery endpoint hardening | ✅ In place |
 | SEC-006 | 🟡 Low | `libmagic` not loaded → upload type validation disabled | OPEN (env dep) |
+| SEC-007 | 🔴 High | CRM cross-tenant IDOR on legacy `/api/crm` CRUD | ✅ FIXED (2026-06-05) |
+| SEC-008 | 🟡 Low | `crm_pipelines` was global shared config (now org-scoped) | ✅ FIXED (2026-06-05) |
+| SEC-009 | 🟢 Good | Master-admin route guarding | ✅ Verified |
 
 ---
 
@@ -128,6 +131,74 @@ isn't loaded → uploads can fail with 415 and MIME sniffing is off. Install
 `libmagic1 file` (see `backend/SYSTEM_DEPS.md`) in the deployment image.
 
 ---
+## SEC-007 — CRM cross-tenant IDOR on legacy `/api/crm` CRUD 🔴
+**Status:** ✅ FIXED — 2026-06-05
+
+**Problem.** The legacy CRM modules fetched/mutated records **by id only**,
+with no `organization_id` filter, so an authenticated CRM user in org A could
+read / update / delete records owned by org B (cross-tenant IDOR):
+- `crm_core.py` — `get/update/delete` for **contacts, companies, deals**
+  (live; `crm_companies` even had 12 org-less legacy rows).
+- `crm_workflows.py` — `list/get/update/delete/toggle` (list returned **all
+  tenants'** workflows; create set no org).
+- `crm_documents.py` — `list/get/delete` + create set no org.
+
+**Fix.** Every by-id read/write now includes the caller's org filter:
+- `crm_core.py`: contacts/companies/deals scoped via `_org_filter(user)`.
+- `crm_workflows.py` & `crm_documents.py`: `organization_id` set on create and
+  enforced on list/get/update/delete/toggle.
+
+**Verification.** Live cross-tenant test + regression
+`tests/test_security_crm_tenant_isolation.py` (1/1): a user in org B gets **404**
+on org A's contact for GET/PUT/DELETE, **200** on its own; the foreign record is
+never mutated.
+
+**Note.** `crm_v2.py` (the newer CRM) was already correctly scoped via `_of(user)`.
+
+**Rule:** every by-id CRM/tenant query MUST include the org filter, even when a
+role guard is present — a role check is NOT a tenant check.
+
+---
+
+## SEC-008 — `crm_pipelines` global shared config → org-scoped 🟡
+**Status:** ✅ FIXED — 2026-06-05
+
+`crm_pipelines` previously held a single global doc (no `organization_id`)
+shared by every tenant, so editing it affected all of them. Now fully
+org-scoped:
+- New `utils/crm_pipeline.py`: `get_or_create_default_pipeline(org_id)` +
+  idempotent `backfill_org_pipelines()` migration. Legacy stage ids
+  ("lead"…"lost") are preserved so existing deals keep resolving.
+- `crm_core.py` dashboard/create_deal/list_pipelines/update_pipeline all
+  scope by org; `update_pipeline` keeps the privileged-role guard.
+- `crm_auth.py` seed runs `backfill_org_pipelines()` at startup (self-heals
+  on deploy); the old global-pipeline seed was removed.
+- `master_admin_crm_analytics._get_pipeline_stages` uses the canonical stage
+  template for its platform-wide rollup (no global doc dependency).
+
+**Migration result (preview):** 1 legacy global pipeline removed, 6 per-org
+defaults created, 0 org-less remaining; re-run is a no-op (idempotent).
+
+**Verification.** `tests/test_security_crm_tenant_isolation.py::test_crm_pipeline_cross_tenant_is_blocked`
+— a user in org B can edit its own pipeline (200) but not org A's (404); the
+foreign pipeline is never mutated. `list_pipelines` returns only the caller's
+own pipeline.
+
+---
+
+## SEC-009 — Master-admin route guarding 🟢
+**Status:** ✅ Verified — 2026-06-05
+
+Audited all `routes/master_admin*.py` + `pulse_master_admin.py`. Every handler
+enforces a guard (`require_master_admin` / `_require_master` / `_require_pulse_or_master`
+/ inline `is_master_admin`). `hard_delete_user` correctly allows master-admin OR
+same-org owner/manager with strong guards. Bulk-import endpoints validate both
+the caller's admin role and the target org's account type. No unguarded
+master-admin endpoints found.
+
+---
+
+
 
 ## Already-good controls (no action needed) 🟢
 - Strong 64-char `JWT_SECRET`; HS256 via `utils/auth.py`.

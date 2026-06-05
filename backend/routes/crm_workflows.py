@@ -35,7 +35,7 @@ async def workflow_meta(user=Depends(get_crm_user)):
 
 @router.get("")
 async def list_workflows(user=Depends(get_crm_user)):
-    workflows = await db.crm_workflows.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    workflows = await db.crm_workflows.find({"organization_id": user.get("organization_id")}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return {"workflows": workflows}
 
 
@@ -47,6 +47,7 @@ async def create_workflow(data: dict, user=Depends(get_crm_user)):
     wf_id = str(uuid.uuid4())
     workflow = {
         "id": wf_id,
+        "organization_id": user.get("organization_id"),
         "name": data.get("name", "Untitled Workflow"),
         "description": data.get("description", ""),
         "active": data.get("active", False),
@@ -68,7 +69,7 @@ async def create_workflow(data: dict, user=Depends(get_crm_user)):
 
 @router.get("/{wf_id}")
 async def get_workflow(wf_id: str, user=Depends(get_crm_user)):
-    wf = await db.crm_workflows.find_one({"id": wf_id}, {"_id": 0})
+    wf = await db.crm_workflows.find_one({"id": wf_id, "organization_id": user.get("organization_id")}, {"_id": 0})
     if not wf:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return wf
@@ -80,7 +81,7 @@ async def update_workflow(wf_id: str, data: dict, user=Depends(get_crm_user)):
         raise HTTPException(status_code=403, detail="Only admins/managers can edit workflows")
     updates = {k: v for k, v in data.items() if k not in ("id", "created_at", "created_by")}
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-    result = await db.crm_workflows.update_one({"id": wf_id}, {"$set": updates})
+    result = await db.crm_workflows.update_one({"id": wf_id, "organization_id": user.get("organization_id")}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Workflow not found")
     await log_audit(user, "workflow", wf_id, "updated")
@@ -91,7 +92,7 @@ async def update_workflow(wf_id: str, data: dict, user=Depends(get_crm_user)):
 async def delete_workflow(wf_id: str, user=Depends(get_crm_user)):
     if user["role"] not in ("admin", "manager"):
         raise HTTPException(status_code=403, detail="Only admins/managers can delete workflows")
-    result = await db.crm_workflows.delete_one({"id": wf_id})
+    result = await db.crm_workflows.delete_one({"id": wf_id, "organization_id": user.get("organization_id")})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Workflow not found")
     await log_audit(user, "workflow", wf_id, "deleted")
@@ -100,11 +101,11 @@ async def delete_workflow(wf_id: str, user=Depends(get_crm_user)):
 
 @router.post("/{wf_id}/toggle")
 async def toggle_workflow(wf_id: str, user=Depends(get_crm_user)):
-    wf = await db.crm_workflows.find_one({"id": wf_id})
+    wf = await db.crm_workflows.find_one({"id": wf_id, "organization_id": user.get("organization_id")})
     if not wf:
         raise HTTPException(status_code=404, detail="Workflow not found")
     new_status = not wf.get("active", False)
-    await db.crm_workflows.update_one({"id": wf_id}, {"$set": {"active": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    await db.crm_workflows.update_one({"id": wf_id, "organization_id": user.get("organization_id")}, {"$set": {"active": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}})
     await log_audit(user, "workflow", wf_id, "toggled", {"active": new_status})
     return {"active": new_status}
 

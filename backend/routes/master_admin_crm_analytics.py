@@ -59,12 +59,15 @@ async def _count_by_field_cursor(cursor, field: str) -> dict[str, int]:
 
 
 async def _get_pipeline_stages() -> list[dict]:
-    """Fetch default pipeline stages with deal counts and values."""
-    pipeline = await db.crm_pipelines.find_one({"is_default": True}, {"_id": 0})
-    if not pipeline:
-        return []
+    """Platform-wide pipeline stage rollup with deal counts and values.
+
+    Pipelines are now org-scoped (SEC-008) so there is no single global
+    pipeline doc; this master view uses the canonical stage template and
+    counts deals across all tenants by stage id.
+    """
+    from utils.crm_pipeline import DEFAULT_PIPELINE_STAGES
     stages = []
-    for stage in pipeline.get("stages", []):
+    for stage in DEFAULT_PIPELINE_STAGES:
         count = await db.crm_deals.count_documents({"stage": stage["id"]})
         total_value = await _aggregate_cursor_values(
             db.crm_deals.find({"stage": stage["id"]}, {"_id": 0, "value": 1}), "value",

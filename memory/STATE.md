@@ -6,7 +6,7 @@
 >
 > **Status legend**: ✅ live & verified · 🟡 live but rough · ⚠️ partial / gated · ❌ broken / mocked
 
-_Last refreshed: Iter 220p1 · Jun 5 2026 — Security hardening (regex-injection/ReDoS swept across ~35 route files via `safe_regex` helpers; CORS locked; fail-closed admin seeding) + US Engineer Compliance verified live (UK→DBS/RTW, US→Work-Auth/Background-Check). SSOT: `/app/memory/SECURITY_AUDIT/findings.md`._
+_Last refreshed: Iter 220p1 · Jun 5 2026 — Security pass: regex-injection/ReDoS swept (~35 files via `safe_regex`); CORS locked; fail-closed admin seeding; CRM cross-tenant IDOR fixed (crm_core/workflows/documents now org-scoped); `crm_pipelines` made org-scoped + migrated (per-tenant defaults); master-admin guards audited. US Engineer Compliance verified live. SSOT: `/app/memory/SECURITY_AUDIT/findings.md`._
 
 ---
 

@@ -8,6 +8,7 @@ import csv
 import io
 
 from utils.database import db
+from utils.crm_pipeline import get_or_create_default_pipeline
 from routes.crm_auth import get_crm_user
 
 router = APIRouter(prefix="/crm", tags=["CRM Core"])
@@ -55,12 +56,12 @@ async def crm_dashboard(user=Depends(get_crm_user)):
     # Recent activities
     recent = await db.crm_activities.find(of, {"_id": 0}).sort("created_at", -1).limit(10).to_list(10)
 
-    # Deals by stage
-    pipeline = await db.crm_pipelines.find_one({"is_default": True}, {"_id": 0})
+    # Deals by stage — org-scoped pipeline + org-scoped counts
+    pipeline = await get_or_create_default_pipeline(user.get("organization_id"))
     stages_summary = []
     if pipeline:
         for stage in pipeline.get("stages", []):
-            count = await db.crm_deals.count_documents({"stage": stage["id"]})
+            count = await db.crm_deals.count_documents({**of, "stage": stage["id"]})
             stages_summary.append({"stage_id": stage["id"], "name": stage["name"], "color": stage["color"], "count": count})
 
     return {
@@ -134,7 +135,7 @@ async def create_contact(data: dict, user=Depends(get_crm_user)):
 
 @router.get("/contacts/{contact_id}")
 async def get_contact(contact_id: str, user=Depends(get_crm_user)):
-    contact = await db.crm_contacts.find_one({"id": contact_id}, {"_id": 0})
+    contact = await db.crm_contacts.find_one({"id": contact_id, **_org_filter(user)}, {"_id": 0})
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     # Get activities
@@ -146,19 +147,19 @@ async def get_contact(contact_id: str, user=Depends(get_crm_user)):
 
 @router.put("/contacts/{contact_id}")
 async def update_contact(contact_id: str, data: dict, user=Depends(get_crm_user)):
-    existing = await db.crm_contacts.find_one({"id": contact_id})
+    existing = await db.crm_contacts.find_one({"id": contact_id, **_org_filter(user)})
     if not existing:
         raise HTTPException(status_code=404, detail="Contact not found")
     updates = {k: v for k, v in data.items() if k not in ("id", "created_at", "created_by")}
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.crm_contacts.update_one({"id": contact_id}, {"$set": updates})
+    await db.crm_contacts.update_one({"id": contact_id, **_org_filter(user)}, {"$set": updates})
     await log_audit(user, "contact", contact_id, "updated", updates)
     return {"status": "updated"}
 
 
 @router.delete("/contacts/{contact_id}")
 async def delete_contact(contact_id: str, user=Depends(get_crm_user)):
-    result = await db.crm_contacts.delete_one({"id": contact_id})
+    result = await db.crm_contacts.delete_one({"id": contact_id, **_org_filter(user)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Contact not found")
     await log_audit(user, "contact", contact_id, "deleted")
@@ -232,11 +233,11 @@ async def create_company(data: dict, user=Depends(get_crm_user)):
 
 @router.get("/companies/{company_id}")
 async def get_company(company_id: str, user=Depends(get_crm_user)):
-    company = await db.crm_companies.find_one({"id": company_id}, {"_id": 0})
+    company = await db.crm_companies.find_one({"id": company_id, **_org_filter(user)}, {"_id": 0})
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
-    contacts = await db.crm_contacts.find({"company_id": company_id}, {"_id": 0}).to_list(100)
-    deals = await db.crm_deals.find({"company_id": company_id}, {"_id": 0}).to_list(100)
+    contacts = await db.crm_contacts.find({"company_id": company_id, **_org_filter(user)}, {"_id": 0}).to_list(100)
+    deals = await db.crm_deals.find({"company_id": company_id, **_org_filter(user)}, {"_id": 0}).to_list(100)
     return {**company, "contacts": contacts, "deals": deals}
 
 
@@ -244,7 +245,7 @@ async def get_company(company_id: str, user=Depends(get_crm_user)):
 async def update_company(company_id: str, data: dict, user=Depends(get_crm_user)):
     updates = {k: v for k, v in data.items() if k not in ("id", "created_at", "created_by")}
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-    result = await db.crm_companies.update_one({"id": company_id}, {"$set": updates})
+    result = await db.crm_companies.update_one({"id": company_id, **_org_filter(user)}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Company not found")
     await log_audit(user, "company", company_id, "updated", updates)
@@ -253,7 +254,7 @@ async def update_company(company_id: str, data: dict, user=Depends(get_crm_user)
 
 @router.delete("/companies/{company_id}")
 async def delete_company(company_id: str, user=Depends(get_crm_user)):
-    result = await db.crm_companies.delete_one({"id": company_id})
+    result = await db.crm_companies.delete_one({"id": company_id, **_org_filter(user)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Company not found")
     await log_audit(user, "company", company_id, "deleted")
@@ -280,7 +281,7 @@ async def create_deal(data: dict, user=Depends(get_crm_user)):
     # Get default pipeline if none specified
     pipeline_id = data.get("pipeline_id")
     if not pipeline_id:
-        default_pipeline = await db.crm_pipelines.find_one({"is_default": True}, {"_id": 0})
+        default_pipeline = await get_or_create_default_pipeline(user.get("organization_id"))
         pipeline_id = default_pipeline["id"] if default_pipeline else None
 
     deal = {
@@ -338,7 +339,7 @@ async def create_deal(data: dict, user=Depends(get_crm_user)):
 
 @router.put("/deals/{deal_id}")
 async def update_deal(deal_id: str, data: dict, user=Depends(get_crm_user)):
-    existing = await db.crm_deals.find_one({"id": deal_id}, {"_id": 0})
+    existing = await db.crm_deals.find_one({"id": deal_id, **_org_filter(user)}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Deal not found")
 
@@ -366,14 +367,14 @@ async def update_deal(deal_id: str, data: dict, user=Depends(get_crm_user)):
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
 
-    await db.crm_deals.update_one({"id": deal_id}, {"$set": updates})
+    await db.crm_deals.update_one({"id": deal_id, **_org_filter(user)}, {"$set": updates})
     await log_audit(user, "deal", deal_id, "updated", updates)
     return {"status": "updated"}
 
 
 @router.delete("/deals/{deal_id}")
 async def delete_deal(deal_id: str, user=Depends(get_crm_user)):
-    result = await db.crm_deals.delete_one({"id": deal_id})
+    result = await db.crm_deals.delete_one({"id": deal_id, **_org_filter(user)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Deal not found")
     await log_audit(user, "deal", deal_id, "deleted")
@@ -383,14 +384,24 @@ async def delete_deal(deal_id: str, user=Depends(get_crm_user)):
 # ==================== PIPELINE ====================
 @router.get("/pipelines")
 async def list_pipelines(user=Depends(get_crm_user)):
-    pipelines = await db.crm_pipelines.find({}, {"_id": 0}).to_list(20)
+    org_id = user.get("organization_id")
+    await get_or_create_default_pipeline(org_id)  # ensure the org has at least one
+    pipelines = await db.crm_pipelines.find({"organization_id": org_id}, {"_id": 0}).to_list(20)
     return {"pipelines": pipelines}
 
 
 @router.put("/pipelines/{pipeline_id}")
 async def update_pipeline(pipeline_id: str, data: dict, user=Depends(get_crm_user)):
-    updates = {k: v for k, v in data.items() if k not in ("id",)}
-    result = await db.crm_pipelines.update_one({"id": pipeline_id}, {"$set": updates})
+    # Pipelines are org-scoped (SEC-008). Editing is further limited to
+    # privileged roles so a low-privilege CRM user (sales_rep/analyst/finance)
+    # can't rewrite their org's shared pipeline config.
+    if not (user.get("is_master_admin") or user.get("is_pulse_admin")
+            or user.get("role") in ("owner", "admin", "manager")):
+        raise HTTPException(status_code=403, detail="Insufficient permissions to edit the pipeline")
+    updates = {k: v for k, v in data.items() if k not in ("id", "organization_id")}
+    result = await db.crm_pipelines.update_one(
+        {"id": pipeline_id, "organization_id": user.get("organization_id")}, {"$set": updates},
+    )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return {"status": "updated"}
@@ -841,3 +852,4 @@ async def remove_crm_user(user_id: str, user=Depends(get_crm_user)):
     await db.crm_users.delete_one({"id": user_id})
     await log_audit(user, "user", user_id, "removed", {"email": target.get("email")})
     return {"message": "User removed"}
+
