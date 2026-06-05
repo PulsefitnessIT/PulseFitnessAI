@@ -1768,10 +1768,10 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
     company_name = ""
     contact_name = ""
     if data.get("company_id"):
-        co = await db.crm2_companies.find_one({"id": data["company_id"]}, {"_id": 0, "name": 1})
+        co = await db.crm2_companies.find_one({"id": data["company_id"], **_of(user)}, {"_id": 0, "name": 1})
         company_name = (co or {}).get("name", "")
     if data.get("contact_id"):
-        ct = await db.crm2_contacts.find_one({"id": data["contact_id"]}, {"_id": 0, "first_name": 1, "last_name": 1})
+        ct = await db.crm2_contacts.find_one({"id": data["contact_id"], **_of(user)}, {"_id": 0, "first_name": 1, "last_name": 1})
         if ct:
             contact_name = f"{ct.get('first_name', '')} {ct.get('last_name', '')}".strip()
     quote = {
@@ -3845,6 +3845,8 @@ async def send_quote_email(quote_id: str, data: dict, user=Depends(get_crm_user)
             html=body_html,
             cc=cc or None,
             attachments=[attachment],
+            organization_id=user.get("organization_id"),
+            kind="crm_quote",
         )
     except Exception as exc:
         logger.exception("[crm.quote_send_email] failed")

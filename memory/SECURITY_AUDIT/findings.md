@@ -25,6 +25,7 @@ Last full review: **2026-06-05** (incl. authorization/IDOR pass)
 | SEC-008 | 🟡 Low | `crm_pipelines` was global shared config (now org-scoped) | ✅ FIXED (2026-06-05) |
 | SEC-009 | 🟢 Good | Master-admin route guarding | ✅ Verified |
 | SEC-010 | 🟢 Good | Service-ops (svc) tenant scoping | ✅ Verified — no IDOR |
+| SEC-011 | 🟡 Low | Quote create: company/contact name lookup not org-scoped | ✅ FIXED (2026-06-05) |
 
 ---
 

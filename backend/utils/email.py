@@ -340,6 +340,7 @@ async def send_email(
     html: str,
     attachments: list[dict] | None = None,
     *,
+    cc: list[str] | str | None = None,
     organization_id: str | None = None,
     kind: str | None = None,
     category: str | None = None,
@@ -426,6 +427,8 @@ async def send_email(
         }
         if reply_to:
             params["reply_to"] = reply_to
+        if cc:
+            params["cc"] = cc if isinstance(cc, list) else [cc]
         if attachments:
             params["attachments"] = attachments
         # Iter 216h100 — gate the actual Resend HTTP call through the
