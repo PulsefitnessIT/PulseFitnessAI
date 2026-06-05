@@ -24,6 +24,7 @@ Last full review: **2026-06-05** (incl. authorization/IDOR pass)
 | SEC-007 | 🔴 High | CRM cross-tenant IDOR on legacy `/api/crm` CRUD | ✅ FIXED (2026-06-05) |
 | SEC-008 | 🟡 Low | `crm_pipelines` was global shared config (now org-scoped) | ✅ FIXED (2026-06-05) |
 | SEC-009 | 🟢 Good | Master-admin route guarding | ✅ Verified |
+| SEC-010 | 🟢 Good | Service-ops (svc) tenant scoping | ✅ Verified — no IDOR |
 
 ---
 
@@ -195,6 +196,24 @@ enforces a guard (`require_master_admin` / `_require_master` / `_require_pulse_o
 same-org owner/manager with strong guards. Bulk-import endpoints validate both
 the caller's admin role and the target org's account type. No unguarded
 master-admin endpoints found.
+
+---
+
+
+## SEC-010 — Service-ops (svc) tenant scoping 🟢
+**Status:** ✅ Verified — no IDOR — 2026-06-05
+
+Audited the full `routes/svc/` surface (engineer invoices, quotes, parts, parts
+catalogue, inventory/purchase-orders, equipment, customers, cases, scheduler,
+billing). Every by-id read/write is tenant-safe via one of:
+- direct org filter `{**_of(user), "id": ...}` / `{"organization_id": org_id, "id": ...}`,
+- a 2-step ownership load (`_get_invoice_or_404` / `_get_quote_or_404` check
+  `engineer_id == user.id`; PO/case/quote handlers load with `**of` before the
+  by-id update),
+- or self-scoped writes (`{"id": user["id"]}` for the caller's own record).
+
+No cross-tenant IDOR found. Unlike the legacy v1 CRM modules (SEC-007), the svc
+module was built with consistent scoping discipline.
 
 ---
 
