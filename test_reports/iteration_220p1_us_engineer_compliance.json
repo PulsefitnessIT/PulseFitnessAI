@@ -1,0 +1,52 @@
+{
+  "summary": "Slice 8 (US Engineer Compliance) — PartnerComplianceCard dynamically renders the US doc set returned by /api/partners/me/compliance-docs (required_kinds=['work_authorization','background_check','public_liability'], country_code=US). All 5 acceptance criteria PASS. Engineer dashboard loaded for engineer.smoke@gymaxisai.com; only US doc rows rendered; UK rows DBS/RTW/Safeguarding ABSENT; both upload forms (work_authorization + background_check) open with the correct US-specific fields; grace banner references 'Work Authorization or Background Check'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Partner Engineer dashboard - 'Your first 7 days' onboarding checklist",
+        "issues": [
+          "Onboarding step 'Upload your first compliance doc' description is still hardcoded UK-only: 'DBS, Right-to-Work, Safeguarding or Public Liability. Any one of the four counts here.' This text does NOT switch to US doc names (Work Authorization / Background Check) when the org is US-based. The PartnerComplianceCard itself is dynamic, but the OnboardingChecklist tile is not. Non-blocking for Slice 8 but recommended follow-up for full US localisation parity."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL/FOLLOW-UP: Make the 'Upload your first compliance doc' onboarding-checklist tile description market-aware (use claim_doc_kinds labels) so US orgs don't see 'DBS, Right-to-Work, Safeguarding or Public Liability'."
+  ],
+  "critical_code_review_comments": [
+    "PartnerComplianceCard.js correctly uses (data.required_kinds || fallback).map() at line 292 — fallback list ['dbs','rtw','safeguarding','public_liability'] is sensible. claimKinds at line 244 also reads from data.claim_doc_kinds with the UK fallback. Defensive and backward-compatible.",
+    "Header comment block at top of file (lines 5-6) still names UK docs only ('DBS, Right to Work, Safeguarding, Public Liability'). Cosmetic: update the docstring to mention US docs too.",
+    "Inline banner copy at lines 263 ('the deadline nudges them to upload DBS / RTW before grace lapses') is now a stale comment — the banner actually pulls claimLabels dynamically. Cosmetic only."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100% (5/5 acceptance criteria)" },
+  "test_credentials": "engineer.smoke@gymaxisai.com / EngTest123!  (partner_engineer, approved, org country_code=US)",
+  "seed_data_creation": "None — used existing engineer.smoke user with org country_code temporarily set to US by main agent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Slice 8 (US Engineer Compliance) verified end-to-end on /partner-engineer. API GET /api/partners/me/compliance-docs returned required_kinds=['work_authorization','background_check','public_liability'], claim_doc_kinds=['work_authorization','background_check'], country_code='US'. UI rendered exactly those 3 rows and hid DBS/RTW/Safeguarding. wa-doc-type dropdown contains: Form I-9, US Passport, Green Card (Permanent Resident), Employment Authorization (EAD), Social Security Card, Driver's License (+ SSN), Work Visa (plus the empty placeholder). bg-provider placeholder = 'Provider (e.g. Checkr)'. Grace banner text: 'Upload your Work Authorization or Background Check within 4 days...'. compliance-summary text: '0/3 verified · 4d left to upload'. Main agent can self-verify by reverting org country_code and confirming UK rows return. Note follow-up: OnboardingChecklist 'Upload your first compliance doc' tile still has UK-only hardcoded description.",
+  "test_results_detail": {
+    "api_required_kinds": ["work_authorization", "background_check", "public_liability"],
+    "api_claim_doc_kinds": ["work_authorization", "background_check"],
+    "api_country_code": "US",
+    "dashboard_loaded": true,
+    "compliance_card_found": true,
+    "rows_present": {
+      "work_authorization": true,
+      "background_check": true,
+      "public_liability": true,
+      "dbs": false,
+      "rtw": false,
+      "safeguarding": false
+    },
+    "compliance_summary": "0/3 verified · 4d left to upload",
+    "banner_type": "grace",
+    "banner_text_excerpt": "You can start taking jobs right away. Upload your Work Authorization or Background Check within 4 days (by 08/06/2026) to keep claiming jobs once your trial ends.",
+    "wa_form": { "opens": true, "doc_type_select": true, "reference_input": true, "options": ["Document type…","Form I-9","US Passport","Green Card (Permanent Resident)","Employment Authorization (EAD)","Social Security Card","Driver's License (+ SSN)","Work Visa"] },
+    "bg_form": { "opens": true, "provider_input": true, "completed_date_input": true, "reference_input": true, "provider_placeholder": "Provider (e.g. Checkr)" }
+  }
+}
