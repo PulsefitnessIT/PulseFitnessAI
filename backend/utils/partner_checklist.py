@@ -50,9 +50,37 @@ def _step(key: str, label: str, hint: str, done: bool, completed_at: Optional[da
     }
 
 
-def build_checklist(partner: dict, referrals_count: int) -> dict:
+# Iter 220p1 — friendly labels per compliance doc kind so the checklist
+# hint follows the engineer's market (UK: DBS/RTW; US: Work Auth/Background).
+_DOC_LABELS = {
+    "dbs": "DBS",
+    "rtw": "Right-to-Work",
+    "safeguarding": "Safeguarding",
+    "public_liability": "Public Liability",
+    "work_authorization": "Work Authorization",
+    "background_check": "Background Check",
+}
+
+
+def _compliance_hint(country_code: Optional[str]) -> str:
+    """Market-aware hint for the 'upload your first compliance doc' step."""
+    from utils.partner_compliance_docs import required_doc_kinds
+    labels = [_DOC_LABELS.get(k, k) for k in required_doc_kinds(country_code)]
+    if len(labels) > 1:
+        joined = ", ".join(labels[:-1]) + " or " + labels[-1]
+    elif labels:
+        joined = labels[0]
+    else:
+        joined = "a compliance doc"
+    return f"{joined}. Any one of them counts here."
+
+
+def build_checklist(partner: dict, referrals_count: int, country_code: Optional[str] = None) -> dict:
     """Pure function — given a partner doc + the count of referrals,
-    return the full checklist payload the dashboard renders."""
+    return the full checklist payload the dashboard renders.
+
+    ``country_code`` drives the market-specific compliance hint (defaults
+    to the UK doc set for back-compat)."""
     cl_acks = partner.get("checklist") or {}
     sub = partner.get("subscription") or {}
     compliance = partner.get("compliance_docs") or {}
@@ -81,7 +109,7 @@ def build_checklist(partner: dict, referrals_count: int) -> dict:
               "Takes about 3 minutes — required to take card payments from customers on your invoices.",
               done=stripe_connect_ready),
         _step("compliance_uploaded", "Upload your first compliance doc",
-              "DBS, Right-to-Work, Safeguarding or Public Liability. Any one of the four counts here.",
+              _compliance_hint(country_code),
               done=any_compliance_uploaded),
         _step("referral_link_copied", "Copy your referral link",
               "Share it with a gym contact this week. The link is at the top of this page.",

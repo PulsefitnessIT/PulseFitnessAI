@@ -6,7 +6,7 @@
 >
 > **Status legend**: ✅ live & verified · 🟡 live but rough · ⚠️ partial / gated · ❌ broken / mocked
 
-_Last refreshed: Iter 220m · May 26 2026 — Partner Engineer journey RELEASE-READY (P0 gates + P1 polish + monthly reputation reports shipped)._
+_Last refreshed: Iter 220p1 · Jun 5 2026 — Security hardening (regex-injection/ReDoS swept across ~35 route files via `safe_regex` helpers; CORS locked; fail-closed admin seeding) + US Engineer Compliance verified live (UK→DBS/RTW, US→Work-Auth/Background-Check). SSOT: `/app/memory/SECURITY_AUDIT/findings.md`._
 
 ---
 

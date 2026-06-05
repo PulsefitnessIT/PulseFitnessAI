@@ -2430,7 +2430,7 @@ async def get_my_checklist(user: dict = Depends(get_current_user)):
     if not partner:
         raise HTTPException(404, "Not a partner — apply first.")
     referrals_count = await db.partner_referrals.count_documents({"partner_id": partner["id"]})
-    return {"checklist": build_checklist(partner, referrals_count)}
+    return {"checklist": build_checklist(partner, referrals_count, await _compliance_country(user))}
 
 
 @router.post("/partners/me/checklist/ack")
@@ -2455,7 +2455,7 @@ async def ack_my_checklist_step(body: dict = Body(...), user: dict = Depends(get
                      action="checklist_acked", after={"key": key})
         partner["checklist"] = {**cl, f"{key}_at": _now()}
     referrals_count = await db.partner_referrals.count_documents({"partner_id": partner["id"]})
-    return {"ok": True, "checklist": build_checklist(partner, referrals_count)}
+    return {"ok": True, "checklist": build_checklist(partner, referrals_count, await _compliance_country(user))}
 
 
 @router.get("/partners/me/collateral/{kind}")
