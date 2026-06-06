@@ -71,3 +71,17 @@ export function getTasksForType(type) {
   }
   return DEFAULT_TASKS;
 }
+
+/**
+ * True when `type` maps to a real per-type checklist (Treadmill, Upright Bike…).
+ * Broad categories like "Cardiovascular" return false, so the grouping logic
+ * knows to fall back to name-based classification instead of lumping every
+ * machine in the category together under the generic default checklist.
+ */
+export function isKnownType(type) {
+  if (!type) return false;
+  const lower = type.toLowerCase();
+  return Object.keys(EQUIPMENT_TYPE_TASKS).some(
+    key => lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower),
+  );
+}

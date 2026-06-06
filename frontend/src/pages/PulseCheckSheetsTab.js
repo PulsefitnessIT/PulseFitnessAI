@@ -10,7 +10,7 @@ import {
   ClipboardCheck, Plus, Calendar, History, BarChart3, Trash2, Search,
 } from 'lucide-react';
 
-import { classifyByName, getTasksForType } from './pulseCheckSheets/constants';
+import { classifyByName, getTasksForType, isKnownType } from './pulseCheckSheets/constants';
 import EquipmentGroupCard from './pulseCheckSheets/EquipmentGroupCard';
 import CompleteSheetDialog from './pulseCheckSheets/CompleteSheetDialog';
 import CreateTemplateDialog from './pulseCheckSheets/CreateTemplateDialog';
@@ -191,9 +191,15 @@ const PulseCheckSheetsTab = ({ equipment }) => {
   const grouped = [];
   const typeMap = {};
   for (const eq of filtered) {
-    const type = (eq.equipment_type && eq.equipment_type.trim())
-      || classifyByName(eq.name)
-      || 'Uncategorised';
+    // Pulse imports often store a broad CATEGORY ("Cardiovascular") in
+    // equipment_type, which would lump every cardio machine into one group
+    // under the generic checklist. Trust an explicit type only when it maps
+    // to a real per-type checklist; otherwise classify by the machine name so
+    // each type (Treadmill / Upright Bike / Rower…) groups with its own tasks.
+    const explicit = (eq.equipment_type && eq.equipment_type.trim()) || '';
+    const type = isKnownType(explicit)
+      ? explicit
+      : (classifyByName(eq.name) || explicit || 'Uncategorised');
     if (!typeMap[type]) {
       typeMap[type] = { equipment_type: type, machines: [] };
       grouped.push(typeMap[type]);
