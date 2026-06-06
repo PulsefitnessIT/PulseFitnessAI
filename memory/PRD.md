@@ -27833,3 +27833,8 @@ customer email is on file, it shows an info toast and jumps to the Complete tab.
 Refactored the banner into a `ClosedJobBanner` component in `EngineerJobDetailV2.js`.
 Verified live on SVC-00410.
 
+
+---
+## Iter 221 — Check Sheets machine identification (Jun 6, 2026)
+- Operations Portal → Check Sheets: machine chips in `EquipmentGroupCard.jsx` now render **machine name + serial** (e.g. "Integrity X Treadmill · S/N LIF-TS00") instead of raw serial only, so engineers can identify which physical unit to check. Completion-key logic unchanged (serial-first). Grouping remains by Equipment Type. Verified via screenshot on Third Space (jack.ottey).
+- Backlog (held per user): export 54-product Pulse price list CSV from Preview ("GymAxis AI Admin" org) for Production re-upload.

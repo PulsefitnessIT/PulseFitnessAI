@@ -40,14 +40,27 @@ const EquipmentGroupCard = ({ group, completedTodayNames, onStart }) => {
           </div>
           <div className="flex flex-wrap gap-1 mb-1">
             {group.machines.map(m => {
+              // Completion key must stay serial-first to match handleStartSheet /
+              // the fan-out payloads. The *label* leads with the machine
+              // name/asset so engineers can tell which physical unit to check.
               const sn = m.serial_number || m.name;
               const isChecked = completedTodayNames.has(`${group.equipment_type} - ${sn}`);
+              const name = (m.name || '').trim();
+              const serial = (m.serial_number || '').trim();
+              const label = name && serial
+                ? `${name} · S/N ${serial}`
+                : (name || (serial ? `S/N ${serial}` : 'Unlabelled'));
               const chipClass = isChecked
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                 : 'bg-zinc-50 border-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:border-zinc-800';
               return (
-                <span key={m.id} className={`text-xs px-2 py-0.5 rounded border ${chipClass}`}>
-                  {isChecked && <CheckCircle size={9} className="inline mr-0.5" />}{sn}
+                <span
+                  key={m.id}
+                  title={label}
+                  className={`text-xs px-2 py-0.5 rounded border ${chipClass}`}
+                  data-testid={`pulse-machine-chip-${sn}`}
+                >
+                  {isChecked && <CheckCircle size={9} className="inline mr-0.5" />}{label}
                 </span>
               );
             })}
