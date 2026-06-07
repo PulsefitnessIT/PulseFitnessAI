@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Plus, FileText, ChevronRight, ArrowLeft, Building2, MapPin,
-  Calendar, DollarSign, Shield, Clock, CheckCircle, AlertTriangle,
+  Calendar, Shield, Clock, CheckCircle, AlertTriangle,
   Edit2, Trash2, X, Wrench, Activity, Copy, Send, ThumbsUp,
   ThumbsDown, RefreshCw, Link2, PenTool, BarChart3,
   Settings2, ExternalLink, Zap, Sparkles
@@ -16,10 +16,12 @@ import { ContractMatrix } from './Contracts/ContractMatrix';
 import { useContractCatalog, useContractTemplates } from './Contracts/contractCatalog';
 import { ContractsReportsDashboard, ContractsRenewalsDashboard } from './Contracts/ContractDashboards';
 import { ContractReviewQueue, useWorkspaceMode } from './Contracts/ContractReviewQueue';
+import CurrencyIcon from '@/components/shared/CurrencyIcon';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const TIER_COLORS = { warranty: 'var(--color-text-faint-alt)', bronze: 'var(--color-bronze)', silver: 'var(--color-silver)', gold: 'var(--color-gold)', platinum: '#E5E4E2', bespoke: 'var(--color-accent-violet)' };
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', sent: 'var(--color-info-ios)', negotiation: 'var(--color-accent-magenta)', signed: 'var(--color-success-alt)', active: 'var(--color-info-ios)', expiring: 'var(--color-accent-amber)', expired: 'var(--color-danger-alt)', renewed: 'var(--color-success-alt)', cancelled: 'var(--color-danger)', amended: 'var(--color-accent-violet)' };
-const fmt = v => `£${(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`;
+const fmt = v => formatMoneySync(v, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 /* ═══ STAT CARD ═══ */
@@ -145,7 +147,7 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
           <StatCard label="Draft" value={stats.draft} icon={Edit2} color="var(--color-text-faint-alt)" isDark={isDark} c={c} />
           <StatCard label="Pending Approval" value={stats.pending_approval} icon={Clock} color="var(--color-warning)" isDark={isDark} c={c} />
           <StatCard label="Expiring Soon" value={stats.expiring_soon} sub="90 days" icon={AlertTriangle} color="var(--color-accent-amber)" isDark={isDark} c={c} />
-          <StatCard label="Active Value" value={fmt(stats.active_annual_value)} sub="/yr" icon={DollarSign} color="var(--color-success-alt)" isDark={isDark} c={c} />
+          <StatCard label="Active Value" value={fmt(stats.active_annual_value)} sub="/yr" icon={CurrencyIcon} color="var(--color-success-alt)" isDark={isDark} c={c} />
         </div>
       )}
 
@@ -603,7 +605,7 @@ function ServiceTab({ contract, contractId, API, headers, isDark, c, reload }) {
         <div className="p-4 rounded-xl border" style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-info-ios)20' }}>
-              <DollarSign size={15} style={{ color: 'var(--color-info-ios)' }} />
+              <CurrencyIcon size={15} style={{ color: 'var(--color-info-ios)' }} />
             </div>
             <div>
               <p className="text-sm font-semibold" style={{ color: c.text }}>Sage 200</p>
@@ -957,7 +959,7 @@ function BillingTab({ contract, isDark, c }) {
       <p className="text-sm font-medium mb-3" style={{ color: c.text }}>Billing & Financials</p>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="p-4 rounded-xl border" style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
-          <DollarSign size={14} style={{ color: 'var(--color-success-alt)' }} />
+          <CurrencyIcon size={14} style={{ color: 'var(--color-success-alt)' }} />
           <p className="text-xl font-bold mt-2" style={{ color: 'var(--color-success-alt)' }}>{fmt(contract.annual_value)}</p>
           <p className="text-[10px] uppercase" style={{ color: c.textDim }}>Annual Value</p>
         </div>
@@ -1214,7 +1216,7 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
     { id: 'compare', label: 'Compare', icon: BarChart3 },
     { id: 'sla', label: 'SLA & Coverage', icon: Shield },
     { id: 'service', label: 'Service Integration', icon: Link2 },
-    { id: 'billing', label: 'Billing', icon: DollarSign },
+    { id: 'billing', label: 'Billing', icon: CurrencyIcon },
     { id: 'approvals', label: 'Approvals', icon: CheckCircle },
     { id: 'timeline', label: 'Timeline', icon: Activity },
   ];
@@ -1299,7 +1301,7 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
         <div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             {[
-              { l: 'Annual Value', v: fmt(contract.annual_value), icon: DollarSign, color: 'var(--color-success-alt)' },
+              { l: 'Annual Value', v: fmt(contract.annual_value), icon: CurrencyIcon, color: 'var(--color-success-alt)' },
               { l: 'Billing', v: contract.billing_frequency?.replace('_', ' '), icon: Calendar, color: 'var(--color-info-ios)' },
               { l: 'Start Date', v: fmtDate(contract.start_date), icon: Calendar, color: 'var(--color-success-alt-2)' },
               { l: 'End Date', v: fmtDate(contract.end_date), icon: Clock, color: 'var(--color-accent-amber)' },
@@ -1434,6 +1436,7 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
 /* ═══ MAIN EXPORT ═══ */
 export default function CRMContracts() {
   const crm = useCRM();
+  useLocalization(); // warm currency cache so money + icons follow the org market
   const { navTarget, setNavTarget } = crm;
   const [selectedId, setSelectedId] = useState(null);
   const [view, setView] = useState('list'); // 'list' | 'renewals' | 'reports' | 'review'

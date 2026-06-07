@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  TrendingUp, Users, Building2, Target, AlertTriangle, CheckCircle, FileText, Phone, Mail, Calendar, DollarSign, Briefcase, Activity, ChevronRight, Zap, Wrench,
+  TrendingUp, Users, Building2, Target, AlertTriangle, CheckCircle, FileText, Phone, Mail, Calendar, Briefcase, Activity, ChevronRight, Zap, Wrench,
   AlertCircle, PieChart, Award, UserCheck
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';
+import CurrencyIcon from '@/components/shared/CurrencyIcon';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
-const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const fmt = (n) => formatMoneySync(n, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 const STAGE_COLORS = {
   lead: 'var(--color-text-faint-alt)', qualified: 'var(--color-accent-violet)', discovery: 'var(--color-info)', solution: 'var(--color-cyan-500)',
@@ -245,7 +247,7 @@ function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isD
   const kpis = [
     { label: 'Pipeline Value', value: fmt(data.pipeline_value), icon: TrendingUp, color: 'var(--color-info-ios)', sub: `${data.active_opportunities} active`, click: () => setActiveTab('pipeline') },
     { label: 'Weighted Forecast', value: fmt(data.weighted_forecast), icon: Target, color: 'var(--color-success-alt)', sub: 'Probability-weighted' },
-    { label: 'Won Revenue', value: fmt(data.won_revenue), icon: DollarSign, color: 'var(--color-success-ios)', sub: `${data.win_rate}% win rate` },
+    { label: 'Won Revenue', value: fmt(data.won_revenue), icon: CurrencyIcon, color: 'var(--color-success-ios)', sub: `${data.win_rate}% win rate` },
     { label: 'Service Revenue YTD', value: fmt(serviceRevenue?.total_net), icon: Wrench, color: 'var(--color-accent-violet)', sub: `${serviceRevenue?.invoice_count || 0} invoices` },
     { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: data.open_cases > 0 ? 'var(--color-accent-amber)' : 'var(--color-success-alt)', sub: 'Service' },
     { label: 'Tasks Due', value: data.tasks_due, icon: CheckCircle, color: data.tasks_due > 0 ? 'var(--color-danger-alt)' : 'var(--color-success-alt)', sub: 'Incomplete', click: () => setActiveTab('inbox') },
@@ -357,7 +359,7 @@ function _DirectorDash({ data, serviceRevenue, stagnating, wfRuns, isDark, c, na
   const kpis = [
     { label: 'Pipeline Value', value: fmt(data.pipeline_value), icon: TrendingUp, color: 'var(--color-info-ios)', sub: `${data.active_opportunities} deals`, click: () => setActiveTab('pipeline') },
     { label: 'Weighted Forecast', value: fmt(data.weighted_forecast), icon: Target, color: 'var(--color-success-alt)', sub: 'Expected revenue' },
-    { label: 'Won Revenue', value: fmt(data.won_revenue), icon: DollarSign, color: 'var(--color-success-ios)', sub: `${data.won_count || 0} deals won` },
+    { label: 'Won Revenue', value: fmt(data.won_revenue), icon: CurrencyIcon, color: 'var(--color-success-ios)', sub: `${data.won_count || 0} deals won` },
     { label: 'Service Revenue YTD', value: fmt(serviceRevenue?.total_net), icon: Wrench, color: 'var(--color-accent-violet)', sub: `${serviceRevenue?.invoice_count || 0} invoices` },
     { label: 'Win Rate', value: `${data.win_rate}%`, icon: Award, color: data.win_rate >= 50 ? 'var(--color-success-alt)' : 'var(--color-accent-amber)', sub: `${data.lost_count || 0} lost` },
     { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Service backlog' },
@@ -402,6 +404,7 @@ function _DirectorDash({ data, serviceRevenue, stagnating, wfRuns, isDark, c, na
 
 /* ═══ MAIN DASHBOARD ═══ */
 export default function CRMDashboard() {
+  useLocalization();
   const { API, headers, c, isDark, setActiveTab, navigateTo, user, setStaffFilter: ctxSetStaffFilter } = useCRM();
   const [data, setData] = useState(null);
   const [tasks, setTasks] = useState([]);

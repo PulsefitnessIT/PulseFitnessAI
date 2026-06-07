@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { formatMoneySync } from '@/utils/localization';
 import { useCRM } from './CRMApp';
 import {
   Plus, FileText, Upload, Trash2, ChevronRight, ArrowLeft, Award,
@@ -1373,7 +1374,7 @@ function TenderAnalyticsTab({ API, headers, c, isDark }) {
   }
   if (!data) return null;
 
-  const fmt = (n) => `£${Math.round(n || 0).toLocaleString('en-GB')}`;
+  const fmt = (n) => formatMoneySync(n, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const decided = data.decided || 0;
 
   if (decided === 0) {

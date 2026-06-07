@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, Search, Target, DollarSign, Calendar, User, Building2, ArrowLeft, GripVertical, List, LayoutGrid, X, FileText, CheckCircle, Edit2, Printer,
+  Plus, Search, Target, Calendar, User, Building2, ArrowLeft, GripVertical, List, LayoutGrid, X, FileText, CheckCircle, Edit2, Printer,
   GitBranch, Award,
 } from 'lucide-react';
+import CurrencyIcon from '@/components/shared/CurrencyIcon';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 import axios from 'axios';
 import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
@@ -22,7 +24,7 @@ const STAGE_COLORS = {
   closed_won: 'var(--color-success)', closed_lost: 'var(--color-danger)',
 };
 
-const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`;
+const fmt = (n) => formatMoneySync(n, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 /* ═══ OPPORTUNITY DETAIL ═══ */
 function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveTab, navigateTo }) {
@@ -447,7 +449,7 @@ function KanbanView({ opps, stages, onSelect, onMove, c, isDark }) {
                   </div>
                   <div className="space-y-1.5 text-xs">
                     <div className="flex items-center gap-1.5 font-medium" style={{ color: 'var(--color-success-alt)' }}>
-                      <DollarSign size={12} /> {fmt(opp.value)}
+                      <CurrencyIcon size={12} /> {fmt(opp.value)}
                     </div>
                     {opp.company_name && (
                       <div className="flex items-center gap-1.5" style={{ color: c.textDim }}>
@@ -541,6 +543,7 @@ function ListView({ opps, onSelect, c, isDark }) {
 
 /* ═══ MAIN PIPELINE ═══ */
 export default function CRMPipeline() {
+  useLocalization();
   const crm = useCRM();
   const { API, headers, c, isDark, navTarget, setNavTarget } = crm;
   const [opps, setOpps] = useState([]);

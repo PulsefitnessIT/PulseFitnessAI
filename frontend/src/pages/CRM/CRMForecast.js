@@ -10,6 +10,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { formatMoneySync } from '@/utils/localization';
 import { toast } from 'sonner';
 import { TrendingUp, Target, Save, Megaphone, X, Camera, Award, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import RepTrackRecord from './RepTrackRecord';
@@ -20,7 +21,7 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 
 function fmtMoney(n) {
   const v = Number(n) || 0;
-  return `£${v.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
+  return formatMoneySync(v, { maximumFractionDigits: 0 });
 }
 
 function currentMonth() {

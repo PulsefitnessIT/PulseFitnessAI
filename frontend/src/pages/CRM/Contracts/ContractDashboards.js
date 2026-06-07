@@ -10,11 +10,13 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  BarChart3, RefreshCw, AlertTriangle, DollarSign,
+  BarChart3, RefreshCw, AlertTriangle,
   Shield, Calendar, TrendingUp, Zap,
 } from 'lucide-react';
+import CurrencyIcon from '@/components/shared/CurrencyIcon';
+import { useLocalization, formatMoneySync } from '@/utils/localization';
 
-const fmtMoney = v => `£${Math.round(v || 0).toLocaleString('en-GB')}`;
+const fmtMoney = v => formatMoneySync(v, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 function MetricCard({ label, value, hint, color, icon: Icon, c, isDark, testId }) {
   return (
@@ -33,6 +35,7 @@ function MetricCard({ label, value, hint, color, icon: Icon, c, isDark, testId }
 MetricCard.displayName = 'MetricCard';
 
 export function ContractsReportsDashboard({ API, headers, c, isDark }) {
+  useLocalization();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -48,7 +51,7 @@ export function ContractsReportsDashboard({ API, headers, c, isDark }) {
   return (
     <div data-testid="contracts-reports">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <MetricCard label="ARR"        value={fmtMoney(data.arr)}              icon={DollarSign} color="var(--color-success-alt)" c={c} isDark={isDark} testId="report-arr" />
+        <MetricCard label="ARR"        value={fmtMoney(data.arr)}              icon={CurrencyIcon} color="var(--color-success-alt)" c={c} isDark={isDark} testId="report-arr" />
         <MetricCard label="MRR"        value={fmtMoney(data.mrr)}              icon={TrendingUp} color="var(--color-info-ios)"    c={c} isDark={isDark} testId="report-mrr" />
         <MetricCard label="At risk 30d" value={fmtMoney(data.expiring_30d_value)} hint="≤30d" icon={AlertTriangle} color="var(--color-danger)"    c={c} isDark={isDark} testId="report-at-risk-30" />
         <MetricCard label="At risk 90d" value={fmtMoney(data.expiring_90d_value)} hint="≤90d" icon={AlertTriangle} color="var(--color-accent-amber)" c={c} isDark={isDark} testId="report-at-risk-90" />

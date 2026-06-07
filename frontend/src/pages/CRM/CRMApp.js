@@ -5,6 +5,7 @@ import Navbar from '@/components/shared/Navbar';
 import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { useLocalization } from '@/utils/localization';
 import CRMLogin from './CRMLogin';
 import CRMDashboard from './CRMDashboard';
 import CRMStartTab from './CRMStartTab';
@@ -459,6 +460,7 @@ function GlobalSearchBar({ API, headers, c, isDark, t, onNavigate }) {
 }
 
 export default function CRMApp() {
+  useLocalization(); // resolve org currency (£/$/€) for all CRM money + icons
   const { t, _i18n } = useTranslation();
   // The CRM app runs alongside the main platform auth context, so we can
   // borrow the operator's main user (and the platform Navbar / module

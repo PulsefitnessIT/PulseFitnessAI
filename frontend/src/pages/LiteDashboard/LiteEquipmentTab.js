@@ -208,7 +208,7 @@ const LiteEquipmentTab = ({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate" data-testid={`lite-equip-name-${eq.id}`}>{eq.name}</p>
+                  <p className="text-sm font-medium text-white break-words leading-snug" data-testid={`lite-equip-name-${eq.id}`}>{eq.name}</p>
                   {eq.serial_number && (
                     <p className="text-[10px] font-mono text-[var(--color-text-muted)] truncate mt-0.5" data-testid={`lite-equip-serial-${eq.id}`}>
                       S/N {eq.serial_number}

@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import CRMQuoteSagePanel from './CRMQuoteSagePanel';
+import { formatMoneySync } from '@/utils/localization';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', sent: 'var(--color-info-ios)', accepted: 'var(--color-success-alt)', rejected: 'var(--color-danger)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', superseded: 'var(--color-accent-violet)' };
-const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
+const fmt = (n) => formatMoneySync(n, { minimumFractionDigits: 2 });
 
 /* ═══ SIGNATURE PAD ═══ */
 function SignaturePad({ onSave, onCancel, isDark, c }) {
@@ -228,12 +229,12 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
       </button>
 
       <div className="rounded-lg border p-6" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold" style={{ color: c.text }}>{quote.quote_number}</h2>
             <p className="text-xs mt-0.5" style={{ color: c.textDim }}>Created by {quote.created_by} &middot; v{quote.version}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 [&>*]:flex-shrink-0" data-testid="quote-actions-row">
             <button onClick={downloadPdf} disabled={actionLoading === 'print'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5 disabled:opacity-50" style={{ borderColor: c.border, color: c.textMuted }} data-testid="quote-print-btn">
               {actionLoading === 'print' ? <Loader2 size={12} className="animate-spin" /> : <Printer size={12} />} Print
             </button>

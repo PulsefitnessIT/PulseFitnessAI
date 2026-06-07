@@ -14,6 +14,7 @@
  * Backend: GET /api/crm/forecast/track-record?user_id=&periods=
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatMoneySync } from '@/utils/localization';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Award, AlertTriangle, Target, TrendingUp, TrendingDown, Activity } from 'lucide-react';
@@ -23,7 +24,7 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 
 function fmtMoney(n) {
   const v = Number(n) || 0;
-  return `£${v.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
+  return formatMoneySync(v, { maximumFractionDigits: 0 });
 }
 
 const VERDICT_META = {
