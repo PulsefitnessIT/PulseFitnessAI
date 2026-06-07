@@ -178,11 +178,24 @@ export default function ChoosePlanPage() {
                     </div>
                   </div>
 
+                  {/* Order summary — removes surprise at the Stripe screen */}
+                  <div
+                    className="mt-4 pt-4 border-t border-zinc-200 flex items-baseline justify-between"
+                    data-testid="choose-plan-bundle-summary"
+                  >
+                    <span className="text-sm text-zinc-600">
+                      {bundle.name} · {siteCount} site{siteCount !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-sm text-zinc-900">
+                      <strong className="text-base">£{bundleTotal.toFixed(0)}</strong>/mo, billed monthly
+                    </span>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => startCheckout('bundle', { site_count: siteCount })}
                     disabled={busy === 'bundle'}
-                    className="mt-5 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                    className="mt-4 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
                     data-testid="choose-plan-bundle-checkout"
                   >
                     {busy === 'bundle' ? <Loader2 size={16} className="animate-spin" /> : null}
