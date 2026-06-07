@@ -14,6 +14,11 @@ from utils.email import send_email
 
 logger = logging.getLogger(__name__)
 
+# Trial-ending CTA destination — login-gated paid checkout page (iter 221).
+# Deliberately the in-app /choose-plan page (no free-trial re-offer), not the
+# public marketing pricing page.
+CHOOSE_PLAN_URL = "https://gymaxisai.com/choose-plan"
+
 # Trial status transitions
 STATUS_ACTIVE = "active"
 STATUS_EXPIRING_SOON = "expiring_soon"  # ≤ 4 days remaining
@@ -143,7 +148,7 @@ async def _send_reminder_if_due(org: Dict[str, Any], frontend_url: str) -> bool:
         logger.info(f"[Trial] No recipient for org {org_id} — skipping reminder")
         return False
 
-    upgrade_url = f"{frontend_url.rstrip('/')}/dashboard?upgrade=1" if frontend_url else "/dashboard?upgrade=1"
+    upgrade_url = CHOOSE_PLAN_URL
     html = _trial_reminder_html(org.get("name", "there"), days_left or 1, upgrade_url)
     subject = "Final day of your GymAxis trial" if due_marker == "day13" else f"{days_left} days left of your GymAxis trial"
     sent_ok = await send_email(recipient, subject, html, organization_id=org_id)

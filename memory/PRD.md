@@ -27838,3 +27838,10 @@ Verified live on SVC-00410.
 ## Iter 221 — Check Sheets machine identification (Jun 6, 2026)
 - Operations Portal → Check Sheets: machine chips in `EquipmentGroupCard.jsx` now render **machine name + serial** (e.g. "Integrity X Treadmill · S/N LIF-TS00") instead of raw serial only, so engineers can identify which physical unit to check. Completion-key logic unchanged (serial-first). Grouping remains by Equipment Type. Verified via screenshot on Third Space (jack.ottey).
 - Backlog (held per user): export 54-product Pulse price list CSV from Preview ("GymAxis AI Admin" org) for Production re-upload.
+
+---
+## Iter 221 — Trial-ending "Choose your plan" checkout page (Jun 7, 2026)
+- Problem: trial-ending emails linked to the public marketing /pricing page, which re-offered a free trial. 
+- New login-gated page `ChoosePlanPage.js` at route `/choose-plan` (AppRoutes; redirects to `/login?next=/choose-plan` when logged out). Summarises GymAxis Pro bundle (£150/mo + £50/site, with site-count selector) and individual modules (Operations £69, CRM £49, Marketing £49, Memberships £29). Each CTA → `POST /api/payments/checkout/flex` → Stripe Checkout; webhook converts trial→paid. Includes a "Talk to us" mailto link. NO free-trial offer.
+- Repointed trial emails to `https://gymaxisai.com/choose-plan`: `utils/lifecycle_emails.py` `_expiry_warn` (was PRICING_URL) and `utils/trial_lifecycle.py` reminders (was `/dashboard?upgrade=1`). New `CHOOSE_PLAN_URL` constant in both.
+- Verified: page screenshot (Third Space/jack.ottey), curl flex checkout returns Stripe URLs (bundle £200/2-sites, module £69). Stripe in TEST mode (sk_test) — live keys needed before go-live.

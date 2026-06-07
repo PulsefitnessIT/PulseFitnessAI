@@ -91,6 +91,7 @@ const TermsOfServicePage = lazy(() => import('@/pages/TermsOfServicePage'));
 const RefundPolicyPage = lazy(() => import('@/pages/RefundPolicyPage'));
 const DirectorsHandout = lazy(() => import('@/pages/DirectorsHandout'));
 const PaymentSuccessPage = lazy(() => import('@/pages/PaymentSuccessPage'));
+const ChoosePlanPage = lazy(() => import('@/pages/ChoosePlanPage'));
 const MasterAdminPage = lazy(() => import('@/pages/MasterAdminPage'));
 const DesignSystemPage = lazy(() => import('@/pages/MasterAdmin/DesignSystemPage'));
 const AdminPartsRequests = lazy(() => import('@/pages/MasterAdmin/AdminPartsRequests'));
@@ -402,6 +403,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/complete-profile" element={user ? <CompleteProfilePage /> : <Navigate to="/" replace />} />
       <Route path="/onboarding/:token" element={<CustomerOnboardingForm />} />
       <Route path="/payment-success" element={<PaymentSuccessPage />} />
+      {/* Trial-ending email destination — login-gated paid checkout, no free-trial offer (iter 221) */}
+      <Route path="/choose-plan" element={user ? <ChoosePlanPage /> : <Navigate to="/login?next=/choose-plan" replace />} />
 
       {/* Iter 216h109 — MOD Service portal (branded login). */}
       <Route path="/MODService" element={<MODServiceLogin />} />

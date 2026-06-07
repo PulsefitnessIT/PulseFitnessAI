@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 LOGIN_URL = "https://www.gymaxisai.com/login"
 DEMO_URL = "https://www.gymaxisai.com/contact"
 PRICING_URL = "https://www.gymaxisai.com/pricing"
+# Trial-ending CTA destination — login-gated paid checkout page (iter 221).
+# Deliberately NOT the public /pricing page, which re-offers a free trial.
+CHOOSE_PLAN_URL = "https://gymaxisai.com/choose-plan"
 
 
 def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
@@ -111,7 +114,7 @@ def _expiry_warn(name: str, hours_left: int) -> tuple[str, str]:
         <p>To keep your data and continue using GymAxis without interruption, choose a plan now. The bundle starts at £150/mo, or pick a single module from £29/mo.</p>
         <p>Need more time? Reply to this email — we'll happily extend your trial.</p>
     """
-    return (f"Your trial ends in {hours_left}h", _shell("Don't lose your setup", body, "See plans", PRICING_URL))
+    return (f"Your trial ends in {hours_left}h", _shell("Don't lose your setup", body, "Choose your plan", CHOOSE_PLAN_URL))
 
 
 def _winback(name: str) -> tuple[str, str]:
