@@ -38,14 +38,8 @@ DOWNLOADS: dict[str, tuple[str, str]] = {
 }
 
 
-@router.get("/{slug}")
-async def download_marketing_asset(slug: str) -> FileResponse:
-    """Stream a whitelisted marketing asset as a download.
-
-    Example:
-        GET /api/marketing/mod-briefing.pdf
-            → downloads the 16-slide MOD briefing PDF.
-    """
+def _serve_marketing_asset(slug: str) -> FileResponse:
+    """Stream a whitelisted marketing asset as a download."""
     entry = DOWNLOADS.get(slug)
     if entry is None:
         raise HTTPException(status_code=404, detail="Not found")
@@ -59,4 +53,22 @@ async def download_marketing_asset(slug: str) -> FileResponse:
         path=str(abs_path),
         media_type="application/pdf",
         filename=download_name,
+    )
+
+
+def _make_handler(slug: str):
+    async def _handler() -> FileResponse:
+        return _serve_marketing_asset(slug)
+    return _handler
+
+
+# Register one EXPLICIT route per whitelisted slug rather than a greedy
+# `/{slug}` catch-all. The catch-all previously shadowed the marketing app
+# routes (`/marketing/campaigns`, `/marketing/audiences`, `/marketing/templates`),
+# 404-ing them platform-wide. Explicit paths only match their exact URL, so
+# the public download links keep working while the app routes resolve.
+for _slug in DOWNLOADS:
+    router.add_api_route(
+        f"/{_slug}", _make_handler(_slug), methods=["GET"],
+        name=f"download_marketing_asset_{_slug}",
     )
