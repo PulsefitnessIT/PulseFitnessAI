@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GymAxisAI — For Gyms & Studios</title>
+<style>
+@font-face { font-family:'Maax'; src:url('/app/frontend/public/fonts/MaaxRounded-Bold.otf') format('opentype'); font-weight:700; }
+@font-face { font-family:'Maax'; src:url('/app/frontend/public/fonts/MaaxRounded-Medium.otf') format('opentype'); font-weight:500; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Regular.otf') format('opentype'); font-weight:400; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Semibold.otf') format('opentype'); font-weight:600; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Bold.otf') format('opentype'); font-weight:700; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Extrabold.otf') format('opentype'); font-weight:800; }
+:root{ --navy:#050B1F; --blue:#006CFF; --purple:#7A35FF; --pale:#F6F8FC; --grid:#E5EAF3; --ink:#0B1533; --muted:#5A6783; --line:#E5EAF3; --grad:linear-gradient(135deg,#006CFF 0%,#7A35FF 100%); }
+*{ box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+html,body{ font-family:'Proxima',sans-serif; color:var(--ink); }
+@page{ size:1280px 720px; margin:0; }
+.slide{ width:1280px; height:720px; position:relative; overflow:hidden; page-break-after:always; background:var(--pale); background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px); background-size:46px 46px; }
+.slide:last-child{ page-break-after:auto; }
+.slide.dark{ background:var(--navy); background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px); background-size:46px 46px; color:#fff; }
+.inner{ position:absolute; inset:0; padding:60px 72px; display:flex; flex-direction:column; }
+.glow{ position:absolute; border-radius:50%; filter:blur(80px); opacity:.5; z-index:0; }
+.glow.b{ background:#006CFF; } .glow.p{ background:#7A35FF; }
+.row{ display:flex; }
+.kicker{ font-weight:700; font-size:13px; letter-spacing:.16em; text-transform:uppercase; }
+.kicker.g{ background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.title{ font-family:'Maax'; font-weight:700; font-size:42px; line-height:1.08; letter-spacing:-.01em; color:var(--ink); }
+.dark .title{ color:#fff; }
+.grad{ background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.lead{ font-size:18px; line-height:1.55; color:var(--muted); }
+.dark .lead{ color:#A9B6D6; }
+.logo-pill{ display:inline-flex; align-items:center; background:#fff; border:1px solid var(--line); border-radius:999px; padding:8px 16px; box-shadow:0 6px 18px rgba(12,30,70,.12); z-index:3; }
+.logo-pill img{ height:24px; display:block; }
+.logo-pill.lg{ padding:15px 30px; } .logo-pill.lg img{ height:48px; }
+.logo-pill.sm{ padding:6px 12px; } .logo-pill.sm img{ height:17px; }
+.foot{ position:absolute; left:72px; right:72px; bottom:30px; display:flex; align-items:center; justify-content:space-between; z-index:3; }
+.foot span.tag{ font-size:12px; color:var(--muted); letter-spacing:.02em; font-weight:600; }
+.dark .foot span.tag{ color:#7E8CB0; }
+.foot .pageno{ font-size:12px; font-weight:700; color:var(--muted); }
+.dark .foot .pageno{ color:#7E8CB0; }
+.card{ background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 10px 30px rgba(12,30,70,.06); }
+.dark .card{ background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.10); box-shadow:none; }
+.ic{ width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--grad); color:#fff; flex:none; }
+.ic.soft{ background:linear-gradient(135deg,rgba(0,108,255,.12),rgba(122,53,255,.12)); color:var(--blue); }
+.ic svg{ width:23px; height:23px; }
+.ic.sm{ width:34px; height:34px; border-radius:10px; } .ic.sm svg{ width:18px; height:18px; }
+.mods{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.mod{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 18px 16px; box-shadow:0 8px 22px rgba(12,30,70,.05); }
+.mod h4{ font-family:'Maax'; font-weight:700; font-size:16px; margin:12px 0 4px; color:var(--ink); }
+.mod p{ font-size:12.5px; color:var(--muted); line-height:1.4; }
+.feats{ display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; margin-top:18px; }
+.feat{ display:flex; align-items:flex-start; gap:9px; font-size:14.5px; color:#27324F; line-height:1.3; }
+.feat .ck{ width:19px; height:19px; border-radius:6px; background:var(--grad); color:#fff; display:flex; align-items:center; justify-content:center; flex:none; margin-top:1px; }
+.feat .ck svg{ width:12px; height:12px; }
+.benefit{ margin-top:20px; background:linear-gradient(135deg,rgba(0,108,255,.07),rgba(122,53,255,.07)); border:1px solid rgba(0,108,255,.16); border-radius:16px; padding:16px 18px; }
+.benefit b{ font-family:'Maax'; font-weight:700; color:var(--blue); font-size:13px; letter-spacing:.04em; text-transform:uppercase; }
+.benefit p{ font-size:15px; color:#27324F; margin-top:5px; line-height:1.45; }
+.mock{ background:#fff; border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 18px 44px rgba(12,30,70,.12); }
+.mock .bar{ height:34px; background:#F1F4FA; border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 14px; gap:7px; }
+.dot{ width:9px; height:9px; border-radius:50%; }
+.mock .body{ padding:18px; }
+.mline{ height:11px; border-radius:6px; background:#EEF2F9; }
+.chip{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:5px 11px; border-radius:999px; }
+.btn{ display:inline-flex; align-items:center; gap:9px; font-weight:700; font-size:15px; padding:13px 24px; border-radius:999px; }
+.btn.grad{ background:var(--grad); color:#fff; box-shadow:0 10px 26px rgba(0,108,255,.35); }
+.btn.ghost{ border:1.5px solid rgba(255,255,255,.30); color:#fff; }
+.btn svg{ width:17px; height:17px; }
+.node{ position:absolute; transform:translate(-50%,-50%); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); color:#fff; font-weight:600; font-size:14px; padding:11px 18px; border-radius:999px; white-space:nowrap; box-shadow:0 8px 20px rgba(0,0,0,.25); }
+.cmp{ width:100%; border-collapse:separate; border-spacing:0; margin-top:18px; }
+.cmp th,.cmp td{ padding:12px 14px; text-align:left; font-size:14px; }
+.cmp thead th{ font-weight:700; color:var(--muted); font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--line); }
+.cmp tbody td{ border-bottom:1px solid var(--line); color:#27324F; }
+.cmp td.cap{ font-weight:700; color:var(--ink); }
+.cmp .gx{ background:linear-gradient(180deg,rgba(0,108,255,.06),rgba(122,53,255,.06)); }
+.cmp th.gx{ color:#fff; background:var(--navy); border-top-left-radius:14px; border-top-right-radius:14px; border-bottom:none; }
+.x{ color:#C2496B; font-weight:800; } .partial{ color:#D08A1B; font-weight:700; font-size:12.5px; }
+.tick{ display:inline-flex; width:21px; height:21px; border-radius:7px; background:var(--grad); color:#fff; align-items:center; justify-content:center; }
+.tick svg{ width:13px; height:13px; }
+</style>
+</head>
+<body>
+
+<!-- 1 COVER -->
+<section class="slide dark">
+  <div class="glow b" style="width:520px;height:520px;top:-160px;right:-120px;"></div>
+  <div class="glow p" style="width:460px;height:460px;bottom:-200px;left:-140px;opacity:.40;"></div>
+  <div class="inner" style="justify-content:center;">
+    <span class="logo-pill" style="position:absolute;top:54px;left:72px;"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span>
+    <div style="max-width:880px;z-index:2;">
+      <div class="kicker g" style="margin-bottom:22px;">For Gyms · Studios · Operators</div>
+      <span class="logo-pill lg" style="margin-bottom:24px;"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span>
+      <div style="font-family:'Maax';font-weight:700;font-size:46px;line-height:1.05;color:#fff;margin-top:6px;">One platform.<br><span class="grad">Everything connected.</span></div>
+      <p class="lead" style="margin-top:18px;max-width:660px;font-size:19px;">The all-in-one platform to run memberships, marketing, sales and operations — built for fitness businesses, powered by AI.</p>
+      <div class="row" style="gap:14px;margin-top:34px;">
+        <span class="btn grad">Book a Demo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+        <span class="btn ghost">Start Free Trial</span>
+      </div>
+    </div>
+    <svg width="240" height="240" viewBox="0 0 260 260" style="position:absolute;right:96px;bottom:96px;opacity:.9;z-index:1;">
+      <defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#006CFF"/><stop offset="1" stop-color="#7A35FF"/></linearGradient></defs>
+      <g stroke="url(#cg)" stroke-width="1.4" opacity=".55"><line x1="130" y1="130" x2="130" y2="30"/><line x1="130" y1="130" x2="222" y2="84"/><line x1="130" y1="130" x2="222" y2="176"/><line x1="130" y1="130" x2="130" y2="230"/><line x1="130" y1="130" x2="38" y2="176"/><line x1="130" y1="130" x2="38" y2="84"/></g>
+      <circle cx="130" cy="130" r="20" fill="url(#cg)"/>
+      <g fill="#0A1330" stroke="url(#cg)" stroke-width="2"><circle cx="130" cy="30" r="9"/><circle cx="222" cy="84" r="9"/><circle cx="222" cy="176" r="9"/><circle cx="130" cy="230" r="9"/><circle cx="38" cy="176" r="9"/><circle cx="38" cy="84" r="9"/></g>
+    </svg>
+  </div>
+  <div class="foot"><span class="tag">One platform. Everything connected.</span><span class="pageno">gymaxisai.com</span></div>
+</section>
+
+<!-- 2 PROBLEM -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">The Problem</div>
+    <h1 class="title" style="margin-top:14px;">Fitness businesses run on <span class="grad">disconnected systems.</span></h1>
+    <p class="lead" style="margin-top:14px;max-width:700px;">Most gyms and studios still stitch their operation together from tools that were never meant to talk to each other.</p>
+    <div class="mods" style="grid-template-columns:repeat(6,1fr);margin-top:34px;">
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Spreadsheets</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h4 style="font-size:14px;margin-top:10px;">WhatsApp</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Email threads</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Booking app</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Disconnected CRM</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Paper records</h4></div>
+    </div>
+    <div class="card" style="margin-top:26px;padding:22px 26px;display:flex;align-items:center;gap:26px;border-color:rgba(194,73,107,.25);background:linear-gradient(135deg,rgba(194,73,107,.05),rgba(122,53,255,.04));">
+      <div class="ic" style="background:linear-gradient(135deg,#C2496B,#7A35FF);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+      <div><div style="font-family:'Maax';font-weight:700;font-size:19px;color:var(--ink);">When systems don't talk to each other, the business pays for it.</div><p style="font-size:14.5px;color:var(--muted);margin-top:5px;">Information gets lost · admin piles up · members are let down · and managers lose visibility across sites.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">02 / 14</span></div>
+</section>
+
+<!-- 3 SOLUTION HUB -->
+<section class="slide dark">
+  <div class="glow b" style="width:520px;height:520px;top:120px;left:430px;opacity:.30;"></div>
+  <div class="inner">
+    <div style="text-align:center;">
+      <div class="kicker g">The Solution</div>
+      <h1 class="title" style="margin-top:12px;color:#fff;">GymAxisAI brings <span class="grad">everything together.</span></h1>
+      <p class="lead" style="margin:12px auto 0;max-width:720px;">One intelligent platform connecting the key parts of your fitness business — a single source of truth for the whole operation.</p>
+    </div>
+    <div style="position:relative;flex:1;margin-top:4px;">
+      <svg width="1136" height="470" viewBox="0 0 1136 470" style="position:absolute;left:50%;transform:translateX(-50%);top:0;">
+        <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#006CFF"/><stop offset="1" stop-color="#7A35FF"/></linearGradient></defs>
+        <g stroke="url(#hg)" stroke-width="1.6" opacity=".45"><line x1="568" y1="235" x2="568" y2="55"/><line x1="568" y1="235" x2="844" y2="89"/><line x1="568" y1="235" x2="1015" y2="179"/><line x1="568" y1="235" x2="1015" y2="291"/><line x1="568" y1="235" x2="844" y2="381"/><line x1="568" y1="235" x2="568" y2="415"/><line x1="568" y1="235" x2="292" y2="381"/><line x1="568" y1="235" x2="121" y2="291"/><line x1="568" y1="235" x2="121" y2="179"/><line x1="568" y1="235" x2="292" y2="89"/></g>
+      </svg>
+      <div style="position:absolute;left:50%;top:235px;transform:translate(-50%,-50%);width:172px;height:172px;border-radius:50%;background:var(--grad);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(122,53,255,.14),0 20px 50px rgba(0,108,255,.4);">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.3" fill="#fff"/><circle cx="5" cy="6" r="1.7"/><circle cx="19" cy="6" r="1.7"/><circle cx="5" cy="18" r="1.7"/><circle cx="19" cy="18" r="1.7"/><path d="M6.5 7 10.2 10.4M17.5 7 13.8 10.4M6.5 17 10.2 13.6M17.5 17 13.8 13.6"/></svg>
+        <div style="font-family:'Maax';font-weight:700;color:#fff;font-size:17px;margin-top:6px;">GymAxisAI</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.85);letter-spacing:.1em;">SOURCE OF TRUTH</div>
+      </div>
+      <div class="node" style="left:50%;top:55px;">Members</div>
+      <div class="node" style="left:74.3%;top:89px;">Leads</div>
+      <div class="node" style="left:89.3%;top:179px;">Classes</div>
+      <div class="node" style="left:89.3%;top:291px;">Payments</div>
+      <div class="node" style="left:74.3%;top:381px;">Marketing</div>
+      <div class="node" style="left:50%;top:415px;">Reporting</div>
+      <div class="node" style="left:25.7%;top:381px;">Staff</div>
+      <div class="node" style="left:10.7%;top:291px;">Operations</div>
+      <div class="node" style="left:10.7%;top:179px;">Leads &amp; CRM</div>
+      <div class="node" style="left:25.7%;top:89px;">Equipment</div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">03 / 14</span></div>
+</section>
+
+<!-- 4 MODULES OVERVIEW (4 core) -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Your Four Core Modules</div>
+    <h1 class="title" style="margin-top:12px;">Everything your fitness business needs, <span class="grad">in one place.</span></h1>
+    <div class="row" style="gap:16px;margin-top:26px;">
+      <div class="card" style="flex:1;padding:22px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:12px 0 6px;color:var(--ink);">CRM</h3><p style="font-size:13px;color:var(--muted);line-height:1.45;">Every lead, customer and conversation in one connected view.</p></div>
+      <div class="card" style="flex:1;padding:22px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:12px 0 6px;color:var(--ink);">Operations</h3><p style="font-size:13px;color:var(--muted);line-height:1.45;">Equipment, faults, check sheets and daily tasks under control.</p></div>
+      <div class="card" style="flex:1;padding:22px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:12px 0 6px;color:var(--ink);">Memberships</h3><p style="font-size:13px;color:var(--muted);line-height:1.45;">Members, classes, payments and renewals — all connected.</p></div>
+      <div class="card" style="flex:1;padding:22px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:12px 0 6px;color:var(--ink);">Marketing</h3><p style="font-size:13px;color:var(--muted);line-height:1.45;">AI campaigns powered by your real member &amp; lead data.</p></div>
+    </div>
+    <p style="margin-top:24px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Plus everything that ties it together</p>
+    <div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:12px;">
+      <span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Reporting &amp; insights</span>
+      <span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Staffing &amp; rotas</span>
+      <span class="chip" style="background:rgba(122,53,255,.1);color:#7A35FF;">Contracts &amp; renewals</span>
+      <span class="chip" style="background:rgba(122,53,255,.1);color:#7A35FF;">CAPEX planning</span>
+      <span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Accident &amp; RIDDOR reports</span>
+      <span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Member app</span>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">04 / 14</span></div>
+</section>
+
+<!-- 5 CRM -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="width:560px;">
+        <div class="kicker g">Module 1 · CRM</div>
+        <h1 class="title" style="margin-top:12px;">Know every lead. Every customer. <span class="grad">Every conversation.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Companies &amp; contacts</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Lead tracking</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sales pipeline</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Quotes &amp; tenders</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Tasks &amp; follow-ups</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>360° customer view</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Stakeholder mapping</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Communication history</div>
+        </div>
+        <div class="benefit"><b>Key benefit</b><p>No more lost leads, duplicated data or disconnected customer records.</p></div>
+      </div>
+      <div style="flex:1;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">CRM · Sales Pipeline</div></div>
+          <div class="body" style="display:flex;gap:12px;">
+            <div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#8A97B5;text-transform:uppercase;margin-bottom:8px;">New</div><div style="background:#F5F8FE;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;"><div class="mline" style="width:70%"></div><div class="mline" style="width:45%;margin-top:6px;height:8px"></div></div><div style="background:#F5F8FE;border:1px solid var(--line);border-radius:10px;padding:10px;"><div class="mline" style="width:80%"></div></div></div>
+            <div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#8A97B5;text-transform:uppercase;margin-bottom:8px;">Quoted</div><div style="background:linear-gradient(135deg,rgba(0,108,255,.08),rgba(122,53,255,.08));border:1px solid rgba(0,108,255,.2);border-radius:10px;padding:10px;margin-bottom:8px;"><div class="mline" style="width:85%;background:#D6E2FB"></div><span class="chip" style="background:rgba(0,108,255,.12);color:#006CFF;margin-top:8px;">£12,400</span></div></div>
+            <div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#8A97B5;text-transform:uppercase;margin-bottom:8px;">Won</div><div style="background:#F5F8FE;border:1px solid var(--line);border-radius:10px;padding:10px;"><div class="mline" style="width:75%"></div><span class="chip" style="background:rgba(40,200,64,.14);color:#16923B;margin-top:8px;">Closed</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Connect members, staff, sales, marketing &amp; operations.</span><span class="pageno">05 / 14</span></div>
+</section>
+
+<!-- 6 OPERATIONS -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="flex:1;order:2;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">Operations · Equipment</div></div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Treadmill 03</div><div style="font-size:11px;color:#8A97B5;">Daily check · complete</div></div><span class="chip" style="background:rgba(40,200,64,.14);color:#16923B;">Healthy</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Rower 02</div><div style="font-size:11px;color:#8A97B5;">3 faults / 30 days</div></div><span class="chip" style="background:rgba(208,138,27,.16);color:#B5760E;">At risk</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Leg Press 01</div><div style="font-size:11px;color:#8A97B5;">Service booked</div></div><span class="chip" style="background:rgba(0,108,255,.12);color:#006CFF;">Scheduled</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="width:560px;order:1;">
+        <div class="kicker g">Module 2 · Operations</div>
+        <h1 class="title" style="margin-top:12px;">Run your sites and <span class="grad">spot issues early.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Equipment register</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Digital check sheets</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Fault logging</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Recurring fault tracking</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Daily &amp; weekly tasks</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Risk indicators</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Multi-site visibility</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Maintenance history</div>
+        </div>
+        <div class="benefit"><b>Key message</b><p>Spot equipment issues before they become out-of-order signs.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Spot equipment issues before they become failures.</span><span class="pageno">06 / 14</span></div>
+</section>
+
+<!-- 7 MEMBERSHIPS -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="width:560px;">
+        <div class="kicker g">Module 3 · Memberships</div>
+        <h1 class="title" style="margin-top:12px;">Members, bookings and payments — <span class="grad">connected to the business.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Member records</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Class bookings</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Payments &amp; renewals</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Member communication</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Attendance visibility</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Retention insights</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Studio &amp; gym workflows</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Member app</div>
+        </div>
+        <div class="benefit"><b>Key benefit</b><p>Memberships aren't isolated — they connect into CRM, marketing, reporting and operations.</p></div>
+      </div>
+      <div style="flex:1;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">Memberships · Today</div></div>
+          <div class="body">
+            <div style="display:flex;gap:10px;margin-bottom:12px;">
+              <div style="flex:1;background:linear-gradient(135deg,rgba(0,108,255,.08),rgba(122,53,255,.08));border:1px solid rgba(0,108,255,.18);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#8A97B5;">Active members</div><div style="font-family:'Maax';font-weight:700;font-size:24px;color:var(--ink);">1,284</div></div>
+              <div style="flex:1;background:#F5F8FE;border:1px solid var(--line);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#8A97B5;">Renewals due</div><div style="font-family:'Maax';font-weight:700;font-size:24px;color:var(--ink);">36</div></div>
+              <div style="flex:1;background:#F5F8FE;border:1px solid var(--line);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#8A97B5;">Classes today</div><div style="font-family:'Maax';font-weight:700;font-size:24px;color:var(--ink);">18</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:9px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;"><span style="font-size:13px;font-weight:600;color:var(--ink);">Spin · 18:00</span><span class="chip" style="background:rgba(40,200,64,.14);color:#16923B;">12 / 14</span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;"><span style="font-size:13px;font-weight:600;color:var(--ink);">Yoga · 19:00</span><span class="chip" style="background:rgba(0,108,255,.12);color:#006CFF;">8 / 20</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">07 / 14</span></div>
+</section>
+
+<!-- 8 MARKETING -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="flex:1;order:2;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">Marketing · AI Campaign Studio</div></div>
+          <div class="body">
+            <div style="background:linear-gradient(135deg,rgba(0,108,255,.07),rgba(122,53,255,.07));border:1px solid rgba(0,108,255,.18);border-radius:12px;padding:14px;margin-bottom:12px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span class="ic sm" style="width:26px;height:26px;border-radius:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M5 8l7-5 7 5"/></svg></span><span style="font-weight:700;font-size:13px;color:var(--ink);">AI draft · Win-back email</span></div><div class="mline" style="width:95%"></div><div class="mline" style="width:88%;margin-top:6px"></div><div class="mline" style="width:60%;margin-top:6px"></div></div>
+            <div style="display:flex;gap:8px;"><span class="chip" style="background:rgba(0,108,255,.12);color:#006CFF;">Lapsed members</span><span class="chip" style="background:rgba(122,53,255,.12);color:#7A35FF;">Segment · 214</span><span class="chip" style="background:rgba(40,200,64,.14);color:#16923B;">Scheduled</span></div>
+            <div style="display:flex;gap:10px;margin-top:14px;"><div style="flex:1;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;padding:10px;"><div style="font-size:11px;color:#8A97B5;">Open rate</div><div style="font-family:'Maax';font-weight:700;font-size:20px;color:var(--ink);">48%</div></div><div style="flex:1;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;padding:10px;"><div style="font-size:11px;color:#8A97B5;">Re-joins</div><div style="font-family:'Maax';font-weight:700;font-size:20px;color:var(--ink);">31</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div style="width:560px;order:1;">
+        <div class="kicker g">Module 4 · Marketing</div>
+        <h1 class="title" style="margin-top:12px;">Smarter campaigns powered by <span class="grad">real business data.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>AI email content</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Campaign planning</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Social scheduling</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Customer segmentation</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Follow-up automation</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Behaviour insights</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Creative studio</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Campaign reporting</div>
+        </div>
+        <div class="benefit"><b>Key benefit</b><p>Marketing becomes more targeted, more relevant and easier to manage.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Turn disconnected data into useful decisions.</span><span class="pageno">08 / 14</span></div>
+</section>
+
+<!-- 9 REPORTING -->
+<section class="slide dark">
+  <div class="glow b" style="width:460px;height:460px;top:-140px;left:40%;opacity:.28;"></div>
+  <div class="inner">
+    <div class="kicker g">Reporting &amp; Insights</div>
+    <h1 class="title" style="margin-top:12px;color:#fff;">One view of <span class="grad">the business.</span></h1>
+    <div class="row" style="gap:18px;margin-top:24px;flex:1;">
+      <div class="card" style="width:430px;padding:22px;">
+        <div style="display:flex;gap:12px;margin-bottom:14px;"><div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#9DAAD0;">Revenue (mo)</div><div style="font-family:'Maax';font-weight:700;font-size:22px;color:#fff;">£86.2k</div></div><div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#9DAAD0;">Active members</div><div style="font-family:'Maax';font-weight:700;font-size:22px;color:#fff;">1,284</div></div></div>
+        <div style="font-size:11px;color:#9DAAD0;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Membership growth</div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:130px;"><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:55%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:72%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:48%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:88%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:66%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:94%;border-radius:8px 8px 0 0;"></div></div>
+      </div>
+      <div style="flex:1;">
+        <p class="lead" style="margin-bottom:16px;">GymAxisAI gives managers visibility across the whole business — every report pulling from the same connected data.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:9px;">
+          <span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Revenue</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Memberships</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Leads</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Sales pipeline</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Retention</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Class attendance</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Equipment faults</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Staffing</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Marketing performance</span>
+        </div>
+        <div class="benefit" style="margin-top:20px;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);"><b style="color:#7FB0FF;">Key message</b><p style="color:#D7E0F5;">Better decisions come from connected data.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Give managers visibility across the whole business.</span><span class="pageno">09 / 14</span></div>
+</section>
+
+<!-- 10 STAFFING -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Staffing</div>
+    <h1 class="title" style="margin-top:12px;">Keep teams organised — <span class="grad">without the back-and-forth.</span></h1>
+    <p class="lead" style="margin-top:12px;max-width:760px;">Everyone knows what to do, and when — across every site and shift.</p>
+    <div class="mods" style="margin-top:26px;grid-template-columns:repeat(4,1fr);gap:16px;">
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div><h4>Rotas</h4><p>Plan shifts across sites and teams.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="m18 9 3 3-3 3"/></svg></div><h4>Tasks</h4><p>Assign, track and complete daily work.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h4>Team updates</h4><p>Share announcements in one place.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><h4>Staff records</h4><p>Profiles, roles and permissions.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><h4>Training reminders</h4><p>Keep certifications up to date.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="m9 16 2 2 4-4"/></svg></div><h4>Absence visibility</h4><p>See who's in, off or on leave.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg></div><h4>Manager dashboards</h4><p>Visibility across the whole team.</p></div>
+      <div class="mod"><div class="ic soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3a9 9 0 1 0 9 9"/></svg></div><h4>Task completion</h4><p>Know what's done across sites.</p></div>
+    </div>
+    <div class="benefit" style="margin-top:24px;max-width:760px;"><b>Key benefit</b><p>Everyone knows what they need to do, when they need to do it.</p></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">10 / 14</span></div>
+</section>
+
+<!-- 11 CONTRACTS / CAPEX / COMPLIANCE -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Contracts · CAPEX · Compliance</div>
+    <h1 class="title" style="margin-top:12px;">Protect the business and <span class="grad">plan ahead.</span></h1>
+    <div class="row" style="gap:18px;margin-top:28px;">
+      <div class="card" style="flex:1;padding:24px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:14px 0 10px;color:var(--ink);">Contracts</h3><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Service contracts</div><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Cover levels</div><div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Renewal tracking</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:14px 0 10px;color:var(--ink);">CAPEX Planning</h3><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>CAPEX reporting</div><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Asset replacement planning</div><div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Investment forecasting</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:14px 0 10px;color:var(--ink);">Compliance</h3><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Accident reports</div><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>RIDDOR reports</div><div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Full audit trail</div></div>
+    </div>
+    <div class="benefit" style="margin-top:22px;"><b>Key message</b><p>Protect the business, plan investment and maintain professional records.</p></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">11 / 14</span></div>
+</section>
+
+<!-- 12 BUILT FOR -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Built For</div>
+    <h1 class="title" style="margin-top:12px;">One site, multi-site <span class="grad">and enterprise.</span></h1>
+    <div class="row" style="gap:16px;margin-top:30px;">
+      <div class="card" style="flex:1;padding:24px;"><div class="ic soft sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Independent Gyms</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Simple management</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Clear visibility</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Less admin</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic soft sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M2 12h20"/><circle cx="12" cy="12" r="9"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Studios</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Memberships</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Classes &amp; comms</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Staffing</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic soft sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Multi-site Operators</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sites &amp; regions</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Group reporting</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Service visibility</div></div>
+      <div class="card" style="flex:1;padding:24px;border-color:rgba(0,108,255,.3);background:linear-gradient(180deg,rgba(0,108,255,.05),rgba(122,53,255,.05));"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Enterprise Operators</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Permissions &amp; approvals</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Audit trails</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Dashboards &amp; compliance</div></div>
+    </div>
+    <div class="benefit" style="margin-top:28px;max-width:560px;"><b>Key message</b><p>GymAxisAI scales with your business — from one studio to a national operator.</p></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Scales from independent gyms to enterprise operators.</span><span class="pageno">12 / 14</span></div>
+</section>
+
+<!-- 13 WHY DIFFERENT -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Why GymAxisAI Is Different</div>
+    <h1 class="title" style="margin-top:10px;">Not just another <span class="grad">gym system.</span></h1>
+    <table class="cmp">
+      <thead><tr><th style="width:32%;">Capability</th><th>Spreadsheets</th><th>Booking software</th><th>Generic CRM</th><th class="gx" style="text-align:center;">GymAxisAI</th></tr></thead>
+      <tbody>
+        <tr><td class="cap">Members &amp; bookings</td><td><span class="x">✕</span></td><td><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td><span class="x">✕</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">CRM &amp; sales pipeline</td><td><span class="partial">Partial</span></td><td><span class="x">✕</span></td><td><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Equipment &amp; operations</td><td><span class="partial">Partial</span></td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Marketing on real member data</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Reporting across the business</td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td><span class="partial">Partial</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">AI assistance throughout</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">One source of truth</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td class="gx" style="text-align:center;border-bottom-left-radius:14px;border-bottom-right-radius:14px;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:18px;"><span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Operations-first platform</span><span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">CRM, memberships &amp; marketing connected</span><span class="chip" style="background:rgba(122,53,255,.1);color:#7A35FF;">AI support throughout</span><span class="chip" style="background:rgba(122,53,255,.1);color:#7A35FF;">Built for real fitness processes</span></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Stop running your business from WhatsApp &amp; spreadsheets.</span><span class="pageno">13 / 14</span></div>
+</section>
+
+<!-- 14 CTA -->
+<section class="slide dark">
+  <div class="glow b" style="width:560px;height:560px;top:-180px;left:-120px;"></div>
+  <div class="glow p" style="width:480px;height:480px;bottom:-200px;right:-120px;opacity:.4;"></div>
+  <div class="inner" style="justify-content:center;align-items:center;text-align:center;">
+    <span class="logo-pill" style="position:absolute;top:54px;left:72px;"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span>
+    <div style="max-width:840px;z-index:2;">
+      <div class="kicker g">Ready When You Are</div>
+      <h1 style="font-family:'Maax';font-weight:700;font-size:54px;line-height:1.05;color:#fff;margin-top:18px;">Ready to connect your <span class="grad">fitness business?</span></h1>
+      <p class="lead" style="margin:20px auto 0;max-width:680px;font-size:18px;">GymAxisAI helps gyms and studios reduce admin, improve visibility, manage equipment, support teams and make better decisions — from one connected platform.</p>
+      <div class="row" style="gap:14px;justify-content:center;margin-top:34px;flex-wrap:wrap;"><span class="btn grad">Start your free trial <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span><span class="btn ghost">Book a demo</span></div>
+      <div style="display:flex;gap:28px;justify-content:center;margin-top:34px;color:#9DAAD0;font-size:15px;font-weight:600;"><span style="display:flex;align-items:center;gap:8px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7FB0FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>gymaxisai.com</span><span style="display:flex;align-items:center;gap:8px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7FB0FF" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>hello@gymaxisai.com</span></div>
+      <div style="font-family:'Maax';font-weight:700;font-size:24px;color:#fff;margin-top:40px;">One platform. <span class="grad">Everything connected.</span></div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

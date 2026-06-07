@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GymAxisAI — For Engineers & Service Providers</title>
+<style>
+@font-face { font-family:'Maax'; src:url('/app/frontend/public/fonts/MaaxRounded-Bold.otf') format('opentype'); font-weight:700; }
+@font-face { font-family:'Maax'; src:url('/app/frontend/public/fonts/MaaxRounded-Medium.otf') format('opentype'); font-weight:500; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Regular.otf') format('opentype'); font-weight:400; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Semibold.otf') format('opentype'); font-weight:600; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Bold.otf') format('opentype'); font-weight:700; }
+@font-face { font-family:'Proxima'; src:url('/app/frontend/public/fonts/ProximaNova-Extrabold.otf') format('opentype'); font-weight:800; }
+:root{ --navy:#050B1F; --blue:#006CFF; --purple:#7A35FF; --pale:#F6F8FC; --grid:#E5EAF3; --ink:#0B1533; --muted:#5A6783; --line:#E5EAF3; --grad:linear-gradient(135deg,#006CFF 0%,#7A35FF 100%); }
+*{ box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+html,body{ font-family:'Proxima',sans-serif; color:var(--ink); }
+@page{ size:1280px 720px; margin:0; }
+.slide{ width:1280px; height:720px; position:relative; overflow:hidden; page-break-after:always; background:var(--pale); background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px); background-size:46px 46px; }
+.slide:last-child{ page-break-after:auto; }
+.slide.dark{ background:var(--navy); background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px); background-size:46px 46px; color:#fff; }
+.inner{ position:absolute; inset:0; padding:60px 72px; display:flex; flex-direction:column; }
+.glow{ position:absolute; border-radius:50%; filter:blur(80px); opacity:.5; z-index:0; }
+.glow.b{ background:#006CFF; } .glow.p{ background:#7A35FF; }
+.row{ display:flex; }
+.kicker{ font-weight:700; font-size:13px; letter-spacing:.16em; text-transform:uppercase; }
+.kicker.g{ background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.title{ font-family:'Maax'; font-weight:700; font-size:42px; line-height:1.08; letter-spacing:-.01em; color:var(--ink); }
+.dark .title{ color:#fff; }
+.grad{ background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.lead{ font-size:18px; line-height:1.55; color:var(--muted); }
+.dark .lead{ color:#A9B6D6; }
+.logo-pill{ display:inline-flex; align-items:center; background:#fff; border:1px solid var(--line); border-radius:999px; padding:8px 16px; box-shadow:0 6px 18px rgba(12,30,70,.12); z-index:3; }
+.logo-pill img{ height:24px; display:block; }
+.logo-pill.lg{ padding:15px 30px; } .logo-pill.lg img{ height:48px; }
+.logo-pill.sm{ padding:6px 12px; } .logo-pill.sm img{ height:17px; }
+.foot{ position:absolute; left:72px; right:72px; bottom:30px; display:flex; align-items:center; justify-content:space-between; z-index:3; }
+.foot span.tag{ font-size:12px; color:var(--muted); letter-spacing:.02em; font-weight:600; }
+.dark .foot span.tag{ color:#7E8CB0; }
+.foot .pageno{ font-size:12px; font-weight:700; color:var(--muted); }
+.dark .foot .pageno{ color:#7E8CB0; }
+.card{ background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 10px 30px rgba(12,30,70,.06); }
+.dark .card{ background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.10); box-shadow:none; }
+.ic{ width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--grad); color:#fff; flex:none; }
+.ic.soft{ background:linear-gradient(135deg,rgba(0,108,255,.12),rgba(122,53,255,.12)); color:var(--blue); }
+.ic svg{ width:23px; height:23px; }
+.ic.sm{ width:34px; height:34px; border-radius:10px; } .ic.sm svg{ width:18px; height:18px; }
+.mods{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.mod{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 18px 16px; box-shadow:0 8px 22px rgba(12,30,70,.05); }
+.mod h4{ font-family:'Maax'; font-weight:700; font-size:16px; margin:12px 0 4px; color:var(--ink); }
+.mod p{ font-size:12.5px; color:var(--muted); line-height:1.4; }
+.feats{ display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; margin-top:18px; }
+.feat{ display:flex; align-items:flex-start; gap:9px; font-size:14.5px; color:#27324F; line-height:1.3; }
+.feat .ck{ width:19px; height:19px; border-radius:6px; background:var(--grad); color:#fff; display:flex; align-items:center; justify-content:center; flex:none; margin-top:1px; }
+.feat .ck svg{ width:12px; height:12px; }
+.benefit{ margin-top:20px; background:linear-gradient(135deg,rgba(0,108,255,.07),rgba(122,53,255,.07)); border:1px solid rgba(0,108,255,.16); border-radius:16px; padding:16px 18px; }
+.benefit b{ font-family:'Maax'; font-weight:700; color:var(--blue); font-size:13px; letter-spacing:.04em; text-transform:uppercase; }
+.benefit p{ font-size:15px; color:#27324F; margin-top:5px; line-height:1.45; }
+.mock{ background:#fff; border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 18px 44px rgba(12,30,70,.12); }
+.mock .bar{ height:34px; background:#F1F4FA; border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 14px; gap:7px; }
+.dot{ width:9px; height:9px; border-radius:50%; }
+.mock .body{ padding:18px; }
+.mline{ height:11px; border-radius:6px; background:#EEF2F9; }
+.chip{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:5px 11px; border-radius:999px; }
+.btn{ display:inline-flex; align-items:center; gap:9px; font-weight:700; font-size:15px; padding:13px 24px; border-radius:999px; }
+.btn.grad{ background:var(--grad); color:#fff; box-shadow:0 10px 26px rgba(0,108,255,.35); }
+.btn.ghost{ border:1.5px solid rgba(255,255,255,.30); color:#fff; }
+.btn svg{ width:17px; height:17px; }
+.node{ position:absolute; transform:translate(-50%,-50%); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); color:#fff; font-weight:600; font-size:14px; padding:11px 18px; border-radius:999px; white-space:nowrap; box-shadow:0 8px 20px rgba(0,0,0,.25); }
+.cmp{ width:100%; border-collapse:separate; border-spacing:0; margin-top:18px; }
+.cmp th,.cmp td{ padding:12px 14px; text-align:left; font-size:14px; }
+.cmp thead th{ font-weight:700; color:var(--muted); font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--line); }
+.cmp tbody td{ border-bottom:1px solid var(--line); color:#27324F; }
+.cmp td.cap{ font-weight:700; color:var(--ink); }
+.cmp .gx{ background:linear-gradient(180deg,rgba(0,108,255,.06),rgba(122,53,255,.06)); }
+.cmp th.gx{ color:#fff; background:var(--navy); border-top-left-radius:14px; border-top-right-radius:14px; border-bottom:none; }
+.x{ color:#C2496B; font-weight:800; } .partial{ color:#D08A1B; font-weight:700; font-size:12.5px; }
+.tick{ display:inline-flex; width:21px; height:21px; border-radius:7px; background:var(--grad); color:#fff; align-items:center; justify-content:center; }
+.tick svg{ width:13px; height:13px; }
+</style>
+</head>
+<body>
+
+<!-- 1 COVER -->
+<section class="slide dark">
+  <div class="glow b" style="width:520px;height:520px;top:-160px;right:-120px;"></div>
+  <div class="glow p" style="width:460px;height:460px;bottom:-200px;left:-140px;opacity:.40;"></div>
+  <div class="inner" style="justify-content:center;">
+    <span class="logo-pill" style="position:absolute;top:54px;left:72px;"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span>
+    <div style="max-width:880px;z-index:2;">
+      <div class="kicker g" style="margin-bottom:22px;">For Engineers &amp; Service Providers</div>
+      <span class="logo-pill lg" style="margin-bottom:24px;"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span>
+      <div style="font-family:'Maax';font-weight:700;font-size:46px;line-height:1.05;color:#fff;margin-top:6px;">From fault logged<br>to <span class="grad">job completed.</span></div>
+      <p class="lead" style="margin-top:18px;max-width:680px;font-size:19px;">The connected platform for fitness equipment engineers and service teams — jobs, reports, parts and contracts in one place.</p>
+      <div class="row" style="gap:14px;margin-top:34px;">
+        <span class="btn grad">Book a Demo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+        <span class="btn ghost">Become a Partner</span>
+      </div>
+    </div>
+    <svg width="240" height="240" viewBox="0 0 260 260" style="position:absolute;right:96px;bottom:96px;opacity:.9;z-index:1;">
+      <defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#006CFF"/><stop offset="1" stop-color="#7A35FF"/></linearGradient></defs>
+      <g stroke="url(#cg)" stroke-width="1.4" opacity=".55"><line x1="130" y1="130" x2="130" y2="30"/><line x1="130" y1="130" x2="222" y2="84"/><line x1="130" y1="130" x2="222" y2="176"/><line x1="130" y1="130" x2="130" y2="230"/><line x1="130" y1="130" x2="38" y2="176"/><line x1="130" y1="130" x2="38" y2="84"/></g>
+      <circle cx="130" cy="130" r="20" fill="url(#cg)"/>
+      <g fill="#0A1330" stroke="url(#cg)" stroke-width="2"><circle cx="130" cy="30" r="9"/><circle cx="222" cy="84" r="9"/><circle cx="222" cy="176" r="9"/><circle cx="130" cy="230" r="9"/><circle cx="38" cy="176" r="9"/><circle cx="38" cy="84" r="9"/></g>
+    </svg>
+  </div>
+  <div class="foot"><span class="tag">One platform. Everything connected.</span><span class="pageno">gymaxisai.com</span></div>
+</section>
+
+<!-- 2 PROBLEM -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">The Problem</div>
+    <h1 class="title" style="margin-top:14px;">Service teams run on <span class="grad">paper and WhatsApp.</span></h1>
+    <p class="lead" style="margin-top:14px;max-width:720px;">Engineers and service providers lose hours to manual admin — and the office loses visibility of every job.</p>
+    <div class="mods" style="grid-template-columns:repeat(6,1fr);margin-top:34px;">
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Paper job sheets</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h4 style="font-size:14px;margin-top:10px;">WhatsApp dispatch</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Lost service history</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Missing van stock</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></div><h4 style="font-size:14px;margin-top:10px;">Manual invoicing</h4></div>
+      <div class="mod" style="text-align:center;"><div class="ic soft sm" style="margin:0 auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><line x1="4" x2="20" y1="20" y2="4"/></svg></div><h4 style="font-size:14px;margin-top:10px;">No job visibility</h4></div>
+    </div>
+    <div class="card" style="margin-top:26px;padding:22px 26px;display:flex;align-items:center;gap:26px;border-color:rgba(194,73,107,.25);background:linear-gradient(135deg,rgba(194,73,107,.05),rgba(122,53,255,.04));">
+      <div class="ic" style="background:linear-gradient(135deg,#C2496B,#7A35FF);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+      <div><div style="font-family:'Maax';font-weight:700;font-size:19px;color:var(--ink);">Disconnected jobs cost time, parts and trust.</div><p style="font-size:14.5px;color:var(--muted);margin-top:5px;">Reports go missing · history disappears · parts aren't tracked · invoices are slow · and customers are left in the dark.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Give engineers the tools to complete jobs properly.</span><span class="pageno">02 / 12</span></div>
+</section>
+
+<!-- 3 SOLUTION HUB -->
+<section class="slide dark">
+  <div class="glow b" style="width:520px;height:520px;top:120px;left:430px;opacity:.30;"></div>
+  <div class="inner">
+    <div style="text-align:center;">
+      <div class="kicker g">The Solution</div>
+      <h1 class="title" style="margin-top:12px;color:#fff;">One connected <span class="grad">service workflow.</span></h1>
+      <p class="lead" style="margin:12px auto 0;max-width:720px;">GymAxisAI links the Service Desk, the Engineer App, stock and contracts — so every job flows from logged to invoiced.</p>
+    </div>
+    <div style="position:relative;flex:1;margin-top:4px;">
+      <svg width="1136" height="470" viewBox="0 0 1136 470" style="position:absolute;left:50%;transform:translateX(-50%);top:0;">
+        <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#006CFF"/><stop offset="1" stop-color="#7A35FF"/></linearGradient></defs>
+        <g stroke="url(#hg)" stroke-width="1.6" opacity=".45"><line x1="568" y1="235" x2="568" y2="55"/><line x1="568" y1="235" x2="844" y2="89"/><line x1="568" y1="235" x2="1015" y2="179"/><line x1="568" y1="235" x2="1015" y2="291"/><line x1="568" y1="235" x2="844" y2="381"/><line x1="568" y1="235" x2="568" y2="415"/><line x1="568" y1="235" x2="292" y2="381"/><line x1="568" y1="235" x2="121" y2="291"/><line x1="568" y1="235" x2="121" y2="179"/><line x1="568" y1="235" x2="292" y2="89"/></g>
+      </svg>
+      <div style="position:absolute;left:50%;top:235px;transform:translate(-50%,-50%);width:172px;height:172px;border-radius:50%;background:var(--grad);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(122,53,255,.14),0 20px 50px rgba(0,108,255,.4);">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.3" fill="#fff"/><circle cx="5" cy="6" r="1.7"/><circle cx="19" cy="6" r="1.7"/><circle cx="5" cy="18" r="1.7"/><circle cx="19" cy="18" r="1.7"/><path d="M6.5 7 10.2 10.4M17.5 7 13.8 10.4M6.5 17 10.2 13.6M17.5 17 13.8 13.6"/></svg>
+        <div style="font-family:'Maax';font-weight:700;color:#fff;font-size:17px;margin-top:6px;">GymAxisAI</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.85);letter-spacing:.1em;">SOURCE OF TRUTH</div>
+      </div>
+      <div class="node" style="left:50%;top:55px;">Cases</div>
+      <div class="node" style="left:74.3%;top:89px;">Jobs</div>
+      <div class="node" style="left:89.3%;top:179px;">Engineers</div>
+      <div class="node" style="left:89.3%;top:291px;">Equipment</div>
+      <div class="node" style="left:74.3%;top:381px;">Service history</div>
+      <div class="node" style="left:50%;top:415px;">Invoices</div>
+      <div class="node" style="left:25.7%;top:381px;">Contracts</div>
+      <div class="node" style="left:10.7%;top:291px;">Reports</div>
+      <div class="node" style="left:10.7%;top:179px;">Parts &amp; stock</div>
+      <div class="node" style="left:25.7%;top:89px;">Customers</div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">03 / 12</span></div>
+</section>
+
+<!-- 4 SERVICE DESK -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="width:560px;">
+        <div class="kicker g">Service Desk</div>
+        <h1 class="title" style="margin-top:12px;">Every job, from logged <span class="grad">to completed.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Case logging</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Job allocation</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Engineer diary</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Service reports</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Customer communication</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Quotes &amp; invoices</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Full job history</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>SLA &amp; status tracking</div>
+        </div>
+        <div class="benefit"><b>Key message</b><p>The office gets the reports it needs — and customers get visibility at every step.</p></div>
+      </div>
+      <div style="flex:1;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">Service Desk · Open cases</div></div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">#4821 · Treadmill belt</div><div style="font-size:11px;color:#8A97B5;">Third Space · Canary Wharf</div></div><span class="chip" style="background:rgba(0,108,255,.12);color:#006CFF;">Allocated</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">#4822 · Console fault</div><div style="font-size:11px;color:#8A97B5;">PureGym · Leeds</div></div><span class="chip" style="background:rgba(208,138,27,.16);color:#B5760E;">In progress</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">#4819 · Rower service</div><div style="font-size:11px;color:#8A97B5;">Signed off · invoiced</div></div><span class="chip" style="background:rgba(40,200,64,.14);color:#16923B;">Completed</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">From fault logged to job completed — fully connected.</span><span class="pageno">04 / 12</span></div>
+</section>
+
+<!-- 5 ENGINEER APP -->
+<section class="slide dark">
+  <div class="glow p" style="width:420px;height:420px;top:120px;right:-80px;opacity:.3;"></div>
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="width:580px;">
+        <div class="kicker g">Engineer App</div>
+        <h1 class="title" style="margin-top:12px;color:#fff;">Everything the engineer needs, <span class="grad">in their pocket.</span></h1>
+        <p class="lead" style="margin-top:12px;">A mobile-first app that turns every site visit into a complete, signed-off record.</p>
+        <div class="feats" style="margin-top:16px;">
+          <div class="feat" style="color:#D7E0F5;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Mobile job view</div>
+          <div class="feat" style="color:#D7E0F5;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Photos &amp; videos</div>
+          <div class="feat" style="color:#D7E0F5;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Customer signatures</div>
+          <div class="feat" style="color:#D7E0F5;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Parts used on the job</div>
+          <div class="feat" style="color:#D7E0F5;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>On-site quotes &amp; invoices</div>
+          <div class="feat" style="color:#D7E0F5;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Works offline, syncs later</div>
+        </div>
+        <div class="benefit" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);"><b style="color:#7FB0FF;">Key message</b><p style="color:#D7E0F5;">Engineers complete jobs properly — no paper, no lost reports, no follow-up admin.</p></div>
+      </div>
+      <div style="flex:1;display:flex;justify-content:center;">
+        <div style="width:260px;height:430px;background:#0E1840;border:8px solid #1B2752;border-radius:38px;box-shadow:0 30px 60px rgba(0,0,0,.45);padding:16px 14px;position:relative;">
+          <div style="width:80px;height:6px;background:#1B2752;border-radius:99px;margin:2px auto 14px;"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><div style="font-family:'Maax';font-weight:700;color:#fff;font-size:15px;">Job #4821</div><span class="chip" style="background:rgba(0,108,255,.25);color:#9DC0FF;">In progress</span></div>
+          <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px;margin-bottom:10px;"><div style="font-size:12px;color:#9DAAD0;">Third Space · Canary Wharf</div><div style="font-size:13px;color:#fff;font-weight:600;margin-top:3px;">Treadmill 03 — belt slipping</div></div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;"><div style="flex:1;height:54px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#7FB0FF;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></div><div style="flex:1;height:54px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#7FB0FF;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg></div><div style="flex:1;height:54px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#7FB0FF;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div></div>
+          <div style="font-size:11px;color:#9DAAD0;margin-bottom:6px;">Customer signature</div>
+          <div style="height:50px;background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.2);border-radius:12px;margin-bottom:12px;"></div>
+          <div style="background:var(--grad);border-radius:12px;height:44px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">Complete job</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Give engineers the tools to complete jobs properly.</span><span class="pageno">05 / 12</span></div>
+</section>
+
+<!-- 6 ASSET & SERVICE HISTORY -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="flex:1;order:2;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">Asset · Service history</div></div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Treadmill 03</div><div style="font-size:11px;color:#8A97B5;">S/N TR-260G-1234</div></div><span class="chip" style="background:rgba(208,138,27,.16);color:#B5760E;">3 faults / 30d</span></div>
+            <div style="padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;"><div style="font-size:12px;color:var(--ink);font-weight:600;">12 May · Belt replaced</div><div style="font-size:11px;color:#8A97B5;">Eng. J. Ottey · part BLT-200J</div></div>
+            <div style="padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;"><div style="font-size:12px;color:var(--ink);font-weight:600;">28 Apr · Console reset</div><div style="font-size:11px;color:#8A97B5;">Eng. M. Shah</div></div>
+            <div style="padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;"><div style="font-size:12px;color:var(--ink);font-weight:600;">02 Apr · Annual service</div><div style="font-size:11px;color:#8A97B5;">Signed off</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="width:560px;order:1;">
+        <div class="kicker g">Asset Management</div>
+        <h1 class="title" style="margin-top:12px;">Full service history, <span class="grad">on every machine.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Asset register &amp; serials</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Full service history</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Fault logging</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Recurring fault tracking</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Parts tagged to assets</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Risk indicators</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Condition notes</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Asset-level reporting</div>
+        </div>
+        <div class="benefit"><b>Key benefit</b><p>Walk onto any site knowing exactly what's been done, when and by whom.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Spot equipment issues before they become failures.</span><span class="pageno">06 / 12</span></div>
+</section>
+
+<!-- 7 STOCK & PARTS -->
+<section class="slide">
+  <div class="inner">
+    <div class="row" style="gap:46px;flex:1;align-items:center;">
+      <div style="width:560px;">
+        <div class="kicker g">Stock &amp; Parts Control</div>
+        <h1 class="title" style="margin-top:12px;">Know what's on the van, <span class="grad">used, and where.</span></h1>
+        <div class="feats">
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Van stock</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Parts catalogue</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Import stock lists</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Parts used on jobs</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Tag parts to equipment</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Replenishment requests</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Usage history &amp; reports</div>
+          <div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Low stock alerts</div>
+        </div>
+        <div class="benefit"><b>Key benefit</b><p>Less missing stock, better replenishment and full traceability.</p></div>
+      </div>
+      <div style="flex:1;">
+        <div class="mock">
+          <div class="bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><div style="margin-left:12px;font-size:11px;color:#8A97B5;font-weight:600;">Stock · Van GX-04</div></div>
+          <div class="body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Drive belt — 200J</div><div style="font-size:11px;color:#8A97B5;">SKU BLT-200J</div></div><span class="chip" style="background:rgba(40,200,64,.14);color:#16923B;">In stock · 6</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Console membrane</div><div style="font-size:11px;color:#8A97B5;">SKU CON-MEM-12</div></div><span class="chip" style="background:rgba(208,138,27,.16);color:#B5760E;">Low · 1</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F5F8FE;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;"><div><div style="font-weight:700;font-size:13px;color:var(--ink);">Roller bearing kit</div><div style="font-size:11px;color:#8A97B5;">SKU BRG-KIT-08</div></div><span class="chip" style="background:rgba(194,73,107,.14);color:#C2496B;">Out · 0</span></div>
+            <div style="background:var(--grad);border-radius:11px;height:42px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;">Request replenishment</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">07 / 12</span></div>
+</section>
+
+<!-- 8 CONTRACTS / CAPEX / COMPLIANCE -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Contracts · CAPEX · Compliance</div>
+    <h1 class="title" style="margin-top:12px;">Cover, planning and compliance <span class="grad">built in.</span></h1>
+    <div class="row" style="gap:18px;margin-top:28px;">
+      <div class="card" style="flex:1;padding:24px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:14px 0 10px;color:var(--ink);">Service Contracts</h3><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Cover levels</div><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Customer entitlement</div><div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Renewal tracking</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:14px 0 10px;color:var(--ink);">CAPEX Reporting</h3><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Asset replacement planning</div><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Investment forecasting</div><div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Risk-based prioritisation</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div><h3 style="font-family:'Maax';font-weight:700;font-size:19px;margin:14px 0 10px;color:var(--ink);">Compliance</h3><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Accident reports</div><div class="feat" style="margin-bottom:8px;"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>RIDDOR reports</div><div class="feat"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Full audit trail</div></div>
+    </div>
+    <div class="benefit" style="margin-top:22px;"><b>Key message</b><p>Honour the right cover, plan replacements and keep professional, audit-ready records.</p></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">One platform. Everything connected.</span><span class="pageno">08 / 12</span></div>
+</section>
+
+<!-- 9 REPORTING -->
+<section class="slide dark">
+  <div class="glow b" style="width:460px;height:460px;top:-140px;left:40%;opacity:.28;"></div>
+  <div class="inner">
+    <div class="kicker g">Reporting &amp; Insights</div>
+    <h1 class="title" style="margin-top:12px;color:#fff;">One view of <span class="grad">your service operation.</span></h1>
+    <div class="row" style="gap:18px;margin-top:24px;flex:1;">
+      <div class="card" style="width:430px;padding:22px;">
+        <div style="display:flex;gap:12px;margin-bottom:14px;"><div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#9DAAD0;">Jobs (mo)</div><div style="font-family:'Maax';font-weight:700;font-size:22px;color:#fff;">342</div></div><div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;"><div style="font-size:11px;color:#9DAAD0;">First-time fix</div><div style="font-family:'Maax';font-weight:700;font-size:22px;color:#fff;">91%</div></div></div>
+        <div style="font-size:11px;color:#9DAAD0;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Engineer activity</div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:130px;"><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:60%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:78%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:52%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:84%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:70%;border-radius:8px 8px 0 0;"></div><div style="flex:1;background:linear-gradient(180deg,#006CFF,#7A35FF);height:96%;border-radius:8px 8px 0 0;"></div></div>
+      </div>
+      <div style="flex:1;">
+        <p class="lead" style="margin-bottom:16px;">GymAxisAI turns every completed job into data — so service managers and partners can see performance at a glance.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:9px;"><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Engineer activity</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Service performance</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Equipment faults</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Stock usage</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Contract renewals</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">CAPEX risk</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">SLA &amp; response</span><span class="chip" style="background:rgba(255,255,255,.07);color:#CBD6F0;border:1px solid rgba(255,255,255,.12);">Invoicing</span></div>
+        <div class="benefit" style="margin-top:20px;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);"><b style="color:#7FB0FF;">Key message</b><p style="color:#D7E0F5;">Turn disconnected data into useful decisions.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Turn disconnected data into useful decisions.</span><span class="pageno">09 / 12</span></div>
+</section>
+
+<!-- 10 BUILT FOR -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Built For</div>
+    <h1 class="title" style="margin-top:12px;">Solo engineers to <span class="grad">national service teams.</span></h1>
+    <div class="row" style="gap:16px;margin-top:30px;">
+      <div class="card" style="flex:1;padding:24px;"><div class="ic soft sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Solo Engineers</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Jobs &amp; reports</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>On-site invoicing</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Less paperwork</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic soft sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Service Companies</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Service desk &amp; diary</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Contracts &amp; SLAs</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Team reporting</div></div>
+      <div class="card" style="flex:1;padding:24px;"><div class="ic soft sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">Multi-engineer Teams</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Allocation &amp; routing</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Van stock per engineer</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Manager dashboards</div></div>
+      <div class="card" style="flex:1;padding:24px;border-color:rgba(0,108,255,.3);background:linear-gradient(180deg,rgba(0,108,255,.05),rgba(122,53,255,.05));"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div><h4 style="font-family:'Maax';font-weight:700;font-size:17px;margin:12px 0 12px;color:var(--ink);">OEMs &amp; Suppliers</h4><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Install &amp; warranty</div><div class="feat" style="font-size:13.5px;margin-bottom:7px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Fleet service history</div><div class="feat" style="font-size:13.5px;"><span class="ck" style="width:16px;height:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Partner network</div></div>
+    </div>
+    <div class="benefit" style="margin-top:28px;max-width:560px;"><b>Key message</b><p>GymAxisAI scales with you — from a single engineer to a national service network.</p></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Scales from solo engineer to national service teams.</span><span class="pageno">10 / 12</span></div>
+</section>
+
+<!-- 11 WHY DIFFERENT -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker g">Why GymAxisAI Is Different</div>
+    <h1 class="title" style="margin-top:10px;">Not just another <span class="grad">field service tool.</span></h1>
+    <table class="cmp">
+      <thead><tr><th style="width:34%;">Capability</th><th>Paper &amp; WhatsApp</th><th>Spreadsheets</th><th>Generic field service</th><th class="gx" style="text-align:center;">GymAxisAI</th></tr></thead>
+      <tbody>
+        <tr><td class="cap">Service desk &amp; job allocation</td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Mobile engineer app</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Equipment service history</td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td><span class="partial">Partial</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Van stock &amp; parts control</td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td><span class="partial">Partial</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Contracts, CAPEX &amp; RIDDOR</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">Built for fitness equipment</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td class="gx" style="text-align:center;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="cap">One source of truth</td><td><span class="x">✕</span></td><td><span class="x">✕</span></td><td><span class="partial">Partial</span></td><td class="gx" style="text-align:center;border-bottom-left-radius:14px;border-bottom-right-radius:14px;"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:18px;"><span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Engineer workflows built in</span><span class="chip" style="background:rgba(0,108,255,.1);color:#006CFF;">Service desk + mobile app</span><span class="chip" style="background:rgba(122,53,255,.1);color:#7A35FF;">Stock &amp; contracts connected</span><span class="chip" style="background:rgba(122,53,255,.1);color:#7A35FF;">Built for fitness equipment</span></div>
+  </div>
+  <div class="foot"><span class="logo-pill sm"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span><span class="tag">Stop running service from paper &amp; WhatsApp.</span><span class="pageno">11 / 12</span></div>
+</section>
+
+<!-- 12 CTA -->
+<section class="slide dark">
+  <div class="glow b" style="width:560px;height:560px;top:-180px;left:-120px;"></div>
+  <div class="glow p" style="width:480px;height:480px;bottom:-200px;right:-120px;opacity:.4;"></div>
+  <div class="inner" style="justify-content:center;align-items:center;text-align:center;">
+    <span class="logo-pill" style="position:absolute;top:54px;left:72px;"><img src="/app/frontend/public/brand/gymaxis-full-tight.png" alt="GymAxisAI"></span>
+    <div style="max-width:840px;z-index:2;">
+      <div class="kicker g">Ready When You Are</div>
+      <h1 style="font-family:'Maax';font-weight:700;font-size:54px;line-height:1.05;color:#fff;margin-top:18px;">Ready to connect <span class="grad">your service operation?</span></h1>
+      <p class="lead" style="margin:20px auto 0;max-width:680px;font-size:18px;">GymAxisAI gives engineers and service providers the tools to log faults, complete jobs properly, track parts and get paid faster — from one connected platform.</p>
+      <div class="row" style="gap:14px;justify-content:center;margin-top:34px;flex-wrap:wrap;"><span class="btn grad">Become a partner <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span><span class="btn ghost">Book a demo</span></div>
+      <div style="display:flex;gap:28px;justify-content:center;margin-top:34px;color:#9DAAD0;font-size:15px;font-weight:600;"><span style="display:flex;align-items:center;gap:8px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7FB0FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>gymaxisai.com</span><span style="display:flex;align-items:center;gap:8px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7FB0FF" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>partners@gymaxisai.com</span></div>
+      <div style="font-family:'Maax';font-weight:700;font-size:24px;color:#fff;margin-top:40px;">One platform. <span class="grad">Everything connected.</span></div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
