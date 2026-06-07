@@ -9,7 +9,6 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [downloadingCraig, setDownloadingCraig] = useState(false);
 
   const downloadPdf = async (endpoint, filename, setBusy) => {
     setBusy(true);
@@ -37,8 +36,6 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
 
   const downloadBriefing = () =>
     downloadPdf('/admin-docs/security-briefing', 'Pulse_Fitness_Security_Briefing.pdf', setDownloading);
-  const downloadCraigResponse = () =>
-    downloadPdf('/admin-docs/craig-response', 'Pulse_Fitness_Response_To_Craig.pdf', setDownloadingCraig);
 
   useEffect(() => {
     const run = async () => {
@@ -130,33 +127,6 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
             data-testid="desk-download-security-briefing"
           >
             <Download className="w-4 h-4 mr-1" /> {downloading ? 'Preparing…' : 'Download PDF'}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-5 border-indigo-100 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="w-4 h-4 text-indigo-600" />
-              <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Response to Craig's Review (Pulse MD)
-              </div>
-            </div>
-            <div className="text-xs text-zinc-600 max-w-md">
-              Point-by-point plain-English answers to every concern Pulse's IT manager raised
-              about Sage 200 integration, security, AI-assisted development, and support.
-              For the Managing Director.
-            </div>
-          </div>
-          <Button
-            size="sm"
-            onClick={downloadCraigResponse}
-            disabled={downloadingCraig}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white flex-shrink-0"
-            data-testid="desk-download-craig-response"
-          >
-            <Download className="w-4 h-4 mr-1" /> {downloadingCraig ? 'Preparing…' : 'Download PDF'}
           </Button>
         </div>
       </Card>

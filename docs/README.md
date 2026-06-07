@@ -16,7 +16,6 @@ real location so you can still find them from here.
 |---|---|
 | [COST_TO_BUILD.md](COST_TO_BUILD.md) | Build / replacement cost of the platform (what an agency would charge to recreate it) |
 | [PARTNERSHIP_PROPOSAL.md](PARTNERSHIP_PROPOSAL.md) | GymAxisAI × Pulse Fitness self-service portal partnership proposal |
-| [RESPONSE_TO_CRAIG_PULSE_FITNESS.md](RESPONSE_TO_CRAIG_PULSE_FITNESS.md) ([PDF](RESPONSE_TO_CRAIG_PULSE_FITNESS.pdf)) | Formal response letter to the Pulse Fitness MD |
 | [SECURITY_BRIEFING_PULSE_FITNESS.md](SECURITY_BRIEFING_PULSE_FITNESS.md) ([PDF](SECURITY_BRIEFING_PULSE_FITNESS.pdf)) | Customer-facing security briefing |
 
 ### Product modules

@@ -6,8 +6,8 @@
 ---
 
 **Prepared by:** GymAxis AI
-**Date:** April 2026
-**Status:** Draft — For Discussion
+**Date:** June 2026 *(refreshed — supersedes the April 2026 draft)*
+**Status:** Draft v2 — For Discussion
 
 ---
 
@@ -18,7 +18,9 @@ GymAxis AI has developed a white-label **Self-Service Maintenance Portal** purpo
 - **Pulse Self-Service (Lite)** — Bundled free with Pulse Fitness equipment
 - **Pulse Self-Service Pro** — Premium subscription sold jointly
 
-GymAxis AI retains full ownership of the GymAxis AI platform and all underlying intellectual property. Pulse Fitness receives an exclusive licence to distribute the Self-Service Portal under the Pulse Fitness brand.
+The platform is already **live in production** (gymaxisai.com, operating since February 2026) — this is a proven, in-market system rather than a concept.
+
+GymAxis AI retains full ownership of the GymAxis AI platform and all underlying intellectual property. Pulse Fitness receives a **white-label licence** to distribute the Self-Service Portal under the Pulse Fitness brand. Licence scope (non-exclusive) is defined in §4.
 
 ---
 

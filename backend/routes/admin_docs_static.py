@@ -8,7 +8,6 @@ from fastapi.responses import FileResponse
 
 from utils.service_desk_auth import require_service_desk
 from scripts.generate_security_briefing import build_pdf, PDF_PATH
-from scripts.generate_craig_response import build_pdf as build_craig_pdf, PDF_PATH as CRAIG_PDF_PATH
 
 router = APIRouter(prefix="/admin-docs", tags=["Admin Documents"])
 
@@ -35,22 +34,4 @@ async def get_security_briefing(_: dict = Depends(require_service_desk)):
 async def regenerate_security_briefing(_: dict = Depends(require_service_desk)):
     """Rebuild the briefing PDF (picks up any source edits to the generator)."""
     path = build_pdf(PDF_PATH)
-    return {"success": True, "path": path}
-
-
-@router.get("/craig-response")
-async def get_craig_response(_: dict = Depends(require_service_desk)):
-    """Return the point-by-point response to Craig's technical review, for the Pulse MD."""
-    _ensure_pdf(CRAIG_PDF_PATH, build_craig_pdf)
-    return FileResponse(
-        CRAIG_PDF_PATH,
-        media_type="application/pdf",
-        filename="Pulse_Fitness_Response_To_Craig.pdf",
-    )
-
-
-@router.post("/craig-response/regenerate")
-async def regenerate_craig_response(_: dict = Depends(require_service_desk)):
-    """Rebuild the Craig-response PDF (picks up any source edits to the generator)."""
-    path = build_craig_pdf(CRAIG_PDF_PATH)
     return {"success": True, "path": path}
