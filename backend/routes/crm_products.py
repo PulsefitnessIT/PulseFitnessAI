@@ -109,6 +109,18 @@ def _is_admin(user: dict) -> bool:
     )
 
 
+def _is_owner(user: dict) -> bool:
+    """Owner-level gate for the destructive 'clear price list' action.
+    Master/pulse admins and the org's owner/primary admin — never a
+    delegated 'manager'. (CRM stores the account owner as role 'admin'.)"""
+    return (
+        bool(user.get("is_master_admin"))
+        or bool(user.get("is_pulse_admin"))
+        or bool(user.get("is_org_owner"))
+        or (user.get("role") or "").lower() in ("owner", "admin")
+    )
+
+
 def _calc_markup(cost: float, sell: float) -> float:
     """Markup % = (sell − cost) / cost × 100. Returns 0 when cost is 0
     so the value remains numeric and sortable (vs +inf)."""
@@ -183,6 +195,53 @@ async def list_categories(user=Depends(get_crm_user)) -> dict:
         if c and c not in merged:
             merged.append(c)
     return {"categories": merged}
+
+
+@router.get("/import-batches")
+async def list_import_batches(user=Depends(get_crm_user)) -> dict:
+    """List distinct import batches with product counts so the owner can
+    'undo' a specific import. Most-recent first."""
+    pipeline = [
+        {"$match": {**_of(user), "import_batch_id": {"$nin": [None, ""]}}},
+        {"$group": {"_id": "$import_batch_id",
+                    "count": {"$sum": 1},
+                    "last": {"$max": "$created_at"}}},
+        {"$sort": {"last": -1}},
+        {"$limit": 50},
+    ]
+    rows = await db.crm_products.aggregate(pipeline).to_list(50)
+    return {"batches": [
+        {"import_batch_id": r["_id"], "count": r["count"], "last": r.get("last")}
+        for r in rows
+    ]}
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_products(data: dict, user=Depends(get_crm_user)) -> dict:
+    """Permanently delete products in bulk. Owner-only, hard delete,
+    guarded by a typed 'DELETE' confirmation.
+
+    mode='all'           → wipe the entire price list (clean slate).
+    mode='import_batch'  → delete only products from one import batch.
+    """
+    if not _is_owner(user):
+        raise HTTPException(403, "Only the organisation owner can clear the price list")
+    if (data.get("confirm") or "").strip() != "DELETE":
+        raise HTTPException(400, "Type DELETE to confirm this permanent action")
+    mode = data.get("mode")
+    q: dict[str, Any] = {**_of(user)}
+    if mode == "import_batch":
+        batch = (data.get("import_batch_id") or "").strip()
+        if not batch:
+            raise HTTPException(400, "import_batch_id is required for import_batch mode")
+        q["import_batch_id"] = batch
+    elif mode != "all":
+        raise HTTPException(400, "mode must be 'all' or 'import_batch'")
+    res = await db.crm_products.delete_many(q)
+    await log_audit(user, "product", "bulk-delete", "deleted",
+                    {"mode": mode, "deleted": res.deleted_count,
+                     "import_batch_id": data.get("import_batch_id", "")})
+    return {"deleted": res.deleted_count, "mode": mode}
 
 
 @router.get("/{product_id}")

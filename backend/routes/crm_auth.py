@@ -280,6 +280,7 @@ async def crm_me(user=Depends(get_crm_user)):
         "crm_brand": crm_brand,
         "is_pulse_internal": is_pulse_internal,
         "is_master_admin": is_admin_user,
+        "is_org_owner": bool(user.get("is_org_owner") or is_admin_user),
         "features": features,
         "modules": modules,
     }
@@ -381,6 +382,17 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
     full_name = main_user.get("full_name") or main_user.get("name") or email
     main_org_id = main_user.get("organization_id")
 
+    # Preserve the platform OWNER signal across the CRM identity bridge.
+    # The bridge stores delegated cross-login users as role "manager", which
+    # would otherwise hide owner-only actions (e.g. Clear price list) from the
+    # actual org owner. Carry an explicit `is_org_owner` flag instead.
+    is_org_owner = (main_user.get("role") or "").lower() == "owner"
+    if not is_org_owner and main_org_id:
+        _owner_org = await db.organizations.find_one(
+            {"id": main_org_id}, {"_id": 0, "owner_id": 1})
+        if _owner_org and _owner_org.get("owner_id") == user_id:
+            is_org_owner = True
+
     crm_user = await db.crm_users.find_one({"email": email}, {"_id": 0})
     if not crm_user:
         crm_user_id = str(uuid.uuid4())
@@ -395,6 +407,7 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
             "role": "admin" if is_master else "manager",
             "organization_id": main_org_id,
             "avatar_url": main_user.get("avatar_url"),
+            "is_org_owner": is_org_owner,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "cross_login_provisioned": True,
         }
@@ -411,6 +424,9 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
         # Promote to admin if the user is now a master admin.
         if is_master and crm_user.get("role") != "admin":
             updates["role"] = "admin"
+        # Keep the org-owner signal current (backfills pre-existing docs).
+        if bool(crm_user.get("is_org_owner")) != is_org_owner:
+            updates["is_org_owner"] = is_org_owner
         if updates:
             await db.crm_users.update_one({"email": email}, {"$set": updates})
             crm_user.update(updates)
@@ -438,6 +454,7 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
             "crm_brand": crm_brand,
             "is_pulse_internal": is_pulse_internal,
             "is_master_admin": is_master,
+            "is_org_owner": bool(is_org_owner or is_master),
             "features": features,
             "modules": modules,
         },

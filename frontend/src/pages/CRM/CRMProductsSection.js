@@ -18,6 +18,7 @@ import CRMPriceChangesModal from './CRMPriceChangesModal';
 import CRMPriceExportModal from './CRMPriceExportModal';
 import CRMDataQualityModal from './CRMDataQualityModal';
 import CRMBundleSuggestModal from './CRMBundleSuggestModal';
+import CRMClearPriceListModal from './CRMClearPriceListModal';
 
 const EDITOR_ROLES = ['admin', 'owner', 'manager'];
 
@@ -28,6 +29,7 @@ const DEFAULT_CATEGORIES = [
 
 export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   const canEdit = !!(user?.is_master_admin || user?.is_pulse_admin || EDITOR_ROLES.includes((user?.role || '').toLowerCase())) || !user;
+  const isOwner = !!(user?.is_master_admin || user?.is_pulse_admin || user?.is_org_owner || ['owner', 'admin'].includes((user?.role || '').toLowerCase())) || !user;
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
@@ -54,6 +56,7 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
   const [showExport, setShowExport] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [showBundles, setShowBundles] = useState(false);
+  const [showClear, setShowClear] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -259,6 +262,17 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
           >
             <FileDown size={12} /> Export / Backup
           </button>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setShowClear(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border"
+              style={{ borderColor: 'var(--color-danger-alt)', color: 'var(--color-danger-alt)' }}
+              data-testid="products-clear-btn"
+            >
+              <Trash2 size={12} /> Clear price list
+            </button>
+          )}
           {canEdit && (
             <button
               type="button"
@@ -459,6 +473,14 @@ export default function CRMProductsSection({ API, headers, c, isDark, user }) {
         <CRMBundleSuggestModal API={API} headers={headers} c={c} isDark={isDark}
           onClose={() => setShowBundles(false)}
           onCreated={() => { load(); loadStats(); }} />
+      )}
+
+      {showClear && (
+        <CRMClearPriceListModal API={API} headers={headers} c={c} isDark={isDark}
+          total={stats?.total ?? total}
+          onExport={() => { setShowClear(false); setShowExport(true); }}
+          onClose={() => setShowClear(false)}
+          onDone={() => { load(); loadStats(); }} />
       )}
 
       {/* Create / edit modal */}

@@ -398,6 +398,7 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                   ['Will update', preview.updates, c.text],
                   ['Preserved cells', preview.unmapped_columns_total, 'var(--color-info-ios)'],
                   ['Missing Sage code', preview.missing_sage, c.textMuted],
+                  ['Duplicate codes', preview.duplicate_codes_total || 0, (preview.duplicate_codes_total || 0) > 0 ? 'var(--color-accent-amber)' : c.textMuted],
                 ].map(([label, val, col]) => (
                   <div key={label} className="rounded-lg border px-3 py-2" style={{ borderColor: border, background: surface2 }}>
                     <div className="text-lg font-bold" style={{ color: col }} data-testid={`plw-stat-${label.replace(/\s+/g, '-').toLowerCase()}`}>{val}</div>
@@ -474,6 +475,30 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                   </div>
                 </div>
               )}
+
+              {/* Duplicate codes — only the first row of each repeated code imports */}
+              {preview.duplicate_codes?.length > 0 && (
+                <div className="rounded-lg border" style={{ borderColor: 'var(--color-accent-amber)' }} data-testid="plw-duplicate-codes">
+                  <div className="px-3 py-1.5 text-xs font-semibold border-b" style={{ color: 'var(--color-accent-amber)', borderColor: border }}>
+                    Duplicate product codes ({preview.duplicate_codes_total}) — only the first row of each will import
+                  </div>
+                  <div className="max-h-44 overflow-y-auto text-xs">
+                    {preview.duplicate_codes.map((d, i) => (
+                      <div key={i} className="px-3 py-1.5 border-t" style={{ borderColor: border }}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold" style={{ color: c.text }}>{d.code}</span>
+                          <span style={{ color: 'var(--color-accent-amber)' }}>×{d.count}</span>
+                        </div>
+                        <div className="mt-0.5" style={{ color: c.textDim }}>
+                          {(d.rows || []).map((rw, j) => (
+                            <span key={j}>{j > 0 ? ' · ' : ''}{rw.sheet} row {rw.row}{rw.name ? ` (${rw.name})` : ''}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Background commit progress */}
               {commitJob && commitJob.status === 'running' && (
                 <div className="rounded-lg border p-3" style={{ borderColor: 'var(--color-info-ios)' }} data-testid="plw-commit-progress">
@@ -499,6 +524,13 @@ export default function CRMPriceListImportWizard({ API, headers, c, isDark, onCl
                 <div><div className="text-2xl font-bold" style={{ color: c.text }}>{result.summary?.updated}</div><div className="text-[10px] uppercase" style={{ color: c.textDim }}>updated</div></div>
                 <div><div className="text-2xl font-bold" style={{ color: c.textMuted }}>{result.summary?.skipped}</div><div className="text-[10px] uppercase" style={{ color: c.textDim }}>skipped</div></div>
               </div>
+              {(result.summary?.skipped_duplicate > 0 || result.summary?.skipped_no_code > 0) && (
+                <div className="text-xs mt-3" style={{ color: c.textMuted }} data-testid="plw-skipped-breakdown">
+                  {result.summary?.skipped_duplicate > 0 && <span>{result.summary.skipped_duplicate} skipped as duplicate codes</span>}
+                  {result.summary?.skipped_duplicate > 0 && result.summary?.skipped_no_code > 0 && <span> · </span>}
+                  {result.summary?.skipped_no_code > 0 && <span>{result.summary.skipped_no_code} skipped with no code</span>}
+                </div>
+              )}
               <p className="text-xs mt-5 inline-flex items-center gap-1.5" style={{ color: c.textDim }}><Database size={12} /> Every column was preserved — manage everything in CRM from now on.</p>
             </div>
           )}

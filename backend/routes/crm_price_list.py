@@ -465,6 +465,7 @@ def _validate_products(products: list[dict], existing_skus: set[str], seen: dict
     ready = warnings = errors = dups_in_file = updates = new = 0
     missing_name = missing_price = missing_sage = neg_price = cost_gt_sell = unmapped_total = 0
     issues: list[dict] = []
+    occurrences: dict[str, list] = {}
     for p in products:
         sku = (p.get("sku") or "").strip()
         row_issues = []
@@ -472,6 +473,10 @@ def _validate_products(products: list[dict], existing_skus: set[str], seen: dict
             errors += 1
             issues.append({"row": p.get("source_row"), "sheet": p.get("source_sheet"), "level": "error", "msg": "Missing product code"})
             continue
+        occurrences.setdefault(sku, []).append({
+            "row": p.get("source_row"), "sheet": p.get("source_sheet"),
+            "name": (p.get("name") or "")[:80],
+        })
         if sku in seen:
             dups_in_file += 1
             row_issues.append("duplicate code in file")
@@ -502,12 +507,19 @@ def _validate_products(products: list[dict], existing_skus: set[str], seen: dict
                 issues.append({"row": p.get("source_row"), "sheet": p.get("source_sheet"), "code": sku, "level": "warning", "msg": ", ".join(row_issues)})
         else:
             ready += 1
+    duplicate_codes = sorted(
+        ({"code": code, "count": len(rows), "rows": rows[:25]}
+         for code, rows in occurrences.items() if len(rows) > 1),
+        key=lambda d: d["count"], reverse=True,
+    )
     return {
         "total": len(products), "ready": ready, "warnings": warnings, "errors": errors,
         "new": new, "updates": updates, "duplicates_in_file": dups_in_file,
         "missing_name": missing_name, "missing_price": missing_price, "missing_sage": missing_sage,
         "negative_price": neg_price, "cost_gt_sell": cost_gt_sell,
         "unmapped_columns_total": unmapped_total, "issues": issues[:50],
+        "duplicate_codes": duplicate_codes[:100],
+        "duplicate_codes_total": len(duplicate_codes),
     }
 
 
@@ -718,6 +730,8 @@ async def _execute_commit(import_id: str, doc: dict, sheets_cfg: list, opts: dic
     existing_by_sku = {p["sku"]: p["id"] for p in existing if p.get("sku")}
 
     created = updated = skipped = processed = 0
+    skipped_duplicate = skipped_no_code = 0
+    dup_codes_seen: dict[str, int] = {}
     ops: list[UpdateOne] = []
     snaps: list[dict] = []
     seen_skus: set[str] = set()
@@ -736,8 +750,15 @@ async def _execute_commit(import_id: str, doc: dict, sheets_cfg: list, opts: dic
         for p in extract_products_from_wb(wb, cfg):
             processed += 1
             sku = (p.get("sku") or "").strip()
-            if not sku or sku in seen_skus:
+            if not sku:
                 skipped += 1
+                skipped_no_code += 1
+                continue
+            if sku in seen_skus:
+                # Duplicate code within the file — only the first row wins.
+                skipped += 1
+                skipped_duplicate += 1
+                dup_codes_seen[sku] = dup_codes_seen.get(sku, 1) + 1
                 continue
             seen_skus.add(sku)
             pdoc = _build_product_doc(p, user, version_id, import_id)
@@ -790,7 +811,12 @@ async def _execute_commit(import_id: str, doc: dict, sheets_cfg: list, opts: dic
         "created_at": _now(),
         "created_by": user.get("id", ""),
         "created_by_name": user.get("full_name", ""),
-        "summary": {"created": created, "updated": updated, "skipped": skipped},
+        "summary": {"created": created, "updated": updated, "skipped": skipped,
+                    "skipped_duplicate": skipped_duplicate,
+                    "skipped_no_code": skipped_no_code,
+                    "duplicate_codes": sorted(
+                        ({"code": k, "count": v} for k, v in dup_codes_seen.items()),
+                        key=lambda d: d["count"], reverse=True)[:100]},
     }
     await db.crm_price_list_versions.insert_one(dict(version_doc))
     await db.crm_price_imports.update_one(
