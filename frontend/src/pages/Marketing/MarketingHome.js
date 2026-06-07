@@ -16,7 +16,7 @@ import {
   Building2, GitBranch, LineChart,
   CalendarClock, Receipt, Smartphone, BookOpen,
   Image as ImageIcon, MailPlus, Heart,
-  MapPin, Camera, PoundSterling,
+  MapPin, Camera, PoundSterling, FileDown,
 } from 'lucide-react';
 
 import './marketing.css';
@@ -392,6 +392,15 @@ function FinalCta() {
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100" data-testid="gx-final-trial">
                 Start Free Trial <ArrowRight size={15} />
               </button>
+              <a
+                href="/downloads/GymAxis-AI-Presentation.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/60 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors"
+                data-testid="gx-final-deck"
+              >
+                <FileDown size={15} /> Download Sales Deck
+              </a>
               {/* Iter 216h256 — "See it in action" removed; the canned
                   walkthrough is no longer representative of the live build. */}
             </div>
