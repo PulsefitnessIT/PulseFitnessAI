@@ -192,7 +192,8 @@ export function MarketingFooter() {
             <li><Link to="/compare" className="hover:text-slate-900 dark:text-zinc-100">Alternatives</Link></li>
             <li><Link to="/whats-new" className="hover:text-slate-900 dark:text-zinc-100">What&apos;s new</Link></li>
             <li><Link to="/status" className="hover:text-slate-900 dark:text-zinc-100">Status</Link></li>
-            <li><a href="/downloads/GymAxis-AI-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck">Sales deck (PDF)</a></li>
+            <li><a href="/downloads/GymAxisAI-Operators-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-operators">Operators Sales Presentation</a></li>
+            <li><a href="/downloads/GymAxisAI-Suppliers-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-suppliers">Suppliers Sales Presentation</a></li>
             <li><Link to="/partners/engineers" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-engineers">For engineers</Link></li>
           </ul>
         </div>
