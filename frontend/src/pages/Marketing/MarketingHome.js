@@ -114,8 +114,8 @@ export const MODULES = [
 
 export default function MarketingHome() {
   useSeo({
-    title: 'GymAxis AI — All-in-one platform for fitness operators',
-    description: 'CRM, memberships, marketing and gym operations in one place. £150/mo for one site. 3-day free trial, all modules unlocked, no credit card.',
+    title: 'GymAxis AI | Gym Management Software for Gyms, Studios & Engineers',
+    description: 'Connected gym management software for gyms, studios, fitness operators and equipment engineers — CRM, memberships, operations, asset management, service desk, staffing, marketing and reporting in one platform. 3-day free trial, all modules unlocked.',
     canonical: 'https://www.gymaxisai.com/',
   });
   return (
