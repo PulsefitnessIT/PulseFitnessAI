@@ -1,6 +1,22 @@
 # Changelog
 
 
+## Jun 8, 2026 — Pulse Master Admin: login redirect + Master Admin console button fix
+
+- **Login redirect (P0):** Pulse Master Admins (`is_pulse_admin=true`, `is_master_admin=false`)
+  now land on `/pulse` (their modules) at login instead of the Master Admin console.
+  Logic in `Navbar.js` `loginToPortal` (full GymAxis platform admins still → `/master-admin`).
+- **BUG FIX:** Clicking the **Master Admin** button (user menu) as a Pulse Master Admin
+  bounced straight back to the operations module. Root cause: the inline render guard
+  `if (showMasterAdmin && user?.is_master_admin)` in `LiteDashboardPage.js` (line ~685)
+  and `DashboardPage.js` (line ~184) excluded Pulse admins (who have `is_master_admin=false`).
+  Both guards now read `(user?.is_master_admin || user?.is_pulse_admin)`. `MasterAdminPage`
+  was already Pulse-aware (scoped console), so it renders correctly for them.
+- Verified: frontend compiles clean; backend `/auth/login` + `/auth/me` return
+  `is_pulse_admin:true`. UI e2e blocked by preview `/api` 403 gate — validate on live
+  site after redeploy.
+
+
 ## Jun 8, 2026 — Assign existing staff as Pulse Master Admin (role-based)
 
 **Problem (production):** the dedicated "Provision Pulse Platform Admin" form only creates NEW users — assigning an EXISTING staff member (already an org owner) 409'd ("user already exists"). User wanted role-based assignment in one place (Master Admin / Owner / Manager / Staff).

@@ -682,7 +682,7 @@ const LiteDashboardPage = () => {
     if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }, [activeTab]);
 
-  if (showMasterAdmin && user?.is_master_admin) {
+  if (showMasterAdmin && (user?.is_master_admin || user?.is_pulse_admin)) {
     return <MasterAdminPage onBack={() => setShowMasterAdmin(false)} />;
   }
 

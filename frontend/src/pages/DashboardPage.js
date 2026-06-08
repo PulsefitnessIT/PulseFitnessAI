@@ -181,7 +181,7 @@ const DashboardPage = () => {
     return true;
   });
 
-  if (showMasterAdmin && user?.is_master_admin) {
+  if (showMasterAdmin && (user?.is_master_admin || user?.is_pulse_admin)) {
     return (
       <Suspense fallback={<DashboardTabFallback />}>
         <MasterAdminPage onBack={() => setShowMasterAdmin(false)} />
