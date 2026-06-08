@@ -19,6 +19,10 @@
  *   4. The platform master admin (not Pulse-delegated) can also
  *      "Force-verify" — used for staging hostnames where public
  *      DNS won't be configured.
+ *
+ * Iter 222 — restyled from the legacy dark zinc palette to the light
+ * Master-Admin console theme (white cards / slate borders / dark text)
+ * so it renders consistently with the rest of Settings & Compliance.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
@@ -237,20 +241,20 @@ const CustomDomainsPanel = () => {
   return (
     <div className="space-y-6" data-testid="custom-domains-panel">
       {/* Header */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900 to-zinc-950 p-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0">
-            <Globe className="w-6 h-6 text-cyan-400" />
+          <div className="w-12 h-12 rounded-xl bg-cyan-50 border border-cyan-200 flex items-center justify-center shrink-0">
+            <Globe className="w-6 h-6 text-cyan-600" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-bold text-white">Custom domains</h2>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-2 py-0.5">
+              <h2 className="text-xl font-bold text-slate-900">Custom domains</h2>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-full px-2 py-0.5">
                 P1
               </span>
             </div>
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Point a customer's own domain (e.g. <code className="px-1.5 py-0.5 rounded bg-zinc-800 text-cyan-200 text-xs">join.acmegym.com</code>) at a specific tenant surface — sign-up, member app, brag page or public timetable.
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Point a customer's own domain (e.g. <code className="px-1.5 py-0.5 rounded bg-slate-100 text-cyan-700 text-xs">join.acmegym.com</code>) at a specific tenant surface — sign-up, member app, brag page or public timetable.
               Each domain must be verified via a TXT record before it starts serving traffic.
             </p>
           </div>
@@ -258,10 +262,10 @@ const CustomDomainsPanel = () => {
       </div>
 
       {/* Org selector */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div className="flex items-center gap-3 mb-3">
-          <Building2 className="w-4 h-4 text-zinc-400" />
-          <label className="text-sm font-semibold text-zinc-200">Choose organisation</label>
+          <Building2 className="w-4 h-4 text-slate-400" />
+          <label className="text-sm font-semibold text-slate-700">Choose organisation</label>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
@@ -269,14 +273,14 @@ const CustomDomainsPanel = () => {
             value={orgFilter}
             onChange={(e) => setOrgFilter(e.target.value)}
             placeholder="Search org name or slug…"
-            className="md:col-span-1 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+            className="md:col-span-1 bg-white border border-slate-200 text-slate-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
             data-testid="cd-org-search"
           />
           <select
             value={selectedOrgId}
             onChange={(e) => setSelectedOrgId(e.target.value)}
             disabled={orgsLoading}
-            className="md:col-span-2 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+            className="md:col-span-2 bg-white border border-slate-200 text-slate-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
             data-testid="cd-org-select"
           >
             {orgsLoading && <option value="">Loading…</option>}
@@ -289,8 +293,8 @@ const CustomDomainsPanel = () => {
           </select>
         </div>
         {selectedOrg && (
-          <p className="text-xs text-zinc-500 mt-2">
-            Public member surfaces resolve under <code className="px-1 py-0.5 rounded bg-zinc-800 text-cyan-300">/m/{data?.org_slug || selectedOrg.slug || selectedOrg.id}</code>
+          <p className="text-xs text-slate-500 mt-2">
+            Public member surfaces resolve under <code className="px-1 py-0.5 rounded bg-slate-100 text-cyan-700">/m/{data?.org_slug || selectedOrg.slug || selectedOrg.id}</code>
           </p>
         )}
       </div>
@@ -298,33 +302,33 @@ const CustomDomainsPanel = () => {
       {/* Add domain form */}
       <form
         onSubmit={submitNew}
-        className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
         data-testid="cd-add-form"
       >
         <div className="flex items-center gap-2 mb-3">
-          <Plus className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-sm font-semibold text-white">Add a custom domain</h3>
+          <Plus className="w-4 h-4 text-cyan-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Add a custom domain</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           <div className="md:col-span-6">
-            <label className="block text-[11px] uppercase tracking-wider text-zinc-500 mb-1">Hostname</label>
+            <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Hostname</label>
             <input
               type="text"
               value={newHostname}
               onChange={(e) => setNewHostname(e.target.value)}
               placeholder="join.acmegym.com"
-              className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
               data-testid="cd-new-hostname"
               required
             />
-            <p className="text-[11px] text-zinc-500 mt-1">Lowercase FQDN. Subdomains of platform-owned hosts (gymaxisai.com / pulsefitness.ai) are blocked.</p>
+            <p className="text-[11px] text-slate-500 mt-1">Lowercase FQDN. Subdomains of platform-owned hosts (gymaxisai.com / pulsefitness.ai) are blocked.</p>
           </div>
           <div className="md:col-span-4">
-            <label className="block text-[11px] uppercase tracking-wider text-zinc-500 mb-1">Primary route</label>
+            <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Primary route</label>
             <select
               value={newRoute}
               onChange={(e) => setNewRoute(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
               data-testid="cd-new-route"
             >
               {(data?.allowed_routes || []).map((r) => (
@@ -336,7 +340,7 @@ const CustomDomainsPanel = () => {
             <button
               type="submit"
               disabled={creating || !selectedOrgId}
-              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-semibold text-sm"
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm"
               data-testid="cd-submit"
             >
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -347,17 +351,17 @@ const CustomDomainsPanel = () => {
       </form>
 
       {/* Domain list */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
-        <div className="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <LinkIcon className="w-4 h-4 text-zinc-400" />
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <LinkIcon className="w-4 h-4 text-slate-400" />
             Configured domains{data ? ` (${(data.domains || []).length})` : ''}
           </h3>
           {selectedOrgId && (
             <button
               type="button"
               onClick={() => loadDomains(selectedOrgId)}
-              className="text-xs text-zinc-400 hover:text-white inline-flex items-center gap-1"
+              className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1"
               data-testid="cd-refresh"
             >
               <RefreshCw className="w-3 h-3" /> Refresh
@@ -366,40 +370,40 @@ const CustomDomainsPanel = () => {
         </div>
 
         {loading && (
-          <div className="px-5 py-12 text-center text-sm text-zinc-500">
+          <div className="px-5 py-12 text-center text-sm text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin inline-block mr-2" /> Loading…
           </div>
         )}
 
         {!loading && data && (data.domains || []).length === 0 && (
           <div className="px-5 py-12 text-center" data-testid="cd-empty">
-            <Sparkles className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-            <p className="text-sm text-zinc-400">No custom domains for this organisation yet.</p>
-            <p className="text-xs text-zinc-600 mt-1">Add one above to white-label their sign-up funnel.</p>
+            <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">No custom domains for this organisation yet.</p>
+            <p className="text-xs text-slate-400 mt-1">Add one above to white-label their sign-up funnel.</p>
           </div>
         )}
 
         {!loading && data && (data.domains || []).map((d) => (
-          <div key={d.id} className="px-5 py-4 border-t border-zinc-800/80" data-testid={`cd-row-${d.id}`}>
+          <div key={d.id} className="px-5 py-4 border-t border-slate-100" data-testid={`cd-row-${d.id}`}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
               {/* Hostname + status */}
               <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center ${d.verified ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
-                  {d.verified ? <ShieldCheck className="w-5 h-5 text-emerald-400" /> : <AlertTriangle className="w-5 h-5 text-amber-400" />}
+                <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center ${d.verified ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                  {d.verified ? <ShieldCheck className="w-5 h-5 text-emerald-600" /> : <AlertTriangle className="w-5 h-5 text-amber-600" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <code className="text-sm font-semibold text-white break-all" data-testid={`cd-host-${d.id}`}>{d.hostname}</code>
+                    <code className="text-sm font-semibold text-slate-900 break-all" data-testid={`cd-host-${d.id}`}>{d.hostname}</code>
                     {d.verified ? (
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2 py-0.5">Verified · live</span>
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">Verified · live</span>
                     ) : (
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5">Awaiting DNS</span>
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">Awaiting DNS</span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {d.primary_route_label}
                   </p>
-                  <p className="text-[11px] text-zinc-600 mt-0.5">
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Added {timeAgo(d.created_at)}{d.verified_at ? ` · verified ${timeAgo(d.verified_at)}` : ''}
                   </p>
                 </div>
@@ -411,7 +415,7 @@ const CustomDomainsPanel = () => {
                   value={d.primary_route}
                   onChange={(e) => handleRouteChange(d.id, e.target.value)}
                   disabled={busyId === d.id}
-                  className="bg-zinc-950 border border-zinc-700 text-white rounded-md px-2 py-1.5 text-xs"
+                  className="bg-white border border-slate-200 text-slate-900 rounded-md px-2 py-1.5 text-xs"
                   data-testid={`cd-route-${d.id}`}
                 >
                   {(data.allowed_routes || []).map((r) => (
@@ -423,7 +427,7 @@ const CustomDomainsPanel = () => {
                     type="button"
                     onClick={() => handleVerify(d.id)}
                     disabled={busyId === d.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50"
                     data-testid={`cd-verify-${d.id}`}
                   >
                     {busyId === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />} Verify
@@ -434,7 +438,7 @@ const CustomDomainsPanel = () => {
                     type="button"
                     onClick={() => handleForceVerify(d.id)}
                     disabled={busyId === d.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold hover:bg-zinc-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-200 disabled:opacity-50"
                     title="GymAxis platform admin only — bypasses DNS check for staging hosts"
                     data-testid={`cd-force-verify-${d.id}`}
                   >
@@ -446,7 +450,7 @@ const CustomDomainsPanel = () => {
                     href={`https://${d.hostname}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold hover:bg-cyan-500/20"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-semibold hover:bg-cyan-100"
                     data-testid={`cd-open-${d.id}`}
                   >
                     <ExternalLink className="w-3 h-3" /> Open
@@ -456,7 +460,7 @@ const CustomDomainsPanel = () => {
                   type="button"
                   onClick={() => handleDelete(d.id, d.hostname)}
                   disabled={busyId === d.id}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-semibold hover:bg-red-500/20 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-100 disabled:opacity-50"
                   data-testid={`cd-delete-${d.id}`}
                 >
                   <Trash2 className="w-3 h-3" />
@@ -466,10 +470,10 @@ const CustomDomainsPanel = () => {
 
             {/* DNS records callout (only while unverified) */}
             {!d.verified && d.dns_record && (
-              <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-200 uppercase tracking-wider">DNS records to set</span>
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">DNS records to set</span>
                 </div>
                 <div className="space-y-3">
                   <DnsRow
@@ -487,8 +491,8 @@ const CustomDomainsPanel = () => {
                     rowKey={`${d.id}-txt`}
                   />
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-3 leading-relaxed">
-                  After adding both records at your DNS provider, click <strong className="text-white">Verify</strong> above. DNS can take up to 30 minutes to propagate.
+                <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                  After adding both records at your DNS provider, click <strong className="text-slate-900">Verify</strong> above. DNS can take up to 30 minutes to propagate.
                 </p>
               </div>
             )}
@@ -502,16 +506,16 @@ const CustomDomainsPanel = () => {
 const DnsRow = ({ type, host, value, onCopy, rowKey }) => (
   <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start" data-testid={`cd-dns-${rowKey}`}>
     <div className="md:col-span-2">
-      <span className="inline-block text-[10px] uppercase tracking-wider font-bold bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-full px-2 py-1">{type}</span>
+      <span className="inline-block text-[10px] uppercase tracking-wider font-bold bg-slate-100 border border-slate-200 text-slate-600 rounded-full px-2 py-1">{type}</span>
     </div>
     <div className="md:col-span-5 min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Host</div>
+      <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">Host</div>
       <div className="flex items-center gap-1.5">
-        <code className="block w-full px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-cyan-200 break-all">{host}</code>
+        <code className="block w-full px-2 py-1.5 bg-white border border-slate-200 rounded text-xs text-cyan-700 break-all">{host}</code>
         <button
           type="button"
           onClick={() => onCopy(host, 'Host')}
-          className="shrink-0 p-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+          className="shrink-0 p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600"
           aria-label="Copy host"
         >
           <Copy className="w-3 h-3" />
@@ -519,13 +523,13 @@ const DnsRow = ({ type, host, value, onCopy, rowKey }) => (
       </div>
     </div>
     <div className="md:col-span-5 min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Value</div>
+      <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">Value</div>
       <div className="flex items-center gap-1.5">
-        <code className="block w-full px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-emerald-200 break-all">{value}</code>
+        <code className="block w-full px-2 py-1.5 bg-white border border-slate-200 rounded text-xs text-emerald-700 break-all">{value}</code>
         <button
           type="button"
           onClick={() => onCopy(value, 'Value')}
-          className="shrink-0 p-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+          className="shrink-0 p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600"
           aria-label="Copy value"
         >
           <Copy className="w-3 h-3" />

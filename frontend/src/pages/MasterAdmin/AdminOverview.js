@@ -49,15 +49,18 @@ const Panel = ({ children, className = '', ...rest }) => (
   </div>
 );
 
-const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPackets, onGoTrials, onGoArchive, onGoSection }) => {
+const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPackets, onGoTrials, onGoArchive, onGoSection, isPulseAdmin }) => {
   if (!stats) return <div className="flex items-center justify-center h-64"><RefreshCw className="animate-spin text-slate-400" size={24} /></div>;
 
   const kpiCards = [
     { label: 'Organisations', value: stats.total_organizations, icon: Building2, palette: KPI_PALETTES.organisations, testid: 'kpi-organisations',
+      onClick: () => onGoSection?.('organizations'),
       tip: 'Total tenants on the platform — counts every organisation in the directory regardless of subscription tier or status (excludes the GymAxis Master Admin tenant).' },
     { label: 'Active Users', value: stats.total_users, icon: Users, palette: KPI_PALETTES.users, testid: 'kpi-active-users',
+      onClick: () => onGoSection?.('roles'),
       tip: 'All user accounts across every organisation that have logged in at least once and aren\'t suspended.' },
     { label: 'Monthly Revenue', value: `£${stats.mrr.toLocaleString()}`, icon: PoundSterling, palette: KPI_PALETTES.revenue, testid: 'kpi-mrr',
+      onClick: () => onGoPayments?.(),
       tip: 'Monthly Recurring Revenue — sum of every active paid plan\'s monthly billing amount. Trial / failed / suspended subscriptions are excluded.' },
     { label: 'Open Cases', value: stats.open_issues, icon: AlertTriangle, palette: KPI_PALETTES.cases, testid: 'kpi-open-cases',
       tip: 'Faults across all gyms with status = open or in_progress. Resolved or closed faults are excluded.' },
@@ -110,7 +113,11 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
         {kpiCards.map(k => (
           <Panel
             key={k.label}
-            className="p-5 cursor-help transition-shadow hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]"
+            onClick={k.onClick}
+            role={k.onClick ? 'button' : undefined}
+            tabIndex={k.onClick ? 0 : undefined}
+            onKeyDown={k.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); k.onClick(); } } : undefined}
+            className={`p-5 transition-all ${k.onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(15,23,42,0.18)]' : 'cursor-help hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]'}`}
             title={k.tip}
             data-testid={k.testid}
           >
@@ -130,8 +137,10 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
         ))}
       </div>
 
-      {/* 3 · Trial Pipeline — single source of truth (cross-module) */}
-      <UnifiedTrialsCard onGoTrials={onGoTrials} />
+      {/* 3 · Trial Pipeline — single source of truth (cross-module).
+           Hidden for Pulse Master Admins (the GymAxis trial pipeline is
+           platform self-promo data, not Pulse-scoped). */}
+      {!isPulseAdmin && <UnifiedTrialsCard onGoTrials={onGoTrials} />}
 
       {/* 4 · Onboarding funnel (self-hides when empty) */}
       <OnboardingFunnelStrip onOpen={onGoOnboardingPackets} />

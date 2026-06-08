@@ -146,22 +146,22 @@ export default function DocumentsPanel({ orgId } = {}) {
       {/* ── Pulse Fitness quick-pack banner (platform scope only) ── */}
       {!orgId && (
         <div
-          className="p-4 rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-gradient-to-r from-[var(--color-ink)] to-[#1F2329] text-white"
+          className="p-4 rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
           data-testid="documents-pulse-pack-banner"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-[rgb(var(--rgb-brand-cyan)/0.2)] flex items-center justify-center text-[var(--color-brand-cyan)] flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center text-cyan-600 flex-shrink-0">
               <Zap size={18} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold">Pulse Fitness — meeting handouts</div>
-              <div className="text-xs text-zinc-400 mt-0.5">
+              <div className="text-sm font-bold text-slate-900">Pulse Fitness — meeting handouts</div>
+              <div className="text-xs text-slate-500 mt-0.5">
                 Brand-headed A4 PDFs. Print &amp; hand out, send by email with a tracked link, or auto-save to this library.
               </div>
             </div>
             <button
               onClick={generatePulsePack}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50"
               title="Re-generate both PDFs and refresh the library"
               data-testid="documents-pulse-regen-btn"
             >
@@ -339,10 +339,10 @@ export default function DocumentsPanel({ orgId } = {}) {
 
 function PulsePagerCard({ kind, title, tagline, onDownload, onSend }) {
   return (
-    <div className="rounded-lg border border-zinc-700/40 bg-black/30 p-3" data-testid={`documents-pulse-card-${kind}`}>
-      <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-brand-cyan)]">{kind}</div>
-      <div className="text-sm font-bold text-white mt-1">{title}</div>
-      <div className="text-xs text-zinc-400 mt-0.5">{tagline}</div>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3" data-testid={`documents-pulse-card-${kind}`}>
+      <div className="text-[10px] uppercase tracking-wider font-bold text-cyan-600">{kind}</div>
+      <div className="text-sm font-bold text-slate-900 mt-1">{title}</div>
+      <div className="text-xs text-slate-500 mt-0.5">{tagline}</div>
       <div className="flex gap-2 mt-3">
         <button
           onClick={onDownload}
@@ -353,7 +353,7 @@ function PulsePagerCard({ kind, title, tagline, onDownload, onSend }) {
         </button>
         <button
           onClick={onSend}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md bg-white text-zinc-900 hover:bg-zinc-100"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md border border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
           data-testid={`documents-pulse-${kind}-send-btn`}
         >
           <Send size={13} /> Send…

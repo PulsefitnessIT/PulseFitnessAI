@@ -595,7 +595,9 @@ const MasterAdminPage = ({ _onBack }) => {
                 {sectionTitles[section]}
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">
-                {sectionDescriptions[section] || ''}
+                {(isPulseAdmin && section === 'overview')
+                  ? 'Platform-wide metrics across your modules · revenue · cases'
+                  : (sectionDescriptions[section] || '')}
               </p>
             </div>
             <CommandPalette
@@ -610,7 +612,9 @@ const MasterAdminPage = ({ _onBack }) => {
                 setSelectedOrg(o);
               }}
             />
-            <EmailHealthPill />
+            {/* Iter 222 — GymAxis platform email-deliverability health is
+                internal platform infra; hidden for delegated Pulse admins. */}
+            {!isPulseAdmin && <EmailHealthPill />}
             <BrandPicker isPulseAdmin={isPulseAdmin} />
             <Button
               size="sm"

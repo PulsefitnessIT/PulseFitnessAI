@@ -80,6 +80,7 @@ const OverviewSection = ({
    <div data-testid="platform-overview">
      <AdminOverview
        stats={stats}
+       isPulseAdmin={isPulseAdmin}
        onGoPayments={() => setSection('payments')}
        onGoSuspended={() => { setOrgFilter('suspended'); setOverviewActiveTab('service-portal'); setSpInnerTab('organisations'); }}
        onGoOnboardingPackets={() => setSection('onboarding')}

@@ -38,6 +38,14 @@ def _require_master_admin(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Master admin only")
 
 
+def _require_health_access(user: dict) -> None:
+    """Integration health is readable by full platform Master Admins AND
+    delegated Pulse Master Admins — Pulse ops legitimately need to monitor
+    the third-party services their portal depends on (Iter 222)."""
+    if not (user.get("is_master_admin") or user.get("is_pulse_admin")):
+        raise HTTPException(status_code=403, detail="Master admin only")
+
+
 def _result(ok: bool, status: str, message: str, latency_ms: int = 0, **details) -> dict:
     return {
         "ok": ok,
@@ -169,8 +177,8 @@ CHECKS = {
 
 @router.get("/master-admin/integration-health")
 async def integration_health_all(user: dict = Depends(get_current_user)):
-    """Run every integration check in parallel. Master Admin only."""
-    _require_master_admin(user)
+    """Run every integration check in parallel. Master Admin + Pulse Admin."""
+    _require_health_access(user)
     results = await asyncio.gather(
         *(fn() for _, fn in CHECKS.values()),
         return_exceptions=True,
@@ -194,7 +202,7 @@ async def integration_health_all(user: dict = Depends(get_current_user)):
 
 @router.get("/master-admin/integration-health/{key}")
 async def integration_health_one(key: str, user: dict = Depends(get_current_user)):
-    _require_master_admin(user)
+    _require_health_access(user)
     if key not in CHECKS:
         raise HTTPException(404, f"Unknown check '{key}'. Valid: {list(CHECKS)}")
     label, fn = CHECKS[key]
