@@ -472,6 +472,7 @@ const MasterAdminPage = ({ _onBack }) => {
         return (
           <AdminRoles
             API={API}
+            isPulseAdmin={isPulseAdmin}
             globalUsersProps={{
               users,
               loading: false,

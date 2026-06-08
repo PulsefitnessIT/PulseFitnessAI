@@ -31,9 +31,17 @@ const TABS = [
   { id: 'legacy-users', label: 'Legacy users panel', icon: FolderArchive },
 ];
 
-const AdminRoles = ({ API, globalUsersProps }) => {
+const AdminRoles = ({ API, globalUsersProps, isPulseAdmin }) => {
   const [tab, setTab] = useState('directory');
   const [selectedUser, setSelectedUser] = useState(null);
+
+  // Iter 222 — Pulse Master Admins no longer need the standalone "Pulse
+  // Master Admins" provisioning tab or the "Legacy users panel": that
+  // information now lives in the Directory + Organisations. They stay
+  // available to the full GymAxis platform Master Admin.
+  const visibleTabs = TABS.filter(
+    (t) => !isPulseAdmin || (t.id !== 'pulse-admins' && t.id !== 'legacy-users'),
+  );
 
   // Iter 216h25 — Listen for cross-section "jump to user" requests
   // fired by the Staff Onboarding wizard's 409 toast. The wizard
@@ -88,7 +96,7 @@ const AdminRoles = ({ API, globalUsersProps }) => {
   return (
     <div className="space-y-6" data-testid="admin-roles-page">
       <div className="flex gap-1 border-b border-zinc-200 overflow-x-auto" data-testid="roles-sub-tabs">
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {visibleTabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -119,7 +127,7 @@ const AdminRoles = ({ API, globalUsersProps }) => {
         <UserDetailDrawer
           user={selectedUser}
           onClose={() => setSelectedUser(null)}
-          onOpenLegacyEdit={openLegacyForUser}
+          onOpenLegacyEdit={isPulseAdmin ? undefined : openLegacyForUser}
           onReload={globalUsersProps?.onReload}
         />
       )}

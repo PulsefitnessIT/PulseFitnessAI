@@ -77,7 +77,7 @@ def _require_pulse_or_master(user: dict) -> None:
     customer onboarding)."""
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
         return
-    if user.get("role") == PULSE_ROLE:
+    if user.get("role") == PULSE_ROLE or user.get("is_pulse_admin"):
         return
     if user.get("is_service_desk"):
         return
@@ -248,7 +248,10 @@ async def create_pulse_admin(body: PulseAdminCreate, user: dict = Depends(get_cu
 
 @router.get("/master-admin/pulse-admins")
 async def list_pulse_admins(user: dict = Depends(get_current_user)) -> dict:
-    _require_gymaxis_master(user)
+    # Read-only list — also powers the SOC-2 Permissions matrix, which a
+    # delegated Pulse Master Admin needs to view (Iter 222). Provisioning
+    # (create/revoke/purge) stays GymAxis-master-only below.
+    _require_pulse_or_master(user)
     rows = await db.users.find(
         {"role": PULSE_ROLE},
         {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1,
