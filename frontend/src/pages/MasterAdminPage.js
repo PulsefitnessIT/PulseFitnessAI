@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Menu, ArrowLeftRight, Shield } from 'lucide-react';
+import { RefreshCw, Menu, ArrowLeftRight } from 'lucide-react';
 
 // Iter 216h173 — Per-section panels are lazy-loaded so the Master Admin
 // initial JS chunk no longer ships ~50 admin panels eagerly. Webpack
@@ -598,15 +598,6 @@ const MasterAdminPage = ({ _onBack }) => {
                 {sectionDescriptions[section] || ''}
               </p>
             </div>
-            {isPulseAdmin && (
-              <span
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700"
-                title="Pulse Master Admin scope — only Pulse-visible accounts are shown"
-                data-testid="pulse-admin-scope-pill"
-              >
-                <Shield size={11} />Pulse Admin
-              </span>
-            )}
             <CommandPalette
               orgs={organizations}
               isPulseAdmin={isPulseAdmin}

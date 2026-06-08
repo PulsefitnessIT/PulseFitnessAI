@@ -132,7 +132,7 @@ const SocialMediaLibraryPanel = () => {
           await navigator.share({
             files: [file],
             title: row.label,
-            text: 'GymAxis · social media post',
+            text: 'Social media post',
           });
           notify.success('Ready to save', 'Tap "Save to Photos" or "Save to Files" in the share sheet.');
           return;

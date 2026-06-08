@@ -33,6 +33,48 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+# ── Brand scoping ─────────────────────────────────────────────────────
+#
+# The library is shared by the GymAxis platform admin and delegated
+# Pulse Master Admins. Each row carries a `brand` ('gymaxis' | 'pulse')
+# so a Pulse admin never sees GymAxis-branded marketing assets (and vice
+# versa). The seeded posts below are all GymAxis marketing → 'gymaxis'.
+
+
+def _brand_for(user: dict) -> str:
+    """Brand bucket the calling master-admin operates in.
+
+    Delegated Pulse Master Admins → 'pulse'. The GymAxis platform admin
+    (and anyone else who passes ``require_master_admin``) → 'gymaxis'.
+    """
+    if user.get("is_master_admin"):
+        return "gymaxis"
+    if user.get("is_pulse_admin") or user.get("role") == "pulse_master_admin":
+        return "pulse"
+    return "gymaxis"
+
+
+# ── Seed-once state ───────────────────────────────────────────────────
+#
+# Previously the list endpoint re-seeded a campaign whenever it was
+# empty, so deleting every post in a campaign made them reappear on the
+# next load ("I delete the posts but they come back"). We now record a
+# one-time seed marker in ``platform_config`` so deletions persist.
+
+
+async def _seed_done(key: str) -> bool:
+    doc = await db.platform_config.find_one({"_id": "social_library_seed"})
+    return bool(doc and doc.get(key))
+
+
+async def _mark_seed_done(key: str) -> None:
+    await db.platform_config.update_one(
+        {"_id": "social_library_seed"},
+        {"$set": {key: True, "updated_at": _now()}},
+        upsert=True,
+    )
+
+
 # ── Seed: GymAxis mosaic + cover-post campaign ────────────────────────
 
 
@@ -519,10 +561,16 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
 
 
 async def _seed_engineer_recruit() -> int:
-    """Insert the 'WE NEED YOU!' engineer recruitment campaign rows iff that
-    campaign isn't present yet. Idempotent — safe on every load."""
+    """Insert the 'WE NEED YOU!' engineer recruitment campaign rows ONCE.
+
+    Guarded by a persistent seed marker so that once an admin deletes
+    these posts they stay deleted (previously they reappeared whenever
+    the campaign count hit zero)."""
+    if await _seed_done("engineer_recruit_seeded"):
+        return 0
     existing = await db.social_media_library.count_documents({"campaign": "engineer_recruit"})
     if existing > 0:
+        await _mark_seed_done("engineer_recruit_seeded")
         return 0
     docs = []
     for r in ENGINEER_RECRUIT_ROWS:
@@ -532,6 +580,7 @@ async def _seed_engineer_recruit() -> int:
             "image_url": r["image_url"],
             "channel": "all",  # 9:16 asset — Instagram (Reels/Stories) + TikTok
             "campaign": "engineer_recruit",
+            "brand": "gymaxis",
             "post_order": r.get("post_order", 0),
             "caption": r.get("caption", ""),
             "hashtags": r.get("hashtags", []),
@@ -542,15 +591,25 @@ async def _seed_engineer_recruit() -> int:
         })
     if docs:
         await db.social_media_library.insert_many(docs)
+    await _mark_seed_done("engineer_recruit_seeded")
     return len(docs)
 
 
 
 
 async def _seed_if_empty() -> int:
-    """Insert seed rows iff the collection is empty. Returns inserted count."""
+    """Insert the GymAxis seed rows ONCE. Idempotent via a persistent
+    seed marker so deletions are never undone by a later load."""
+    if await _seed_done("gymaxis_seeded"):
+        return 0
+    # Backfill brand on any legacy rows that predate brand scoping so
+    # the brand filter below behaves consistently.
+    await db.social_media_library.update_many(
+        {"brand": {"$exists": False}}, {"$set": {"brand": "gymaxis"}},
+    )
     existing = await db.social_media_library.count_documents({})
     if existing > 0:
+        await _mark_seed_done("gymaxis_seeded")
         return 0
     docs = []
     for r in SEED_ROWS:
@@ -561,6 +620,7 @@ async def _seed_if_empty() -> int:
                 "image_url": r["image_url"],
                 "channel": r.get("channel", "instagram"),
                 "campaign": r.get("campaign", "general"),
+                "brand": "gymaxis",
                 "post_order": r.get("post_order", 0),
                 "caption": r.get("caption", ""),
                 "hashtags": r.get("hashtags", []),
@@ -572,6 +632,7 @@ async def _seed_if_empty() -> int:
         )
     if docs:
         await db.social_media_library.insert_many(docs)
+    await _mark_seed_done("gymaxis_seeded")
     return len(docs)
 
 
@@ -581,11 +642,24 @@ async def _seed_if_empty() -> int:
 @router.get("/master-admin/social-media-library")
 async def list_posts(user: dict = Depends(get_current_user)):
     require_master_admin(user)
-    seeded = await _seed_if_empty()
-    seeded += await _seed_engineer_recruit()
+    brand = _brand_for(user)
+    seeded = 0
+    # Only the GymAxis platform admin triggers (one-time) seeding of the
+    # GymAxis marketing library. Pulse admins start with a clean,
+    # Pulse-only library — no GymAxis assets cross over.
+    if brand == "gymaxis":
+        seeded += await _seed_if_empty()
+        seeded += await _seed_engineer_recruit()
+
+    if brand == "pulse":
+        query: dict[str, Any] = {"brand": "pulse"}
+    else:
+        # GymAxis admin sees GymAxis + any legacy rows without a brand.
+        query = {"$or": [{"brand": "gymaxis"}, {"brand": {"$exists": False}}, {"brand": None}]}
+
     rows = (
         await db.social_media_library
-        .find({}, {"_id": 0})
+        .find(query, {"_id": 0})
         .sort([("campaign", 1), ("post_order", 1), ("created_at", -1)])
         .to_list(length=2000)
     )
@@ -616,6 +690,7 @@ async def add_post(body: dict = Body(...), user: dict = Depends(get_current_user
         "image_url": image_url,
         "channel": channel,
         "campaign": campaign,
+        "brand": _brand_for(user),
         "post_order": int(body.get("post_order") or 0),
         "caption": (body.get("caption") or "").strip()[:2200],
         "hashtags": hashtags,
@@ -635,7 +710,15 @@ async def delete_post(
     user: dict = Depends(get_current_user),
 ):
     require_master_admin(user)
-    res = await db.social_media_library.delete_one({"id": post_id})
+    brand = _brand_for(user)
+    # Scope the delete to the caller's brand so a Pulse admin can only
+    # remove Pulse posts (and vice versa). Combined with the seed-once
+    # marker above, deletions now persist across reloads.
+    if brand == "pulse":
+        match = {"id": post_id, "brand": "pulse"}
+    else:
+        match = {"id": post_id, "brand": {"$ne": "pulse"}}
+    res = await db.social_media_library.delete_one(match)
     if not res.deleted_count:
         raise HTTPException(404, "Post not found")
     return {"ok": True}

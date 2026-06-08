@@ -11,7 +11,7 @@
  * full toggle.
  */
 import React from 'react';
-import { ChevronDown, Globe2, Shield } from 'lucide-react';
+import { ChevronDown, Globe2 } from 'lucide-react';
 import { useBrandContext, BRAND_OPTIONS } from './BrandContext';
 
 export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
@@ -36,19 +36,18 @@ export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Pulse-only admins see a locked scope pill — no dropdown, no other
-  // brand options visible. Hover tooltip explains why.
+  // Pulse-only admins see a plain brand label — no dropdown, no scope
+  // wording. Per operator request the Pulse Fitness team should not be
+  // shown that their console is "scope locked".
   if (isPulseAdmin) {
     return (
       <div
         className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-sm font-medium shadow-sm"
         style={{ borderColor: '#BFDBFE', color: '#1D4ED8', background: '#EFF6FF' }}
-        title="Pulse Master Admin scope — your account only sees Pulse Fitness data."
         data-testid="master-admin-brand-picker-locked"
       >
-        <Shield size={13} />
+        <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#0055FF' }} aria-hidden />
         <span className="font-semibold tracking-tight">Pulse Fitness</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Scope locked</span>
       </div>
     );
   }

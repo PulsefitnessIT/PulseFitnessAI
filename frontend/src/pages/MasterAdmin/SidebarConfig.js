@@ -37,7 +37,7 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'overview',  label: 'Dashboard',     icon: LayoutDashboard },
       { id: 'pending-review', label: 'Pending review', icon: AlertCircle },
-      { id: 'trust',     label: 'System Health', icon: ShieldCheck },
+      { id: 'trust',     label: 'System Health', icon: ShieldCheck, gymaxisOnly: true },
       { id: 'tasks',     label: 'Setup checklist', icon: ListChecks },
     ],
   },
@@ -124,7 +124,7 @@ export const SIDEBAR_ITEMS = [
   // Growth — it spans Finance, Service Ops, CRM, Marketing, Memberships
   // and Engineers. Surface it on the main rail."
   {
-    id: 'analytics-section', label: 'Analytics', icon: BarChart3, group: 'main',
+    id: 'analytics-section', label: 'Analytics', icon: BarChart3, group: 'main', gymaxisOnly: true,
     subTabs: [
       { id: 'analytics', label: 'Global analytics', icon: BarChart3 },
     ],
@@ -135,8 +135,10 @@ export const SIDEBAR_ITEMS = [
   //    recurring referral commission). Operator feedback:
   //    "Move Partner Engineers into the main sidebar — it's too hidden
   //    away when this could be a main source of revenue."
+  //    Iter 222 — GymAxis-only: a delegated Pulse Master Admin does not
+  //    manage the GymAxis partner-engineer network, so it's hidden for them.
   {
-    id: 'partners', label: 'Partner Engineers', icon: BadgeCheck, group: 'main',
+    id: 'partners', label: 'Partner Engineers', icon: BadgeCheck, group: 'main', gymaxisOnly: true,
     subTabs: [
       { id: 'partners', label: 'Applications & partners', icon: BadgeCheck },
     ],
@@ -159,7 +161,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'audit-log',          label: 'Audit log',          icon: ScrollText },
       { id: 'audit-logs',         label: 'Compliance trail',   icon: ScrollText },
       { id: 'login-events',       label: 'Login events',       icon: ShieldAlert },
-      { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert },
+      { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert, gymaxisOnly: true },
       { id: 'documents',          label: 'Documents',          icon: FolderArchive },
       // Iter 216h59 — relocated from Overview. Archive is a data-
       // lifecycle / compliance concern (soft-deleted orgs, restore
@@ -168,10 +170,14 @@ export const SIDEBAR_ITEMS = [
       { id: 'archive',            label: 'Archive',            icon: FolderArchive },
       // Iter 220ao — GDPR Art. 17 Data Subject Erasure Requests
       { id: 'gdpr-erasure',       label: 'Data Subject Erasure', icon: ShieldOff },
-      { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles },
-      { id: 'support',            label: 'Support tools',      icon: Headphones },
-      { id: 'db-viewer',          label: 'Database viewer',    icon: Database },
-      { id: 'backfills',          label: 'Maintenance jobs',   icon: RefreshCcw },
+      // Iter 222 — Ask Support Desk / Support tools / DB viewer /
+      // Maintenance jobs are GymAxis-platform-internal (master-admin
+      // only on the backend). Hidden for delegated Pulse admins so they
+      // don't hit "Master admin access required" errors.
+      { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles, gymaxisOnly: true },
+      { id: 'support',            label: 'Support tools',      icon: Headphones, gymaxisOnly: true },
+      { id: 'db-viewer',          label: 'Database viewer',    icon: Database, gymaxisOnly: true },
+      { id: 'backfills',          label: 'Maintenance jobs',   icon: RefreshCcw, gymaxisOnly: true },
       { id: 'design-system',      label: 'Design system',      icon: Palette, gymaxisOnly: true },
       { id: 'theme-settings',     label: 'Theme settings',     icon: Palette },
       { id: 'custom-domains',     label: 'Custom domains',     icon: Globe },
