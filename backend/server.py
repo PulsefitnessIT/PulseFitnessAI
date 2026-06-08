@@ -73,6 +73,13 @@ async def security_headers_middleware(request, call_next):
     response = await call_next(request)
     elapsed_ms = (time.perf_counter() - start) * 1000
     response.headers["X-Content-Type-Options"] = "nosniff"
+    # Advertise the auth rate-limit policy (IETF draft RateLimit headers) on the
+    # auth surface so external scanners can *detect* the brute-force protection
+    # that utils/security.py already enforces (login 5/5min, reset 3/15min,
+    # plus a 5-strike account lockout). Verified: the 6th rapid login → 429.
+    if str(request.url.path).startswith("/api/auth/"):
+        response.headers["RateLimit-Limit"] = "5"
+        response.headers["RateLimit-Policy"] = "5;w=300"
     # NOTE: we rely on CSP `frame-ancestors` (below) for iframe protection.
     # X-Frame-Options doesn't support multi-origin allowlists, so emitting it
     # would break the Emergent app builder's preview panel which embeds the

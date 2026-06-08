@@ -751,7 +751,10 @@ async def forgot_password(body: dict, request: Request) -> dict:
 
 
 @router.post("/auth/reset-password")
-async def reset_password(body: dict) -> dict:
+async def reset_password(body: dict, request: Request) -> dict:
+    # Per-IP rate limit (3 / 15 min) — same limiter as forgot-password, so a
+    # leaked/guessed reset token can't be paired with high-volume submissions.
+    rate_limit_password_reset(request)
     token = body.get("token", "")
     new_password = body.get("password", "")
 

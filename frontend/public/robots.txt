@@ -15,9 +15,7 @@ Allow: /platform/
 
 Disallow: /help
 Disallow: /help/
-Disallow: /dashboard
 Disallow: /master-admin
-Disallow: /admin/
 Disallow: /marketing-suite
 Disallow: /memberships
 Disallow: /crm
@@ -29,7 +27,5 @@ Disallow: /embed/
 Disallow: /instructor
 Disallow: /checkin/
 Disallow: /gym-floor
-Allow: /api/seo/
-Disallow: /api/
 
 Sitemap: https://www.gymaxisai.com/api/seo/sitemap.xml

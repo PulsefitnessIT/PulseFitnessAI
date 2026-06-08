@@ -1,0 +1,31 @@
+## Cloudflare Pages _headers — security headers for the static marketing site.
+##
+## The FastAPI backend already sets these on /api/* responses (see
+## server.py security_headers_middleware); this file applies the same
+## hardening to the statically-served frontend (gymaxisai.com), which is
+## served at the edge and never touches FastAPI.
+##
+## CSP is kept identical to the backend's tuned policy so it does NOT break
+## the marketing site (PostHog, emergent-main.js, Stripe, hCaptcha/Turnstile,
+## Cloudflare Insights, Google/Fontshare fonts are all allow-listed).
+## frame-ancestors is 'self' here because the production domain is not
+## embedded by the Emergent app builder (unlike the preview subdomain).
+##
+## Takes effect on the next Emergent/Cloudflare Pages deploy.
+
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://challenges.cloudflare.com https://js.hcaptcha.com; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.hcaptcha.com https://js.stripe.com https://assets.emergent.sh https://*.posthog.com https://*.i.posthog.com https://static.cloudflareinsights.com; font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com; connect-src 'self' https: wss:; frame-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'self' blob:
+
+## Never let the build/config artifacts be served as content. (Belt-and-braces;
+## Emergent support must also block these at the pipeline level.)
+/_worker.js
+  X-Robots-Tag: noindex
+/*.map
+  X-Robots-Tag: noindex
