@@ -180,7 +180,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  setSystemChoice(null);
  notify.success(t('auth.login_success'));
  const u = response.data.user;
- if (u?.is_master_admin) {
+ if (u?.is_master_admin || u?.is_pulse_admin) {
  navigate('/master-admin');
  } else if (u?.account_type === 'lite' || u?.account_type === 'pulse_pro') {
  navigate('/pulse');
@@ -267,7 +267,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
 
     if (portalOk && crmOk) {
  // Master admin — skip chooser, go straight to admin dashboard
- if (portalResult.value.data.user?.is_master_admin) {
+ if (portalResult.value.data.user?.is_master_admin || portalResult.value.data.user?.is_pulse_admin) {
  loginToPortal(portalResult.value);
  return;
  }
@@ -502,7 +502,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  <HelpCircle size={16} /> Take a Tour
  </button>
  )}
- {user?.is_master_admin && (isOnDashboard || isOnPulse) && (
+ {(user?.is_master_admin || user?.is_pulse_admin) && (isOnDashboard || isOnPulse) && (
  <button
  onClick={() => {
  if (onOpenMasterAdmin) onOpenMasterAdmin();
@@ -597,7 +597,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  <LifeBuoy size={16} /> Help &amp; Tutorials
  </button>
  {/* Mobile: settings option removed iter202 — moved into Account modal */}
- {user?.is_master_admin && (isOnDashboard || isOnPulse) && onOpenMasterAdmin && (
+ {(user?.is_master_admin || user?.is_pulse_admin) && (isOnDashboard || isOnPulse) && onOpenMasterAdmin && (
  <button
  onClick={() => { onOpenMasterAdmin(); setMobileMenuOpen(false); }}
  className="w-full flex items-center gap-2 px-3 py-2 text-orange-400 hover:text-orange-300"

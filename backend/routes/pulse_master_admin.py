@@ -255,6 +255,21 @@ async def list_pulse_admins(user: dict = Depends(get_current_user)) -> dict:
          "must_change_password": 1, "created_at": 1, "last_login": 1, "active": 1,
          "organization_memberships": 1},
     ).sort("created_at", -1).to_list(500)
+    # Iter 222 — also include CRM-portal staff promoted to Pulse Master
+    # Admin via the org user-role dropdown (they live in crm_users and so
+    # would otherwise be invisible in this panel).
+    crm_rows = await db.crm_users.find(
+        {"$or": [{"role": PULSE_ROLE}, {"is_pulse_admin": True}]},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1,
+         "must_change_password": 1, "created_at": 1, "last_login": 1,
+         "active": 1, "organization_id": 1},
+    ).sort("created_at", -1).to_list(500)
+    for cr in crm_rows:
+        if cr.get("organization_id"):
+            cr["organization_memberships"] = [cr["organization_id"]]
+        cr["promoted_from_existing"] = True
+    existing_ids = {r["id"] for r in rows}
+    rows = rows + [c for c in crm_rows if c["id"] not in existing_ids]
     # Decorate memberships with org names so the UI can render labels.
     membership_org_ids: set[str] = set()
     for r in rows:

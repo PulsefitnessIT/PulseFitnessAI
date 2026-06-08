@@ -92,6 +92,25 @@ async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_
     }
 
 
+# Iter 222 — assigning the "Master Admin" role is BRAND-AWARE. For a user
+# in a Pulse-Fitness org it provisions a data-scoped *Pulse* Master Admin
+# (role=pulse_master_admin, is_pulse_admin=True) — same Master Admin
+# dashboard + org impersonation, but limited to Pulse-visible data. For a
+# GymAxis-internal org it stays a full platform admin (is_master_admin).
+_PULSE_ACCOUNT_TYPES = ("pulse_pro", "pulse_lite", "pulse")
+_PULSE_BRAND_VALUES = ("pulse", "pulse_fitness")
+
+
+def _org_is_pulse(org: Optional[dict]) -> bool:
+    if not org:
+        return False
+    return (
+        org.get("account_type") in _PULSE_ACCOUNT_TYPES
+        or (org.get("brand") or "").strip().lower() in _PULSE_BRAND_VALUES
+    )
+
+
+
 # ───────────── add user to organization ─────────────
 
 @router.post("/master-admin/organizations/{org_id}/users")
@@ -150,10 +169,18 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
     if role == "master_admin":
         # _create_org_user returns "Service Portal" or "CRM", not collection names
         target_coll = db.users if collection == "Service Portal" else db.crm_users
-        await target_coll.update_one(
-            {"id": user_id},
-            {"$set": {"is_master_admin": True, "role": "owner"}},
-        )
+        if _org_is_pulse(org):
+            # Pulse-scoped delegated admin — NOT a full platform admin.
+            await target_coll.update_one(
+                {"id": user_id},
+                {"$set": {"role": "pulse_master_admin", "is_pulse_admin": True,
+                          "is_master_admin": False, "company_name": "Pulse Fitness"}},
+            )
+        else:
+            await target_coll.update_one(
+                {"id": user_id},
+                {"$set": {"is_master_admin": True, "role": "owner"}},
+            )
 
     invite_url = None
     invite_expires_at = None
@@ -474,8 +501,35 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if updates.get("role") == "master_admin":
-        updates["role"] = "owner"
-        updates["is_master_admin"] = True
+        # Iter 222 — brand-aware elevation + remember the previous role so
+        # a later demotion can restore it. Promotes EXISTING staff in place
+        # (keeps their password). Pulse-org users become a Pulse Master
+        # Admin (data-scoped); GymAxis-org users become a full admin.
+        target_u = (
+            await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1, "organization_id": 1})
+            or await db.crm_users.find_one({"id": user_id}, {"_id": 0, "role": 1, "organization_id": 1})
+        ) or {}
+        target_org = None
+        if target_u.get("organization_id"):
+            target_org = await db.organizations.find_one(
+                {"id": target_u["organization_id"]},
+                {"_id": 0, "account_type": 1, "brand": 1},
+            )
+        prev_role = target_u.get("role")
+        if prev_role and prev_role not in ("master_admin", "pulse_master_admin"):
+            updates["pulse_admin_previous_role"] = prev_role
+        if _org_is_pulse(target_org):
+            updates["role"] = "pulse_master_admin"
+            updates["is_pulse_admin"] = True
+            updates["is_master_admin"] = False
+        else:
+            updates["role"] = "owner"
+            updates["is_master_admin"] = True
+    elif updates.get("role") in ("owner", "manager", "staff"):
+        # Demotion away from any master-admin role — strip elevated flags so
+        # access is fully revoked (active sessions are killed below).
+        updates["is_pulse_admin"] = False
+        updates["is_master_admin"] = False
 
     result = await db.users.update_one({"id": user_id}, {"$set": updates})
     if result.modified_count == 0:

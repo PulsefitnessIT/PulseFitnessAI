@@ -402,6 +402,11 @@ const AdminOrganizations = ({
  const [creating, setCreating] = useState(false);
  const [orgForm, setOrgForm] = useState({ name: '', portal_type: 'service_portal', enabled_modules: ['operations'], account_type: 'full', subscription_tier: 'starter', industry: '', employee_count: '', website: '', phone: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', primary_contact_name: '', primary_contact_email: '', primary_contact_phone: '', notes: '' });
  const [showAddUser, setShowAddUser] = useState(null);
+ // Iter 222 — assigning "Master Admin" to a user in a Pulse org makes
+ // them a Pulse Master Admin (data-scoped), not a full platform admin.
+ const isPulseOrg = ['pulse_pro', 'pulse_lite', 'pulse'].includes(selectedOrg?.account_type)
+   || ['pulse', 'pulse_fitness'].includes((selectedOrg?.brand || '').toLowerCase());
+ const masterAdminRoleLabel = isPulseOrg ? 'Master Admin (Pulse)' : 'Master Admin (full platform)';
  const [addingUser, setAddingUser] = useState(false);
  const [userForm, setUserForm] = useState({ email: '', full_name: '', password: '', role: 'staff' });
  const [lastInvite, setLastInvite] = useState(null); // Iter 215ev — post-create invite link panel
@@ -1051,6 +1056,8 @@ useEffect(() => {
  <SelectItem value="owner">Owner</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
  <SelectItem value="staff">Staff</SelectItem>
+ <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
+ {u.role === 'pulse_master_admin' && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
  </SelectContent>
  </Select>
  {u.user_type === 'crm' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">CRM</Badge>}
@@ -1742,12 +1749,14 @@ useEffect(() => {
      dialog. Backend `add_user_to_organization` accepts `role`
      and sets is_master_admin=true on the user doc when the role
      is master_admin so the user gets full-platform access. */}
- <SelectItem value="master_admin">Master Admin (full platform access)</SelectItem>
+ <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
  </SelectContent>
  </Select>
  {userForm.role === 'master_admin' ? (
    <p className="text-[11px] text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-snug" data-testid="add-user-master-admin-warning">
-     <strong>Heads up:</strong> a Master Admin can see and edit every organisation on the platform — only assign this to internal staff.
+     {isPulseOrg
+       ? <><strong>Pulse Master Admin:</strong> gets the Master Admin dashboard + organisation impersonation, scoped to Pulse Fitness data only.</>
+       : <><strong>Heads up:</strong> a Master Admin can see and edit every organisation on the platform — only assign this to internal staff.</>}
    </p>
  ) : null}
  </div>
@@ -1807,12 +1816,15 @@ useEffect(() => {
  <SelectItem value="owner">Owner</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
  <SelectItem value="staff">Staff</SelectItem>
- <SelectItem value="master_admin">Master Admin (full platform access)</SelectItem>
+ <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
+ {editingUser.role === 'pulse_master_admin' && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
  </SelectContent>
  </Select>
- {editingUser.role === 'master_admin' && !editingUser.is_master_admin ? (
+ {(editingUser.role === 'master_admin' || editingUser.role === 'pulse_master_admin') ? (
    <p className="text-[11px] text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-snug">
-     <strong>Heads up:</strong> save changes to elevate this user to platform-wide Master Admin access.
+     {isPulseOrg
+       ? <><strong>Pulse Master Admin:</strong> gets the Master Admin dashboard + organisation impersonation, scoped to Pulse Fitness data. They keep their existing password.</>
+       : <><strong>Heads up:</strong> save changes to elevate this user to platform-wide Master Admin access.</>}
    </p>
  ) : null}
  </div>
