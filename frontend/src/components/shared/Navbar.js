@@ -180,9 +180,13 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  setSystemChoice(null);
  notify.success(t('auth.login_success'));
  const u = response.data.user;
- if (u?.is_master_admin || u?.is_pulse_admin) {
+ // Iter 222 — Pulse Master Admins land on their MODULES (Pulse portal)
+ // at login, not the Master Admin console. They reach the console on
+ // demand via the Dashboard → Master Admin button. Full GymAxis platform
+ // admins still go straight to /master-admin.
+ if (u?.is_master_admin) {
  navigate('/master-admin');
- } else if (u?.account_type === 'lite' || u?.account_type === 'pulse_pro') {
+ } else if (u?.is_pulse_admin || u?.account_type === 'lite' || u?.account_type === 'pulse_pro') {
  navigate('/pulse');
  } else {
  navigate('/dashboard');
