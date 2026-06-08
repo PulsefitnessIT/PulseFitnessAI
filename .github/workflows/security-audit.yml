@@ -4,13 +4,37 @@ on:
     branches: [main]   # scan on every push to main
   pull_request:        # and on every pull request
 
+# Cancel an in-flight run if a newer commit lands on the same ref.
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10          # don't let a hung scan stall CI
     steps:
       - name: Run CheckVibe Audit
+        env:
+          CHECKVIBE_API_KEY: ${{ secrets.CHECKVIBE_API_KEY }}
         run: |
-          curl -X POST https://checkvibe.dev/api/scan \
-            -H "Authorization: Bearer ${{ secrets.CHECKVIBE_API_KEY }}" \
+          set -euo pipefail
+
+          # Secrets aren't exposed to PRs from forks — skip cleanly there so
+          # external contributors don't get a spurious red X.
+          if [ -z "${CHECKVIBE_API_KEY:-}" ]; then
+            echo "::warning::CHECKVIBE_API_KEY not set — skipping scan (expected on forked PRs)."
+            exit 0
+          fi
+
+          # --fail-with-body  → non-zero exit on HTTP 4xx/5xx, so a rejected
+          #                     scan (bad key / project / server error) FAILS
+          #                     the job and blocks the PR instead of passing
+          #                     silently. (Prints the response body too.)
+          # --retry/--max-time → ride out transient network blips, cap the call.
+          curl --fail-with-body -sS \
+            --retry 3 --retry-delay 5 --max-time 120 \
+            -X POST https://checkvibe.dev/api/scan \
+            -H "Authorization: Bearer ${CHECKVIBE_API_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"projectId": "f963243f-2e26-4af6-970d-66c7dd04cb95"}'
