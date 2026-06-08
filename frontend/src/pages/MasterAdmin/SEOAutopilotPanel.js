@@ -302,6 +302,77 @@ function AutopilotStatusCard() {
   );
 }
 
+// Key public marketing pages to (re)submit when pinging IndexNow.
+const INDEXNOW_KEY_PAGES = [
+  '/', '/pricing', '/features', '/blog', '/compare', '/contact', '/security',
+  '/platform/crm', '/platform/memberships', '/platform/service',
+  '/platform/marketing', '/platform/staffing', '/platform/reporting',
+  '/solutions', '/maintenance', '/equipment',
+];
+
+function IndexNowCard() {
+  const [pinging, setPinging] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const ping = async () => {
+    if (pinging) return;
+    setPinging(true);
+    setResult(null);
+    try {
+      const r = await axios.post(
+        `${API}/api/seo/indexnow/ping`,
+        { urls: INDEXNOW_KEY_PAGES },
+        { headers: auth() },
+      );
+      setResult(r.data);
+      if (r.data?.ok) {
+        notify.success(`Pinged ${r.data.submitted} URLs to IndexNow (Bing, Yandex & more).`);
+      } else {
+        notify.error(`IndexNow ping failed${r.data?.reason ? `: ${r.data.reason}` : ` (status ${r.data?.status || '—'})`}.`);
+      }
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not ping search engines');
+    } finally {
+      setPinging(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4" data-testid="seo-indexnow-card">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Send size={15} className="text-indigo-600" />
+            <h3 className="text-sm font-bold">Ping search engines</h3>
+          </div>
+          <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+            Instantly notify Bing, Yandex and other IndexNow engines that your key
+            marketing pages changed, so they recrawl sooner. Google doesn't consume
+            IndexNow directly but picks the URLs up faster via your live sitemap.
+          </p>
+          {result && (
+            <p className={`text-[11px] mt-2 font-semibold ${result.ok ? 'text-emerald-600' : 'text-rose-600'}`} data-testid="seo-indexnow-result">
+              {result.ok
+                ? `✓ Submitted ${result.submitted} URLs (status ${result.status}).`
+                : `Failed${result.reason ? `: ${result.reason}` : ` (status ${result.status || '—'})`}.`}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={ping}
+          disabled={pinging}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold whitespace-nowrap"
+          data-testid="seo-indexnow-ping-btn"
+        >
+          {pinging ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          {pinging ? 'Pinging…' : 'Ping search engines'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DashboardTab() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -329,6 +400,7 @@ function DashboardTab() {
   return (
     <div className="space-y-5" data-testid="seo-dashboard">
       <AutopilotStatusCard />
+      <IndexNowCard />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4">
