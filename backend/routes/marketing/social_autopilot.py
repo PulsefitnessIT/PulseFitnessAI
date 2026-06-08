@@ -245,6 +245,38 @@ async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
     return {"ok": True, "id": post_id}
 
 
+@router.delete("/posts")
+async def delete_all_posts(
+    user: dict = Depends(get_current_user),
+    channel: Optional[str] = Query(None),
+):
+    """Iter 222 — clear all drafts (optionally for one channel) so the
+    operator can start the feed over with the new template engine. Also
+    removes any on-disk TikTok videos and resets the daily-run lock so
+    'Run now' can immediately regenerate."""
+    _require_master_admin(user)
+    query: dict = {}
+    if channel:
+        if channel not in {c["id"] for c in CHANNELS}:
+            raise HTTPException(400, "Unknown channel")
+        query["channel"] = channel
+    # Clean on-disk videos for the matched posts first.
+    async for row in db.social_autopilot_posts.find(query, {"_id": 0, "id": 1}):
+        path = video_path_for_post(row["id"])
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    res = await db.social_autopilot_posts.delete_many(query)
+    # Reset the per-day run lock so Run-now can re-fire today.
+    if channel:
+        await db.social_autopilot_runs.delete_many({})
+    else:
+        await db.social_autopilot_runs.delete_many({})
+    return {"ok": True, "deleted": res.deleted_count}
+
+
 # ── Iter 220bm — Sora 2 TikTok video generation ──────────────────────
 
 

@@ -168,6 +168,150 @@ BRAND = {
 }
 
 
+# ── Iter 222 · Template-based imagery (replaces hallucinated AI images) ──
+# The old Variant-A path asked Gemini to *draw* a marketing image from a
+# free-form brief. Image models invent garbled UIs, wrong logos and blank
+# gradients — exactly the off-brand output operators flagged. We now render
+# every card deterministically from real brand tokens + the real logo +
+# (optionally) a REAL product screenshot. Nothing is ever invented.
+
+_LOGO_PATHS = [
+    os.path.join(os.path.dirname(__file__), "..", "static", "brand", "gymaxis-full.png"),
+    "/app/frontend/public/brand/gymaxis-full-tight.png",
+]
+
+
+def _resolve_logo_path() -> Optional[str]:
+    return next((p for p in _LOGO_PATHS if os.path.exists(p)), None)
+
+
+_SCREENSHOTS_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "static", "social", "screenshots",
+)
+
+# feature_id → real product screenshot filename.
+SCREENSHOT_MAP = {
+    "service_desk": "servicedesk.png",
+    "ai_triage": "servicedesk.png",
+    "partner_engineers": "eng_jobs.png",
+    "crm_pipeline": "crm_pipeline.png",
+    "supplier_capex": "crm.png",
+    "growth_hub": "reports.png",
+    "ppm_scheduler": "equipment.png",
+    "sicon_integration": "reports.png",
+    "membership_intelligence": "memberships.png",
+    "gym_floor_handover": "eng_diary.png",
+    "communications_inbox": "crm.png",
+    "supplier_qa": "reports.png",
+    "gdpr_workflow": "crm.png",
+}
+
+
+def _screenshot_path_for(feature_id: Optional[str]) -> Optional[str]:
+    fn = SCREENSHOT_MAP.get(feature_id or "")
+    if not fn:
+        return None
+    p = os.path.join(_SCREENSHOTS_DIR, fn)
+    return p if os.path.exists(p) else None
+
+
+# Curated, NEVER-fabricated stats. Product facts are literally true of
+# GymAxis; industry items are clearly tagged "Industry estimate" on the
+# card so they're never mistaken for GymAxis customer results.
+PRODUCT_STATS = [
+    {"value": "13", "label": "operational modules, one login"},
+    {"value": "1", "label": "platform for CRM, service desk, PPM & memberships"},
+    {"value": "4 sec", "label": "AI fault triage before the engineer leaves the depot"},
+    {"value": "24/7", "label": "member-reported faults auto-raised as tickets"},
+    {"value": "Zero", "label": "double-keying — Sage 200 & Sicon sync natively"},
+    {"value": "1 click", "label": "regulator-ready PPM evidence, auto-stamped"},
+]
+INDUSTRY_STATS = [
+    {"value": "5×", "label": "more costly to win a new member than to keep one"},
+    {"value": "#1", "label": "member complaint: broken or unavailable equipment"},
+    {"value": "Hours", "label": "lost each week chasing engineers over WhatsApp"},
+]
+
+
+def _pick_stat(topic: dict, n: int) -> dict:
+    is_feature = topic.get("kind") == "feature"
+    pool = PRODUCT_STATS if is_feature else INDUSTRY_STATS
+    chosen = pool[n % len(pool)]
+    return {**chosen, "kind": "product" if is_feature else "industry"}
+
+
+# Per-topic layout rotations. ``screenshot`` is only used when a real
+# product screenshot exists for the feature (else falls back to feature).
+_FEATURE_LAYOUTS = ["screenshot", "feature", "stat", "hook"]
+_INDUSTRY_LAYOUTS = ["stat", "punchline", "hook", "feature"]
+
+
+def pick_layout(channel_id: str, topic: dict, n_existing: int) -> str:
+    """Deterministically rotate card layouts so the feed has variety
+    without any generative hallucination."""
+    rotation = _FEATURE_LAYOUTS if topic.get("kind") == "feature" else _INDUSTRY_LAYOUTS
+    layout = rotation[n_existing % len(rotation)]
+    if layout == "screenshot" and not _screenshot_path_for(topic.get("feature_id")):
+        layout = "feature"
+    # LinkedIn stays drier — swap cheeky punchlines for a numbers card.
+    if layout == "punchline" and channel_id == "linkedin":
+        layout = "stat"
+    return layout
+
+
+def _layout_schema(layout: str, stat: Optional[dict] = None) -> str:
+    """Extra JSON keys / guidance appended to the LLM schema for the
+    chosen card layout. Numbers are supplied by us (never invented)."""
+    if layout == "feature":
+        return (
+            '  "feature_bullets": string[] (EXACTLY 3 benefit bullets, '
+            "≤6 words each, concrete operator outcomes, NO invented "
+            "metrics or customer names),\n"
+        )
+    if layout == "punchline":
+        return (
+            '  "punchline_setup": string (one short, relatable ops-life '
+            "setup line — the everyday pain),\n"
+            '  "punchline_payoff": string (the witty on-brand payoff, '
+            "dry wit, NO emoji, ≤8 words),\n"
+        )
+    return ""
+
+
+def _layout_guidance(layout: str, channel_id: str, stat: Optional[dict]) -> str:
+    """A short instruction added to the prompt body so the CAPTION
+    matches the chosen visual."""
+    humour = (
+        "Keep any humour dry and executive-safe — wit, not jokes."
+        if channel_id == "linkedin"
+        else "A light, cheeky, knowing tone is welcome (no cringe, no emoji spam)."
+    )
+    if layout == "stat" and stat:
+        framing = (
+            "This is a widely-cited INDUSTRY estimate — frame it as an "
+            "industry reality, never as a GymAxis customer result."
+            if stat.get("kind") == "industry"
+            else "This is a true GymAxis product fact."
+        )
+        return (
+            f"\nThe image is a NUMBERS card showing: "
+            f"'{stat['value']} — {stat['label']}'. {framing} Write the caption "
+            f"to land that figure. Do NOT invent other specific numbers.\n"
+        )
+    if layout == "punchline":
+        return f"\nThe image is a humour card (setup → payoff). {humour}\n"
+    if layout == "screenshot":
+        return (
+            "\nThe image is a REAL screenshot of the GymAxis product, framed "
+            "in a browser window. Write the caption to point at what the "
+            "screen shows.\n"
+        )
+    if layout == "feature":
+        return "\nThe image is a feature card with 3 benefit bullets.\n"
+    return ""
+
+
+
 # ── Topic blending (50/50 feature vs industry) ────────────────────────
 
 
@@ -248,8 +392,12 @@ async def pick_topic_for(db, channel_id: str) -> dict:
 # ── LLM prompt assembly ───────────────────────────────────────────────
 
 
-def build_prompt(channel: dict, topic: dict) -> str:
-    """Channel-aware prompt for the LLM. Returns a single string."""
+def build_prompt(channel: dict, topic: dict, layout: Optional[str] = None,
+                 stat: Optional[dict] = None) -> str:
+    """Channel-aware prompt for the LLM. Returns a single string.
+
+    ``layout``/``stat`` (Iter 222) bias the caption to match the chosen
+    deterministic card and inject layout-specific JSON keys."""
     intro = (
         f"You are a senior social-media editor for GymAxis "
         f"({BRAND['domain']}). {BRAND['tagline']}\n\n"
@@ -275,6 +423,8 @@ def build_prompt(channel: dict, topic: dict) -> str:
             f"can use even if they never become a GymAxis customer. "
             f"Mention GymAxis only as a one-line signature at the end.\n\n"
         )
+    if layout:
+        focus += _layout_guidance(layout, channel["id"], stat) + "\n"
     schema = (
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
         "{\n"
@@ -293,6 +443,8 @@ def build_prompt(channel: dict, topic: dict) -> str:
         "Chasing PPMs Manually'. Examples that DON'T work: 'How "
         "to...', 'The 5 things you...', 'Why we built...'),\n"
     )
+    if layout:
+        schema += _layout_schema(layout, stat)
     if channel["id"] == "tiktok":
         schema += (
             '  "video_script": string (12-15 second script with explicit '
@@ -373,7 +525,8 @@ async def get_active_launch_campaign(db) -> Optional[dict]:
 
 
 def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
-                        archetype: dict) -> str:
+                        archetype: dict, layout: Optional[str] = None,
+                        stat: Optional[dict] = None) -> str:
     """Launch-campaign-specific prompt. Replaces the established
     `build_prompt` when the picker decides this generation should be
     on-campaign.
@@ -406,6 +559,8 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
         f"force all of them — pick 2-3): {keywords or 'no extra keywords'}.\n\n"
     )
     focus = archetype_instruction + "\n\n"
+    if layout:
+        focus += _layout_guidance(layout, channel["id"], stat) + "\n"
     schema = (
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
         "{\n"
@@ -419,6 +574,8 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
         '  "card_headline": string '
         f"(≤6 words — hint: \"{archetype['card_headline_hint'].format(feature=feature_name)}\"),\n"
     )
+    if layout:
+        schema += _layout_schema(layout, stat)
     if channel["id"] == "tiktok":
         schema += (
             '  "video_script": string (12-15 second script with explicit '
@@ -980,12 +1137,21 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
             # week, anything goes).
             feature = FEATURE_PILLARS[n_existing % len(FEATURE_PILLARS)]
             topic = {
-                "topic_id": feature["id"], "kind": "feature",
+                "topic_id": f"feature:{feature['id']}", "kind": "feature",
                 "label": feature["label"], "hook": feature["hook"],
+                "feature_id": feature["id"],
             }
-        prompt = build_launch_prompt(channel, topic, campaign, archetype)
+
+    # Iter 222 — pick a deterministic, brand-accurate card layout +
+    # (for stat cards) a curated, never-fabricated figure.
+    layout = pick_layout(channel_id, topic, n_existing)
+    stat = _pick_stat(topic, n_existing) if layout == "stat" else None
+
+    if is_on_campaign:
+        prompt = build_launch_prompt(channel, topic, campaign, archetype,
+                                     layout=layout, stat=stat)
     else:
-        prompt = build_prompt(channel, topic)
+        prompt = build_prompt(channel, topic, layout=layout, stat=stat)
     text = await _llm_chat(prompt)
 
     # Iter 220cg — normalise the over-image headline ONCE so both the
@@ -996,26 +1162,48 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
         fallback=topic["label"],
     )
 
-    # Alternate image variants A/B per post (count parity on the
-    # channel determines which one we use).
-    image_variant = "A" if n_existing % 2 == 0 else "B"
+    # Iter 222 — render the chosen layout DETERMINISTICALLY. We no longer
+    # use generative AI for imagery: it hallucinated fake dashboards,
+    # wrong logos and blank gradients. Every card is now real brand
+    # tokens + the real logo + (optionally) a real product screenshot.
+    from utils.social_templates import render_social_card
+    w, h = _card_dimensions(channel["image_aspect"], channel["image_size_px"])
+    fields: dict = {
+        "headline": normalised_headline or topic["label"],
+        "subtitle": BRAND["tagline"],
+    }
+    if layout == "stat" and stat:
+        fields.update({"stat_value": stat["value"], "stat_label": stat["label"],
+                       "stat_kind": stat["kind"]})
+    elif layout == "feature":
+        bullets = [b for b in (text.get("feature_bullets") or [])
+                   if isinstance(b, str) and b.strip()][:3]
+        fields["bullets"] = bullets or [
+            topic["label"], "Built for multi-site UK operators",
+            "One platform — no spreadsheets",
+        ]
+    elif layout == "punchline":
+        fields["setup"] = (text.get("punchline_setup") or "").strip()
+        fields["payoff"] = (text.get("punchline_payoff")
+                            or normalised_headline or topic["label"]).strip()
+    elif layout == "screenshot":
+        fields["screenshot_path"] = _screenshot_path_for(topic.get("feature_id"))
 
-    image_url: Optional[str] = None
-    image_model = "branded_card"
-    if image_variant == "A":
-        nb = await render_nano_banana_image(
-            prompt=text.get("image_brief", topic["label"]),
-            channel=channel,
-        )
-        if nb:
-            image_url = nb["url"]
-            image_model = nb["model"]
-    if not image_url:
+    image_variant = layout
+    image_model = f"template:{layout}"
+    png = render_social_card(
+        layout, w=w, h=h, brand=BRAND, fields=fields,
+        logo_path=_resolve_logo_path(),
+    )
+    if png:
+        image_url = "data:image/png;base64," + base64.b64encode(png).decode()
+    else:
+        # Last-resort fallback to the legacy branded card.
         image_url = render_branded_card_to_data_url(
-            headline=normalised_headline,
-            channel=channel,
+            headline=normalised_headline, channel=channel,
             subtitle=BRAND["tagline"],
         )
+        image_model = "branded_card"
         image_variant = "B"
 
     hashtags = [h for h in (text.get("hashtags") or [])
