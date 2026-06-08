@@ -1259,6 +1259,171 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
     return doc
 
 
+# ── Iter 222 · Prompt → on-brand poster (manual AI Poster Assistant) ──
+# The operator types what they want; Claude picks the best deterministic
+# layout and fills the fields; we render with the real logo/brand (never
+# a generative image). No screenshots in this flow (operator's choice).
+
+_COMPOSE_LAYOUTS = {"hook", "stat", "feature", "punchline"}
+
+
+def build_compose_prompt(channel: dict, user_prompt: str,
+                         headline: Optional[str] = None,
+                         layout: Optional[str] = None) -> str:
+    stats_block = (
+        "Product facts (true of GymAxis — stat_kind 'product'):\n"
+        + "\n".join(f"- {s['value']} | {s['label']}" for s in PRODUCT_STATS)
+        + "\nIndustry estimates (stat_kind 'industry'):\n"
+        + "\n".join(f"- {s['value']} | {s['label']}" for s in INDUSTRY_STATS)
+    )
+    if layout:
+        layout_line = f"Use the '{layout}' layout for the image."
+    else:
+        layout_line = (
+            "Choose the BEST image layout for this request:\n"
+            "  • hook — a bold one-line statement (default for a strong claim)\n"
+            "  • stat — a big NUMBER + label (use when the request is numbers-led)\n"
+            "  • feature — a feature title + 3 benefit bullets\n"
+            "  • punchline — relatable ops humour (setup → payoff)"
+        )
+    tone = channel.get("tone_brief", "")
+    return (
+        f"You are composing ONE {channel['label']} post for {BRAND['name']} "
+        f"({BRAND['tagline']}), a UK B2B fitness-operations SaaS. Audience: "
+        f"{channel['audience']}. Tone: {tone}.\n\n"
+        f"The operator's request: \"{user_prompt.strip()}\"\n"
+        + (f"They want this headline: \"{headline.strip()}\"\n" if headline else "")
+        + f"\n{layout_line}\n\n"
+        "NUMBERS RULE — never invent a statistic. If you choose the 'stat' "
+        "layout, EITHER use a figure that appears literally in the operator's "
+        "request, OR pick the most relevant item from this approved list and "
+        "copy its value + label verbatim:\n"
+        f"{stats_block}\n"
+        "Industry items must be framed as an estimate, never as a GymAxis "
+        "customer result.\n\n"
+        "Return STRICT JSON only (no prose, no fences):\n"
+        "{\n"
+        '  "layout": one of "hook" | "stat" | "feature" | "punchline",\n'
+        f'  "caption": string (the post body, ≤{channel["caption_max_chars"]} chars),\n'
+        f'  "hashtags": string[] ({channel["hashtag_min"]}-{channel["hashtag_max"]} items, each starting with #),\n'
+        '  "card_headline": string (a COMPLETE 3-5 word headline, Title Case, '
+        "no emoji, no trailing ellipsis),\n"
+        '  "stat_value": string (ONLY for stat layout),\n'
+        '  "stat_label": string (ONLY for stat layout),\n'
+        '  "stat_kind": "product" | "industry" (ONLY for stat layout),\n'
+        '  "feature_bullets": string[] (EXACTLY 3 items, ≤6 words each, '
+        "concrete operator outcomes, ONLY for feature layout),\n"
+        '  "punchline_setup": string (ONLY for punchline layout),\n'
+        '  "punchline_payoff": string (≤8 words, dry wit, no emoji, ONLY for punchline)\n'
+        "}\n"
+    )
+
+
+async def compose_post_from_prompt(db, *, channel_id: str, prompt: str,
+                                   headline: Optional[str] = None,
+                                   layout: Optional[str] = None) -> dict:
+    """Render an on-brand poster from a free-form operator prompt and
+    save it as a draft. Always uses the deterministic template engine —
+    never a generative image."""
+    channel = channel_by_id(channel_id)
+    if not channel:
+        raise ValueError(f"Unknown channel: {channel_id}")
+    user_prompt = (prompt or "").strip()
+    if not user_prompt and not (headline or "").strip():
+        raise ValueError("Add a prompt or a headline")
+    req_layout = (layout or "").strip().lower() or None
+    if req_layout and req_layout not in _COMPOSE_LAYOUTS:
+        req_layout = None
+
+    text = await _llm_chat(
+        build_compose_prompt(channel, user_prompt, headline=headline, layout=req_layout)
+    )
+
+    chosen = req_layout or (text.get("layout") or "hook").strip().lower()
+    if chosen not in _COMPOSE_LAYOUTS:
+        chosen = "hook"
+
+    normalised_headline = clean_card_headline(
+        text.get("card_headline") or headline or "",
+        fallback=(headline or user_prompt[:40] or BRAND["name"]),
+    )
+
+    fields: dict = {
+        "headline": normalised_headline or BRAND["name"],
+        "subtitle": BRAND["tagline"],
+    }
+    if chosen == "stat":
+        sv = (text.get("stat_value") or "").strip()
+        sl = (text.get("stat_label") or "").strip()
+        sk = "industry" if (text.get("stat_kind") == "industry") else "product"
+        if not sv or not sl:  # safety net — never render an empty/invented stat
+            s = PRODUCT_STATS[0]
+            sv, sl, sk = s["value"], s["label"], "product"
+        fields.update({"stat_value": sv, "stat_label": sl, "stat_kind": sk})
+    elif chosen == "feature":
+        bullets = [b for b in (text.get("feature_bullets") or [])
+                   if isinstance(b, str) and b.strip()][:3]
+        fields["bullets"] = bullets or [
+            normalised_headline or "Built for operators",
+            "Built for multi-site UK operators", "One platform — no spreadsheets",
+        ]
+    elif chosen == "punchline":
+        fields["setup"] = (text.get("punchline_setup") or "").strip()
+        fields["payoff"] = (text.get("punchline_payoff")
+                            or normalised_headline or BRAND["name"]).strip()
+
+    from utils.social_templates import render_social_card
+    w, h = _card_dimensions(channel["image_aspect"], channel["image_size_px"])
+    png = render_social_card(chosen, w=w, h=h, brand=BRAND, fields=fields,
+                             logo_path=_resolve_logo_path())
+    if png:
+        image_url = "data:image/png;base64," + base64.b64encode(png).decode()
+        image_model = f"prompt:{chosen}"
+    else:
+        image_url = render_branded_card_to_data_url(
+            headline=normalised_headline, channel=channel, subtitle=BRAND["tagline"])
+        image_model = "branded_card"
+
+    hashtags = [h2 for h2 in (text.get("hashtags") or [])
+                if isinstance(h2, str) and h2.startswith("#")][:channel["hashtag_max"]]
+    caption = (text.get("caption") or "")[:channel["caption_max_chars"]]
+
+    from utils.social_tone_check import check_draft_tone
+    tone_check = check_draft_tone(caption, hashtags=hashtags, on_campaign=False)
+
+    doc = {
+        "id": _id(),
+        "channel": channel_id,
+        "status": "draft",
+        "topic_id": "manual:prompt",
+        "topic_kind": "manual",
+        "topic_label": (user_prompt[:60] or normalised_headline or "Custom poster"),
+        "caption": caption,
+        "hashtags": hashtags,
+        "video_script": None,
+        "card_headline": normalised_headline or BRAND["name"],
+        "image_brief": user_prompt,
+        "image_url": image_url,
+        "image_variant": chosen,
+        "image_model": image_model,
+        "audience": channel["audience"],
+        "created_at": _now(),
+        "updated_at": _now(),
+        "generation_meta": {
+            "model_text": "claude-sonnet-4-6",
+            "source": "manual_prompt",
+            "user_prompt": user_prompt,
+            "requested_layout": req_layout,
+            "on_campaign": False,
+        },
+        "tone_check": tone_check,
+    }
+    await db.social_autopilot_posts.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+
 async def generate_daily_drafts(db, *, channels: Optional[list[str]] = None) -> list[dict]:
     """One post per channel per day — the daily scheduler entry point."""
     channels = channels or [c["id"] for c in CHANNELS]
@@ -1288,6 +1453,8 @@ __all__ = [
     "render_branded_card_to_data_url",
     "render_nano_banana_image",
     "generate_post_for_channel",
+    "compose_post_from_prompt",
+    "build_compose_prompt",
     "generate_daily_drafts",
     "VIDEO_DIR",
     "video_path_for_post",

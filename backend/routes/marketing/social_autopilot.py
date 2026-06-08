@@ -28,6 +28,7 @@ from utils.security_plus import rate_limit_async
 from utils.social_autopilot import (
     CHANNELS, FEATURE_PILLARS, LAUNCH_ARCHETYPES,
     generate_post_for_channel, generate_daily_drafts,
+    compose_post_from_prompt,
     generate_tiktok_video_for_post, video_path_for_post,
 )
 from utils.social_tracker import (
@@ -166,6 +167,40 @@ async def generate_one(
     if payload.channel not in {c["id"] for c in CHANNELS}:
         raise HTTPException(400, "Unknown channel")
     doc = await generate_post_for_channel(db, payload.channel)
+    return doc
+
+
+class ComposeRequest(BaseModel):
+    channel: str
+    prompt: str = ""
+    headline: Optional[str] = None
+    layout: Optional[str] = None  # hook|stat|feature|punchline; None = AI picks
+
+
+@router.post("/compose")
+async def compose_from_prompt(
+    payload: ComposeRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 222 — AI Poster Assistant. Render an ON-BRAND poster from a
+    free-form operator prompt (Claude picks the layout + writes the copy)
+    and save it as a draft. Always uses the deterministic template engine
+    — never a generative image."""
+    _require_master_admin(user)
+    await rate_limit_async(
+        f"social_compose:{user.get('id')}", max_requests=30, window_seconds=3600,
+    )
+    if payload.channel not in {c["id"] for c in CHANNELS}:
+        raise HTTPException(400, "Unknown channel")
+    if not (payload.prompt or "").strip() and not (payload.headline or "").strip():
+        raise HTTPException(400, "Add a prompt or a headline")
+    try:
+        doc = await compose_post_from_prompt(
+            db, channel_id=payload.channel, prompt=payload.prompt,
+            headline=payload.headline, layout=payload.layout,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     return doc
 
 

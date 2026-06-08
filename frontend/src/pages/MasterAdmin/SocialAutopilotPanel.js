@@ -555,6 +555,142 @@ function LegacyLibrarySection() {
   );
 }
 
+const POSTER_LAYOUTS = [
+  { id: '', label: 'Auto — let AI pick' },
+  { id: 'hook', label: 'Hook (bold one-liner)' },
+  { id: 'stat', label: 'Stat (numbers-led)' },
+  { id: 'feature', label: 'Feature (3 bullets)' },
+  { id: 'punchline', label: 'Punchline (humour)' },
+];
+
+const POSTER_IDEAS = [
+  'A numbers post about cutting equipment downtime',
+  'A funny post about treadmills breaking at peak hours',
+  'Why multi-site operators need one platform, not five',
+  'Stop chasing engineers across WhatsApp',
+];
+
+/**
+ * AI Poster Assistant — type a prompt, AI picks the best on-brand layout
+ * and writes the copy, then saves it as a draft. Always uses the
+ * deterministic template engine (real logo + brand colours) — never a
+ * generative image, so every poster is guaranteed on-brand.
+ */
+function PosterAssistant({ channels, onCreated }) {
+  const [prompt, setPrompt] = useState('');
+  const [headline, setHeadline] = useState('');
+  const [channel, setChannel] = useState('linkedin');
+  const [layout, setLayout] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const generate = async () => {
+    if (!prompt.trim() && !headline.trim()) {
+      notify.error('Add a prompt or a headline');
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data } = await axios.post(
+        `${API}/api/marketing/social-autopilot/compose`,
+        { channel, prompt: prompt.trim(), headline: headline.trim() || null, layout: layout || null },
+        { headers: auth() },
+      );
+      notify.success(`On-brand poster created (${data.image_variant} layout) — added to ${CHANNEL_VISUAL[channel]?.label || channel} drafts`);
+      setPrompt('');
+      setHeadline('');
+      onCreated?.();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not generate the poster');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section
+      className="rounded-2xl border border-fuchsia-200 dark:border-fuchsia-900/60 bg-white dark:bg-zinc-950 p-4 sm:p-5"
+      data-testid="poster-assistant"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-fuchsia-500 to-blue-600 text-white flex items-center justify-center">
+          <Sparkles size={15}/>
+        </span>
+        <div>
+          <h3 className="text-sm font-extrabold text-zinc-900 dark:text-zinc-50 leading-tight">AI Poster Assistant</h3>
+          <p className="text-[11px] text-zinc-500 leading-tight">Describe a post — AI writes it & renders an on-brand poster (real logo, brand colours). Saved as a draft.</p>
+        </div>
+      </div>
+
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        rows={2}
+        placeholder="e.g. A numbers-led post about how operators waste hours chasing engineers"
+        className="w-full mt-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-fuchsia-400 resize-none"
+        data-testid="poster-prompt-input"
+      />
+
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {POSTER_IDEAS.map((idea) => (
+          <button
+            key={idea}
+            type="button"
+            onClick={() => setPrompt(idea)}
+            className="text-[10px] px-2 py-1 rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-fuchsia-400 hover:text-fuchsia-600"
+            data-testid="poster-idea-chip"
+          >
+            {idea}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-2 mt-3">
+        <input
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+          placeholder="Headline (optional)"
+          className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-fuchsia-400"
+          data-testid="poster-headline-input"
+        />
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value)}
+          className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-fuchsia-400"
+          data-testid="poster-channel-select"
+        >
+          {(channels || []).map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
+          ))}
+        </select>
+        <select
+          value={layout}
+          onChange={(e) => setLayout(e.target.value)}
+          className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-fuchsia-400"
+          data-testid="poster-layout-select"
+        >
+          {POSTER_LAYOUTS.map((l) => (
+            <option key={l.id} value={l.id}>{l.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex justify-end mt-3">
+        <button
+          type="button"
+          onClick={generate}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50"
+          data-testid="poster-generate-btn"
+        >
+          {busy ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12}/>}
+          {busy ? 'Generating…' : 'Generate poster'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+
 export default function SocialAutopilotPanel() {
   const [status, setStatus] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -717,6 +853,9 @@ export default function SocialAutopilotPanel() {
           </div>
         ))}
       </section>
+
+      {/* AI Poster Assistant — prompt → on-brand poster draft */}
+      <PosterAssistant channels={status.channels || []} onCreated={() => load({ silent: true })} />
 
       {/* Filters */}
       <div className="flex items-center gap-x-2 gap-y-2 flex-wrap" data-testid="social-filters">
