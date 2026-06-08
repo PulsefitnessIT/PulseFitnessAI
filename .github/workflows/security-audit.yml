@@ -1,0 +1,16 @@
+name: Security Audit
+on:
+  push:
+    branches: [main]   # scan on every push to main
+  pull_request:        # and on every pull request
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run CheckVibe Audit
+        run: |
+          curl -X POST https://checkvibe.dev/api/scan \
+            -H "Authorization: Bearer ${{ secrets.CHECKVIBE_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"projectId": "f963243f-2e26-4af6-970d-66c7dd04cb95"}'
