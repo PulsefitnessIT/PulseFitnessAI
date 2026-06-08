@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useAuth } from '@/App';
 import {
   Palette, ShieldCheck, AlertTriangle, RefreshCw, Save, Eye, Building2,
   Inbox, Hourglass, Sparkles, FileText, Image as ImageIcon,
@@ -78,6 +79,8 @@ function authHeader() {
 }
 
 export default function ThemeSettingsPanel() {
+  const { user } = useAuth();
+  const isPulseAdmin = !!(user?.is_pulse_admin && !user?.is_master_admin);
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState([]);
@@ -165,15 +168,16 @@ export default function ThemeSettingsPanel() {
 
   return (
     <div className="space-y-5" data-testid="theme-settings-panel">
-      <Header audit={audit} onRefresh={loadAudit} loading={loading} />
+      <Header audit={audit} onRefresh={loadAudit} loading={loading} isPulseAdmin={isPulseAdmin} />
       <InboxSlaCard />
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          {audit?.namespaces?.map((ns) => (
+          {audit?.namespaces?.filter((ns) => !isPulseAdmin || ns.id !== 'gymaxis').map((ns) => (
             <NamespaceCard key={ns.id} ns={ns} />
           ))}
         </div>
         <OverridesCard
+          isPulseAdmin={isPulseAdmin}
           orgs={orgs}
           orgId={orgId}
           setOrgId={setOrgId}
@@ -295,7 +299,7 @@ function SlaField({ label, value, onChange, testid, tone }) {
   );
 }
 
-function Header({ audit, onRefresh, loading }) {
+function Header({ audit, onRefresh, loading, isPulseAdmin }) {
   const ok = audit?.status === 'ok';
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm">
@@ -305,8 +309,10 @@ function Header({ audit, onRefresh, loading }) {
             <Palette size={18} className="text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">Theme settings & isolation audit</h2>
-            <p className="text-xs text-zinc-500">GymAxis (marketing/admin) vs Pulse Fitness (operator) design tokens — separated by CSS namespace and verified here.</p>
+            <h2 className="text-lg font-semibold text-zinc-900">Theme settings{isPulseAdmin ? '' : ' & isolation audit'}</h2>
+            <p className="text-xs text-zinc-500">{isPulseAdmin
+              ? 'Your Pulse Fitness design tokens plus per-tenant brand overrides.'
+              : 'GymAxis (marketing/admin) vs Pulse Fitness (operator) design tokens — separated by CSS namespace and verified here.'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -364,7 +370,7 @@ function NamespaceCard({ ns }) {
   );
 }
 
-function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSave, onClear, saving }) {
+function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSave, onClear, saving, isPulseAdmin }) {
   const selectedOrg = useMemo(() => orgs.find((o) => o.id === orgId), [orgs, orgId]);
   const hasOverrides = Object.values(draft || {}).some((v) => v && v.length > 0);
   return (
@@ -395,7 +401,7 @@ function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSav
             <span className="text-[10px] uppercase tracking-[0.12em] font-bold text-zinc-400 mr-1 flex items-center gap-1">
               <Sparkles size={10} /> Apply preset:
             </span>
-            {Object.entries(BRAND_PRESETS).map(([id, preset]) => (
+            {Object.entries(BRAND_PRESETS).filter(([id]) => !isPulseAdmin || id !== 'gymaxis').map(([id, preset]) => (
               <button
                 key={id}
                 type="button"

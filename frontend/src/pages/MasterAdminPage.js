@@ -595,9 +595,11 @@ const MasterAdminPage = ({ _onBack }) => {
                 {sectionTitles[section]}
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">
-                {(isPulseAdmin && section === 'overview')
-                  ? 'Platform-wide metrics across your modules · revenue · cases'
-                  : (sectionDescriptions[section] || '')}
+                {(() => {
+                  if (isPulseAdmin && section === 'overview') return 'Platform-wide metrics across your modules · revenue · cases';
+                  if (isPulseAdmin && section === 'theme-settings') return 'Your Pulse Fitness design tokens and per-tenant brand overrides.';
+                  return sectionDescriptions[section] || '';
+                })()}
               </p>
             </div>
             <CommandPalette

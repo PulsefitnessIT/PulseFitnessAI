@@ -12,7 +12,9 @@ Follow-up to the prior Pulse-admin scoping work. Confirmed plan = P0 + restyle t
 - **Documents "black card" restyled (light):** the dark `Pulse Fitness — meeting handouts` banner + pager cards in `DocumentsPanel.js` now match the light console theme.
 - **Custom Domains page restyled (light):** `CustomDomainsPanel.js` converted from the legacy dark zinc palette to white cards / slate borders / dark text, consistent with the rest of Settings & Compliance.
 
-Lint clean; screenshot-verified each surface. P1 leftover (not in this batch): hide the GymAxis preset/wording in Theme Settings for Pulse admins.
+Lint clean; screenshot-verified each surface.
+
+**P1 — Theme Settings brand isolation (done same day):** `ThemeSettingsPanel.js` now hides the GymAxis namespace token card (`ns.id === 'gymaxis'`), the GymAxis brand preset, and rewrites the header card copy for `isPulseAdmin`; `MasterAdminPage.js` makes the `theme-settings` page subtitle Pulse-neutral ("Your Pulse Fitness design tokens and per-tenant brand overrides."). Verified live — Pulse admin sees only Pulse tokens/preset, no "GymAxis (marketing/admin)" wording.
 
 
 
