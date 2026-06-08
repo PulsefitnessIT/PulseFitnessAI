@@ -144,6 +144,7 @@ async def create_custom_template(data: Dict[str, Any], user: dict = Depends(get_
         "id": str(uuid.uuid4()),
         "organization_id": user.get('organization_id'),
         "name": data.get('name', ''),
+        "equipment_type": (data.get('equipment_type') or '').strip(),
         "items": data.get('items', []),
         "created_by": user.get('full_name'),
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -196,6 +197,10 @@ async def create_maintenance_template(data: Dict[str, Any], user: dict = Depends
         "organization_id": user.get('organization_id'),
         "name": data.get('name', 'Untitled'),
         "category": data.get('category', 'Custom'),
+        # Iter 222 — optional assignment to a specific equipment type.
+        # When set, this template replaces the built-in default checklist
+        # for that equipment type in the Check Sheets grid.
+        "equipment_type": (data.get('equipment_type') or '').strip(),
         "items": data.get('items', []),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()

@@ -347,18 +347,46 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
           </div>
 
           <div>
-            <h4 className="font-medium text-[var(--theme-text)] text-sm mb-2">Documents ({eqFiles.length})</h4>
-            {eqFiles.length > 0 ? (
-              <div className="space-y-1">
-                {eqFiles.map(f => (
-                  <div key={f.id} className="flex items-center gap-2 p-2 bg-[var(--theme-surface)] rounded text-xs border border-[var(--theme-border)]">
-                    <FileText size={12} className="text-[var(--color-text-muted)]" />
-                    <span className="flex-1 text-[var(--theme-text)] truncate">{f.original_filename}</span>
-                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-[var(--color-text-muted)] hover:text-white" onClick={() => onDownloadFile(f)}><Download size={12} /></Button>
+            <h4 className="font-medium text-[var(--theme-text)] text-sm mb-2">Documents ({eqFiles.length + (hasSpec ? 1 : 0)})</h4>
+            <div className="space-y-1">
+              {/* Manufacturer manual — auto-linked from the Master Admin
+                  spec-sheet catalogue. Read-only for everyone (only Master
+                  Admin uploads these), viewable + downloadable by all roles. */}
+              {hasSpec && (
+                <div className="flex items-center gap-2 p-2 bg-[var(--theme-surface)] rounded text-xs border border-[var(--color-brand-blue)]/30" data-testid="equip-manufacturer-manual">
+                  <FileText size={12} className="text-[var(--color-brand-blue)] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[var(--theme-text)] block truncate">{selectedEquipment.name || 'Manufacturer manual'}</span>
+                    <span className="text-[10px] text-[var(--color-text-muted)]">Manufacturer manual</span>
                   </div>
-                ))}
-              </div>
-            ) : <p className="text-xs text-[var(--color-text-muted)]">No documents attached</p>}
+                  <Badge className="bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)] border-0 text-[9px] font-bold px-1.5 py-0 shrink-0">Read-only</Badge>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('spec-sheet')}
+                    className="h-6 px-2 rounded text-[var(--color-text-muted)] hover:text-white inline-flex items-center"
+                    title="View manual"
+                    data-testid="equip-manual-view"
+                  ><FileText size={12} /></button>
+                  <a
+                    href={`${API_BASE}/spec-sheets/pdf/${specId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={`${(selectedEquipment.name || 'manufacturer-manual')}.pdf`}
+                    className="h-6 w-6 p-0 rounded text-[var(--color-text-muted)] hover:text-white inline-flex items-center justify-center"
+                    title="Download manual"
+                    data-testid="equip-manual-download"
+                  ><Download size={12} /></a>
+                </div>
+              )}
+              {eqFiles.map(f => (
+                <div key={f.id} className="flex items-center gap-2 p-2 bg-[var(--theme-surface)] rounded text-xs border border-[var(--theme-border)]">
+                  <FileText size={12} className="text-[var(--color-text-muted)]" />
+                  <span className="flex-1 text-[var(--theme-text)] truncate">{f.original_filename}</span>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-[var(--color-text-muted)] hover:text-white" onClick={() => onDownloadFile(f)}><Download size={12} /></Button>
+                </div>
+              ))}
+              {eqFiles.length === 0 && !hasSpec && <p className="text-xs text-[var(--color-text-muted)]">No documents attached</p>}
+            </div>
           </div>
 
           <Button className="w-full bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" onClick={() => onLogFaultForEquipment(selectedEquipment)} data-testid="lite-equip-log-fault">

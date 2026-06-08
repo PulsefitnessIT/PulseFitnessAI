@@ -37,7 +37,7 @@ const CheckSheetsTab = () => {
  const [checkedItems, setCheckedItems] = useState({});
  const [history, setHistory] = useState([]);
  const [report, setReport] = useState(null);
- const [newTemplate, setNewTemplate] = useState({ name: '', category: '', items: [''] });
+ const [newTemplate, setNewTemplate] = useState({ name: '', category: '', equipment_type: '', items: [''] });
  const [searchQuery, setSearchQuery] = useState('');
  const [filterType, setFilterType] = useState('all');
  const [expandedHistory, setExpandedHistory] = useState(null);
@@ -84,12 +84,17 @@ const CheckSheetsTab = () => {
  };
 
  const handleStartSheet = (group) => {
- const tasks = getTasksForType(group.equipment_type);
+ // Iter 222 — a custom template assigned to this equipment type
+ // REPLACES the built-in default checklist for the type.
+ const assigned = customTemplates.find(t => (t.equipment_type || '') === group.equipment_type);
+ const tasks = assigned ? (assigned.items || []) : getTasksForType(group.equipment_type);
  setActiveSheet({
  name: group.equipment_type,
  equipment_type: group.equipment_type,
  machines: group.machines,
  items: tasks,
+ template_id: assigned?.id,
+ custom_template_name: assigned?.name || null,
  });
  setSelectedSerial(group.machines.length === 1 ? (group.machines[0].serial_number || group.machines[0].name) : '');
  setCheckedItems({});
@@ -160,11 +165,14 @@ const CheckSheetsTab = () => {
  await axios.post(`${API}/maintenance/templates`, {
  name: newTemplate.name,
  category: newTemplate.category || 'Custom',
+ equipment_type: newTemplate.equipment_type === 'none' ? '' : (newTemplate.equipment_type || ''),
  items
  }, { headers: { Authorization: `Bearer ${token}` } });
- notify.success('Template created');
+ notify.success(newTemplate.equipment_type && newTemplate.equipment_type !== 'none'
+ ? `Template created — now the default for ${newTemplate.equipment_type}`
+ : 'Template created');
  setShowCreateDialog(false);
- setNewTemplate({ name: '', category: '', items: [''] });
+ setNewTemplate({ name: '', category: '', equipment_type: '', items: [''] });
  loadCustomTemplates();
  } catch {
  notify.error('Failed to create template');
@@ -286,7 +294,8 @@ const CheckSheetsTab = () => {
  {groupedEquipment.length > 0 ? (
  <div className="space-y-4">
  {groupedEquipment.map((group) => {
- const tasks = getTasksForType(group.equipment_type);
+ const assignedTemplate = customTemplates.find(t => (t.equipment_type || '') === group.equipment_type);
+ const tasks = assignedTemplate ? (assignedTemplate.items || []) : getTasksForType(group.equipment_type);
  const checkedSerials = group.machines.filter(m => {
  const key = `${group.equipment_type} - ${m.serial_number || m.name}`;
  return completedTodayNames.has(key) || completedTodayNames.has(m.name);
@@ -314,6 +323,11 @@ const CheckSheetsTab = () => {
  {!allDone && checkedSerials.length > 0 && (
  <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
  {checkedSerials.length}/{group.machines.length} checked
+ </Badge>
+ )}
+ {assignedTemplate && (
+ <Badge className="bg-[rgb(var(--rgb-brand-blue)/0.2)] text-[var(--color-brand-blue)] text-xs" data-testid={`custom-assigned-${group.equipment_type}`}>
+ <ClipboardCheck size={11} className="mr-1" /> {assignedTemplate.name}
  </Badge>
  )}
  </div>
@@ -397,6 +411,11 @@ const CheckSheetsTab = () => {
  <Badge className="bg-[rgb(var(--rgb-brand-blue)/0.2)] text-[var(--color-brand-blue)] text-xs mt-1">
  Custom | {(template.items || []).length} items
  </Badge>
+ {template.equipment_type && (
+ <Badge className="bg-emerald-500/15 text-emerald-400 text-xs mt-1 ml-1" data-testid={`custom-template-type-${idx}`}>
+ {template.equipment_type}
+ </Badge>
+ )}
  </div>
  <button onClick={() => handleDeleteTemplate(template.id)} className="text-red-400 hover:text-red-300">
  <Trash2 size={14} />
@@ -621,6 +640,21 @@ const CheckSheetsTab = () => {
  <div>
  <Label className="text-white text-sm">Category</Label>
  <Input value={newTemplate.category} onChange={e => setNewTemplate({ ...newTemplate, category: e.target.value })} placeholder="e.g., Facility, Pool, Custom" className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1" data-testid="template-category-input" />
+ </div>
+ <div>
+ <Label className="text-white text-sm">Applies to equipment type</Label>
+ <Select value={newTemplate.equipment_type || 'none'} onValueChange={v => setNewTemplate({ ...newTemplate, equipment_type: v })}>
+ <SelectTrigger className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1" data-testid="template-equipment-type-select">
+ <SelectValue placeholder="Any (general template)" />
+ </SelectTrigger>
+ <SelectContent className="bg-[var(--theme-surface)] border-white/10 max-h-60">
+ <SelectItem value="none" className="text-white">Any — general template</SelectItem>
+ {equipmentTypes.map(type => (
+ <SelectItem key={type} value={type} className="text-white">{type}</SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+ <p className="text-[var(--color-text-muted)] text-xs mt-1">When set, this replaces the built-in default checklist for that equipment type.</p>
  </div>
  <div>
  <Label className="text-white text-sm">Check Items</Label>
