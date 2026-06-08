@@ -412,13 +412,17 @@ def build_prompt(channel: dict, topic: dict, layout: Optional[str] = None,
     )
     if topic["kind"] == "feature":
         focus = (
-            f"This post is a FEATURE-PROMOTION post for GymAxis. "
-            f"Showcase the feature: '{topic['label']}'. Lead with this "
-            f"angle: \"{topic['hook']}\". Show, don't tell — describe one "
-            f"concrete operator outcome (e.g. saved 4 hours/week, cut "
-            f"engineer dispatch by 30%) but DO NOT invent specific "
-            f"customer names or numbers. Close with a soft pull to "
-            f"{BRAND['domain']}.\n\n"
+            f"This post is a FEATURE-PROMOTION post for GymAxis.\n"
+            f"FEATURE YOU ARE WRITING ABOUT — do not change it:\n"
+            f"  • Name (use this EXACT feature): {topic['label']}\n"
+            f"  • What it is: {topic['hook']}\n"
+            f"Write the headline AND caption about THIS feature only. "
+            f"NEVER invent, rename or substitute a different product (e.g. "
+            f"do not call it a 'Rota Builder', 'Smart Scheduling' or 'Ops "
+            f"Dashboard' unless that is the exact feature above). Show, "
+            f"don't tell — describe one concrete operator outcome, but DO "
+            f"NOT invent specific customer names or numbers. Close with a "
+            f"soft pull to {BRAND['domain']}.\n\n"
         )
     else:
         focus = (
@@ -564,6 +568,21 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
         f"force all of them — pick 2-3): {keywords or 'no extra keywords'}.\n\n"
     )
     focus = archetype_instruction + "\n\n"
+    # Iter 222 — HARD feature binding. The LLM was drifting to invented
+    # products (a CRM topic produced a "Smart Rota Builder" headline),
+    # which then mismatched the feature-keyed screenshot. Pin it down.
+    feature_brief = (
+        "FEATURE YOU ARE WRITING ABOUT — do not change it:\n"
+        f"  • Name (use this EXACT feature): {feature_name}\n"
+        f"  • What it is: {topic.get('hook', '')}\n"
+        "Write the headline AND caption about THIS feature only. NEVER "
+        "invent, rename or substitute a different product — e.g. do not "
+        "call it a 'Rota Builder', 'Smart Scheduling', 'Staff Scheduling' "
+        "or 'Ops Dashboard' unless that is the exact feature named above. "
+        "You may shorten the name for a catchy headline, but it must stay "
+        "the SAME feature.\n\n"
+    )
+    focus = feature_brief + focus
     if layout:
         focus += _layout_guidance(layout, channel["id"], stat) + "\n"
     schema = (
@@ -1193,6 +1212,24 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
                             or normalised_headline or topic["label"]).strip()
     elif layout == "screenshot":
         fields["screenshot_path"] = _screenshot_path_for(topic.get("feature_id"))
+        # Iter 222 — GUARANTEE the on-image headline matches the screenshot.
+        # The LLM headline can drift to an unrelated feature (e.g. a CRM
+        # screenshot under a "Smart Rota Builder" headline). The screenshot
+        # is keyed to the feature, so the headline must be too. If, despite
+        # the hard binding in the prompt, no real screenshot resolved, drop
+        # to a feature card rather than show a mismatched image.
+        feat = feature_pillar_by_id(topic.get("feature_id"))
+        if not fields["screenshot_path"]:
+            layout = "feature"
+            bullets = [b for b in (text.get("feature_bullets") or [])
+                       if isinstance(b, str) and b.strip()][:3]
+            fields["bullets"] = bullets or [
+                topic["label"], "Built for multi-site UK operators",
+                "One platform — no spreadsheets",
+            ]
+        elif feat:
+            normalised_headline = feat["label"]
+            fields["headline"] = feat["label"]
 
     image_variant = layout
     image_model = f"template:{layout}"
