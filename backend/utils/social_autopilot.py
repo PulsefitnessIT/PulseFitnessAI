@@ -189,21 +189,25 @@ _SCREENSHOTS_DIR = os.path.join(
     os.path.dirname(__file__), "..", "static", "social", "screenshots",
 )
 
-# feature_id → real product screenshot filename.
+# feature_id → real product screenshot filename. Only mapped when a
+# screenshot GENUINELY shows that feature — an inaccurate screen erodes
+# trust, so features without a true matching screen fall back to the
+# feature/stat card instead.
 SCREENSHOT_MAP = {
     "service_desk": "servicedesk.png",
-    "ai_triage": "servicedesk.png",
+    "ai_triage": "faults.png",
     "partner_engineers": "eng_jobs.png",
     "crm_pipeline": "crm_pipeline.png",
-    "supplier_capex": "crm.png",
+    "supplier_capex": "crm_pipeline.png",
     "growth_hub": "reports.png",
-    "ppm_scheduler": "equipment.png",
+    "ppm_scheduler": "schedule.png",
     "sicon_integration": "reports.png",
-    "membership_intelligence": "memberships.png",
+    "membership_intelligence": "mbr_analytics.png",
     "gym_floor_handover": "eng_diary.png",
-    "communications_inbox": "crm.png",
-    "supplier_qa": "reports.png",
-    "gdpr_workflow": "crm.png",
+    "supplier_qa": "suppliers.png",
+    # communications_inbox & gdpr_workflow have no true matching screen —
+    # intentionally unmapped so they use the feature card, never a
+    # misleading screenshot.
 }
 
 
@@ -219,17 +223,18 @@ def _screenshot_path_for(feature_id: Optional[str]) -> Optional[str]:
 # GymAxis; industry items are clearly tagged "Industry estimate" on the
 # card so they're never mistaken for GymAxis customer results.
 PRODUCT_STATS = [
-    {"value": "13", "label": "operational modules, one login"},
-    {"value": "1", "label": "platform for CRM, service desk, PPM & memberships"},
+    {"value": "6-in-1", "label": "CRM, service desk, PPM, memberships, finance & marketing"},
+    {"value": "13", "label": "operational modules — one login, one source of truth"},
     {"value": "4 sec", "label": "AI fault triage before the engineer leaves the depot"},
     {"value": "24/7", "label": "member-reported faults auto-raised as tickets"},
     {"value": "Zero", "label": "double-keying — Sage 200 & Sicon sync natively"},
-    {"value": "1 click", "label": "regulator-ready PPM evidence, auto-stamped"},
+    {"value": "1 click", "label": "regulator-ready PPM evidence, auto-stamped & filed"},
 ]
 INDUSTRY_STATS = [
     {"value": "5×", "label": "more costly to win a new member than to keep one"},
-    {"value": "#1", "label": "member complaint: broken or unavailable equipment"},
-    {"value": "Hours", "label": "lost each week chasing engineers over WhatsApp"},
+    {"value": "#1", "label": "member gripe in gyms: broken or unavailable kit"},
+    {"value": "Hours", "label": "lost every week chasing engineers across WhatsApp & email"},
+    {"value": "1 bad visit", "label": "is all it takes for a member to start cancelling"},
 ]
 
 
