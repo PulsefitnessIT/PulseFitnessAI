@@ -104,13 +104,14 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       // Iter 220ag — Growth Hub (aggregation of trials, SEO, outbound,
       // CRM pipeline + sales insights — GymAxis self-promotion lens).
-      { id: 'marketing-studio', label: 'Growth Hub',   icon: Rocket },
+      // Iter 222 — GymAxis-branded self-promo tooling; hidden for Pulse admins.
+      { id: 'marketing-studio', label: 'Growth Hub',   icon: Rocket, gymaxisOnly: true },
       // Iter 220ad — SEO Autopilot (keyword research → article → publish)
-      { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles },
+      { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles, gymaxisOnly: true },
       // Iter 220bl — Social Media Autopilot (IG / TikTok / LinkedIn).
       // Moved out of Catalogue & Library where the manual library lived;
       // the new autopilot writes daily drafts with brand-coloured images.
-      { id: 'social-autopilot', label: 'Social Autopilot',   icon: Share2 },
+      { id: 'social-autopilot', label: 'Social Autopilot',   icon: Share2, gymaxisOnly: true },
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
       { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
       { id: 'emails',          label: 'Outbound emails',  icon: Mail },
