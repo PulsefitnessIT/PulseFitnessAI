@@ -61,6 +61,7 @@ from routes.sales_pack import router as sales_pack_router
 from routes.email_health import router as email_health_router
 from routes.triage_feedback import router as triage_feedback_router
 from routes.master_admin_db_viewer import router as master_admin_db_viewer_router
+from routes.master_admin_pulse_explorer import router as master_admin_pulse_explorer_router
 from routes.master_admin_catalogue import router as master_admin_catalogue_router
 from routes.master_admin_hubspot_parity import router as master_admin_hubspot_parity_router
 from routes.marketing_forms import router as marketing_forms_router
@@ -133,6 +134,7 @@ def register_admin(api_router: APIRouter) -> None:
         email_health_router,
         triage_feedback_router,
         master_admin_db_viewer_router,
+        master_admin_pulse_explorer_router,
         master_admin_catalogue_router,
         master_admin_manufacturer_domains_router,
         marketing_image_library_router,

@@ -59,6 +59,7 @@ const ActivationFunnelPanel = lazy(() => import('./MasterAdmin/ActivationFunnelP
 const DocumentsPanel = lazy(() => import('./MasterAdmin/DocumentsPanel'));
 const CollectionsDashboard = lazy(() => import('./MasterAdmin/CollectionsDashboard'));
 const DbViewerPanel = lazy(() => import('./MasterAdmin/DbViewerPanel'));
+const PulseDbExplorerPanel = lazy(() => import('./MasterAdmin/PulseDbExplorerPanel'));
 const CataloguePanel = lazy(() => import('./MasterAdmin/CataloguePanel'));
 const SocialMediaLibraryPanel = lazy(() => import('./MasterAdmin/SocialMediaLibraryPanel'));
 const CustomPropertiesPanel = lazy(() => import('./MasterAdmin/CustomPropertiesPanel'));
@@ -518,6 +519,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <CollectionsDashboard onPickOrg={(orgId) => { setSection('org-billing'); setBillingOrgId(orgId); }} />;
       case 'db-viewer':
         return <DbViewerPanel />;
+      case 'pulse-data':
+        return <PulseDbExplorerPanel />;
       case 'catalogue':
         return <CataloguePanel />;
       case 'social-media-library':
@@ -657,7 +660,7 @@ const MasterAdminPage = ({ _onBack }) => {
                 const groupId = SECTION_TO_GROUP[section];
                 const subTabs = groupId ? GROUP_SUBTABS[groupId] : null;
                 if (!subTabs) return null;
-                const visible = subTabs.filter((t) => !t.gymaxisOnly || !isPulseAdmin);
+                const visible = subTabs.filter((t) => (!t.gymaxisOnly || !isPulseAdmin) && (!t.pulseOnly || isPulseAdmin));
                 return (
                   <ConsolidatedTabsBar
                     tabs={visible}
