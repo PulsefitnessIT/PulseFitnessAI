@@ -24,16 +24,6 @@ import { useMemo, useState } from 'react';
 import { Search, Users, ShieldCheck, Briefcase, UserCog, Archive, AlertTriangle, ChevronRight, Clock, Wrench } from 'lucide-react';
 import { useBrandContext } from './BrandContext';
 
-const PILLS = [
-  { id: 'all', label: 'Everyone', icon: Users, accent: '#0A0A0A' },
-  { id: 'pulse_admins', label: 'Pulse Admins', icon: ShieldCheck, accent: '#0055FF' },
-  { id: 'owners', label: 'Owners', icon: UserCog, accent: '#7C3AED' },
-  { id: 'staff', label: 'Staff & Managers', icon: Briefcase, accent: '#10B981' },
-  { id: 'partner_engineers', label: 'Partner Engineers', icon: Wrench, accent: '#4F46E5' },
-  { id: 'crm_only', label: 'CRM contacts', icon: Users, accent: '#F59E0B' },
-  { id: 'archived', label: 'Archived', icon: Archive, accent: '#71717A' },
-];
-
 const classifyUser = (u) => {
   if (u.is_partner_engineer || u.role === 'engineer_partner' || u.display_role === 'Partner Engineer') return 'partner_engineers';
   if (u.is_pulse_master_admin || u.role === 'pulse_master_admin' || u.user_type === 'pulse_master_admin') return 'pulse_admins';
@@ -84,21 +74,35 @@ const RoleChip = ({ user }) => {
   );
 };
 
-const StatTile = ({ label, value, hint, icon: Icon, accent }) => (
-  <div className="rounded-lg border bg-white p-4" style={{ borderColor: '#E4E4E7' }} data-testid={`people-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+const StatTile = ({ label, value, hint, icon: Icon, accent, active, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={active}
+    className="text-left rounded-lg border bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(15,23,42,0.18)] focus:outline-none"
+    style={{
+      borderColor: active ? accent : '#E4E4E7',
+      boxShadow: active ? `inset 0 0 0 1px ${accent}` : undefined,
+      background: active ? `${accent}0A` : '#fff',
+    }}
+    data-testid={`people-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}
+  >
     <div className="flex items-start justify-between mb-1">
       <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</span>
       {Icon && <Icon size={14} style={{ color: accent || '#71717A' }} />}
     </div>
     <div className="text-2xl font-bold" style={{ color: accent || '#0A0A0A' }}>{value}</div>
     {hint && <div className="text-[10px] text-zinc-500 mt-0.5">{hint}</div>}
-  </div>
+  </button>
 );
 
 const PeopleDirectory = ({ users = [], onOpenUser }) => {
   const { brandLabel } = useBrandContext();
   const [activePill, setActivePill] = useState('all');
   const [search, setSearch] = useState('');
+
+  // Clicking the active filter card again clears back to "Everyone".
+  const setFilter = (id) => setActivePill((cur) => (cur === id && id !== 'all') ? 'all' : id);
 
   // Iter 216h19 — classify once for cheap re-filtering on pill change.
   const classified = useMemo(() => {
@@ -125,6 +129,12 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
         if (!isArchived) return false;
       } else if (activePill === 'all') {
         if (isArchived) return false; // hide archived from "Everyone"
+      } else if (activePill === 'mismatch') {
+        if (isArchived) return false;
+        if (!(u.invited_role && u.invited_role !== u.role)) return false;
+      } else if (activePill === 'invite_pending') {
+        if (isArchived) return false;
+        if (!u.invite_pending) return false;
       } else {
         if (isArchived) return false;
         if (u._category !== activePill) return false;
@@ -141,51 +151,12 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
   return (
     <div className="space-y-5" data-testid="people-directory">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-zinc-900 tracking-tight">People directory</h2>
-          <p className="text-sm text-zinc-500 mt-0.5">Single source of truth — Pulse Admins, Owners, Staff and CRM contacts in one list. Brand context: <span className="font-semibold text-zinc-700">{brandLabel}</span>.</p>
+          <p className="text-sm text-zinc-500 mt-0.5">Single source of truth — click any card below to filter. Brand context: <span className="font-semibold text-zinc-700">{brandLabel}</span>.</p>
         </div>
-      </div>
-
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3" data-testid="people-stats-strip">
-        <StatTile label="Total active" value={stats.total - stats.archived} icon={Users} accent="#0A0A0A" hint={stats.archived ? `${stats.archived} archived` : ''} />
-        <StatTile label="Pulse admins" value={stats.pulse_admins} icon={ShieldCheck} accent="#0055FF" />
-        <StatTile label="Owners" value={stats.owners} icon={UserCog} accent="#7C3AED" />
-        <StatTile label="Staff / Managers" value={stats.staff} icon={Briefcase} accent="#10B981" />
-        <StatTile label="Partner Engineers" value={stats.partner_engineers} icon={Wrench} accent="#4F46E5" />
-        <StatTile label="CRM only" value={stats.crm_only} icon={Users} accent="#F59E0B" />
-        <StatTile label="Role mismatches" value={stats.mismatch} icon={AlertTriangle} accent={stats.mismatch ? '#DC2626' : '#71717A'} hint={stats.mismatch ? 'invited ≠ current' : 'all aligned'} />
-        <StatTile label="Invites pending" value={stats.invite_pending} icon={Clock} accent={stats.invite_pending ? '#B45309' : '#71717A'} hint={stats.invite_pending ? '72h links unredeemed' : 'all redeemed'} testId="people-stat-invite-pending" />
-      </div>
-
-      {/* Filter pills */}
-      <div className="flex flex-wrap gap-2 items-center" data-testid="people-pills">
-        {PILLS.map((p) => {
-          const active = activePill === p.id;
-          const count = stats[p.id] !== undefined ? stats[p.id] : (p.id === 'all' ? stats.total - stats.archived : 0);
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setActivePill(p.id)}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{
-                borderColor: active ? p.accent : '#E4E4E7',
-                background: active ? `${p.accent}14` : 'transparent',
-                color: active ? p.accent : '#3F3F46',
-                fontWeight: active ? 600 : 500,
-              }}
-              data-testid={`people-pill-${p.id}`}
-            >
-              <p.icon size={12} />
-              {p.label}
-              <span className="text-[10px] font-semibold opacity-70">{count}</span>
-            </button>
-          );
-        })}
-        <div className="ml-auto relative">
+        <div className="relative flex-shrink-0">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
           <input
             type="text"
@@ -197,6 +168,19 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
             data-testid="people-search-input"
           />
         </div>
+      </div>
+
+      {/* Stats strip — each card is an interactive filter (replaces the old pill row) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3" data-testid="people-stats-strip">
+        <StatTile label="Total active" value={stats.total - stats.archived} icon={Users} accent="#0A0A0A" hint={stats.archived ? `${stats.archived} archived` : ''} active={activePill === 'all'} onClick={() => setFilter('all')} />
+        <StatTile label="Pulse admins" value={stats.pulse_admins} icon={ShieldCheck} accent="#0055FF" active={activePill === 'pulse_admins'} onClick={() => setFilter('pulse_admins')} />
+        <StatTile label="Owners" value={stats.owners} icon={UserCog} accent="#7C3AED" active={activePill === 'owners'} onClick={() => setFilter('owners')} />
+        <StatTile label="Staff / Managers" value={stats.staff} icon={Briefcase} accent="#10B981" active={activePill === 'staff'} onClick={() => setFilter('staff')} />
+        <StatTile label="Partner Engineers" value={stats.partner_engineers} icon={Wrench} accent="#4F46E5" active={activePill === 'partner_engineers'} onClick={() => setFilter('partner_engineers')} />
+        <StatTile label="CRM only" value={stats.crm_only} icon={Users} accent="#F59E0B" active={activePill === 'crm_only'} onClick={() => setFilter('crm_only')} />
+        <StatTile label="Role mismatches" value={stats.mismatch} icon={AlertTriangle} accent={stats.mismatch ? '#DC2626' : '#71717A'} hint={stats.mismatch ? 'invited ≠ current' : 'all aligned'} active={activePill === 'mismatch'} onClick={() => setFilter('mismatch')} />
+        <StatTile label="Invites pending" value={stats.invite_pending} icon={Clock} accent={stats.invite_pending ? '#B45309' : '#71717A'} hint={stats.invite_pending ? '72h links unredeemed' : 'all redeemed'} active={activePill === 'invite_pending'} onClick={() => setFilter('invite_pending')} />
+        <StatTile label="Archived" value={stats.archived} icon={Archive} accent="#71717A" active={activePill === 'archived'} onClick={() => setFilter('archived')} />
       </div>
 
       {/* Results table */}

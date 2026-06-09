@@ -98,6 +98,7 @@ const OverviewSection = ({
  <div className="space-y-6">
  <OperationsOverview
  token={mainToken}
+ onGoSection={setSection}
  onGoPayments={() => setSection('payments')}
  onGoSuspended={() => { setOrgFilter('suspended'); setSpInnerTab('organisations'); }}
  />

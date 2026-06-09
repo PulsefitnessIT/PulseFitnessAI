@@ -40,7 +40,7 @@ const Panel = ({ children, className = '', ...rest }) => (
   </div>
 );
 
-const OperationsOverview = ({ token, onGoPayments, onGoSuspended }) => {
+const OperationsOverview = ({ token, onGoPayments, onGoSuspended, onGoSection }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,12 +66,12 @@ const OperationsOverview = ({ token, onGoPayments, onGoSuspended }) => {
   }
 
   const kpiCards = [
-    { label: 'Operations Orgs', value: stats.total_organizations, icon: Building2, palette: KPI_PALETTES.organisations, testid: 'ops-kpi-organisations',
-      tip: 'Organisations with the Operations module enabled (every non-MOD org, unless Operations is explicitly switched off).' },
-    { label: 'Active Users', value: stats.total_users, icon: Users, palette: KPI_PALETTES.users, testid: 'ops-kpi-active-users',
-      tip: 'User accounts inside Operations-enabled organisations.' },
-    { label: 'Operations MRR', value: `£${(stats.mrr || 0).toLocaleString()}`, icon: PoundSterling, palette: KPI_PALETTES.revenue, testid: 'ops-kpi-mrr',
-      tip: 'Monthly Recurring Revenue from active paid plans on Operations-enabled organisations.' },
+    { label: 'Operations Orgs', value: stats.total_organizations, icon: Building2, palette: KPI_PALETTES.organisations, testid: 'ops-kpi-organisations', onClick: () => onGoSection?.('organizations'),
+      tip: 'Organisations with the Operations module enabled (every non-MOD org, unless Operations is explicitly switched off). Click to open the organisations list.' },
+    { label: 'Active Users', value: stats.total_users, icon: Users, palette: KPI_PALETTES.users, testid: 'ops-kpi-active-users', onClick: () => onGoSection?.('roles'),
+      tip: 'User accounts inside Operations-enabled organisations. Click to open the People directory.' },
+    { label: 'Operations MRR', value: `£${(stats.mrr || 0).toLocaleString()}`, icon: PoundSterling, palette: KPI_PALETTES.revenue, testid: 'ops-kpi-mrr', onClick: () => onGoPayments?.(),
+      tip: 'Monthly Recurring Revenue from active paid plans on Operations-enabled organisations. Click to open Payments.' },
     { label: 'Open Cases', value: stats.open_issues, icon: AlertTriangle, palette: KPI_PALETTES.cases, testid: 'ops-kpi-open-cases',
       tip: 'Faults across Operations gyms with status = open. Resolved or closed faults are excluded.' },
   ];
@@ -112,7 +112,11 @@ const OperationsOverview = ({ token, onGoPayments, onGoSuspended }) => {
         {kpiCards.map((k) => (
           <Panel
             key={k.label}
-            className="p-5 cursor-help transition-shadow hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]"
+            onClick={k.onClick}
+            role={k.onClick ? 'button' : undefined}
+            tabIndex={k.onClick ? 0 : undefined}
+            onKeyDown={k.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); k.onClick(); } } : undefined}
+            className={`p-5 transition-all ${k.onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(15,23,42,0.18)]' : 'cursor-help hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]'}`}
             title={k.tip}
             data-testid={k.testid}
           >
