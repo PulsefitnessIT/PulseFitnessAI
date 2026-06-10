@@ -59,6 +59,8 @@ def _job_db(*, case, time_entries=None, sibling_cases=None):
         return_value={"id": "s-1", "signed_at": "2026-05-30T00:00:00Z",
                       "ticked_item_ids": [], "remarks": ""},
     )
+    # Iter 220ed added a completed-job recap read (signature + resolution).
+    fdb.svc_signatures.find_one = AsyncMock(return_value=None)
     return fdb
 
 

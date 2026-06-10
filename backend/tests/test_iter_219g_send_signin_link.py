@@ -174,7 +174,10 @@ def test_send_signin_link_sends_password_reset_when_user_exists():
         {"_id": 0},
     ))
     assert tokens, "No password_reset_tokens row written"
-    assert tokens[-1].get("issued_via") == "admin_partner_drawer"
+    # Iter 230 — reset minting was extracted into the shared
+    # `_mint_and_send_password_reset` helper, which stamps the
+    # consolidated `admin_partner` source tag.
+    assert tokens[-1].get("issued_via") == "admin_partner"
 
 
 # ─────────────────── Boundary checks ───────────────────
@@ -242,8 +245,15 @@ def test_password_reset_helper_called_via_send_signin_when_user_exists():
     src = open(src_path, encoding="utf-8").read()
     block = src.split('@router.post("/partners/applications/{application_id}/send-signin-link")')[1]
     block = block.split("@router.")[0]
-    assert "send_password_reset_email" in block, (
-        "Password-reset branch must call send_password_reset_email."
+    # Iter 230 — the reset branch was extracted into the shared
+    # `_mint_and_send_password_reset` helper. Pin the delegation AND
+    # that the helper itself still sends the standard reset email.
+    assert "_mint_and_send_password_reset" in block, (
+        "Password-reset branch must delegate to _mint_and_send_password_reset."
+    )
+    helper = src.split("async def _mint_and_send_password_reset")[1].split("\nasync def ")[0]
+    assert "send_password_reset_email" in helper, (
+        "_mint_and_send_password_reset must call send_password_reset_email."
     )
     assert "send_application_approved" in block, (
         "Activation branch must call send_application_approved."

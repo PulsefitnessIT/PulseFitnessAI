@@ -2,7 +2,6 @@
  * SolutionsIndex — /solutions hub linking to every programmatic solution
  * landing page. Provides internal-linking structure for SEO.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Layers, ChevronRight } from 'lucide-react';
 
@@ -54,7 +53,7 @@ export default function SolutionsIndex() {
           {SOLUTIONS.map((s) => (
             <Link key={s.slug} to={`/solutions/${s.slug}`} className="group rounded-2xl border border-slate-200 p-7 hover:shadow-md hover:border-slate-300 transition dark:border-zinc-800" data-testid={`solution-card-${s.slug}`}>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{s.eyebrow}</span>
-              <h2 className="mt-2 text-xl font-black tracking-tight group-hover:text-slate-900">{s.h1}</h2>
+              <h2 className="mt-2 text-xl font-black tracking-tight group-hover:text-slate-900 dark:group-hover:text-zinc-100">{s.h1}</h2>
               <p className="mt-3 text-sm text-slate-600 leading-relaxed line-clamp-3">{s.intro}</p>
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold gx-gradient-text">
                 Explore <ArrowRight size={14} />

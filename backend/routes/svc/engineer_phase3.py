@@ -497,7 +497,10 @@ async def generate_invoice_draft(
     # Delegate to the existing invoice creator so totals, numbering,
     # status_history and SOURCE-OF-TRUTH stay identical.
     from routes.svc.engineer_invoices import create_invoice, InvoiceCreate
-    invoice = await create_invoice(InvoiceCreate(**payload), user=user)
+    # Pass idempotency_key explicitly — calling the route function directly
+    # would otherwise leave the FastAPI `Header(None)` default object, which
+    # is not BSON-serialisable and blew up the insert (Iter 230 fix).
+    invoice = await create_invoice(InvoiceCreate(**payload), user=user, idempotency_key=None)
 
     # Tag the case so the UI can show "Invoice draft EI-...-XXXX"
     await db.svc_cases.update_one(

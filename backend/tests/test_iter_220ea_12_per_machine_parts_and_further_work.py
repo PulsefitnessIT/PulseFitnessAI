@@ -61,9 +61,11 @@ def test_row_body_label_renamed_to_work_actioned():
 def test_further_work_textarea_present():
     src = _read(MACHINES)
     assert "Further work required" in src
-    assert 'data-testid={`machine-further-work-${row.id}`}' in src
+    # Iter 230 — the textarea moved into a shared debounced-commit field
+    # component that takes `testId` / `onCommit` props.
+    assert 'testId={`machine-further-work-${row.id}`}' in src
     # And the patch wires `further_work` through onPatch.
-    assert "onPatch({ further_work: e.target.value })" in src
+    assert "onPatch({ further_work: v })" in src
 
 
 def test_further_work_field_on_backend_models():

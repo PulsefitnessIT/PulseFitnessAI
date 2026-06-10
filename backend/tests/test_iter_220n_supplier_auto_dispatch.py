@@ -176,15 +176,21 @@ def test_attach_referral_skips_supplier_when_already_linked():
 
 
 def test_engineer_escalated_fault_dispatches_to_primary_supplier():
-    """A fault with resolution_type='engineer' on a gym with an
-    auto-dispatch supplier triggers create_supplier_case + tags the
-    issue with auto_dispatched_supplier_id."""
+    """An OPEN fault on a gym with a resolvable supplier triggers
+    `_ensure_supplier_case` + tags the issue with
+    auto_dispatched_supplier_id (Iter 220ea·39 contract: supplier
+    resolution lives in `_resolve_fault_supplier`, case creation in
+    `routes.purchase_orders._ensure_supplier_case`, and a first
+    comment is emailed to the supplier)."""
     from routes.issues import _auto_dispatch_to_primary_supplier
 
     issue_doc = {
         "id": "issue_1",
         "organization_id": "org_gym_1",
         "resolution_type": "engineer",
+        "status": "open",
+        "machine_type": "Treadmill",
+        "issue_description": "Belt slipping",
     }
 
     supplier = {
@@ -197,36 +203,32 @@ def test_engineer_escalated_fault_dispatches_to_primary_supplier():
     created_supplier_cases = []
     issue_updates = []
 
-    async def find_supplier(*args, **kwargs):
+    async def resolve_supplier(*args, **kwargs):
         return supplier
 
-    async def find_issue_already(*args, **kwargs):
-        return None  # no existing supplier_case → free to dispatch
-
-    async def find_org(*args, **kwargs):
-        return {"name": "Test Gym Ltd"}
-
-    async def fake_create_supplier_case(*, issue_id, supplier_name, supplier_email,
-                                         organization_name, base_url):
+    async def fake_ensure_supplier_case(issue_id, supplier_name, supplier_email,
+                                        site_name, user):
         created_supplier_cases.append({
             "issue_id": issue_id, "supplier_name": supplier_name,
-            "supplier_email": supplier_email, "organization_name": organization_name,
+            "supplier_email": supplier_email, "organization_name": site_name,
         })
-        return {"token": "tok_1", "url": "https://x.test/supplier/case/tok_1",
-                "case_id": "sc_1"}
+        return {"id": "sc_1", "token": "tok_1", "supplier_email": supplier_email}
 
     async def update_issue(filt, upd):
         issue_updates.append({"filter": filt, "update": upd})
 
     fake_db = MagicMock()
-    fake_db.suppliers.find_one = AsyncMock(side_effect=find_supplier)
-    fake_db.supplier_cases.find_one = AsyncMock(side_effect=find_issue_already)
-    fake_db.organizations.find_one = AsyncMock(side_effect=find_org)
+    fake_db.supplier_cases.find_one = AsyncMock(return_value=None)  # free to dispatch
+    fake_db.organizations.find_one = AsyncMock(return_value={"name": "Test Gym Ltd"})
+    fake_db.supplier_case_comments.insert_one = AsyncMock(return_value=None)
     fake_db.issues.update_one = AsyncMock(side_effect=update_issue)
 
     with patch("routes.issues.db", fake_db), \
-         patch("routes.supplier_portal.create_supplier_case",
-               side_effect=fake_create_supplier_case):
+         patch("routes.issues._resolve_fault_supplier", side_effect=resolve_supplier), \
+         patch("routes.purchase_orders._ensure_supplier_case",
+               side_effect=fake_ensure_supplier_case), \
+         patch("routes.supplier_portal._send_comment_notification",
+               new=AsyncMock(return_value=None)):
         _run(_auto_dispatch_to_primary_supplier(issue_doc, user={"id": "u1"}))
 
     assert len(created_supplier_cases) == 1
@@ -235,12 +237,16 @@ def test_engineer_escalated_fault_dispatches_to_primary_supplier():
     assert case["supplier_email"] == "engineer@example.com"
     assert case["organization_name"] == "Test Gym Ltd"
 
+    # Supplier gets the "card to log the job" first message.
+    fake_db.supplier_case_comments.insert_one.assert_called_once()
+
     assert len(issue_updates) == 1, "Issue must be stamped with dispatch metadata"
     set_doc = issue_updates[0]["update"]["$set"]
     assert set_doc["auto_dispatched_supplier_id"] == "s_engineer_1"
     assert set_doc["auto_dispatched_supplier_name"] == "Test Engineer"
     assert set_doc["auto_dispatched_partner_engineer_id"] == "p_engineer_1"
     assert "auto_dispatched_at" in set_doc
+    assert set_doc["supplier_case_token"] == "tok_1"
 
 
 def test_in_house_resolution_does_not_trigger_dispatch():

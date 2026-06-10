@@ -1,5 +1,7 @@
 """Apex CRM seed — CRM v2 collections (crm2_*). Pulse-free pipeline board."""
-import os, uuid, random
+import os
+import uuid
+import random
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 
@@ -12,7 +14,8 @@ def main():
     random.seed(11)
     db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     now = datetime.now(timezone.utc)
-    iso = lambda d=None: (d or now).isoformat()
+    def iso(d=None):
+        return (d or now).isoformat()
 
     for col in ("crm2_opportunities", "crm2_companies", "crm2_contacts"):
         db[col].delete_many({"organization_id": ORG_ID, "demo_seed_apex": True})
@@ -35,7 +38,8 @@ def main():
     ]
     cities = ["Manchester", "Leeds", "Bristol", "Birmingham", "Glasgow", "Sheffield", "Liverpool", "Nottingham"]
     for i, (title, company, contact, stage, value, prob, sites) in enumerate(DEALS):
-        coid = str(uuid.uuid4()); cid = str(uuid.uuid4())
+        coid = str(uuid.uuid4())
+        cid = str(uuid.uuid4())
         fn, ln = contact.split(" ", 1)
         slug = company.split()[0].lower()
         db.crm2_companies.insert_one({

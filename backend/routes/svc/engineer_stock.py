@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from routes.partners import require_engineer_app_access
 from utils.auth import get_current_user
 from utils.database import db
+from utils.security_plus import safe_regex_exact
 import uuid
 
 URGENCIES = {"normal", "urgent", "critical"}
@@ -318,7 +319,7 @@ async def parts_used_on_asset(
     if machine_id:
         q["machine_id"] = machine_id
     elif machine_name:
-        q["machine_name"] = {"$regex": f"^{re.escape(machine_name)}$", "$options": "i"}
+        q["machine_name"] = safe_regex_exact(machine_name)
     elif asset_id or serial:
         ors = []
         if asset_id:

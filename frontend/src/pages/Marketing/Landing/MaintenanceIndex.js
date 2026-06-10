@@ -3,7 +3,7 @@
  * a maintenance landing page (data-driven from the catalogue). Grows
  * automatically as more manufacturers are ingested.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, Wrench, ChevronRight } from 'lucide-react';

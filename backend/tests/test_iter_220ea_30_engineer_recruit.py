@@ -125,15 +125,24 @@ def test_spec_sheet_edit_and_restore(admin_headers):
 
 # ---- Social Media Library engineer_recruit campaign ----
 def test_social_media_library_engineer_recruit(admin_headers):
+    # Iter 230 — deletions are intentionally sticky (seed marker), so we
+    # no longer pin the LIVE row count (an admin may legitimately prune
+    # posts). Instead: the seed catalogue must still ship the full 7-post
+    # campaign, and whatever survives in the DB must keep its shape.
+    from routes.social_media_library import ENGINEER_RECRUIT_ROWS
+    assert len(ENGINEER_RECRUIT_ROWS) >= 7, (
+        f"seed catalogue must ship >=7 engineer_recruit posts, got {len(ENGINEER_RECRUIT_ROWS)}"
+    )
+    seed_orders = sorted(r_.get("post_order") for r_ in ENGINEER_RECRUIT_ROWS[:7])
+    assert seed_orders == [1, 2, 3, 4, 5, 6, 7], f"seed post_order not 1..7: {seed_orders}"
+
     r = requests.get(f"{BASE_URL}/api/master-admin/social-media-library",
                      headers=admin_headers, timeout=20)
     assert r.status_code == 200, r.text
     body = r.json()
     rows = body if isinstance(body, list) else body.get("posts") or body.get("items") or body.get("rows") or []
     recruit = [r_ for r_ in rows if r_.get("campaign") == "engineer_recruit"]
-    assert len(recruit) >= 7, f"expected >=7 engineer_recruit rows, got {len(recruit)}"
-    orders = sorted([r_.get("post_order") for r_ in recruit[:7]])
-    assert orders == [1, 2, 3, 4, 5, 6, 7], f"post_order not 1..7: {orders}"
+    assert recruit, "engineer_recruit campaign missing from the live library"
     for r_ in recruit:
         if r_.get("post_order") in range(1, 8):
             assert r_.get("channel") == "all", f"channel not 'all': {r_}"

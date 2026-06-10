@@ -261,7 +261,7 @@ async def list_customers(
     org_id = _of(user)
     query: dict = {"organization_id": org_id}
     if q:
-        needle = re.escape(q.strip())
+        needle = q.strip()  # safe_regex() escapes — do not pre-escape (double-escape bug, iter 229)
         if needle:
             query["$or"] = [
                 {"name":  safe_regex(needle)},
@@ -397,7 +397,7 @@ async def search_customers(
 ):
     """Compact autocomplete results for Quote / Invoice builders."""
     org_id = _of(user)
-    needle = re.escape(q.strip())
+    needle = q.strip()  # safe_regex() escapes — do not pre-escape (double-escape bug, iter 229)
     if not needle:
         return {"results": []}
     cur = db.svc_engineer_customers.find(
@@ -439,7 +439,7 @@ async def typeahead_customers(
     engineer doesn't have to type the postcode either.
     """
     org_id = _of(user)
-    needle = re.escape(q.strip())
+    needle = q.strip()  # safe_regex() escapes — do not pre-escape (double-escape bug, iter 229)
     if not needle:
         return {"results": []}
 

@@ -528,7 +528,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                           <CardIcon name={spec.icon} className="w-4 h-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-semibold text-slate-900 truncate">{spec.title}</div>
+                          <div className="text-xs font-semibold text-slate-900 dark:text-slate-900 truncate">{spec.title}</div>
                           <div className="text-[10px] truncate text-slate-500">
                             {spec.description}
                           </div>
@@ -695,7 +695,7 @@ function AppAddressCard({ slug, onSharePack }) {
             <img
               src={qr}
               alt="App QR code"
-              className="w-28 h-28 rounded-lg bg-white p-1.5 flex-shrink-0"
+              className="w-28 h-28 rounded-lg bg-white dark:bg-white p-1.5 flex-shrink-0"
               data-testid="mab-app-address-qr"
             />
           )}
@@ -947,7 +947,7 @@ function PhoneFrame({ children, brand, apiOrigin }) {
       </div>
       <div className="px-4 pb-4">
         <div className="flex items-center justify-between pt-3 mb-3">
-          <div className="text-[10px] font-semibold text-slate-900">9:41</div>
+          <div className="text-[10px] font-semibold text-slate-900 dark:text-slate-900">9:41</div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-1.5 rounded-sm bg-slate-900/70" />
             <div className="w-3 h-1.5 rounded-sm bg-slate-900/70" />
@@ -956,9 +956,9 @@ function PhoneFrame({ children, brand, apiOrigin }) {
         </div>
         <div className="flex items-center gap-2 mb-3">
           {logoSrc
-            ? <img src={logoSrc} alt="" className="h-7 w-7 rounded object-contain bg-white" style={{ border: `1.5px solid ${accent}` }} />
+            ? <img src={logoSrc} alt="" className="h-7 w-7 rounded object-contain bg-white dark:bg-white" style={{ border: `1.5px solid ${accent}` }} />
             : <div className="h-7 w-7 rounded grid place-items-center" style={{ background: `${accent}22` }}><Sparkles className="w-3.5 h-3.5" style={{ color: accent }} /></div>}
-          <div className="text-slate-900 text-sm font-semibold truncate">My gym</div>
+          <div className="text-slate-900 dark:text-slate-900 text-sm font-semibold truncate">My gym</div>
         </div>
         {children}
       </div>
@@ -1035,7 +1035,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
   const logo = branding?.logo_url;
   const logoSrc = logo && (logo.startsWith('http') || logo.startsWith('data:')) ? logo : (logo ? `${apiOrigin}${logo}` : null);
 
-  const pick = (kind, ref) => async (e) => {
+  const pick = (kind, _ref) => async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
@@ -1179,7 +1179,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
             style={{ background: 'var(--theme-surface-2)', border: '1.5px dashed var(--theme-border)' }}
           >
             {logoSrc
-              ? <img src={logoSrc} alt="logo" className="h-9 w-9 rounded object-contain bg-white" />
+              ? <img src={logoSrc} alt="logo" className="h-9 w-9 rounded object-contain bg-white dark:bg-white" />
               : <div className="h-9 w-9 rounded grid place-items-center" style={{ background: 'var(--theme-surface-3)' }}><ImageIcon className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} /></div>}
             <span className="text-xs font-semibold flex-1 text-left" style={{ color: 'var(--theme-text)' }}>{logoSrc ? 'Replace' : 'Upload'}</span>
             {busy === 'logo' ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-brand-cyan)' }} /> : <Upload className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />}

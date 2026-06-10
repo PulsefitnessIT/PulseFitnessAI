@@ -114,6 +114,7 @@ def _rebind_motor_to_current_loop():
     fresh = None
     previous_client = None
     previous_db = None
+    patched_modules = []
     try:
         import os as _os
         from motor.motor_asyncio import AsyncIOMotorClient
@@ -123,15 +124,23 @@ def _rebind_motor_to_current_loop():
         fresh = AsyncIOMotorClient(_os.environ["MONGO_URL"], maxPoolSize=8)
         _db_mod.client = fresh
         _db_mod.db = fresh[_os.environ["DB_NAME"]]
-        # Re-publish to downstream modules that imported `db` by value.
-        for _mod_name in (
-            "routes.partners",
-            "utils.reputation_reports",
-            "routes.svc.engineer_customers",
-        ):
+        # Iter 230 — generically re-publish to EVERY loaded module that
+        # imported `db` by value (`from utils.database import db`). The
+        # previous hand-maintained allowlist was whack-a-mole: any new
+        # by-value importer (e.g. utils.sales_to_service →
+        # routes.svc.intake) re-introduced the "attached to a different
+        # loop" cascade in full runs. Matching on TYPE (not identity)
+        # matters: a module first imported mid-session grabs whichever
+        # per-test fresh client was live at that moment — which is closed
+        # by that test's teardown, leaving the module with a dead client
+        # an identity check against the original would never find.
+        import sys as _sys
+        from motor.motor_asyncio import AsyncIOMotorDatabase as _MotorDB
+        for _m in list(_sys.modules.values()):
             try:
-                _m = __import__(_mod_name, fromlist=["db"])
-                if hasattr(_m, "db"):
+                _attr = getattr(_m, "db", None) if _m is not None else None
+                if isinstance(_attr, _MotorDB) and _attr is not _db_mod.db:
+                    patched_modules.append(_m)
                     _m.db = _db_mod.db
             except Exception:
                 pass
@@ -151,6 +160,14 @@ def _rebind_motor_to_current_loop():
                     _db_mod.client = previous_client
                 if previous_db is not None:
                     _db_mod.db = previous_db
+                # Point the by-value importers back at the stable
+                # canonical original so the next test's sweep starts
+                # from a consistent baseline (never a closed client).
+                for _m in patched_modules:
+                    try:
+                        _m.db = previous_db
+                    except Exception:
+                        pass
                 fresh.close()
         except Exception:
             pass

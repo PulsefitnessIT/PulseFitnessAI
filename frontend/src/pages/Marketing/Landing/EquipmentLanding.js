@@ -8,7 +8,7 @@
  * catalogue + curated common-faults / PM-task editorial so the page is
  * substantive (no thin content). Article-grade + Service/FAQPage JSON-LD.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -170,7 +170,7 @@ export default function EquipmentLanding() {
             <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="equipment-products">
               {data.products.map((p) => (
                 <div key={`${p.manufacturer || ''}-${p.title}`} className="rounded-2xl bg-white border border-slate-200 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">
-                  <div className="aspect-[4/3] bg-white flex items-center justify-center overflow-hidden">
+                  <div className="aspect-[4/3] bg-white dark:bg-white flex items-center justify-center overflow-hidden">
                     <img src={p.image_url} alt={`${p.manufacturer || ''} ${p.title}`.trim()} loading="lazy" className="w-full h-full object-contain p-3" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   </div>
                   <div className="px-3 py-3 border-t border-slate-100 dark:border-zinc-800">
@@ -191,7 +191,7 @@ export default function EquipmentLanding() {
             <h2 className="text-2xl md:text-3xl font-black tracking-tight">{name} brands we service</h2>
             <div className="mt-5 flex flex-wrap gap-2.5" data-testid="equipment-brands">
               {data.brands.map((b) => (
-                <Link key={b} to={`/maintenance/${brandSlug(b)}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-zinc-800" data-testid={`equipment-brand-${brandSlug(b)}`}>
+                <Link key={b} to={`/maintenance/${brandSlug(b)}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:border-zinc-800" data-testid={`equipment-brand-${brandSlug(b)}`}>
                   {b} <ChevronRight size={13} className="text-slate-400" />
                 </Link>
               ))}
@@ -227,7 +227,7 @@ export default function EquipmentLanding() {
           <h2 className="mt-4 text-3xl md:text-4xl font-black tracking-tight text-white">Keep your {plural} on the floor. Start in 3 days, no card.</h2>
           <p className="mt-3 text-white/85 text-lg max-w-2xl mx-auto">Import your {plural} and start logging faults, scheduling PPM and tracking parts on a free trial.</p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
+            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-white text-slate-900 dark:text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
               Start free trial <ArrowRight size={15} />
             </button>
             <Link to="/equipment" className="inline-flex items-center gap-1.5 rounded-full border border-white/40 px-7 py-3 text-sm font-bold text-white hover:bg-white/10">

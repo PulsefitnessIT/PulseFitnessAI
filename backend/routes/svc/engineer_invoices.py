@@ -441,6 +441,10 @@ async def create_invoice(
     # Iter 220ea·36 — offline invoicing. Raised on-site and replayed from the
     # outbox on reconnect; a stable Idempotency-Key makes create idempotent so
     # a lost-response replay returns the existing invoice (no duplicate).
+    # Harden against direct (non-HTTP) invocation where the FastAPI
+    # Header default object leaks through instead of a string.
+    if not isinstance(idempotency_key, str):
+        idempotency_key = None
     if idempotency_key:
         existing = await db.svc_engineer_invoices.find_one(
             {"engineer_id": user.get("id"), "idempotency_key": idempotency_key},

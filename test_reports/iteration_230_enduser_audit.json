@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only E2E watertightness audit for Pulse Fitness handover. Tested marketing home (EN/FR/DE), /pricing, /pulse landing, /partners/engineers public, login page, Master Admin login + People directory, Owner login, and Engineer App. Core user journeys are functional. Found 2 actionable issues for main agent: (1) 3 broken product images on /pulse, (2) Owner credentials in the review-request spec are wrong (real account is owner@apexfitness.group / ApexDemo2026!). i18n FR/DE switching works cleanly on marketing — no raw translation keys leak.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PulseLandingPage / heritage product cards", "issue": "3 product images return 404 (broken): /pulse-photos/product-stepmill.webp, /pulse-photos/product-cable-machine.webp, /pulse-photos/product-bike.webp", "selector": "img[src*='/pulse-photos/product-']", "priority": "HIGH"},
+      {"component": "PulsePricingPage on /pulse", "issue": "'Most Popular' badge NOT visible in the pulse-rendered pricing section of /pulse (it IS visible and correctly placed on the standalone /pricing page). Review request asked to confirm the badge does not clip the card border on /pulse — currently it doesn't render there at all.", "selector": "text=Most Popular", "priority": "MEDIUM"},
+      {"component": "LoginPage", "issue": "No language switcher on /login page — review request asked to verify FR/DE labels translate on login, but only English is available. EN/FR/DE switcher is only present on the marketing shell.", "selector": "select on /login", "priority": "MEDIUM"},
+      {"component": "MasterAdmin logout", "issue": "Logout click did not navigate away from /master-admin (URL stayed as /master-admin?section=roles). Cookie banner overlay may have intercepted the click. Needs verification — please re-test once cookies accepted at session start.", "selector": "button: Log out (sidebar)", "priority": "LOW"},
+      {"component": "/partners/engineers", "issue": "Page shows 'All 10 tester spaces filled — join the waitlist' and only a 'Start application' button (no inline form). Review request expected the apply form to render. Verify the modal opens via the button — minor.", "selector": "button:has-text('Start application')", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Owner login (owner@apex-demo.com / ApexDemo123!)", "issue": "Credentials given in review-request DO NOT EXIST in DB. Login silently returns to /login with no visible error toast. Correct seeded credentials per /app/memory/test_credentials.md are owner@apexfitness.group / ApexDemo2026!. Recommend either (a) seed an owner@apex-demo.com alias, or (b) update handover docs.", "affected_selectors": ["input[type=email]"]}
+    ],
+    "design_issues": [
+      {"screen": "LoginPage", "issues": ["Email input and Password input lack data-testid attributes — harder to automate."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix 3 broken /pulse-photos/product-*.webp images (stepmill, cable-machine, bike) — return 404 from CDN/static.",
+    "Verify 'Most Popular' badge rendering inside /pulse pricing cards — currently not visible in the embedded pricing section.",
+    "Decide whether /login should expose the EN/FR/DE switcher (review-request expects FR/DE on login). Currently no switcher exists.",
+    "Reconcile owner test credentials: review request says owner@apex-demo.com / ApexDemo123! but actual seed is owner@apexfitness.group / ApexDemo2026!. Update either spec or seed.",
+    "Add data-testid attributes to LoginPage email/password/submit inputs (improves stability of future automated tests).",
+    "Verify master-admin sidebar Log out is not z-index-blocked by cookie banner before handover.",
+    "Confirm clicking 'Start application' on /partners/engineers opens the apply modal/form (we couldn't validate in this run because the form is not inline)."
+  ],
+  "critical_code_review_comments": [
+    "Marketing nav i18n (EN/FR/DE) on / and /pulse — no raw 'mkt.*' keys leak — confirmed clean.",
+    "Owner /dashboard renders all 4 module tabs (Operations / Memberships / CRM / Marketing) without blank screens.",
+    "Engineer App (/svc/engineer) renders KPIs (Today, Upcoming, Overdue=1, Awaiting Parts, Pending Quotes, Accepted=166, Awaiting Customer, Invoiced) and Quick Actions panel (New job, Up for grabs, Inbox, View diary, New quote, My quotes, New invoice, My invoices, My customers, Equipment, Stock, Send report, End of day, Analytics).",
+    "Master Admin People directory: Partner Engineer / Engineer App role pills render correctly.",
+    "Cookie banner accepts cleanly; CSP-blocked third-party scripts (emergent-main.js, posthog, cloudflare beacon) are environmental — not code bugs.",
+    "Pulse landing has a dark/light theme toggle button visible at the top — verify theme tokens render the redesigned hero correctly in both modes (visual check only)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped", "frontend": "85%"},
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123! (WORKS). Engineer: engineer.smoke@gymaxisai.com / EngTest123! (WORKS — lands on /partner-engineer, can access /svc/engineer). Owner request-supplied creds owner@apex-demo.com / ApexDemo123! DO NOT WORK — fallback owner@apexfitness.group / ApexDemo2026! per test_credentials.md WORKS.",
+  "seed_data_creation": "None — tests used existing seeded accounts.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "i18n FR/DE on / verified clean. Pulse landing has 3 broken product images that need fixing. Login page has NO language switcher — confirm whether this is by design. Owner credentials mismatch — main agent must reconcile. Engineer flow (login → /svc/engineer dashboard) works. Master Admin login + People directory works. We did not test Memberships Setup Wizard light/dark theme variables in-depth (would need to navigate from an org that has memberships enabled — Apex owner dashboard shows Memberships tab but we did not click into Setup). We did not exercise the job-detail page 'Further work required' field — engineer dashboard shows 0 today/upcoming jobs so no job to open.",
+  "rca of the issue": "Broken /pulse images: GET on /pulse-photos/product-stepmill.webp etc returns 0x0 (naturalWidth=0). Either the files are missing from /app/frontend/public/pulse-photos/ or the build pipeline didn't copy them. Owner credentials: the review-request supplied a non-existent email alias — DB only has owner@apexfitness.group. No backend error; login form just resets silently because login API returned 401 but no toast/error UI is shown on failure (separate minor UX issue)."
+}

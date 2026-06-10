@@ -143,7 +143,7 @@ async def set_org_fee(
     the global default."""
     require_master_admin(user)
     await _get_org(organization_id)
-    raw = body.get("platform_fee_percent", None)
+    raw = body.get("platform_fee_percent")
     if raw is None or raw == "":
         await db.organizations.update_one(
             {"id": organization_id}, {"$unset": {"membership_platform_fee_pct": ""}},

@@ -9,7 +9,9 @@ Run:  cd /app/backend && set -a && . ./.env && set +a && python -m seed_apex_dem
 """
 from __future__ import annotations
 
-import os, random, uuid
+import os
+import random
+import uuid
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 import bcrypt
@@ -27,7 +29,8 @@ def main():
     random.seed(7)
     db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     now = datetime.now(timezone.utc)
-    iso = lambda d=None: (d or now).isoformat()
+    def iso(d=None):
+        return (d or now).isoformat()
 
     # ── wipe prior apex seed ──
     for col in ("equipment", "issues", "audits", "check_sheet_completions", "fix_history",

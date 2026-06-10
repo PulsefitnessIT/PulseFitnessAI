@@ -36,7 +36,7 @@ const classifyUser = (u) => {
 const PortalBadge = ({ portal }) => {
   const styles = {
     service_portal: { bg: 'rgba(16,185,129,0.12)', fg: '#047857', label: 'Service Portal' },
-    engineer_app:   { bg: 'rgba(79,70,229,0.12)',  fg: '#4338CA', label: 'Engineer App' },
+    engineer_app:   { bg: 'rgba(79,70,229,0.12)',  fg: '#4f46e5', label: 'Engineer App' },
     crm:            { bg: 'rgba(245,158,11,0.14)', fg: '#B45309', label: 'CRM' },
     pulse_platform: { bg: 'rgba(0,85,255,0.12)',   fg: '#0055FF', label: 'Pulse Platform' },
   }[portal] || { bg: 'rgba(113,113,122,0.12)', fg: '#52525B', label: portal };
@@ -59,7 +59,7 @@ const RoleChip = ({ user }) => {
     'owner':                 { label: 'Owner',       bg: '#FAF5FF', fg: '#7C3AED' },
     'manager':               { label: 'Manager',     bg: '#ECFDF5', fg: '#047857' },
     'staff':                 { label: 'Staff',       bg: '#F4F4F5', fg: '#3F3F46' },
-    'partner engineer':      { label: 'Partner Engineer', bg: '#EEF2FF', fg: '#4338CA' },
+    'partner engineer':      { label: 'Partner Engineer', bg: '#EEF2FF', fg: '#4f46e5' },
     'master_admin':          { label: 'Master Admin', bg: '#FFEDD5', fg: '#C2410C' },
   };
   const tone = map[role] || map.staff;

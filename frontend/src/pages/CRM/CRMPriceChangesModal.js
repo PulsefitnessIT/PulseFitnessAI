@@ -79,7 +79,7 @@ export default function CRMPriceChangesModal({ API, headers, c, isDark, onClose,
                 </div>
               </div>
               <button type="button" disabled={!isApprover || busy === 'settings'} onClick={toggleApproval} className="relative w-11 h-6 rounded-full transition-colors disabled:opacity-40" style={{ background: settings.require_approval ? 'var(--color-success-alt)' : c.textDim }} data-testid="changes-approval-toggle">
-                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: settings.require_approval ? '22px' : '2px' }} />
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white dark:bg-white transition-all" style={{ left: settings.require_approval ? '22px' : '2px' }} />
               </button>
             </div>
           )}

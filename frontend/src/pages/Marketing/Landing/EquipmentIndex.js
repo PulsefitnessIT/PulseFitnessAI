@@ -4,7 +4,7 @@
  * axis that complements /maintenance (the brand axis). Grows automatically
  * as the catalogue ingests more machines of each type.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, Cog, ChevronRight, Building2 } from 'lucide-react';

@@ -67,7 +67,10 @@ def test_orbit_renders_five_modules_and_constellation():
     assert "setActiveId" in body, "AxisOrbit activeId setter missing"
     # Cardinal-position placement — uses ORBIT_MODULES.length so adding
     # nodes auto-distributes them around the circle.
-    assert "ORBIT_MODULES.length" in body, "orbit angle formula must scale to module count"
+    # Iter 228c — ORBIT_MODULES became a (t) => [...] factory for i18n;
+    # the resolved list is `orbitModules`, so the angle formula now
+    # scales on that.
+    assert "orbitModules.length" in body, "orbit angle formula must scale to module count"
     assert "gx-orbit-feature-" in body, "feature pill data-testid prefix missing"
 
 
@@ -79,16 +82,18 @@ def test_orbit_dim_logic_focuses_hovered_module():
 
 def test_marketing_nav_drops_staffing_and_reporting_tabs():
     body = _read(MK / "MarketingShell.js")
-    nav_match = re.search(r"const NAV = \[(.*?)\];", body, re.DOTALL)
+    # Iter 228c — NAV became a (t) => [...] factory so labels run
+    # through i18n; the English fallback strings stay pinned here.
+    nav_match = re.search(r"const NAV = (?:\(t\) => )?\[(.*?)\];", body, re.DOTALL)
     assert nav_match, "NAV array not found in MarketingShell"
     nav_block = nav_match.group(1)
-    assert "label: 'Staffing'" not in nav_block, "Staffing must be removed from top nav"
-    assert "label: 'Reporting'" not in nav_block, "Reporting must be removed from top nav"
+    assert "'Staffing'" not in nav_block, "Staffing must be removed from top nav"
+    assert "'Reporting'" not in nav_block, "Reporting must be removed from top nav"
     # All five canonical modules either named in the nav or reachable
     # via a partner deep-link. Engineers stays in the nav for direct
     # partner-recruitment traffic.
     for label in ("Operations", "CRM", "Memberships", "Marketing", "Engineers"):
-        assert f"label: '{label}'" in nav_block, f"{label} missing from top nav"
+        assert f"'{label}'" in nav_block, f"{label} missing from top nav"
 
 
 def test_homepage_copy_says_five_modules():

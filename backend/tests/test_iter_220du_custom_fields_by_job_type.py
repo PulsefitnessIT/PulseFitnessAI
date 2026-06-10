@@ -78,31 +78,17 @@ def test_create_field_persists_job_types():
     assert inserted["job_types"] == ["ppm", "inspection"]
 
 
-def test_create_field_rejects_unknown_job_type():
-    from fastapi import HTTPException
-    from routes.svc.work_report_fields import (
-        create_work_report_field, WorkReportFieldIn,
-    )
+def test_create_field_keeps_custom_slugs_drops_malformed_job_types():
+    """Iter 220ec — job_types are org-configurable case-type slugs, not a
+    fixed enum. Any slug-formatted value is kept (custom case types can
+    scope questions too); malformed values are silently dropped."""
+    from routes.svc.work_report_fields import _clean_job_types
 
-    fdb = MagicMock()
-    fdb.svc_work_report_field_defs.count_documents = AsyncMock(return_value=0)
-
-    async def go():
-        with patch("routes.svc.work_report_fields.db", fdb):
-            try:
-                await create_work_report_field(
-                    payload=WorkReportFieldIn(
-                        name="Bad", field_type="text",
-                        scope_kind="global",
-                        job_types=["repair", "shenanigans"],
-                    ),
-                    user=_user(),
-                )
-                return None
-            except HTTPException as exc:
-                return exc.status_code
-
-    assert _run(go()) == 400
+    assert _clean_job_types(["repair", "shenanigans"]) == ["repair", "shenanigans"]
+    # Malformed values (spaces / punctuation / over-long) are dropped.
+    assert _clean_job_types(["repair", "Not A Slug!", "x" * 41]) == ["repair"]
+    # Case-insensitive + de-duplicated.
+    assert _clean_job_types(["PPM", "ppm", "repair"]) == ["ppm", "repair"]
 
 
 def test_create_field_with_empty_job_types_is_backwards_compatible():

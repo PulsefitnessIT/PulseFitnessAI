@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import {
-  Building2, Users, AlertTriangle, Ban, CheckCircle, XCircle,
+  Building2, Users, AlertTriangle, Ban, CheckCircle,
   PoundSterling, Zap, BarChart3, RefreshCw,
 } from 'lucide-react';
 import {

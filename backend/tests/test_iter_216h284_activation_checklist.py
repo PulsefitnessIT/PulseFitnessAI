@@ -148,6 +148,8 @@ def test_get_checklist_endpoint_returns_six_steps():
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=_empty_partner())
     fake_db.partner_referrals.count_documents = AsyncMock(return_value=0)
+    # Iter 220p1 added an org country_code lookup for compliance market.
+    fake_db.organizations.find_one = AsyncMock(return_value={"country_code": "GB"})
     with patch("routes.partners.db", fake_db):
         out = _run(get_my_checklist(user=_partner_user()))
     # Iter 220m — CHECKLIST_KEYS grew to 7; assert against the canon.
@@ -173,6 +175,8 @@ def test_ack_endpoint_persists_timestamp():
         captured.update(update)
     fake_db.partner_engineers.update_one = AsyncMock(side_effect=cap)
     fake_db.partner_referrals.count_documents = AsyncMock(return_value=0)
+    # Iter 220p1 added an org country_code lookup for compliance market.
+    fake_db.organizations.find_one = AsyncMock(return_value={"country_code": "GB"})
     with patch("routes.partners.db", fake_db), \
          patch("routes.partners._audit", AsyncMock()):
         out = _run(ack_my_checklist_step(body={"key": "referral_link_copied"}, user=_partner_user()))
@@ -191,6 +195,8 @@ def test_ack_endpoint_is_idempotent_for_already_acked():
     fake_db.partner_engineers.find_one = AsyncMock(return_value=partner)
     fake_db.partner_engineers.update_one = AsyncMock()
     fake_db.partner_referrals.count_documents = AsyncMock(return_value=0)
+    # Iter 220p1 added an org country_code lookup for compliance market.
+    fake_db.organizations.find_one = AsyncMock(return_value={"country_code": "GB"})
     with patch("routes.partners.db", fake_db), \
          patch("routes.partners._audit", AsyncMock()):
         out = _run(ack_my_checklist_step(body={"key": "referral_link_copied"}, user=_partner_user()))

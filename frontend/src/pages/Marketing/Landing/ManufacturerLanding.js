@@ -4,7 +4,7 @@
  * GymAxis service value props. Targets "[brand] equipment maintenance
  * software". Article-grade content (real product grid) avoids thin pages.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -157,7 +157,7 @@ export default function ManufacturerLanding() {
             <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="manufacturer-products">
               {data.products.map((p) => (
                 <div key={p.url || p.title} className="rounded-2xl bg-white border border-slate-200 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">
-                  <div className="aspect-[4/3] bg-white flex items-center justify-center overflow-hidden">
+                  <div className="aspect-[4/3] bg-white dark:bg-white flex items-center justify-center overflow-hidden">
                     <img src={p.image_url} alt={`${name} ${p.title}`} loading="lazy" className="w-full h-full object-contain p-3" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   </div>
                   <div className="px-3 py-3 border-t border-slate-100 dark:border-zinc-800">
@@ -197,7 +197,7 @@ export default function ManufacturerLanding() {
           <h2 className="mt-4 text-3xl md:text-4xl font-black tracking-tight text-white">Maintain your {name} estate in 3 days. No card.</h2>
           <p className="mt-3 text-white/85 text-lg max-w-2xl mx-auto">Import your {name} assets and start logging faults, scheduling PPM and tracking parts on a free trial.</p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
+            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-white text-slate-900 dark:text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
               Start free trial <ArrowRight size={15} />
             </button>
             <Link to="/solutions/gym-maintenance-software" className="inline-flex items-center gap-1.5 rounded-full border border-white/40 px-7 py-3 text-sm font-bold text-white hover:bg-white/10">

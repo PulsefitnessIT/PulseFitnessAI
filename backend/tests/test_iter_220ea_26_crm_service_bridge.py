@@ -16,9 +16,29 @@ import requests
 
 from tests.conftest import _test_backend_url, rate_limit_bypass_headers
 from tests.shared_loop import run_async
-from utils.database import db
+import utils.database as _dbm
 from utils.sales_to_service import onboard_contract_to_service
 from utils.svc_crm_sync import find_company_id, push_customer_to_crm, resolve_sage_customer_id
+
+
+class _DbProxy:
+    """Always resolve against the CURRENT `utils.database.db`.
+
+    The autouse `_rebind_motor_to_current_loop` fixture swaps in a fresh
+    Motor client per test; a by-value `from utils.database import db`
+    import would pin the original client (whose pool may be bound to a
+    stale event loop mid-session) and trip
+    ``RuntimeError: ... attached to a different loop`` in full runs.
+    """
+
+    def __getattr__(self, name):
+        return getattr(_dbm.db, name)
+
+    def __getitem__(self, name):
+        return _dbm.db[name]
+
+
+db = _DbProxy()
 
 BASE = _test_backend_url()
 BACKEND = Path(__file__).resolve().parents[1]

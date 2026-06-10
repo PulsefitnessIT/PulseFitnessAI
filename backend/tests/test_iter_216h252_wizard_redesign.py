@@ -143,8 +143,8 @@ def test_wizard_payment_cards_no_longer_use_light_bg():
     # The previous bg-white/[0.02] + border-white/10 combo was the
     # source of the light-mode leak on the "Soon" cards.
     assert "bg-white/[0.02]" not in src
-    # New explicit rgba dark fills are present.
-    assert "rgba(255,255,255,0.04)" in src
+    # Iter 230 — card fills now ride the theme surface variable.
+    assert "var(--theme-surface-2)" in src
     # The selected state is the brand cyan tint, not a default white.
     assert "rgba(25,205,255,0.10)" in src
 

@@ -795,7 +795,7 @@ def _render_blog_html(article: dict) -> str:
     site = _site()
     slug = article.get("slug")
     canonical = f"{site}/blog/{slug}"
-    title = html.escape((article.get("title") or "GymAxis AI Blog"))
+    title = html.escape(article.get("title") or "GymAxis AI Blog")
     desc = html.escape((article.get("meta_description") or article.get("excerpt") or "")[:300])
     image = html.escape(_safe_image(article))
     has_real_image = (article.get("hero_image_url") or "").strip().startswith("http")

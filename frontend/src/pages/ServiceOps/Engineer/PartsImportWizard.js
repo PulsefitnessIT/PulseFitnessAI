@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
-  Upload, FileSpreadsheet, X, ArrowRight, ArrowLeft, Loader2,
+  Upload, X, ArrowRight, ArrowLeft, Loader2,
   CheckCircle2, AlertTriangle, Sparkles, PartyPopper, Warehouse, Truck,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

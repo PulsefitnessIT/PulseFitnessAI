@@ -1,6 +1,7 @@
 """Seed Marketing (Apex) + Engineer van stock so the last two deck slides
 can use real screenshots. Idempotent."""
-import os, uuid
+import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 
@@ -12,8 +13,10 @@ ENG_ID = "7cc0455f-3206-4069-ab95-6db51276a553"
 def main():
     db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     now = datetime.now(timezone.utc)
-    iso = lambda d=None: (d or now).isoformat()
-    nid = lambda: str(uuid.uuid4())
+    def iso(d=None):
+        return (d or now).isoformat()
+    def nid():
+        return str(uuid.uuid4())
 
     # ─────────────── MARKETING (Apex) ───────────────
     db.marketing_audiences.delete_many({"organization_id": APEX, "demo_seed_apex": True})
@@ -25,7 +28,8 @@ def main():
     ]
     aud_ids = {}
     for name, size in auds:
-        aid = nid(); aud_ids[name] = aid
+        aid = nid()
+        aud_ids[name] = aid
         db.marketing_audiences.insert_one({
             "id": aid, "organization_id": APEX, "created_by": "apex-owner",
             "name": name, "type": "dynamic",

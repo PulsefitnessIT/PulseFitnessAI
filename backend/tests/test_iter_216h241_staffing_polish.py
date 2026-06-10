@@ -114,5 +114,6 @@ def test_staffing_console_modal_uses_portal():
     assert "createPortal" in src
     assert "document.body" in src
     # Explicit labels above the two number inputs.
-    assert ">Hourly rate (£/hr)<" in src
+    # Iter 230 — label now localises the currency symbol via getCachedLocalization().
+    assert "Hourly rate ({getCachedLocalization().currency_symbol}/hr)" in src
     assert ">Contracted hours / week<" in src

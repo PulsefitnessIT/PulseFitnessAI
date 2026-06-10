@@ -452,15 +452,25 @@ def test_repeat_detection_flags_asset_after_three_incidents(master_token):
         }, headers=_hdrs(master_token), timeout=20)
         assert r.status_code == 200, r.text
         refs.append(r.json()["reference"])
-    rollup = requests.get(
-        f"{API}/api/incidents/hse/repeat-detection?window_days=90&threshold=3",
-        headers=_hdrs(master_token), timeout=20,
-    ).json()
-    hit = next((row for row in rollup["flagged"] if row["asset_id"] == asset_id), None)
-    assert hit is not None
-    assert hit["count"] == 3
-    assert hit["severity_score"] >= 6
-    assert hit["last_incident_ref"] in refs
+    try:
+        # Iter 230 — limit=2000 (API max): the flagged list is sorted by
+        # severity score, and with many tied score-6 assets the default
+        # 200-row cap can truncate the newest asset out of the response.
+        rollup = requests.get(
+            f"{API}/api/incidents/hse/repeat-detection?window_days=90&threshold=3&limit=2000",
+            headers=_hdrs(master_token), timeout=20,
+        ).json()
+        hit = next((row for row in rollup["flagged"] if row["asset_id"] == asset_id), None)
+        assert hit is not None
+        assert hit["count"] == 3
+        assert hit["severity_score"] >= 6
+        assert hit["last_incident_ref"] in refs
+    finally:
+        # Clean up so repeated regression runs don't accumulate hundreds
+        # of flagged phantom assets in the rollup.
+        import pymongo
+        client = pymongo.MongoClient(os.environ["MONGO_URL"])
+        client[os.environ["DB_NAME"]].incidents.delete_many({"asset_id": asset_id})
 
 
 def test_list_filters_by_date_range(master_token):

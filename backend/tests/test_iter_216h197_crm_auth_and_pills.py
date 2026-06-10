@@ -155,7 +155,7 @@ def test_crm_login_falls_back_to_platform_password_for_cross_provisioned() -> No
     with patch.object(ca, "db", fake_db), \
          patch("utils.auth.verify_password", return_value=True), \
          patch("routes.crm_auth.crm_create_token", return_value="fake-crm-jwt"), \
-         patch("routes.crm_auth._resolve_crm_brand_flags", new=AsyncMock(return_value=("pulse", True))):
+         patch("routes.crm_auth._resolve_crm_brand_flags", new=AsyncMock(return_value=("pulse", True, {}, {}))):
         result = _run(ca.crm_login(data={"email": email, "password": "my-real-gymaxis-pwd"}))
 
     assert result.get("token") == "fake-crm-jwt"
@@ -186,7 +186,7 @@ def test_crm_login_creates_crm_users_row_when_missing() -> None:
     with patch.object(ca, "db", fake_db), \
          patch("utils.auth.verify_password", return_value=True), \
          patch("routes.crm_auth.crm_create_token", return_value="fake-crm-jwt"), \
-         patch("routes.crm_auth._resolve_crm_brand_flags", new=AsyncMock(return_value=("gymaxis", False))):
+         patch("routes.crm_auth._resolve_crm_brand_flags", new=AsyncMock(return_value=("gymaxis", False, {}, {}))):
         result = _run(ca.crm_login(data={"email": email, "password": "real-platform-pwd"}))
 
     assert result["token"] == "fake-crm-jwt"
@@ -240,7 +240,7 @@ def test_crm_login_native_password_still_works() -> None:
 
     with patch.object(ca, "db", fake_db), \
          patch("routes.crm_auth.crm_create_token", return_value="fake-crm-jwt"), \
-         patch("routes.crm_auth._resolve_crm_brand_flags", new=AsyncMock(return_value=("gymaxis", False))):
+         patch("routes.crm_auth._resolve_crm_brand_flags", new=AsyncMock(return_value=("gymaxis", False, {}, {}))):
         result = _run(ca.crm_login(data={"email": email, "password": "native_pwd"}))
 
     assert result["token"] == "fake-crm-jwt"

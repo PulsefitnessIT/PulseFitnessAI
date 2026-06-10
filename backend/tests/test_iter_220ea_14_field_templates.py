@@ -167,8 +167,10 @@ def test_apply_template_unknown_id_returns_404(auth_token):
 
 
 def test_apply_template_validates_job_types(auth_token):
-    """Override `job_types` should filter out invalid entries — not
-    400 — so the frontend chip-toggle UI can be lenient."""
+    """Iter 220ec — job_types accept any org-defined case-type slug, so a
+    custom slug like `bogus_type` is KEPT; only malformed (non-slug)
+    entries are silently dropped — never a 400 — so the frontend
+    chip-toggle UI can be lenient."""
     headers = {"Authorization": f"Bearer {auth_token}"}
     scope_value = f"TestRig-{uuid.uuid4().hex[:6]}"
     r = httpx.post(
@@ -178,14 +180,14 @@ def test_apply_template_validates_job_types(auth_token):
             "template_id": "treadmill_ppm",
             "scope_kind": "equipment_type",
             "scope_value": scope_value,
-            "job_types": ["repair", "bogus_type", "ppm"],
+            "job_types": ["repair", "bogus_type", "Not A Slug!", "ppm"],
         },
         timeout=15.0,
     )
     assert r.status_code == 201
     body = r.json()
-    # `bogus_type` is silently dropped; `repair` + `ppm` are kept.
-    assert set(body["job_types"]) == {"repair", "ppm"}
+    # Slug-formatted values kept (incl. custom types); malformed dropped.
+    assert set(body["job_types"]) == {"repair", "bogus_type", "ppm"}
     # Cleanup
     for f in body["created"]:
         httpx.delete(

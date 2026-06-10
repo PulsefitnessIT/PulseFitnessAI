@@ -72,15 +72,19 @@ def test_setup_wizard_inputs_have_visible_fill():
     assert "bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30" not in src, (
         "Input component must have visible fill, not the old bg-black/40 combo"
     )
-    # Explicit inline style fills replaced them.
-    assert "background: 'rgba(255,255,255,0.06)'" in src
-    assert "border: '1px solid rgba(255,255,255,0.18)'" in src
+    # Iter 230 — fills now ride the theme CSS variables so the wizard
+    # adapts to light/dark mode instead of hard-coded rgba values.
+    assert "background: 'var(--theme-surface)'" in src
+    assert "var(--theme-border)" in src
 
 
 def test_setup_wizard_heading_is_explicitly_white():
     src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
-    # StepShell forces explicit colour so a light theme can't override it.
-    assert "color: '#ffffff'" in src, "wizard heading must force explicit white"
+    # Iter 230 — StepShell heading now uses the theme text variable so it
+    # stays legible in BOTH light and dark mode (previously forced white).
+    assert "color: 'var(--theme-text)' }}>{title}" in src, (
+        "wizard heading must use the theme text colour variable"
+    )
 
 
 # ─── Parent portal Preview button ───────────────────────────────────

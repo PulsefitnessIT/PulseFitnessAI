@@ -10,7 +10,7 @@
  *
  * Pure presentational components — no auth / data dependencies.
  */
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Recycle, Leaf, Zap } from 'lucide-react';

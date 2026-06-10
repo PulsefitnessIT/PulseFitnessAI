@@ -57,10 +57,12 @@ def test_memberships_tab_order_rationalised():
     """The TABS array must place daily-ops + people groups before the
     commercial / analytics blocks."""
     src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
-    # Anchor: 'schedule' must appear before 'studio-brain' (was inverted).
+    # Anchor: 'schedule' (daily ops) must appear before 'analytics'
+    # (commercial block). Iter 230 — the old 'studio-brain' tab was
+    # retired, so 'analytics' is the new commercial-block anchor.
     schedule_idx = src.index("id: 'schedule'")
-    studio_brain_idx = src.index("id: 'studio-brain'")
-    assert schedule_idx < studio_brain_idx, "schedule must come before studio-brain"
+    analytics_idx = src.index("id: 'analytics'")
+    assert schedule_idx < analytics_idx, "schedule must come before analytics"
     # 'instructors' must sit alongside 'members' (people group), not after invoicing.
     instructors_idx = src.index("id: 'instructors'")
     invoicing_idx = src.index("id: 'invoicing'")

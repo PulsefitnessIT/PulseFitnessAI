@@ -42,7 +42,7 @@ ignore = [
 max-complexity = 70
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ANN201", "ANN202", "E712", "E722", "F841", "F811", "E741", "SIM102", "SIM105", "SIM108", "B007", "W291", "W293"]
+"tests/*" = ["ANN201", "ANN202", "E712", "E722", "F841", "F811", "E741", "SIM102", "SIM105", "SIM108", "B007", "W291", "W293", "E702"]
 "conftest.py" = ["ANN201", "ANN202", "E712"]
 "routes/issues.py" = ["C901"]    # triage_issue is inherently complex (AI prompt assembly)
 "routes/files.py" = ["C901"]     # ask_documents is inherently complex (document scoring)

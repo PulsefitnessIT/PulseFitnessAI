@@ -3,7 +3,7 @@
  * Renders substantive, keyword-targeted content from solutionsData.js with
  * Product + FAQPage JSON-LD for rich-result eligibility.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -145,7 +145,7 @@ export default function SolutionLanding() {
             <p className="mt-3 text-slate-600 max-w-2xl">GymAxis works with equipment from every major manufacturer. See brand-specific service guides:</p>
             <div className="mt-6 flex flex-wrap gap-2.5" data-testid="solution-manufacturer-links">
               {manufacturers.map((m) => (
-                <Link key={m.slug} to={`/maintenance/${m.slug}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-zinc-800">
+                <Link key={m.slug} to={`/maintenance/${m.slug}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:border-zinc-800">
                   {m.name} <ArrowRight size={13} />
                 </Link>
               ))}
@@ -178,7 +178,7 @@ export default function SolutionLanding() {
                 {sol.relatedSolutions.map((rs) => {
                   const r = getSolution(rs);
                   return r ? (
-                    <Link key={rs} to={`/solutions/${rs}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-zinc-800">
+                    <Link key={rs} to={`/solutions/${rs}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:border-zinc-800">
                       {r.eyebrow} <ChevronRight size={13} />
                     </Link>
                   ) : null;
@@ -196,7 +196,7 @@ export default function SolutionLanding() {
           <h2 className="mt-4 text-3xl md:text-4xl font-black tracking-tight text-white">See it in your gym in 3 days. No card.</h2>
           <p className="mt-3 text-white/85 text-lg max-w-2xl mx-auto">Start a free trial with every module unlocked — assets, maintenance, parts, CRM and finance hand-off.</p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
+            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-white text-slate-900 dark:text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
               Start free trial <ArrowRight size={15} />
             </button>
             <Link to="/blog" className="inline-flex items-center gap-1.5 rounded-full border border-white/40 px-7 py-3 text-sm font-bold text-white hover:bg-white/10">
