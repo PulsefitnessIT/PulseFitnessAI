@@ -50,7 +50,9 @@ const LoginCard = ({ onSuccess }) => {
       const r = await axios.post(`${API}/auth/login`, { email, password });
       const tok = r.data?.token;
       if (!tok) throw new Error('No token returned');
-      localStorage.setItem('token', tok);
+      // Iter 227 — store the non-credential sentinel; the real JWT lives in
+      // the HttpOnly `ga_session` cookie set by /auth/login.
+      localStorage.setItem('token', 'cookie');
       try { localStorage.setItem('user', JSON.stringify(r.data.user || {})); } catch (e2) { /* ignore */ }
       onSuccess?.(r.data.user || {});
     } catch (e) {

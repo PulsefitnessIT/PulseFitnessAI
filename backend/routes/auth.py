@@ -871,7 +871,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
 
 
 @router.post("/auth/refresh")
-async def refresh_token(user: dict = Depends(get_current_user)) -> dict:
+async def refresh_token(request: Request, response: Response, user: dict = Depends(get_current_user)) -> dict:
     """Issue a fresh JWT token + revoke the old one (rotation).
 
     Iter 216h54 — the old jti is revoked with a 60-second grace window
@@ -882,6 +882,10 @@ async def refresh_token(user: dict = Depends(get_current_user)) -> dict:
     Iter 220au · F-03 / F-17 — refresh now preserves the
     ``mfa_verified`` claim and uses role-tier TTL so master admins
     always rotate into a fresh 1-hour token.
+
+    Iter 227 — also rotates the HttpOnly ``ga_session`` cookie so a
+    cookie-only main session (no localStorage token) stays alive past
+    the original cookie's max-age.
     """
     from utils.security_plus import revoke_jwt
     from utils.auth_guards import access_token_ttl_hours
@@ -895,6 +899,18 @@ async def refresh_token(user: dict = Depends(get_current_user)) -> dict:
     )
     if old_jti:
         await revoke_jwt(old_jti, int(old_exp), reason="refresh", grace_seconds=60)
+    # Iter 227 — only rotate the HttpOnly cookie for COOKIE-based (main)
+    # sessions. A header-based session (impersonation / API token) must NOT
+    # overwrite the admin's `ga_session` cookie, or ending impersonation
+    # would strand the operator as the impersonated user.
+    auth_hdr = request.headers.get("authorization", "")
+    header_token = ""
+    if auth_hdr.lower().startswith("bearer "):
+        cand = auth_hdr.split(" ", 1)[1].strip()
+        if cand and cand.lower() not in ("null", "undefined", "cookie"):
+            header_token = cand
+    if not header_token:
+        set_auth_cookie(response, new_token, max_age_hours=ttl_hours)
     return {"token": new_token}
 
 

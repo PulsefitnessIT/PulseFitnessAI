@@ -86,10 +86,19 @@ def verify_token(token: str) -> Optional[dict]:
 
 def _extract_token(request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Optional[str]:
     """Return the JWT from either the Authorization header or the
-    HttpOnly session cookie. Header wins if both are present (useful for
-    forcing a specific identity during tests or API calls)."""
+    HttpOnly session cookie. Header wins if present (lets impersonation /
+    CRM / member tokens override the cookie session for that request).
+
+    Iter 227 — a literal ``Bearer null`` / ``Bearer undefined`` / empty
+    header (sent by legacy call-sites that read a now-absent
+    ``localStorage['token']`` after the cookie migration) is treated as
+    *no header* so we fall through to the HttpOnly cookie instead of
+    trying to verify the string ``"null"`` and 401-ing the main session.
+    """
     if credentials and credentials.credentials:
-        return credentials.credentials
+        val = credentials.credentials.strip()
+        if val and val.lower() not in ("null", "undefined", "cookie"):
+            return val
     cookie = request.cookies.get(AUTH_COOKIE_NAME)
     return cookie if cookie else None
 
@@ -181,7 +190,12 @@ async def try_get_current_user(request) -> Optional[dict]:
     token: Optional[str] = None
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("bearer "):
-        token = auth.split(" ", 1)[1].strip()
+        candidate = auth.split(" ", 1)[1].strip()
+        # Iter 227 — ignore a literal `Bearer null`/`undefined`/`cookie`
+        # sentinel (legacy call-sites post cookie-migration) so we fall
+        # through to the HttpOnly cookie.
+        if candidate and candidate.lower() not in ("null", "undefined", "cookie"):
+            token = candidate
     if not token:
         token = request.cookies.get(AUTH_COOKIE_NAME)
     if not token:

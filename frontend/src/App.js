@@ -51,23 +51,38 @@ axios.defaults.withCredentials = true;
         return Promise.reject(error);
       }
       if (cfg.__sessionRetried) return Promise.reject(error);
-      const currentToken = (() => {
+      // Iter 227 — cookie-first refresh. The main session lives in the
+      // HttpOnly `ga_session` cookie (sent via withCredentials), so we no
+      // longer require a localStorage token to attempt a refresh. A legacy
+      // token (impersonation tab / pre-migration session) is still sent as
+      // a header so it keeps overriding the cookie.
+      const legacyToken = (() => {
         try { return localStorage.getItem('token'); } catch { return null; }
       })();
-      if (!currentToken) return Promise.reject(error);
+      const impersonating = (() => {
+        try { return localStorage.getItem('impersonation_active') === '1'; } catch { return false; }
+      })();
       if (!__refreshInflight) {
         __refreshInflight = axios.post(
           `${__API}/auth/refresh`, {},
-          { headers: { Authorization: `Bearer ${currentToken}` }, timeout: 8000 },
+          { headers: legacyToken ? { Authorization: `Bearer ${legacyToken}` } : {}, timeout: 8000 },
         ).then((r) => {
           const next = r?.data?.token || null;
-          if (next) {
+          // Only persist to localStorage for the impersonation tab (header
+          // based); the main session relies on the rotated HttpOnly cookie.
+          if (next && legacyToken && impersonating) {
             try { localStorage.setItem('token', next); } catch { /* quota */ }
+          }
+          if (next) {
             try {
-              window.dispatchEvent(new CustomEvent('gymaxis:token-refreshed', { detail: { token: next } }));
+              // Main session keeps the `'cookie'` sentinel in React state
+              // (real JWT stays in the HttpOnly cookie); impersonation gets
+              // the rotated real token so it keeps overriding the cookie.
+              const detailToken = impersonating ? next : 'cookie';
+              window.dispatchEvent(new CustomEvent('gymaxis:token-refreshed', { detail: { token: detailToken } }));
             } catch { /* ignore */ }
           }
-          return next;
+          return next || true;  // truthy even if body has no token (cookie rotated)
         }).catch(() => null).finally(() => {
           // Release the gate on next macrotask so callers waiting on
           // the same promise still get the resolved value, but the
@@ -83,8 +98,10 @@ axios.defaults.withCredentials = true;
         return Promise.reject(error);
       }
       cfg.__sessionRetried = true;
+      // Retry: impersonation re-attaches the rotated real token; the main
+      // session relies on the rotated HttpOnly cookie (sentinel header).
       cfg.headers = cfg.headers || {};
-      cfg.headers.Authorization = `Bearer ${next}`;
+      cfg.headers.Authorization = (impersonating && typeof next === 'string') ? `Bearer ${next}` : 'Bearer cookie';
       return axios(cfg);
     },
   );
@@ -365,8 +382,9 @@ function App() {
   };
 
  const refreshSites = () => {
- const token = localStorage.getItem('token');
- if (token) loadSites(token);
+ // Iter 227 — main session uses the cookie; pass any legacy/impersonation
+ // token if present (null → falls through to cookie on the backend).
+ loadSites(localStorage.getItem('token'));
  };
 
  // Iter 216h48 — Wrapped setter that also persists the active site
@@ -393,43 +411,64 @@ function App() {
  const clean = window.location.pathname + (params.toString() ? `?${params}` : '');
  window.history.replaceState({}, '', clean);
  }
- const token = localStorage.getItem('token');
- if (token) {
+ // Iter 227 — `localStorage['token']` now holds either a real
+ // impersonation/legacy JWT or the non-credential sentinel `'cookie'`
+ // for the main session (whose real JWT lives only in the HttpOnly
+ // `ga_session` cookie). Either way it's a truthy marker that an
+ // authenticated session exists; the header it produces is honoured by
+ // the backend only when it's a real token (the sentinel falls through
+ // to the cookie). We also boot on a protected route even without a
+ // marker so a fresh tab with just the cookie can still authenticate.
+ const storedToken = localStorage.getItem('token');
+ const _bootPath = typeof window !== 'undefined' ? window.location.pathname : '';
+ const _bootProtected = !!_bootPath && (
+   ['/dashboard', '/master-admin', '/service-desk', '/memberships', '/marketing'].includes(_bootPath) ||
+   ['/svc/engineer', '/admin', '/partner-engineer', '/partners'].some((p) => _bootPath.startsWith(p))
+ );
+ if (storedToken || _bootProtected) {
  // Iter 215ac — single-retry helper so a transient /auth/me
  // failure doesn't silently log the operator out (surfaced in
  // 215z/215aa test reports as "session lost when switching
  // modules"). We retry ONCE after 800ms before giving up.
  const bootAuthMe = (attempt = 0) => {
- axios.get(`${API}/auth/me`, {
- headers: { Authorization: `Bearer ${token}` }
- })
+ axios.get(`${API}/auth/me`, storedToken ? { headers: { Authorization: `Bearer ${storedToken}` } } : {})
  .then(res => {
  setUser(res.data);
+ // Iter 227 — normalise the main session to the cookie sentinel
+ // (no real JWT in localStorage). Impersonation/legacy real tokens
+ // are left untouched so they keep overriding the cookie.
+ const isReal = storedToken && storedToken !== 'cookie';
+ if (!isReal) {
+   try { localStorage.setItem('token', 'cookie'); } catch { /* quota */ }
+   setToken('cookie');
+ } else {
+   setToken(storedToken);
+ }
  try { localStorage.setItem('user_cache', JSON.stringify({ id: res.data?.id, is_master_admin: !!res.data?.is_master_admin, account_type: res.data?.account_type })); } catch { /* quota */ }
- loadBranding(token);
- loadSites(token);
+ loadBranding(storedToken || 'cookie');
+ loadSites(storedToken || 'cookie');
  setLoading(false);
 
  // Auto-refresh token (refresh every 12 hours)
  const refreshToken = () => {
- const currentToken = localStorage.getItem('token');
- if (!currentToken) return;
- axios.post(`${API}/auth/refresh`, {}, {
- headers: { Authorization: `Bearer ${currentToken}` }
- }).then(r => {
- if (r.data?.token) {
-   localStorage.setItem('token', r.data.token);
-   setToken(r.data.token);
+ const cur = localStorage.getItem('token');
+ if (cur && cur !== 'cookie') {
+ // Impersonation/legacy header session — rotate + persist the token.
+ axios.post(`${API}/auth/refresh`, {}, { headers: { Authorization: `Bearer ${cur}` } })
+   .then(r => { if (r.data?.token) { try { localStorage.setItem('token', r.data.token); } catch { /* quota */ } setToken(r.data.token); } })
+   .catch(() => {});
+ } else {
+ // Main session — refresh rotates the HttpOnly cookie; nothing to store.
+ axios.post(`${API}/auth/refresh`, {}).catch(() => {});
  }
- }).catch(() => {});
  };
  refreshToken(); // Refresh on load
  const interval = setInterval(refreshToken, 12 * 60 * 60 * 1000);
  return () => clearInterval(interval);
  })
  .catch((err) => {
- // Only wipe the token for HARD 401/403 (actually invalid).
- // Transient failures (network / 500) → retry once, keep token.
+ // Only wipe the session for HARD 401/403 (actually invalid).
+ // Transient failures (network / 500) → retry once, keep session.
  const code = err?.response?.status;
  const hardFail = code === 401 || code === 403;
  if (hardFail) {
@@ -465,6 +504,9 @@ function App() {
  // bounce to /login.
  useEffect(() => {
  const onStorage = (e) => {
+ // Iter 227 — cross-tab sync keys off `token` which now holds the
+ // `'cookie'` sentinel (or a real impersonation token). null→value fires
+ // on login elsewhere; value→null on logout elsewhere.
  if (e.key !== 'token') return;
  if (!e.newValue) { // logout elsewhere
  setUser(null);
@@ -479,9 +521,11 @@ function App() {
  } catch { /* quota */ }
  return;
  }
- // Login (or token refresh) elsewhere → fetch the new user doc.
+ // Login (or token change) elsewhere → fetch the new user doc. The real
+ // credential is the shared cookie (sentinel) or the new header token.
  setToken(e.newValue);
- axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${e.newValue}` } })
+ const cfg = e.newValue !== 'cookie' ? { headers: { Authorization: `Bearer ${e.newValue}` } } : {};
+ axios.get(`${API}/auth/me`, cfg)
  .then(res => { setUser(res.data); loadBranding(e.newValue); loadSites(e.newValue); })
  .catch(() => { /* ignore — next refresh will heal */ });
  };
@@ -503,18 +547,26 @@ function App() {
  }, []);
 
  const login = (token, userData) => {
- localStorage.setItem('token', token);
- setToken(token);
+ // Iter 227 — the HttpOnly `ga_session` cookie (set by /auth/login) is the
+ // real credential. We store only the non-credential sentinel `'cookie'`
+ // in localStorage so the ~300 call-sites + `if (!token)` guards keep
+ // working, while no real JWT is ever exposed to JS/XSS.
+ try { localStorage.setItem('token', 'cookie'); } catch { /* quota */ }
+ setToken('cookie');
  try { localStorage.setItem('user_cache', JSON.stringify({ id: userData?.id, is_master_admin: !!userData?.is_master_admin, account_type: userData?.account_type })); } catch { /* quota */ }
  setUser(userData);
- loadBranding(token);
- loadSites(token);
+ loadBranding('cookie');
+ loadSites('cookie');
  window.dispatchEvent(new Event('pwa-check-install'));
  };
 
  const logout = () => {
+ // Iter 227 — clear the HttpOnly session cookie server-side (best-effort);
+ // it can't be removed from JS. Navigation below happens regardless.
+ try { axios.post(`${API}/auth/logout`, {}).catch(() => {}); } catch { /* ignore */ }
  localStorage.removeItem('token');
  localStorage.removeItem('user_cache');
+ try { localStorage.removeItem('impersonation_active'); } catch { /* quota */ }
  // Iter 216h48 — also clear site caches so the next user logging in
  // on this device doesn't see the previous operator's sites flash
  // before /api/sites resolves.

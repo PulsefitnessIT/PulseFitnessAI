@@ -57,7 +57,7 @@ export default function InstructorPortal() {
   if (loading) {
     return <div className="min-h-screen bg-[var(--color-surface-darker)] text-white grid place-items-center"><Loader2 className="animate-spin text-[var(--color-brand-cyan)]" /></div>;
   }
-  if (!me) return <LoginGate onAuthed={(t) => { localStorage.setItem('token', t); setToken(t); }} />;
+  if (!me) return <LoginGate onAuthed={() => { localStorage.setItem('token', 'cookie'); setToken('cookie'); }} />;
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-darker)] text-white pb-24" data-testid="instructor-portal">

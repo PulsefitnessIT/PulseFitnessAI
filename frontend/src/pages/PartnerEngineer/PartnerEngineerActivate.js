@@ -79,7 +79,9 @@ export default function PartnerEngineerActivate() {
       });
       const data = r.data || {};
       if (data.token) {
-        localStorage.setItem('token', data.token);
+        // Iter 227 — sentinel only; real JWT is in the HttpOnly cookie set
+        // by /partners/activation/complete.
+        localStorage.setItem('token', 'cookie');
       }
       // Hard-redirect to Stripe (or the dashboard auto-fire URL) so
       // the engineer lands on Checkout with the new auth in place.
