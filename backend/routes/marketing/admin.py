@@ -190,4 +190,83 @@ async def admin_delete_subscription(organization_id: str, user: dict = Depends(g
     return {"deleted": res.deleted_count}
 
 
+# ──────────── Iter 235: read-only cross-org Campaigns & Journeys ────────────
+
+
+async def _admin_org_scope(user: dict, brand: str) -> dict:
+    """organization_id filter implementing Pulse scoping + the top-bar
+    BrandPicker, shared by the read-only cross-org browsers below."""
+    from routes.master_admin import is_pulse_only, PULSE_VISIBLE_ACCOUNT_TYPES
+    from utils.brand_filter import normalise_brand, brand_filter_clause
+
+    if is_pulse_only(user):
+        ps = await db.organizations.find(
+            {"account_type": {"$in": PULSE_VISIBLE_ACCOUNT_TYPES}}, {"_id": 0, "id": 1},
+        ).to_list(length=None)
+        return {"organization_id": {"$in": [o["id"] for o in ps]}}
+    canonical = normalise_brand(brand)
+    if canonical != "all":
+        clause = brand_filter_clause(canonical, collection="organizations")
+        if clause:
+            brand_orgs = await db.organizations.find(clause, {"_id": 0, "id": 1}).to_list(length=None)
+            return {"organization_id": {"$in": [o["id"] for o in brand_orgs]}}
+    return {}
+
+
+async def _decorate_org(rows: list[dict]) -> None:
+    """Attach organization_name + account_type to each row in-place."""
+    org_ids = list({r.get("organization_id") for r in rows if r.get("organization_id")})
+    orgs = {o["id"]: o for o in await db.organizations.find(
+        {"id": {"$in": org_ids}}, {"_id": 0, "id": 1, "name": 1, "account_type": 1},
+    ).to_list(length=None)}
+    for r in rows:
+        o = orgs.get(r.get("organization_id"), {})
+        r["organization_name"] = o.get("name")
+        r["account_type"] = o.get("account_type")
+
+
+@router.get("/master-admin/marketing/campaigns")
+async def admin_list_campaigns(brand: str = "all", status: str = "all",
+                               user: dict = Depends(get_current_user)):
+    """Read-only cross-org campaign browser for Master Admins. Lightweight
+    projection only — never returns campaign body content."""
+    _require_admin(user)
+    flt = await _admin_org_scope(user, brand)
+    if status != "all":
+        flt["status"] = status
+    projection = {
+        "_id": 0, "id": 1, "organization_id": 1, "name": 1, "status": 1,
+        "channel": 1, "metrics": 1, "created_at": 1, "updated_at": 1,
+        "sent_at": 1, "ab_test.enabled": 1,
+    }
+    rows = await db.marketing_campaigns.find(flt, projection).sort(
+        "updated_at", -1).limit(300).to_list(length=300)
+    await _decorate_org(rows)
+    total = await db.marketing_campaigns.count_documents(flt)
+    return {"campaigns": rows, "total": total}
+
+
+@router.get("/master-admin/marketing/journeys")
+async def admin_list_journeys(brand: str = "all", status: str = "all",
+                              user: dict = Depends(get_current_user)):
+    """Read-only cross-org journey browser for Master Admins. Returns a
+    node_count instead of the full node graph."""
+    _require_admin(user)
+    flt = await _admin_org_scope(user, brand)
+    if status != "all":
+        flt["status"] = status
+    projection = {
+        "_id": 0, "id": 1, "organization_id": 1, "name": 1, "status": 1,
+        "trigger": 1, "metrics": 1, "nodes": 1, "created_at": 1,
+        "updated_at": 1, "template_id": 1,
+    }
+    rows = await db.marketing_journeys.find(flt, projection).sort(
+        "updated_at", -1).limit(300).to_list(length=300)
+    for r in rows:
+        r["node_count"] = len(r.pop("nodes", []) or [])
+    await _decorate_org(rows)
+    total = await db.marketing_journeys.count_documents(flt)
+    return {"journeys": rows, "total": total}
+
+
 __all__ = ["router"]

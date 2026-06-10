@@ -11,6 +11,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 
 const SUB_TABS = [
  { id: 'analytics', label: 'Analytics' },
+ { id: 'campaigns', label: 'Campaigns & Journeys' },
  { id: 'plans', label: 'Plans' },
  { id: 'subscriptions', label: 'Subscriptions' },
 ];
@@ -123,14 +124,14 @@ const Analytics = ({ API, headers, onNavTab, onGoSection, onGoAiUsage }) => {
  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
  {/* Iter 233b — KPI tiles navigate to the view holding the detail they
      summarise (Subscriptions tab, platform Emails log, AI Usage tab).
-     Campaigns / journeys have no master-admin detail view yet, so those
-     two stay informational. */}
+     Iter 235 — Campaigns / journeys now deep-link to the read-only
+     cross-org Campaigns & Journeys browser. */}
  <Tile label="MRR (gross)" value={`£${(data.mrr_gbp || 0).toLocaleString()}`} accent="text-emerald-700" icon={PoundSterling} onClick={() => onNavTab?.('subscriptions')} />
  <Tile label="Subscriptions" value={data.total_subscriptions || 0} icon={Users} onClick={() => onNavTab?.('subscriptions')} />
  <Tile label="Emails (30d)" value={(data.emails_30d || 0).toLocaleString()} icon={Mail} onClick={() => onGoSection?.('emails')} />
  <Tile label="AI gens (30d)" value={(data.ai_generations_30d || 0).toLocaleString()} icon={ImagePlus} onClick={onGoAiUsage} />
- <Tile label="Campaigns (30d)" value={data.campaigns_30d || 0} icon={Mail} />
- <Tile label="Active journeys" value={data.journeys_active || 0} icon={Workflow} />
+ <Tile label="Campaigns (30d)" value={data.campaigns_30d || 0} icon={Mail} onClick={() => onNavTab?.('campaigns')} />
+ <Tile label="Active journeys" value={data.journeys_active || 0} icon={Workflow} onClick={() => onNavTab?.('campaigns')} />
  </div>
 
  <div className="rounded-xl border border-zinc-200 bg-white p-5">
@@ -356,6 +357,124 @@ const Subscriptions = ({ API, headers }) => {
  );
 };
 
+const STATUS_BADGE = {
+  sent: 'bg-emerald-50 text-emerald-700',
+  active: 'bg-emerald-50 text-emerald-700',
+  sending: 'bg-blue-50 text-blue-700',
+  scheduled: 'bg-amber-50 text-amber-700',
+  draft: 'bg-zinc-100 text-zinc-600',
+  paused: 'bg-amber-50 text-amber-700',
+  archived: 'bg-zinc-100 text-zinc-500',
+};
+
+const StatusPill = ({ status }) => (
+  <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${STATUS_BADGE[status] || 'bg-zinc-100 text-zinc-600'}`}>{status || '—'}</span>
+);
+
+/* Iter 235 — read-only cross-org Campaigns & Journeys browser. */
+const CampaignsJourneys = ({ API, headers }) => {
+  const { brand } = useBrandContext();
+  const [campaigns, setCampaigns] = useState(null);
+  const [journeys, setJourneys] = useState(null);
+  const [status, setStatus] = useState('all');
+
+  useEffect(() => {
+    const params = [];
+    if (brand && brand !== 'all') params.push(`brand=${encodeURIComponent(brand)}`);
+    if (status !== 'all') params.push(`status=${encodeURIComponent(status)}`);
+    const qs = params.length ? `?${params.join('&')}` : '';
+    axios.get(`${API}/master-admin/marketing/campaigns${qs}`, { headers }).then((r) => setCampaigns(r.data.campaigns)).catch(() => setCampaigns([]));
+    axios.get(`${API}/master-admin/marketing/journeys${qs}`, { headers }).then((r) => setJourneys(r.data.journeys)).catch(() => setJourneys([]));
+    // eslint-disable-next-line
+  }, [brand, status]);
+
+  if (!campaigns || !journeys) return <div className="flex items-center gap-2 text-zinc-400 py-8"><Loader2 className="animate-spin" size={14} /> Loading…</div>;
+
+  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
+  const pct = (num, den) => (den ? `${Math.round((num / den) * 100)}%` : '—');
+
+  return (
+    <div className="space-y-5" data-testid="admin-marketing-campaigns">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-xs text-zinc-500">Read-only view of every tenant's campaigns and journeys. Edits happen inside the org's own Marketing Suite.</p>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-2 py-1.5 border border-zinc-200 rounded text-xs" data-testid="cj-status-filter">
+          <option value="all">All statuses</option>
+          <option value="draft">draft</option>
+          <option value="scheduled">scheduled</option>
+          <option value="sent">sent</option>
+          <option value="active">active</option>
+          <option value="paused">paused</option>
+        </select>
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-x-auto">
+        <p className="text-xs font-semibold text-zinc-700 uppercase tracking-wider px-4 pt-4 pb-2 flex items-center gap-1.5"><Mail size={12} /> Campaigns <span className="text-zinc-400 font-normal normal-case">({campaigns.length})</span></p>
+        <table className="w-full text-sm">
+          <thead className="border-b border-zinc-100 text-[10px] uppercase tracking-wider text-zinc-400">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold">Campaign</th>
+              <th className="text-left font-semibold">Org</th>
+              <th className="text-left font-semibold">Status</th>
+              <th className="text-left font-semibold">Channel</th>
+              <th className="text-right font-semibold">Sent</th>
+              <th className="text-right font-semibold">Open rate</th>
+              <th className="text-right font-semibold pr-4">Sent at</th>
+            </tr>
+          </thead>
+          <tbody>
+            {campaigns.map((c) => (
+              <tr key={c.id} className="border-b border-zinc-50 last:border-b-0" data-testid={`cj-campaign-row-${c.id}`}>
+                <td className="py-2.5 px-4">
+                  <p className="font-medium text-zinc-900">{c.name}</p>
+                  {c.ab_test?.enabled && <p className="text-[10px] text-violet-600 font-semibold">A/B test</p>}
+                </td>
+                <td className="text-zinc-600">{c.organization_name || '—'}</td>
+                <td><StatusPill status={c.status} /></td>
+                <td className="text-[11px] text-zinc-500 uppercase">{c.channel || '—'}</td>
+                <td className="text-right tabular-nums">{(c.metrics?.sent || 0).toLocaleString()}</td>
+                <td className="text-right tabular-nums">{pct(c.metrics?.opened || 0, c.metrics?.sent || 0)}</td>
+                <td className="text-right text-[11px] text-zinc-500 pr-4">{fmtDate(c.sent_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {campaigns.length === 0 && <p className="p-5 text-sm text-zinc-400 text-center">No campaigns match this filter.</p>}
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-x-auto">
+        <p className="text-xs font-semibold text-zinc-700 uppercase tracking-wider px-4 pt-4 pb-2 flex items-center gap-1.5"><Workflow size={12} /> Journeys <span className="text-zinc-400 font-normal normal-case">({journeys.length})</span></p>
+        <table className="w-full text-sm">
+          <thead className="border-b border-zinc-100 text-[10px] uppercase tracking-wider text-zinc-400">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold">Journey</th>
+              <th className="text-left font-semibold">Org</th>
+              <th className="text-left font-semibold">Status</th>
+              <th className="text-left font-semibold">Trigger</th>
+              <th className="text-right font-semibold">Steps</th>
+              <th className="text-right font-semibold">Entered</th>
+              <th className="text-right font-semibold pr-4">Converted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {journeys.map((j) => (
+              <tr key={j.id} className="border-b border-zinc-50 last:border-b-0" data-testid={`cj-journey-row-${j.id}`}>
+                <td className="py-2.5 px-4 font-medium text-zinc-900">{j.name}</td>
+                <td className="text-zinc-600">{j.organization_name || '—'}</td>
+                <td><StatusPill status={j.status} /></td>
+                <td className="text-[11px] text-zinc-500">{j.trigger?.event || '—'}</td>
+                <td className="text-right tabular-nums">{j.node_count ?? 0}</td>
+                <td className="text-right tabular-nums">{(j.metrics?.entered || 0).toLocaleString()}</td>
+                <td className="text-right tabular-nums pr-4">{(j.metrics?.converted || 0).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {journeys.length === 0 && <p className="p-5 text-sm text-zinc-400 text-center">No journeys match this filter.</p>}
+      </div>
+    </div>
+  );
+};
+
 const AdminMarketingSuite = ({ API, onGoSection, onGoAiUsage }) => {
  const [tab, setTab] = useState('analytics');
  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
@@ -369,6 +488,7 @@ const AdminMarketingSuite = ({ API, onGoSection, onGoAiUsage }) => {
  ))}
  </div>
  {tab === 'analytics' && <Analytics API={API} headers={headers} onNavTab={setTab} onGoSection={onGoSection} onGoAiUsage={onGoAiUsage} />}
+ {tab === 'campaigns' && <CampaignsJourneys API={API} headers={headers} />}
  {tab === 'plans' && <PlansEditor API={API} headers={headers} />}
  {tab === 'subscriptions' && <Subscriptions API={API} headers={headers} />}
  </div>

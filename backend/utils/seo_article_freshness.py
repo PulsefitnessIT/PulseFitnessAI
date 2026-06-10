@@ -296,13 +296,24 @@ def article_similarity_score(a_title: str, a_opener: str,
 
 async def check_article_uniqueness(
     db, *, title: str, body_md: str, exclude_id: str | None = None,
-    threshold: float = 0.6,
+    threshold: float = 0.6, title_threshold: float = 0.6,
 ) -> dict:
     """Compare a newly-generated article against every published one.
-    Returns ``{ok, best_match, best_score}``."""
+    Returns ``{ok, best_match, best_score}``.
+
+    Iter 234 — HARD TITLE GATE. The composite score weights the opener
+    at 0.6, so two articles with ~90 %-identical titles but an LLM-
+    rephrased opener sailed under the gate (this shipped
+    "…the numbers you need" next to "…the numbers operators miss" in
+    production). A near-duplicate TITLE is a duplicate for readers and
+    for search engines regardless of how the body opens, so title
+    similarity alone can now fail the check.
+    """
     opener = _first_paragraph(body_md, max_chars=600)
     best: dict | None = None
     best_score = 0.0
+    best_title_sim = 0.0
+    best_title_match: dict | None = None
     cursor = db.seo_articles.find(
         {"status": "published"},
         {"_id": 0, "id": 1, "title": 1, "body_md": 1, "slug": 1},
@@ -318,11 +329,19 @@ async def check_article_uniqueness(
             best_score = score
             best = {"id": art.get("id"), "title": art.get("title"),
                     "slug": art.get("slug"), "score": score}
+        t_sim = keyword_similarity(title, art.get("title", ""))
+        if t_sim > best_title_sim:
+            best_title_sim = t_sim
+            best_title_match = {"id": art.get("id"), "title": art.get("title"),
+                                "slug": art.get("slug"), "score": round(t_sim, 3)}
+    title_duplicate = best_title_sim >= title_threshold
     return {
-        "ok": best_score < threshold,
-        "best_match": best,
-        "best_score": best_score,
+        "ok": best_score < threshold and not title_duplicate,
+        "best_match": best if (best_score >= best_title_sim or not title_duplicate) else best_title_match,
+        "best_score": max(best_score, round(best_title_sim, 3)),
         "threshold": threshold,
+        "title_similarity": round(best_title_sim, 3),
+        "title_duplicate": title_duplicate,
     }
 
 

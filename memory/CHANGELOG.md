@@ -269,3 +269,9 @@ End-user E2E audit (testing agent + manual verification):
 - **Marketing tab:** analytics tiles now navigate — MRR & Subscriptions → Subscriptions sub-tab, Emails (30d) → platform Emails section, AI gens (30d) → Operations Portal → AI Usage inner tab. Campaigns/journeys stay informational (no master-admin detail view exists). Tiles got testids (`mkt-tile-*`), hover lift, keyboard activation.
 - **MoD tab:** new KPI row (MoD Organisations / Branches / Sites) above the org list — each card acts as an account-type FILTER (click to narrow the list to that tier, click again to clear; active ring + "Filtering — click to clear" hint). testids `mod-kpi-mod_org|mod_branch|mod_site`.
 - Tests: 2 new source pins in `test_iter233_admin_kpi_alignment.py` (9 total). ESLint green. Verified in-browser.
+
+## Jun 10, 2026 — Iter 235: Read-only cross-org Campaigns & Journeys browser
+
+- **Backend:** `GET /api/master-admin/marketing/campaigns` + `GET /api/master-admin/marketing/journeys` in `routes/marketing/admin.py`. Both honour Pulse scoping + `?brand=` (shared `_admin_org_scope` helper) and `?status=` filter. Lightweight projections only — campaign body `content`/`variants` and journey `nodes` graph never leave the server (journeys ship a `node_count`). Rows decorated with `organization_name` + `account_type`. Master-admin only.
+- **Frontend:** new "Campaigns & Journeys" sub-tab in `AdminMarketingSuite.js` — two read-only tables (campaigns: org/status/channel/sent/open-rate/A-B flag; journeys: org/status/trigger/steps/entered/converted) with a shared status filter. "Campaigns (30d)" and "Active journeys" analytics tiles now deep-link into the browser.
+- **Tests:** `tests/test_iter235_admin_campaign_browser.py` (5 tests: payload shapes, no-content-leak, status filter, non-admin 401/403, tile deep-link source pins) added to the `make regression` gate. Verified in-browser (8 campaigns + 1 journey rendered with org names).

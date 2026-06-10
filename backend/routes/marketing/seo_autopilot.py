@@ -973,6 +973,61 @@ async def list_articles(
     return {"articles": rows}
 
 
+# NOTE (Iter 234): this static route MUST be registered before
+# /articles/{article_id} or FastAPI matches "duplicates" as an id
+# and the scan 404s ("Article not found") — which is why historical
+# duplicate scans silently never worked.
+@router.get("/articles/duplicates")
+async def list_duplicate_articles(
+    threshold: float = 0.6,
+    user: dict = Depends(get_current_user),
+):
+    """Scan all published articles and return pairs whose
+    title+opener overlap exceeds ``threshold`` (0.6 by default). Used
+    by master admin to find historical duplicates so they can be
+    archived or rewritten.
+
+    Iter 234 — the score is now ``max(title_similarity, composite)``:
+    composite alone (opener-weighted 0.6) missed pairs with near-
+    identical titles but LLM-rephrased openers — exactly the class that
+    shipped twice in production.
+    """
+    _require_master_admin(user)
+    from utils.seo_article_freshness import (
+        article_similarity_score, keyword_similarity, _first_paragraph,
+    )
+
+    cursor = db.seo_articles.find(
+        {"status": "published"},
+        {"_id": 0, "id": 1, "title": 1, "slug": 1, "body_md": 1, "published_at": 1},
+    )
+    articles = [a async for a in cursor]
+    pairs: list[dict] = []
+    for i, a in enumerate(articles):
+        a_open = _first_paragraph(a.get("body_md"), max_chars=600)
+        for b in articles[i + 1:]:
+            b_open = _first_paragraph(b.get("body_md"), max_chars=600)
+            composite = article_similarity_score(
+                a.get("title", ""), a_open,
+                b.get("title", ""), b_open,
+            )
+            title_sim = keyword_similarity(a.get("title", ""), b.get("title", ""))
+            score = max(composite, round(title_sim, 3))
+            if score >= threshold:
+                pairs.append({
+                    "score": score,
+                    "title_similarity": round(title_sim, 3),
+                    "a": {"id": a.get("id"), "slug": a.get("slug"),
+                          "title": a.get("title"),
+                          "published_at": a.get("published_at")},
+                    "b": {"id": b.get("id"), "slug": b.get("slug"),
+                          "title": b.get("title"),
+                          "published_at": b.get("published_at")},
+                })
+    pairs.sort(key=lambda p: -p["score"])
+    return {"pairs": pairs, "threshold": threshold, "scanned": len(articles)}
+
+
 @router.get("/articles/{article_id}")
 async def get_article(
     article_id: str,
@@ -1065,11 +1120,43 @@ async def run_autopilot(user: dict = Depends(get_current_user)):
         except Exception as exc:  # pragma: no cover
             logger.warning(f"[autopilot] auto-discovery top-up failed: {exc}")
 
-    next_kw = await db.seo_keywords.find_one(
-        {"status": "queued"},
-        {"_id": 0},
-        sort=[("created_at", 1)],
-    )
+    next_kw = None
+    # Iter 234 — keyword pre-flight. Auto-discovery can queue terms that
+    # are near-duplicates of topics ALREADY PUBLISHED (this is how the
+    # treadmill-downtime article shipped twice). Walk the queue oldest-
+    # first and skip any keyword whose term collides with a published
+    # article title/keyword; skipped rows are marked so the master admin
+    # can see why they were retired.
+    for _ in range(10):
+        candidate = await db.seo_keywords.find_one(
+            {"status": "queued"},
+            {"_id": 0},
+            sort=[("created_at", 1)],
+        )
+        if not candidate:
+            break
+        published_hits = [
+            h for h in await find_similar_keywords(db, candidate["term"], threshold=0.7)
+            if h.get("kind") == "article"
+            or (h.get("kind") == "keyword" and h.get("status") == "published")
+        ]
+        if published_hits:
+            await db.seo_keywords.update_one(
+                {"id": candidate["id"]},
+                {"$set": {
+                    "status": "skipped_duplicate",
+                    "skipped_reason": (
+                        f"Too similar to already-published: "
+                        f"'{published_hits[0].get('title') or published_hits[0].get('term')}'"
+                    ),
+                    "near_duplicate_of": published_hits[0].get("id"),
+                    "updated_at": _now(),
+                }},
+            )
+            logger.info("[autopilot] skipped near-duplicate keyword %r", candidate["term"])
+            continue
+        next_kw = candidate
+        break
     if not next_kw:
         return {"ok": False, "reason": "no queued keywords"}
 
@@ -1252,46 +1339,6 @@ async def discovery_feed(
 
 
 # ── Iter 220bj — Duplicate-content audit / archive ────────────────────
-
-
-@router.get("/articles/duplicates")
-async def list_duplicate_articles(
-    threshold: float = 0.6,
-    user: dict = Depends(get_current_user),
-):
-    """Scan all published articles and return pairs whose
-    title+opener overlap exceeds ``threshold`` (0.6 by default). Used
-    by master admin to find historical duplicates so they can be
-    archived or rewritten."""
-    _require_master_admin(user)
-    from utils.seo_article_freshness import article_similarity_score, _first_paragraph
-
-    cursor = db.seo_articles.find(
-        {"status": "published"},
-        {"_id": 0, "id": 1, "title": 1, "slug": 1, "body_md": 1, "published_at": 1},
-    )
-    articles = [a async for a in cursor]
-    pairs: list[dict] = []
-    for i, a in enumerate(articles):
-        a_open = _first_paragraph(a.get("body_md"), max_chars=600)
-        for b in articles[i + 1:]:
-            b_open = _first_paragraph(b.get("body_md"), max_chars=600)
-            score = article_similarity_score(
-                a.get("title", ""), a_open,
-                b.get("title", ""), b_open,
-            )
-            if score >= threshold:
-                pairs.append({
-                    "score": score,
-                    "a": {"id": a.get("id"), "slug": a.get("slug"),
-                          "title": a.get("title"),
-                          "published_at": a.get("published_at")},
-                    "b": {"id": b.get("id"), "slug": b.get("slug"),
-                          "title": b.get("title"),
-                          "published_at": b.get("published_at")},
-                })
-    pairs.sort(key=lambda p: -p["score"])
-    return {"pairs": pairs, "threshold": threshold, "scanned": len(articles)}
 
 
 @router.post("/articles/{article_id}/archive")
