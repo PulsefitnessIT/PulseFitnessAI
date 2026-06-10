@@ -50,25 +50,35 @@ def authenticated_client(api_client, master_admin_token):
 class TestResetPasswordEndpoint:
     """Tests for PUT /api/master-admin/users/{user_id}/reset-password"""
 
-    def test_reset_password_returns_temp_password_and_email(self, authenticated_client):
+    @pytest.fixture()
+    def throwaway_user(self, authenticated_client):
+        """Iter 230 — create a DEDICATED throwaway user to reset.
+
+        Previously this test reset the password of the FIRST non-master
+        user in the directory — clobbering live seeded accounts (e.g.
+        engineer.smoke@gymaxisai.com) and breaking every later engineer
+        test in the run. Destructive operations must only ever touch
+        rows the test itself created.
+        """
+        import uuid as _uuid
+        email = f"iter215bh-reset-{_uuid.uuid4().hex[:8]}@example.com"
+        r = requests.post(f"{BASE_URL}/api/auth/register", json={
+            "email": email, "password": "ThrowAway123!", "full_name": "Reset Target",
+        })
+        if r.status_code != 200:
+            pytest.skip(f"Could not create throwaway user: {r.status_code}")
+        # Resolve the id via the master-admin directory.
+        users = authenticated_client.get(
+            f"{BASE_URL}/api/master-admin/users").json().get("users", [])
+        target = next((u for u in users if (u.get("email") or "").lower() == email), None)
+        if not target:
+            pytest.skip("Throwaway user not visible in master-admin directory")
+        return target
+
+    def test_reset_password_returns_temp_password_and_email(self, authenticated_client, throwaway_user):
         """Reset password should return temp_password and user_email"""
-        # First, get a user to reset
-        users_response = authenticated_client.get(f"{BASE_URL}/api/master-admin/users")
-        assert users_response.status_code == 200
-
-        users = users_response.json().get("users", [])
-        # Find a non-master-admin user to reset
-        target_user = None
-        for u in users:
-            if u.get("email") != MASTER_ADMIN_EMAIL and not u.get("is_master_admin"):
-                target_user = u
-                break
-
-        if not target_user:
-            pytest.skip("No non-admin user found to test password reset")
-
-        user_id = target_user["id"]
-        user_email = target_user["email"]
+        user_id = throwaway_user["id"]
+        user_email = throwaway_user["email"]
 
         # Reset password
         response = authenticated_client.put(f"{BASE_URL}/api/master-admin/users/{user_id}/reset-password")
@@ -85,57 +95,45 @@ class TestResetPasswordEndpoint:
 
         print(f"✅ Reset password for {user_email} - temp_password returned")
 
-    def test_reset_password_updates_org_primary_contact(self, authenticated_client):
-        """If user is org's primary contact, org's primary_contact_initial_password should update"""
-        # Get organizations
-        orgs_response = authenticated_client.get(f"{BASE_URL}/api/master-admin/organizations")
-        assert orgs_response.status_code == 200
+    def test_reset_password_updates_org_primary_contact(self, authenticated_client, throwaway_user):
+        """If user is org's primary contact, org's primary_contact_initial_password should update.
 
-        orgs = orgs_response.json().get("organizations", [])
+        Iter 230 — runs against a TEMP org + the throwaway user (was:
+        resetting a real org owner's live password, which broke logins
+        for seeded accounts mid-suite).
+        """
+        import uuid as _uuid
+        import pymongo
+        client = pymongo.MongoClient(os.environ["MONGO_URL"])
+        db = client[os.environ["DB_NAME"]]
+        org_id = f"iter215bh-org-{_uuid.uuid4().hex[:8]}"
+        db.organizations.insert_one({
+            "id": org_id,
+            "name": "Iter215bh Reset Test Org",
+            "primary_contact_email": throwaway_user["email"],
+            "created_at": "2026-01-01T00:00:00+00:00",
+        })
+        try:
+            user_id = throwaway_user["id"]
 
-        # Find an org with a primary_contact_email that matches a user
-        target_org = None
-        target_user = None
+            # Reset password
+            response = authenticated_client.put(f"{BASE_URL}/api/master-admin/users/{user_id}/reset-password")
+            assert response.status_code == 200
 
-        users_response = authenticated_client.get(f"{BASE_URL}/api/master-admin/users")
-        users = users_response.json().get("users", [])
-        user_emails = {u["email"].lower(): u for u in users if u.get("email")}
+            data = response.json()
+            temp_password = data.get("temp_password")
+            assert temp_password
 
-        for org in orgs:
-            pc_email = (org.get("primary_contact_email") or "").strip().lower()
-            if pc_email and pc_email in user_emails:
-                target_org = org
-                target_user = user_emails[pc_email]
-                break
-
-        if not target_org or not target_user:
-            pytest.skip("No org with primary contact user found")
-
-        user_id = target_user["id"]
-        org_id = target_org["id"]
-
-        # Reset password
-        response = authenticated_client.put(f"{BASE_URL}/api/master-admin/users/{user_id}/reset-password")
-        assert response.status_code == 200
-
-        data = response.json()
-        temp_password = data.get("temp_password")
-
-        # Re-fetch the org to verify primary_contact_initial_password was updated
-        org_response = authenticated_client.get(f"{BASE_URL}/api/master-admin/organizations/{org_id}/primary-contact-credentials")
-
-        if org_response.status_code == 200:
-            creds = org_response.json()
-            # The initial_password should match the temp_password we just set
-            if creds.get("initial_password"):
-                assert creds["initial_password"] == temp_password, \
+            org_doc = db.organizations.find_one({"id": org_id}, {"_id": 0})
+            stored = (org_doc or {}).get("primary_contact_initial_password")
+            if stored:
+                assert stored == temp_password, \
                     "Org's primary_contact_initial_password should match the new temp_password"
                 print(f"✅ Org {org_id} primary_contact_initial_password updated correctly")
             else:
-                # Password might have been marked as changed
-                print(f"⚠ Org {org_id} initial_password not available (may be marked as changed)")
-        else:
-            print(f"⚠ Could not verify org credentials: {org_response.status_code}")
+                print(f"⚠ Org {org_id} initial_password not mirrored (endpoint may scope to org-linked users only)")
+        finally:
+            db.organizations.delete_one({"id": org_id})
 
 
 class TestTrialUserAuthMe:

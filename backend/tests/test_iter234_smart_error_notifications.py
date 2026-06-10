@@ -37,7 +37,10 @@ def master_headers() -> dict:
 
 @pytest.fixture(scope="module")
 def operator_headers() -> dict:
-    return {"Authorization": f"Bearer {_login('lee.somers@pulsefitness.com', 'TempPass123!')}"}
+    # Iter 230 — the original lee.somers@pulsefitness.com tester account no
+    # longer exists in the DB; use the documented non-master Apex owner
+    # (see /app/memory/test_credentials.md).
+    return {"Authorization": f"Bearer {_login('owner@apexfitness.group', 'ApexDemo2026!')}"}
 
 
 def test_ui_error_post_anonymous_accepted():

@@ -68,6 +68,19 @@ describe('formatApiError', () => {
       expect(result.status).toBe(401);
     });
 
+    it('401 from the login endpoint reads as failed sign-in, not expired session', () => {
+      const result = formatApiError(
+        {
+          response: { status: 401, data: { detail: 'Invalid email or password' } },
+          config: { url: '/api/auth/login' },
+        },
+        'Invalid credentials',
+      );
+      expect(result.title).toBe('Invalid credentials');
+      expect(result.detail).toBe('Invalid email or password');
+      expect(result.status).toBe(401);
+    });
+
     it('403 surfaces server detail when present', () => {
       const result = formatApiError(
         { response: { status: 403, data: { detail: 'Master admin only' } } },

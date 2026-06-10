@@ -88,12 +88,25 @@ export function formatApiError(err, fallback = 'Something went wrong') {
           : 'The request was rejected. Check the form values and try again.',
         status,
       };
-    case 401:
+    case 401: {
+      // Iter 230 — a 401 from the LOGIN (or kiosk login) endpoint means
+      // "wrong credentials", not an expired session. Showing "Session
+      // expired — sign out and back in" on a failed sign-in attempt was
+      // actively misleading.
+      const isAuthAttempt = /\/(auth|gym-floor|crm\/auth)\/login\b/.test(url || '');
+      if (isAuthAttempt) {
+        return {
+          title: fallback === 'Something went wrong' ? 'Sign-in failed' : fallback,
+          detail: serverDetail || 'Email or password is incorrect. Check both and try again.',
+          status,
+        };
+      }
       return {
         title: 'Session expired',
         detail: 'Sign out and back in, then retry. Your previous changes were not saved.',
         status,
       };
+    }
     case 403:
       return {
         title: 'Permission denied',

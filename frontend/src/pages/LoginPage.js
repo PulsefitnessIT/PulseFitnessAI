@@ -20,7 +20,7 @@ import { moduleHomePath } from '@/utils/moduleHome';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -111,13 +111,26 @@ export default function LoginPage() {
         <Link to="/" className="text-slate-900 font-black tracking-tighter text-lg" data-testid="gx-login-logo">
           GymAxis<span className="text-[var(--gx-brand-from)]">.AI</span>
         </Link>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
-          data-testid="gx-login-back"
-        >
-          <ArrowLeft size={13} /> {t('auth.back_home', 'Back to home')}
-        </Link>
+        <div className="flex items-center gap-4">
+          <select
+            value={['en', 'fr', 'de'].includes((i18n.language || 'en').slice(0, 2)) ? (i18n.language || 'en').slice(0, 2) : 'en'}
+            onChange={(e) => i18n.changeLanguage(e.target.value)}
+            aria-label="Language"
+            className="text-xs font-bold text-slate-600 bg-transparent border border-slate-200 rounded-full px-2 py-1 cursor-pointer hover:border-slate-400 focus:outline-none"
+            data-testid="gx-login-lang-select"
+          >
+            <option value="en">EN</option>
+            <option value="fr">FR</option>
+            <option value="de">DE</option>
+          </select>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+            data-testid="gx-login-back"
+          >
+            <ArrowLeft size={13} /> {t('auth.back_home', 'Back to home')}
+          </Link>
+        </div>
       </header>
 
       {/* Form card */}
