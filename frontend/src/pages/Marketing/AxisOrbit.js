@@ -16,6 +16,7 @@
  * same — just more useful on hover.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   Wrench, Users, Calendar, Megaphone, HardHat,
@@ -32,19 +33,19 @@ import GymAxisMark from './GymAxisMark';
 // but the orbit needs a slightly different shape (per-feature icons +
 // labels only, no body copy). Mirroring the structure here keeps the
 // orbit self-contained for any consumer of this component.
-const ORBIT_MODULES = [
+const ORBIT_MODULES = (t) => [
   {
     id: 'service',
     icon: Wrench,
     color: 'var(--gx-accent-service)',
     to: '/platform/service',
-    label: 'Operations',
+    label: t('mkt.mod_service', 'Operations'),
     features: [
-      { icon: AlertTriangle, label: 'Fault Logging' },
-      { icon: ListChecks,    label: 'Check Sheets' },
-      { icon: Wallet,        label: 'CAPEX' },
-      { icon: UserCog,       label: 'Staffing' },
-      { icon: LineChart,     label: 'Reporting' },
+      { icon: AlertTriangle, label: t('mkt.f_fault', 'Fault Logging') },
+      { icon: ListChecks,    label: t('mkt.f_checks', 'Check Sheets') },
+      { icon: Wallet,        label: t('mkt.f_capex', 'CAPEX') },
+      { icon: UserCog,       label: t('mkt.f_staffing', 'Staffing') },
+      { icon: LineChart,     label: t('mkt.f_reporting', 'Reporting') },
     ],
   },
   {
@@ -52,12 +53,12 @@ const ORBIT_MODULES = [
     icon: Users,
     color: 'var(--gx-accent-crm)',
     to: '/platform/crm',
-    label: 'CRM',
+    label: t('mkt.mod_crm', 'CRM'),
     features: [
-      { icon: Building2,  label: 'Companies' },
-      { icon: GitBranch,  label: 'Pipeline' },
-      { icon: LineChart,  label: 'Forecast' },
-      { icon: Users,      label: 'Contacts' },
+      { icon: Building2,  label: t('mkt.f_companies', 'Companies') },
+      { icon: GitBranch,  label: t('mkt.f_pipeline', 'Pipeline') },
+      { icon: LineChart,  label: t('mkt.f_forecast', 'Forecast') },
+      { icon: Users,      label: t('mkt.f_contacts', 'Contacts') },
     ],
   },
   {
@@ -65,12 +66,12 @@ const ORBIT_MODULES = [
     icon: Calendar,
     color: 'var(--gx-accent-memberships)',
     to: '/platform/memberships',
-    label: 'Memberships',
+    label: t('mkt.mod_memberships', 'Memberships'),
     features: [
-      { icon: CalendarClock, label: 'Timetable' },
-      { icon: Receipt,       label: 'Invoicing' },
-      { icon: Smartphone,    label: 'Custom App' },
-      { icon: BookOpen,      label: 'Bookings' },
+      { icon: CalendarClock, label: t('mkt.f_timetable', 'Timetable') },
+      { icon: Receipt,       label: t('mkt.f_invoicing', 'Invoicing') },
+      { icon: Smartphone,    label: t('mkt.f_customapp', 'Custom App') },
+      { icon: BookOpen,      label: t('mkt.f_bookings', 'Bookings') },
     ],
   },
   {
@@ -78,12 +79,12 @@ const ORBIT_MODULES = [
     icon: Megaphone,
     color: 'var(--gx-accent-marketing)',
     to: '/platform/marketing',
-    label: 'Marketing',
+    label: t('mkt.mod_marketing', 'Marketing'),
     features: [
-      { icon: MailPlus,  label: 'Campaigns' },
-      { icon: ImageIcon, label: 'Poster Maker' },
-      { icon: Heart,     label: 'Member Jam' },
-      { icon: Megaphone, label: 'Social' },
+      { icon: MailPlus,  label: t('mkt.f_campaigns', 'Campaigns') },
+      { icon: ImageIcon, label: t('mkt.f_poster', 'Poster Maker') },
+      { icon: Heart,     label: t('mkt.f_jam', 'Member Jam') },
+      { icon: Megaphone, label: t('mkt.f_social', 'Social') },
     ],
   },
   // Iter 220bd — Engineers as 5th orbital node. The partner-engineer
@@ -93,17 +94,19 @@ const ORBIT_MODULES = [
     icon: HardHat,
     color: 'var(--gx-accent-engineers)',
     to: '/partners/engineers',
-    label: 'Engineers',
+    label: t('mkt.mod_engineers', 'Engineers'),
     features: [
-      { icon: MapPin,        label: 'Job Routing' },
-      { icon: Smartphone,    label: 'Mobile App' },
-      { icon: Camera,        label: 'AI Photo Triage' },
-      { icon: PoundSterling, label: 'Earnings' },
+      { icon: MapPin,        label: t('mkt.f_routing', 'Job Routing') },
+      { icon: Smartphone,    label: t('mkt.f_mobile', 'Mobile App') },
+      { icon: Camera,        label: t('mkt.f_phototriage', 'AI Photo Triage') },
+      { icon: PoundSterling, label: t('mkt.f_earnings', 'Earnings') },
     ],
   },
 ];
 
 export default function AxisOrbit() {
+  const { t } = useTranslation();
+  const orbitModules = ORBIT_MODULES(t);
   // Track which node is hovered so we can dim the others. Pure UI state.
   const [activeId, setActiveId] = useState(null);
 
@@ -116,11 +119,11 @@ export default function AxisOrbit() {
 
       {/* Rotating ring with the 4 module nodes */}
       <div className="absolute inset-0 gx-orbit-ring">
-        {ORBIT_MODULES.map((m, i) => {
+        {orbitModules.map((m, i) => {
           // Iter 220bc — Place 4 nodes at the cardinal compass points
           // (top, right, bottom, left). Start at -π/2 so the first
           // node sits at 12 o'clock — natural reading entry point.
-          const angle = -Math.PI / 2 + (i / ORBIT_MODULES.length) * 2 * Math.PI;
+          const angle = -Math.PI / 2 + (i / orbitModules.length) * 2 * Math.PI;
           // Push nodes onto the outer concentric ring (~46% from center)
           const x = 50 + 46 * Math.cos(angle);
           const y = 50 + 46 * Math.sin(angle);

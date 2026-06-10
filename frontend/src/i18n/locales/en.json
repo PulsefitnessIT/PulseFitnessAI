@@ -36,7 +36,15 @@
     "login_success": "Login successful",
     "signup_success": "Account created successfully",
     "login_failed": "Login failed",
-    "signup_failed": "Signup failed"
+    "signup_failed": "Signup failed",
+    "back_home": "Back to home",
+    "subtitle": "Sign in to your GymAxis portal.",
+    "email_or_kiosk": "Email or kiosk username",
+    "signing_in": "Signing in…",
+    "forgot_password": "Forgot password?",
+    "need_account": "Need an account?",
+    "show_password": "Show password",
+    "hide_password": "Hide password"
   },
   "home": {
     "hero_title": "AI-Powered Gym Maintenance",
@@ -510,7 +518,9 @@
     "save_failed": "Failed to save issue",
     "status_updated": "Issue status updated",
     "status_failed": "Failed to update issue",
-    "no_serial": "No S/N"
+    "no_serial": "No S/N",
+    "subtitle": "Reactive faults and planned maintenance",
+    "job_type": "Job type"
   },
   "diagnosis": {
     "title": "AI Fault Diagnosis",

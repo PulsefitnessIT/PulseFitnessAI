@@ -1,0 +1,87 @@
+{
+  "summary": "Regression-tested FR/DE translation audit for GymAxis platform (marketing home, /pulse landing, /pulse-pricing, /login, dictionary CRM keys). All 9 review-request items pass; no missing i18n keys, no React crashes, EN regression intact.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_detail": {
+    "marketing_home_desktop": {
+      "gx_nav_lang_present": true,
+      "EN_h1": "Smarter Fitness. Stronger Business.",
+      "FR_h1": "Un fitness plus intelligent. Une entreprise plus forte.",
+      "DE_h1": "Smarteres Fitness. Stärkeres Business.",
+      "FR_nav_operations": "Opérations",
+      "DE_nav_operations": "Betrieb",
+      "DE_footer_snippet": "Gründungsprinzip · GymAxis AI",
+      "localStorage_i18nextLng_after_fr_switch": "fr",
+      "fr_persists_after_reload": true
+    },
+    "marketing_home_mobile_390px": {
+      "gx_nav_mobile_lang_present": true,
+      "FR_h1_after_mobile_switch": "Un fitness plus intelligent. Une entreprise plus forte."
+    },
+    "pulse_landing": {
+      "pulse_lang_toggle_present": true,
+      "EN_h1_rotating": "Maintain your gym. In one place. (rotates: Maintain/Manage/etc.)",
+      "FR_h1": "Optimisez votre salle. Au même endroit.",
+      "FR_nav_items": "Vos possibilités / IA / Comment ça marche / Offres / Assistance",
+      "FR_hero_subtext": "Signalez les pannes en quelques secondes. Suivez chaque équipement. Obtenez un diagnostic assisté par IA...",
+      "FR_cta": "SE CONNECTER / COMMENCER / Essai gratuit de 3 jours",
+      "DE_h1": "Maximieren Sie Ihr Studio. An einem Ort.",
+      "EN_restored_after_toggle": "Manage your gym. In one place."
+    },
+    "pulse_pricing_DE": {
+      "back_link": "ZURÜCK ZUR PULSE-STARTSEITE",
+      "title": "PULSE-TARIFE / Zwei Stufen für Pulse-Fitness-Kunden.",
+      "lite_plan": "Lite KOSTENLOS · £0 für immer · IM PORTAL ANMELDEN",
+      "pro_plan": "Pro UPGRADE · KI-GESTÜTZT · Sprechen Sie uns an",
+      "lite_features_DE": "Geräteverwaltung / Störungserfassung + QR-Scan / Dokumentenspeicher / Dashboard-Übersicht / Garantieverfolgung / Lieferantenverzeichnis / Mobiler PWA-Zugriff"
+    },
+    "login_page": {
+      "FR_title": "Bon retour",
+      "FR_subtitle": "Connectez-vous à votre portail GymAxis.",
+      "FR_labels": "E-MAIL OU IDENTIFIANT KIOSQUE / MOT DE PASSE / Se connecter / Mot de passe oublié ? / Besoin d'un compte ?",
+      "FR_back_link": "Retour à l'accueil",
+      "DE_title": "Willkommen zurück",
+      "DE_subtitle": "Melden Sie sich bei Ihrem GymAxis-Portal an.",
+      "DE_labels": "E-MAIL ODER KIOSK-BENUTZERNAME / PASSWORT / Anmelden / Passwort vergessen? / Konto benötigt?",
+      "DE_back_link": "Zurück zur Startseite",
+      "login_with_apex_owner_in_FR_redirects_to": "/dashboard (success)"
+    },
+    "dictionary_crm_fr": {
+      "crm.forecast": "Prévisions",
+      "crm.reports": "Rapports",
+      "crm.tenders": "Appels d'offres",
+      "crm.territories": "Territoires",
+      "crm.permissions": "Autorisations"
+    },
+    "dictionary_crm_de": {
+      "crm.forecast": "Prognose",
+      "crm.reports": "Berichte",
+      "crm.tenders": "Ausschreibungen",
+      "crm.territories": "Gebiete",
+      "crm.permissions": "Berechtigungen"
+    },
+    "pulse_mkt_namespace_counts": {
+      "fr.json.pulse": 254,
+      "fr.json.mkt": 136,
+      "de.json.pulse": 254,
+      "de.json.mkt": 136
+    },
+    "console_errors": "Only pre-existing CSP warnings for external scripts (emergent-main.js, posthog, cloudflare beacon). NO i18next missing-key warnings. NO React error overlays."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: en.json stores CRM extension keys as flat dotted top-level keys (\"crm.forecast\", \"crm.reports\", \"crm.permissions\", \"crm.territories\", \"crm.contracts\", \"crm.activity_feed\", \"crm.calendar\") while fr.json and de.json nest the same fields under the existing crm object. Both work with i18next default keySeparator, but consolidating to nested form in en.json would prevent future fallback surprises if keySeparator config ever changes."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "owner@apexfitness.group / ApexDemo2026! (used for login flow in FR, lands on /dashboard).",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Marketing nav testids are slug-based (gx-nav-operations/crm/memberships/marketing/engineers/pricing) and stable across languages. Marketing language selector = native <select data-testid='gx-nav-lang'> (mobile drawer mirror = gx-nav-mobile-lang). /pulse uses a button data-testid='pulse-lang-toggle' that opens a menu with English/Français/Deutsch text items. Default language detection: localStorage.i18nextLng first, then navigator. Use page.evaluate('() => localStorage.setItem(\"i18nextLng\",\"en\")') before navigating to /pulse-pricing or /login (those routes don't expose a language switcher of their own — they inherit the persisted choice). Verified: switching back to English on /pulse fully restores original copy. EN regression intact (Smarter Fitness. Stronger Business.). 254 pulse keys + 136 mkt keys present in both fr.json and de.json. CRM extension keys (forecast/reports/tenders/territories/permissions) all present and correctly translated in both fr.json and de.json."
+}

@@ -8,6 +8,7 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 
@@ -19,6 +20,7 @@ import { moduleHomePath } from '@/utils/moduleHome';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -114,7 +116,7 @@ export default function LoginPage() {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
           data-testid="gx-login-back"
         >
-          <ArrowLeft size={13} /> Back to home
+          <ArrowLeft size={13} /> {t('auth.back_home', 'Back to home')}
         </Link>
       </header>
 
@@ -125,8 +127,8 @@ export default function LoginPage() {
           data-testid="gx-login-card"
         >
           <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">Welcome back</h1>
-            <p className="mt-1 text-sm text-slate-500">Sign in to your GymAxis portal.</p>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">{t('auth.login_title', 'Welcome back')}</h1>
+            <p className="mt-1 text-sm text-slate-500">{t('auth.subtitle', 'Sign in to your GymAxis portal.')}</p>
           </div>
 
           {banner && <div className="mb-3">{banner}</div>}
@@ -134,7 +136,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4" data-testid="gx-login-form">
             <div>
               <label className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 mb-1.5 block">
-                Email or kiosk username
+                {t('auth.email_or_kiosk', 'Email or kiosk username')}
               </label>
               <input
                 type="email"
@@ -154,7 +156,7 @@ export default function LoginPage() {
             </div>
             <div>
               <label className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 mb-1.5 block">
-                Password
+                {t('auth.password', 'Password')}
               </label>
               <div className="relative">
                 <input
@@ -172,7 +174,7 @@ export default function LoginPage() {
                   tabIndex={-1}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-700"
                   data-testid="gx-login-toggle-password"
-                  aria-label={showPass ? 'Hide password' : 'Show password'}
+                  aria-label={showPass ? t('auth.hide_password', 'Hide password') : t('auth.show_password', 'Show password')}
                 >
                   {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -185,16 +187,16 @@ export default function LoginPage() {
               className="gx-cta w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
               data-testid="gx-login-submit"
             >
-              {loading ? <><Loader2 size={14} className="animate-spin" /> Signing in…</> : <>Sign In <ArrowRight size={14} /></>}
+              {loading ? <><Loader2 size={14} className="animate-spin" /> {t('auth.signing_in', 'Signing in…')}</> : <>{t('auth.login_btn', 'Sign In')} <ArrowRight size={14} /></>}
             </button>
           </form>
 
           <div className="flex items-center justify-between text-xs text-slate-500 mt-5 pt-5 border-t border-slate-100">
             <Link to="/reset-password" className="hover:text-slate-900 font-semibold" data-testid="gx-login-forgot">
-              Forgot password?
+              {t('auth.forgot_password', 'Forgot password?')}
             </Link>
             <Link to="/contact" className="hover:text-slate-900 font-semibold" data-testid="gx-login-need-account">
-              Need an account?
+              {t('auth.need_account', 'Need an account?')}
             </Link>
           </div>
         </div>

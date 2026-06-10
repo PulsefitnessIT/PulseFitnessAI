@@ -7,6 +7,7 @@
  * scrolls.
  */
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, X, Sparkles } from 'lucide-react';
 import { openTrial } from './TrialSignupModal';
 
@@ -14,6 +15,7 @@ const DISMISS_KEY = 'gx_sticky_cta_dismissed_at';
 const DISMISS_TTL_MS = 1000 * 60 * 60 * 24;     // 24h cool-off after dismiss
 
 export default function StickyCtaBar() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -44,13 +46,13 @@ export default function StickyCtaBar() {
         <Sparkles size={14} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-slate-900 truncate dark:text-zinc-100">Try GymAxis free for 3 days</p>
-        <p className="text-[11px] text-slate-500 truncate">All 6 modules unlocked. No credit card. Cancel any time.</p>
+        <p className="text-[13px] font-bold text-slate-900 truncate dark:text-zinc-100">{t('mkt.sticky_title', 'Try GymAxis free for 3 days')}</p>
+        <p className="text-[11px] text-slate-500 truncate">{t('mkt.sticky_sub', 'All 6 modules unlocked. No credit card. Cancel any time.')}</p>
       </div>
       <button type="button" onClick={openTrial}
         className="gx-cta inline-flex items-center gap-1 rounded-full px-4 py-2 text-[13px] font-bold whitespace-nowrap"
         data-testid="gx-sticky-cta-trial">
-        Start free <ArrowRight size={13} />
+        {t('mkt.sticky_cta', 'Start free')} <ArrowRight size={13} />
       </button>
       <button type="button" aria-label="Dismiss"
         onClick={() => { localStorage.setItem(DISMISS_KEY, String(Date.now())); setVisible(false); }}

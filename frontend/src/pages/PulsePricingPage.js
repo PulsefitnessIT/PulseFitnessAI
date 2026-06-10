@@ -25,7 +25,7 @@ import {
 
 export default function PulsePricingPage({ onLogin }) {
   const { theme, toggleTheme } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [loginOpen, setLoginOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
@@ -69,7 +69,7 @@ export default function PulsePricingPage({ onLogin }) {
               className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[var(--color-text-slate)] hover:text-[var(--color-surface-dark-panel-alt)] transition-colors mb-6"
               data-testid="pulse-pricing-back-home"
             >
-              <ArrowLeft size={14} /> Back to Pulse home
+              <ArrowLeft size={14} /> {t('pulse.pp_back', 'Back to Pulse home')}
             </Link>
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -78,7 +78,7 @@ export default function PulsePricingPage({ onLogin }) {
               className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-4"
             >
               <Sparkles size={12} />
-              Pulse Plans
+              {t('pulse.pp_badge', 'Pulse Plans')}
             </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 18 }}
@@ -86,7 +86,7 @@ export default function PulsePricingPage({ onLogin }) {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
               className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-[-0.02em] text-[var(--color-surface-dark-panel-alt)] leading-[1.08]"
             >
-              Two tiers built for Pulse Fitness customers.
+              {t('pulse.pp_title', 'Two tiers built for Pulse Fitness customers.')}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 18 }}
@@ -94,12 +94,11 @@ export default function PulsePricingPage({ onLogin }) {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.12 }}
               className="mt-5 max-w-2xl mx-auto text-sm sm:text-lg text-[var(--color-text-slate)]"
             >
-              Lite is included with every Pulse Fitness service agreement. Upgrade to Pro for AI triage,
-              automated check sheets, KPI tracking and operational reports — handled by your account manager.
+              {t('pulse.pp_desc', 'Lite is included with every Pulse Fitness service agreement. Upgrade to Pro for AI triage, automated check sheets, KPI tracking and operational reports — handled by your account manager.')}
             </motion.p>
             <div className="mt-8 inline-flex items-center gap-2 text-xs text-[var(--color-text-slate)]">
               <ShieldCheck size={13} className="text-emerald-500" />
-              No card required for Lite · Pro pricing tailored to your estate
+              {t('pulse.pp_note', 'No card required for Lite · Pro pricing tailored to your estate')}
             </div>
           </div>
         </section>
