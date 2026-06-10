@@ -1,3 +1,16 @@
+## Iter 227 — P3 security backlog: SEC-006 (libmagic) + localStorage→HttpOnly cookie (main session) ✅ (Jun 10, 2026)
+
+**SEC-006 — strict upload validation.** Installed `libmagic1` so `python-magic` resolves; `utils.file_validation.selftest()` reports `enabled:true` and the startup health check surfaces it. A pure-Python signature-sniff fallback keeps uploads safe even where libmagic is absent (e.g. a prod image without the apt pkg). Tests: `tests/test_iter227_file_validation.py` (5/5). **Prod note:** the deploy image should include `libmagic1` for full detection; fallback covers it otherwise.
+
+**localStorage JWT → HttpOnly cookie (Option B, scoped to the MAIN session).** The backend already set the HttpOnly `ga_session` cookie + `axios.defaults.withCredentials=true`; the remaining XSS gap was the JWT duplicated in `localStorage` and sent as a Bearer header across ~300 call-sites. Implemented with a **non-credential sentinel** approach (least-invasive, no rewrite of the 300 sites):
+- **Backend** (`utils/auth.py`): `_extract_token` + `try_get_current_user` now ignore a literal `Bearer null` / `undefined` / `cookie` header and fall through to the `ga_session` cookie (a REAL header token still wins → impersonation/CRM/member unaffected). `routes/auth.py` `/auth/refresh` rotates the cookie **only** for cookie/sentinel sessions (NOT for a real header token — protects impersonation from cookie overwrite).
+- **Frontend** (`App.js` + 3 edge login pages): the real JWT is never written to `localStorage`/React state for the main session; instead `localStorage['token']` holds the sentinel `'cookie'` (truthy → satisfies all `if (!token)` guards; produces a `Bearer cookie` header the backend ignores). `login()`, bootstrap, the 401-refresh interceptor, cross-tab sync, and `logout()` (now POSTs `/auth/logout` to clear the cookie) all updated. Impersonation keeps its real header token (deliberate override).
+- **Tested:** `tests/test_iter227_cookie_session.py` (login sets cookie, cookie-only auth, sentinel fall-through, main-refresh rotates cookie, impersonation-refresh does NOT, logout clears). Backend pytest **12/12**. Testing agent verified frontend end-to-end (login→dashboard, no JWT in localStorage, HttpOnly cookie, reload persistence, module nav, logout, owner regression, Pulse engineer picker) — **no issues**.
+- **Residual:** login email input is `type=text` (minor a11y/UX, optional). Full removal of the sentinel/header contract across all surfaces remains a future cleanup if ever desired.
+
+---
+
+
 ## Iter 227 — Pulse Fitness Engineer App: role auto-provisioning + secure "view-as-engineer" ✅ (Jun 10, 2026)
 
 **Request (P0, in-progress from fork):** Let Pulse Master Admins (1) manage in-house engineers via a new **Engineer** role that auto-provisions the `svc_engineers` mapping unlocking the Engineer App, and (2) securely **"view as"** a specific engineer (impersonate) to open the Engineer App for training/support. User choices: engineer picker scoped to **Pulse-visible orgs only** (1a); auto-provisioning hooked into **Team & Roles only** (2a).
