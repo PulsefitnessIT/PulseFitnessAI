@@ -103,6 +103,45 @@ def _extract_token(request: Request, credentials: Optional[HTTPAuthorizationCred
     return cookie if cookie else None
 
 
+def _cookie_token_candidates(request: Request) -> list:
+    """All ``ga_session`` values from the RAW Cookie header, in order.
+
+    Iter 231 — browsers can hold MULTIPLE same-named cookies with
+    different scopes (e.g. a legacy ``Domain=.gymaxisai.com`` cookie
+    next to the current host-only one). ``request.cookies`` collapses
+    them to the FIRST occurrence, which lets a stale token shadow the
+    fresh session and brick every call right after a successful login.
+    Parsing the raw header lets the auth layer try every candidate.
+    """
+    raw = request.headers.get("cookie") or ""
+    vals = []
+    for part in raw.split(";"):
+        name, _, val = part.strip().partition("=")
+        if name == AUTH_COOKIE_NAME and val and val not in vals:
+            vals.append(val)
+    return vals
+
+
+def purge_legacy_cookie_scopes(response: Response, request: Request) -> None:
+    """Emit a delete for the domain-wide variant of the session cookie.
+
+    Iter 231 — if any historic deploy (or proxy) ever set ``ga_session``
+    with ``Domain=.example.com``, that cookie lives independently of the
+    host-only one we set and, being older, is serialised FIRST by the
+    browser — shadowing the fresh session. Killing the domain-scoped
+    variant on every login/refresh keeps exactly one session cookie.
+    """
+    host = (request.headers.get("host") or "").split(":")[0].strip().lower()
+    if not host or "." not in host:
+        return  # localhost / bare hostnames have no domain-scoped variant
+    if host.replace(".", "").isdigit():
+        return  # IP addresses can't carry Domain cookies
+    try:
+        response.delete_cookie(key=AUTH_COOKIE_NAME, path="/", domain=f".{host}")
+    except Exception:
+        pass
+
+
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -112,10 +151,28 @@ async def get_current_user(
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = verify_token(token)
+    primary_revoked = False
+    if payload and await is_jwt_revoked(payload.get("jti")):
+        primary_revoked, payload = True, None
     if not payload:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    if await is_jwt_revoked(payload.get("jti")):
-        raise HTTPException(status_code=401, detail="Session revoked")
+        # Iter 231 self-heal — a stale Authorization header or a
+        # duplicate-scope stale cookie must not shadow a HEALTHY session
+        # cookie. Try every other ga_session value before giving up.
+        for cand in _cookie_token_candidates(request):
+            if cand == token:
+                continue
+            p = verify_token(cand)
+            if not p:
+                continue
+            if await is_jwt_revoked(p.get("jti")):
+                continue
+            token, payload = cand, p
+            break
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="Session revoked" if primary_revoked else "Invalid token",
+        )
     # Member-portal tokens (`kind=member`) are for /member/* endpoints only —
     # they lack a user_id and should never hit operator-side routes.
     if payload.get("kind") == "member":
@@ -201,12 +258,29 @@ async def try_get_current_user(request) -> Optional[dict]:
     if not token:
         return None
     payload = verify_token(token)
-    if not payload:
-        return None
-    try:
-        if await is_jwt_revoked(payload.get("jti")):
+    if payload:
+        try:
+            if await is_jwt_revoked(payload.get("jti")):
+                payload = None
+        except Exception:
             return None
-    except Exception:
+    if not payload:
+        # Iter 231 self-heal — try other ga_session candidates (see
+        # get_current_user) before treating the request as anonymous.
+        for cand in _cookie_token_candidates(request):
+            if cand == token:
+                continue
+            p = verify_token(cand)
+            if not p:
+                continue
+            try:
+                if await is_jwt_revoked(p.get("jti")):
+                    continue
+            except Exception:
+                continue
+            payload = p
+            break
+    if not payload:
         return None
     user_id = payload.get("user_id")
     if not user_id:

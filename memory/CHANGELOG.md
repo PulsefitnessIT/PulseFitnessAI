@@ -226,3 +226,20 @@ Frontend lint + UX:
 End-user E2E audit (testing agent + manual verification):
 - VERIFIED WORKING: marketing home + FR/DE switching (no raw keys), /pricing, /pulse landing (product images lazy-load correctly — "broken images" was a false positive), /pulse-pricing "Most Popular" badge (by design only on /pulse-pricing), master-admin login/People directory/logout, owner dashboard all module tabs, Engineer App KPIs + quick actions, /partners/engineers → full apply form, failed-login error message, cookie banner.
 - Preview-only — REDEPLOY to push to gymaxisai.com.
+
+## Jun 10, 2026 — Iter 231: CRITICAL production fix — instant "session expired" after sign-in
+
+**Symptom (production gymaxisai.com):** sign-in succeeds → instant "Your session has expired" banner; master-admin navigates but nothing loads.
+
+**Diagnosis:** production server-side auth verified HEALTHY via direct probes (login → ga_session cookie → /auth/me 200 → /master-admin 200). Failure is client-held stale credentials SHADOWING the healthy HttpOnly cookie:
+1. Stale legacy JWT in localStorage sent as `Authorization: Bearer <dead>` → backend preferred header over valid cookie → 401 everywhere, refresh also 401 (interceptor attached the same dead token).
+2. Duplicate-scope `ga_session` cookie (e.g. historic `Domain=.gymaxisai.com`) serialised first by the browser; `request.cookies` collapses same-named cookies to the FIRST → stale wins.
+
+**Fixes:**
+- `utils/auth.py`: `get_current_user` + `try_get_current_user` now try EVERY `ga_session` candidate from the raw Cookie header before rejecting (`_cookie_token_candidates`); a dead header no longer bricks a valid cookie session.
+- `routes/auth.py`: login/register/refresh/mfa-verify now emit `purge_legacy_cookie_scopes` (deletes `Domain=.<host>` variant) alongside the host-only cookie.
+- `App.js` 401 interceptor: if header-based refresh fails and not impersonating, retries once cookie-only, then normalises localStorage to the `'cookie'` sentinel.
+
+**Tests:** new `tests/test_iter231_session_self_heal.py` (6 tests — stale-header shadow, duplicate-cookie shadow, purge headers, garbage-only still 401). Full gate re-run: 2,368 passed. Browser simulation of the exact production scenario (stale token planted → login) loads master-admin cleanly.
+
+**Status: fixed in preview — REQUIRES REDEPLOY to reach gymaxisai.com.**

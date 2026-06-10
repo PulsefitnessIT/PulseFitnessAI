@@ -63,6 +63,17 @@ axios.defaults.withCredentials = true;
         try { return localStorage.getItem('impersonation_active') === '1'; } catch { return false; }
       })();
       if (!__refreshInflight) {
+        const __cookieOnlyRefresh = () => axios.post(`${__API}/auth/refresh`, {}, { timeout: 8000 })
+          .then((r) => {
+            // Iter 231 — the stale legacy header was shadowing a healthy
+            // HttpOnly cookie. Normalise back to the cookie sentinel so
+            // subsequent calls stop sending the dead token.
+            try { localStorage.setItem('token', 'cookie'); } catch { /* quota */ }
+            try {
+              window.dispatchEvent(new CustomEvent('gymaxis:token-refreshed', { detail: { token: 'cookie' } }));
+            } catch { /* ignore */ }
+            return r?.data?.token || true;
+          });
         __refreshInflight = axios.post(
           `${__API}/auth/refresh`, {},
           { headers: legacyToken ? { Authorization: `Bearer ${legacyToken}` } : {}, timeout: 8000 },
@@ -83,7 +94,18 @@ axios.defaults.withCredentials = true;
             } catch { /* ignore */ }
           }
           return next || true;  // truthy even if body has no token (cookie rotated)
-        }).catch(() => null).finally(() => {
+        }).catch(() => {
+          // Iter 231 self-heal — if the header-based refresh died and we
+          // are NOT impersonating, the localStorage token may simply be a
+          // stale legacy JWT shadowing a perfectly healthy session
+          // cookie. Retry once cookie-only before declaring the session
+          // dead.
+          const isRealLegacy = legacyToken && legacyToken !== 'cookie';
+          if (isRealLegacy && !impersonating) {
+            return __cookieOnlyRefresh().catch(() => null);
+          }
+          return null;
+        }).finally(() => {
           // Release the gate on next macrotask so callers waiting on
           // the same promise still get the resolved value, but the
           // NEXT wave of 401s can re-trigger.

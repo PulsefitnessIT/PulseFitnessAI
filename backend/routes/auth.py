@@ -7,7 +7,7 @@ import secrets
 import logging
 
 from utils.database import db
-from utils.auth import get_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie
+from utils.auth import get_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes
 from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
     rate_limit_login, rate_limit_password_reset, validate_password_strength,
@@ -240,6 +240,7 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
     _ttl_hours = access_token_ttl_hours({"role": "owner"})
     token = create_token(user_id, expires_hours=_ttl_hours, mfa_verified=False)
     set_auth_cookie(response, token, max_age_hours=_ttl_hours)
+    purge_legacy_cookie_scopes(response, request)
 
     # Iter 216h75 — Partner Engineer Network referral attribution. The
     # ref_code is bound write-once to the new org so the next cleared
@@ -468,6 +469,7 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
     ttl_hours = access_token_ttl_hours(user)
     token = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=mfa_verified)
     set_auth_cookie(response, token, max_age_hours=ttl_hours)
+    purge_legacy_cookie_scopes(response, request)
 
     ip = request.client.host if request.client else ""
     from utils.audit import audit_log
@@ -911,6 +913,7 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
             header_token = cand
     if not header_token:
         set_auth_cookie(response, new_token, max_age_hours=ttl_hours)
+        purge_legacy_cookie_scopes(response, request)
     return {"token": new_token}
 
 
@@ -1086,6 +1089,7 @@ async def mfa_verify(body: dict, request: Request, response: Response) -> dict:
     ttl_hours = access_token_ttl_hours(user)
     token = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=True)
     set_auth_cookie(response, token, max_age_hours=ttl_hours)
+    purge_legacy_cookie_scopes(response, request)
     return {"token": token, "user": _build_login_user_payload(user, org, trial_state, features)}
 
 
