@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { X, Wrench, LogOut, HeadphonesIcon, Layers, HardHat } from 'lucide-react';
+import { X, Wrench, LogOut, HeadphonesIcon, Layers, HardHat, Loader2, Search } from 'lucide-react';
 import { SIDEBAR_ITEMS, SECTION_TO_GROUP } from './SidebarConfig';
 
 /**
@@ -25,6 +26,44 @@ const AdminSidebar = ({
  const [openCases, setOpenCases] = useState(0);
  // Iter 220dh — Pending Review queue total (partner applications + PTW + parts).
  const [pendingReview, setPendingReview] = useState(0);
+ // Iter 227 — "View as engineer" picker (Pulse Master Admin training/support).
+ const [engPickerOpen, setEngPickerOpen] = useState(false);
+ const [engineers, setEngineers] = useState([]);
+ const [engLoading, setEngLoading] = useState(false);
+ const [engQuery, setEngQuery] = useState('');
+ const [engBusyId, setEngBusyId] = useState('');
+
+ const openEngineerPicker = useCallback(async () => {
+   setEngPickerOpen(true);
+   setEngLoading(true);
+   try {
+     const API = process.env.REACT_APP_BACKEND_URL;
+     const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+     const { data } = await axios.get(`${API}/api/master-admin/engineers`, { headers });
+     setEngineers(data?.engineers || []);
+   } catch (e) {
+     toast.error(e?.response?.data?.detail || 'Failed to load engineers');
+     setEngineers([]);
+   }
+   setEngLoading(false);
+ }, []);
+
+ const viewAsEngineer = useCallback(async (eng) => {
+   setEngBusyId(eng.id);
+   try {
+     const API = process.env.REACT_APP_BACKEND_URL;
+     const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+     const { data } = await axios.post(`${API}/api/master-admin/impersonate/${eng.id}`, {}, { headers });
+     const url = new URL(`${window.location.origin}/svc/engineer`);
+     url.searchParams.set('impersonation_token', data.token);
+     window.open(url.toString(), '_blank', 'noopener');
+     toast.success(`Opening Engineer App as ${eng.full_name || eng.email}`);
+     setEngPickerOpen(false);
+   } catch (e) {
+     toast.error(e?.response?.data?.detail || 'Could not start engineer session');
+   }
+   setEngBusyId('');
+ }, []);
 
  useEffect(() => {
  const API = process.env.REACT_APP_BACKEND_URL;
@@ -187,6 +226,17 @@ const AdminSidebar = ({
  <HardHat size={16} className="text-amber-500" /> Engineer App
  </button>
  )}
+ {/* Iter 227 — Pulse Master Admins "view as" a specific engineer for
+     training/support, opening the Engineer App in a scoped session. */}
+ {isPulseAdmin && (
+ <button
+ onClick={openEngineerPicker}
+ className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ data-testid="portal-switch-engineer-app"
+ >
+ <HardHat size={16} className="text-amber-500" /> Engineer App
+ </button>
+ )}
  {/* Iter 216h53 — Service Ops folded into Service Desk (full merge).
      Button removed; users land on the unified hub via "Service Desk" above. */}
  </div>
@@ -203,6 +253,71 @@ const AdminSidebar = ({
  <LogOut size={14} className="mr-2" /> Log out
  </Button>
  </div>
+
+ {/* Iter 227 — View-as-engineer picker modal */}
+ {engPickerOpen && (
+ <div
+ className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+ onMouseDown={(e) => { if (e.target === e.currentTarget) setEngPickerOpen(false); }}
+ data-testid="engineer-view-as-modal"
+ >
+ <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+ <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-3">
+ <div>
+ <p className="font-bold text-slate-900 text-sm flex items-center gap-2"><HardHat size={16} className="text-amber-500" /> View as engineer</p>
+ <p className="text-[11px] text-slate-500 mt-1">Open the Engineer App as one of your engineers for training & support. A secure, time-limited session opens in a new tab.</p>
+ </div>
+ <button onClick={() => setEngPickerOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" data-testid="engineer-view-as-close"><X size={18} /></button>
+ </div>
+ <div className="p-3 border-b border-slate-100">
+ <div className="relative">
+ <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+ <input
+ value={engQuery}
+ onChange={(e) => setEngQuery(e.target.value)}
+ placeholder="Search engineers…"
+ className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+ data-testid="engineer-view-as-search"
+ />
+ </div>
+ </div>
+ <div className="flex-1 overflow-y-auto p-2">
+ {engLoading && (
+ <div className="flex items-center justify-center py-10 text-slate-400 text-sm"><Loader2 size={18} className="animate-spin mr-2" /> Loading…</div>
+ )}
+ {!engLoading && engineers.length === 0 && (
+ <div className="py-10 text-center text-sm text-slate-500" data-testid="engineer-view-as-empty">
+ No engineers found. Assign the <strong>Engineer</strong> role to a teammate in Account Settings → Team &amp; roles to provision one.
+ </div>
+ )}
+ {!engLoading && engineers
+ .filter((e) => {
+ const q = engQuery.trim().toLowerCase();
+ if (!q) return true;
+ return `${e.full_name} ${e.email} ${e.organization_name}`.toLowerCase().includes(q);
+ })
+ .map((e) => (
+ <button
+ key={e.id}
+ onClick={() => viewAsEngineer(e)}
+ disabled={!!engBusyId}
+ className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 text-left transition-colors disabled:opacity-60"
+ data-testid={`engineer-view-as-pick-${e.id}`}
+ >
+ <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+ {(e.full_name || e.email || '?').slice(0, 1).toUpperCase()}
+ </div>
+ <div className="min-w-0 flex-1">
+ <div className="text-sm font-medium text-slate-900 truncate">{e.full_name || e.email}</div>
+ <div className="text-[11px] text-slate-500 truncate">{e.organization_name || e.email}</div>
+ </div>
+ {engBusyId === e.id ? <Loader2 size={16} className="animate-spin text-slate-400" /> : <HardHat size={15} className="text-slate-300" />}
+ </button>
+ ))}
+ </div>
+ </div>
+ </div>
+ )}
  </aside>
 );
 };

@@ -41,7 +41,65 @@ router = APIRouter()
 
 # ── Helpers ──────────────────────────────────────────────────────
 
-ALLOWED_ROLES = {"owner", "manager", "staff"}
+ALLOWED_ROLES = {"owner", "manager", "staff", "engineer"}
+
+
+async def _sync_engineer_provisioning(user_doc: dict) -> None:
+    """Iter 227 — keep the `svc_engineers` mapping in lock-step with a
+    teammate's role. Assigning the **Engineer** role auto-provisions an
+    active engineer record (which is what unlocks the Engineer App); any
+    other role (or removal) deactivates it.
+
+    Idempotent + best-effort: a provisioning hiccup must never block the
+    role change itself.
+    """
+    try:
+        uid = user_doc.get("id")
+        org_id = user_doc.get("organization_id")
+        if not uid or not org_id:
+            return
+        is_engineer = (user_doc.get("role") or "").lower() == "engineer"
+        now_iso = datetime.now(timezone.utc).isoformat()
+        existing = await db.svc_engineers.find_one({"id": uid}, {"_id": 0, "id": 1})
+        if is_engineer:
+            if existing:
+                await db.svc_engineers.update_one(
+                    {"id": uid},
+                    {"$set": {
+                        "active": True,
+                        "full_name": user_doc.get("full_name") or "",
+                        "email": (user_doc.get("email") or "").lower(),
+                        "updated_at": now_iso,
+                    }},
+                )
+            else:
+                await db.svc_engineers.insert_one({
+                    "id": uid,
+                    "organization_id": org_id,
+                    "sage_user_id": "",
+                    "full_name": user_doc.get("full_name") or "",
+                    "email": (user_doc.get("email") or "").lower(),
+                    "mobile": (user_doc.get("phone") or "").strip(),
+                    "home_address": "",
+                    "vehicle_reg": "",
+                    "skills": [],
+                    "working_hours": {},
+                    "photo_url": "",
+                    "qualifications": [],
+                    "years_experience": None,
+                    "verified": False,
+                    "active": True,
+                    "auto_provisioned": True,
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
+                })
+        elif existing:
+            await db.svc_engineers.update_one(
+                {"id": uid},
+                {"$set": {"active": False, "updated_at": now_iso}},
+            )
+    except Exception:
+        logger.exception("[engineer-provision] sync failed for %s", user_doc.get("id"))
 
 
 def _require_team_admin(user: dict) -> None:
@@ -499,6 +557,9 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
         "created_at": now_iso,
     }
     await db.users.insert_one(new_user)
+    # Iter 227 — assigning the Engineer role auto-provisions the
+    # svc_engineers mapping that unlocks the Engineer App.
+    await _sync_engineer_provisioning(new_user)
 
     response: dict = {
         "id": user_id, "email": parsed["email"], "full_name": parsed["full_name"],
@@ -565,6 +626,9 @@ async def update_team_member(user_id: str, body: dict, user: dict = Depends(get_
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.users.update_one({"id": user_id}, {"$set": updates})
     fresh = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    # Iter 227 — re-sync the Engineer App mapping whenever the role changed.
+    if "role" in updates:
+        await _sync_engineer_provisioning(fresh or {**target, **updates})
     return _public_user(fresh or target)
 
 
@@ -582,6 +646,8 @@ async def remove_team_member(user_id: str, user: dict = Depends(get_current_user
     if target.get("role") == "owner":
         raise HTTPException(status_code=403, detail="Cannot remove the Owner")
     await db.users.delete_one({"id": user_id})
+    # Iter 227 — deactivate any Engineer App mapping for the removed teammate.
+    await _sync_engineer_provisioning({"id": user_id, "organization_id": user.get("organization_id"), "role": "removed"})
     return {"success": True}
 
 

@@ -1,3 +1,17 @@
+## Iter 227 — Pulse Fitness Engineer App: role auto-provisioning + secure "view-as-engineer" ✅ (Jun 10, 2026)
+
+**Request (P0, in-progress from fork):** Let Pulse Master Admins (1) manage in-house engineers via a new **Engineer** role that auto-provisions the `svc_engineers` mapping unlocking the Engineer App, and (2) securely **"view as"** a specific engineer (impersonate) to open the Engineer App for training/support. User choices: engineer picker scoped to **Pulse-visible orgs only** (1a); auto-provisioning hooked into **Team & Roles only** (2a).
+
+**Shipped (reused the existing secure impersonation infra — no new auth code):**
+- **`routes/account.py`** — added `"engineer"` to `ALLOWED_ROLES` + new `_sync_engineer_provisioning(user_doc)` helper (idempotent, best-effort). Hooked into `invite_team_member` (assign→create active `svc_engineers`), `update_team_member` (role change re-syncs: engineer→active, anything else→`active:false`), and `remove_team_member` (deactivate). Managers can still only assign staff; Engineer is owner-only.
+- **`routes/master_admin_users.py`** — new `GET /master-admin/engineers` listing active provisioned engineers joined with org name. GymAxis master sees all; Pulse admins are scoped to `PULSE_VISIBLE_ACCOUNT_TYPES` orgs (their existing data scope). Impersonation reuses the existing `POST /master-admin/impersonate/{user_id}` (2h JWT + `impersonated_by` claim + scope guard + audit) — verified to grant `GET /svc/engineer/me` access.
+- **Frontend `AdminSidebar.js`** — Pulse admins now see the **Engineer App** switch (was hidden) which opens a **"View as engineer"** picker modal (search + per-engineer pick → impersonate → opens `/svc/engineer?impersonation_token=…` in a new tab via the proven App.js token-consume path). `team.js` adds the **Engineer** role option in the invite + per-member role selects.
+
+**Tested:** `tests/test_iter227_engineer_provisioning.py` **4/4** (provision/deactivate/reactivate lifecycle, endpoint shape, Pulse scope, impersonation→engineer-app access). Backend fully curl-verified pod-side. Frontend lint-clean + compiles. **NOTE:** UI e2e and the testing agent are blocked in THIS forked preview — the proxy 403s browser `/api` auth calls (documented in `test_credentials.md`), so login/`/auth/me` can't complete in-browser here. Validate the UI on the LIVE site after redeploy.
+
+---
+
+
 ## Iter 220 P1 — USA readiness, slice 8: US engineer compliance (I-9 / background check) ✅ (Jun, 2026)
 
 **Request:** Replace the UK-only DBS/RTW partner-engineer compliance gate with a US document set so US engineers can onboard (lightweight: upload + admin verify, no external API).

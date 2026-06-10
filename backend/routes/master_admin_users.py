@@ -768,6 +768,46 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
     return {"success": True, "temp_password": temp_password, "user_email": target_email}
 
 
+@router.get("/master-admin/engineers")
+async def list_provisioned_engineers(user: dict = Depends(get_current_user)) -> dict:
+    """Iter 227 — engineers a master / Pulse admin can "view as" for
+    training & support. Lists active ``svc_engineers`` mappings joined
+    with their organisation. Pulse Master Admins only see engineers
+    within Pulse-visible orgs (their existing data scope); the GymAxis
+    master admin sees every engineer.
+    """
+    require_master_admin(user)
+    query: dict = {"active": {"$ne": False}}
+    if is_pulse_only(user):
+        pulse_orgs = await db.organizations.find(
+            {"account_type": {"$in": PULSE_VISIBLE_ACCOUNT_TYPES}},
+            {"_id": 0, "id": 1},
+        ).to_list(length=None)
+        scope_ids = [o["id"] for o in pulse_orgs]
+        if not scope_ids:
+            return {"engineers": []}
+        query["organization_id"] = {"$in": scope_ids}
+
+    rows = await db.svc_engineers.find(query, {"_id": 0}).sort("full_name", 1).to_list(length=500)
+    org_ids = list({r.get("organization_id") for r in rows if r.get("organization_id")})
+    org_names: dict[str, str] = {}
+    if org_ids:
+        async for o in db.organizations.find(
+            {"id": {"$in": org_ids}}, {"_id": 0, "id": 1, "name": 1},
+        ):
+            org_names[o["id"]] = o.get("name") or ""
+    engineers = [{
+        "id": r.get("id"),
+        "full_name": r.get("full_name") or "",
+        "email": r.get("email") or "",
+        "organization_id": r.get("organization_id") or "",
+        "organization_name": org_names.get(r.get("organization_id"), ""),
+        "verified": bool(r.get("verified")),
+        "auto_provisioned": bool(r.get("auto_provisioned")),
+    } for r in rows]
+    return {"engineers": engineers}
+
+
 @router.post("/master-admin/impersonate/{user_id}")
 async def impersonate_user(user_id: str, request: Request, user: dict = Depends(get_current_user)):
     require_master_admin(user)

@@ -212,6 +212,7 @@ export default function TeamSection({ profile, inviteCode }) {
               >
                 <option value="staff">Staff</option>
                 {isOwner && <option value="manager">Manager</option>}
+                {isOwner && <option value="engineer">Engineer</option>}
               </select>
             </FieldRow>
             <FieldRow label="Delivery">
@@ -348,6 +349,7 @@ export default function TeamSection({ profile, inviteCode }) {
                     >
                       <option value="staff">Staff</option>
                       {isOwner && <option value="manager">Manager</option>}
+                      {(isOwner || m.role === 'engineer') && <option value="engineer">Engineer</option>}
                     </select>
                   ) : (
                     <span className="text-[11px] uppercase tracking-wider px-2 py-1 rounded border capitalize" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{m.role}</span>
