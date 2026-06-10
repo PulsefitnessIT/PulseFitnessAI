@@ -27915,3 +27915,15 @@ Verified live on SVC-00410.
 - Crawled www.pulsefitness.com for brand: tagline "The Heart of Fitness", "A global leader. Proudly British.", 30,000+ facilities across 31 countries & six continents (used in TrustedBy caption + footer).
 - RECURRING TOOL ISSUE: search_replace silently dropped 3 more edits in parallel batches on these files + appended stray tokens at EOF twice (fixed each time). ALWAYS grep-verify edits on PulseLandingPage.js after parallel batches.
 - Verified by screenshots: hero, stats, capabilities, ask orb, how-it-works, sustainability, tailored banner, footer, scan-log-done; 0 broken images.
+
+## Iter 228c/229 — FR & DE language audit + full translation (Jun 10, 2026)
+**Audit findings**: react-i18next (en/fr/de, ~1,190 keys). 9 keys missing in fr/de (crm.forecast/permissions/reports/start/tenders/territories, dashboard.staffing/start, faults.queued_offline); 2 keys missing everywhere (faults.subtitle, faults.job_type); ~15 genuinely untranslated values; /pulse + /pulse-pricing had a working switcher but 100% hardcoded EN copy; LoginPage + marketing site EN-only; utils/i18n.js dead helper (deleted).
+**Fixes (all tested, 100% pass — /app/test_reports/iteration_iter229_fr_de_audit.json)**:
+- Dictionary gaps fixed in en/fr/de (incl. auth.* additions for LoginPage).
+- NEW namespaces in fr.json + de.json ONLY: `pulse` (254 keys) + `mkt` (136 keys). English lives inline as t() defaultValue — DO NOT add these to en.json.
+- Wired t() through: PulseLandingPage.js (113 repl.), PulseHeritageSections.js (22), PulsePricingPage.js (6), LoginPage.js, MarketingShell.js (44), MarketingHome.js (58), AxisOrbit.js, StickyCtaBar.js. Module-level data arrays converted to functions of t: CAPABILITIES(t), STEPS(t), GYM_FLOOR_STEPS(t), BENEFITS(t), TAILORING_PILLARS(t), MILESTONES(t), STAT_CELLS(t), ECO_POINTS(t), NAV(t), MODULES(t), ORBIT_MODULES(t).
+- NEW language switcher in marketing nav: native select `gx-nav-lang` (desktop) + `gx-nav-mobile-lang` (drawer), in MarketingShell LangSelect component.
+- BREAKING-ish: marketing nav testids changed label→slug based (gx-nav-operations/crm/memberships/marketing/engineers/pricing) for cross-language stability.
+- Implementation method: scripted python replacements with exact-match assertions (/tmp/wire_*.py) — avoids the recurring search_replace silent-failure/EOF-corruption issue on these large files.
+**Remaining EN-only surfaces (future)**: TrialSignupModal, MarketingChat, deep marketing pages (platform/*, compare/*, blog, about/contact already translated), Sales decks. SEO note: content is client-side translated on same URLs — no hreflang added (would require per-language URLs).
+**Minor note from tester**: en.json stores some CRM keys flat-dotted at top level vs nested in fr/de — works fine with i18next defaults; normalize if keySeparator ever changes.
