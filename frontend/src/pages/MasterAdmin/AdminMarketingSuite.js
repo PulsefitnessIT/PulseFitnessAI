@@ -93,15 +93,22 @@ const PlansEditor = ({ API, headers }) => {
  );
 };
 
-const Tile = ({ label, value, accent = 'text-zinc-900', icon: Icon, sub }) => (
- <div className="rounded-xl border border-zinc-200 bg-white p-4">
+const Tile = ({ label, value, accent = 'text-zinc-900', icon: Icon, sub, onClick }) => (
+ <div
+   className={`rounded-xl border border-zinc-200 bg-white p-4 ${onClick ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300' : ''}`}
+   onClick={onClick}
+   role={onClick ? 'button' : undefined}
+   tabIndex={onClick ? 0 : undefined}
+   onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+   data-testid={`mkt-tile-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+ >
  <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold flex items-center gap-1">{Icon && <Icon size={11} />} {label}</p>
  <p className={`text-2xl font-bold mt-1 ${accent}`}>{value}</p>
  {sub && <p className="text-[11px] text-zinc-400 mt-1">{sub}</p>}
  </div>
 );
 
-const Analytics = ({ API, headers }) => {
+const Analytics = ({ API, headers, onNavTab, onGoSection, onGoAiUsage }) => {
   const { brand } = useBrandContext();
   const [data, setData] = useState(null);
   useEffect(() => {
@@ -114,10 +121,14 @@ const Analytics = ({ API, headers }) => {
  return (
  <div className="space-y-4" data-testid="admin-marketing-analytics">
  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
- <Tile label="MRR (gross)" value={`£${(data.mrr_gbp || 0).toLocaleString()}`} accent="text-emerald-700" icon={PoundSterling} />
- <Tile label="Subscriptions" value={data.total_subscriptions || 0} icon={Users} />
- <Tile label="Emails (30d)" value={(data.emails_30d || 0).toLocaleString()} icon={Mail} />
- <Tile label="AI gens (30d)" value={(data.ai_generations_30d || 0).toLocaleString()} icon={ImagePlus} />
+ {/* Iter 233b — KPI tiles navigate to the view holding the detail they
+     summarise (Subscriptions tab, platform Emails log, AI Usage tab).
+     Campaigns / journeys have no master-admin detail view yet, so those
+     two stay informational. */}
+ <Tile label="MRR (gross)" value={`£${(data.mrr_gbp || 0).toLocaleString()}`} accent="text-emerald-700" icon={PoundSterling} onClick={() => onNavTab?.('subscriptions')} />
+ <Tile label="Subscriptions" value={data.total_subscriptions || 0} icon={Users} onClick={() => onNavTab?.('subscriptions')} />
+ <Tile label="Emails (30d)" value={(data.emails_30d || 0).toLocaleString()} icon={Mail} onClick={() => onGoSection?.('emails')} />
+ <Tile label="AI gens (30d)" value={(data.ai_generations_30d || 0).toLocaleString()} icon={ImagePlus} onClick={onGoAiUsage} />
  <Tile label="Campaigns (30d)" value={data.campaigns_30d || 0} icon={Mail} />
  <Tile label="Active journeys" value={data.journeys_active || 0} icon={Workflow} />
  </div>
@@ -345,7 +356,7 @@ const Subscriptions = ({ API, headers }) => {
  );
 };
 
-const AdminMarketingSuite = ({ API }) => {
+const AdminMarketingSuite = ({ API, onGoSection, onGoAiUsage }) => {
  const [tab, setTab] = useState('analytics');
  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
  return (
@@ -357,7 +368,7 @@ const AdminMarketingSuite = ({ API }) => {
  </button>
  ))}
  </div>
- {tab === 'analytics' && <Analytics API={API} headers={headers} />}
+ {tab === 'analytics' && <Analytics API={API} headers={headers} onNavTab={setTab} onGoSection={onGoSection} onGoAiUsage={onGoAiUsage} />}
  {tab === 'plans' && <PlansEditor API={API} headers={headers} />}
  {tab === 'subscriptions' && <Subscriptions API={API} headers={headers} />}
  </div>

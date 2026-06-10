@@ -263,3 +263,9 @@ End-user E2E audit (testing agent + manual verification):
   - Cards get hover lift + cursor, keyboard activation (Enter/Space), role=button.
 - **Duplicated filters removed:** in module-context org lists (CRM tab / Operations tab via portalFilter, MoD via accountTypesIn) the "All Modules" dropdown is hidden (the tab IS the module filter); MoD also hides "All Platforms". The platform-level Organisations section keeps all dropdowns.
 - **Tests:** `tests/test_iter233_admin_kpi_alignment.py` (7 tests: brand-scope parity stats↔list, total_deals contract, memberships KPI keys, navigation source pins) added to the `make regression` gate. Full gate green: 2,388 passed.
+
+## Jun 10, 2026 — Iter 233b: Marketing & MoD module tabs — interactive KPIs
+
+- **Marketing tab:** analytics tiles now navigate — MRR & Subscriptions → Subscriptions sub-tab, Emails (30d) → platform Emails section, AI gens (30d) → Operations Portal → AI Usage inner tab. Campaigns/journeys stay informational (no master-admin detail view exists). Tiles got testids (`mkt-tile-*`), hover lift, keyboard activation.
+- **MoD tab:** new KPI row (MoD Organisations / Branches / Sites) above the org list — each card acts as an account-type FILTER (click to narrow the list to that tier, click again to clear; active ring + "Filtering — click to clear" hint). testids `mod-kpi-mod_org|mod_branch|mod_site`.
+- Tests: 2 new source pins in `test_iter233_admin_kpi_alignment.py` (9 total). ESLint green. Verified in-browser.

@@ -98,3 +98,25 @@ def test_org_list_duplicated_filters_hidden_in_module_context():
     src = open("/app/frontend/src/pages/MasterAdmin/AdminOrganizations.js", encoding="utf-8").read()
     assert "{!portalFilter && !(Array.isArray(accountTypesIn) && accountTypesIn.length > 0) && (" in src
     assert src.count("!(Array.isArray(accountTypesIn) && accountTypesIn.length > 0) && (") >= 2
+
+
+def test_marketing_tiles_navigate():
+    """Source pin — Marketing analytics tiles deep-link to their views:
+    MRR/Subscriptions → Subscriptions tab, Emails → platform email log,
+    AI gens → Operations Portal AI Usage."""
+    src = open("/app/frontend/src/pages/MasterAdmin/AdminMarketingSuite.js", encoding="utf-8").read()
+    assert src.count("onNavTab?.('subscriptions')") == 2
+    assert "onGoSection?.('emails')" in src
+    assert "onClick={onGoAiUsage}" in src
+    host = open("/app/frontend/src/pages/MasterAdmin/OverviewSection.js", encoding="utf-8").read()
+    assert "onGoSection={setSection}" in host
+    assert "setSpInnerTab('ai-usage')" in host
+
+
+def test_mod_kpi_cards_filter_org_list():
+    """Source pin — MoD tab ships KPI cards that act as account-type
+    filters on the organisations list (click to narrow, click to clear)."""
+    src = open("/app/frontend/src/pages/MasterAdmin/OverviewSection.js", encoding="utf-8").read()
+    assert "data-testid={`mod-kpi-${c.type}`}" in src
+    assert "setModTypeFilter(active ? null : c.type)" in src
+    assert "accountTypesIn={modTypeFilter ? [modTypeFilter] : ['mod_site', 'mod_branch', 'mod_org']}" in src

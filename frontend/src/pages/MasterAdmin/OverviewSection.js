@@ -43,6 +43,8 @@ const OverviewSection = ({
  const [spInnerTab, setSpInnerTab] = useState('pulse');
  const [crmInnerTab, setCrmInnerTab] = useState('dashboard');
  const [modInnerTab, setModInnerTab] = useState('organisations');
+ // Iter 233b — MoD KPI cards act as account-type filters on the list.
+ const [modTypeFilter, setModTypeFilter] = useState(null);
 
  const spTabs = [
  { id: 'pulse', label: 'Overview' },
@@ -135,17 +137,54 @@ const OverviewSection = ({
    </div>
  );
 
- const renderMoD = () => (
+ const MOD_TYPES = [
+   { type: 'mod_org', label: 'MoD Organisations', hint: 'Top-level commands' },
+   { type: 'mod_branch', label: 'Branches', hint: 'Regional branches' },
+   { type: 'mod_site', label: 'Sites', hint: 'Individual sites' },
+ ];
+
+ const renderMoD = () => {
+   const modCounts = MOD_TYPES.map((t) => ({
+     ...t,
+     count: (organizations || []).filter((o) => o.account_type === t.type).length,
+   }));
+   return (
    <div>
      {renderTabBar(modTabs, modInnerTab, setModInnerTab, 'mod')}
      {modInnerTab === 'organisations' && (
-       <AdminOrganizations
-         {...orgsProps}
-         accountTypesIn={['mod_site', 'mod_branch', 'mod_org']}
-       />
+       <>
+         {/* Iter 233b — KPI cards double as account-type filters: click a
+             card to narrow the list to that tier, click again to clear. */}
+         <div className="grid grid-cols-3 gap-3 mb-5" data-testid="mod-kpi-row">
+           {modCounts.map((c) => {
+             const active = modTypeFilter === c.type;
+             return (
+               <button
+                 key={c.type}
+                 type="button"
+                 onClick={() => setModTypeFilter(active ? null : c.type)}
+                 className={`text-left rounded-xl border p-4 transition-all cursor-pointer hover:-translate-y-0.5 hover:shadow-md ${active
+                   ? 'border-[var(--color-brand-blue)] bg-blue-50 dark:bg-blue-500/10 ring-1 ring-[var(--color-brand-blue)]'
+                   : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                 data-testid={`mod-kpi-${c.type}`}
+                 aria-pressed={active}
+               >
+                 <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">{c.label}</p>
+                 <p className="text-2xl font-bold mt-1 text-zinc-900 dark:text-zinc-100">{c.count}</p>
+                 <p className="text-[11px] text-zinc-400 mt-0.5">{active ? 'Filtering — click to clear' : c.hint}</p>
+               </button>
+             );
+           })}
+         </div>
+         <AdminOrganizations
+           {...orgsProps}
+           accountTypesIn={modTypeFilter ? [modTypeFilter] : ['mod_site', 'mod_branch', 'mod_org']}
+         />
+       </>
      )}
    </div>
- );
+   );
+ };
 
  return (
  <div className="space-y-6">
@@ -166,7 +205,13 @@ const OverviewSection = ({
  {overviewActiveTab === 'service-portal' && renderServicePortal()}
  {overviewActiveTab === 'crm' && renderCRM()}
  {overviewActiveTab === 'memberships' && <AdminMemberships />}
- {overviewActiveTab === 'marketing' && <AdminMarketingSuite API={API} />}
+ {overviewActiveTab === 'marketing' && (
+   <AdminMarketingSuite
+     API={API}
+     onGoSection={setSection}
+     onGoAiUsage={() => { setOverviewActiveTab('service-portal'); setSpInnerTab('ai-usage'); }}
+   />
+ )}
  {overviewActiveTab === 'mod' && renderMoD()}
  </Suspense>
  </div>
