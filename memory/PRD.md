@@ -27904,3 +27904,14 @@ Verified live on SVC-00410.
   - NOTE: `search_replace` reported success but silently dropped 2 edits in a 9-edit parallel batch (HERO_BG const + hero h1/p). Always grep-verify after large parallel edit batches on this file.
 - Tested: testing_agent frontend pass 100% (`/app/test_reports/iteration_iter228_pulse_redesign.json`) — 23/23 testids, login modal flow OK (working owner cred: owner@apexfitness.group / ApexDemo2026!), 0 broken images, 0 horizontal overflow at 390px, homepage footer links regression OK.
 - User must DEPLOY to production for SEO fixes + redesign to go live, then "Validate Fix" in Google Search Console.
+
+## Iter 228b — /pulse redesign feedback round (Jun 10, 2026)
+- Removed all MOD references (TrustedBy partner + caption). Removed "Around the world" stats card. Removed RotaCloud mention ("Smart Rota built in"). Removed Gamified/Onboarding section entirely (Pulse customers don't onboard; component + STAGES deleted, Plus icon import cleaned).
+- How it works step 1 → "Your kit is already there" (Pulse pre-loads machines; no bulk import). Phone mock: Technogym → "Pulse Fusion Treadmill #7" (PF-TR-44821). Footer: "Powered by GymAxis AI" → "The Heart of Fitness".
+- Capabilities grid realigned: image card + 2 wide cards, then even 3-card row (was auto-placement misalignment).
+- Ask Pulse black bar fix: `[data-theme="light"] .text-white {color: var(--theme-text) !important}` (index.css ~630) darkened bubble text — removed text-white class, inline color #fff. SAME trap fixed on stats 450+ cell (text-white → inline white).
+- Sustainability imagery → 2x2 Pulse product-shot grid + "Designed, engineered & built in Britain" (aerial removed/deleted; banner now uses carshalton-igym.webp). Stats 450+ cell: stronger scrim + backgroundPosition 68%.
+- Gaps tightened site-wide: py-24/28/32 → py-16/20/24; SectionHeading mb-12→mb-10.
+- Crawled www.pulsefitness.com for brand: tagline "The Heart of Fitness", "A global leader. Proudly British.", 30,000+ facilities across 31 countries & six continents (used in TrustedBy caption + footer).
+- RECURRING TOOL ISSUE: search_replace silently dropped 3 more edits in parallel batches on these files + appended stray tokens at EOF twice (fixed each time). ALWAYS grep-verify edits on PulseLandingPage.js after parallel batches.
+- Verified by screenshots: hero, stats, capabilities, ask orb, how-it-works, sustainability, tailored banner, footer, scan-log-done; 0 broken images.

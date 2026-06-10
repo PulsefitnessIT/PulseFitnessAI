@@ -21,7 +21,7 @@ import {
   Wrench, ClipboardCheck, FileText, Phone, Brain, Sparkles, BookOpen,
   QrCode, Smartphone, Zap, Timer, TrendingDown, TrendingUp, Eye, CheckCircle2,
   ArrowRight, LogIn, Loader2, EyeOff, Sun, Moon, Globe, Check,
-  Plus, ListChecks, MessageSquareHeart, Trophy, ChevronRight, Star, ClipboardList,
+  ListChecks, MessageSquareHeart, Trophy, ChevronRight, Star, ClipboardList,
   AlertTriangle, Mail, User,
   Sliders, Layers, UserCog, Workflow, Link2,
   Menu, X,
@@ -70,7 +70,7 @@ function Reveal({ children, className = '', testId }) {
 function SectionHeading({ eyebrow, title, description, align = 'left', testId }) {
   const alignClass = align === 'center' ? 'text-center mx-auto' : '';
   return (
-    <Reveal className={`max-w-2xl mb-12 ${alignClass}`} testId={testId}>
+    <Reveal className={`max-w-2xl mb-10 ${alignClass}`} testId={testId}>
       <motion.div variants={FADE_UP} className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-4">
         <span className="h-px w-6 bg-[rgb(var(--rgb-pulse-primary)/0.5)]" />
         {eyebrow}
@@ -412,13 +412,13 @@ const CAPABILITIES = [
   { icon: ClipboardCheck, title: 'Track every piece of kit',       desc: 'Live register, install dates, serial numbers, warranty clocks, QR labels.' },
   { icon: FileText,       title: 'See warranties at a glance',     desc: 'Never miss a claim window. Amber alerts fire 90 / 60 / 30 days before expiry.' },
   { icon: ClipboardList,  title: 'Hand over without missing a thing', desc: 'AI-moderated shift diary on the gym floor. Every team. Every site. One source of truth.' },
-  { icon: UserCog,        title: 'Smart Rota — replaces RotaCloud', desc: 'Drag-drop shifts, marketplace swaps, payroll CSV, AI optimises cover for you.' },
+  { icon: UserCog,        title: 'Smart Rota built in',            desc: 'Drag-drop shifts, marketplace swaps, payroll CSV, AI optimises cover for you.' },
   { icon: Sparkles,       title: 'Marketing Suite & AI Studio',    desc: 'Email + SMS journeys, AI Copilot writes copy in your brand voice, attribution built in.' },
 ];
 
 function WhatYouCanDo() {
   return (
-    <section id="capabilities" className="py-24 sm:py-32 bg-[var(--color-neutral-25)] border-y border-[var(--color-border-light)]" data-testid="pulse-capabilities">
+    <section id="capabilities" className="py-16 sm:py-20 bg-[var(--color-neutral-25)] border-y border-[var(--color-border-light)]" data-testid="pulse-capabilities">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeading
           eyebrow="What you can do"
@@ -452,8 +452,8 @@ function WhatYouCanDo() {
             </div>
           </motion.div>
 
-          {/* Three text capability cards */}
-          {CAPABILITIES.slice(1).map(({ icon: Icon, title, desc }) => (
+          {/* Two text capability cards beside the image */}
+          {CAPABILITIES.slice(1, 3).map(({ icon: Icon, title, desc }) => (
             <motion.div
               key={title}
               variants={FADE_UP}
@@ -474,6 +474,26 @@ function WhatYouCanDo() {
             </motion.div>
           ))}
         </Reveal>
+
+        {/* Remaining three cards — even row below */}
+        <Reveal className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mt-4 sm:mt-5">
+          {CAPABILITIES.slice(3).map(({ icon: Icon, title, desc }) => (
+            <motion.div
+              key={title}
+              variants={FADE_UP}
+              whileHover={{ y: -4 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-white rounded-3xl p-7 border border-[var(--color-border-light)] hover:border-[rgb(var(--rgb-pulse-primary)/0.4)] hover:shadow-xl transition-all duration-300"
+              data-testid={`capability-${title.toLowerCase().split(' ')[0]}`}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-[rgb(var(--rgb-pulse-primary)/0.1)] flex items-center justify-center mb-5">
+                <Icon size={22} className="text-[var(--pulse-primary)]" />
+              </div>
+              <h3 className="font-extrabold text-[var(--color-surface-dark-panel-alt)] text-xl tracking-tight mb-2" style={{ letterSpacing: '-0.01em' }}>{title}</h3>
+              <p className="text-sm text-[var(--color-text-slate)] leading-relaxed">{desc}</p>
+            </motion.div>
+          ))}
+        </Reveal>
       </div>
     </section>
   );
@@ -482,7 +502,7 @@ function WhatYouCanDo() {
 // ── AI Features (Ask orb) ─────────────────────────────────────
 function AIFeatures() {
   return (
-    <section id="ai" className="py-28 bg-[var(--color-neutral-25)]" data-testid="pulse-ai">
+    <section id="ai" className="py-20 bg-[var(--color-neutral-25)]" data-testid="pulse-ai">
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
         <div>
           <SectionHeading
@@ -535,7 +555,8 @@ function AIFeatures() {
               <motion.div
                 initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }} transition={{ delay: 0.3 }}
-                className="ml-8 rounded-2xl rounded-tr-sm bg-[var(--color-surface-dark-panel-alt)] text-white p-3 text-sm"
+                className="ml-8 rounded-2xl rounded-tr-sm bg-[var(--color-surface-dark-panel-alt)] p-3 text-sm"
+                style={{ color: '#ffffff' }}
               >
                 Why is treadmill #7 belt slipping when incline &gt; 8%?
               </motion.div>
@@ -571,10 +592,10 @@ function AIFeatures() {
 // ── How It Works ──────────────────────────────────────────────
 const STEPS = [
   {
-    icon: Plus,
-    title: 'Add equipment',
-    desc: 'Bulk CSV upload or scan a branded QR label on each machine.',
-    img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80',
+    icon: ClipboardCheck,
+    title: 'Your kit is already there',
+    desc: 'Pulse pre-loads every machine, serial and warranty into your portal — no imports, no setup.',
+    img: '/pulse-photos/gym-cardio-angle.webp',
   },
   {
     icon: ListChecks,
@@ -598,12 +619,12 @@ const STEPS = [
 
 function HowItWorks() {
   return (
-    <section id="how" className="py-28 bg-white border-y border-[var(--color-border-light)]" data-testid="pulse-how">
+    <section id="how" className="py-20 bg-white border-y border-[var(--color-border-light)]" data-testid="pulse-how">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeading
           eyebrow="How it works"
           title="Four steps. That's it."
-          description="From first login to fully operational in under an hour."
+          description="No onboarding, no imports — sign in and your equipment is waiting for you."
           align="center"
           testId="how-heading"
         />
@@ -646,87 +667,10 @@ function HowItWorks() {
   );
 }
 
-// ── Gamified Experience ───────────────────────────────────────
-const STAGES = [
-  { label: 'Suppliers', complete: true },
-  { label: 'Equipment', complete: true },
-  { label: 'Staff', complete: true },
-  { label: 'Go-Live', complete: false, active: true },
-];
-
-function GamifiedExperience() {
-  return (
-    <section className="py-28 bg-gradient-to-b from-[var(--color-neutral-25)] to-white" data-testid="pulse-gamified">
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
-        <div className="order-2 lg:order-1">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.15)] p-7" data-testid="pulse-wizard-mock">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <div className="text-xs text-[var(--pulse-primary)] font-semibold uppercase tracking-wider">Onboarding</div>
-                <div className="text-lg font-bold text-[var(--color-surface-dark-panel-alt)] mt-1">Getting your gym ready</div>
-              </div>
-              <div className="text-2xl font-bold text-[var(--pulse-primary)]">75%</div>
-            </div>
-            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden mb-6">
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: '75%' }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-                className="h-full bg-gradient-to-r from-[var(--pulse-primary)] to-[var(--color-violet-600)]"
-              />
-            </div>
-            <div className="space-y-3">
-              {STAGES.map((s, i) => (
-                <motion.div
-                  key={s.label}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.4 + i * 0.1 }}
-                  className={`flex items-center gap-3 p-3 rounded-xl border ${s.active ? 'border-[var(--pulse-primary)] bg-[rgb(var(--rgb-pulse-primary)/0.05)]' : 'border-slate-200 bg-white'}`}
-                >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${s.complete ? 'bg-emerald-500' : s.active ? 'bg-[var(--pulse-primary)]' : 'bg-slate-200'}`}>
-                    {s.complete ? <Check size={14} className="text-white" /> : <span className="text-white text-xs font-bold">{i + 1}</span>}
-                  </div>
-                  <div className="flex-1 text-sm font-semibold text-[var(--color-surface-dark-panel-alt)]">Stage {i + 1} — {s.label}</div>
-                  {s.complete && <div className="text-xs text-emerald-600 font-semibold">+50 XP</div>}
-                  {s.active && <ChevronRight size={16} className="text-[var(--pulse-primary)]" />}
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="order-1 lg:order-2">
-          <SectionHeading
-            eyebrow="Gamified experience"
-            title="Onboarding that rewards."
-            description="A 4-stage wizard walks your team through setup with progress indicators, micro-rewards, and a celebratory finale. No 80-page PDF, no training call."
-            testId="gamified-heading"
-          />
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              ['4', 'Stages'],
-              ['< 1h', 'Time to ready'],
-              ['0', 'Training calls'],
-              ['100%', 'Self-serve'],
-            ].map(([v, l]) => (
-              <div key={l} className="p-4 rounded-xl border border-slate-200 bg-white">
-                <div className="text-3xl font-bold text-[var(--pulse-primary)]">{v}</div>
-                <div className="text-xs text-[var(--color-text-slate)] mt-1">{l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ── Mobile Experience ─────────────────────────────────────────
 function MobileExperience() {
   return (
-    <section className="py-28 bg-[var(--color-surface-dark-panel-alt)] relative overflow-hidden" data-theme="dark" data-testid="pulse-mobile">
+    <section className="py-20 bg-[var(--color-surface-dark-panel-alt)] relative overflow-hidden" data-theme="dark" data-testid="pulse-mobile">
       <div
         className="absolute inset-0 opacity-40"
         style={{ backgroundImage: `url(${GYM_EQUIPMENT})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
@@ -749,8 +693,8 @@ function MobileExperience() {
               </div>
               <div className="p-4 min-h-[480px] bg-gradient-to-b from-white to-slate-50">
                 <div className="text-[10px] text-slate-400 uppercase font-semibold">Scan result</div>
-                <div className="text-base font-bold text-[var(--color-surface-dark-panel-alt)] mt-1">Technogym Run 1000 #7</div>
-                <div className="text-[11px] text-slate-500">Serial: TR1000-44821</div>
+                <div className="text-base font-bold text-[var(--color-surface-dark-panel-alt)] mt-1">Pulse Fusion Treadmill #7</div>
+                <div className="text-[11px] text-slate-500">Serial: PF-TR-44821</div>
                 <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
                   <div className="text-[10px] uppercase text-emerald-600 font-semibold">Warranty</div>
                   <div className="text-sm text-[var(--color-surface-dark-panel-alt)] font-semibold">Active · 14 months remaining</div>
@@ -1048,7 +992,7 @@ function GymFloorShowcase() {
 
   return (
     <section
-      className="relative py-28 overflow-hidden"
+      className="relative py-20 overflow-hidden"
       style={{
         background: 'linear-gradient(180deg, var(--color-ink) 0%, #14181F 100%)',
       }}
@@ -1184,7 +1128,7 @@ const BENEFITS = [
 
 function CustomerBenefits() {
   return (
-    <section className="py-28 bg-white border-y border-slate-200" data-testid="pulse-benefits">
+    <section className="py-20 bg-white border-y border-slate-200" data-testid="pulse-benefits">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeading
           eyebrow="Customer benefits"
@@ -1217,7 +1161,7 @@ function CustomerBenefits() {
 // ── Support ───────────────────────────────────────────────────
 function Support() {
   return (
-    <section id="support" className="py-28 bg-[var(--color-neutral-25)]" data-testid="pulse-support">
+    <section id="support" className="py-20 bg-[var(--color-neutral-25)]" data-testid="pulse-support">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeading
           eyebrow="Always here"
@@ -1283,7 +1227,7 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
   return (
     <section
       id="pulse-plans"
-      className="relative py-28 bg-gradient-to-b from-white to-slate-50 overflow-hidden"
+      className="relative py-20 bg-gradient-to-b from-white to-slate-50 overflow-hidden"
       data-testid="pulse-plans-section"
     >
       {/* Subtle brand glow */}
@@ -1470,7 +1414,7 @@ const TAILORING_PILLARS = [
 
 function TailoredPulse() {
   return (
-    <section className="py-24 sm:py-32 bg-white border-y border-[var(--color-border-light)]" data-testid="pulse-tailored">
+    <section className="py-16 sm:py-20 bg-white border-y border-[var(--color-border-light)]" data-testid="pulse-tailored">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeading
           eyebrow="Tailored to you"
@@ -1481,8 +1425,8 @@ function TailoredPulse() {
         {/* Wide treadmill-row banner — real Pulse install photography */}
         <Reveal className="mb-10">
           <motion.div variants={FADE_UP} className="relative h-44 sm:h-64 rounded-3xl overflow-hidden" data-testid="pulse-tailored-banner">
-            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/hero-heart-of-fitness.webp)' }} />
-            <div className="absolute inset-0 bg-gradient-to-r from-[rgba(33,39,33,0.75)] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/carshalton-igym.webp)' }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-[rgba(33,39,33,0.85)] via-[rgba(33,39,33,0.35)] to-transparent" />
             <div className="relative h-full flex flex-col justify-end p-7 sm:p-9 on-dark">
               <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--pulse-primary)]">Real installs, real estates</div>
               <p className="mt-1.5 text-lg sm:text-2xl font-extrabold max-w-md leading-tight" style={{ color: '#fff', textShadow: '0 2px 20px rgba(0,0,0,0.8)' }}>
@@ -1518,7 +1462,7 @@ function TailoredPulse() {
 function FinalCTA({ onSignIn }) {
   const navigate = useNavigate();
   return (
-    <section className="relative py-32 overflow-hidden" data-theme="dark" data-testid="pulse-final-cta">
+    <section className="relative py-24 overflow-hidden" data-theme="dark" data-testid="pulse-final-cta">
       <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/gym-cardio-angle.webp)' }} />
       <div className="absolute inset-0" style={{ background: 'rgba(33,39,33,0.88)' }} />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60rem] h-[60rem] bg-[rgb(var(--rgb-pulse-primary)/0.15)] blur-[120px] rounded-full" />
@@ -1572,7 +1516,7 @@ export function PulseFooter() {
               className="h-7 rounded-md object-cover"
               style={{ aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
             />
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>Powered by GymAxis AI</span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>The Heart of Fitness</span>
           </div>
           <div className="flex items-center gap-6 text-xs">
             <a href="/privacy" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>Privacy</a>
@@ -1582,8 +1526,8 @@ export function PulseFooter() {
         </div>
         <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-center md:justify-between gap-x-8 gap-y-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }} data-testid="pulse-footer-global">
           <span>Established 1980 · 45 years of British engineering</span>
-          <span>3 subsidiaries — UK, USA &amp; India</span>
-          <span>35+ dealers worldwide · distribution across 30+ countries</span>
+          <span>A global leader. Proudly British.</span>
+          <span>30,000+ facilities partnered across 31 countries &amp; six continents</span>
         </div>
       </div>
     </footer>
@@ -1776,7 +1720,6 @@ export default function PulseLandingPage({ onLogin }) {
         <WhatYouCanDo />
         <AIFeatures />
         <HowItWorks />
-        <GamifiedExperience />
         <MobileExperience />
         <GymFloorShowcase />
         <Sustainability />

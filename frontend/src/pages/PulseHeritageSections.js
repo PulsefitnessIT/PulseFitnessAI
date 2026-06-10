@@ -12,7 +12,7 @@
  */
 import React, { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Recycle, Leaf, Zap, Factory } from 'lucide-react';
+import { Recycle, Leaf, Zap } from 'lucide-react';
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 24 },
@@ -32,7 +32,6 @@ function Reveal({ children, className = '', testId }) {
 
 // ── Trusted By ─────────────────────────────────────────────────
 const PARTNERS = [
-  'MINISTRY OF DEFENCE',
   'THIRD SPACE',
   'IMPERIAL COLLEGE LONDON',
   'LEISURE UNITED',
@@ -44,11 +43,11 @@ const PARTNERS = [
 
 export function TrustedBy() {
   return (
-    <section className="py-12 sm:py-16 bg-white border-b border-[var(--color-border-light)]" data-testid="pulse-trusted-by">
+    <section className="py-10 sm:py-12 bg-white border-b border-[var(--color-border-light)]" data-testid="pulse-trusted-by">
       <div className="max-w-7xl mx-auto px-6">
         <Reveal>
-          <motion.p variants={FADE_UP} className="text-center text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-text-slate)] mb-8">
-            Trusted by operators worldwide — including 42 MOD facilities across 5 continents
+          <motion.p variants={FADE_UP} className="text-center text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-text-slate)] mb-7">
+            Trusted by operators worldwide — 30,000+ facilities partnered across 31 countries
           </motion.p>
           <motion.div variants={FADE_UP} className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
             {PARTNERS.map((name) => (
@@ -80,7 +79,7 @@ const MILESTONES = [
 
 export function HeritageTimeline() {
   return (
-    <section className="py-24 sm:py-32 bg-[var(--color-neutral-25)] border-y border-[var(--color-border-light)] overflow-hidden" data-testid="pulse-heritage">
+    <section className="py-16 sm:py-20 bg-[var(--color-neutral-25)] border-y border-[var(--color-border-light)] overflow-hidden" data-testid="pulse-heritage">
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[0.9fr_1.1fr] gap-14 items-start">
         {/* Sticky intro + imagery */}
         <div className="lg:sticky lg:top-28">
@@ -109,7 +108,7 @@ export function HeritageTimeline() {
         {/* Timeline rail */}
         <Reveal className="relative pl-8 sm:pl-10" testId="pulse-heritage-timeline">
           <div className="absolute left-[7px] sm:left-[9px] top-2 bottom-2 w-px bg-gradient-to-b from-[var(--pulse-primary)] via-[rgb(var(--rgb-pulse-primary)/0.35)] to-transparent" />
-          <div className="space-y-10">
+          <div className="space-y-8">
             {MILESTONES.map(({ year, title, body }) => (
               <motion.div key={year} variants={FADE_UP} className="relative" data-testid={`heritage-milestone-${year.toLowerCase()}`}>
                 <span className="absolute -left-8 sm:-left-10 top-1.5 w-[15px] h-[15px] sm:w-[19px] sm:h-[19px] rounded-full border-[3px] border-[var(--pulse-primary)] bg-white" />
@@ -142,9 +141,9 @@ const STAT_CELLS = [
 
 export function StatsBento() {
   return (
-    <section className="py-24 sm:py-32 bg-white" data-testid="pulse-stats">
+    <section className="py-16 sm:py-20 bg-white" data-testid="pulse-stats">
       <div className="max-w-7xl mx-auto px-6">
-        <Reveal className="max-w-2xl mb-12">
+        <Reveal className="max-w-2xl mb-10">
           <motion.div variants={FADE_UP} className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-4">
             <span className="h-px w-6 bg-[rgb(var(--rgb-pulse-primary)/0.5)]" /> The numbers behind the portal
           </motion.div>
@@ -160,7 +159,7 @@ export function StatsBento() {
             className="col-span-2 row-span-2 rounded-3xl bg-[var(--pulse-black,#212721)] p-8 sm:p-10 flex flex-col justify-between min-h-[280px] border border-white/10"
             data-testid="stat-first-time-fix"
           >
-            <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-white/50">Service & maintenance</div>
+            <div className="text-[11px] uppercase tracking-[0.2em] font-bold" style={{ color: 'rgba(255,255,255,0.55)' }}>Service &amp; maintenance</div>
             <div>
               <div className="font-black text-[var(--pulse-primary)] leading-none" style={{ fontSize: 'clamp(4rem, 9vw, 7rem)', letterSpacing: '-0.03em' }}>
                 <CountUpValue value="95.5%" />
@@ -172,12 +171,12 @@ export function StatsBento() {
 
           {/* Image cell — 450+ products */}
           <motion.div variants={FADE_UP} className="col-span-2 row-span-2 relative rounded-3xl overflow-hidden min-h-[280px] group" data-testid="stat-products-image">
-            <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: 'url(/pulse-photos/gym-cardio-angle.webp)' }} />
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgba(33,39,33,0.96)] via-[rgba(33,39,33,0.55)] to-[rgba(33,39,33,0.15)]" />
-            <div className="relative h-full p-8 sm:p-10 flex flex-col justify-end on-dark">
-              <div className="font-black leading-none text-white" style={{ fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.03em', textShadow: '0 2px 24px rgba(0,0,0,0.8)' }}>450+</div>
-              <div className="mt-2 text-lg font-bold text-white" style={{ textShadow: '0 1px 16px rgba(0,0,0,0.8)' }}>Fitness products designed &amp; built</div>
-              <div className="text-sm text-white/80" style={{ textShadow: '0 1px 16px rgba(0,0,0,0.8)' }}>21+ fully DDA-compliant · strength, cardio &amp; inclusive ranges</div>
+            <div className="absolute inset-0 bg-cover transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: 'url(/pulse-photos/gym-cardio-angle.webp)', backgroundPosition: 'center 68%' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(33,39,33,0.97) 0%, rgba(33,39,33,0.82) 45%, rgba(33,39,33,0.4) 100%)' }} />
+            <div className="relative h-full p-8 sm:p-10 flex flex-col justify-end">
+              <div className="font-black leading-none" style={{ color: '#ffffff', fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.03em', textShadow: '0 2px 24px rgba(0,0,0,0.8)' }}>450+</div>
+              <div className="mt-2 text-lg font-bold" style={{ color: '#ffffff', textShadow: '0 1px 16px rgba(0,0,0,0.8)' }}>Fitness products designed &amp; built</div>
+              <div className="text-sm" style={{ color: 'rgba(255,255,255,0.85)', textShadow: '0 1px 16px rgba(0,0,0,0.8)' }}>21+ fully DDA-compliant · strength, cardio &amp; inclusive ranges</div>
             </div>
           </motion.div>
 
@@ -194,23 +193,6 @@ export function StatsBento() {
               <div className="mt-0.5 text-xs text-[var(--color-text-slate)] leading-relaxed">{sub}</div>
             </motion.div>
           ))}
-
-          {/* Global reach cell */}
-          <motion.div
-            variants={FADE_UP}
-            className="col-span-2 lg:col-span-2 rounded-3xl border border-[rgb(var(--rgb-pulse-primary)/0.35)] bg-gradient-to-br from-[rgb(var(--rgb-pulse-primary)/0.12)] to-transparent p-6 sm:p-7"
-            data-testid="stat-global-reach"
-          >
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-bold text-[var(--pulse-primary)]"><Factory size={13} /> Around the world</div>
-            <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-              {[['3', 'subsidiaries — UK, USA & India'], ['35+', 'dealers representing Pulse'], ['30+', 'countries served']].map(([v, l]) => (
-                <div key={l}>
-                  <span className="text-2xl font-black text-[var(--color-surface-dark-panel-alt)] tracking-tight">{v}</span>
-                  <span className="ml-2 text-xs text-[var(--color-text-slate)]">{l}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
         </Reveal>
       </div>
     </section>
@@ -227,7 +209,7 @@ const ECO_POINTS = [
 
 export function Sustainability() {
   return (
-    <section className="py-24 sm:py-32 bg-[var(--color-neutral-25)] border-y border-[var(--color-border-light)]" data-testid="pulse-sustainability">
+    <section className="py-16 sm:py-20 bg-[var(--color-neutral-25)] border-y border-[var(--color-border-light)]" data-testid="pulse-sustainability">
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div>
           <Reveal>
@@ -257,21 +239,22 @@ export function Sustainability() {
           </Reveal>
         </div>
 
-        {/* Imagery composition */}
+        {/* Imagery composition — the machines themselves, built to last */}
         <Reveal className="relative" testId="pulse-sustainability-imagery">
-          <motion.div variants={FADE_UP} className="rounded-3xl overflow-hidden border border-[var(--color-border-light)] shadow-2xl">
-            <img src="/pulse-photos/leisure-centre-aerial.webp" alt="Pulse leisure centre development project" className="w-full h-auto object-cover" loading="lazy" />
-          </motion.div>
-          <motion.div variants={FADE_UP} className="mt-4 grid grid-cols-3 gap-4">
+          <motion.div variants={FADE_UP} className="grid grid-cols-2 gap-4">
             {[
-              ['/pulse-photos/product-bike.webp', 'Pulse group cycle'],
-              ['/pulse-photos/product-cable-machine.webp', 'Pulse multi-functional trainer'],
+              ['/pulse-photos/product-crosstrainer.webp', 'Pulse cross trainer'],
               ['/pulse-photos/product-stepmill.webp', 'Pulse premium stepmill'],
+              ['/pulse-photos/product-cable-machine.webp', 'Pulse multi-functional trainer'],
+              ['/pulse-photos/product-bike.webp', 'Pulse group cycle'],
             ].map(([src, alt]) => (
-              <div key={src} className="rounded-2xl overflow-hidden border border-[var(--color-border-light)] bg-white">
+              <div key={src} className="rounded-3xl overflow-hidden border border-[var(--color-border-light)] bg-white shadow-sm">
                 <img src={src} alt={alt} className="w-full h-auto object-cover" loading="lazy" />
               </div>
             ))}
+          </motion.div>
+          <motion.div variants={FADE_UP} className="mt-4 text-center text-[11px] uppercase tracking-[0.2em] font-bold text-[var(--color-text-slate)]">
+            Designed, engineered &amp; built in Britain
           </motion.div>
         </Reveal>
       </div>
