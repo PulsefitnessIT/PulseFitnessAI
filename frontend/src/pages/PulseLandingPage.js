@@ -1309,12 +1309,16 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.12 }}
             whileHover={{ y: -6 }}
-            className="relative rounded-2xl bg-gradient-to-b from-[rgb(var(--rgb-pulse-primary)/0.08)] via-white to-white border-2 border-[rgb(var(--rgb-pulse-primary)/0.4)] p-8 sm:p-10 overflow-hidden transition-all hover:shadow-[0_0_50px_rgba(25,205,255,0.25)]"
+            className="relative rounded-2xl bg-gradient-to-b from-[rgb(var(--rgb-pulse-primary)/0.08)] via-white to-white border-2 border-[rgb(var(--rgb-pulse-primary)/0.4)] p-8 sm:p-10 transition-all hover:shadow-[0_0_50px_rgba(25,205,255,0.25)]"
             style={{ boxShadow: '0 20px 60px rgba(25,205,255,0.15)' }}
             data-testid="pulse-plan-pro"
           >
-            {/* Glow accent */}
-            <div className="pointer-events-none absolute -top-20 -right-20 w-64 h-64 bg-[rgb(var(--rgb-pulse-primary)/0.15)] blur-[100px] rounded-full" />
+            {/* Glow accent — clipped inside its own layer so the "Most
+                Popular" badge (absolutely positioned above the card edge)
+                isn't cut off by overflow-hidden on the card itself. */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-[rgb(var(--rgb-pulse-primary)/0.15)] blur-[100px] rounded-full" />
+            </div>
 
             <div className="absolute -top-3 left-8">
               <span className="bg-[var(--pulse-primary)] text-[var(--color-surface-darker)] text-[10px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 uppercase tracking-wider shadow-[0_0_20px_rgba(25,205,255,0.5)]">
