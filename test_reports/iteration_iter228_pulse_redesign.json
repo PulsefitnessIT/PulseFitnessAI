@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend regression-tested the redesigned /pulse marketing landing page. All requested data-testids render, sections render in the expected order, button text-on-light contrast wraps are working, header nav anchors scroll, Plans navigates to /pulse-pricing, login modal opens and shows error banner on bad creds, login succeeds with the real demo credentials (owner@apexfitness.group / ApexDemo2026! per /app/memory/test_credentials.md — the creds quoted in the task brief are stale). Mobile (390px) has zero horizontal overflow and the mobile menu opens. Homepage footer regression: all 7 new gx-footer-* links present.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "checks_executed": {
+    "pulse_data_testids_present_count": "23/23",
+    "hero_kinetic_word_rotates": true,
+    "hero_log_in_btn_dark_text": "span color rgb(33,39,33) on cyan rgb(102,204,255) — correct",
+    "final_cta_access_portal_dark_text": "span color rgb(33,39,33) on white rgb(255,255,255) — correct",
+    "heritage_milestones": "7 found (1980, 1990s, 2000s, 2013, 2019, 2023, today)",
+    "stats_values": "stat-first-time-fix=95.5% OK, stat-products-image=450+ OK",
+    "broken_images": 0,
+    "failed_network_requests": 0,
+    "play_button_watermark_images": 0,
+    "header_nav_anchors": "What you can do / AI / How it works / Support — all scroll (scrollY changes from 0 to 3546/4824/5513/11202)",
+    "plans_link": "navigates to /pulse-pricing — OK",
+    "login_modal_wrong_creds": "Shows 'Sign-in failed — Invalid credentials' banner",
+    "login_modal_correct_creds": "owner@apex-demo.com / ApexDemo123! FAILS (Invalid credentials). owner@apexfitness.group / ApexDemo2026! SUCCEEDS — modal closes, dashboard 'Pulse Fitness Pro — Apex Fitness Group Head Office, Welcome back, Sarah Mitchell' renders.",
+    "gym_floor_step_pips": "4 pips (gym-floor-step-pip-0..3) present, click registers",
+    "mobile_horizontal_overflow": "False (scrollWidth=390, innerWidth=390)",
+    "mobile_menu": "Opens with 5 items: What you can do / AI / How it works / Plans / Support",
+    "homepage_footer_new_links": "all present: gx-footer-about(/about), gx-footer-features(/features), gx-footer-staffing(/platform/staffing), gx-footer-reporting(/platform/reporting), gx-footer-compare-mindbody(/compare/mindbody), gx-footer-dpa(/legal/dpa), gx-footer-dpia(/legal/dpia)"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Doc-only: Update task brief / memory — the credential `owner@apex-demo.com / ApexDemo123!` does not exist. Working owner is `owner@apexfitness.group / ApexDemo2026!` (per /app/memory/test_credentials.md). Functional login flow is healthy; no code change needed."
+  ],
+  "critical_code_review_comments": [
+    "PulseLandingPage.js is large (~1500+ lines composing 15+ sections). Consider further extraction (heritage already split into PulseHeritageSections.js — apply same pattern to capabilities/AI/how/mobile/gym-floor/tailored/support/finalCTA) to keep each module under ~700 lines for maintainability.",
+    "Console shows three CSP `script-src` violations for assets.emergent.sh/emergent-main.js, us-assets.i.posthog.com/array.js, and static.cloudflareinsights.com/beacon.min.js. These are analytics/telemetry; they do not affect functionality but should be either allowlisted in the CSP or removed to keep the console clean (cosmetic, not a release blocker)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "owner@apexfitness.group / ApexDemo2026! (working). NOTE: brief-quoted owner@apex-demo.com / ApexDemo123! does NOT work.",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "/pulse redesign is visually and functionally clean: all required testids, sections, stats, milestones, button contrast wraps, nav, login modal, image loading, mobile responsiveness and homepage footer regression pass. If revisiting, use owner@apexfitness.group / ApexDemo2026! for the success-login leg — the task brief credential is stale."
+}

@@ -11,6 +11,7 @@ import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import axios from 'axios';
 
 import { useInlineBanner } from '@/components/notifications';
+import { TrustedBy, HeritageTimeline, StatsBento, Sustainability } from '@/pages/PulseHeritageSections';
 import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -31,10 +32,9 @@ const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // source JPEGs). Supported by every browser we target (Safari 14+, Chrome,
 // Firefox, Edge, mobile) — caniuse.com reports 97%+ global coverage. The
 // source .jpg files are still on disk as a fallback for legacy crawlers.
-const HERO_BG = '/pulse-photos/carshalton-igym.webp';
-const _GYM_INTERIOR = '/pulse-photos/carshalton-igym.webp';
-const GYM_EQUIPMENT = '/pulse-photos/strength-accessories.webp';
-const GYM_ACTION = '/pulse-photos/strength-accessories.webp';
+const HERO_BG = '/pulse-photos/gym-treadmill-row.webp';
+const GYM_EQUIPMENT = '/pulse-photos/gym-orange-lights.webp';
+const GYM_ACTION = '/pulse-photos/strength-floor.webp';
 const _MOBILE_BG = 'https://images.pexels.com/photos/4162581/pexels-photo-4162581.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940&fm=webp';
 
 const LANGUAGES = [
@@ -272,27 +272,27 @@ function KineticWord() {
 
 function Hero({ onSignIn }) {
   return (
-    <section className="relative overflow-hidden bg-white" data-testid="pulse-hero">
-      {/* Right-side gym photo, offset editorial style */}
+    <section className="relative overflow-hidden bg-[var(--pulse-black,#212721)]" data-theme="dark" data-testid="pulse-hero">
+      {/* Full-bleed "Heart of Fitness" treadmill row, cinematic dark overlay */}
       <motion.div
-        initial={{ opacity: 0, scale: 1.05 }}
+        initial={{ opacity: 0, scale: 1.06 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
-        className="absolute top-0 right-0 w-full lg:w-[58%] h-[52%] lg:h-full overflow-hidden"
+        transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
+        className="absolute inset-0"
       >
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${HERO_BG})` }} />
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/60 to-transparent lg:from-white lg:via-white/20 lg:to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-transparent" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(33,39,33,0.94) 0%, rgba(33,39,33,0.78) 42%, rgba(33,39,33,0.35) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(33,39,33,0.9) 0%, transparent 35%, rgba(33,39,33,0.4) 100%)' }} />
       </motion.div>
 
       {/* Floating cyan accent orb */}
-      <div className="pointer-events-none absolute top-1/3 right-1/4 w-96 h-96 rounded-full bg-[rgb(var(--rgb-pulse-primary)/0.2)] blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 right-1/4 w-96 h-96 rounded-full bg-[rgb(var(--rgb-pulse-primary)/0.15)] blur-3xl" />
 
       <div className="relative max-w-7xl mx-auto px-6 pt-14 sm:pt-20 pb-20 sm:pb-28 lg:pt-28 lg:pb-36 grid lg:grid-cols-[1.15fr_0.85fr] gap-10 items-center min-h-[90vh]">
         <motion.div initial="hidden" animate="show" variants={stagger} className="relative z-10">
           <motion.div
             variants={FADE_UP}
-            className="eyebrow inline-flex items-center gap-2 bg-[rgb(var(--rgb-pulse-primary)/0.15)] border border-[rgb(var(--rgb-pulse-primary)/0.3)] rounded-full px-4 py-1.5 text-[11px] font-bold text-[var(--color-surface-dark-panel-alt)] uppercase mb-8"
+            className="eyebrow inline-flex items-center gap-2 bg-[rgb(var(--rgb-pulse-primary)/0.12)] border border-[rgb(var(--rgb-pulse-primary)/0.35)] rounded-full px-4 py-1.5 text-[11px] font-bold text-white uppercase mb-8 backdrop-blur-sm"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--pulse-primary)] animate-pulse" />
             Pulse Fitness Self-Service Portal
@@ -300,26 +300,28 @@ function Hero({ onSignIn }) {
 
           <motion.h1
             variants={FADE_UP}
-            className="font-extrabold text-[var(--color-surface-dark-panel-alt)] leading-[0.92]"
+            className="font-extrabold text-white leading-[0.92]"
             style={{
               fontSize: 'clamp(2.75rem, 9vw, 7.5rem)',
               letterSpacing: '-0.02em',
               fontFamily: "'Proxima Nova', sans-serif",
+              textShadow: '0 2px 30px rgba(0,0,0,0.5)',
             }}
             data-testid="pulse-hero-headline"
           >
             <KineticWord />
             <br />
             your gym.<br />
-            <span className="text-[var(--color-text-slate)]" style={{ fontWeight: 400 }}>In one place.</span>
+            <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.7)' }}>In one place.</span>
           </motion.h1>
 
           <motion.p
             variants={FADE_UP}
-            className="mt-6 sm:mt-8 max-w-md text-base sm:text-lg text-[var(--color-neutral-700)] leading-relaxed"
+            className="mt-6 sm:mt-8 max-w-md text-base sm:text-lg leading-relaxed"
+            style={{ color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 18px rgba(0,0,0,0.7)' }}
           >
             Log faults in seconds. Track every piece of kit. Get AI-assisted diagnostics
-            before the engineer arrives — <span className="font-bold text-[var(--color-surface-dark-panel-alt)]">purpose-built for gym teams.</span>
+            before the engineer arrives — <span className="font-bold" style={{ color: '#fff' }}>purpose-built for gym teams.</span>
           </motion.p>
 
           <motion.div variants={FADE_UP} className="mt-9 sm:mt-12 flex flex-wrap gap-3">
@@ -329,20 +331,20 @@ function Hero({ onSignIn }) {
               style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-surface-dark-panel-alt)', fontWeight: 700, letterSpacing: '0.05em' }}
               data-testid="pulse-hero-login-btn"
             >
-              <LogIn size={16} className="mr-2" /> LOG IN
+              <span className="inline-flex items-center" style={{ color: '#212721' }}><LogIn size={16} className="mr-2" /> LOG IN</span>
             </Button>
             <Button
               variant="outline"
               onClick={onSignIn}
-              className="h-14 px-8 rounded-2xl text-sm border-2 border-[var(--color-surface-dark-panel-alt)] text-[var(--color-surface-dark-panel-alt)] hover:bg-[var(--color-surface-dark-panel-alt)] hover:text-white transition-all"
-              style={{ fontWeight: 700, letterSpacing: '0.05em' }}
+              className="h-14 px-8 rounded-2xl text-sm border-2 !border-white/70 !text-white hover:!bg-white hover:!text-[var(--color-surface-dark-panel-alt)] !bg-transparent transition-all"
+              style={{ fontWeight: 700, letterSpacing: '0.05em', color: '#fff' }}
               data-testid="pulse-hero-getstarted-btn"
             >
               GET STARTED <ArrowRight size={16} className="ml-2" />
             </Button>
           </motion.div>
 
-          <motion.div variants={FADE_UP} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-2 text-xs text-[var(--color-text-slate)]">
+          <motion.div variants={FADE_UP} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-2 text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>
             <div className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[var(--pulse-primary)]" /> No app install required</div>
             <div className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[var(--pulse-primary)]" /> Works on any browser</div>
             <div className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[var(--pulse-primary)]" /> 3-day free trial</div>
@@ -726,7 +728,7 @@ function MobileExperience() {
   return (
     <section className="py-28 bg-[var(--color-surface-dark-panel-alt)] relative overflow-hidden" data-theme="dark" data-testid="pulse-mobile">
       <div
-        className="absolute inset-0 opacity-30"
+        className="absolute inset-0 opacity-40"
         style={{ backgroundImage: `url(${GYM_EQUIPMENT})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
       />
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-surface-dark-panel-alt)] via-[var(--color-surface-dark-panel-alt)]/90 to-transparent" />
@@ -1053,6 +1055,12 @@ function GymFloorShowcase() {
       data-theme="dark"
       data-testid="pulse-gym-floor-showcase"
     >
+      {/* Real Pulse strength-floor photography, dimmed to keep copy legible */}
+      <div
+        className="absolute inset-0 opacity-[0.18] pointer-events-none bg-cover bg-center"
+        style={{ backgroundImage: 'url(/pulse-photos/strength-floor.webp)' }}
+      />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(20,24,31,0.7) 0%, transparent 40%, rgba(20,24,31,0.7) 100%)' }} />
       {/* Decorative grid texture — reads as "operations / shift floor" */}
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -1470,6 +1478,19 @@ function TailoredPulse() {
           description="Off-the-shelf SaaS forces you to bend your processes around someone else's idea of how a gym should run. This bends to yours."
           testId="pulse-tailored-heading"
         />
+        {/* Wide treadmill-row banner — real Pulse install photography */}
+        <Reveal className="mb-10">
+          <motion.div variants={FADE_UP} className="relative h-44 sm:h-64 rounded-3xl overflow-hidden" data-testid="pulse-tailored-banner">
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/hero-heart-of-fitness.webp)' }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-[rgba(33,39,33,0.75)] via-transparent to-transparent" />
+            <div className="relative h-full flex flex-col justify-end p-7 sm:p-9 on-dark">
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--pulse-primary)]">Real installs, real estates</div>
+              <p className="mt-1.5 text-lg sm:text-2xl font-extrabold max-w-md leading-tight" style={{ color: '#fff', textShadow: '0 2px 20px rgba(0,0,0,0.8)' }}>
+                From single studios to national leisure estates.
+              </p>
+            </div>
+          </motion.div>
+        </Reveal>
         <Reveal className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {TAILORING_PILLARS.map(({ icon: Icon, title, desc }) => (
             <motion.div
@@ -1498,8 +1519,9 @@ function FinalCTA({ onSignIn }) {
   const navigate = useNavigate();
   return (
     <section className="relative py-32 overflow-hidden" data-theme="dark" data-testid="pulse-final-cta">
-      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-surface-dark-panel-alt)] via-[var(--color-neutral-700)] to-[var(--color-surface-dark-panel-alt)]" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60rem] h-[60rem] bg-[rgb(var(--rgb-pulse-primary)/0.2)] blur-[120px] rounded-full" />
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/gym-cardio-angle.webp)' }} />
+      <div className="absolute inset-0" style={{ background: 'rgba(33,39,33,0.88)' }} />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60rem] h-[60rem] bg-[rgb(var(--rgb-pulse-primary)/0.15)] blur-[120px] rounded-full" />
       <div className="relative max-w-4xl mx-auto px-6 text-center">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
@@ -1507,8 +1529,8 @@ function FinalCTA({ onSignIn }) {
           viewport={{ once: true }}
           className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-[-0.02em] text-white leading-[1.08]"
         >
-          Ready to stop chasing faults<br />
-          by email?
+          Ready to elevate your<br />
+          equipment management?
         </motion.h2>
         <p className="mt-6 max-w-xl mx-auto text-white/70">
           Sign in to your portal, or upgrade to Pro to unlock AI triage, audit reports, and document Q&amp;A.
@@ -1516,11 +1538,11 @@ function FinalCTA({ onSignIn }) {
         <div className="mt-10 flex flex-wrap gap-3 justify-center">
           <Button
             onClick={onSignIn}
-            className="h-12 px-7 rounded-xl font-semibold text-sm !bg-white !text-[var(--color-surface-dark-panel-alt)] hover:!bg-slate-100 shadow-lg"
-            style={{ backgroundColor: 'var(--color-white)', color: 'var(--color-surface-dark-panel-alt)' }}
+            className="h-12 px-7 rounded-xl font-semibold text-sm !bg-white hover:!bg-slate-100 shadow-lg"
+            style={{ backgroundColor: '#ffffff' }}
             data-testid="pulse-final-login-btn"
           >
-            Access Your Portal <ArrowRight size={16} className="ml-2" />
+            <span className="inline-flex items-center" style={{ color: '#212721' }}>Access Your Portal <ArrowRight size={16} className="ml-2" /></span>
           </Button>
           <Button
             variant="outline"
@@ -1540,21 +1562,28 @@ function FinalCTA({ onSignIn }) {
 // ── Footer ────────────────────────────────────────────────────
 export function PulseFooter() {
   return (
-    <footer className="bg-white border-t border-slate-200 py-10" data-testid="pulse-footer">
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[var(--color-text-slate)]">
-        <div className="flex items-center gap-3">
-          <img
-            src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
-            alt="Pulse Fitness"
-            className="h-7 rounded-md object-cover"
-            style={{ aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
-          />
-          <span className="text-xs text-[var(--color-slate-400)]">Powered by GymAxis AI</span>
+    <footer className="bg-[var(--pulse-black,#212721)] border-t border-white/10 py-12" data-theme="dark" data-testid="pulse-footer">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
+          <div className="flex items-center gap-3">
+            <img
+              src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+              alt="Pulse Fitness"
+              className="h-7 rounded-md object-cover"
+              style={{ aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+            />
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>Powered by GymAxis AI</span>
+          </div>
+          <div className="flex items-center gap-6 text-xs">
+            <a href="/privacy" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>Privacy</a>
+            <a href="/terms" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>Terms</a>
+            <a href="/security" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>Security</a>
+          </div>
         </div>
-        <div className="flex items-center gap-6 text-xs">
-          <a href="/privacy" className="hover:text-[var(--color-surface-dark-panel-alt)] transition-colors">Privacy</a>
-          <a href="/terms" className="hover:text-[var(--color-surface-dark-panel-alt)] transition-colors">Terms</a>
-          <a href="/security" className="hover:text-[var(--color-surface-dark-panel-alt)] transition-colors">Security</a>
+        <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-center md:justify-between gap-x-8 gap-y-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }} data-testid="pulse-footer-global">
+          <span>Established 1980 · 45 years of British engineering</span>
+          <span>3 subsidiaries — UK, USA &amp; India</span>
+          <span>35+ dealers worldwide · distribution across 30+ countries</span>
         </div>
       </div>
     </footer>
@@ -1741,12 +1770,16 @@ export default function PulseLandingPage({ onLogin }) {
       <div className="pulse-landing">
         <PulseHeader onSignIn={openLogin} theme={theme} toggleTheme={toggleTheme} i18n={i18n} />
         <Hero onSignIn={openLogin} />
+        <TrustedBy />
+        <HeritageTimeline />
+        <StatsBento />
         <WhatYouCanDo />
         <AIFeatures />
         <HowItWorks />
         <GamifiedExperience />
         <MobileExperience />
         <GymFloorShowcase />
+        <Sustainability />
         <CustomerBenefits />
         <TailoredPulse />
         <Support />
