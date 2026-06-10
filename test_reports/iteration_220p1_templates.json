@@ -18,7 +18,7 @@
   "updated_files": [],
   "success_rate": {"backend": "n/a (frontend-only test)", "frontend": "100% (3/3 scenarios passed)"},
   "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (CRM master admin)",
-  "seed_data_creation": "Created template 'ACME QA Template' (id=08a73290-2cf1-4d08-a6ce-358632699fdc) via UI. Per request note this is harmless to leave behind; not deleted.",
+  "seed_data_creation": "Created template 'ACME QA Template' (id=seo-fix-preview-4) via UI. Per request note this is harmless to leave behind; not deleted.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
   "context_for_next_testing_agent": "Workflow validated: /crm inline login -> ?tab=settings -> settings-tab-products -> products-import-wizard-btn -> plw-file-input upload -> mapping-step renders templates bar. Sheet checkbox testid hyphenates spaces: plw-sheet-select-Catalogue-2026. Dialog handler MUST be registered on `page.on('dialog')` BEFORE clicking plw-template-save — Playwright auto-dismisses prompts otherwise. After applying a saved template, mapping select count was unchanged (6 non-empty before, 6 after) because acme_name_only auto-detected the same mapping the template stored — this is expected, not a regression.",

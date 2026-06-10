@@ -22,7 +22,7 @@ import requests
 from utils import riddor
 
 
-API = os.environ.get("TEST_API_URL", "https://engineer-jobs-live.preview.emergentagent.com")
+API = os.environ.get("TEST_API_URL", "https://seo-fix-preview-4.preview.emergentagent.com")
 MASTER_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 MASTER_PASS = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
 

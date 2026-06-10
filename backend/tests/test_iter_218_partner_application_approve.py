@@ -24,7 +24,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://engineer-jobs-live.preview.emergentagent.com",
+    "https://seo-fix-preview-4.preview.emergentagent.com",
 )
 
 

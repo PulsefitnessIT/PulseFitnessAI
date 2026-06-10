@@ -171,11 +171,15 @@ export function MarketingFooter() {
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400 mb-4">Platform</p>
           <ul className="space-y-2 text-sm text-slate-600">
             {NAV.filter(n => n.to !== '/pricing').map((n) => <li key={n.to}><Link to={n.to} className="hover:text-slate-900 dark:text-zinc-100">{n.label}</Link></li>)}
+            <li><Link to="/platform/staffing" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-staffing">Staffing</Link></li>
+            <li><Link to="/platform/reporting" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-reporting">Reporting</Link></li>
+            <li><Link to="/features" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-features">All features</Link></li>
           </ul>
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400 mb-4">Company</p>
           <ul className="space-y-2 text-sm text-slate-600">
+            <li><Link to="/about" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-about">About</Link></li>
             <li><Link to="/pricing" className="hover:text-slate-900 dark:text-zinc-100">Pricing</Link></li>
             <li><Link to="/security" className="hover:text-slate-900 dark:text-zinc-100">Security</Link></li>
             <li><Link to="/demo-request" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-demo">Book a demo</Link></li>
@@ -190,6 +194,9 @@ export function MarketingFooter() {
             <li><Link to="/equipment" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-equipment">Servicing by equipment</Link></li>
             <li><Link to="/blog" className="hover:text-slate-900 dark:text-zinc-100">Blog</Link></li>
             <li><Link to="/compare" className="hover:text-slate-900 dark:text-zinc-100">Alternatives</Link></li>
+            <li><Link to="/compare/mindbody" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-compare-mindbody">Mindbody alternative</Link></li>
+            <li><Link to="/compare/glofox" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-compare-glofox">Glofox alternative</Link></li>
+            <li><Link to="/compare/clubready" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-compare-clubready">ClubReady alternative</Link></li>
             <li><Link to="/whats-new" className="hover:text-slate-900 dark:text-zinc-100">What&apos;s new</Link></li>
             <li><Link to="/status" className="hover:text-slate-900 dark:text-zinc-100">Status</Link></li>
             <li><a href="/downloads/GymAxisAI-Operators-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-operators">Operators Sales Presentation</a></li>
@@ -210,6 +217,8 @@ export function MarketingFooter() {
             <Link to="/privacy" className="hover:text-slate-700" data-testid="gx-footer-privacy">Privacy</Link>
             <Link to="/terms" className="hover:text-slate-700" data-testid="gx-footer-terms">Terms</Link>
             <Link to="/refunds" className="hover:text-slate-700" data-testid="gx-footer-refunds">Refunds &amp; cancellation</Link>
+            <Link to="/legal/dpa" className="hover:text-slate-700" data-testid="gx-footer-dpa">DPA</Link>
+            <Link to="/legal/dpia" className="hover:text-slate-700" data-testid="gx-footer-dpia">DPIA</Link>
             <Link to="/security" className="hover:text-slate-700" data-testid="gx-footer-security">Security</Link>
           </div>
           <span>Made for fitness operators.</span>
