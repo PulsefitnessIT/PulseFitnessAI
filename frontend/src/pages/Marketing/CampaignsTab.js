@@ -54,11 +54,13 @@ const CampaignsTab = ({ API, headers }) => {
   const applyTemplate = async (templateId) => {
     setBusy(true);
     try {
-      const { data } = await axios.post(`${API}/api/marketing/templates/${templateId}/instantiate`, {}, { headers });
+      const { data } = await axios.post(`${API}/api/marketing/templates/${templateId}/instantiate`, {}, { headers, timeout: 30000 });
       notify.success('Template ready', `Audience size: ${data.audience_size} · saved as a draft below.`);
       load();
     } catch (err) {
-      notify.error(err.response?.data?.detail || 'Couldn\'t instantiate template');
+      notify.error(err.code === 'ECONNABORTED'
+        ? 'That took too long — please try again.'
+        : (err.response?.data?.detail || "Couldn't instantiate template"));
     } finally { setBusy(false); }
   };
 
@@ -111,10 +113,12 @@ const CampaignsTab = ({ API, headers }) => {
           decide_after_minutes: 240,
         };
       }
-      await axios.post(`${API}/api/marketing/campaigns`, payload, { headers });
+      await axios.post(`${API}/api/marketing/campaigns`, payload, { headers, timeout: 30000 });
       setDraft({ name: '', subject: '', body_html: '', audience_id: '', ab_enabled: false, subject_b: '', body_html_b: '', sample_pct: 30, winner_metric: 'opens' });
       setCreating(false); load();
       notify.success(draft.ab_enabled ? 'A/B campaign saved as draft' : 'Campaign saved as draft');
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Couldn't save the campaign — your details are still here, please try again.");
     } finally { setBusy(false); }
   };
 

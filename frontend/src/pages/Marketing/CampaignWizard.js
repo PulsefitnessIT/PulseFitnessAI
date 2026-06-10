@@ -172,6 +172,7 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
   const [timing, setTiming] = useState('best-time');
   const [customTime, setCustomTime] = useState('');
   const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState('');
 
   // If the user came in via a template card, pre-fill goal + audience + copy.
   useEffect(() => {
@@ -315,23 +316,32 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
 
   const launch = async () => {
     setLaunching(true);
+    setLaunchError('');
     try {
+      const goalLabel = GOALS.find((g) => g.id === goal)?.label || 'Campaign';
       const resp = await axios.post(`${API}/api/marketing/campaigns`, {
-        name: `${STEP_DEFS[step].title} — ${new Date().toLocaleDateString('en-GB')}`,
+        name: `${goalLabel} — ${new Date().toLocaleDateString('en-GB')}`,
         goal,
-        audience_rule_id: audience?.id,
         channel,
-        subject,
-        body,
-        send_time: timing === 'custom' ? customTime : timing,
-      }, { headers });
-      const id = resp?.data?.id || resp?.data?.campaign_id || null;
+        // Backend reads content.{subject, body_html} (NOT flat fields) — sending
+        // the flat shape silently dropped the copy, so drafts saved blank.
+        content: { subject, body_html: body },
+        audience_inline: audience ? { rule_id: audience.id, label: audience.label } : null,
+        schedule: { send_time: timing === 'custom' ? customTime : timing },
+      }, { headers, timeout: 30000 });
+      const id = resp?.data?.campaign?.id || resp?.data?.id || resp?.data?.campaign_id || null;
       try { window.dispatchEvent(new CustomEvent('gymaxis:campaign-launched', { detail: { id } })); } catch (_) {}
-      toast?.({ title: 'Blast off! Your campaign is scheduled.', intent: 'success' });
+      toast?.({ title: 'Saved! Your campaign is in the Campaigns tab as a draft.', intent: 'success' });
       onClose?.({ launched: true, campaignId: id });
     } catch (e) {
-      toast?.({ title: 'Saved as draft — finalise in Campaigns tab.', intent: 'warn' });
-      onClose?.({ launched: false, draft: true });
+      // Keep the wizard OPEN so the user's inputs are never lost — show a clear
+      // error and let them retry. (Previously this closed the modal and the
+      // work was gone, and a hung request left the button spinning forever.)
+      const msg = e?.code === 'ECONNABORTED'
+        ? 'That took too long to save. Check your connection and try again — your campaign details are still here.'
+        : (e?.response?.data?.detail || "Couldn't save the campaign. Your details are still here — please try again.");
+      setLaunchError(typeof msg === 'string' ? msg : "Couldn't save the campaign. Please try again.");
+      toast?.({ title: 'Campaign not saved — please try again', intent: 'error' });
     } finally {
       setLaunching(false);
     }
@@ -533,19 +543,30 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
         </div>
 
         {/* Footer actions */}
-        <div className="p-5 border-t flex items-center justify-between gap-3" style={{ borderColor: 'var(--theme-border)' }}>
-          <button type="button" onClick={back} disabled={step === 0} className="btn-secondary" data-testid="wizard-back">
-            <ChevronLeft size={14} /> Back
-          </button>
-          {step < STEP_DEFS.length - 1 ? (
-            <button type="button" onClick={next} disabled={!canNext()} className="btn-primary" data-testid="wizard-next">
-              Next <ChevronRight size={14} />
-            </button>
-          ) : (
-            <button type="button" onClick={launch} disabled={launching} className="btn-primary" data-testid="wizard-launch">
-              <Rocket size={14} /> {launching ? 'Launching…' : 'Launch campaign'}
-            </button>
+        <div className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
+          {launchError && (
+            <div
+              className="mx-5 mt-4 rounded-lg px-3 py-2 text-xs font-medium"
+              style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626', border: '1px solid rgba(220,38,38,0.30)' }}
+              data-testid="wizard-launch-error"
+            >
+              {launchError}
+            </div>
           )}
+          <div className="p-5 flex items-center justify-between gap-3">
+            <button type="button" onClick={back} disabled={step === 0} className="btn-secondary" data-testid="wizard-back">
+              <ChevronLeft size={14} /> Back
+            </button>
+            {step < STEP_DEFS.length - 1 ? (
+              <button type="button" onClick={next} disabled={!canNext()} className="btn-primary" data-testid="wizard-next">
+                Next <ChevronRight size={14} />
+              </button>
+            ) : (
+              <button type="button" onClick={launch} disabled={launching} className="btn-primary" data-testid="wizard-launch">
+                <Rocket size={14} /> {launching ? 'Saving…' : 'Launch campaign'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
