@@ -92,7 +92,7 @@ def test_prerender_html_has_seo_essentials():
     }
     html = _render_blog_html(article)
     assert "<title>Cutting Equipment Downtime | GymAxis AI</title>" in html
-    assert 'rel="canonical" href="https://www.gymaxisai.com/blog/downtime-guide"' in html
+    assert 'rel="canonical" href="https://gymaxisai.com/blog/downtime-guide"' in html
     assert 'property="og:type" content="article"' in html
     assert 'name="twitter:card" content="summary_large_image"' in html
     # data: URI must never reach og:image
@@ -119,7 +119,7 @@ def test_indexnow_noops_safely():
     # disabled via env — never touches the network
     os.environ["INDEXNOW_DISABLED"] = "1"
     try:
-        res = run_async(ping_indexnow(["https://www.gymaxisai.com/blog/x"]))
+        res = run_async(ping_indexnow(["https://gymaxisai.com/blog/x"]))
         assert res["ok"] is False and res["reason"] == "disabled"
     finally:
         os.environ.pop("INDEXNOW_DISABLED", None)
@@ -130,7 +130,7 @@ def test_indexnow_noops_safely():
 def test_robots_points_to_dynamic_sitemap_and_allows_seo():
     with open("/app/frontend/public/robots.txt", encoding="utf-8") as f:
         robots = f.read()
-    assert "Sitemap: https://www.gymaxisai.com/api/seo/sitemap.xml" in robots
+    assert "Sitemap: https://gymaxisai.com/api/seo/sitemap.xml" in robots
     assert "Allow: /api/seo/" in robots
     # the Allow must appear before the broad Disallow: /api/ to take effect
     assert robots.index("Allow: /api/seo/") < robots.index("Disallow: /api/")

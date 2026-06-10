@@ -11,7 +11,7 @@ import MarketingShell from '../MarketingShell';
 import useSeo from '../../../utils/seo';
 import { SOLUTIONS } from './solutionsData';
 
-const SITE = 'https://www.gymaxisai.com';
+const SITE = 'https://gymaxisai.com';
 
 export default function SolutionsIndex() {
   useSeo({

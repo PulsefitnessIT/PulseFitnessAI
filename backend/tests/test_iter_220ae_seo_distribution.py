@@ -103,17 +103,17 @@ def test_distribute_happy_path_stores_full_content():
     llm_payload = (
         '{'
         '"linkedin": ['
-        '"Hook A\\n\\nBody A\\n\\nhttps://www.gymaxisai.com/blog/cut-downtime\\n\\n#gymops",'
-        '"Hook B\\n\\nBody B\\n\\nhttps://www.gymaxisai.com/blog/cut-downtime\\n\\n#fitness",'
-        '"Hook C\\n\\nBody C\\n\\nhttps://www.gymaxisai.com/blog/cut-downtime\\n\\n#crm",'
-        '"Hook D\\n\\nBody D\\n\\nhttps://www.gymaxisai.com/blog/cut-downtime\\n\\n#ops",'
-        '"Hook E\\n\\nBody E\\n\\nhttps://www.gymaxisai.com/blog/cut-downtime\\n\\n#tech"'
+        '"Hook A\\n\\nBody A\\n\\nhttps://gymaxisai.com/blog/cut-downtime\\n\\n#gymops",'
+        '"Hook B\\n\\nBody B\\n\\nhttps://gymaxisai.com/blog/cut-downtime\\n\\n#fitness",'
+        '"Hook C\\n\\nBody C\\n\\nhttps://gymaxisai.com/blog/cut-downtime\\n\\n#crm",'
+        '"Hook D\\n\\nBody D\\n\\nhttps://gymaxisai.com/blog/cut-downtime\\n\\n#ops",'
+        '"Hook E\\n\\nBody E\\n\\nhttps://gymaxisai.com/blog/cut-downtime\\n\\n#tech"'
         '],'
         '"x_thread": ['
         '"Cut downtime — the playbook",'
         '"1/ Most operators bleed 6h/week.",'
         '"2/ The fix isn\\u2019t more software.",'
-        '"3/ Link \\u2192 https://www.gymaxisai.com/blog/cut-downtime"'
+        '"3/ Link \\u2192 https://gymaxisai.com/blog/cut-downtime"'
         '],'
         '"reddit": {'
         '"title": "Curious how others handle gym equipment downtime",'
@@ -164,7 +164,7 @@ def test_distribute_pads_linkedin_to_five_when_llm_under_delivers():
             assert out["content"]["linkedin"][0] == "only one"
             # Filler posts mention the title or primary keyword and the link.
             for filler in out["content"]["linkedin"][1:]:
-                assert "https://www.gymaxisai.com/blog/" in filler
+                assert "https://gymaxisai.com/blog/" in filler
     _run(go())
 
 

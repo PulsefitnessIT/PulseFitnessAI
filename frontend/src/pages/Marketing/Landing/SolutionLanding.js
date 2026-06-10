@@ -19,7 +19,7 @@ import useSeo from '../../../utils/seo';
 import { getSolution } from './solutionsData';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://www.gymaxisai.com';
+const SITE = 'https://gymaxisai.com';
 
 export default function SolutionLanding() {
   const { slug } = useParams();

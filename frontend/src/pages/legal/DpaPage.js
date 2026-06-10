@@ -15,7 +15,7 @@ const DpaPage = () => {
   useSeo({
     title: 'Data Processing Agreement | GymAxis AI',
     description: 'Standard UK GDPR-compliant Data Processing Agreement between GymAxis AI Ltd and our customers (data controllers).',
-    canonical: 'https://www.gymaxisai.com/legal/dpa',
+    canonical: 'https://gymaxisai.com/legal/dpa',
   });
 
   return (

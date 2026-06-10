@@ -148,8 +148,8 @@ export default function BlogPost() {
     description: post.excerpt,
     datePublished: post.publishedAt,
     author: { '@type': 'Person', name: post.author },
-    publisher: { '@type': 'Organization', name: 'GymAxis', logo: { '@type': 'ImageObject', url: 'https://www.gymaxisai.com/brand/logo.svg' } },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.gymaxisai.com/blog/${post.slug}` },
+    publisher: { '@type': 'Organization', name: 'GymAxis', logo: { '@type': 'ImageObject', url: 'https://gymaxisai.com/brand/logo.svg' } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://gymaxisai.com/blog/${post.slug}` },
   };
 
   // FAQPage JSON-LD — what gets us cited in ChatGPT / Perplexity / AI overviews.

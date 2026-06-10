@@ -136,7 +136,7 @@ async def _notify_sales_inbox(*, name: str, email: str, company: str,
         f"<p><strong>Email:</strong> <a href=\"mailto:{email}\">{email}</a></p>"
         f"<p><strong>Message:</strong><br>{(message or '—').replace(chr(10), '<br>')}</p>"
         f"<hr><p>Deal id: <code>{deal_id}</code> · "
-        f"<a href=\"https://www.gymaxisai.com/master-admin\">Open in Master Admin</a></p>"
+        f"<a href=\"https://gymaxisai.com/master-admin\">Open in Master Admin</a></p>"
     )
     try:
         await send_email(to=_DEMO_NOTIFY_INBOX, subject=subject, html=html)

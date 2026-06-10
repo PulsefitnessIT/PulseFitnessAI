@@ -14,7 +14,7 @@ import MarketingShell from '../MarketingShell';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://www.gymaxisai.com';
+const SITE = 'https://gymaxisai.com';
 
 export default function EquipmentIndex() {
   const [equipment, setEquipment] = useState([]);

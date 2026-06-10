@@ -15,7 +15,7 @@ const SlaPage = () => {
   useSeo({
     title: 'Service Level Agreement | GymAxis AI',
     description: 'Uptime targets, service credits, support response times, backup commitments and incident communications for GymAxis AI customers.',
-    canonical: 'https://www.gymaxisai.com/sla',
+    canonical: 'https://gymaxisai.com/sla',
   });
 
   return (

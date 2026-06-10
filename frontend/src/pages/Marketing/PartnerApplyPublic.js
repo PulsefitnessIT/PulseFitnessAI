@@ -51,7 +51,7 @@ export default function PartnerApplyPublic() {
   useSeo({
     title: 'Apply — Partner Engineer Network · GymAxis AI',
     description: 'Apply to join the GymAxis Partner Engineer Network. Upload your CV and certifications — most decisions within 2 working days.',
-    canonical: 'https://www.gymaxisai.com/partners/engineers/apply',
+    canonical: 'https://gymaxisai.com/partners/engineers/apply',
   });
 
   // Iter 216h287 — Gap 9: capture engineer-of-engineer referral code

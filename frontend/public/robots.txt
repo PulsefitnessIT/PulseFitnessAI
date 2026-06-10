@@ -12,6 +12,7 @@ Allow: /legal/dpia
 Allow: /whats-new
 Allow: /status
 Allow: /platform/
+Allow: /api/seo/
 
 Disallow: /help
 Disallow: /help/
@@ -27,5 +28,6 @@ Disallow: /embed/
 Disallow: /instructor
 Disallow: /checkin/
 Disallow: /gym-floor
+Disallow: /api/
 
-Sitemap: https://www.gymaxisai.com/api/seo/sitemap.xml
+Sitemap: https://gymaxisai.com/api/seo/sitemap.xml

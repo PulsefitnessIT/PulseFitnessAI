@@ -106,7 +106,7 @@ async def send_application_received(email: str, full_name: str, application_id: 
         f"<ul>"
         f"<li>Make sure your public liability insurance is current (we'll ask).</li>"
         f"<li>Have any scanned certifications (PAT, IOSH, CSCS, 18th Edition) ready in case we need them.</li>"
-        f"<li>Read the <a href=\"https://www.gymaxisai.com/partners/engineers\">commission &amp; pricing detail</a> "
+        f"<li>Read the <a href=\"https://gymaxisai.com/partners/engineers\">commission &amp; pricing detail</a> "
         f"so you're ready to start once approved.</li>"
         f"</ul>"
         f'<p style="margin-top:18px;color:#475569;font-size:12px;">Application ref: <span style="font-family:monospace;">{application_id}</span></p>'

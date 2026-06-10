@@ -335,14 +335,14 @@ export default function GymAxisPricingPage() {
   useSeo({
     title: 'Pricing — GymAxis AI · From £29/mo',
     description: 'Pick a single module from £29/mo or unlock everything with GymAxis Pro at £150/mo. 3-day free trial, all modules unlocked, no credit card.',
-    canonical: 'https://www.gymaxisai.com/pricing',
-    image: 'https://www.gymaxisai.com/brand/og-cover.jpg',
+    canonical: 'https://gymaxisai.com/pricing',
+    image: 'https://gymaxisai.com/brand/og-cover.jpg',
     structuredData: {
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: 'GymAxis AI',
       description: 'All-in-one operations platform for fitness operators.',
-      image: ['https://www.gymaxisai.com/brand/og-cover.jpg'],
+      image: ['https://gymaxisai.com/brand/og-cover.jpg'],
       brand: { '@type': 'Brand', name: 'GymAxis AI' },
       offers: [
         { '@type': 'Offer', name: 'GymAxis Pro', price: '150.00', priceCurrency: 'GBP', priceSpecification: { '@type': 'UnitPriceSpecification', price: '150.00', priceCurrency: 'GBP', referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' } } },

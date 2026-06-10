@@ -12,7 +12,7 @@ const DpiaPage = () => {
   useSeo({
     title: 'Data Protection Impact Assessment | GymAxis AI',
     description: 'Summary DPIA for the GymAxis AI platform — UK GDPR Art. 35 risk assessment of personal-data processing across CRM, memberships, marketing and operations modules.',
-    canonical: 'https://www.gymaxisai.com/legal/dpia',
+    canonical: 'https://gymaxisai.com/legal/dpia',
   });
 
   return (

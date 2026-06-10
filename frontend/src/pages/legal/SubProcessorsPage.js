@@ -15,7 +15,7 @@ const SubProcessorsPage = () => {
   useSeo({
     title: 'Sub-processors | GymAxis AI',
     description: 'Authorised third-party data processors used by GymAxis AI for hosting, communications, payments, AI and observability. 30-day change notice.',
-    canonical: 'https://www.gymaxisai.com/sub-processors',
+    canonical: 'https://gymaxisai.com/sub-processors',
   });
 
   return (

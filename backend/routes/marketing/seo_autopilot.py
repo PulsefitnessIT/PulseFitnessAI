@@ -589,7 +589,7 @@ async def _spin_distributions(article: dict, channels: list[str]) -> dict:
     excerpt = article.get("excerpt") or ""
     body_excerpt = (article.get("body_md") or "")[:6000]
     primary = article.get("primary_keyword") or ""
-    blog_url = f"https://www.gymaxisai.com/blog/{article.get('slug')}"
+    blog_url = f"https://gymaxisai.com/blog/{article.get('slug')}"
 
     prompt = (
         f"You are spinning a published GymAxis blog article into channel-"
@@ -783,7 +783,7 @@ async def publish_share(
     if not dist:
         raise HTTPException(400, "Spin posts first — no distribution found.")
 
-    blog_url = f"https://www.gymaxisai.com/blog/{article.get('slug')}"
+    blog_url = f"https://gymaxisai.com/blog/{article.get('slug')}"
 
     if payload.channel == "linkedin":
         posts = (dist.get("content") or {}).get("linkedin") or []

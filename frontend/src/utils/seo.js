@@ -7,8 +7,8 @@
  *   useSeo({
  *     title: 'Pricing | GymAxis AI',
  *     description: '£150/mo for one site. Add modules à la carte. 3-day trial.',
- *     canonical: 'https://www.gymaxisai.com/pricing',
- *     image: 'https://www.gymaxisai.com/og/pricing.jpg',
+ *     canonical: 'https://gymaxisai.com/pricing',
+ *     image: 'https://gymaxisai.com/og/pricing.jpg',
  *     type: 'website',
  *     structuredData: { '@context': 'https://schema.org', '@type': 'Product', ... }
  *   });
@@ -94,8 +94,8 @@ export const orgJsonLd = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'GymAxis AI',
-  url: 'https://www.gymaxisai.com',
-  logo: 'https://www.gymaxisai.com/brand/gymaxis-logo.svg',
+  url: 'https://gymaxisai.com',
+  logo: 'https://gymaxisai.com/brand/gymaxis-logo.svg',
   description: 'All-in-one platform for fitness operators: CRM, memberships, marketing, and gym operations.',
   sameAs: ['https://www.instagram.com/gymaxisai'],
   contactPoint: {
@@ -114,7 +114,7 @@ export const softwareJsonLd = () => ({
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description: 'Multi-tenant fitness operations platform for gyms, leisure centres, and studios.',
-  image: ['https://www.gymaxisai.com/brand/og-cover.jpg'],
+  image: ['https://gymaxisai.com/brand/og-cover.jpg'],
   offers: {
     '@type': 'AggregateOffer',
     lowPrice: '29.00',

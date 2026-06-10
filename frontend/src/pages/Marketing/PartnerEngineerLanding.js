@@ -152,7 +152,7 @@ export default function PartnerEngineerLanding() {
   useSeo({
     title: 'Engineer Partner Network — GymAxis AI',
     description: 'Join 100+ independent fitness engineers on the GymAxis Partner Network. £30/mo (drops to free at 10 referrals). Apply in 5 minutes.',
-    canonical: 'https://www.gymaxisai.com/partners/engineers',
+    canonical: 'https://gymaxisai.com/partners/engineers',
   });
   return (
     <MarketingShell>

@@ -26,9 +26,9 @@ from utils.notification_prefs_helper import can_send_lifecycle_email
 
 logger = logging.getLogger(__name__)
 
-LOGIN_URL = "https://www.gymaxisai.com/login"
-DEMO_URL = "https://www.gymaxisai.com/contact"
-PRICING_URL = "https://www.gymaxisai.com/pricing"
+LOGIN_URL = "https://gymaxisai.com/login"
+DEMO_URL = "https://gymaxisai.com/contact"
+PRICING_URL = "https://gymaxisai.com/pricing"
 # Trial-ending CTA destination — login-gated paid checkout page (iter 221).
 # Deliberately NOT the public /pricing page, which re-offers a free trial.
 CHOOSE_PLAN_URL = "https://gymaxisai.com/choose-plan"
@@ -55,7 +55,7 @@ def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
     </tr>
     <tr>
       <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
-        <p style="margin:0;">Sent by GymAxis AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://www.gymaxisai.com/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
+        <p style="margin:0;">Sent by GymAxis AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://gymaxisai.com/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
         <p style="margin:6px 0 0 0;font-size:11px;color:#94a3b8;">You can manage email preferences inside your account.</p>
       </td>
     </tr>

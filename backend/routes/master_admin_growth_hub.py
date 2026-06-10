@@ -435,7 +435,7 @@ async def growth_sparklines(user: dict = Depends(get_current_user)) -> dict:
 _BRAND_SIG_HTML = (
     "<br><br>—<br>"
     "GymAxis · operations + CRM for fitness operators<br>"
-    "<a href=\"https://www.gymaxisai.com/demo\">Book a 20-min demo</a>"
+    "<a href=\"https://gymaxisai.com/demo\">Book a 20-min demo</a>"
 )
 
 
@@ -529,7 +529,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "back next quarter.</p>"
                     "<p>Either way, here's our 2026 multi-site downtime benchmark "
                     "(no email gate, just a link): "
-                    "<a href=\"https://www.gymaxisai.com/benchmark\">gymaxisai.com/benchmark</a>.</p>"
+                    "<a href=\"https://gymaxisai.com/benchmark\">gymaxisai.com/benchmark</a>.</p>"
                 ),
             ),
         ],
@@ -566,7 +566,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p>Hi {{first_name}},</p>"
                     "<p>Forgot to send this in the recap. 4-min walkthrough showing "
                     "what your area manager sees when a fault comes in:</p>"
-                    "<p><a href=\"https://www.gymaxisai.com/demo-video/partner-flow\">"
+                    "<p><a href=\"https://gymaxisai.com/demo-video/partner-flow\">"
                     "Watch the partner-flow demo (4 min)</a></p>"
                     "<p>Worth showing to whoever runs ops day-to-day.</p>"
                 ),
@@ -602,7 +602,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p><strong>Add 5 pieces of equipment and log 1 fault.</strong> "
                     "Takes 6 minutes total.</p>"
                     "<p>Quick guide: "
-                    "<a href=\"https://www.gymaxisai.com/docs/quickstart\">5-min quickstart</a></p>"
+                    "<a href=\"https://gymaxisai.com/docs/quickstart\">5-min quickstart</a></p>"
                     "<p>Stuck? Hit reply — I read these myself.</p>"
                 ),
             ),
@@ -616,7 +616,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "partner engineer. You're in the right ballpark.</p>"
                     "<p>If you want a 15-min review of your specific setup before "
                     "the trial ends, grab a slot here: "
-                    "<a href=\"https://www.gymaxisai.com/trial-review\">trial-review</a>.</p>"
+                    "<a href=\"https://gymaxisai.com/trial-review\">trial-review</a>.</p>"
                 ),
             ),
             _email_node(
@@ -630,7 +630,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p>If you're not ready, just reply and we can pause / extend "
                     "rather than lose the work.</p>"
                     "<p>Either way: 3 short clicks here to convert → "
-                    "<a href=\"https://www.gymaxisai.com/subscribe\">subscribe</a>.</p>"
+                    "<a href=\"https://gymaxisai.com/subscribe\">subscribe</a>.</p>"
                 ),
             ),
         ],
@@ -668,7 +668,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p>Hi {{first_name}},</p>"
                     "<p>Quick one — we just published how a 12-site UK chain cut "
                     "equipment downtime by 38% in 90 days using GymAxis.</p>"
-                    "<p><a href=\"https://www.gymaxisai.com/case-studies/12-site-chain\">"
+                    "<p><a href=\"https://gymaxisai.com/case-studies/12-site-chain\">"
                     "Read the case study (5 min)</a></p>"
                     "<p>If the numbers look relevant, happy to share what they "
                     "specifically configured. No pitch attached.</p>"
