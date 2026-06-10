@@ -137,9 +137,11 @@ export default function LoginPage() {
                 Email or kiosk username
               </label>
               <input
-                type="text"
+                type="email"
                 autoCapitalize="none"
                 autoCorrect="off"
+                autoComplete="email"
+                inputMode="email"
                 spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
