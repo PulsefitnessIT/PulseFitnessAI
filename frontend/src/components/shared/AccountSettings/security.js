@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { API, useAuthHeaders, FieldRow } from './shared';
 import MFASetupCard from '../MFASetupCard';
+import { ActiveSessionsPanel } from './ActiveSessionsPanel';
 
 export default function SecuritySection() {
   const headers = useAuthHeaders();
@@ -37,6 +38,14 @@ export default function SecuritySection() {
         <p className="account-section-sub">Protect your account with a 6-digit code on every sign-in.</p>
         <div className="mt-3">
           <MFASetupCard />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="account-section-title">Active sessions</h3>
+        <p className="account-section-sub">See every device signed in to your account — and sign out the ones you don't recognise.</p>
+        <div className="mt-3">
+          <ActiveSessionsPanel API={API} variant="light" />
         </div>
       </div>
 

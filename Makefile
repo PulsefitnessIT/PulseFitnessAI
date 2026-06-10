@@ -304,6 +304,8 @@ regression:
 	  tests/test_iter_220ea_36_offline_notes_invoices.py \
 	  tests/test_iter_220ea_38_engineer_trial_on_approval.py \
 	  tests/test_iter_220ea_39_fault_supplier_dispatch.py \
+	  tests/test_iter231_session_self_heal.py \
+	  tests/test_iter232_active_sessions.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

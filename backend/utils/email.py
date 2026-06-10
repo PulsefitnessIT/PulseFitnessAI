@@ -436,7 +436,14 @@ async def send_email(
         # bursts can't overrun Resend's 5 req/s cap.
         from utils.email_rate_limiter import acquire as _rl_acquire
         await _rl_acquire()
-        result = await asyncio.to_thread(resend.Emails.send, params)
+        # Iter 232 — bound the provider call. A hung Resend API must never
+        # block the calling API route (partner approve, quote send, …)
+        # beyond this ceiling; timeouts fall into the retry-payload path
+        # below like any other send failure.
+        _send_timeout = float(os.environ.get("EMAIL_SEND_TIMEOUT_SECONDS", "10"))
+        result = await asyncio.wait_for(
+            asyncio.to_thread(resend.Emails.send, params), timeout=_send_timeout,
+        )
         logger.info(f"Email sent to {to} (subject={subject!r}, resend_id={result.get('id') if isinstance(result, dict) else result})")
         await _record_email_event(to=to, subject=subject, status="sent", error=None)
         return True

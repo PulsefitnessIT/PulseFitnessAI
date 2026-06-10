@@ -13,6 +13,7 @@ import UsageMeterCard from '../components/shared/UsageMeterCard';
 import NotificationPreferencesPanel from '../components/shared/NotificationPreferencesPanel';
 import SubscriptionManagementPanel from '../components/shared/SubscriptionManagementPanel';
 import LocalizationPanel from '../components/shared/AccountSettings/LocalizationPanel';
+import { ActiveSessionsPanel } from '../components/shared/AccountSettings/ActiveSessionsPanel';
 import {
   CreditCard, Calendar, Building2, ArrowUpRight, Clock, Wrench
 } from 'lucide-react';
@@ -186,6 +187,11 @@ const AccountPanel = ({ open, onClose }) => {
         {/* Security / MFA */}
         <div className="mt-4">
           <MFASetupCard />
+        </div>
+
+        {/* Active sessions / sign out everywhere (iter 232) */}
+        <div className="mt-4">
+          <ActiveSessionsPanel API={API} />
         </div>
 
         {/* Usage meter (iter 215c0) */}

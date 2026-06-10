@@ -243,3 +243,10 @@ End-user E2E audit (testing agent + manual verification):
 **Tests:** new `tests/test_iter231_session_self_heal.py` (6 tests — stale-header shadow, duplicate-cookie shadow, purge headers, garbage-only still 401). Full gate re-run: 2,368 passed. Browser simulation of the exact production scenario (stale token planted → login) loads master-admin cleanly.
 
 **Status: fixed in preview — REQUIRES REDEPLOY to reach gymaxisai.com.**
+
+## Jun 10, 2026 — Iter 232: Active sessions / "Sign out everywhere" panel
+
+- **Backend:** `user_sessions` registry recorded at login/register/MFA-verify, rotated in-place on /auth/refresh, dropped on logout (`utils/auth.py::record_user_session`). New endpoints: `GET /api/auth/sessions` (device, IP, last-seen, current flag), `POST /api/auth/sessions/{id}/revoke` (single device — jti deny list), `POST /api/auth/sessions/revoke-others` ("sign out everywhere else" — revokes registered jtis + stamps `tokens_revoked_before` = current iat so even unregistered legacy tokens die while this device survives). All audited to security_audit_log.
+- **Frontend:** `ActiveSessionsPanel` (variant-aware: dark for legacy master-admin AccountPanel, light/theme-aware for AccountSettingsModal → Security). Mounted on both surfaces. data-testids: active-sessions-panel, session-row-*, session-current-badge, session-revoke-*, sign-out-everywhere-btn.
+- **Hardening:** Resend send now bounded by `EMAIL_SEND_TIMEOUT_SECONDS` (default 10s) — a hung email provider no longer blocks API routes (was causing transient ReadTimeout flakes in partner-approval tests, and a real prod latency risk).
+- **Tests:** `tests/test_iter232_active_sessions.py` (7 tests, throwaway-user pattern — never mutates revocation state of seeded accounts). Both iter231 + iter232 files added to the `make regression` gate. Full gate green: 2,368 passed.

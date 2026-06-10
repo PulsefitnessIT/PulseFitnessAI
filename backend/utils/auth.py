@@ -142,6 +142,89 @@ def purge_legacy_cookie_scopes(response: Response, request: Request) -> None:
         pass
 
 
+# ════════════════ Iter 232 — active-session registry ════════════════
+
+def _device_label(user_agent: str) -> str:
+    """Coarse, human-friendly "Chrome · Windows" label from a UA string."""
+    ua = (user_agent or "").lower()
+    if "edg/" in ua or "edge" in ua:
+        browser = "Edge"
+    elif "opr/" in ua or "opera" in ua:
+        browser = "Opera"
+    elif "firefox" in ua:
+        browser = "Firefox"
+    elif "chrome" in ua or "crios" in ua:
+        browser = "Chrome"
+    elif "safari" in ua:
+        browser = "Safari"
+    elif "python-requests" in ua or "curl" in ua:
+        browser = "API client"
+    else:
+        browser = "Browser"
+    if "iphone" in ua:
+        os_name = "iPhone"
+    elif "ipad" in ua:
+        os_name = "iPad"
+    elif "android" in ua:
+        os_name = "Android"
+    elif "windows" in ua:
+        os_name = "Windows"
+    elif "mac os" in ua or "macintosh" in ua:
+        os_name = "macOS"
+    elif "linux" in ua:
+        os_name = "Linux"
+    else:
+        os_name = "Unknown OS"
+    return f"{browser} · {os_name}"
+
+
+async def record_user_session(user_id: str, token: str, request: Request,
+                              *, replaces_jti: Optional[str] = None) -> None:
+    """Track a device session in ``user_sessions`` (powering the
+    "Active sessions / sign out everywhere" panel).
+
+    On login a new row is inserted; on refresh the rotated jti REPLACES
+    the old one in-place so the device keeps one row with its original
+    ``created_at``. Best-effort — session tracking must never block auth.
+    """
+    try:
+        payload = verify_token(token) or {}
+        jti = payload.get("jti")
+        if not jti:
+            return
+        exp = payload.get("exp")
+        exp_ts = int(exp) if exp else int(datetime.now(timezone.utc).timestamp()) + 86400
+        now_iso = datetime.now(timezone.utc).isoformat()
+        ua = request.headers.get("user-agent", "")
+        try:
+            from utils.security import _client_ip
+            ip = _client_ip(request)
+        except Exception:
+            ip = request.client.host if request.client else ""
+        fields = {
+            "user_id": user_id,
+            "jti": jti,
+            "last_seen_at": now_iso,
+            "ip": ip,
+            "user_agent": ua[:300],
+            "device": _device_label(ua),
+            "exp_ts": exp_ts,
+            "expires_at": datetime.fromtimestamp(exp_ts, tz=timezone.utc).isoformat(),
+        }
+        if replaces_jti:
+            res = await db.user_sessions.update_one(
+                {"jti": replaces_jti, "user_id": user_id}, {"$set": fields},
+            )
+            if res.matched_count:
+                return
+        import uuid as _uuid
+        await db.user_sessions.insert_one(
+            {"id": str(_uuid.uuid4()), "created_at": now_iso, **fields},
+        )
+    except Exception:
+        pass
+
+
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),

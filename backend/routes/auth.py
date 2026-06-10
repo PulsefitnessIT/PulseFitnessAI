@@ -7,7 +7,7 @@ import secrets
 import logging
 
 from utils.database import db
-from utils.auth import get_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes
+from utils.auth import get_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
 from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
     rate_limit_login, rate_limit_password_reset, validate_password_strength,
@@ -241,6 +241,7 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
     token = create_token(user_id, expires_hours=_ttl_hours, mfa_verified=False)
     set_auth_cookie(response, token, max_age_hours=_ttl_hours)
     purge_legacy_cookie_scopes(response, request)
+    await record_user_session(user_id, token, request)
 
     # Iter 216h75 — Partner Engineer Network referral attribution. The
     # ref_code is bound write-once to the new org so the next cleared
@@ -470,6 +471,7 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
     token = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=mfa_verified)
     set_auth_cookie(response, token, max_age_hours=ttl_hours)
     purge_legacy_cookie_scopes(response, request)
+    await record_user_session(user["id"], token, request)
 
     ip = request.client.host if request.client else ""
     from utils.audit import audit_log
@@ -914,6 +916,9 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
     if not header_token:
         set_auth_cookie(response, new_token, max_age_hours=ttl_hours)
         purge_legacy_cookie_scopes(response, request)
+        # Iter 232 — keep the device's session-registry row alive across
+        # rotation (same row, new jti, original created_at).
+        await record_user_session(user["id"], new_token, request, replaces_jti=old_jti)
     return {"token": new_token}
 
 
@@ -933,8 +938,113 @@ async def logout(response: Response, user: dict = Depends(get_current_user)) -> 
             "event": "auth.logout", "actor_id": user["id"], "actor_email": user.get("email"),
             "jti": jti,
         })
+    try:
+        if jti:
+            await db.user_sessions.delete_one({"jti": jti, "user_id": user["id"]})
+    except Exception:
+        pass
     clear_auth_cookie(response)
     return {"success": True}
+
+
+# ════════════════ Iter 232 — active sessions panel ════════════════
+
+@router.get("/auth/sessions")
+async def list_active_sessions(user: dict = Depends(get_current_user)) -> dict:
+    """Devices with a live session for the signed-in user.
+
+    Powers the account-settings "Active sessions" panel. The row whose
+    jti matches the calling token is flagged ``current``.
+    """
+    now = datetime.now(timezone.utc)
+    cur_jti = user.get("_jwt_jti")
+    rows = await db.user_sessions.find(
+        {"user_id": user["id"]}, {"_id": 0},
+    ).sort("last_seen_at", -1).to_list(50)
+    out = []
+    stale_ids = []
+    for r in rows:
+        exp_ts = r.get("exp_ts") or 0
+        if exp_ts and exp_ts < int(now.timestamp()):
+            stale_ids.append(r.get("id"))
+            continue
+        out.append({
+            "id": r.get("id"),
+            "device": r.get("device") or "Unknown device",
+            "ip": r.get("ip") or "",
+            "created_at": r.get("created_at"),
+            "last_seen_at": r.get("last_seen_at"),
+            "expires_at": r.get("expires_at"),
+            "current": bool(cur_jti) and r.get("jti") == cur_jti,
+        })
+    if stale_ids:
+        await db.user_sessions.delete_many({"id": {"$in": stale_ids}})
+    return {"sessions": out}
+
+
+@router.post("/auth/sessions/{session_id}/revoke")
+async def revoke_one_session(session_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Sign out a SINGLE other device (revokes that session's jti)."""
+    from utils.security_plus import revoke_jwt, audit_required
+    row = await db.user_sessions.find_one(
+        {"id": session_id, "user_id": user["id"]}, {"_id": 0},
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if row.get("jti") == user.get("_jwt_jti"):
+        raise HTTPException(status_code=400, detail="Use /auth/logout to end the current session")
+    exp_ts = row.get("exp_ts") or int(datetime.now(timezone.utc).timestamp()) + 86400
+    await revoke_jwt(row["jti"], int(exp_ts), reason="user_revoked_device")
+    await db.user_sessions.delete_one({"id": session_id})
+    await audit_required("security_audit_log", {
+        "event": "auth.session_revoked", "actor_id": user["id"],
+        "actor_email": user.get("email"), "session_id": session_id,
+        "device": row.get("device"), "ip": row.get("ip"),
+    })
+    return {"success": True}
+
+
+@router.post("/auth/sessions/revoke-others")
+async def revoke_other_sessions(user: dict = Depends(get_current_user)) -> dict:
+    """"Sign out everywhere else" — kills every session except this one.
+
+    Belt and braces: each REGISTERED other session's jti goes on the
+    deny list, and ``tokens_revoked_before`` is stamped with the current
+    token's iat so even UNREGISTERED legacy tokens (minted before this
+    feature shipped) die too — while the calling token (iat == cutoff)
+    survives.
+    """
+    from utils.security_plus import revoke_jwt, audit_required
+    cur_jti = user.get("_jwt_jti")
+    rows = await db.user_sessions.find(
+        {"user_id": user["id"]}, {"_id": 0, "id": 1, "jti": 1, "exp_ts": 1},
+    ).to_list(100)
+    revoked = 0
+    for r in rows:
+        if r.get("jti") and r["jti"] != cur_jti:
+            exp_ts = r.get("exp_ts") or int(datetime.now(timezone.utc).timestamp()) + 86400
+            await revoke_jwt(r["jti"], int(exp_ts), reason="sign_out_everywhere")
+            await db.user_sessions.delete_one({"id": r.get("id")})
+            revoked += 1
+    iat = user.get("_jwt_iat")
+    try:
+        iat_epoch = int(iat.timestamp()) if isinstance(iat, datetime) else int(iat or 0)
+    except (TypeError, ValueError):
+        iat_epoch = 0
+    if iat_epoch:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {
+                "tokens_revoked_before": iat_epoch,
+                "tokens_revoked_reason": "sign_out_everywhere",
+                "tokens_revoked_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+    await audit_required("security_audit_log", {
+        "event": "auth.sign_out_everywhere", "actor_id": user["id"],
+        "actor_email": user.get("email"), "revoked_sessions": revoked,
+    })
+    return {"success": True, "revoked": revoked}
 
 
 @router.get("/captcha/config")
@@ -1090,6 +1200,7 @@ async def mfa_verify(body: dict, request: Request, response: Response) -> dict:
     token = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=True)
     set_auth_cookie(response, token, max_age_hours=ttl_hours)
     purge_legacy_cookie_scopes(response, request)
+    await record_user_session(user["id"], token, request)
     return {"token": token, "user": _build_login_user_payload(user, org, trial_state, features)}
 
 
