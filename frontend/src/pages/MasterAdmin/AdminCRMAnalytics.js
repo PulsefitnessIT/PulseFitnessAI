@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
@@ -10,8 +11,15 @@ import {
 const fmt = (v) => typeof v === 'number' ? (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toLocaleString()) : v;
 const gbp = (v) => `£${(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-const StatCard = ({ icon: Icon, label, value, sub, color = 'text-blue-400', bgColor = 'bg-blue-500/10' }) => (
-  <Card className="p-5 bg-white border-zinc-200 hover:shadow-sm transition-shadow" data-testid={`crm-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+const StatCard = ({ icon: Icon, label, value, sub, color = 'text-blue-400', bgColor = 'bg-blue-500/10', onClick }) => (
+  <Card
+    className={`p-5 bg-white border-zinc-200 transition-all ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-zinc-300' : 'hover:shadow-sm'}`}
+    data-testid={`crm-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+  >
     <div className="flex items-start justify-between">
       <div className={`w-9 h-9 rounded-lg ${bgColor} flex items-center justify-center`}>
         <Icon size={18} className={color} />
@@ -25,6 +33,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color = 'text-blue-400', bgCo
 
 const AdminCRMAnalytics = () => {
   const { API } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const token = localStorage.getItem('token');
@@ -70,11 +79,13 @@ const AdminCRMAnalytics = () => {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard icon={Users} label="Total Contacts" value={fmt(overview.total_contacts)} sub={`+${growth.new_contacts_30d} (30d)`} color="text-blue-500" bgColor="bg-blue-500/10" />
-        <StatCard icon={Building2} label="Companies" value={fmt(overview.total_companies)} color="text-violet-500" bgColor="bg-violet-500/10" />
-        <StatCard icon={GitBranch} label="Active Deals" value={fmt(overview.total_deals)} sub={`+${growth.new_deals_30d} (30d)`} color="text-amber-500" bgColor="bg-amber-500/10" />
-        <StatCard icon={TrendingUp} label="Win Rate" value={`${pipeline.win_rate}%`} sub={`${pipeline.won_deals}W / ${pipeline.lost_deals}L`} color="text-emerald-500" bgColor="bg-emerald-500/10" />
-        <StatCard icon={Target} label="Revenue Won" value={gbp(pipeline.total_won_value)} color="text-emerald-600" bgColor="bg-emerald-500/10" />
+        {/* Iter 233 — each KPI deep-links into the CRM workspace view it
+            summarises (CRMApp honours the ?tab= query param). */}
+        <StatCard icon={Users} label="Total Contacts" value={fmt(overview.total_contacts)} sub={`+${growth.new_contacts_30d} (30d)`} color="text-blue-500" bgColor="bg-blue-500/10" onClick={() => navigate('/crm?tab=contacts')} />
+        <StatCard icon={Building2} label="Companies" value={fmt(overview.total_companies)} color="text-violet-500" bgColor="bg-violet-500/10" onClick={() => navigate('/crm?tab=companies')} />
+        <StatCard icon={GitBranch} label="Active Deals" value={fmt(overview.total_deals ?? overview.active_opportunities)} sub={`+${growth.new_deals_30d} (30d)`} color="text-amber-500" bgColor="bg-amber-500/10" onClick={() => navigate('/crm?tab=pipeline')} />
+        <StatCard icon={TrendingUp} label="Win Rate" value={`${pipeline.win_rate}%`} sub={`${pipeline.won_deals}W / ${pipeline.lost_deals}L`} color="text-emerald-500" bgColor="bg-emerald-500/10" onClick={() => navigate('/crm?tab=pipeline')} />
+        <StatCard icon={Target} label="Revenue Won" value={gbp(pipeline.total_won_value)} color="text-emerald-600" bgColor="bg-emerald-500/10" onClick={() => navigate('/crm?tab=pipeline')} />
       </div>
 
       {/* Iter 215br — Pipeline value · Renewal countdown · AI usage */}

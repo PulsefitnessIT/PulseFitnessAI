@@ -54,7 +54,7 @@ const AdminMemberships = () => {
  ))}
  </div>
 
- {tab === 'overview' && <OverviewTab overview={state.overview} onDrillOrg={setOrgId} />}
+ {tab === 'overview' && <OverviewTab overview={state.overview} onDrillOrg={setOrgId} onNavTab={setTab} />}
  {tab === 'organisations' && (
  <OrganisationsTab
  organizations={state.organizations}

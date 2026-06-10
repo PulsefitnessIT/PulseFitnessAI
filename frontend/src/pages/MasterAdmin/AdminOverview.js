@@ -63,6 +63,7 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
       onClick: () => onGoPayments?.(),
       tip: 'Monthly Recurring Revenue — sum of every active paid plan\'s monthly billing amount. Trial / failed / suspended subscriptions are excluded.' },
     { label: 'Open Cases', value: stats.open_issues, icon: AlertTriangle, palette: KPI_PALETTES.cases, testid: 'kpi-open-cases',
+      onClick: () => onGoSection?.('support'),
       tip: 'Faults across all gyms with status = open or in_progress. Resolved or closed faults are excluded.' },
   ];
 

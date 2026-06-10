@@ -138,7 +138,11 @@ async def _resolve_module_org_ids(module: str, base_org_ids: Optional[list[str]]
 
 
 @router.get("/master-admin/stats")
-async def get_master_stats(user: dict = Depends(get_current_user), module: Optional[str] = None):
+async def get_master_stats(
+    user: dict = Depends(get_current_user),
+    module: Optional[str] = None,
+    brand: Optional[str] = None,
+):
     require_master_admin(user)
     org_ids = await _resolve_pulse_scope_org_ids(user)
     # Iter 220o — optional per-module scoping for the Operations-only
@@ -147,6 +151,17 @@ async def get_master_stats(user: dict = Depends(get_current_user), module: Optio
     # module-scoped via the existing helpers.
     if module in ("operations", "memberships", "marketing", "crm"):
         org_ids = await _resolve_module_org_ids(module, org_ids)
+    # Iter 233 — brand scoping. The header brand selector (GymAxis /
+    # Pulse) already filters the organisations and users lists; the KPI
+    # cards must ride the SAME scope or the "Organisations" number
+    # contradicts the list right below it.
+    if brand and brand not in ("all", ""):
+        from utils.brand_filter import merge_brand_filter
+        bq = merge_brand_filter({}, brand, collection="organizations")
+        if bq:
+            brand_rows = await db.organizations.find(bq, {"_id": 0, "id": 1}).to_list(20000)
+            brand_ids = {o["id"] for o in brand_rows}
+            org_ids = list(brand_ids) if org_ids is None else [i for i in org_ids if i in brand_ids]
     counts = await _get_platform_counts(org_ids)
     subs, mrr = await _get_subscription_stats(org_ids)
     issue_q: dict = {"ai_triage": {"$exists": True, "$ne": None}}

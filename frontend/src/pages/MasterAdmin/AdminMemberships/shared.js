@@ -7,8 +7,15 @@ export const fmtMoney = (pence) => {
 
 export const fmtPct = (n) => `${(Number(n) || 0).toFixed(1)}%`;
 
-export const StatCard = ({ label, value, hint, color = 'text-zinc-900 dark:text-zinc-100', bg = 'bg-zinc-50 dark:bg-zinc-800/60', icon: Icon, testid }) => (
-  <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 lg:p-5 shadow-sm" data-testid={testid}>
+export const StatCard = ({ label, value, hint, color = 'text-zinc-900 dark:text-zinc-100', bg = 'bg-zinc-50 dark:bg-zinc-800/60', icon: Icon, testid, onClick }) => (
+  <div
+    className={`bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 lg:p-5 shadow-sm ${onClick ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700' : ''}`}
+    data-testid={testid}
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+  >
     <div className="flex items-center gap-2 lg:justify-between">
       {Icon && (
         <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-lg ${bg} flex items-center justify-center flex-shrink-0 lg:order-2`}>

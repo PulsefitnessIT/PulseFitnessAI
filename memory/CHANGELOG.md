@@ -250,3 +250,16 @@ End-user E2E audit (testing agent + manual verification):
 - **Frontend:** `ActiveSessionsPanel` (variant-aware: dark for legacy master-admin AccountPanel, light/theme-aware for AccountSettingsModal → Security). Mounted on both surfaces. data-testids: active-sessions-panel, session-row-*, session-current-badge, session-revoke-*, sign-out-everywhere-btn.
 - **Hardening:** Resend send now bounded by `EMAIL_SEND_TIMEOUT_SECONDS` (default 10s) — a hung email provider no longer blocks API routes (was causing transient ReadTimeout flakes in partner-approval tests, and a real prod latency risk).
 - **Tests:** `tests/test_iter232_active_sessions.py` (7 tests, throwaway-user pattern — never mutates revocation state of seeded accounts). Both iter231 + iter232 files added to the `make regression` gate. Full gate green: 2,368 passed.
+
+## Jun 10, 2026 — Iter 233: Master-admin KPI cards — interactive + numbers aligned
+
+- **Numbers fixed:**
+  - `/master-admin/stats` now honours the `brand` query param the header brand selector sends (was ignored → "Organisations 4" card vs 1 org in the brand-filtered list). Card and list now ride the same scope.
+  - CRM "Active Deals" card rendered blank: backend returned `active_opportunities` but the card read `overview.total_deals`. Backend now ships both keys; frontend falls back.
+- **Cards now interactive:**
+  - CRM Dashboard KPIs deep-link into the CRM workspace (`/crm?tab=contacts|companies|pipeline` — CRMApp already honours ?tab=).
+  - Memberships Overview KPIs switch to the matching inner tab (Organisations / Revenue / Engagement & Retention).
+  - Platform "Open Cases" card now opens the Service Desk section (others were already clickable).
+  - Cards get hover lift + cursor, keyboard activation (Enter/Space), role=button.
+- **Duplicated filters removed:** in module-context org lists (CRM tab / Operations tab via portalFilter, MoD via accountTypesIn) the "All Modules" dropdown is hidden (the tab IS the module filter); MoD also hides "All Platforms". The platform-level Organisations section keeps all dropdowns.
+- **Tests:** `tests/test_iter233_admin_kpi_alignment.py` (7 tests: brand-scope parity stats↔list, total_deals contract, memberships KPI keys, navigation source pins) added to the `make regression` gate. Full gate green: 2,388 passed.

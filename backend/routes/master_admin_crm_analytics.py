@@ -340,6 +340,9 @@ async def get_crm_analytics(user: dict = Depends(get_current_user)) -> dict:
     return {
         "overview": {
             **counts, "active_opportunities": len(active_opps),
+            # Iter 233 — the KPI card reads `total_deals`; keep both names
+            # so neither the card nor older consumers render blank.
+            "total_deals": len(active_opps),
             "pipeline_value": pipeline_value, "weighted_forecast": weighted_forecast,
             "total_tenders": wf["total_tenders"], "active_tenders": wf["active_tenders"],
         },

@@ -6,23 +6,23 @@ import {
 } from 'recharts';
 import { StatCard, SectionCard, Pill, fmtMoney, fmtPct } from './shared';
 
-const OverviewTab = ({ overview, onDrillOrg }) => {
+const OverviewTab = ({ overview, onDrillOrg, onNavTab }) => {
   if (!overview) return null;
   const { kpis, high_risk_orgs, trend } = overview;
 
   return (
     <div className="space-y-5" data-testid="memberships-admin-overview">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard label="Total Organisations" value={kpis.total_organizations?.toLocaleString() || 0} icon={Users} color="text-blue-600" bg="bg-blue-50" testid="mkpi-orgs" />
-        <StatCard label="Active Members" value={kpis.active_members?.toLocaleString() || 0} hint={`${kpis.inactive_members || 0} inactive`} icon={Activity} color="text-emerald-600" bg="bg-emerald-50" testid="mkpi-active" />
-        <StatCard label="Total MRR" value={fmtMoney(kpis.total_mrr_pence)} hint="across all orgs" icon={PoundSterling} color="text-violet-600" bg="bg-violet-50" testid="mkpi-mrr" />
-        <StatCard label="Bookings 30d" value={kpis.bookings_30d?.toLocaleString() || 0} hint={`${kpis.bookings_7d || 0} this week`} icon={Calendar} color="text-amber-600" bg="bg-amber-50" testid="mkpi-bookings" />
+        <StatCard label="Total Organisations" value={kpis.total_organizations?.toLocaleString() || 0} icon={Users} color="text-blue-600" bg="bg-blue-50" testid="mkpi-orgs" onClick={() => onNavTab?.('organisations')} />
+        <StatCard label="Active Members" value={kpis.active_members?.toLocaleString() || 0} hint={`${kpis.inactive_members || 0} inactive`} icon={Activity} color="text-emerald-600" bg="bg-emerald-50" testid="mkpi-active" onClick={() => onNavTab?.('organisations')} />
+        <StatCard label="Total MRR" value={fmtMoney(kpis.total_mrr_pence)} hint="across all orgs" icon={PoundSterling} color="text-violet-600" bg="bg-violet-50" testid="mkpi-mrr" onClick={() => onNavTab?.('revenue')} />
+        <StatCard label="Bookings 30d" value={kpis.bookings_30d?.toLocaleString() || 0} hint={`${kpis.bookings_7d || 0} this week`} icon={Calendar} color="text-amber-600" bg="bg-amber-50" testid="mkpi-bookings" onClick={() => onNavTab?.('engagement')} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
-        <StatCard label="Churn 30d" value={fmtPct(kpis.churn_pct_30d)} hint={`${kpis.cancelled_30d || 0} cancellations`} icon={TrendingUp} color="text-red-600" bg="bg-red-50" testid="mkpi-churn" />
-        <StatCard label="Occupancy 7d" value={fmtPct(kpis.occupancy_pct_7d)} icon={Activity} color="text-teal-600" bg="bg-teal-50" testid="mkpi-occupancy" />
-        <StatCard label="No-shows 30d" value={kpis.no_shows_30d?.toLocaleString() || 0} icon={AlertTriangle} color="text-orange-600" bg="bg-orange-50" testid="mkpi-noshow" />
+        <StatCard label="Churn 30d" value={fmtPct(kpis.churn_pct_30d)} hint={`${kpis.cancelled_30d || 0} cancellations`} icon={TrendingUp} color="text-red-600" bg="bg-red-50" testid="mkpi-churn" onClick={() => onNavTab?.('engagement')} />
+        <StatCard label="Occupancy 7d" value={fmtPct(kpis.occupancy_pct_7d)} icon={Activity} color="text-teal-600" bg="bg-teal-50" testid="mkpi-occupancy" onClick={() => onNavTab?.('engagement')} />
+        <StatCard label="No-shows 30d" value={kpis.no_shows_30d?.toLocaleString() || 0} icon={AlertTriangle} color="text-orange-600" bg="bg-orange-50" testid="mkpi-noshow" onClick={() => onNavTab?.('engagement')} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">

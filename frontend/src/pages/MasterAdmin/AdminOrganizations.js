@@ -675,6 +675,10 @@ useEffect(() => {
  <SelectItem value="archived">Archived</SelectItem>
  </SelectContent>
  </Select>
+ {/* Iter 233 — hide the Platforms dropdown when the surrounding tab
+     already pins account types (MoD context): the dropdown would
+     duplicate/contradict the fixed scope. */}
+ {!(Array.isArray(accountTypesIn) && accountTypesIn.length > 0) && (
  <Select value={accountTypeFilter || 'all'} onValueChange={onAccountTypeFilterChange}>
  <SelectTrigger className="w-40 bg-white border-slate-200 text-slate-900 h-10 rounded-xl" data-testid="org-account-type-filter">
  <SelectValue />
@@ -686,6 +690,12 @@ useEffect(() => {
  <SelectItem value="lite">Pulse Lite</SelectItem>
  </SelectContent>
  </Select>
+ )}
+ {/* Iter 233 — hide the Modules dropdown when the module context is
+     already fixed by the hosting tab (e.g. CRM → Organisations passes
+     portalFilter): the card/tab acts as the filter, so the dropdown
+     was a duplicate. */}
+ {!portalFilter && !(Array.isArray(accountTypesIn) && accountTypesIn.length > 0) && (
  <Select value={moduleFilter} onValueChange={setModuleFilter}>
  <SelectTrigger className="w-44 bg-white border-slate-200 text-slate-900 h-10 rounded-xl" data-testid="org-module-filter">
  <SelectValue />
@@ -699,6 +709,7 @@ useEffect(() => {
  <SelectItem value="marketing">Marketing</SelectItem>
  </SelectContent>
  </Select>
+ )}
  <Button className="h-10 text-sm rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white hover:opacity-90 shadow-[0_6px_16px_-6px_rgba(37,99,235,0.35)] border-0" onClick={() => { setOrgForm({ name: '', portal_type: portalFilter || 'service_portal', account_type: 'full', subscription_tier: 'starter' }); setShowCreateOrg(true); }} data-testid="create-org-btn">
  <Plus size={14} className="mr-1" /> Create Organisation
  </Button>
