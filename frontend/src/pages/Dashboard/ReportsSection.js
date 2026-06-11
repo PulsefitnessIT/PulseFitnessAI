@@ -8,6 +8,7 @@ import CapexIntelligenceTab from '../CapexIntelligenceTab';
 import KPIPerformanceDashboard from '../KPIPerformanceDashboard';
 import AuditDetailPanel from '../AuditDetailPanel';
 import IncidentsTab from '../IncidentsTab';
+import { can } from '@/utils/capabilities';
 
 const ReportsSection = ({
  reportSubTab, onSubTabChange, auditHistory, viewAudit, onViewAudit, user, t
@@ -41,7 +42,7 @@ const ReportsSection = ({
  <SubTabBtn id="risk" label={t('dashboard.risk_assessments')} testId="report-sub-risk" />
  <SubTabBtn id="incidents" label="H&S Incidents" testId="report-sub-incidents" />
  <SubTabBtn id="audits" label={t('dashboard.machine_audit')} testId="report-sub-audits" />
- {(user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin) && (
+ {can(user, 'view_capex') && (
  <SubTabBtn id="capex" label="CAPEX Intelligence" testId="report-sub-capex" />
  )}
  </div>

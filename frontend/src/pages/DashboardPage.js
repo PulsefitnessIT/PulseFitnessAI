@@ -58,6 +58,7 @@ import GamifiedOnboarding from './Dashboard/GamifiedOnboarding';
 import WelcomeHero from './Dashboard/WelcomeHero';
 import NudgeBanner from '../components/shared/NudgeBanner';
 import { useSeo } from '../utils/seo';
+import { can } from '../utils/capabilities';
 
 const DashboardPage = () => {
   const { user, API, theme } = useAuth();
@@ -189,7 +190,7 @@ const DashboardPage = () => {
     );
   }
 
-  const showSuppliersTab = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
+  const showSuppliersTab = can(user, 'view_suppliers');
 
   return (
     <div
@@ -241,7 +242,7 @@ const DashboardPage = () => {
 
             {/* Proactive nudges (warranty, PPM, supplier SLA drift) */}
             {!user?.is_master_admin && (
-              <NudgeBanner canDismiss={user?.role === 'owner' || user?.role === 'manager'} />
+              <NudgeBanner canDismiss={can(user, 'dismiss_nudges')} />
             )}
 
             {/* Welcome hero (gamified onboarding) — shown for non-master-admin users who haven't dismissed or completed onboarding.
@@ -480,7 +481,7 @@ const DashboardPage = () => {
         i18n={i18n}
         issues={issues}
         API={API}
-        canManageOrgTemplates={user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin}
+        canManageOrgTemplates={can(user, 'manage_fault_templates')}
       />
 
       <MobileBottomNav

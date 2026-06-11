@@ -39,8 +39,11 @@ def test_no_handwritten_role_gates_on_tab_content():
 
 def test_is_managerial_includes_pulse_admins():
     src = _src()
-    assert "const isManagerial = userRole === 'owner' || userRole === 'manager'" in src
-    assert "user?.is_pulse_admin || user?.role === 'pulse_master_admin'" in src
+    # Iter 243 — isManagerial is now derived from the central capability
+    # helper; pulse-admin inclusion is asserted against capabilities.js.
+    assert "const isManagerial = can(user, 'manage_operations', { role: userRole })" in src
+    caps = open("/app/frontend/src/utils/capabilities.js", encoding="utf-8").read()
+    assert "user?.is_master_admin || isPulseAdmin(user)" in caps
     # The staffing label, site switcher and nudge banner all ride the flag.
     assert src.count("isManagerial") >= 4
 

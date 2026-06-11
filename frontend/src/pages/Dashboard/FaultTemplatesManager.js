@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users, User, Trash2, Bookmark, Zap } from 'lucide-react';
 
 import { notify } from '@/components/notifications';
+import { can } from '@/utils/capabilities';
 /**
  * Settings-panel view over the fault templates the current user can see.
  * - Org-scoped templates can only be deleted by owner/manager/master_admin.
@@ -20,7 +21,7 @@ const FaultTemplatesManager = ({ API, user }) => {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
 
-  const privileged = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
+  const privileged = can(user, 'manage_fault_templates');
 
   const load = useCallback(async () => {
     setLoading(true);

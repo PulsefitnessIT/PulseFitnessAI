@@ -66,9 +66,13 @@ def test_pulse_card_only_on_dashboard_tab():
 
 def test_site_switcher_gate_includes_pulse_admin():
     page = open(f"{FRONTEND}/pages/LiteDashboardPage.js", encoding="utf-8").read()
-    assert "user?.is_pulse_admin || user?.role === 'pulse_master_admin'" in page, (
-        "Pulse Master Admins must pass the SiteSwitcher visibility gate"
+    # Iter 243 — the gate now rides the shared `isManagerial` flag, which
+    # is backed by utils/capabilities.js (pulse admins included there).
+    assert "isPro && isManagerial ?" in page, (
+        "Site switcher must be gated by the shared managerial capability"
     )
+    caps = open(f"{FRONTEND}/utils/capabilities.js", encoding="utf-8").read()
+    assert "pulse_master_admin" in caps and "is_pulse_admin" in caps
 
 
 def test_pulse_card_dark_mode_theme_vars():

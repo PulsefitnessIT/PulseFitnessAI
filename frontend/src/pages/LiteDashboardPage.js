@@ -44,6 +44,7 @@ import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
 import PulseProUpgradeCta from '../components/shared/PulseProUpgradeCta';
 import { useUploadQueue } from '../components/shared/UploadQueue';
 import { useUserPref } from '@/utils/userPrefs';
+import { can } from '@/utils/capabilities';
 
 const SEVERITY_OPTIONS = [
   { value: 'operational_minor', label: 'Operational - Minor Issue', color: 'text-emerald-600 bg-emerald-50', desc: 'Machine is fully usable — minor fault or annoyance.' },
@@ -176,14 +177,10 @@ const LiteDashboardPage = () => {
 
   const adminDemoRole = isAdmin ? searchParams.get('role') : null;
   const userRole = adminDemoRole || (isAdmin ? 'owner' : (user?.role || 'staff'));
-  // Iter 241 — SINGLE managerial gate. Production bug (Lee): Reports /
-  // Suppliers / Gym Layout tab pills rendered but their CONTENT was
-  // gated by scattered `owner || manager` checks that forgot
-  // pulse_master_admin — exactly the same omission as the iter-237
-  // site-switcher regression. Every role gate in this page MUST use
-  // this flag instead of re-deriving its own role list.
-  const isManagerial = userRole === 'owner' || userRole === 'manager'
-    || user?.is_pulse_admin || user?.role === 'pulse_master_admin';
+  // Iter 241/243 — SINGLE managerial gate, now backed by the shared
+  // capability helper (utils/capabilities.js) so role lists are never
+  // hand-written again. `userRole` keeps the admin demo-role override.
+  const isManagerial = can(user, 'manage_operations', { role: userRole });
 
   const loadData = useCallback(async () => {
     try {

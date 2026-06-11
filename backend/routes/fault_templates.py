@@ -15,12 +15,19 @@ from constants.fault_codes import VALID_FAULT_CODES
 
 router = APIRouter()
 
-_PRIVILEGED_ROLES = {"owner", "manager", "master_admin"}
+_PRIVILEGED_ROLES = {"owner", "manager", "master_admin", "pulse_master_admin"}
 _PROJECTION = {"_id": 0}
 
 
 def _can_manage_org_templates(user: dict) -> bool:
-    return bool(user.get("is_master_admin")) or user.get("role") in _PRIVILEGED_ROLES
+    # Iter 243 — Pulse Master Admins manage the whole Pulse estate and
+    # must be able to manage org-wide templates (same omission class as
+    # the iter-237/241 role-gate bugs).
+    return (
+        bool(user.get("is_master_admin"))
+        or bool(user.get("is_pulse_admin"))
+        or user.get("role") in _PRIVILEGED_ROLES
+    )
 
 
 def _validate_template_fields(data: dict) -> None:
