@@ -285,3 +285,12 @@ End-user E2E audit (testing agent + manual verification):
   - `admin_edit_user`: role changes now run the same sync (engineer ⇄ other roles provisions/deactivates the engineer record); engineer added to the master-admin demotion flag-strip branch.
   - Hard-delete cascade now removes the `svc_engineers` row (was an orphaned-active-row gap).
 - **Tests:** `tests/test_iter236_org_engineer_role.py` (full lifecycle vs live Pulse Fitness org with archive+confirm-delete teardown, zero residue; dialog source pins) in the `make regression` gate. Full gate green: 2,404 passed. Verified in-browser (Engineer option + hint render in the Add User dialog).
+
+## Jun 11, 2026 — Iter 237: Ops dashboard production fixes (Pulse score card, dark mode, site switcher, FR/DE)
+
+- **Pulse score card duplication:** the "The Pulse · today" hero card rendered ABOVE the Operations tab strip (so it repeated on every tab) AND a second "Gym Health Score" panel sat inside the Dashboard tab. Now a single card lives inside the Dashboard tab only (`LiteOverviewTab`), branded "The Pulse · today" (Pulse) / "Gym Health · today" (GymAxis). The 216h192 "How to improve" tip moved into the card's expanded breakdown.
+- **Dark mode leakage:** `PulseScoreCard` was hardcoded light (bg-white, #E2E8F0, slate text) and Recent Faults used hardcoded `text-white` (invisible in light mode). Both now ride `--theme-*` variables.
+- **Site switcher regression:** Pulse Master Admins (role `pulse_master_admin` / `is_pulse_admin`) were excluded by the owner/manager-only gate in `LiteDashboardPage` AND by the privileged-roles set in backend `/api/sites`. Both widened — Lee can switch Pulse Fitness HQ / iGym sites again.
+- **FR/DE in-app:** the Operations dashboard was 100% hardcoded English. Tab labels, welcome line, Log-a-Fault CTA, all 8 KPI tiles, Recent Faults and the score-card description now consume i18n (`dashboard.*` keys; 15 new keys added to en/fr/de locales). Verified in-browser in both FR and DE.
+- **Lesson recorded:** parallel `search_replace` calls on the SAME file clobber each other (one of four batched edits was silently lost). Same-file edits must run sequentially.
+- **Tests:** `tests/test_iter237_ops_dashboard_fixes.py` (6 tests: pulse-admin /api/sites privilege, card placement pins, dark-mode leak pins, i18n pins) in the `make regression` gate. Gate green: 2,409 passed.

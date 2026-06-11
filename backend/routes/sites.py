@@ -40,8 +40,12 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     # they just won't see the HQ themselves until an owner visits.
     role = (user.get("role") or "").lower()
     is_privileged = (
-        role in ("owner", "manager", "master_admin", "master")
+        role in ("owner", "manager", "master_admin", "master", "pulse_master_admin")
         or bool(user.get("is_master_admin"))
+        # Iter 237 — Pulse Master Admins manage the whole Pulse estate;
+        # they must always see every site in their org (Lee's production
+        # report: site switcher lost for Pulse Fitness HQ / iGym sites).
+        or bool(user.get("is_pulse_admin"))
     )
     existing = await db.sites.find(
         {"organization_id": org_id}, {"_id": 0, "id": 1, "is_head_office": 1},

@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -82,12 +83,29 @@ const LABEL = {
   ai_knowledge:     'Knowledge base',
 };
 
+/* Iter 216h192 (moved here in Iter 237) — Lee's ask: when the score is
+   "Fair" or lower, surface a concrete next step for the weakest
+   sub-category at the bottom of the breakdown. */
+const IMPROVE_TIPS = {
+  fault_management:
+    'Close out any open faults from the Faults tab — each fix lifts this score, and resolved faults stay on record for trend reporting.',
+  self_fix_rate:
+    'When a fault has a recommended self-fix, log the outcome via "Resolve → I fixed it myself". The AI learns from each one and your score rises.',
+  audit_coverage:
+    'Run a quick audit on each piece of equipment from the Equipment tab. Audit Coverage = audits / total equipment, so a single sweep tops it up.',
+  warranty_health:
+    'Open the Equipment tab and add or extend warranty dates. Expired warranties drag this score; keeping cover live keeps you near 15/15.',
+  ai_knowledge:
+    'Every time you (or your team) log a successful fix, the platform stores it in your Knowledge Base. After ~5 logged fixes you hit the max 15 pts.',
+};
+
 export const PulseScoreCard = ({ siteId }) => {
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth() || {};
+  const { t } = useTranslation();
   // Iter 220n — switch copy + ring gradient by brand. Pulse customers
   // see "The Pulse"; everyone else (GymAxis ops) sees "Gym Health".
   const isPulse = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
@@ -110,7 +128,7 @@ export const PulseScoreCard = ({ siteId }) => {
     return (
       <div
         data-testid="pulse-score-card"
-        className="rounded-2xl border border-[#E2E8F0] bg-white p-5 mb-4 text-sm text-slate-500"
+        className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 mb-4 text-sm text-[var(--theme-text-muted)]"
       >
         {COPY.loading}
       </div>
@@ -120,7 +138,7 @@ export const PulseScoreCard = ({ siteId }) => {
     return (
       <div
         data-testid="pulse-score-card"
-        className="rounded-2xl border border-[#E2E8F0] bg-white p-5 mb-4 text-sm text-slate-500"
+        className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 mb-4 text-sm text-[var(--theme-text-muted)]"
       >
         {error || COPY.error}
       </div>
@@ -132,15 +150,15 @@ export const PulseScoreCard = ({ siteId }) => {
     return (
       <div
         data-testid="pulse-score-card"
-        className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-[#F0F9FF] via-white to-[#EFF6FF] p-5 mb-4"
+        className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 mb-4"
       >
         <div className="text-xs uppercase tracking-[0.18em] font-mono font-semibold mb-1" style={{ color: COPY.eyebrow_color }}>
           {COPY.eyebrow_waking}
         </div>
-        <div className="text-lg font-bold text-slate-800 mb-1 pulse-font-heading">
+        <div className="text-lg font-bold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
           We're getting to know your site.
         </div>
-        <div className="text-sm text-slate-600 pulse-font-body">
+        <div className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
           {data.message || COPY.not_ready_fallback}
         </div>
       </div>
@@ -163,7 +181,7 @@ export const PulseScoreCard = ({ siteId }) => {
     <div
       data-testid="pulse-score-card"
       style={{ '--pulse-fg': band.fg, '--pulse-soft': band.soft }}
-      className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-white via-[#F8FBFF] to-[#F0F9FF] mb-4 overflow-hidden"
+      className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] mb-4 overflow-hidden"
     >
       <style>{`
         @keyframes pulse-breath {
@@ -179,7 +197,7 @@ export const PulseScoreCard = ({ siteId }) => {
         type="button"
         onClick={() => setOpen(o => !o)}
         data-testid="pulse-score-toggle"
-        className="w-full flex items-center justify-between gap-5 p-5 text-left hover:bg-[#F0F9FF]/60 transition-colors"
+        className="w-full flex items-center justify-between gap-5 p-5 text-left hover:bg-[var(--theme-hover-bg)] transition-colors"
       >
         <div className="flex items-center gap-5 min-w-0">
           {/* Animated ring */}
@@ -189,7 +207,7 @@ export const PulseScoreCard = ({ siteId }) => {
               style={{ background: 'var(--pulse-soft)' }}
             />
             <svg width="128" height="128" viewBox="0 0 128 128" className="relative">
-              <circle cx="64" cy="64" r={R} fill="none" stroke="#E2E8F0" strokeWidth="6" />
+              <circle cx="64" cy="64" r={R} fill="none" stroke="var(--theme-border)" strokeWidth="6" />
               <circle
                 cx="64" cy="64" r={R}
                 fill="none"
@@ -204,7 +222,7 @@ export const PulseScoreCard = ({ siteId }) => {
                 x="64" y="62"
                 textAnchor="middle"
                 style={{
-                  fill: '#0B0F1A',
+                  fill: 'var(--theme-text)',
                   fontFamily: 'Montserrat, system-ui, sans-serif',
                   fontWeight: 900,
                   fontSize: 34,
@@ -230,13 +248,15 @@ export const PulseScoreCard = ({ siteId }) => {
             </div>
             <h3
               className="text-2xl sm:text-3xl font-bold leading-tight mb-1 pulse-font-heading"
-              style={{ color: '#0B0F1A' }}
+              style={{ color: 'var(--theme-text)' }}
               data-testid="pulse-score-band"
             >
               {data.rating}.
             </h3>
-            <p className="text-sm text-slate-600 pulse-font-body">
-              A live read of how well this site is running. {open ? 'Hiding' : 'Tap'} the breakdown to see why.
+            <p className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
+              {open
+                ? t('dashboard.pulse_desc_hide', 'A live read of how well this site is running. Hiding the breakdown.')
+                : t('dashboard.pulse_desc_tap', 'A live read of how well this site is running. Tap the breakdown to see why.')}
             </p>
           </div>
         </div>
@@ -252,8 +272,9 @@ export const PulseScoreCard = ({ siteId }) => {
       {open && (
         <div
           data-testid="pulse-score-breakdown"
-          className="border-t border-[#E2E8F0] bg-white/70 p-5 pt-4 grid sm:grid-cols-2 gap-3"
+          className="border-t border-[var(--theme-border)] p-5 pt-4"
         >
+          <div className="grid sm:grid-cols-2 gap-3">
           {rows.map(r => {
             const pct = r.max > 0 ? (r.score / r.max) * 100 : 0;
             const widthPct = Math.max(2, Math.min(100, pct));
@@ -261,14 +282,14 @@ export const PulseScoreCard = ({ siteId }) => {
               <div
                 key={r.key}
                 data-testid={`pulse-component-${r.key}`}
-                className="rounded-xl border border-[#E2E8F0] bg-white p-3"
+                className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3"
               >
                 <div className="flex items-baseline justify-between gap-3 mb-1">
-                  <div className="font-semibold text-sm text-slate-900 pulse-font-heading">
+                  <div className="font-semibold text-sm pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
                     {LABEL[r.key] || r.key}
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-mono text-slate-400">
+                    <span className="text-xs font-mono" style={{ color: 'var(--theme-text-muted)' }}>
                       / {r.max}
                     </span>
                     <span className="font-bold text-base pulse-font-heading" style={{ color: 'var(--pulse-fg)' }}>
@@ -276,7 +297,7 @@ export const PulseScoreCard = ({ siteId }) => {
                     </span>
                   </div>
                 </div>
-                <div className="h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden mb-2">
+                <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--theme-border)' }}>
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -286,12 +307,32 @@ export const PulseScoreCard = ({ siteId }) => {
                     }}
                   />
                 </div>
-                <div className="text-xs text-slate-500 pulse-font-body">
+                <div className="text-xs pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
                   {r.detail}
                 </div>
               </div>
             );
           })}
+          </div>
+          {/* Iter 216h192 / 237 — "How to improve" tip for the weakest
+              actionable sub-category (lives with the score card now). */}
+          {(() => {
+            const worst = rows
+              .map(r => ({ k: r.key, ratio: r.max ? r.score / r.max : 1 }))
+              .filter(x => x.ratio < 1 && IMPROVE_TIPS[x.k])
+              .sort((a, b) => a.ratio - b.ratio)[0];
+            if (!worst) return null;
+            return (
+              <p
+                className="mt-3 text-xs leading-snug pulse-font-body"
+                style={{ color: 'var(--theme-text-muted)' }}
+                data-testid="health-improve-tip"
+              >
+                <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>How to improve:</span>{' '}
+                {IMPROVE_TIPS[worst.k]}
+              </p>
+            );
+          })()}
         </div>
       )}
     </div>

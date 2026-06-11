@@ -246,7 +246,22 @@
     "view_alerts": "Voir les alertes",
     "payment_success": "Paiement réussi ! Votre abonnement est maintenant actif.",
     "staffing": "Personnel",
-    "start": "Démarrer"
+    "start": "Démarrer",
+    "ai_diagnosis": "Diagnostic IA",
+    "ai_triage": "Triage IA",
+    "gym_floor": "Plateau de salle",
+    "upgrade_to_pro": "Passer à Pro",
+    "operational": "Opérationnels",
+    "with_faults": "En panne",
+    "total_machines": "Machines totales",
+    "resolved_week": "Résolues cette semaine",
+    "audits_logged": "Audits enregistrés",
+    "self_fixes": "Auto-réparations",
+    "top_supplier": "Principal fournisseur",
+    "recent_faults": "Pannes récentes",
+    "no_open_faults": "Aucune panne ouverte",
+    "pulse_desc_tap": "Un aperçu en direct du bon fonctionnement de ce site. Touchez la ventilation pour voir pourquoi.",
+    "pulse_desc_hide": "Un aperçu en direct du bon fonctionnement de ce site. Masquage de la ventilation."
   },
   "faults": {
     "title": "Journal des pannes",

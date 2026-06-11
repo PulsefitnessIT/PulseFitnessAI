@@ -458,7 +458,22 @@
     "view_details": "View Details",
     "machines_expiring": "{{count}} machine(s) with expiring coverage",
     "view_alerts": "View Alerts",
-    "payment_success": "Payment successful! Your subscription is now active."
+    "payment_success": "Payment successful! Your subscription is now active.",
+    "ai_diagnosis": "AI Diagnosis",
+    "ai_triage": "AI Triage",
+    "gym_floor": "Gym Floor",
+    "upgrade_to_pro": "Upgrade to Pro",
+    "operational": "Operational",
+    "with_faults": "With Faults",
+    "total_machines": "Total Machines",
+    "resolved_week": "Resolved this week",
+    "audits_logged": "Audits logged",
+    "self_fixes": "Self-fixes",
+    "top_supplier": "Top supplier",
+    "recent_faults": "Recent Faults",
+    "no_open_faults": "No open faults",
+    "pulse_desc_tap": "A live read of how well this site is running. Tap the breakdown to see why.",
+    "pulse_desc_hide": "A live read of how well this site is running. Hiding the breakdown."
   },
   "faults": {
     "title": "Fault Log",

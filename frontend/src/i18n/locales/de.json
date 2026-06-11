@@ -246,7 +246,22 @@
     "view_alerts": "Warnungen anzeigen",
     "payment_success": "Zahlung erfolgreich! Ihr Abonnement ist jetzt aktiv.",
     "staffing": "Personal",
-    "start": "Start"
+    "start": "Start",
+    "ai_diagnosis": "KI-Diagnose",
+    "ai_triage": "KI-Triage",
+    "gym_floor": "Trainingsfläche",
+    "upgrade_to_pro": "Auf Pro upgraden",
+    "operational": "Betriebsbereit",
+    "with_faults": "Mit Störungen",
+    "total_machines": "Geräte gesamt",
+    "resolved_week": "Diese Woche gelöst",
+    "audits_logged": "Erfasste Audits",
+    "self_fixes": "Selbstreparaturen",
+    "top_supplier": "Top-Lieferant",
+    "recent_faults": "Aktuelle Störungen",
+    "no_open_faults": "Keine offenen Störungen",
+    "pulse_desc_tap": "Ein Live-Überblick, wie gut dieser Standort läuft. Tippen Sie auf die Aufschlüsselung, um zu sehen, warum.",
+    "pulse_desc_hide": "Ein Live-Überblick, wie gut dieser Standort läuft. Aufschlüsselung wird ausgeblendet."
   },
   "faults": {
     "title": "Störungsprotokoll",

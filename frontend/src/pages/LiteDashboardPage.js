@@ -37,11 +37,11 @@ import SiteSwitcher from '../components/shared/SiteSwitcher';
 import DocumentQA from '../components/shared/DocumentQA';
 import ProductTour from '../components/shared/ProductTour';
 import NudgeBanner from '../components/shared/NudgeBanner';
-import PulseScoreCard from '../components/PulseScoreCard';
+import { useTranslation } from 'react-i18next';
+import PillTabBar from '../components/shared/PillTabBar';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
 import PulseProUpgradeCta from '../components/shared/PulseProUpgradeCta';
-import PillTabBar from '../components/shared/PillTabBar';
 import { useUploadQueue } from '../components/shared/UploadQueue';
 import { useUserPref } from '@/utils/userPrefs';
 
@@ -117,6 +117,7 @@ const LiteDashboardPage = () => {
   // choice is local to this tab and clears as soon as they pick a single
   // site.
   const [allSitesActive, setAllSitesActive] = useState(false);
+  const { t } = useTranslation();
   const [equipment, setEquipment] = useState([]);
   const [issues, setIssues] = useState([]);
   const [files, setFiles] = useState([]);
@@ -607,15 +608,15 @@ const LiteDashboardPage = () => {
 
   // Build tabs based on role (mirrors Memberships structure — icon + label).
   const buildTabs = () => {
-    const start = hideStart ? [] : [{ id: 'start', label: 'Start', icon: Sparkles }];
+    const start = hideStart ? [] : [{ id: 'start', label: t('dashboard.start', 'Start'), icon: Sparkles }];
     const baseLite = [
       ...start,
-      { id: 'overview',  label: 'Dashboard',  icon: LayoutDashboard },
-      { id: 'equipment', label: 'Equipment',  icon: Dumbbell },
-      { id: 'faults',    label: 'Faults',     icon: AlertTriangle },
-      { id: 'documents', label: 'Documents',  icon: FileText },
+      { id: 'overview',  label: t('dashboard.overview', 'Dashboard'),  icon: LayoutDashboard },
+      { id: 'equipment', label: t('dashboard.equipment', 'Equipment'),  icon: Dumbbell },
+      { id: 'faults',    label: t('dashboard.faults', 'Faults'),     icon: AlertTriangle },
+      { id: 'documents', label: t('dashboard.documents', 'Documents'),  icon: FileText },
     ];
-    if (!isPro) return userRole === 'staff' ? baseLite : [...baseLite, { id: 'upgrade', label: 'Upgrade to Pro', icon: Rocket }];
+    if (!isPro) return userRole === 'staff' ? baseLite : [...baseLite, { id: 'upgrade', label: t('dashboard.upgrade_to_pro', 'Upgrade to Pro'), icon: Rocket }];
     // Pulse Pro tab bar — Documents is reinstated per Iter 216i (operators
     // still need quick access to certifications, RAMS and supplier docs
     // without diving into Reports).
@@ -623,25 +624,25 @@ const LiteDashboardPage = () => {
     // users (was previously dormant — wired in but never surfaced).
     // Brand-aware label: "AI Triage" on GymAxis, "AI Diagnosis" on Pulse.
     const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
-    const aiTabLabel = isPulseAccount ? 'AI Diagnosis' : 'AI Triage';
+    const aiTabLabel = isPulseAccount ? t('dashboard.ai_diagnosis', 'AI Diagnosis') : t('dashboard.ai_triage', 'AI Triage');
     const proBase = [
       ...start,
-      { id: 'overview',     label: 'Dashboard',    icon: LayoutDashboard },
-      { id: 'equipment',    label: 'Equipment',    icon: Dumbbell },
-      { id: 'faults',       label: 'Faults',       icon: AlertTriangle },
+      { id: 'overview',     label: t('dashboard.overview', 'Dashboard'),    icon: LayoutDashboard },
+      { id: 'equipment',    label: t('dashboard.equipment', 'Equipment'),    icon: Dumbbell },
+      { id: 'faults',       label: t('dashboard.faults', 'Faults'),       icon: AlertTriangle },
       // Iter 216o-11 — labels match GymAxis exactly so the two portals
       // look identical to a customer comparing them side-by-side. The
       // underlying components stay separate (each is brand-tuned for
       // its portal); only the user-facing label is unified.
-      { id: 'check-sheets', label: 'Check Sheets', icon: ClipboardCheck },
+      { id: 'check-sheets', label: t('dashboard.check_sheets', 'Check Sheets'), icon: ClipboardCheck },
       { id: 'ai-triage',    label: aiTabLabel,     icon: Brain },
-      { id: 'documents',    label: 'Documents',    icon: FileText },
+      { id: 'documents',    label: t('dashboard.documents', 'Documents'),    icon: FileText },
       // Managers & owners see 'Staffing' (full workforce suite).
       // Staff see the same module labelled 'Gym Floor' (their limited
       // personal view) — enforced by StaffingConsole internally.
       (userRole === 'owner' || userRole === 'manager')
-        ? { id: 'staffing', label: 'Staffing',    icon: Users }
-        : { id: 'staffing', label: 'Gym Floor',   icon: ClipboardList },
+        ? { id: 'staffing', label: t('dashboard.staffing', 'Staffing'),    icon: Users }
+        : { id: 'staffing', label: t('dashboard.gym_floor', 'Gym Floor'),   icon: ClipboardList },
     ];
     if (userRole === 'staff') {
       // MOD staff need Reports + Suppliers too (compliance/audit
@@ -650,8 +651,8 @@ const LiteDashboardPage = () => {
       return isMOD
         ? [
             ...proBase,
-            { id: 'reports',   label: 'Reports',   icon: BarChart3 },
-            { id: 'suppliers', label: 'Suppliers', icon: Truck },
+            { id: 'reports',   label: t('dashboard.reports', 'Reports'),   icon: BarChart3 },
+            { id: 'suppliers', label: t('dashboard.suppliers_tab', 'Suppliers'), icon: Truck },
           ]
         : proBase;
     }
@@ -660,17 +661,17 @@ const LiteDashboardPage = () => {
     if (isMOD) {
       return [
         ...proBase,
-        { id: 'reports',   label: 'Reports',   icon: BarChart3 },
-        { id: 'suppliers', label: 'Suppliers', icon: Truck },
+        { id: 'reports',   label: t('dashboard.reports', 'Reports'),   icon: BarChart3 },
+        { id: 'suppliers', label: t('dashboard.suppliers_tab', 'Suppliers'), icon: Truck },
       ];
     }
     // Managers and Owners see everything (Weekly Digest lives inside Reports)
     return [
       ...proBase,
-      { id: 'reports',    label: 'Reports',    icon: BarChart3 },
-      { id: 'suppliers',  label: 'Suppliers',  icon: Truck },
+      { id: 'reports',    label: t('dashboard.reports', 'Reports'),    icon: BarChart3 },
+      { id: 'suppliers',  label: t('dashboard.suppliers_tab', 'Suppliers'),  icon: Truck },
       // Iter 216o-11 — Gym Layout label matches GymAxis exactly.
-      { id: 'gym-layout', label: 'Gym Layout', icon: LayoutGrid },
+      { id: 'gym-layout', label: t('dashboard.gym_layout', 'Gym Layout'), icon: LayoutGrid },
     ];
   };
   const TABS = buildTabs();
@@ -734,12 +735,15 @@ const LiteDashboardPage = () => {
                     </span>
                   )}
                 </h1>
-                <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {user?.full_name}</p>
+                <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('dashboard.welcome', 'Welcome back')}, {user?.full_name}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0 mt-1.5">
                 {/* Iter 216i — site switcher (multi-site Pulse Pro only).
-                    Hidden automatically by the component when sites.length<2. */}
-                {isPro && (userRole === 'owner' || userRole === 'manager') ? (
+                    Hidden automatically by the component when sites.length<2.
+                    Iter 237 — Pulse Master Admins (role pulse_master_admin /
+                    is_pulse_admin) regained access: they manage the whole
+                    Pulse estate and must be able to hop between sites. */}
+                {isPro && (userRole === 'owner' || userRole === 'manager' || user?.is_pulse_admin || user?.role === 'pulse_master_admin') ? (
                   <SiteSwitcher
                     onAllSites={() => setAllSitesActive(true)}
                     onPickSite={() => setAllSitesActive(false)}
@@ -765,9 +769,9 @@ const LiteDashboardPage = () => {
           {/* Proactive nudges surfaced to owners/managers */}
           <NudgeBanner canDismiss={userRole === 'owner' || userRole === 'manager'} />
 
-          {/* Iter 217 — The Pulse Score. Single hero metric, animated
-              ring with heartbeat. Click to expand the breakdown. */}
-          {!allSitesActive && <PulseScoreCard siteId={activeSite?.id} />}
+          {/* Iter 237 — The Pulse Score hero card moved INSIDE the
+              Dashboard tab (LiteOverviewTab). It must not repeat at the
+              top of every Operations tab. */}
 
           {/* Iter 216i — All-Sites overview short-circuits the per-site
               tabs when an owner/manager picks "All sites" from the
