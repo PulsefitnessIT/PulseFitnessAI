@@ -275,3 +275,13 @@ End-user E2E audit (testing agent + manual verification):
 - **Backend:** `GET /api/master-admin/marketing/campaigns` + `GET /api/master-admin/marketing/journeys` in `routes/marketing/admin.py`. Both honour Pulse scoping + `?brand=` (shared `_admin_org_scope` helper) and `?status=` filter. Lightweight projections only — campaign body `content`/`variants` and journey `nodes` graph never leave the server (journeys ship a `node_count`). Rows decorated with `organization_name` + `account_type`. Master-admin only.
 - **Frontend:** new "Campaigns & Journeys" sub-tab in `AdminMarketingSuite.js` — two read-only tables (campaigns: org/status/channel/sent/open-rate/A-B flag; journeys: org/status/trigger/steps/entered/converted) with a shared status filter. "Campaigns (30d)" and "Active journeys" analytics tiles now deep-link into the browser.
 - **Tests:** `tests/test_iter235_admin_campaign_browser.py` (5 tests: payload shapes, no-content-leak, status filter, non-admin 401/403, tile deep-link source pins) added to the `make regression` gate. Verified in-browser (8 campaigns + 1 journey rendered with org names).
+
+## Jun 11, 2026 — Iter 236: "Engineer" role in Master Admin Add/Edit User dialogs
+
+- **User report:** Production → Organisations → Pulse Fitness → Add User had no Engineer option in the role selector.
+- **Frontend:** `AdminOrganizations.js` Add User + Edit User dialogs now offer **Engineer** (with explainer hints `add-user-engineer-hint` / `edit-user-engineer-hint`).
+- **Backend (`master_admin_users.py`):**
+  - `add_user_to_organization` role=engineer special-case: engineer is ALWAYS created in the service-portal `users` collection (the Engineer App authenticates only against it — a CRM-portal org like Pulse Fitness would otherwise create them in `crm_users` where they could never sign in) + Iter-227 `_sync_engineer_provisioning` creates the active `svc_engineers` row → Engineer App unlocked via internal_engineer bypass (no £30/mo Partner plan for direct employees).
+  - `admin_edit_user`: role changes now run the same sync (engineer ⇄ other roles provisions/deactivates the engineer record); engineer added to the master-admin demotion flag-strip branch.
+  - Hard-delete cascade now removes the `svc_engineers` row (was an orphaned-active-row gap).
+- **Tests:** `tests/test_iter236_org_engineer_role.py` (full lifecycle vs live Pulse Fitness org with archive+confirm-delete teardown, zero residue; dialog source pins) in the `make regression` gate. Full gate green: 2,404 passed. Verified in-browser (Engineer option + hint render in the Add User dialog).

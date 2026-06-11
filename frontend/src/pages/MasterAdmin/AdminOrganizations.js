@@ -1756,6 +1756,11 @@ useEffect(() => {
  <SelectItem value="owner">Owner</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
  <SelectItem value="staff">Staff</SelectItem>
+ {/* Iter 236 — internal service engineer. Created in the service-portal
+     users collection + auto-provisioned svc_engineers row, which
+     unlocks the Engineer App (internal_engineer bypass — no Partner
+     plan fee for direct employees). */}
+ <SelectItem value="engineer">Engineer</SelectItem>
  {/* Iter 216k — Master Admin role granted from the per-org user
      dialog. Backend `add_user_to_organization` accepts `role`
      and sets is_master_admin=true on the user doc when the role
@@ -1763,6 +1768,11 @@ useEffect(() => {
  <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
  </SelectContent>
  </Select>
+ {userForm.role === 'engineer' ? (
+   <p className="text-[11px] text-blue-700 mt-1 bg-blue-50 border border-blue-200 rounded px-2 py-1.5 leading-snug" data-testid="add-user-engineer-hint">
+     <strong>Engineer:</strong> internal service engineer for this organisation — gets the Engineer App (jobs, check sheets, van stock) automatically. No Partner-plan fee for direct employees.
+   </p>
+ ) : null}
  {userForm.role === 'master_admin' ? (
    <p className="text-[11px] text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-snug" data-testid="add-user-master-admin-warning">
      {isPulseOrg
@@ -1827,10 +1837,16 @@ useEffect(() => {
  <SelectItem value="owner">Owner</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
  <SelectItem value="staff">Staff</SelectItem>
+ <SelectItem value="engineer">Engineer</SelectItem>
  <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
  {editingUser.role === 'pulse_master_admin' && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
  </SelectContent>
  </Select>
+ {editingUser.role === 'engineer' ? (
+   <p className="text-[11px] text-blue-700 mt-1 bg-blue-50 border border-blue-200 rounded px-2 py-1.5 leading-snug" data-testid="edit-user-engineer-hint">
+     <strong>Engineer:</strong> saving provisions an active engineer record and unlocks the Engineer App for this user. Switching to another role deactivates it.
+   </p>
+ ) : null}
  {(editingUser.role === 'master_admin' || editingUser.role === 'pulse_master_admin') ? (
    <p className="text-[11px] text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-snug">
      {isPulseOrg

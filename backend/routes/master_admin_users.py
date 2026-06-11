@@ -165,7 +165,33 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
     # the org-scoped fields so existing queries that look at role keep
     # working, and stamp is_master_admin separately.
     storage_role = "owner" if role == "master_admin" else role
-    collection = await _create_org_user(org, email, full_name, effective_password, storage_role, user_id)
+    if role == "engineer":
+        # Iter 236 — Engineers ALWAYS live in the service-portal `users`
+        # collection (get_current_user / the Engineer App authenticate
+        # against it) regardless of the org's portal_type — a CRM-only
+        # org like Pulse Fitness would otherwise create them in
+        # crm_users where they could never sign into the Engineer App.
+        # The Iter-227 provisioning sync then creates an active
+        # `svc_engineers` row, which is what unlocks the Engineer App
+        # via the internal_engineer bypass (no £30/mo Partner plan for
+        # direct employees).
+        from utils.auth import hash_password
+        now = datetime.now(timezone.utc).isoformat()
+        await db.users.insert_one({
+            "id": user_id, "email": email, "full_name": full_name,
+            "password": hash_password(effective_password),
+            "organization_id": org["id"], "role": "engineer",
+            "account_type": org.get("account_type", "full"),
+            "created_at": now,
+        })
+        collection = "Service Portal"
+        from routes.account import _sync_engineer_provisioning
+        await _sync_engineer_provisioning({
+            "id": user_id, "organization_id": org["id"], "role": "engineer",
+            "full_name": full_name, "email": email,
+        })
+    else:
+        collection = await _create_org_user(org, email, full_name, effective_password, storage_role, user_id)
     if role == "master_admin":
         # _create_org_user returns "Service Portal" or "CRM", not collection names
         target_coll = db.users if collection == "Service Portal" else db.crm_users
@@ -525,7 +551,7 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
         else:
             updates["role"] = "owner"
             updates["is_master_admin"] = True
-    elif updates.get("role") in ("owner", "manager", "staff"):
+    elif updates.get("role") in ("owner", "manager", "staff", "engineer"):
         # Demotion away from any master-admin role — strip elevated flags so
         # access is fully revoked (active sessions are killed below).
         updates["is_pulse_admin"] = False
@@ -545,6 +571,20 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
     if _rbac_keys & set(updates.keys()):
         from utils.auth_guards import revoke_user_sessions
         await revoke_user_sessions(user_id, reason="role_or_permissions_changed")
+    if "role" in updates:
+        # Iter 236 — keep `svc_engineers` in lock-step with role changes
+        # made from the master-admin dialog (same Iter-227 sync the
+        # org-level team manager uses): role→engineer provisions an
+        # active engineer record (unlocks the Engineer App); any other
+        # role deactivates it.
+        target = await db.users.find_one(
+            {"id": user_id},
+            {"_id": 0, "id": 1, "organization_id": 1, "role": 1,
+             "full_name": 1, "email": 1, "phone": 1},
+        )
+        if target:
+            from routes.account import _sync_engineer_provisioning
+            await _sync_engineer_provisioning(target)
     await log_activity("user_edited", f"Edited user {user_id}: {list(updates.keys())}", user["email"], "user", user_id)
     return {"success": True}
 
@@ -604,6 +644,10 @@ _DELETE_CASCADE_SPECS = [
     ("mfa_secrets",           "user_id"),
     ("refresh_tokens",        "user_id"),
     ("user_sessions",         "user_id"),
+    # Iter 236 — internal-engineer provisioning row (id == user_id).
+    # Without this, hard-deleting an engineer leaves an orphaned ACTIVE
+    # svc_engineers row behind.
+    ("svc_engineers",         "id"),
 ]
 
 
