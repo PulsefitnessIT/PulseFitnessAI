@@ -7,6 +7,7 @@ import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, Chevro
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { groupIssuesByJob } from './groupIssuesByJob';
@@ -31,6 +32,7 @@ const LiteFaultsTab = ({
   const toggleJob = (jobId) =>
     setExpandedJobs(prev => ({ ...prev, [jobId]: !prev[jobId] }));
   const { user } = useAuth();
+  const { t } = useTranslation();
   const ppmEnabled = user?.features?.ppm_engine !== false;
 
   // Reusable single-issue card body (also rendered as children of an
@@ -44,10 +46,10 @@ const LiteFaultsTab = ({
             <div className="flex items-center flex-wrap gap-2 mb-2">
               <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`}>{issue.serial_number}</h3>
               <Badge className={getSeverityStyle(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
-              <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{issue.status === 'in_progress' ? 'In Progress' : issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)}</Badge>
+              <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{t(`status.${issue.status}`, issue.status === 'in_progress' ? 'In Progress' : (issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)))}</Badge>
               {issue.supplier_case?.supplier_name && (
                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-sent-${issue.id}`} title={`Fault sent to ${issue.supplier_case.supplier_name}${issue.supplier_case.supplier_email ? ` (${issue.supplier_case.supplier_email})` : ''}`}>
-                  <CheckCircle size={11} /> Sent to {issue.supplier_case.supplier_name}
+                  <CheckCircle size={11} /> {t('faults.sent_to', 'Sent to')} {issue.supplier_case.supplier_name}
                 </Badge>
               )}
             </div>
@@ -73,7 +75,7 @@ const LiteFaultsTab = ({
             {issue.supplier_case?.scheduled_date && !issue.sicon_case_id && (
               <div className="flex items-center gap-2 mt-2">
                 <Badge className="bg-purple-500/20 text-purple-400 text-[10px]">
-                  Engineer: {new Date(issue.supplier_case.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  {t('faults.engineer', 'Engineer')}: {new Date(issue.supplier_case.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </Badge>
               </div>
             )}
@@ -86,20 +88,20 @@ const LiteFaultsTab = ({
                   data-testid={`supplier-card-link-${issue.id}`}
                   title="See exactly what the supplier sees for this job"
                 >
-                  <ExternalLink size={11} /> View supplier card
+                  <ExternalLink size={11} /> {t('faults.view_supplier_card', 'View supplier card')}
                 </button>
               </div>
             )}
           </div>
           <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
             {issue.status === 'open' && (
-              <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'in_progress')} className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs" data-testid={`issue-progress-btn-${issue.id}`}>In Progress</Button>
+              <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'in_progress')} className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs" data-testid={`issue-progress-btn-${issue.id}`}>{t('status.in_progress', 'In Progress')}</Button>
             )}
             {issue.status === 'in_progress' && (
-              <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'resolved')} className="bg-green-500 hover:bg-green-600 text-white text-xs" data-testid={`issue-resolve-btn-${issue.id}`}>Resolved</Button>
+              <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'resolved')} className="bg-green-500 hover:bg-green-600 text-white text-xs" data-testid={`issue-resolve-btn-${issue.id}`}>{t('status.resolved', 'Resolved')}</Button>
             )}
             {issue.status === 'resolved' && (
-              <Badge className="bg-green-500/20 text-green-400 text-xs">Closed</Badge>
+              <Badge className="bg-green-500/20 text-green-400 text-xs">{t('status.closed', 'Closed')}</Badge>
             )}
           </div>
         </div>
@@ -113,8 +115,8 @@ const LiteFaultsTab = ({
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Faults"
-        subtitle="Reactive faults and planned maintenance"
+        title={t('dashboard.faults', 'Faults')}
+        subtitle={t('faults.subtitle', 'Reactive faults and planned maintenance')}
         icon={AlertCircle}
         helpId={faultView === 'ppm' ? 'service-warranty-tracking' : 'service-log-fault'}
         testId="lite-faults-header"
@@ -126,13 +128,13 @@ const LiteFaultsTab = ({
         <button type="button"
           className={`subtab-pill ${faultView === 'reactive' ? 'is-active' : ''}`}
           onClick={() => setFaultView('reactive')} data-testid="lite-faults-view-reactive">
-          <AlertCircle size={14} /> Reactive Faults
+          <AlertCircle size={14} /> {t('faults.reactive', 'Reactive Faults')}
         </button>
         {ppmEnabled && (
           <button type="button"
             className={`subtab-pill ${faultView === 'ppm' ? 'is-active' : ''}`}
             onClick={() => setFaultView('ppm')} data-testid="lite-faults-view-ppm">
-            <Calendar size={14} /> Planned Maintenance (PPM)
+            <Calendar size={14} /> {t('faults.ppm', 'Planned Maintenance (PPM)')}
           </button>
         )}
       </div>
@@ -143,30 +145,30 @@ const LiteFaultsTab = ({
       <>
       <div className="flex flex-col sm:flex-row gap-3">
         <Button onClick={onLogFault} className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" data-testid="log-fault-btn">
-          <AlertCircle className="mr-2" size={18} /> Log New Fault
+          <AlertCircle className="mr-2" size={18} /> {t('faults.log_new', 'Log New Fault')}
         </Button>
         <Select value={faultFilterStatus} onValueChange={onFilterStatus}>
           <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-full sm:w-48" data-testid="fault-filter-status">
-            <SelectValue placeholder="All Statuses" />
+            <SelectValue placeholder={t('status.all_statuses', 'All Statuses')} />
           </SelectTrigger>
           <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)]">
-            <SelectItem value="all" className="text-white">All Statuses</SelectItem>
-            <SelectItem value="open" className="text-white">Open</SelectItem>
-            <SelectItem value="in_progress" className="text-white">In Progress</SelectItem>
-            <SelectItem value="resolved" className="text-white">Resolved</SelectItem>
+            <SelectItem value="all" className="text-white">{t('status.all_statuses', 'All Statuses')}</SelectItem>
+            <SelectItem value="open" className="text-white">{t('status.open', 'Open')}</SelectItem>
+            <SelectItem value="in_progress" className="text-white">{t('status.in_progress', 'In Progress')}</SelectItem>
+            <SelectItem value="resolved" className="text-white">{t('status.resolved', 'Resolved')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={faultFilterSeverity} onValueChange={onFilterSeverity}>
           <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-full sm:w-48" data-testid="fault-filter-severity">
-            <SelectValue placeholder="All Severities" />
+            <SelectValue placeholder={t('status.all_severities', 'All Severities')} />
           </SelectTrigger>
           <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)]">
-            <SelectItem value="all" className="text-white">All Severities</SelectItem>
-            <SelectItem value="operational_minor" className="text-white">Minor Issue</SelectItem>
-            <SelectItem value="operational_fault" className="text-white">Fault Present</SelectItem>
-            <SelectItem value="limited_use" className="text-white">Limited Use</SelectItem>
-            <SelectItem value="out_of_order" className="text-white">Out of Order</SelectItem>
-            <SelectItem value="safety_critical" className="text-white">Safety Critical</SelectItem>
+            <SelectItem value="all" className="text-white">{t('status.all_severities', 'All Severities')}</SelectItem>
+            <SelectItem value="operational_minor" className="text-white">{t('severity.operational_minor', 'Minor Issue')}</SelectItem>
+            <SelectItem value="operational_fault" className="text-white">{t('severity.operational_fault', 'Fault Present')}</SelectItem>
+            <SelectItem value="limited_use" className="text-white">{t('severity.limited_use', 'Limited Use')}</SelectItem>
+            <SelectItem value="out_of_order" className="text-white">{t('severity.out_of_order', 'Out of Order')}</SelectItem>
+            <SelectItem value="safety_critical" className="text-white">{t('severity.safety_critical', 'Safety Critical')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -206,7 +208,7 @@ const LiteFaultsTab = ({
                         : <ChevronRight size={16} className="text-[var(--color-brand-cyan-hover)] shrink-0" />}
                       <Layers size={14} className="text-[var(--color-brand-cyan-hover)] shrink-0" />
                       <h3 className="text-base font-semibold text-white">
-                        Multi-machine fault job
+                        {t('faults.multi_job', 'Multi-machine fault job')}
                       </h3>
                       <Badge
                         className={
@@ -217,19 +219,19 @@ const LiteFaultsTab = ({
                         data-testid={`job-progress-${jobId}`}
                       >
                         {row.all_resolved
-                          ? <><CheckCircle size={11} className="inline mr-1" /> All {row.issues.length} fixed</>
-                          : `${row.resolved_count} of ${row.issues.length} fixed`}
+                          ? <><CheckCircle size={11} className="inline mr-1" /> {t('faults.all_fixed', { count: row.issues.length, defaultValue: 'All {{count}} fixed' })}</>
+                          : t('faults.of_fixed', { done: row.resolved_count, total: row.issues.length, defaultValue: '{{done}} of {{total}} fixed' })}
                       </Badge>
                     </div>
                     <p className="text-[var(--color-text-muted)] text-xs">
                       {parent.machine_type}{parent.supplier ? ` · ${parent.supplier}` : ''}
-                      {parent.created_at ? ` · Logged ${new Date(parent.created_at).toLocaleDateString()}` : ''}
+                      {parent.created_at ? ` · ${t('faults.logged', 'Logged')} ${new Date(parent.created_at).toLocaleDateString()}` : ''}
                     </p>
                     <p className="text-white text-sm mt-1 truncate">
                       {parent.issue_description?.substring(0, 100)}{parent.issue_description?.length > 100 ? '…' : ''}
                     </p>
                     <p className="text-[var(--color-text-muted)] text-xs mt-1">
-                      Job ID <span className="font-mono">{jobId.slice(0, 8)}</span> · click to {open ? 'collapse' : 'expand'}
+                      {t('faults.job_id', 'Job ID')} <span className="font-mono">{jobId.slice(0, 8)}</span> · {open ? t('faults.click_collapse', 'click to collapse') : t('faults.click_expand', 'click to expand')}
                     </p>
                   </div>
                 </div>
@@ -247,16 +249,16 @@ const LiteFaultsTab = ({
           return filtersActive ? (
             <EmptyState
               icon={AlertTriangle}
-              title="No faults match these filters"
-              hint="Try clearing one filter — or switch to Planned Maintenance to see PPM jobs."
+              title={t('faults.no_match_title', 'No faults match these filters')}
+              hint={t('faults.no_match_hint', 'Try clearing one filter — or switch to Planned Maintenance to see PPM jobs.')}
               testId="lite-faults-filter-empty"
             />
           ) : (
             <EmptyState
               icon={AlertCircle}
-              title="No faults logged — nice"
-              hint="When equipment goes down, log a fault here so the right engineer is auto-paged and the timeline is captured for compliance."
-              primaryAction={{ label: 'Log first fault', onClick: onLogFault, testId: 'lite-faults-empty-log' }}
+              title={t('faults.empty_title', 'No faults logged — nice')}
+              hint={t('faults.empty_hint', 'When equipment goes down, log a fault here so the right engineer is auto-paged and the timeline is captured for compliance.')}
+              primaryAction={{ label: t('faults.log_first', 'Log first fault'), onClick: onLogFault, testId: 'lite-faults-empty-log' }}
               testId="lite-faults-empty-state"
             />
           );

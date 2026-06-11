@@ -18,6 +18,7 @@ import EquipmentPhotoUpload from '../../components/equipment/EquipmentPhotoUploa
 import AuthImage from '../../components/shared/AuthImage';
 import EquipmentSpecGrid from '@/components/shared/EquipmentSpecGrid';
 import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -37,6 +38,7 @@ const useBlobUrl = (url) => {
 
 /* ─── Equipment Detail with Tabs (Details | Spec Sheet) ─── */
 const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)', userRole = 'staff', onSupplierChange }) => {
+  const { t } = useTranslation();
   const specId = selectedEquipment.spec_sheet_id;
   const hasSpec = !!specId;
   const [activeTab, setActiveTab] = useState('details');
@@ -104,13 +106,13 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? '' : 'border-transparent text-[var(--color-text-muted)] hover:text-white'}`}
             style={activeTab === 'details' ? { borderColor: brandAccent, color: brandAccent } : undefined}
             data-testid="equip-tab-details">
-            <Wrench size={13} className="inline mr-1.5 -mt-0.5" /> Details
+            <Wrench size={13} className="inline mr-1.5 -mt-0.5" /> {t('dialog.details', 'Details')}
           </button>
           <button onClick={() => setActiveTab('spec-sheet')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'spec-sheet' ? '' : 'border-transparent text-[var(--color-text-muted)] hover:text-white'}`}
             style={activeTab === 'spec-sheet' ? { borderColor: brandAccent, color: brandAccent } : undefined}
             data-testid="equip-tab-spec-sheet">
-            <FileText size={13} className="inline mr-1.5 -mt-0.5" /> Spec Sheet
+            <FileText size={13} className="inline mr-1.5 -mt-0.5" /> {t('dialog.spec_sheet', 'Spec Sheet')}
           </button>
         </div>
       )}
@@ -390,7 +392,7 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
           </div>
 
           <Button className="w-full bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" onClick={() => onLogFaultForEquipment(selectedEquipment)} data-testid="lite-equip-log-fault">
-            <AlertTriangle size={14} className="mr-2" /> Log Fault for this Machine
+            <AlertTriangle size={14} className="mr-2" /> {t('dialog.log_fault_for_machine', 'Log Fault for this Machine')}
           </Button>
 
           {/* QR Code */}
@@ -601,6 +603,7 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
    fallback chain, with comma-suffixed names ("Treadmill, Bay 3") collapsed
    into one group. Pinned by `faultMachineGrouping.test.js`. */
 const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault }) => {
+  const { t } = useTranslation();
   const groupRows = buildMachineTypeGroups(equipment);
 
   // Find selected group from the current equipment selection.
@@ -622,10 +625,10 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
   return (
     <>
       <div>
-        <Label className="text-[var(--color-text-muted)] font-medium">Machine Type</Label>
+        <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.machine_type', 'Machine Type')}</Label>
         <Select value={selectedGroup} onValueChange={handleGroupChange}>
           <SelectTrigger className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[44px] h-auto py-2 items-start text-left [&>span]:whitespace-normal [&>span]:break-words [&>span]:line-clamp-none" data-testid="lite-fault-machine-select">
-            <SelectValue placeholder="Choose machine type..." />
+            <SelectValue placeholder={t('dialog.choose_machine_type', 'Choose machine type...')} />
           </SelectTrigger>
           <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60 max-w-[calc(100vw-80px)]" style={{ scrollBehavior: 'smooth' }}>
             {groupRows.map(g => (
@@ -638,10 +641,10 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
       </div>
       {selectedGroup && needsSerialPick && (
         <div>
-          <Label className="text-[var(--color-text-muted)] font-medium">Select Serial Number</Label>
+          <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.select_serial', 'Select Serial Number')}</Label>
           <Select value={faultForm.equipment_id} onValueChange={handleSerialChange}>
             <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 h-11" data-testid="lite-fault-serial-select">
-              <SelectValue placeholder="Choose serial number..." />
+              <SelectValue placeholder={t('dialog.choose_serial', 'Choose serial number...')} />
             </SelectTrigger>
             <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60">
               {groupItems.map(eq => (
@@ -655,7 +658,7 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
       )}
       {selectedGroup && !needsSerialPick && faultForm.serial_number && (
         <div>
-          <Label className="text-[var(--color-text-muted)] font-medium">Serial Number</Label>
+          <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.serial_number', 'Serial Number')}</Label>
           <div className="mt-1.5 p-3 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg text-sm text-[var(--theme-text)]" data-testid="lite-fault-serial">
             {faultForm.serial_number}
           </div>
@@ -695,6 +698,7 @@ const LiteDialogs = ({
   // the caller is on a MOD-scoped account.
   isMOD = false,
 }) => {
+  const { t } = useTranslation();
   const [triageResult, setTriageResult] = useState(null);
   const [triaging, setTriaging] = useState(false);
   const [showFixMethod, setShowFixMethod] = useState(false);
@@ -799,7 +803,7 @@ const LiteDialogs = ({
           onEscapeKeyDown={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
         >
           <DialogHeader>
-            <DialogTitle className="text-[var(--theme-text)] text-xl">Log a Fault</DialogTitle>
+            <DialogTitle className="text-[var(--theme-text)] text-xl">{t('dashboard.log_fault', 'Log a Fault')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-2">
             {faultBanner}
@@ -853,8 +857,8 @@ const LiteDialogs = ({
               </div>
             )}
             <div>
-              <Label className="text-[var(--color-text-muted)] font-medium">Issue Description</Label>
-              <Textarea value={faultForm.issue_description} onChange={e => setFaultForm({ ...faultForm, issue_description: e.target.value })} placeholder="Describe the fault..." className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[100px]" data-testid="lite-fault-description" />
+              <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.issue_description', 'Issue Description')}</Label>
+              <Textarea value={faultForm.issue_description} onChange={e => setFaultForm({ ...faultForm, issue_description: e.target.value })} placeholder={t('dialog.describe_fault', 'Describe the fault...')} className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[100px]" data-testid="lite-fault-description" />
               {isMOD && (
                 <div className="text-[10px] text-amber-500 font-semibold mt-1" data-testid="lite-fault-classification-hint">
                   ◆ OFFICIAL only — do NOT include NSN, operation names, callsigns or anything above OFFICIAL.
@@ -862,7 +866,7 @@ const LiteDialogs = ({
               )}
             </div>
             <div>
-              <Label className="text-[var(--color-text-muted)] font-medium">Any Steps Already Taken?</Label>
+              <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.steps_taken', 'Any Steps Already Taken?')}</Label>
               <Textarea
                 value={faultForm.steps_taken || ''}
                 onChange={e => setFaultForm({ ...faultForm, steps_taken: e.target.value })}
@@ -871,8 +875,8 @@ const LiteDialogs = ({
                    were seeing "(helps AI diagnose faster)" even though
                    their portal has no AI features, which is confusing. */
                 placeholder={isPro
-                  ? 'Have you tried anything to fix this? (helps AI diagnose faster)'
-                  : 'Have you tried anything to fix this? (gives the engineer a head start)'}
+                  ? t('dialog.steps_hint_pro', 'Have you tried anything to fix this? (helps AI diagnose faster)')
+                  : t('dialog.steps_hint_lite', 'Have you tried anything to fix this? (gives the engineer a head start)')}
                 className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[60px]"
                 data-testid="lite-fault-steps-taken"
               />
@@ -932,15 +936,15 @@ const LiteDialogs = ({
               )}
             </div>
             <div>
-              <Label className="text-[var(--color-text-muted)] font-medium">Severity</Label>
+              <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.severity', 'Severity')}</Label>
               <div className="grid gap-2 mt-2">
                 {SEVERITY_OPTIONS.map(sev => (
                   <button key={sev.value} type="button" onClick={() => setFaultForm({ ...faultForm, severity: sev.value })} className={`w-full text-left p-3 rounded-lg border-2 transition-all ${faultForm.severity === sev.value ? 'border-[var(--color-brand-cyan-hover)] bg-[rgb(var(--rgb-brand-cyan-hover)/0.1)]' : 'border-[var(--theme-border)] hover:border-[var(--theme-border)] bg-[var(--theme-surface)]'}`} data-testid={`lite-sev-${sev.value}`}>
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${faultForm.severity === sev.value ? 'text-[var(--color-brand-cyan-hover)]' : 'text-[var(--theme-text)]'}`}>{sev.label}</span>
+                      <span className={`text-sm font-medium ${faultForm.severity === sev.value ? 'text-[var(--color-brand-cyan-hover)]' : 'text-[var(--theme-text)]'}`}>{t(`severity.${sev.value}`, sev.label)}</span>
                       {faultForm.severity === sev.value && <CheckCircle size={16} className="text-[var(--color-brand-cyan-hover)]" />}
                     </div>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{sev.desc}</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{t(`severity.${sev.value}_desc`, sev.desc)}</p>
                   </button>
                 ))}
               </div>
@@ -958,11 +962,11 @@ const LiteDialogs = ({
               />
             </div>
             <div>
-              <Label className="text-[var(--color-text-muted)] font-medium">Upload Photos / Videos</Label>
+              <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.upload_media', 'Upload Photos / Videos')}</Label>
               <label className="mt-1.5 flex items-center justify-center gap-2 p-4 border-2 border-dashed border-[var(--theme-border)] rounded-lg cursor-pointer hover:border-[var(--color-brand-cyan-hover)] hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] transition-colors" data-testid="lite-fault-upload">
                 <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={(e) => { Array.from(e.target.files).forEach(f => onMediaUpload({ target: { files: [f] } })); e.target.value = ''; }} />
                 <Camera size={20} className="text-[var(--color-text-muted)]" />
-                <span className="text-sm text-[var(--color-text-muted)]">{faultMedia.length > 0 ? 'Add more photos/videos' : 'Tap to upload photos or videos'}</span>
+                <span className="text-sm text-[var(--color-text-muted)]">{faultMedia.length > 0 ? t('dialog.add_more_media', 'Add more photos/videos') : t('dialog.tap_upload', 'Tap to upload photos or videos')}</span>
               </label>
               {faultMedia.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -983,7 +987,7 @@ const LiteDialogs = ({
             {triageResult && isPro ? (
               showFixMethod ? (
                 <div className="space-y-2" data-testid="fix-method-selection">
-                  <p className="text-sm text-[var(--color-brand-cyan-hover)] font-medium">How did you fix it?</p>
+                  <p className="text-sm text-[var(--color-brand-cyan-hover)] font-medium">{t('dialog.how_fixed', 'How did you fix it?')}</p>
                   {FIX_METHODS.map(m => (
                     <button key={m.value} onClick={() => { setShowFixMethod(false); setTriageResult(null); onFaultSubmit({ resolution_type: 'self_fix', resolved_by: 'gymaxis_ai', fix_method: m.value, status: 'resolved' }); }}
                       className="w-full text-left p-3 rounded-lg border border-[var(--theme-border)] hover:border-[var(--color-brand-cyan-hover)] hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] transition-all text-sm text-[var(--theme-text)]" data-testid={`fix-method-${m.value}`}>
@@ -996,13 +1000,13 @@ const LiteDialogs = ({
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <Button onClick={() => setShowFixMethod(true)} disabled={submitting} variant="outline" className="flex-1 h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium" data-testid="lite-fault-self-fix">
-                      <Check size={18} className="mr-2" /> I Fixed It
+                      <Check size={18} className="mr-2" /> {t('dialog.i_fixed_it', 'I Fixed It')}
                     </Button>
                     <Button onClick={handleConfirmAfterTriage} disabled={submitting} className="flex-1 h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium" data-testid="lite-fault-confirm-submit">
                       {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <CheckCircle size={18} className="mr-2" />}
                       {stagedMachines.length > 0
-                        ? `Submit job (${stagedMachines.length + 1} machines)`
-                        : 'Log Fault Report'}
+                        ? t('dialog.submit_job', { count: stagedMachines.length + 1, defaultValue: 'Submit job ({{count}} machines)' })
+                        : t('dialog.log_fault_report', 'Log Fault Report')}
                     </Button>
                   </div>
                   {/* Iter 216d — Add another machine to the same job (multi-machine flow). */}
@@ -1022,7 +1026,7 @@ const LiteDialogs = ({
             ) : isPro ? (
               <div className="space-y-2">
                 <Button onClick={handleTriage} disabled={triaging || submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
-                  {triaging ? <><Loader2 className="animate-spin mr-2" size={18} /> AI Analysing...</> : <><Sparkles size={18} className="mr-2" /> Get AI Triage & Submit</>}
+                  {triaging ? <><Loader2 className="animate-spin mr-2" size={18} /> {t('dialog.ai_analysing', 'AI Analysing...')}</> : <><Sparkles size={18} className="mr-2" /> {t('dialog.get_ai_triage', 'Get AI Triage & Submit')}</>}
                 </Button>
                 {/* Iter 216d — non-Pro users without triage can still queue
                     multiple machines: add this one and pick the next. */}
@@ -1048,8 +1052,8 @@ const LiteDialogs = ({
                 <Button onClick={() => onFaultSubmit()} disabled={submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
                   {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <AlertTriangle size={18} className="mr-2" />}
                   {stagedMachines.length > 0
-                    ? `Submit job (${stagedMachines.length + 1} machines)`
-                    : 'Submit Fault Report'}
+                    ? t('dialog.submit_job', { count: stagedMachines.length + 1, defaultValue: 'Submit job ({{count}} machines)' })
+                    : t('dialog.submit_fault_report', 'Submit Fault Report')}
                 </Button>
                 {onAddMachineToJob && faultForm.serial_number && faultForm.issue_description && (
                   <Button
@@ -1080,7 +1084,7 @@ const LiteDialogs = ({
               There {duplicateModal.count === 1 ? 'is' : 'are'} already <strong className="text-[var(--theme-text)]">{duplicateModal.count} open fault{duplicateModal.count > 1 ? 's' : ''}</strong> logged for <strong className="text-[var(--theme-text)]">{duplicateModal.machineName}</strong>. Do you want to continue?
             </p>
             <div className="flex gap-3">
-              <button className="flex-1 h-11 rounded-md border border-[var(--theme-border)] text-[var(--theme-text)] bg-transparent hover:bg-[var(--theme-surface-hover)] text-sm font-medium" onClick={onDuplicateCancel} data-testid="duplicate-cancel-btn">Cancel</button>
+              <button className="flex-1 h-11 rounded-md border border-[var(--theme-border)] text-[var(--theme-text)] bg-transparent hover:bg-[var(--theme-surface-hover)] text-sm font-medium" onClick={onDuplicateCancel} data-testid="duplicate-cancel-btn">{t('dialog.cancel', 'Cancel')}</button>
               <button className="flex-1 h-11 rounded-md bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-sm font-medium" onClick={onDuplicateContinue} data-testid="duplicate-continue-btn">Continue Logging</button>
             </div>
           </div>

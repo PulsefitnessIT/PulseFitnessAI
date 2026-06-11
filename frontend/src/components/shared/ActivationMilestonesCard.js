@@ -20,6 +20,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Circle, Sparkles, ArrowRight, X } from 'lucide-react';
 import { useAuth } from '@/App';
+import { useTranslation } from 'react-i18next';
 import { useUserPref } from '@/utils/userPrefs';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -61,6 +62,7 @@ const ACTION_HINTS = {
 
 export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   // Iter 216h193 — Operations base path swings between brands:
   //   • Pulse Fitness Pro / Lite orgs       → /pulse
@@ -148,13 +150,13 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
               style={{ color: 'var(--theme-text)' }}
               data-testid="activation-card-title"
             >
-              Your first wins
+              {t('activation.title', 'Your first wins')}
             </h3>
             <p
               className="text-sm mt-0.5"
               style={{ color: 'var(--theme-text-muted)' }}
             >
-              {fired} of {total} milestones hit — teams that tick 3+ in week one stick around 4× longer.
+              {t('activation.subtitle', { fired, total, defaultValue: '{{fired}} of {{total}} milestones hit — teams that tick 3+ in week one stick around 4× longer.' })}
             </p>
           </div>
         </div>
@@ -170,7 +172,7 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
           onClick={handleDismiss}
           className="flex-shrink-0 h-8 w-8 -mr-1 -mt-1 rounded-full flex items-center justify-center border border-[color:var(--theme-border)] hover:bg-[color:var(--theme-surface-hover)] transition-colors"
           style={{ color: 'var(--theme-text)' }}
-          aria-label="Dismiss activation milestones"
+          aria-label={t('activation.dismiss', 'Dismiss activation milestones')}
           data-testid="activation-dismiss"
         >
           <X size={14} />
@@ -223,7 +225,7 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
                   className={`flex-1 min-w-0 ${m.fired ? 'line-through opacity-60' : ''}`}
                   style={{ color: 'var(--theme-text)' }}
                 >
-                  {m.label}
+                  {t(`activation.${m.event_type}`, m.label)}
                 </span>
                 {!m.fired && hint.suffix && (
                   <button
@@ -233,7 +235,7 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
                     style={{ color: 'var(--color-brand-blue)' }}
                     data-testid={`activation-cta-${m.event_type}`}
                   >
-                    {hint.hint}
+                    {t(`activation.hint_${m.event_type}`, hint.hint)}
                     <ArrowRight size={12} />
                   </button>
                 )}

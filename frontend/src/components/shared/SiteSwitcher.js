@@ -16,8 +16,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MapPin, Star, Globe2, Check } from 'lucide-react';
 import { useAuth } from '@/App';
+import { useTranslation } from 'react-i18next';
 
 const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
+  const { t } = useTranslation();
   const { sites, activeSite, setActiveSite } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -34,8 +36,8 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
   if (!sites || sites.length < 2) return null;
 
   const label = allSitesActive
-    ? 'All Operations Sites'
-    : (activeSite?.name || 'Pick a site');
+    ? t('sites.all_sites', 'All Operations Sites')
+    : (activeSite?.name || t('sites.pick_site', 'Pick a site'));
 
   /**
    * Iter 216bk — picking a specific site after the org was in "All sites"
@@ -84,7 +86,7 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
           data-testid="site-switcher-menu"
         >
           <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>
-            Switch site
+            {t('sites.switch_site', 'Switch site')}
           </div>
           {/* All-sites pseudo-entry — only relevant when the parent supplies a handler */}
           {onAllSites ? (
@@ -96,7 +98,7 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
               data-testid="site-switcher-all"
             >
               <Globe2 size={14} className="text-[var(--color-brand-blue)]" />
-              <span className="flex-1 font-semibold">All Operations Sites</span>
+              <span className="flex-1 font-semibold">{t('sites.all_sites', 'All Operations Sites')}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--rgb-brand-blue)/0.12)] text-[var(--color-brand-blue)] font-bold">overview</span>
               {allSitesActive ? <Check size={14} className="text-emerald-500" /> : null}
             </button>

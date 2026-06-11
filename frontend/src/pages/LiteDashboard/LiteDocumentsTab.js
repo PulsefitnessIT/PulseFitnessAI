@@ -24,6 +24,7 @@ import {
   ClipboardList, ClipboardCheck, ScrollText, FolderOpen, Sparkles, Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/App';
+import { useTranslation } from 'react-i18next';
 import { notify } from '@/components/notifications';
 import DocumentQA from '@/components/shared/DocumentQA';
 import PageHeader from '@/components/shared/PageHeader';
@@ -49,6 +50,9 @@ const matchesCategory = (file, cat) => {
 
 const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => {
   const { API } = useAuth();
+  const { t } = useTranslation();
+  // Iter 238 — translated category label (kebab-case id → snake_case key)
+  const catLabel = (c) => t(`docs.cat_${c.id.replace(/-/g, '_')}`, c.label);
   const [activeDocTab, setActiveDocTab] = useState('manuals');
   const [indexing, setIndexing] = useState({}); // { [fileId]: bool }
   // Iter 216h49 — drag-and-drop dropzone matching the spec-sheet pattern.
@@ -91,8 +95,8 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
   return (
     <div className="space-y-5" data-testid="lite-documents-tab">
       <PageHeader
-        title="Documents"
-        subtitle="Manuals, certificates, RAMS, SOPs and invoices — AI-indexed for fast lookup"
+        title={t('dashboard.documents', 'Documents')}
+        subtitle={t('docs.subtitle', 'Manuals, certificates, RAMS, SOPs and invoices — AI-indexed for fast lookup')}
         icon={FileText}
         testId="lite-documents-header"
       />
@@ -145,11 +149,10 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
           />
           <Upload size={22} className="mx-auto mb-2" style={{ color: 'var(--color-brand-blue)' }} />
           <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>
-            Drop files here or click to browse
+            {t('docs.drop_files', 'Drop files here or click to browse')}
           </p>
           <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-            Files will upload into the active <strong>{activeDocTab.replace(/-/g, ' ')}</strong> tab.
-            Progress shows in the bottom-right drawer.
+            {t('docs.upload_hint_pre', 'Files will upload into the active')} <strong>{activeDocTab.replace(/-/g, ' ')}</strong> {t('docs.upload_hint_post', 'tab. Progress shows in the bottom-right drawer.')}
           </p>
         </div>
       ) : null}
@@ -174,7 +177,7 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
               data-testid={`doc-tab-${tab.id}`}
             >
               <tab.icon size={14} />
-              {tab.label}
+              {catLabel(tab)}
               <Badge
                 className="ml-1 text-[10px] px-1.5 py-0"
                 style={{
@@ -192,9 +195,9 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
       {/* Active section — file list + upload CTA */}
       <div className="flex items-center justify-between mb-2">
         <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{activeSection.label}</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{catLabel(activeSection)}</p>
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            {activeSection.items.length} file{activeSection.items.length !== 1 ? 's' : ''}
+            {t('docs.file_count', { count: activeSection.items.length, defaultValue: '{{count}} file' })}{activeSection.items.length !== 1 ? t('equip.plural_s', 's') : ''}
           </p>
         </div>
         {onUpload && activeSection.id !== 'other' ? (
@@ -210,7 +213,7 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
               className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold cursor-pointer transition-opacity hover:opacity-90"
               style={{ background: 'var(--color-brand-blue)', color: '#fff' }}
             >
-              <Upload size={12} /> Upload to {activeSection.label}
+              <Upload size={12} /> {t('docs.upload_to', 'Upload to')} {catLabel(activeSection)}
             </span>
           </label>
         ) : null}
@@ -272,7 +275,7 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
           <div className="p-10 text-center">
             <activeSection.icon size={28} className="mx-auto mb-2 opacity-30" style={{ color: 'var(--theme-text-muted)' }} />
             <p className="text-sm mb-3" style={{ color: 'var(--theme-text-muted)' }}>
-              No {activeSection.label.toLowerCase()} uploaded yet.
+              {t('docs.none_yet', { cat: catLabel(activeSection).toLowerCase(), defaultValue: 'No {{cat}} uploaded yet.' })}
             </p>
             {onUpload && activeSection.id !== 'other' ? (
               <label className="cursor-pointer">
@@ -287,7 +290,7 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
                   className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold cursor-pointer"
                   style={{ background: 'var(--color-brand-blue)', color: '#fff' }}
                 >
-                  <Upload size={12} /> Upload your first {activeSection.label.toLowerCase().replace(/s$/, '')}
+                  <Upload size={12} /> {t('docs.upload_first', { cat: catLabel(activeSection).toLowerCase().replace(/s$/, ''), defaultValue: 'Upload your first {{cat}}' })}
                 </span>
               </label>
             ) : null}

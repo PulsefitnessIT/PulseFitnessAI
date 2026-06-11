@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin } from 'lucide-react';
 import { useAuth } from '@/App';
+import { useTranslation } from 'react-i18next';
 import { useInlineBanner, InlineProgress, notify, useConfirm } from '@/components/notifications';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
 import HelpHint from '@/components/HelpHint';
@@ -17,6 +18,7 @@ const LiteEquipmentTab = ({
   onAddEquipment,
 }) => {
   const { API, sites, user } = useAuth();
+  const { t } = useTranslation();
   const [bulkRunning, setBulkRunning] = useState(false);
   const { banner: bulkBanner, show: showBulkBanner } = useInlineBanner({ autoDismissMs: 8000 });
   const confirm = useConfirm();
@@ -143,7 +145,7 @@ const LiteEquipmentTab = ({
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" size={16} />
-          <Input value={search} onChange={e => onSearchChange(e.target.value)} placeholder="Search machines..." className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] pl-10 h-10" data-testid="lite-equip-search" />
+          <Input value={search} onChange={e => onSearchChange(e.target.value)} placeholder={t('equip.search', 'Search machines...')} className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] pl-10 h-10" data-testid="lite-equip-search" />
         </div>
         <HelpHint guideId="service-equipment-photos" testId="help-hint-equipment" className="self-center" />
         {onAddEquipment && (
@@ -153,7 +155,7 @@ const LiteEquipmentTab = ({
             onClick={onAddEquipment}
             data-testid="lite-equip-add-btn"
           >
-            <Plus size={12} className="mr-1.5" /> Add equipment
+            <Plus size={12} className="mr-1.5" /> {t('equip.add', 'Add equipment')}
           </Button>
         )}
         {missingImages > 0 && (
@@ -166,8 +168,8 @@ const LiteEquipmentTab = ({
             data-testid="lite-equip-auto-images"
           >
             {bulkRunning
-              ? <><Loader2 size={12} className="mr-1.5 animate-spin" /> Searching…</>
-              : <><Sparkles size={12} className="mr-1.5" /> Auto-find {missingImages} image{missingImages > 1 ? 's' : ''}</>}
+              ? <><Loader2 size={12} className="mr-1.5 animate-spin" /> {t('equip.searching', 'Searching…')}</>
+              : <><Sparkles size={12} className="mr-1.5" /> {t('equip.autofind', { count: missingImages, defaultValue: 'Auto-find {{count}} image' })}{missingImages > 1 ? t('equip.plural_s', 's') : ''}</>}
           </Button>
         )}
       </div>
@@ -219,12 +221,12 @@ const LiteEquipmentTab = ({
                   )}
                   {eq.supplier && (
                     <p className="text-[10px] text-indigo-400 truncate mt-0.5" data-testid={`lite-equip-supplier-${eq.id}`}>
-                      Supplier: {eq.supplier}
+                      {t('equip.supplier', 'Supplier')}: {eq.supplier}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} fault{openFaults > 1 ? 's' : ''}</Badge>}
+                  {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} {openFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}</Badge>}
                   {/* Iter 216h126 — warranty / contract / chargeable pill (Jack feedback).
                       Order of precedence: explicit service-contract → in-warranty → chargeable. */}
                   {(() => {
@@ -236,20 +238,20 @@ const LiteEquipmentTab = ({
                     if (inContract) {
                       return (
                         <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
-                          <Shield size={10} /> Under contract
+                          <Shield size={10} /> {t('equip.under_contract', 'Under contract')}
                         </Badge>
                       );
                     }
                     if (inWarranty) {
                       return (
                         <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
-                          <Shield size={10} /> Under warranty
+                          <Shield size={10} /> {t('equip.under_warranty', 'Under warranty')}
                         </Badge>
                       );
                     }
                     return (
                       <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold" data-testid={`lite-equip-pill-${eq.id}`}>
-                        Chargeable
+                        {t('equip.chargeable', 'Chargeable')}
                       </Badge>
                     );
                   })()}
@@ -263,7 +265,7 @@ const LiteEquipmentTab = ({
                       className="h-7 px-2 text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--theme-surface-hover)]"
                       onClick={(e) => { e.stopPropagation(); setMovingId(movingId === eq.id ? null : eq.id); }}
                       data-testid={`lite-equip-move-${eq.id}`}
-                      title="Move to another site"
+                      title={t('equip.move_title', 'Move to another site')}
                     >
                       <ArrowRightLeft size={13} />
                     </Button>
@@ -276,7 +278,7 @@ const LiteEquipmentTab = ({
                       className="h-7 px-2 text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-500/10"
                       onClick={(e) => { e.stopPropagation(); deleteEquipment(eq); }}
                       data-testid={`lite-equip-delete-${eq.id}`}
-                      title="Delete kit"
+                      title={t('equip.delete_title', 'Delete kit')}
                     >
                       <Trash2 size={13} />
                     </Button>
@@ -292,7 +294,7 @@ const LiteEquipmentTab = ({
                   data-testid={`lite-equip-move-picker-${eq.id}`}
                 >
                   <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
-                    Move "{eq.name}" to which site?
+                    {t('equip.move_prompt', { name: eq.name, defaultValue: 'Move "{{name}}" to which site?' })}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {realSites.map(s => (
@@ -307,7 +309,7 @@ const LiteEquipmentTab = ({
                         data-testid={`lite-equip-move-target-${eq.id}-${s.id}`}
                       >
                         <MapPin size={11} className="mr-1" />
-                        {s.name}{s.id === eq.site_id ? ' (current)' : ''}
+                        {s.name}{s.id === eq.site_id ? ` (${t('equip.current', 'current')})` : ''}
                       </Button>
                     ))}
                   </div>
@@ -316,7 +318,7 @@ const LiteEquipmentTab = ({
             </Card>
           );
         })}
-        {filteredEquipment.length === 0 && <p className="text-center text-[var(--color-text-muted)] py-8 text-sm">No equipment found</p>}
+        {filteredEquipment.length === 0 && <p className="text-center text-[var(--color-text-muted)] py-8 text-sm">{t('equip.no_equipment', 'No equipment found')}</p>}
       </div>
     </div>
   );

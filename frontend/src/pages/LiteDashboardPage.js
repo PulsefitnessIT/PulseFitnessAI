@@ -38,6 +38,7 @@ import DocumentQA from '../components/shared/DocumentQA';
 import ProductTour from '../components/shared/ProductTour';
 import NudgeBanner from '../components/shared/NudgeBanner';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import PillTabBar from '../components/shared/PillTabBar';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
@@ -68,13 +69,21 @@ const getSeverityStyle = (sev) => {
 };
 
 const getSeverityLabel = (sev) => {
-  const map = {
+  // Iter 238 — translated via the i18n singleton (callers re-render on
+  // language change because every consuming page uses useTranslation).
+  const canonical = {
+    operational_minor: 'operational_minor', operational_fault: 'operational_fault',
+    limited_use: 'limited_use', out_of_order: 'out_of_order',
+    safety_critical: 'safety_critical', low: 'operational_minor',
+    medium: 'operational_fault', critical: 'out_of_order',
+  };
+  const fallback = {
     operational_minor: 'Minor Issue', operational_fault: 'Fault Present',
     limited_use: 'Limited Use', out_of_order: 'Out of Order',
-    safety_critical: 'Safety Critical', low: 'Minor Issue',
-    medium: 'Fault Present', critical: 'Out of Order',
+    safety_critical: 'Safety Critical',
   };
-  return map[sev] || sev;
+  const key = canonical[sev];
+  return key ? i18n.t(`severity.${key}`, fallback[key]) : sev;
 };
 
 const getStatusColor = (status) => {

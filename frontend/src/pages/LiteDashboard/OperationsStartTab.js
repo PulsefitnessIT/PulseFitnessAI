@@ -10,14 +10,17 @@ import {
   AlertTriangle, ClipboardCheck, Dumbbell, ArrowRight, Truck,
   LayoutDashboard, BarChart3, EyeOff, ShieldCheck, Zap, Wrench, ClipboardList,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUserPref } from '@/utils/userPrefs';
 import ActivationMilestonesCard from '../../components/shared/ActivationMilestonesCard';
 
+// Iter 238 — `k` is both the stable testid slug AND the i18n key suffix
+// (ops_start.<k>_title / ops_start.<k>_note); title/note are EN fallbacks.
 const OUTCOMES = [
-  { icon: AlertTriangle, title: 'Log faults in seconds',     note: 'Photo + severity + auto-routed to the right supplier' },
-  { icon: ClipboardCheck, title: 'Stay on top of checks',    note: 'Daily / weekly check-sheets with digital sign-off' },
-  { icon: Dumbbell,       title: 'Track every machine',      note: 'Coverage, status, faults and CAPEX in one view' },
-  { icon: ShieldCheck,    title: 'Prove compliance',         note: 'Audit-ready reports for insurers & franchise HQ' },
+  { k: 'log-faults-in-seconds', icon: AlertTriangle,  title: 'Log faults in seconds',  note: 'Photo + severity + auto-routed to the right supplier' },
+  { k: 'stay-on-top-of-checks', icon: ClipboardCheck, title: 'Stay on top of checks',  note: 'Daily / weekly check-sheets with digital sign-off' },
+  { k: 'track-every-machine',   icon: Dumbbell,       title: 'Track every machine',    note: 'Coverage, status, faults and CAPEX in one view' },
+  { k: 'prove-compliance',      icon: ShieldCheck,    title: 'Prove compliance',       note: 'Audit-ready reports for insurers & franchise HQ' },
 ];
 
 const STEPS = [
@@ -28,11 +31,11 @@ const STEPS = [
   { n: 5, title: 'Monitor & decide',    note: 'Reports, CAPEX priority, nudges in the Dashboard' },
 ];
 
-const OutcomeCard = ({ icon: Icon, title, note }) => (
+const OutcomeCard = ({ k, icon: Icon, title, note }) => (
   <div
     className="rounded-2xl p-4 border transition-colors"
     style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
-    data-testid={`ops-outcome-${title.toLowerCase().replace(/\s+/g, '-')}`}
+    data-testid={`ops-outcome-${k}`}
   >
     <div className="w-9 h-9 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--color-brand-cyan)22', color: 'var(--color-brand-cyan)' }}>
       <Icon size={16} />
@@ -44,39 +47,40 @@ const OutcomeCard = ({ icon: Icon, title, note }) => (
 
 export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipmentImport }) {
    
+  const { t } = useTranslation();
   const [, setHideStart] = useUserPref('hideStartTabs', false);
 
   const quickStart = [
     {
       id: 'ops-qs-fault',
-      title: 'Log a fault',
-      desc: 'Photo + severity in 10 seconds',
+      title: t('ops_start.qs_fault', 'Log a fault'),
+      desc: t('ops_start.qs_fault_desc', 'Photo + severity in 10 seconds'),
       icon: AlertTriangle,
       cta: () => { setTab('faults'); onLogFault?.(); },
     },
     {
       id: 'ops-qs-equipment',
-      title: 'Add your equipment',
-      desc: 'Import from CSV or add manually',
+      title: t('ops_start.qs_equipment', 'Add your equipment'),
+      desc: t('ops_start.qs_equipment_desc', 'Import from CSV or add manually'),
       icon: Dumbbell,
       cta: () => { setTab('equipment'); onOpenEquipmentImport?.(); },
     },
     {
       id: 'ops-qs-checks',
-      title: 'Run a check-sheet',
-      desc: 'Daily opens / weekly safety',
+      title: t('ops_start.qs_checks', 'Run a check-sheet'),
+      desc: t('ops_start.qs_checks_desc', 'Daily opens / weekly safety'),
       icon: ClipboardCheck,
       cta: () => setTab('check-sheets'),
     },
   ];
 
   const jumps = [
-    { label: 'Dashboard',     tab: 'overview',     icon: LayoutDashboard, desc: 'Today at a glance' },
-    { label: 'Equipment',     tab: 'equipment',    icon: Dumbbell,        desc: 'All machines + coverage' },
-    { label: 'Faults',        tab: 'faults',       icon: AlertTriangle,   desc: 'Open, in-progress, resolved' },
-    { label: 'Check Sheets',  tab: 'check-sheets', icon: ClipboardList,   desc: 'Recurring safety checks' },
-    { label: 'Suppliers',     tab: 'suppliers',    icon: Truck,           desc: 'Contacts + response times' },
-    { label: 'Reports',       tab: 'reports',      icon: BarChart3,       desc: 'Weekly digest + exports' },
+    { label: t('dashboard.overview', 'Dashboard'),          tab: 'overview',     icon: LayoutDashboard, desc: t('ops_start.j_overview', 'Today at a glance') },
+    { label: t('dashboard.equipment', 'Equipment'),         tab: 'equipment',    icon: Dumbbell,        desc: t('ops_start.j_equipment', 'All machines + coverage') },
+    { label: t('dashboard.faults', 'Faults'),               tab: 'faults',       icon: AlertTriangle,   desc: t('ops_start.j_faults', 'Open, in-progress, resolved') },
+    { label: t('dashboard.check_sheets', 'Check Sheets'),   tab: 'check-sheets', icon: ClipboardList,   desc: t('ops_start.j_checks', 'Recurring safety checks') },
+    { label: t('dashboard.suppliers_tab', 'Suppliers'),     tab: 'suppliers',    icon: Truck,           desc: t('ops_start.j_suppliers', 'Contacts + response times') },
+    { label: t('dashboard.reports', 'Reports'),             tab: 'reports',      icon: BarChart3,       desc: t('ops_start.j_reports', 'Weekly digest + exports') },
   ];
 
   return (
@@ -90,10 +94,10 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
       {/* Welcome */}
       <div>
         <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mb-1" style={{ color: 'var(--theme-text)' }}>
-          Your Operations Hub
+          {t('ops_start.title', 'Your Operations Hub')}
         </h2>
         <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>
-          Equipment, faults, check-sheets, and compliance — one place for the whole floor team.
+          {t('ops_start.subtitle', 'Equipment, faults, check-sheets, and compliance — one place for the whole floor team.')}
         </p>
         <button
           type="button"
@@ -102,21 +106,21 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
           style={{ color: 'var(--theme-text-muted)' }}
           data-testid="ops-hide-start-btn"
         >
-          <EyeOff size={11} /> Hide this tab
+          <EyeOff size={11} /> {t('ops_start.hide_tab', 'Hide this tab')}
         </button>
       </div>
 
       {/* Outcomes */}
       <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>What you can achieve</div>
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('ops_start.sec_outcomes', 'What you can achieve')}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {OUTCOMES.map((o) => <OutcomeCard key={o.title} {...o} />)}
+          {OUTCOMES.map((o) => <OutcomeCard key={o.k} {...o} title={t(`ops_start.${o.k}_title`, o.title)} note={t(`ops_start.${o.k}_note`, o.note)} />)}
         </div>
       </section>
 
       {/* Quick start */}
       <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Quick start</div>
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('ops_start.sec_quick', 'Quick start')}</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {quickStart.map((q) => {
             const Icon = q.icon;
@@ -145,7 +149,7 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
 
       {/* 5-step preview */}
       <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Launch in 5 steps</div>
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('ops_start.sec_steps', 'Launch in 5 steps')}</div>
         <ol
           className="grid grid-cols-1 md:grid-cols-5 gap-2 rounded-2xl p-3 border"
           style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
@@ -156,8 +160,8 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
                 {s.n}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold truncate pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{s.title}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.note}</div>
+                <div className="text-sm font-semibold truncate pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t(`ops_start.step${s.n}_title`, s.title)}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t(`ops_start.step${s.n}_note`, s.note)}</div>
               </div>
               {i < STEPS.length - 1 && <div className="hidden md:block flex-1 h-px self-center" style={{ background: 'var(--theme-border)' }} />}
             </li>
@@ -167,7 +171,7 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
 
       {/* Fast-path jumps */}
       <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Or jump straight in</div>
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('ops_start.sec_jump', 'Or jump straight in')}</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {jumps.map((j) => {
             const Icon = j.icon;
@@ -205,10 +209,10 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
         </div>
         <div className="min-w-0">
           <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-            GymAxis does the boring bits
+            {t('ops_start.reassure_title', 'GymAxis does the boring bits')}
           </div>
           <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            Auto-route faults to suppliers, auto-generate weekly reports, auto-flag at-risk machines — so your team focuses on members, not spreadsheets.
+            {t('ops_start.reassure_note', 'Auto-route faults to suppliers, auto-generate weekly reports, auto-flag at-risk machines — so your team focuses on members, not spreadsheets.')}
           </div>
         </div>
         <Wrench size={14} className="opacity-40" style={{ color: 'var(--theme-text-muted)' }} />

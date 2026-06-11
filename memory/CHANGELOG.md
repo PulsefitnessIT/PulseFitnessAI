@@ -294,3 +294,11 @@ End-user E2E audit (testing agent + manual verification):
 - **FR/DE in-app:** the Operations dashboard was 100% hardcoded English. Tab labels, welcome line, Log-a-Fault CTA, all 8 KPI tiles, Recent Faults and the score-card description now consume i18n (`dashboard.*` keys; 15 new keys added to en/fr/de locales). Verified in-browser in both FR and DE.
 - **Lesson recorded:** parallel `search_replace` calls on the SAME file clobber each other (one of four batched edits was silently lost). Same-file edits must run sequentially.
 - **Tests:** `tests/test_iter237_ops_dashboard_fixes.py` (6 tests: pulse-admin /api/sites privilege, card placement pins, dark-mode leak pins, i18n pins) in the `make regression` gate. Gate green: 2,409 passed.
+
+## Jun 11, 2026 — Iter 238: FR/DE translation extended through the Operations module
+
+- **Wired to i18n:** ModuleSwitcher (module pills), SiteSwitcher, Equipment tab (search/add/badges/move-kit/empty states), Faults tab (subtabs, filters, severity+status labels, multi-machine job rows, empty states), Documents tab (categories, dropzone, upload CTAs), the full Log-a-Fault wizard in `LiteDialogs.js` (labels, placeholders, severity picker + descriptions, submit/triage buttons), `getSeverityLabel` helper (via i18n singleton), Operations Start tab (outcomes/steps/jumps — testids made language-stable via slug keys), ActivationMilestonesCard (15 milestone labels translated client-side keyed by `event_type`), Navbar "Help & Tutorials" / "Take a Tour".
+- **Locales:** +173 keys each in en/fr/de (`modules`, `sites`, `status`, `severity`, `equip`, `faults`, `docs`, `dialog`, `ops_start`, `activation`, `nav` groups).
+- **Method note:** per-file python patch scripts (exact-match + assert) to avoid the parallel same-file `search_replace` clobbering hit in iter 237.
+- **Tests:** `tests/test_iter238_platform_i18n.py` (wiring pins per file, locale key completeness, anti-copy-paste guard for fr/de) in the `make regression` gate. Gate green: 2,414 passed. Verified in-browser: FR + DE across Start, Dashboard, Equipment, Faults, fault wizard, user menu.
+- **Still English (next i18n passes):** Check Sheets / AI Diagnosis / Reports / Suppliers / Staffing tab internals, Memberships / CRM / Marketing module screens, toasts/notify messages.

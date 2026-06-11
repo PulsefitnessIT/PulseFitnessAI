@@ -16,6 +16,7 @@ import React from 'react';
 import axios from 'axios';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, Calendar, Briefcase, Rocket } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 
@@ -86,6 +87,7 @@ function hasAccess(user, accessKey) {
 export default function ModuleSwitcher({ user, current }) {
  const location = useLocation();
  const navigate = useNavigate();
+ const { t } = useTranslation();
  const wrapRef = React.useRef(null);
  const [scrollable, setScrollable] = React.useState(false);
  // Iter 215d5 — rewrite module paths per brand context so Operations
@@ -194,7 +196,7 @@ export default function ModuleSwitcher({ user, current }) {
  }`}
  >
  <Icon size={12} />
- {m.label}
+ {t(`modules.${m.id}`, m.label)}
  </Link>
  );
  })}

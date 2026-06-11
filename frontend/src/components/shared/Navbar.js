@@ -493,7 +493,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  style={{ color: 'var(--theme-text-muted)' }}
  data-testid="nav-help-btn"
  >
- <LifeBuoy size={16} /> Help &amp; Tutorials
+ <LifeBuoy size={16} /> {t('nav.help_tutorials', 'Help & Tutorials')}
  </button>
  {/* Settings option removed iter202 — settings now live inside Account modal (Preferences section) */}
  {(isOnDashboard || isOnPulse) && onStartTour && (
@@ -503,7 +503,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  style={{ color: 'var(--theme-text-muted)' }}
  data-testid="nav-start-tour-btn"
  >
- <HelpCircle size={16} /> Take a Tour
+ <HelpCircle size={16} /> {t('nav.take_tour', 'Take a Tour')}
  </button>
  )}
  {(user?.is_master_admin || user?.is_pulse_admin) && (isOnDashboard || isOnPulse) && (
@@ -598,7 +598,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  style={{ color: 'var(--theme-text-muted)' }}
  data-testid="mobile-help-btn"
  >
- <LifeBuoy size={16} /> Help &amp; Tutorials
+ <LifeBuoy size={16} /> {t('nav.help_tutorials', 'Help & Tutorials')}
  </button>
  {/* Mobile: settings option removed iter202 — moved into Account modal */}
  {(user?.is_master_admin || user?.is_pulse_admin) && (isOnDashboard || isOnPulse) && onOpenMasterAdmin && (
@@ -617,7 +617,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  style={{ color: 'var(--theme-text-muted)' }}
  data-testid="mobile-start-tour-btn"
  >
- <HelpCircle size={16} /> Take a Tour
+ <HelpCircle size={16} /> {t('nav.take_tour', 'Take a Tour')}
  </button>
  )}
  <Button onClick={logout} variant="outline" className="w-full" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="mobile-logout-btn">{t('nav.logout')}</Button>
