@@ -37,7 +37,7 @@
           "@type": "Organization",
           "name": "GymAxis AI",
           "url": "https://gymaxisai.com",
-          "logo": "https://gymaxisai.com/brand/gymaxis-logo.svg",
+          "logo": "https://gymaxisai.com/favicon-512.png",
           "description": "All-in-one platform for fitness operators: CRM, memberships, marketing, and gym operations.",
           "sameAs": [
             "https://www.instagram.com/gymaxisai"
@@ -111,7 +111,14 @@
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="GymAxis" id="apple-app-title" />
-        <link rel="apple-touch-icon" id="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23007AFF'/><text x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='100' fill='white'>G</text></svg>" />
+        <!-- Iter 240 — real favicon files (Google Search requires a crawlable
+             icon that's a multiple of 48px; data-URIs are ignored, which is
+             why results showed the generic globe). -->
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+        <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+        <link rel="apple-touch-icon" id="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" id="app-manifest" href="%PUBLIC_URL%/manifest.json" />
         <script>
           // Iter 215bx — swap the PWA manifest + apple-touch-icon to the
