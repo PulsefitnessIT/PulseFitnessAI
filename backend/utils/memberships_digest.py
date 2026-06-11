@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 
 from utils.database import db
 from utils.email import send_email
+from utils.email_i18n import tr, user_lang
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,10 @@ def _kpi_row(label: str, value: str) -> str:
     </tr>"""
 
 
-def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url: str | None) -> str:
-    headline = brief.get("headline") or "Weekly brief"
+def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url: str | None, lang: str = "en") -> str:
+    # Iter 239 — the email chrome is localized per recipient language;
+    # the AI-written headline/narrative stays in its source language.
+    headline = brief.get("headline") or tr(lang, "weekly_brief")
     narrative = brief.get("narrative") or ""
     actions = brief.get("actions") or []
     top_at_risk = at_risk[:5]
@@ -60,44 +63,44 @@ def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url
         "<table style='width:100%;border-collapse:collapse;margin-top:8px;'>"
         + "".join(_risk_row(m) for m in top_at_risk)
         + "</table>"
-    ) if top_at_risk else "<p style='color:#9ca3af;'>No at-risk members flagged this week — nice.</p>"
+    ) if top_at_risk else f"<p style='color:#9ca3af;'>{tr(lang, 'no_at_risk')}</p>"
     kpi_table = (
         "<table style='width:100%;border-collapse:collapse;'>"
         + _kpi_row("MRR",             f"£{kpis.get('mrr_gbp', 0):.0f}")
         + _kpi_row("ARPU",            f"£{kpis.get('arpu_gbp', 0):.2f}")
-        + _kpi_row("Active members",  str(kpis.get("active_members", 0)))
-        + _kpi_row("Net growth",      f"{'+' if kpis.get('net_growth', 0) >= 0 else ''}{kpis.get('net_growth', 0)}")
-        + _kpi_row("Churn %",         f"{kpis.get('churn_pct', 0)}%")
-        + _kpi_row("Occupancy",       f"{kpis.get('occupancy_pct', 0)}%")
-        + _kpi_row("Revenue (week)",  f"£{kpis.get('revenue_gbp', 0):,.0f}")
+        + _kpi_row(tr(lang, "kpi_active_members"),  str(kpis.get("active_members", 0)))
+        + _kpi_row(tr(lang, "kpi_net_growth"),      f"{'+' if kpis.get('net_growth', 0) >= 0 else ''}{kpis.get('net_growth', 0)}")
+        + _kpi_row(tr(lang, "kpi_churn"),           f"{kpis.get('churn_pct', 0)}%")
+        + _kpi_row(tr(lang, "kpi_occupancy"),       f"{kpis.get('occupancy_pct', 0)}%")
+        + _kpi_row(tr(lang, "kpi_revenue_week"),    f"£{kpis.get('revenue_gbp', 0):,.0f}")
         + "</table>"
     )
     actions_html = ""
     if actions:
         items = "".join(f"<li style='margin:6px 0;color:#e5e7eb;'>{a}</li>" for a in actions)
         actions_html = f"""<div style='margin-top:16px;padding:14px 16px;border-left:3px solid {_BRAND_ACCENT};background:rgba(25,205,255,0.06);border-radius:6px;'>
-          <div style='color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;'>Recommended actions</div>
+          <div style='color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;'>{tr(lang, 'recommended_actions')}</div>
           <ol style='margin:0 0 0 18px;padding:0;'>{items}</ol>
         </div>"""
     app_link_html = f"""<p style='color:#9ca3af;font-size:13px;margin-top:18px;'>
-        Jump back into the analytics dashboard: <a href='{app_url}' style='color:{_BRAND_ACCENT};text-decoration:none;font-weight:700;'>{app_url}</a>
+        {tr(lang, 'jump_back')} <a href='{app_url}' style='color:{_BRAND_ACCENT};text-decoration:none;font-weight:700;'>{app_url}</a>
       </p>""" if app_url else ""
     return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:{_BRAND_BG};color:#fff;border-radius:16px;overflow:hidden;">
       <div style="padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.25);">
-        <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">Weekly brief · {org.get('name', 'Studio')}</div>
+        <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">{tr(lang, 'weekly_brief')} · {org.get('name', 'Studio')}</div>
         <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;font-weight:800;letter-spacing:-0.01em;">{headline}</h1>
       </div>
       <div style="padding:24px 32px;background:#0A0C10;color:#e5e7eb;font-size:14px;line-height:1.6;">
         <p style="margin:0 0 18px;color:#d1d5db;">{narrative}</p>
-        <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:18px 0 6px;">Key metrics</div>
+        <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:18px 0 6px;">{tr(lang, 'key_metrics')}</div>
         {kpi_table}
         {actions_html}
-        <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:22px 0 6px;">Top 5 at-risk members</div>
+        <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:22px 0 6px;">{tr(lang, 'top_at_risk')}</div>
         {risk_table}
         {app_link_html}
       </div>
       <div style="background:{_BRAND_BG};padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-        <p style="color:#6b7280;font-size:11px;margin:0;">GymAxis Memberships · Autopilot digest · Full PDF attached</p>
+        <p style="color:#6b7280;font-size:11px;margin:0;">{tr(lang, 'digest_footer')}</p>
       </div>
     </div>"""
 
@@ -188,7 +191,7 @@ async def send_weekly_digest_for_org(org: dict, force: bool = False) -> dict:
     # We're conservative: email every non-deactivated user in the org.
     users = await db.users.find(
         {"organization_id": org_id, "deactivated": {"$ne": True}, "email": {"$exists": True, "$ne": None}},
-        {"_id": 0, "email": 1, "first_name": 1},
+        {"_id": 0, "email": 1, "first_name": 1, "language": 1},
     ).to_list(200)
     if not users:
         return {"skipped": "no_operators"}
@@ -215,7 +218,9 @@ async def send_weekly_digest_for_org(org: dict, force: bool = False) -> dict:
         origin = os.environ.get("PUBLIC_ORIGIN") or os.environ.get("FRONTEND_ORIGIN")
         public_url = f"{origin}/memberships" if origin else None
 
-    html = _build_html(org, brief or {}, overview.get("kpis", {}), at_risk, public_url)
+    # Iter 239 — build the email once per recipient language so each
+    # operator gets the chrome (labels/subject) in their own language.
+    html_by_lang: dict[str, str] = {}
 
     attachments = []
     if pdf_bytes:
@@ -226,10 +231,13 @@ async def send_weekly_digest_for_org(org: dict, force: bool = False) -> dict:
 
     sent: list[str] = []
     for u in users:
+        lang = user_lang(u)
+        if lang not in html_by_lang:
+            html_by_lang[lang] = _build_html(org, brief or {}, overview.get("kpis", {}), at_risk, public_url, lang=lang)
         ok = await send_email(
             u["email"],
-            f"GymAxis weekly brief · {org.get('name', 'Studio')} · {monday_tag}",
-            html,
+            f"{tr(lang, 'digest_subject')} · {org.get('name', 'Studio')} · {monday_tag}",
+            html_by_lang[lang],
             attachments=attachments or None,
         )
         if ok:

@@ -2,7 +2,7 @@ import { createContext, useState, useContext, useEffect, Suspense } from 'react'
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '@/App.css';
-import './i18n';
+import i18n from './i18n';
 import { ConfirmProvider as NotificationConfirmProvider } from '@/components/notifications';
 
 // ═══ Cookie-based session support ═══
@@ -235,6 +235,13 @@ function App() {
  }, []);
 
  const [user, setUser] = useState(null);
+ // Iter 239 — per-user language: when /auth/me (or login) hydrates a user
+ // whose saved `language` differs from the active UI language, apply it so
+ // the preference follows the user across browsers/devices.
+ useEffect(() => {
+   const lang = user?.language;
+   if (lang && !i18n.language?.startsWith(lang)) i18n.changeLanguage(lang);
+ }, [user?.language]);
  const [loading, setLoading] = useState(true);
  const [branding, setBranding] = useState(null);
  // Iter 215be (Phase 6) — flipped default theme from `dark` → `light`.

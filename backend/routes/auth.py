@@ -860,6 +860,9 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "primary_module": (org or {}).get('primary_module') or '',
         "avatar_url": user.get('avatar_url'),
         "phone": user.get('phone'),
+        # Iter 239 — per-user UI language (en/fr/de); the frontend applies
+        # it via i18n.changeLanguage on boot so it follows across devices.
+        "language": user.get('language'),
         "trial": trial_state,
         "features": features,
         "module_access": module_access,

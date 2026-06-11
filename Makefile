@@ -312,6 +312,7 @@ regression:
 	  tests/test_iter236_org_engineer_role.py \
 	  tests/test_iter237_ops_dashboard_fixes.py \
 	  tests/test_iter238_platform_i18n.py \
+	  tests/test_iter239_user_language.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

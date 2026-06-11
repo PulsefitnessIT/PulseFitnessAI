@@ -302,3 +302,9 @@ End-user E2E audit (testing agent + manual verification):
 - **Method note:** per-file python patch scripts (exact-match + assert) to avoid the parallel same-file `search_replace` clobbering hit in iter 237.
 - **Tests:** `tests/test_iter238_platform_i18n.py` (wiring pins per file, locale key completeness, anti-copy-paste guard for fr/de) in the `make regression` gate. Gate green: 2,414 passed. Verified in-browser: FR + DE across Start, Dashboard, Equipment, Faults, fault wizard, user menu.
 - **Still English (next i18n passes):** Check Sheets / AI Diagnosis / Reports / Suppliers / Staffing tab internals, Memberships / CRM / Marketing module screens, toasts/notify messages.
+
+## Jun 11, 2026 — Iter 239: Per-user language preference + localized emails
+
+- **Profile-saved language:** `PATCH /api/account/profile` now accepts `language` (en/fr/de, validated); `/api/auth/me` returns it. The Navbar globe persists the choice for logged-in users; `App.js` applies `user.language` on hydrate — the preference follows the user across browsers/devices (verified e2e: cleared localStorage, reloaded, UI restored to the profile language).
+- **Localized emails:** new `utils/email_i18n.py` (SUPPORTED_LANGS, `user_lang()`, `tr()`); the Memberships weekly digest now builds subject + email chrome per recipient language (grouped per-lang HTML build; AI headline/narrative stays source-language).
+- **Tests:** `tests/test_iter239_user_language.py` (5 tests: persist + cross-session follow, invalid lang 400, helper unit tests, localized digest HTML per lang, frontend wiring pins) in the `make regression` gate. Gate green: 2,419 passed.

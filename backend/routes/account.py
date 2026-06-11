@@ -410,11 +410,17 @@ async def serve_logo(org_id: str) -> Response:
 
 @router.patch("/account/profile")
 async def update_profile(body: dict, user: dict = Depends(get_current_user)) -> dict:
-    allowed = {"full_name", "phone", "job_title"}
+    # Iter 239 — `language` (en/fr/de) persists the UI language per-user
+    # so it follows them across devices and drives localized emails.
+    allowed = {"full_name", "phone", "job_title", "language"}
     updates = {k: (v.strip() if isinstance(v, str) else v)
                for k, v in (body or {}).items() if k in allowed}
     if "full_name" in updates and not updates["full_name"]:
         raise HTTPException(status_code=400, detail="Full name cannot be empty")
+    if "language" in updates:
+        from utils.email_i18n import SUPPORTED_LANGS
+        if updates["language"] not in SUPPORTED_LANGS:
+            raise HTTPException(status_code=400, detail=f"language must be one of {sorted(SUPPORTED_LANGS)}")
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.users.update_one({"id": user["id"]}, {"$set": updates})

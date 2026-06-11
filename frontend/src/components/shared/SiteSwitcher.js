@@ -15,8 +15,8 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MapPin, Star, Globe2, Check } from 'lucide-react';
-import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/App';
 
 const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
   const { t } = useTranslation();
