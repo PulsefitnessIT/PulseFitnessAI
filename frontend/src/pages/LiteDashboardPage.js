@@ -29,7 +29,6 @@ import LiteEquipmentTab from './LiteDashboard/LiteEquipmentTab';
 import LiteFaultsTab from './LiteDashboard/LiteFaultsTab';
 import LiteDocumentsTab from './LiteDashboard/LiteDocumentsTab';
 import LiteDialogs from './LiteDashboard/LiteDialogs';
-import GymFloorManagerTab from './LiteDashboard/GymFloorManagerTab';
 import OperationsStartTab from './LiteDashboard/OperationsStartTab';
 import StaffingConsole from './LiteDashboard/StaffingConsole';
 import AllSitesOverview from './LiteDashboard/AllSitesOverview';
@@ -177,6 +176,14 @@ const LiteDashboardPage = () => {
 
   const adminDemoRole = isAdmin ? searchParams.get('role') : null;
   const userRole = adminDemoRole || (isAdmin ? 'owner' : (user?.role || 'staff'));
+  // Iter 241 — SINGLE managerial gate. Production bug (Lee): Reports /
+  // Suppliers / Gym Layout tab pills rendered but their CONTENT was
+  // gated by scattered `owner || manager` checks that forgot
+  // pulse_master_admin — exactly the same omission as the iter-237
+  // site-switcher regression. Every role gate in this page MUST use
+  // this flag instead of re-deriving its own role list.
+  const isManagerial = userRole === 'owner' || userRole === 'manager'
+    || user?.is_pulse_admin || user?.role === 'pulse_master_admin';
 
   const loadData = useCallback(async () => {
     try {
@@ -649,7 +656,7 @@ const LiteDashboardPage = () => {
       // Managers & owners see 'Staffing' (full workforce suite).
       // Staff see the same module labelled 'Gym Floor' (their limited
       // personal view) — enforced by StaffingConsole internally.
-      (userRole === 'owner' || userRole === 'manager')
+      isManagerial
         ? { id: 'staffing', label: t('dashboard.staffing', 'Staffing'),    icon: Users }
         : { id: 'staffing', label: t('dashboard.gym_floor', 'Gym Floor'),   icon: ClipboardList },
     ];
@@ -684,6 +691,11 @@ const LiteDashboardPage = () => {
     ];
   };
   const TABS = buildTabs();
+  // Iter 241 — INVARIANT: if a tab pill is offered, its content must
+  // render. Content gates derive from the SAME list as the pills so the
+  // two can never diverge again (the production blank-tab bug happened
+  // because pills and content used different hand-written role checks).
+  const tabVisible = (id) => TABS.some((tab) => tab.id === id);
 
   // Auto-scroll the active pill into view when tab changes (e.g. via bottom nav)
   React.useEffect(() => {
@@ -752,7 +764,7 @@ const LiteDashboardPage = () => {
                     Iter 237 — Pulse Master Admins (role pulse_master_admin /
                     is_pulse_admin) regained access: they manage the whole
                     Pulse estate and must be able to hop between sites. */}
-                {isPro && (userRole === 'owner' || userRole === 'manager' || user?.is_pulse_admin || user?.role === 'pulse_master_admin') ? (
+                {isPro && isManagerial ? (
                   <SiteSwitcher
                     onAllSites={() => setAllSitesActive(true)}
                     onPickSite={() => setAllSitesActive(false)}
@@ -776,7 +788,7 @@ const LiteDashboardPage = () => {
           <PulseProUpgradeCta />
 
           {/* Proactive nudges surfaced to owners/managers */}
-          <NudgeBanner canDismiss={userRole === 'owner' || userRole === 'manager'} />
+          <NudgeBanner canDismiss={isManagerial} />
 
           {/* Iter 237 — The Pulse Score hero card moved INSIDE the
               Dashboard tab (LiteOverviewTab). It must not repeat at the
@@ -919,12 +931,12 @@ const LiteDashboardPage = () => {
                 <PulseAIDiagnosisTab equipment={equipment} />
               </TabsContent>
             )}
-            {isPro && (userRole === 'manager' || userRole === 'owner') && (
+            {isPro && tabVisible('reports') && (
               <TabsContent value="reports" data-testid="reports-content">
                 <PulseReportsTab />
               </TabsContent>
             )}
-            {isPro && (userRole === 'manager' || userRole === 'owner') && (
+            {isPro && tabVisible('gym-layout') && (
               <TabsContent value="gym-layout" data-testid="gym-layout-content">
                 <PulseGymLayoutTab />
               </TabsContent>
@@ -934,12 +946,10 @@ const LiteDashboardPage = () => {
                 <StaffingConsole />
               </TabsContent>
             )}
-            {isPro && (
-              <TabsContent value="gym-floor" data-testid="gym-floor-content">
-                <GymFloorManagerTab />
-              </TabsContent>
-            )}
-            {isPro && (userRole === 'manager' || userRole === 'owner') && (
+            {/* Iter 241 — the orphan gym-floor TabsContent was removed:
+                no pill ever offered it here. GymFloorManagerTab lives in
+                MODProDashboard; floor staff use the standalone /gym-floor. */}
+            {isPro && tabVisible('suppliers') && (
               <TabsContent value="suppliers" data-testid="suppliers-content">
                 <SupplierDashboardTab />
               </TabsContent>
