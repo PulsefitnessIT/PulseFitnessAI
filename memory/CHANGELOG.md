@@ -323,3 +323,9 @@ End-user E2E audit (testing agent + manual verification):
 - **Bonus:** the new structural test immediately caught and removed an orphan `gym-floor` TabsContent (dead code — unreachable; GymFloorManagerTab lives in MODProDashboard, floor staff use /gym-floor).
 - **Recurrence guard:** `tests/test_iter241_pulse_tab_content_gates.py` — 4 tests incl. a structural invariant: every pill id must have a TabsContent and vice-versa, and no hand-written role gate may wrap a TabsContent. In the `make regression` gate.
 - Verified e2e as pulse_master_admin: Reports (753 chars), Suppliers (586), Gym Layout (156) all render. Gate: 2,425 passed (3 unrelated engineer-app flakes pass in isolation).
+
+## Jun 11, 2026 — Iter 242: Cross-dashboard pill-vs-content audit
+
+- Audited every tabbed dashboard for the iter-241 blank-tab pattern (pill offered, content role-gated differently): GymAxis ops (DashboardTabs vs DashboardPage TabsContent), MOD Pro portal (pillars), Memberships console (TABS + schedule-hub includes), CRM (NAV_ITEMS vs renderContent switch), Marketing suite (nav vs switch). **No further traps found** — CRM/Marketing have `default:` fallbacks, others render every pill. GymAxis `digest` is an intentional deep-link-only tab (whitelisted explicitly).
+- **Recurrence guard:** `tests/test_iter242_dashboard_pill_content_audit.py` (5 structural tests, one per dashboard, with mechanism-specific extraction + explicit orphan whitelist) added to the `make regression` gate — any future pill/content divergence in ANY dashboard fails CI.
+- Gate green: 2,433 passed.
