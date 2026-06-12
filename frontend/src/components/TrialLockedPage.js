@@ -20,6 +20,7 @@ export default function TrialLockedPage() {
   const isSuspended = trial.status === 'suspended';
   const isOwner = user?.role === 'owner';
   const isPulse = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
+  const isProvider = user?.account_type === 'service_provider';
   const brand = isPulse ? 'Pulse Fitness' : 'GymAxis';
 
   const upgrade = () => {
@@ -27,7 +28,8 @@ export default function TrialLockedPage() {
       notify.info('Ask your organisation owner to upgrade.');
       return;
     }
-    navigate('/pricing?from=trial');
+    // Iter 258 — service providers convert on their dedicated Stripe page.
+    navigate(isProvider ? '/service-desk/upgrade' : '/pricing?from=trial');
   };
 
   return (

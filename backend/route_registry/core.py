@@ -3,6 +3,7 @@ from fastapi import APIRouter
 
 from routes.auth import router as auth_router
 from routes.service_provider import router as service_provider_router
+from routes.service_provider_billing import router as service_provider_billing_router
 from routes.account import router as account_router
 from routes.site_data_export import router as site_data_export_router
 from routes.master_admin_perf import router as master_admin_perf_router
@@ -32,6 +33,7 @@ def register_core(api_router: APIRouter) -> None:
     for r in (
         auth_router, account_router, site_data_export_router,
         service_provider_router,
+        service_provider_billing_router,
         master_admin_perf_router, localization_router,
         equipment_router, issues_router, files_router, files_chunked_router,
         payments_router, sites_router, fault_codes_router, fault_templates_router,

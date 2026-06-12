@@ -1,3 +1,16 @@
+## Iter 258 — Trial → paid Stripe upgrade for Service Providers ✅ (Jun 12, 2026)
+
+**Closes the revenue loop: 14-day trial → £99/month self-serve subscription.** Pattern mirrors the proven `routes/crm_modes.py` Stripe flow (raw stripe SDK + payment_transactions ledger + idempotency + polling status). Integration playbook consulted via integration_expert.
+- Backend `routes/service_provider_billing.py` (registered in route_registry/core.py):
+  - `GET /api/service-provider/plan` — plan card data (£99/month, is_converted, trial_ends_at). Provider-only (403 otherwise).
+  - `POST /api/service-provider/upgrade/checkout` — owner-only; subscription-mode Checkout Session; uses `STRIPE_PRICE_SERVICE_DESK` env Price ID when set, else inline recurring price_data; ledger row in payment_transactions; success/cancel return to /service-desk/upgrade.
+  - `GET /api/service-provider/upgrade/status/{session_id}` — org-scoped poll (403 cross-org); on `paid` flips org → `trial_status=converted, is_trial=False, subscription_active=True, subscription_plan=service_desk_pro` (trial_lifecycle then reports converted; banner/lock disappear). Idempotent.
+  - NOTE: `utils.database.STRIPE_API_KEY` resolves to the user's LIVE key (sk_live_, same as existing prod billing) even though .env shows the placeholder — sessions are real; never complete a test payment.
+- Frontend `pages/ServiceProviderUpgrade.js` at `/service-desk/upgrade` (auth-gated route in AppRoutes): plan card (perks, £99/month, Subscribe → Stripe), verifying spinner with poll-retry (6×2s), success screen → desk, cancelled reassurance banner (fixed StrictMode bug: phase derived from URL param in useState initializer instead of clearing params). testids: sp-upgrade-page/-plan/-price/-subscribe/-success/-cancelled/-verifying/-to-desk/-back.
+- `TrialBanner.upgrade()` + `TrialLockedPage.upgrade()` now route `account_type==='service_provider'` → /service-desk/upgrade (gym operators unchanged → /pricing?from=trial).
+- Phantom-edit artifacts again (route_registry/core.py duplicated block + dropped import) — fixed via insert_text + verified by import.
+- Tests: `tests/test_iter258_provider_billing.py` (5/5, in Makefile) — plan shape, provider/owner guards, real session creation + ledger, unpaid poll does NOT convert, cross-org poll 403. Provider-package suite 24/24. Browser-verified: banner → upgrade page → (cancelled state) and live Stripe session URL creation.
+
 ## Iter 257c — Hide platform-only desk tabs for providers ✅ (Jun 12, 2026)
 
 - `ServiceDeskPage.js`: when `user.account_type === 'service_provider'`, the **Equipment** and **Supplier health** tabs (platform concepts that search the gym-operator estate, always empty for providers) are filtered out of both the primary `visibleTabs` and `visibleInsights` nav lists. Body switch also guards those `case`s → DeskSummary fallback if reached via stale state. Master/Pulse admin desks keep all tabs.

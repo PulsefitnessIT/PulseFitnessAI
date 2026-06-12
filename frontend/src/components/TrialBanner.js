@@ -71,6 +71,12 @@ export default function TrialBanner() {
       notify.info('Ask your organisation owner to upgrade.');
       return;
     }
+    // Iter 258 — self-serve providers convert on their own dedicated
+    // Stripe upgrade page; gym operators still choose at /pricing.
+    if (user.account_type === 'service_provider') {
+      navigate('/service-desk/upgrade');
+      return;
+    }
     // Iter 216o-8 — instead of force-buying the bundle, send the user to
     // /pricing so they can choose between the Pro Bundle and the
     // individual modules (Memberships / CRM / Marketing / Operations).

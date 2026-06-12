@@ -203,6 +203,8 @@ const ForceChangePasswordPage = lazy(() => import('@/pages/ForceChangePasswordPa
 // Iter 253 — self-serve Service Provider signup + setup wizard
 const ServiceProviderSignup = lazy(() => import('@/pages/ServiceProviderSignup'));
 const ServiceProviderSetup = lazy(() => import('@/pages/ServiceProviderSetup'));
+// Iter 258 — self-serve trial → paid Stripe upgrade for providers
+const ServiceProviderUpgrade = lazy(() => import('@/pages/ServiceProviderUpgrade'));
 const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const HelpCentrePage = lazy(() => import('@/pages/HelpCentrePage'));
 
@@ -444,6 +446,7 @@ export default function AppRoutes({ user, login }) {
           post-signup setup wizard (branding → SLA → first engineer). */}
       <Route path="/service-provider/signup" element={<ServiceProviderSignup />} />
       <Route path="/service-desk/setup" element={user ? <ServiceProviderSetup /> : <Navigate to="/login?next=/service-desk/setup" replace />} />
+      <Route path="/service-desk/upgrade" element={user ? <ServiceProviderUpgrade /> : <Navigate to="/login?next=/service-desk/upgrade" replace />} />
       {/* Legacy /service-ops/* URLs redirect to the unified hub. Deep links still work — the merged shell defaults to Dashboard. */}
       <Route path="/service-ops" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/scheduler" element={<Navigate to="/service-desk" replace />} />
