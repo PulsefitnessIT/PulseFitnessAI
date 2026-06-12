@@ -687,17 +687,15 @@ def _london_now():
         return datetime.now(timezone.utc)
 
 
-async def _social_already_ran_today(date_str: str) -> bool:
-    doc = await db.social_autopilot_runs.find_one(
-        {"date": date_str}, {"_id": 0, "date": 1},
-    )
-    return bool(doc)
+# Iter 264 — the loop claims the day atomically (multi-process safe).
+from utils.daily_run_lock import claim_daily_run  # noqa: E402
 
 
 async def _stamp_social_run(date_str: str, result) -> None:
     await db.social_autopilot_runs.update_one(
         {"date": date_str},
-        {"$set": {"date": date_str, "result": result, "ran_at": _now()}},
+        {"$set": {"date": date_str, "result": result, "ran_at": _now(),
+                  "status": "done"}},
         upsert=True,
     )
 
@@ -739,7 +737,7 @@ async def run_daily_social_loop(*, hour: int = 9) -> None:
             if (
                 cfg_enabled
                 and london.hour == cfg_hour
-                and not await _social_already_ran_today(today)
+                and await claim_daily_run(db.social_autopilot_runs, today)
             ):
                 logger.info(
                     "[social-autopilot] firing daily run for %s @ %02d:00 Europe/London",

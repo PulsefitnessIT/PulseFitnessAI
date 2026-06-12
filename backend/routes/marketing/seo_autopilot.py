@@ -129,6 +129,12 @@ def _slugify(text: str) -> str:
     return s[:80] or _id()[:8]
 
 
+def _norm_title(text: str | None) -> str:
+    """Iter 264 — normalised title key used to detect exact duplicate
+    articles (case/punctuation/whitespace-insensitive)."""
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
 def _require_master_admin(user: dict) -> None:
     if not user.get("is_master_admin"):
         raise HTTPException(403, "SEO Autopilot is for the GymAxis master admin only.")
@@ -884,7 +890,22 @@ async def generate_article(
     now = _now()
     slug = _slugify(text["title"])
     # Uniqueness — append short id if slug exists.
-    if await db.seo_articles.find_one({"slug": slug}, {"_id": 0, "id": 1}):
+    # Iter 264 — publish-time duplicate guard. The slug IS the slugified
+    # title, so a base-slug collision with an equal normalised title
+    # means an identical article already exists (this is exactly how the
+    # production duplicates shipped: a concurrent scheduler run inserted
+    # first, and the second insert sailed through with a suffixed slug).
+    # Never auto-publish those — hold for review instead.
+    held_duplicate_title = False
+    existing_slug_doc = await db.seo_articles.find_one(
+        {"slug": slug}, {"_id": 0, "id": 1, "title": 1, "status": 1},
+    )
+    if existing_slug_doc:
+        if (
+            existing_slug_doc.get("status") != "archived"
+            and _norm_title(existing_slug_doc.get("title")) == _norm_title(text["title"])
+        ):
+            held_duplicate_title = True
         slug = f"{slug}-{_id()[:6]}"
 
     # Iter 220bj — when the post-generation uniqueness check still
@@ -894,7 +915,7 @@ async def generate_article(
     # review — we never publish a placeholder article live.
     publish_now = bool(payload.publish_now)
     final_status: str
-    if publish_now and (text.get("generation_failed") or not uniq["ok"]):
+    if publish_now and (text.get("generation_failed") or not uniq["ok"] or held_duplicate_title):
         # Failed generation (LLM unreachable) OR a near-duplicate is
         # held in needs_review — we never publish a placeholder or a
         # rehash live.
@@ -922,6 +943,7 @@ async def generate_article(
         "status": final_status,
         "published_at": now if final_status == "published" else None,
         "generation_failed": bool(text.get("generation_failed")),
+        "held_duplicate_title": held_duplicate_title,
         "scheduled_for": None,
         "metrics": {"views": 0, "organic_visits": 0},
         # Iter 220bj — freshness telemetry
@@ -1557,6 +1579,39 @@ async def public_get_post(slug: str):
 
 # ── Index init ────────────────────────────────────────────────────
 
+async def dedupe_published_duplicate_titles() -> dict:
+    """Iter 264 — idempotent startup migration. Published articles with
+    the same normalised title are duplicates (the daily-scheduler race
+    shipped two pairs to production); keep the EARLIEST published one
+    (the original slug Google indexed first) and archive the rest. Runs
+    on every boot via ``init_seo_indexes`` so a redeploy self-heals the
+    production database."""
+    rows = await db.seo_articles.find(
+        {"status": "published"},
+        {"_id": 0, "id": 1, "title": 1, "slug": 1, "published_at": 1},
+    ).to_list(5000)
+    groups: dict[str, list[dict]] = {}
+    for r in rows:
+        groups.setdefault(_norm_title(r.get("title")), []).append(r)
+    archived: list[str] = []
+    for key, group in groups.items():
+        if not key or len(group) < 2:
+            continue
+        group.sort(key=lambda r: r.get("published_at") or "")
+        for dupe in group[1:]:
+            await db.seo_articles.update_one(
+                {"id": dupe["id"]},
+                {"$set": {"status": "archived",
+                          "archived_reason": "duplicate_title_auto_dedupe",
+                          "updated_at": _now()}},
+            )
+            archived.append(dupe.get("slug") or dupe["id"])
+    if archived:
+        logger.warning("[seo] auto-archived %d duplicate article(s): %s",
+                       len(archived), ", ".join(archived))
+    return {"archived": archived}
+
+
 async def init_seo_indexes() -> None:
     try:
         await db.seo_articles.create_index("slug", unique=True, sparse=True)
@@ -1564,8 +1619,15 @@ async def init_seo_indexes() -> None:
         await db.seo_keywords.create_index("status")
         # Iter 220ae — distributions are 1-per-article, store + retrieve fast
         await db.seo_distributions.create_index("article_id", unique=True)
+        # Iter 264 — the daily-run claim depends on this unique index.
+        await db.seo_autopilot_runs.create_index("date", unique=True)
     except Exception as exc:  # pragma: no cover
         logger.warning("[seo] index init failed: %s", exc)
+    # Iter 264 — self-heal any duplicates that already shipped.
+    try:
+        await dedupe_published_duplicate_titles()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("[seo] duplicate-title dedupe failed: %s", exc)
 
 
 # ── asyncio.gather alias — keeps the module 1 import lighter ──────
@@ -1603,7 +1665,8 @@ async def _autopilot_already_ran_today(date_str: str) -> bool:
 async def _stamp_autopilot_run(date_str: str, result: dict) -> None:
     await db.seo_autopilot_runs.update_one(
         {"date": date_str},
-        {"$set": {"date": date_str, "result": result, "ran_at": _now()}},
+        {"$set": {"date": date_str, "result": result, "ran_at": _now(),
+                  "status": "done"}},
         upsert=True,
     )
 
@@ -1636,12 +1699,14 @@ async def run_daily_autopilot_loop(*, hour: int = 9) -> None:
     backend restart. The ``hour`` kwarg is the env-var fallback used
     on cold boots before the master admin saves a config row.
 
-    Iter 220cf — fires when ``london.hour >= cfg_hour`` (not ``==``)
-    so a 15-min wake-up cadence that skips past the exact hour due
-    to a backend restart, slow iteration, or even a one-off
-    monitoring stall still catches the day. Combined with
-    ``_autopilot_already_ran_today`` this remains idempotent — at
-    most one run per London-calendar-day."""
+    Iter 264 — the old ``_autopilot_already_ran_today`` check-then-act
+    pattern raced when production ran several backend processes: each
+    process passed the check, spent minutes generating, and stamped
+    only afterwards — publishing duplicate articles seconds apart.
+    The loop now atomically CLAIMS the day (unique-indexed upsert in
+    ``utils.daily_run_lock``) before doing any work, so exactly one
+    process per calendar day can run."""
+    from utils.daily_run_lock import claim_daily_run
     while True:
         try:
             cfg = await _load_config()
@@ -1652,7 +1717,7 @@ async def run_daily_autopilot_loop(*, hour: int = 9) -> None:
             if (
                 cfg_enabled
                 and london.hour >= cfg_hour
-                and not await _autopilot_already_ran_today(today)
+                and await claim_daily_run(db.seo_autopilot_runs, today)
             ):
                 logger.info(
                     "[seo-autopilot] firing daily run for %s @ %02d:00 Europe/London",

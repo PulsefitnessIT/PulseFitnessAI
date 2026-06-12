@@ -28180,3 +28180,14 @@ NOTE: fixes live in PREVIEW — user must redeploy to production (gymaxisai.com)
 **Verified**: testing agent iteration_263.json — 11/11 mobile flows passed; 3 follow-ups all fixed & screenshot-verified (engineers btn pill, customer form 1-col 316px inputs, search row). NOTE: 272px search width = FULL content-box width at 390vw (section head has 18px padding) — not a bug. Tests: test_iter262_desk_mobile_audit.py 4/4 (in Makefile).
 **Gotchas this session**: 3 more phantom edits (KPICard onClick, parts overflow replace_all, DeskCustomerDetail col-span) + 1 EOF duplicate-tail corruption (ServiceOps/ServiceDeskPage.js) — used python string replace for re-application; ALWAYS grep-verify after search_replace.
 NOTE: fixes live in PREVIEW — user must redeploy to production.
+
+---
+## Iter 264 — SEO blog duplicate posts: root cause + permanent fix (Jun 12, 2026)
+**User report (production)**: duplicate blog posts on gymaxisai.com/blog keep recurring. Confirmed via prod API: 2 pairs with IDENTICAL titles published 4s/12s apart (Jun 6 08:09, Jun 11 08:13), second slug suffixed `-xxxxxx`.
+**ROOT CAUSE**: `run_daily_autopilot_loop` was check-then-act — read the `seo_autopilot_runs` daily stamp, spent minutes on LLM generation, stamped only AFTER publishing. Production runs >1 backend process, each starting its own loop at boot → both passed the check in the same 15-min window → both published. (Preview never reproduces: single process.) Same racy pattern existed in the social autopilot loop.
+**FIX (3 layers)**:
+1. `utils/daily_run_lock.py` → `claim_daily_run(collection, date)` — atomic per-day claim BEFORE any work (unique index on `date`, $setOnInsert token CAS, stale-crash reclaim after 120min). Wired into both SEO + social daily loops.
+2. Publish-time guard in `generate_article`: base-slug collision with equal normalised title (`_norm_title`) → `held_duplicate_title=True` → status forced to `needs_review`, never auto-published.
+3. `dedupe_published_duplicate_titles()` — idempotent startup migration (runs in `init_seo_indexes` every boot): groups published articles by normalised title, keeps the EARLIEST (original Google-indexed slug), archives the rest with `archived_reason=duplicate_title_auto_dedupe`. **Production self-heals on next redeploy.**
+**Tests**: test_iter264_seo_duplicate_fix.py 7/7 (concurrency exclusivity, completed-day, stale reclaim, fresh-claim protection, dedupe keep-oldest + idempotency, source pins, unique index) — added to Makefile. Existing seo autopilot suite 28/28.
+NOTE: preview DB had no duplicates (single-process). The 4 prod duplicates will be auto-archived when the user REDEPLOYS.
