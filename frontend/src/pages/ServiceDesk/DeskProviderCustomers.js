@@ -12,6 +12,7 @@ import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import {
   Users, Search, Plus, Loader2, ArrowLeft, Pencil, Trash2, ClipboardList,
+  PhoneCall,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { authConfig } from './authConfig';
@@ -53,6 +54,72 @@ const STATUS_TONES = {
   closed: 'bg-zinc-100 text-zinc-600', invoiced: 'bg-emerald-50 text-emerald-700',
 };
 
+const PRIORITIES = [
+  ['p1', 'P1 — Critical'], ['p2', 'P2 — High'], ['p3', 'P3 — Medium'], ['p4', 'P4 — Low'],
+];
+
+/** Iter 256b — "phone rings" flow: raise a case straight from the customer
+ *  detail page with customer/site pre-filled (POST /svc/intake/phone). */
+function NewCaseForm({ API, customer, onCreated, onCancel }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('p3');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/svc/intake/phone`, {
+        title,
+        description,
+        priority,
+        customer_name: customer.name || '',
+        customer_email: customer.email || '',
+        customer_phone: customer.phone || '',
+        site_name: customer.site_name || '',
+        site_postcode: customer.postcode || '',
+      }, authConfig());
+      notify.success('Case raised', r.data.reference || '');
+      onCreated();
+    } catch (e) {
+      notify.error('Could not raise case', e.response?.data?.detail || '');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card className="p-6 space-y-3 border-orange-200 bg-orange-50/30" data-testid="pc-new-case-form">
+      <div className="text-sm font-semibold text-zinc-900">
+        New case for {customer.name}
+        <span className="ml-2 text-xs font-normal text-zinc-500">
+          {[customer.site_name, customer.postcode].filter(Boolean).join(' · ') || 'no site on record'}
+        </span>
+      </div>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's the fault? *"
+        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+        data-testid="pc-case-title" />
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+        placeholder="Details (what the caller said, machine, symptoms…)"
+        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+        data-testid="pc-case-description" />
+      <div className="flex items-center gap-3 flex-wrap">
+        <select value={priority} onChange={(e) => setPriority(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white"
+          data-testid="pc-case-priority">
+          {PRIORITIES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+        </select>
+        <div className="flex gap-2 ml-auto">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900">Cancel</button>
+          <button onClick={submit} disabled={busy || !title.trim()}
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg"
+            data-testid="pc-case-submit">
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <PhoneCall size={14} />} Raise case
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function DeskProviderCustomers({ API }) {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -61,6 +128,7 @@ export default function DeskProviderCustomers({ API }) {
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [raisingCase, setRaisingCase] = useState(false);
   const [detail, setDetail] = useState(null); // {customer, recent_cases, case_count}
 
   const load = useCallback(async (search = '') => {
@@ -82,6 +150,7 @@ export default function DeskProviderCustomers({ API }) {
       const r = await axios.get(`${API}/service-desk/provider-customers/${id}`, authConfig());
       setDetail(r.data);
       setEditing(false);
+      setRaisingCase(false);
     } catch (e) { notify.error('Could not load customer', e.response?.data?.detail || ''); }
   };
 
@@ -141,6 +210,11 @@ export default function DeskProviderCustomers({ API }) {
             </div>
             {!editing && (
               <div className="flex gap-2">
+                <button onClick={() => setRaisingCase(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white"
+                  data-testid="pc-new-case">
+                  <PhoneCall size={12} /> New case
+                </button>
                 <button onClick={() => setEditing(true)}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700"
                   data-testid="pc-edit">
@@ -169,6 +243,13 @@ export default function DeskProviderCustomers({ API }) {
             </div>
           )}
         </Card>
+
+        {raisingCase && (
+          <NewCaseForm API={API} customer={c}
+            onCreated={() => openDetail(c.id)}
+            onCancel={() => setRaisingCase(false)} />
+        )}
+
 
         <Card className="p-6" data-testid="pc-cases">
           <div className="flex items-center gap-2 mb-3">

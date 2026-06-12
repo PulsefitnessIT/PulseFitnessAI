@@ -1,3 +1,10 @@
+## Iter 256b — "New case" from customer detail (phone-rings flow) ✅ (Jun 12, 2026)
+
+- Provider customer detail page now has a **New case** button → inline form (title, description, priority P1–P4) with the customer/site pre-filled; submits to the existing `POST /api/svc/intake/phone` (source=phone, live SLA targets from the org's wizard-configured policies, sequential SVC-xxxxx reference). On success: toast with reference + detail/case list refresh.
+- testids: pc-new-case, pc-new-case-form, pc-case-title, pc-case-description, pc-case-priority, pc-case-submit.
+- Verified E2E in browser (SVC-00001 raised for Acme Gyms Ltd, appears as `new` in Cases card) + curl (customer/site/SLA fields correct on the case). New pytest `test_raise_case_from_customer_detail`; full provider-package suite 19/19 (iters 253–256).
+- NOTE: two `search_replace` calls this session reported success but did not persist (UploadCloud import, NewCaseForm render block) — re-applied and verified by grep. Watch for this.
+
 ## Iter 256 — Provider-native desk Customers tab ✅ (Jun 12, 2026)
 
 **Self-serve providers now manage their FIELD-SERVICE customer book in the desk Customers tab** (instead of the platform-org list, which only showed their own org).

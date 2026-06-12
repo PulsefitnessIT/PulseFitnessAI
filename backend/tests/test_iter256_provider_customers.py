@@ -80,7 +80,8 @@ def test_detail_links_imported_cases():
     assert d["case_count"] >= 1
     refs = [c["reference"] for c in d["recent_cases"]]
     assert "J-1001" in refs
-    assert all(c["status"] in ("closed", "invoiced") for c in d["recent_cases"])
+    imported = next(c for c in d["recent_cases"] if c["reference"] == "J-1001")
+    assert imported["status"] in ("closed", "invoiced")  # history stays closed
 
 
 def test_tenant_isolation():
@@ -89,3 +90,31 @@ def test_tenant_isolation():
                      headers=h_admin, params={"q": "Acme Gyms"}, timeout=20)
     assert r.status_code == 200
     assert r.json()["total"] == 0  # provider's book is invisible to other orgs
+
+
+def test_raise_case_from_customer_detail():
+    """Iter 256b — 'New case' on the customer detail page posts to
+    /svc/intake/phone with the customer/site pre-filled; the new case must
+    appear in the customer's recent_cases with live SLA targets."""
+    h = _login(*PROVIDER)
+    r = requests.get(f"{BASE_URL}/api/service-desk/provider-customers",
+                     headers=h, params={"q": "Acme Gyms"}, timeout=20)
+    cust = r.json()["customers"][0]
+    title = f"Pytest fault {_TAG}"
+    r = requests.post(f"{BASE_URL}/api/svc/intake/phone", headers=h, json={
+        "title": title, "description": "raised from customer detail",
+        "priority": "p2", "customer_name": cust["name"],
+        "customer_email": cust.get("email") or "",
+        "site_name": cust.get("site_name") or "",
+        "site_postcode": cust.get("postcode") or "",
+    }, timeout=20)
+    assert r.status_code == 200, r.text
+    case = r.json()
+    assert case["status"] == "new" and case["priority"] == "p2"
+    assert case["customer_name"] == cust["name"]
+    assert case["sla_response_at"] and case["sla_resolve_at"]
+
+    r = requests.get(f"{BASE_URL}/api/service-desk/provider-customers/{cust['id']}",
+                     headers=h, timeout=20)
+    d = r.json()
+    assert any(c["title"] == title for c in d["recent_cases"])
