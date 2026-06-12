@@ -1,3 +1,12 @@
+## Iter 256c+d — "Bring your data" setup step + one-click engineer dispatch ✅ (Jun 12, 2026)
+
+**256c — optional import step in the provider setup wizard:**
+- `ServiceProviderSetup.js` now has 4 steps: Branding → SLA → First engineer → **Bring your data (optional)**. Step 3 button is "Continue"; step 4 shows the engineer temp-password recap banner (`sp-eng-temp-pw-recap`), embeds the full import wizard (`DeskImports` with new `embedded` prop that hides its own header), and "Finish & open my desk" (`sp-open-desk`) calls setup/complete. Container widens to max-w-4xl on step 4. Skipping is fine — copy points to Insights → Import data.
+**256d — phone call → case → engineer dispatched in seconds:**
+- `NewCaseForm` (provider customer detail) now has a stage 2: after the case is raised it loads `GET /api/svc/engineers`, preselects the engineer when there's exactly one, and "Dispatch" posts `POST /api/svc/scheduler/assign` (existing endpoint: sets assigned_engineer, transitions new→assigned via state machine, logs event, Sicon-syncs). "Assign later" closes. testids: pc-dispatch-form, pc-dispatch-engineer, pc-dispatch-assign, pc-dispatch-later, pc-dispatch-empty.
+- E2E verified in browser: fresh signup → 4-step wizard → CSV imported inside step 4 (1 created) → desk → imported customer → case SVC-00001 raised → dispatched to Wiz Engineer → case shows `assigned` pill. Pytest extended (dispatch assertions in test_raise_case_from_customer_detail); suite 19/19.
+- THREE more phantom search_replace successes this session (DeskImports `embedded` prop, setup subtitle copy) — always grep-verify edits in these two files.
+
 ## Iter 256b — "New case" from customer detail (phone-rings flow) ✅ (Jun 12, 2026)
 
 - Provider customer detail page now has a **New case** button → inline form (title, description, priority P1–P4) with the customer/site pre-filled; submits to the existing `POST /api/svc/intake/phone` (source=phone, live SLA targets from the org's wizard-configured policies, sequential SVC-xxxxx reference). On success: toast with reference + detail/case list refresh.

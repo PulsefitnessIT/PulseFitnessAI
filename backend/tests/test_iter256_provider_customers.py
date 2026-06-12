@@ -118,3 +118,16 @@ def test_raise_case_from_customer_detail():
                      headers=h, timeout=20)
     d = r.json()
     assert any(c["title"] == title for c in d["recent_cases"])
+
+    # Iter 256d — one-click dispatch: assign the raised case to an engineer
+    # via the scheduler; the case must move to `assigned`.
+    r = requests.get(f"{BASE_URL}/api/svc/engineers", headers=h, timeout=20)
+    engineers = [e for e in r.json().get("engineers", []) if e.get("active") is not False]
+    assert engineers, "provider should have at least one engineer"
+    r = requests.post(f"{BASE_URL}/api/svc/scheduler/assign", headers=h,
+                      json={"case_id": case["id"], "engineer_id": engineers[0]["id"]}, timeout=20)
+    assert r.status_code == 200, r.text
+    assigned = r.json()
+    assert assigned["status"] == "assigned"
+    assert assigned["assigned_engineer_id"] == engineers[0]["id"]
+    assert assigned["assigned_engineer_name"]

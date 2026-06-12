@@ -12,7 +12,7 @@ import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import {
   Users, Search, Plus, Loader2, ArrowLeft, Pencil, Trash2, ClipboardList,
-  PhoneCall,
+  PhoneCall, HardHat,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { authConfig } from './authConfig';
@@ -59,12 +59,17 @@ const PRIORITIES = [
 ];
 
 /** Iter 256b — "phone rings" flow: raise a case straight from the customer
- *  detail page with customer/site pre-filled (POST /svc/intake/phone). */
+ *  detail page with customer/site pre-filled (POST /svc/intake/phone).
+ *  Iter 256d — after raising, offer one-click engineer dispatch
+ *  (POST /svc/scheduler/assign) so call → case → engineer takes seconds. */
 function NewCaseForm({ API, customer, onCreated, onCancel }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('p3');
   const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState(null);     // the raised case
+  const [engineers, setEngineers] = useState([]);
+  const [engineerId, setEngineerId] = useState('');
 
   const submit = async () => {
     setBusy(true);
@@ -80,12 +85,70 @@ function NewCaseForm({ API, customer, onCreated, onCancel }) {
         site_postcode: customer.postcode || '',
       }, authConfig());
       notify.success('Case raised', r.data.reference || '');
-      onCreated();
+      setCreated(r.data);
+      try {
+        const e = await axios.get(`${API}/svc/engineers`, authConfig());
+        const active = (e.data.engineers || []).filter((x) => x.active !== false);
+        setEngineers(active);
+        if (active.length === 1) setEngineerId(active[0].id);
+      } catch { setEngineers([]); }
     } catch (e) {
       notify.error('Could not raise case', e.response?.data?.detail || '');
     } finally { setBusy(false); }
   };
 
+  const dispatch = async () => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/svc/scheduler/assign`,
+        { case_id: created.id, engineer_id: engineerId }, authConfig());
+      const eng = engineers.find((e) => e.id === engineerId);
+      notify.success('Engineer dispatched', `${created.reference} → ${eng?.full_name || 'engineer'}`);
+      onCreated();
+    } catch (e) {
+      notify.error('Could not assign engineer', e.response?.data?.detail || '');
+    } finally { setBusy(false); }
+  };
+
+  // ── Stage 2: dispatch ─────────────────────────────────────────
+  if (created) {
+    return (
+      <Card className="p-6 space-y-3 border-emerald-200 bg-emerald-50/30" data-testid="pc-dispatch-form">
+        <div className="text-sm font-semibold text-zinc-900">
+          <span className="font-mono text-emerald-700">{created.reference}</span> raised — dispatch an engineer?
+        </div>
+        {engineers.length === 0 ? (
+          <div className="text-xs text-zinc-500" data-testid="pc-dispatch-empty">
+            No active engineers yet — assign later from the Cases board.
+          </div>
+        ) : (
+          <select value={engineerId} onChange={(e) => setEngineerId(e.target.value)}
+            className="w-full sm:w-72 px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white"
+            data-testid="pc-dispatch-engineer">
+            <option value="">Choose an engineer…</option>
+            {engineers.map((e) => (
+              <option key={e.id} value={e.id}>{e.full_name}</option>
+            ))}
+          </select>
+        )}
+        <div className="flex gap-2 justify-end">
+          <button onClick={onCreated} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900"
+            data-testid="pc-dispatch-later">
+            Assign later
+          </button>
+          {engineers.length > 0 && (
+            <button onClick={dispatch} disabled={busy || !engineerId}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg"
+              data-testid="pc-dispatch-assign">
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <HardHat size={14} />} Dispatch
+            </button>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Stage 1: raise ────────────────────────────────────────────
   return (
     <Card className="p-6 space-y-3 border-orange-200 bg-orange-50/30" data-testid="pc-new-case-form">
       <div className="text-sm font-semibold text-zinc-900">

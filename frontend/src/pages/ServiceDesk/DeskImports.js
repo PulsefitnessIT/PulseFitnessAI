@@ -22,7 +22,7 @@ const TYPES = [
 
 const STEP_LABELS = ['Upload', 'Map columns', 'Preview', 'Done'];
 
-export default function DeskImports({ API }) {
+export default function DeskImports({ API, embedded = false }) {
   const fileRef = useRef(null);
   const [step, setStep] = useState(0);
   const [importType, setImportType] = useState('customers');
@@ -110,12 +110,14 @@ export default function DeskImports({ API }) {
 
   return (
     <div className="space-y-6 max-w-4xl" data-testid="desk-imports">
+      {!embedded && (
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Import data</h1>
         <p className="text-sm text-zinc-500 mt-1">
           Migrate customers, sites and historical cases from spreadsheets or a legacy system.
         </p>
       </div>
+      )}
 
       {/* Stepper */}
       <div className="flex items-center gap-2" data-testid="import-stepper">

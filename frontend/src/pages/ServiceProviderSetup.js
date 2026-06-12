@@ -8,11 +8,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Loader2, Palette, Timer, UserPlus, ArrowRight, PartyPopper } from 'lucide-react';
+import { Check, Loader2, Palette, Timer, UserPlus, ArrowRight, PartyPopper, UploadCloud } from 'lucide-react';
 
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+// Iter 256c — the desk's import wizard, embedded as an optional final step.
+import DeskImports from '@/pages/ServiceDesk/DeskImports';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const PRIORITIES = [
@@ -26,6 +28,7 @@ const STEPS = [
   { id: 'branding', label: 'Branding', icon: Palette },
   { id: 'sla', label: 'SLA targets', icon: Timer },
   { id: 'engineer', label: 'First engineer', icon: UserPlus },
+  { id: 'data', label: 'Bring your data', icon: UploadCloud },
 ];
 
 export default function ServiceProviderSetup() {
@@ -81,7 +84,7 @@ export default function ServiceProviderSetup() {
       const { data: r } = await axios.post(`${API}/service-provider/setup/engineer`, eng, auth);
       if (r.temp_password) setTempPw(r.temp_password);
       notify.success('Engineer added', `${eng.full_name} can now use the Engineer App.`);
-      await finish();
+      setStep(3); // Iter 256c — optional "Bring your data" step before the desk opens
     } catch (e) { notifyApiError(notify, e, 'Could not add engineer'); } finally { setBusy(false); }
   };
 
@@ -101,7 +104,7 @@ export default function ServiceProviderSetup() {
     <div className="min-h-screen bg-slate-50 py-10 px-4" data-testid="sp-setup-page">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome, {user?.full_name?.split(' ')[0] || 'there'} 👋</h1>
-        <p className="text-sm text-slate-500 mb-8">Three quick steps and your Service Desk is live.</p>
+        <p className="text-sm text-slate-500 mb-8">A few quick steps and your Service Desk is live.</p>
 
         {/* Stepper */}
         <div className="flex items-center gap-2 mb-8">
@@ -205,8 +208,34 @@ export default function ServiceProviderSetup() {
                 <button onClick={() => setStep(1)} className="px-4 py-2.5 text-slate-600 hover:text-slate-900">Back</button>
                 <button onClick={addEngineer} disabled={busy || !eng.full_name || !eng.email}
                   className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-lg" data-testid="sp-finish">
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : <><PartyPopper size={16} /> Finish & open my desk</>}
+                  {busy ? <Loader2 className="animate-spin" size={16} /> : <>Continue <ArrowRight size={16} /></>}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5" data-testid="sp-setup-data">
+              {tempPw && (
+                <div className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3" data-testid="sp-eng-temp-pw-recap">
+                  Your engineer's temporary password: <span className="font-mono font-bold">{tempPw}</span> — share it securely; they'll change it on first sign-in.
+                </div>
+              )}
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Bring your data <span className="text-sm font-normal text-slate-400">(optional)</span></h2>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Import your customer book and historical cases from a CSV or Excel export — or skip and do it later from your desk under <span className="font-semibold">Insights → Import data</span>.
+                  </p>
+                </div>
+                <button onClick={finish} disabled={busy}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-lg shrink-0"
+                  data-testid="sp-open-desk">
+                  <PartyPopper size={16} /> Finish & open my desk
+                </button>
+              </div>
+              <div className="border-t border-slate-100 pt-5">
+                <DeskImports API={API} embedded />
               </div>
             </div>
           )}
