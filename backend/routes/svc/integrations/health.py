@@ -410,6 +410,63 @@ async def sicon_requeue_failed(
     return {"ok": True, "requeued": n}
 
 
+# ─── Sicon inbound controls (Iter 248) ───
+#
+# The other half of the loop: Sicon Service Desk schedules a case →
+# we pull it into `svc_cases` → the assigned engineer receives the job
+# in the Engineer App.
+
+
+@router.post("/sicon/poll-now")
+async def sicon_poll_now(user: dict = Depends(get_current_user)):
+    """Run one inbound poll across every org with an enabled Sicon config.
+
+    Orgs without credentials are skipped (`skipped_no_config`) — the same
+    contract as the outbox drain.
+    """
+    _require_admin(user)
+    from utils.sicon_inbound_worker import tick as inbound_tick
+    return await inbound_tick()
+
+
+@router.post("/sicon/simulate-inbound")
+async def sicon_simulate_inbound(
+    body: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Demo / test mode: merge a Sicon ServiceCall payload WITHOUT HTTP.
+
+    Body: { "organization_id": "...", "payload": { ...Sicon ServiceCall... } }
+    `organization_id` defaults to the caller's working org. Runs the exact
+    production merge path (`merge_sicon_case`), so what you see here is
+    what a live poll will do — including engineer resolution via
+    `AssignedToSageUserID` → `svc_engineers.sage_user_id`.
+    """
+    _require_admin(user)
+    org_id = (body.get("organization_id")
+              or user.get("organization_id") or user.get("service_org_id"))
+    if not org_id:
+        raise HTTPException(status_code=400, detail="organization_id required")
+    payload = body.get("payload") or {}
+    if not payload:
+        raise HTTPException(status_code=400, detail="payload required")
+    from utils.sicon_inbound_worker import merge_sicon_case, _stash_inbox
+    merged = await merge_sicon_case(org_id, payload, source="simulate")
+    await _stash_inbox(org_id, payload, case_id=merged["case"]["id"],
+                       created=merged["created"], source="simulate")
+    case = merged["case"]
+    return {
+        "ok": True,
+        "created": merged["created"],
+        "case_id": case["id"],
+        "reference": case.get("reference"),
+        "status": case.get("status"),
+        "assigned_engineer_id": case.get("assigned_engineer_id"),
+        "assigned_engineer_name": case.get("assigned_engineer_name"),
+        "scheduled_at": case.get("scheduled_at"),
+    }
+
+
 # ─── Sage drain controls (Phase 8 B · iter 215ea) ───
 
 

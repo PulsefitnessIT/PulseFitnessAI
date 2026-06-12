@@ -361,6 +361,23 @@ export default function IntegrationsConsole() {
     } finally { setBusy(''); }
   }, [load]);
 
+  // Iter 248 — inbound half of the Sicon loop: pull cases the service
+  // team scheduled in Sicon into svc_cases (and onto engineers' job lists).
+  const pollInbound = useCallback(async () => {
+    setBusy('sicon-poll');
+    try {
+      const r = await axios.post(`${API}/integrations/admin/sicon/poll-now`, null, auth());
+      const d = r.data || {};
+      notify.success(
+        'Sicon inbound poll complete',
+        `${d.fetched ?? 0} fetched · ${d.created ?? 0} created · ${d.updated ?? 0} updated · ${d.skipped_no_config ?? 0} org(s) skipped (no creds)`,
+      );
+      await load();
+    } catch (e) {
+      notify.error('Inbound poll failed', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  }, [load]);
+
   const renderControls = (system) => (
     <div className="flex flex-wrap gap-1.5" data-testid={`${system}-controls`}>
       {system === 'sicon' && (
@@ -393,6 +410,18 @@ export default function IntegrationsConsole() {
       >
         <Play size={11} /> {busy === `${system}-live` ? '…' : 'Drain now'}
       </button>
+      {system === 'sicon' && (
+        <button
+          type="button"
+          onClick={pollInbound}
+          disabled={!!busy}
+          className="svc-btn svc-btn-secondary svc-btn-sm"
+          data-testid="sicon-poll-inbound"
+          title="Pull cases scheduled/amended in Sicon into GymAxis — assigned engineers receive them in the Engineer App"
+        >
+          <Play size={11} /> {busy === 'sicon-poll' ? '…' : 'Poll inbound'}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => requeue(system)}

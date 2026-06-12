@@ -597,6 +597,21 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"price-backup loop start failed: {e}")
 
+    # Iter 248 — Sicon bi-directional sync workers (outbox drain + inbound
+    # case poll). Env-gated until live Sicon credentials are configured;
+    # the /api/integrations/admin/sicon/* endpoints stay the manual path.
+    if os.environ.get("SICON_AUTOSTART_WORKER", "").lower() in ("1", "true", "yes"):
+        try:
+            from utils.sicon_outbox_worker import run_loop as _sicon_outbox_loop
+            from utils.sicon_inbound_worker import run_loop as _sicon_inbound_loop
+            _out_int = float(os.environ.get("SICON_OUTBOX_INTERVAL_SEC", "30"))
+            _in_int = float(os.environ.get("SICON_INBOUND_INTERVAL_SEC", "60"))
+            asyncio.create_task(_sicon_outbox_loop(interval_seconds=_out_int))
+            asyncio.create_task(_sicon_inbound_loop(interval_seconds=_in_int))
+            logger.info("[sicon] sync workers registered (outbox=%ss inbound=%ss)", _out_int, _in_int)
+        except Exception as e:
+            logger.error(f"sicon sync workers start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:
