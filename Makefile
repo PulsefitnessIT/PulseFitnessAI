@@ -324,6 +324,7 @@ regression:
 	  tests/test_iter248_sicon_engineer_loop.py \
 	  tests/test_iter249_sicon_sync_chip.py \
 	  tests/test_iter250_desk_role_nomination.py \
+	  tests/test_iter251_pentest_recheck.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

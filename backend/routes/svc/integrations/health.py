@@ -50,13 +50,20 @@ SICON_INBOX = "svc_sicon_inbox"
 
 
 def _require_admin(user: dict[str, Any]) -> None:
-    """Master/super/owner admin OR explicit is_master_admin flag."""
+    """Integrations plumbing is cross-tenant — GymAxis master admins and
+    Pulse Master Admins only.
+
+    Iter 251 security hardening: the previous guard also accepted the
+    org-level `owner` role, which would have let any gym owner trigger
+    global drains and (worse) inject cases into arbitrary organisations
+    via /sicon/simulate-inbound. The frontend console was always
+    master-admin-gated; the API now matches it.
+    """
     if not user:
         raise HTTPException(status_code=403, detail="Master admin only")
     if user.get("is_master_admin") or user.get("account_type") == "gymaxis_admin":
         return
-    role = user.get("role") or ""
-    if role in {"master_admin", "super_admin", "owner_admin", "owner"}:
+    if user.get("is_pulse_admin") or (user.get("role") or "") == "pulse_master_admin":
         return
     raise HTTPException(status_code=403, detail="Master admin only")
 
@@ -447,6 +454,10 @@ async def sicon_simulate_inbound(
               or user.get("organization_id") or user.get("service_org_id"))
     if not org_id:
         raise HTTPException(status_code=400, detail="organization_id required")
+    # Iter 251 — Pulse-scoped admins may only inject into Pulse-visible
+    # orgs (same boundary as the Service Desk brand filter).
+    from utils.service_desk_auth import assert_org_in_desk_scope
+    await assert_org_in_desk_scope(user, org_id)
     payload = body.get("payload") or {}
     if not payload:
         raise HTTPException(status_code=400, detail="payload required")

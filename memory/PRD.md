@@ -28000,3 +28000,15 @@ User ask: Pulse Fitness Service Desk users — role nomination; nominated users 
 **Tested**: `tests/test_iter250_desk_role_nomination.py` 7/7 e2e (nominate w/ brand forcing, brand-scoped list, out-of-brand revoke 404, owner 403, temp-password→force-change→desk access, revoke, frontend wiring) — in Makefile. Full `make regression` 2,482 pass / 0 fail. Browser-verified: desk@pulsefitness.com login lands directly on /service-desk; pulse admin nomination tab locked to Pulse brand.
 **LESSON**: parallel `search_replace` calls to the SAME file can clobber each other (the /members edit was silently lost and re-applied). Edit one file sequentially.
 - NOTE: Preview-only — DEPLOY for gymaxisai.com (iters 244–250).
+
+---
+## Iter 251 — Pre-pentest security re-check after iters 244–250 (Jun 12, 2026)
+**Verdict: pen-test ready.** Audited every surface added in iters 244–250 (Pulse Service Desk access, brand scoping, Access Matrix, Sicon inbound worker + admin endpoints, role nomination).
+**Finding (FIXED)**: `routes/svc/integrations/health._require_admin` accepted the org-level `owner` role → any gym owner could hit cross-tenant integrations plumbing, incl. `POST /sicon/simulate-inbound` (case injection into ANY org). Tightened to master/pulse-admin only (matches the frontend route gate, which was always master-admin-gated), and `simulate-inbound` now runs `assert_org_in_desk_scope` so Pulse admins can only inject into Pulse-visible orgs.
+**Verified clean**:
+- New endpoints (poll-now/simulate-drain/simulate-inbound/requeue) now 403 for owners + desk agents, 401 unauth, 200 for master+pulse admins. Pulse out-of-scope injection → 404.
+- Service Desk + svc surfaces: org owners still 403 (iter 244); brand scoping 404s out-of-scope orgs (iter 245); Access Matrix scoped + require_master_admin (iter 246b); role nomination brand-locked + revoke-scoped (iter 250).
+- Platform protections intact: CSP / X-Content-Type-Options:nosniff / HSTS headers present; session cookie HttpOnly+Secure+SameSite; brute-force lockout (429 after 5 bad logins / 5-min window); rate-limit bypass header for CI only.
+**Tests**: `tests/test_iter251_pentest_recheck.py` 6/6 (in Makefile). CI security battery: 139/139 pass (12 suites: 220as/au/av/ba/be/bp, security_hardening, crm_tenant_isolation, regex_hardening, secrets_audit, p3_hardening, mfa_and_audit — the 1 transient mfa rate-limit "fail" passes in isolation; concurrency artifact).
+**Non-issues (NOT regressions)**: `test_security_p2_full.py` / `test_security_p2_surface.py` 429s are self-inflicted by the audit's brute-force probe (older suites without the bypass header; not in CI). `test_p1c_security.py` 4 errors = stale `lee.somers@pulsefitness.com/TempPass123!` account absent in preview (same as iter 247; not in CI).
+- NOTE: Preview-only — DEPLOY for gymaxisai.com (iters 244–251).
