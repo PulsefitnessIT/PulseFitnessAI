@@ -1,3 +1,12 @@
+## Iter 259 — Provider-aware trial-ending email drip ✅ (Jun 12, 2026) — PROVIDER PACKAGE COMPLETE
+
+- Discovery: a full trial drip already existed (`utils/trial_lifecycle.run_trial_lifecycle_once`, driven by the sicon poller loop every cycle): day-10 + day-13 reminders, dedup via `trial_reminders_sent`, expiry/suspension transitions. Provider orgs were already scanned (is_trial=True) but received GYM copy (PPM/equipment) with the wrong /choose-plan CTA.
+- Fix: `_provider_trial_reminder_html` (orange brand, "Service Desk trial", keep cases/customers/engineers/SLA history, "Upgrade to Pro — £99/month" CTA → `PROVIDER_UPGRADE_URL` = gymaxisai.com/service-desk/upgrade; red urgency hero on final day). `_send_reminder_if_due` branches on `org.account_type == 'service_provider'` for template + subject ("X days left of your Service Desk trial" / "Final day…"). Gym orgs unchanged.
+- Verified by dry-run: backdated the FE Provider org to day 10, monkeypatched send_email, ran the worker → exactly one email, correct subject/template/CTA, zero gym copy, `day10` dedup marker stored, second run sends nothing. Org restored to a clean window afterwards. (Resend configured; production sends are live.)
+- Tests: `tests/test_iter259_trial_drip.py` (4/4, in Makefile) — provider template/CTA, gym template regression, schedule+dedup maths, signup seeds worker fields. **Full provider-package suite: 30/30 (iters 253–259).**
+
+### PROVIDER PACKAGE — END-TO-END COMPLETE
+Marketing (homepage band + Partners nav + audience switch) → self-serve signup (14-day trial) → 4-step setup wizard (incl. optional data import) → tenant-isolated Service Desk (cases/scheduler/customers/dispatch) → owner analytics → trial drip emails → £99/month Stripe upgrade → subscription card + billing portal.
 ## Iter 258b — Subscription card + badge + Stripe billing portal ✅ (Jun 12, 2026)
 
 - Backend (`routes/service_provider_billing.py`):
