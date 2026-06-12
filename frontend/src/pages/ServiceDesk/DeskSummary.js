@@ -61,7 +61,7 @@ function SubscriptionCard({ API }) {
   );
 }
 
-export default function DeskSummary({ API, onJumpToCustomers }) {
+export default function DeskSummary({ API, onJumpToCustomers, onNavigate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -114,18 +114,19 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
   // Iter 253 — self-serve providers see their OWN desk's numbers, not the
   // platform customer-org estate (and none of the Pulse-specific copy).
   const isProvider = data.desk_kind === 'provider';
+  // Iter 262 — every stat card navigates to the tab holding its detail.
   const stats = isProvider
     ? [
-        { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700' },
-        { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800' },
-        { label: 'Engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700' },
-        { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-blue-50 text-blue-700' },
+        { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700', goto: 'cases' },
+        { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'cases' },
+        { label: 'Engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'engineers' },
+        { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-blue-50 text-blue-700', goto: 'customers' },
       ]
     : [
-        { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700' },
-        { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700' },
-        { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700' },
-        { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800' },
+        { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700', goto: 'customers' },
+        { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'customers' },
+        { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700', goto: 'customers' },
+        { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'customers' },
       ];
 
   return (
@@ -139,9 +140,19 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, colour }) => (
-          <Card key={label} className="p-5">
+      {/* Iter 262 — 2-up on mobile, 4-up on desktop; every card is a
+          button that jumps to the tab holding the underlying records. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {stats.map(({ label, value, icon: Icon, colour, goto }) => (
+          <Card
+            key={label}
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigate && onNavigate(goto)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto); } }}
+            className="p-4 sm:p-5 cursor-pointer transition-all hover:shadow-md hover:border-orange-200 active:scale-[0.98]"
+            data-testid={`desk-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}
+          >
             <div className={`w-8 h-8 rounded ${colour} flex items-center justify-center mb-3`}>
               <Icon className="w-4 h-4" />
             </div>
@@ -151,15 +162,22 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {isProvider && <SubscriptionCard API={API} />}
-        <Card className="p-5">
+        <Card
+          className="p-5 cursor-pointer transition-all hover:shadow-md hover:border-orange-200 active:scale-[0.99]"
+          role="button"
+          tabIndex={0}
+          onClick={() => onNavigate && onNavigate('audit')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate('audit'); } }}
+          data-testid="desk-stat-recent-activity"
+        >
           <div className="flex items-center gap-2 mb-3">
             <ScrollText className="w-4 h-4 text-zinc-500" />
             <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Recent Activity</div>
           </div>
           <div className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{recent_actions_7d}</div>
-          <div className="text-xs text-zinc-500 mt-1">Service Desk actions in the last 7 days</div>
+          <div className="text-xs text-zinc-500 mt-1">Service Desk actions in the last 7 days · tap to open the audit log</div>
         </Card>
         <Card className="p-5 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border-orange-100 dark:border-orange-900/40">
           <div className="text-sm font-medium text-zinc-900 mb-2 dark:text-zinc-100">Quick Actions</div>
@@ -178,7 +196,7 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
 
       {!isProvider && (
       <Card className="p-5 border-blue-100 dark:border-blue-900/40 bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <FileText className="w-4 h-4 text-blue-600" />

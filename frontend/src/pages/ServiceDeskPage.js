@@ -115,7 +115,7 @@ export default function ServiceDeskPage() {
   const Body = () => {
     switch (tab) {
       case 'dashboard':
-        return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} />;
+        return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t) => { setTab(t); setSelectedOrgId(null); }} />;
       case 'customers':
         // Iter 256 — self-serve providers manage their field-service
         // customer book; the platform/Pulse desk manages customer orgs.
@@ -126,9 +126,9 @@ export default function ServiceDeskPage() {
           ? <DeskCustomerDetail API={API} orgId={selectedOrgId} onBack={() => setSelectedOrgId(null)} />
           : <DeskCustomers API={API} onSelect={handleSelectCustomer} />;
       case 'equipment':
-        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} /> : <DeskEquipment API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t) => { setTab(t); setSelectedOrgId(null); }} /> : <DeskEquipment API={API} />;
       case 'suppliers':
-        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} /> : <DeskSuppliers API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t) => { setTab(t); setSelectedOrgId(null); }} /> : <DeskSuppliers API={API} />;
       case 'audit':
         return <DeskAuditLog API={API} />;
       case 'analytics':

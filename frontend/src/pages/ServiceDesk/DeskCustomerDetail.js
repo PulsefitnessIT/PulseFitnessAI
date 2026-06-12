@@ -10,9 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Eye, Users, Building2, Truck } from 'lucide-react';
 import { authConfig } from './authConfig';
 
-function Section({ title, icon: Icon, children }) {
+function Section({ title, icon: Icon, children, id }) {
   return (
-    <Card className="p-5">
+    <Card className="p-5" id={id}>
       <div className="flex items-center gap-2 mb-4">
         <Icon className="w-4 h-4 text-zinc-500" />
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
@@ -105,27 +105,31 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <div className="p-3 bg-white border border-zinc-200 rounded dark:bg-zinc-900 dark:border-zinc-800">
-          <div className="text-xs text-zinc-500">Sites</div>
-          <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{sites.length}</div>
-        </div>
-        <div className="p-3 bg-white border border-zinc-200 rounded dark:bg-zinc-900 dark:border-zinc-800">
-          <div className="text-xs text-zinc-500">Staff</div>
-          <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{staff.length}</div>
-        </div>
-        <div className="p-3 bg-white border border-zinc-200 rounded dark:bg-zinc-900 dark:border-zinc-800">
-          <div className="text-xs text-zinc-500">Suppliers</div>
-          <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{suppliers.length}</div>
-        </div>
-        <div className="p-3 bg-white border border-zinc-200 rounded dark:bg-zinc-900 dark:border-zinc-800">
-          <div className="text-xs text-zinc-500">Equipment</div>
-          <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{equipment_count}</div>
-        </div>
+      {/* Iter 262 — 2-up on mobile; cards scroll to their section below. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Sites', value: sites.length, target: 'desk-section-sites' },
+          { label: 'Staff', value: staff.length, target: 'desk-section-staff' },
+          { label: 'Suppliers', value: suppliers.length, target: 'desk-section-suppliers' },
+          { label: 'Equipment', value: equipment_count, target: null },
+        ].map(({ label, value, target }) => (
+          <div
+            key={label}
+            role={target ? 'button' : undefined}
+            tabIndex={target ? 0 : undefined}
+            onClick={() => target && document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onKeyDown={(e) => { if (target && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }}
+            className={`p-3 bg-white border border-zinc-200 rounded dark:bg-zinc-900 dark:border-zinc-800 ${target ? 'cursor-pointer transition-all hover:shadow-sm hover:border-orange-200 active:scale-[0.98]' : ''}`}
+            data-testid={`desk-customer-stat-${label.toLowerCase()}`}
+          >
+            <div className="text-xs text-zinc-500">{label}</div>
+            <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{value}</div>
+          </div>
+        ))}
       </div>
 
       <Section title="Customer Details" icon={Building2}>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { k: 'name', label: 'Company name' },
             { k: 'head_office_ref', label: 'Head Office Ref' },
@@ -165,7 +169,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         </div>
       </Section>
 
-      <Section title={`Sites (${sites.length})`} icon={Building2}>
+      <Section title={`Sites (${sites.length})`} icon={Building2} id="desk-section-sites">
         {sites.length === 0 ? (
           <div className="text-xs text-zinc-500">No sites recorded yet.</div>
         ) : (
@@ -183,7 +187,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         )}
       </Section>
 
-      <Section title={`Staff (${staff.length})`} icon={Users}>
+      <Section title={`Staff (${staff.length})`} icon={Users} id="desk-section-staff">
         {staff.length === 0 ? (
           <div className="text-xs text-zinc-500">No staff users yet.</div>
         ) : (
@@ -204,7 +208,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         )}
       </Section>
 
-      <Section title={`Suppliers (${suppliers.length})`} icon={Truck}>
+      <Section title={`Suppliers (${suppliers.length})`} icon={Truck} id="desk-section-suppliers">
         {suppliers.length === 0 ? (
           <div className="text-xs text-zinc-500">No suppliers — Pulse Fitness default will be seeded on first import.</div>
         ) : (

@@ -140,11 +140,11 @@ function CatalogueTab() {
         </button>
       </div>
 
-      <div className="grid grid-cols-12 gap-2 items-end rounded-md border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="catalogue-add-row">
-        <Field className="col-span-2" label="SKU"><input value={draft.sku} onChange={(e) => setDraft({ ...draft, sku: e.target.value.toUpperCase() })} className="ip" data-testid="catalogue-add-sku" /></Field>
-        <Field className="col-span-4" label="Name"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="ip" data-testid="catalogue-add-name" /></Field>
-        <Field className="col-span-2" label="Manufacturer"><input value={draft.manufacturer} onChange={(e) => setDraft({ ...draft, manufacturer: e.target.value })} className="ip" data-testid="catalogue-add-mfr" /></Field>
-        <Field className="col-span-2" label="Supplier">
+      <div className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-end rounded-md border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="catalogue-add-row">
+        <Field className="col-span-1 sm:col-span-2" label="SKU"><input value={draft.sku} onChange={(e) => setDraft({ ...draft, sku: e.target.value.toUpperCase() })} className="ip" data-testid="catalogue-add-sku" /></Field>
+        <Field className="col-span-1 sm:col-span-4" label="Name"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="ip" data-testid="catalogue-add-name" /></Field>
+        <Field className="col-span-1 sm:col-span-2" label="Manufacturer"><input value={draft.manufacturer} onChange={(e) => setDraft({ ...draft, manufacturer: e.target.value })} className="ip" data-testid="catalogue-add-mfr" /></Field>
+        <Field className="col-span-1 sm:col-span-2" label="Supplier">
           <SupplierMultiPicker
             single
             value={draft.supplier}
@@ -153,12 +153,12 @@ function CatalogueTab() {
             testid="catalogue-add-supplier"
           />
         </Field>
-        <Field className="col-span-1" label={`Cost ${getCachedLocalization().currency_symbol}`}><input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} className="ip tabular-nums" data-testid="catalogue-add-cost" /></Field>
+        <Field className="col-span-1 sm:col-span-1" label={`Cost ${getCachedLocalization().currency_symbol}`}><input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} className="ip tabular-nums" data-testid="catalogue-add-cost" /></Field>
         <button
           type="button"
           onClick={create}
           disabled={busy}
-          className="col-span-1 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1 disabled:opacity-60"
+          className="col-span-1 sm:col-span-1 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1 disabled:opacity-60"
           style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
           data-testid="catalogue-add-submit"
         >
@@ -166,7 +166,7 @@ function CatalogueTab() {
         </button>
       </div>
 
-      <div className="rounded-md border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
+      <div className="rounded-md border overflow-x-auto" style={{ borderColor: 'var(--theme-border)' }}>
         <table className="w-full text-sm">
           <thead style={{ background: 'var(--theme-surface)' }}>
             <tr className="text-left text-[11px] uppercase tracking-wider opacity-70">
@@ -199,7 +199,7 @@ function CatalogueTab() {
 
       {importing ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} data-testid="sicon-import-modal">
-          <div className="w-full max-w-2xl rounded-xl border shadow-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border shadow-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--theme-border)' }}>
               <p className="font-bold inline-flex items-center gap-1.5"><Inbox size={14} /> Sicon parts import</p>
               <button type="button" aria-label="Close" onClick={() => setImporting(false)}><X size={14} /></button>
@@ -295,6 +295,7 @@ function StockTab() {
 
       <section className="rounded-md border" style={{ borderColor: 'var(--theme-border)' }}>
         <div className="px-3 py-2 border-b font-bold inline-flex items-center gap-1.5" style={{ borderColor: 'var(--theme-border)' }}><Boxes size={13} /> Warehouse stock</div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[11px] uppercase tracking-wider opacity-70"><th className="px-3 py-2">SKU</th><th className="px-3 py-2">Name</th><th className="px-3 py-2 text-right">On hand</th><th className="px-3 py-2 text-right">Adjust</th></tr></thead>
           <tbody>
@@ -313,23 +314,25 @@ function StockTab() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section className="rounded-md border" style={{ borderColor: 'var(--theme-border)' }}>
         <div className="px-3 py-2 border-b font-bold inline-flex items-center gap-1.5" style={{ borderColor: 'var(--theme-border)' }}><Edit3 size={13} /> Reorder rules</div>
-        <div className="grid grid-cols-12 gap-2 p-3 items-end" data-testid="rule-add-row">
-          <Field className="col-span-3" label="SKU"><input value={draftRule.part_sku} onChange={(e) => setDraftRule({ ...draftRule, part_sku: e.target.value.toUpperCase() })} className="ip" data-testid="rule-add-sku" /></Field>
-          <Field className="col-span-2" label="Location">
+        <div className="grid grid-cols-2 sm:grid-cols-12 gap-2 p-3 items-end" data-testid="rule-add-row">
+          <Field className="col-span-2 sm:col-span-3" label="SKU"><input value={draftRule.part_sku} onChange={(e) => setDraftRule({ ...draftRule, part_sku: e.target.value.toUpperCase() })} className="ip" data-testid="rule-add-sku" /></Field>
+          <Field className="col-span-1 sm:col-span-2" label="Location">
             <select value={draftRule.location} onChange={(e) => setDraftRule({ ...draftRule, location: e.target.value })} className="ip" data-testid="rule-add-location">
               <option value="warehouse">warehouse</option>
               <option value="van">van</option>
             </select>
           </Field>
-          <Field className="col-span-1" label="Min"><input type="number" min={0} value={draftRule.min_qty} onChange={(e) => setDraftRule({ ...draftRule, min_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-min" /></Field>
-          <Field className="col-span-1" label="Max"><input type="number" min={0} value={draftRule.max_qty} onChange={(e) => setDraftRule({ ...draftRule, max_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-max" /></Field>
-          <Field className="col-span-3" label="Supplier"><input value={draftRule.supplier} onChange={(e) => setDraftRule({ ...draftRule, supplier: e.target.value })} className="ip" data-testid="rule-add-supplier" /></Field>
-          <button type="button" onClick={submitRule} className="col-span-2 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="rule-add-submit"><Plus size={11} /> Save rule</button>
+          <Field className="col-span-1 sm:col-span-1" label="Min"><input type="number" min={0} value={draftRule.min_qty} onChange={(e) => setDraftRule({ ...draftRule, min_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-min" /></Field>
+          <Field className="col-span-1 sm:col-span-1" label="Max"><input type="number" min={0} value={draftRule.max_qty} onChange={(e) => setDraftRule({ ...draftRule, max_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-max" /></Field>
+          <Field className="col-span-1 sm:col-span-3" label="Supplier"><input value={draftRule.supplier} onChange={(e) => setDraftRule({ ...draftRule, supplier: e.target.value })} className="ip" data-testid="rule-add-supplier" /></Field>
+          <button type="button" onClick={submitRule} className="col-span-2 sm:col-span-2 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="rule-add-submit"><Plus size={11} /> Save rule</button>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[11px] uppercase tracking-wider opacity-70"><th className="px-3 py-2">SKU</th><th className="px-3 py-2">Loc</th><th className="px-3 py-2 text-right">Min</th><th className="px-3 py-2 text-right">Max</th><th className="px-3 py-2">Supplier</th><th className="px-3 py-2"></th></tr></thead>
           <tbody>
@@ -349,6 +352,7 @@ function StockTab() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
       <style>{`.ip{width:100%;padding:6px 8px;border:1px solid var(--theme-border);border-radius:6px;font-size:13px;background:transparent}`}</style>
     </div>
@@ -431,7 +435,7 @@ function POTab() {
         </div>
       </div>
 
-      <div className="rounded-md border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
+      <div className="rounded-md border overflow-x-auto" style={{ borderColor: 'var(--theme-border)' }}>
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[11px] uppercase tracking-wider opacity-70"><th className="px-3 py-2">Ref</th><th className="px-3 py-2">Supplier</th><th className="px-3 py-2">Status</th><th className="px-3 py-2 text-right">Lines</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2"></th></tr></thead>
           <tbody>
@@ -460,13 +464,13 @@ function POTab() {
 
       {creating ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} data-testid="po-create-modal">
-          <div className="w-full max-w-2xl rounded-xl border shadow-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border shadow-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--theme-border)' }}>
               <p className="font-bold inline-flex items-center gap-1.5"><FileText size={14} /> New purchase order</p>
               <button type="button" aria-label="Close" onClick={() => setCreating(false)}><X size={14} /></button>
             </div>
             <div className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Supplier" required><input value={draft.supplier} onChange={(e) => setDraft({ ...draft, supplier: e.target.value })} className="ip" data-testid="po-supplier" /></Field>
                 <Field label="Supplier email"><input value={draft.supplier_email} onChange={(e) => setDraft({ ...draft, supplier_email: e.target.value })} className="ip" data-testid="po-supplier-email" /></Field>
               </div>

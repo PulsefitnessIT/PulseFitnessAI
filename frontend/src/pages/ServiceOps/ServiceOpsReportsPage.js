@@ -273,8 +273,10 @@ export default function ServiceOpsReportsPage() {
         <KPI label="FTFR" value={pct(ftfrRate)} sub={`${data.ftfr?.ftf ?? 0} / ${data.ftfr?.total_closed ?? 0}`} testid="kpi-ftfr" />
         <KPI
           label="Downtime"
-          value={`${(downtime.total_hours ?? 0).toLocaleString()}h`}
-          sub={`${downtime.case_count ?? 0} cases`}
+          value={(downtime.total_hours ?? 0) >= 1000
+            ? `${Math.round((downtime.total_hours ?? 0) / 24).toLocaleString()}d`
+            : `${(downtime.total_hours ?? 0).toLocaleString()}h`}
+          sub={`${downtime.case_count ?? 0} cases${(downtime.total_hours ?? 0) >= 1000 ? ` · ${Math.round(downtime.total_hours).toLocaleString()}h` : ''}`}
           testid="kpi-downtime"
         />
         <KPI label="AI calls" value={kpis.ai_calls ?? 0} testid="kpi-ai-calls" />

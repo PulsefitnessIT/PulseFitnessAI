@@ -267,6 +267,8 @@
   line-height: 1.1;
   margin-top: 6px;
   font-variant-numeric: tabular-nums;
+  /* Iter 262 — never let a huge value clip out of its card on mobile */
+  overflow-wrap: anywhere;
   color: var(--_tone, var(--svc-text));
   letter-spacing: -0.02em;
 }
@@ -483,7 +485,9 @@
   border-radius: 14px;
   background: var(--svc-card);
   box-shadow: var(--svc-shadow-sm);
-  overflow: hidden;
+  /* Iter 262 — mobile: wide tables scroll horizontally instead of clipping */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 .svc-table {
   width: 100%;

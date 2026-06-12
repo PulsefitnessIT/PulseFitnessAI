@@ -247,7 +247,7 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
             </button>
           ) : null}
 
-          <div className="rounded-md border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
+          <div className="rounded-md border overflow-x-auto" style={{ borderColor: 'var(--theme-border)' }}>
             <table className="w-full text-sm">
               <thead style={{ background: 'var(--theme-surface)' }}>
                 <tr className="text-left text-[10px] uppercase tracking-wider opacity-70">

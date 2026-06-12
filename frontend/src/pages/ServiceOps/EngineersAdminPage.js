@@ -355,8 +355,8 @@ export default function EngineersAdminPage() {
         </section>
       ) : null}
 
-      <section className="svc-card" style={{ padding: 0, border: '1px solid var(--theme-border)' }}>
-        <table className="svc-table" data-testid="engineers-table">
+      <section className="svc-card" style={{ padding: 0, border: '1px solid var(--theme-border)', overflowX: 'auto' }}>
+        <table className="svc-table" data-testid="engineers-table" style={{ minWidth: '52rem' }}>
           <thead>
             <tr>
               <th>Name</th>

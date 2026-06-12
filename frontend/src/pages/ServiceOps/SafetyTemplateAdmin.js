@@ -165,8 +165,8 @@ export default function SafetyTemplateAdmin() {
         Required items must be ticked. Drag-free reorder via the ↑/↓ arrows.
       </p>
 
-      <div className="rounded-2xl border bg-white overflow-hidden mb-4" style={{ borderColor: 'var(--theme-border)' }}>
-        <table className="w-full text-sm" data-testid="safety-table">
+      <div className="rounded-2xl border bg-white overflow-x-auto mb-4" style={{ borderColor: 'var(--theme-border)' }}>
+        <table className="w-full text-sm" data-testid="safety-table" style={{ minWidth: '36rem' }}>
           <thead className="bg-slate-50/60">
             <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
               <th className="px-3 py-2 w-14">Order</th>

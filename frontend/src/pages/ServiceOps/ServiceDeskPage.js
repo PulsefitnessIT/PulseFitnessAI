@@ -97,12 +97,31 @@ function SLAPill({ resolveAt }) {
   );
 }
 
-function KPICard({ label, value, tone = 'neutral', testId, hint }) {
-  return (
-    <div className={`svc-kpi svc-kpi--${tone}`} data-testid={testId}>
+function KPICard({ label, value, tone = 'neutral', testId, hint, onClick }) {
+  // Iter 262 — KPI cards drill into the queue (or scroll to a panel) when
+  // an onClick is supplied. Rendered as a real button for a11y + touch.
+  const body = (
+    <>
       <p className="svc-kpi-label">{label}</p>
       <p className="svc-kpi-value">{value === null || value === undefined ? '—' : value}</p>
       {hint ? <p className="svc-kpi-hint">{hint}</p> : null}
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`svc-kpi svc-kpi--${tone} text-left cursor-pointer transition-transform active:scale-[0.98] hover:shadow-md`}
+        data-testid={testId}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div className={`svc-kpi svc-kpi--${tone}`} data-testid={testId}>
+      {body}
     </div>
   );
 }
@@ -225,7 +244,7 @@ export default function ServiceDeskPage() {
   const [cases, setCases] = useState([]);
   const [engineers, setEngineers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla' });
+  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla', assigned: '', sla: '' });
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [activeCaseId, setActiveCaseId] = useState(null);
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -241,6 +260,8 @@ export default function ServiceDeskPage() {
             status: filters.status || '',
             priority: filters.priority || '',
             case_type: filters.case_type || '',
+            assigned: filters.assigned || '',
+            sla: filters.sla || '',
             search: filters.search || '',
             limit: 100,
           },
@@ -255,7 +276,7 @@ export default function ServiceDeskPage() {
     } catch (e) {
       notify.error('Failed to load service desk', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [filters.status, filters.priority, filters.case_type, filters.search]);
+  }, [filters.status, filters.priority, filters.case_type, filters.search, filters.assigned, filters.sla]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-refresh every 60s — the SLA clock ticks against the user's screen.
@@ -265,6 +286,14 @@ export default function ServiceDeskPage() {
   }, [load]);
 
   const k = summary?.kpis || {};
+
+  // Iter 262 — KPI drill-down: set queue filters and scroll to the table.
+  const drillTo = useCallback((patch) => {
+    setFilters((f) => ({ ...f, status: 'open', assigned: '', sla: '', ...patch }));
+    setTimeout(() => {
+      document.querySelector('[data-testid="case-queue-section"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  }, []);
 
   const liveStats = useMemo(() => {
     const s = { en_route: 0, on_site: 0, assigned: 0, available: 0, off_duty: 0 };
@@ -313,10 +342,10 @@ export default function ServiceDeskPage() {
       pageTestId="service-desk-page"
     >
       <div className="svc-kpi-grid" data-testid="desk-kpis">
-        <KPICard label="Open" value={k.open} tone="info" testId="kpi-open" />
-        <KPICard label="Unassigned" value={k.unassigned} tone={k.unassigned > 0 ? 'warn' : 'neutral'} testId="kpi-unassigned" />
-        <KPICard label="SLA at risk" value={k.sla_at_risk} tone={k.sla_at_risk > 0 ? 'warn' : 'good'} testId="kpi-at-risk" />
-        <KPICard label="Breached" value={k.sla_breached} tone={k.sla_breached > 0 ? 'danger' : 'good'} testId="kpi-breached" />
+        <KPICard label="Open" value={k.open} tone="info" testId="kpi-open" onClick={() => drillTo({})} />
+        <KPICard label="Unassigned" value={k.unassigned} tone={k.unassigned > 0 ? 'warn' : 'neutral'} testId="kpi-unassigned" onClick={() => drillTo({ assigned: 'unassigned' })} />
+        <KPICard label="SLA at risk" value={k.sla_at_risk} tone={k.sla_at_risk > 0 ? 'warn' : 'good'} testId="kpi-at-risk" onClick={() => drillTo({ sla: 'at_risk' })} />
+        <KPICard label="Breached" value={k.sla_breached} tone={k.sla_breached > 0 ? 'danger' : 'good'} testId="kpi-breached" onClick={() => drillTo({ sla: 'breached' })} />
         <KPICard
           label="First-time fix"
           value={k.first_time_fix_pct === null || k.first_time_fix_pct === undefined ? '—' : `${k.first_time_fix_pct}%`}
@@ -358,11 +387,22 @@ export default function ServiceDeskPage() {
 
       <FindEngineerPanel />
 
-      <div className="svc-section">
+      <div className="svc-section" data-testid="case-queue-section">
         <div className="svc-section-head">
           <div className="flex items-center gap-1.5 text-xs font-bold svc-muted">
             <Filter size={12} /> Filters
           </div>
+          {(filters.assigned || filters.sla) ? (
+            <button
+              type="button"
+              onClick={() => setFilters((f) => ({ ...f, assigned: '', sla: '' }))}
+              className="svc-pill svc-pill--warn inline-flex items-center gap-1"
+              title="Clear quick filter"
+              data-testid="filter-quick-clear"
+            >
+              {filters.assigned === 'unassigned' ? 'Unassigned only' : filters.sla === 'at_risk' ? 'SLA at risk' : 'SLA breached'} ✕
+            </button>
+          ) : null}
           <select
             value={filters.status}
             onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
@@ -404,7 +444,7 @@ export default function ServiceDeskPage() {
             <option value="ppm">PPM</option>
             <option value="install">Install</option>
           </select>
-          <div className="svc-search ml-auto" style={{ width: 280 }}>
+          <div className="svc-search ml-auto w-full sm:w-[280px]">
             <Search size={13} />
             <input
               type="text"

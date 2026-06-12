@@ -227,7 +227,7 @@ export default function DeskImports({ API, embedded = false }) {
       {/* Step 3 — preview & validate */}
       {step === 2 && validation && (
         <Card className="p-6 space-y-5" data-testid="import-preview-step">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4" data-testid="import-valid-count">
               <div className="text-2xl font-bold text-emerald-700 tabular-nums">{validation.valid_count.toLocaleString()}</div>
               <div className="text-xs text-emerald-700/80">Ready to import</div>

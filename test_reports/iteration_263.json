@@ -1,0 +1,78 @@
+{
+  "summary": "Frontend-only mobile audit (390x844) of GymAxis Service Desk after Iter 263 mobile-optimisation pass. Logged in as desk@pulsefitness.com / DeskAgent123!. Verified mobile-responsive Service Desk dashboard, Cases tab interactive KPI cards/quick filters, Customers detail, Parts, Billing, Engineers and Reports tabs. Also re-ran backend filter sanity via direct curl against /api/svc/cases for assigned=unassigned, sla=breached and sla=at_risk.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "backend_sanity_curl": {
+    "GET /api/svc/cases?assigned=unassigned": "200, total=659, all returned items have empty assigned_engineer_id (0 violators in first 50)",
+    "GET /api/svc/cases?sla=breached": "200, total=449, all returned items are open with sla_resolve_at in the past (0 violators)",
+    "GET /api/svc/cases?sla=at_risk": "200, total=0 (no cases due within the next 2h at test time - expected)"
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EngineersAdminPage / ServiceOpsShell mobile header",
+        "issue": "'Add engineer' action button (data-testid=engineers-add-btn) appears clipped/overflowing the viewport on mobile (390x844) — button is positioned in the shell header actions slot and renders past the right edge of the page.",
+        "selector": "[data-testid=\"engineers-add-btn\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Customer detail (DeskCustomerDetail) → 'Customer Details' card",
+        "issues": [
+          "The form uses 'grid grid-cols-1 sm:grid-cols-2'. At 390px viewport (below sm=640px) it should render 1-col, but the visible screenshot shows the labels wrapping vertically and the Input fields rendering very narrow (e.g. 'Company head office name' label wraps over multiple lines next to a tiny input). Worth a manual eye-check by main agent — may need explicit w-full on the Input or removal of an inherited flex/inline-block on the Label wrapper."
+        ]
+      },
+      {
+        "screen": "Cases tab > filters/search row (mobile)",
+        "issues": [
+          "The search input renders ~272px wide on the 390px viewport rather than full-width (spec said 'search input full-width on mobile'). It's still usable but contradicts the spec. Other filter selects sit on the same row and wrap below."
+        ]
+      }
+    ]
+  },
+  "verified_flows": [
+    "Login → Service Desk dashboard loads with cookie banner dismissal.",
+    "Dashboard mobile: desk-stat-total-customers, desk-stat-active, desk-stat-pending-invite, desk-stat-archived all present, laid out 2-up (x=16 & x=201, w=173 each). desk-stat-recent-activity is full-width row below (x=16, w=358).",
+    "Tap desk-stat-pending-invite → navigates to Customers tab (header text 'Customers' + 45 organisations).",
+    "Tap desk-stat-recent-activity → navigates to Audit tab (Audit Log + rows visible).",
+    "Cases tab via mobile hamburger (desk-sidebar-open → desk-tab-cases) loads with KPI cards laid 2-up (kpi-open/kpi-unassigned row 1, kpi-at-risk/kpi-breached row 2, kpi-field-engineers in 3rd grid).",
+    "Tap kpi-unassigned → chip 'UNASSIGNED ONLY ✕' (data-testid=filter-quick-clear) appears, /api/svc/cases?status=open&...&assigned=unassigned&sla=&... fired, page scrolled to case-queue-section.",
+    "Tap kpi-at-risk → chip 'SLA AT RISK ✕', request with sla=at_risk.",
+    "Tap kpi-breached → chip 'SLA BREACHED ✕', request with sla=breached.",
+    "Tap kpi-open → chip removed, request without quick filters.",
+    "Tap chip ✕ (filter-quick-clear) → quick filter cleared, refetch fires without assigned/sla.",
+    "Tap kpi-field-engineers → live engineers panel reached (Engineer roster section visible).",
+    "Customer detail: desk-customer-stat-sites/staff/suppliers/equipment all present, laid out 2-up at 390px (x=16/201, w=173). Tapping desk-customer-stat-sites scrolls page.",
+    "Parts tab: catalogue form fields visible (SKU / Name / Manufacturer / Supplier / Cost £ / Add), no 12-col squish on mobile.",
+    "Billing tab: invoice/quote table renders inside .svc-table-wrap (overflow-x:auto) — content scrolls instead of clipping the page.",
+    "Reports tab: Downtime KPI value shows '14,108d' (days suffix) instead of overflowing hours. No card overflow."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter262_desk_mobile_audit.py (pre-existing 4/4, re-run via curl)"
+  ],
+  "action_items": [
+    "Review Customer Details form on iPhone-sized viewport — even though Tailwind grid-cols-1 should apply at 390px, the visible Inputs were extremely narrow with wrapped labels. Consider adding w-full on Input and confirming the Label is block-level.",
+    "Cases tab: make the search input full-width on mobile (spec called this out) instead of sharing the row with the filter selects.",
+    "Engineers tab: 'Add engineer' action button overflows the mobile header — wrap the ServiceOpsShell actions slot or shrink the button on small viewports."
+  ],
+  "critical_code_review_comments": [
+    "DeskCustomerDetail.js line 132 uses 'grid-cols-1 sm:grid-cols-2'. At 390px viewport the rendered layout still appears two-up — confirm Label/Input components aren't overriding block display (Radix Label is inline by default).",
+    "ServiceDeskPage.js (cases) — the kpi grid is correctly 2-up at mobile and the chip clear works as advertised. Good a11y on the chip (data-testid=filter-quick-clear).",
+    "Reports downtime formatting now scales correctly past 999h — good fix."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "~90% — 11/11 happy-path mobile flows verified, 2 design observations (cases search width, customer form layout), 1 minor UI clip (engineers add btn)."
+  },
+  "test_credentials": "desk@pulsefitness.com / DeskAgent123! (Pulse desk agent). Backend filter sanity used same token.",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview URL is rate-limited (HTTP 429) when hitting the login flow multiple times in quick succession — space out browser sessions or sleep ~60s between full login cycles. Cookie consent banner ('Accept All') overlays on first load — dismiss before touching any login field. The desk sidebar on mobile is hidden behind data-testid=desk-sidebar-open hamburger; tabs are data-testid=desk-tab-{name}.",
+  "rca_of_the_issue": "N/A — no critical bug. The two minor design observations are about (1) Customer Detail form fields visually rendering compressed at 390px despite grid-cols-1 — likely Label/Input width inheritance issue, and (2) Cases search input not being full-width on the filters row as the spec requested."
+}

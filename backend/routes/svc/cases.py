@@ -119,6 +119,8 @@ async def list_cases(
     contract_id: str = Query(""),
     cover_type: str = Query(""),
     case_type: str = Query(""),
+    assigned: str = Query("", description="unassigned → cases with no engineer"),
+    sla: str = Query("", description="at_risk | breached"),
     search: str = Query(""),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -144,6 +146,18 @@ async def list_cases(
         q["cover_type"] = cover_type
     if case_type:
         q["case_type"] = case_type
+    # Iter 262 — KPI drill-downs from the desk dashboard. `$in: [None, ""]`
+    # also matches docs where the field is missing entirely.
+    if assigned == "unassigned":
+        q["assigned_engineer_id"] = {"$in": [None, ""]}
+    if sla in ("at_risk", "breached"):
+        now_iso = datetime.now(timezone.utc).isoformat()
+        if sla == "breached":
+            q["sla_resolve_at"] = {"$ne": None, "$lt": now_iso}
+        else:
+            risk_iso = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+            q["sla_resolve_at"] = {"$gte": now_iso, "$lt": risk_iso}
+        q.setdefault("status", {"$in": list(OPEN_STATES)})
     if search:
         q["$or"] = [
             {"reference": safe_regex(search)},
