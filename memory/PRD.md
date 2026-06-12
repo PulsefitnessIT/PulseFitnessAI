@@ -1,3 +1,16 @@
+## Iter 257b — Partner page audience switch + full Service Desk audit ✅ (Jun 12, 2026)
+
+**Audience switch (last funnel gap):** `/partners/engineers` now opens with a slim dark `AudienceSwitch` strip — "Independent engineer? You're in the right place" + "Run a service company? Get your own Service Desk" → /service-provider/signup (testids pe-audience-switch, pe-audience-supplier-link). Both Partner audiences now self-select on arrival. Verified routes correctly.
+
+**Full Service Desk audit — NO functional or security gaps found:**
+- Clicked through all 13 provider desk tabs (dashboard/cases/scheduler/customers/equipment/parts/billing/engineers + Insights analytics/imports/suppliers/reports/audit): zero crashes, zero blanks, zero platform-org ("Pulse Fitness") leaks.
+- Tenant isolation confirmed end-to-end: every cross-org surface (summary, customers, equipment, supplier-health, audit-log) returns only the provider's own org (desk_provider_org_id from iter 253). Audit feed = single actor_org_id (provider's). `/auth/me`, cases, engineers, scheduler/diary, analytics all org-scoped via _of(user).
+- Admin/nomination endpoints (`/api/service-desk-admin/*`) hard-block providers (`_require_desk_admin` → 403 unless master/pulse admin).
+- Sicon: provider cases enqueue to svc_sicon_outbox but the worker returns `skipped_no_config` for orgs without Sicon creds — no error path, no leakage. Safe.
+- Engineer provisioning (setup wizard) creates user + svc_engineers in one hop with must_change_password=True; dispatch (scheduler/assign) works for provider-created engineers.
+- COSMETIC ONLY (not gaps): Equipment + Supplier-health tabs are platform concepts (search gym-operator estate) so they show empty for providers — no crash, correctly scoped. Could be hidden for service_provider account_type in a future polish.
+- Regression: provider-package suite 19/19 green.
+
 ## Iter 257 — Homepage: Service Desk band + "Partners" nav (design-agent guided) ✅ (Jun 12, 2026)
 
 User request: include the Service Desk in the homepage info, consider renaming the Engineers header tab to cover suppliers, beautiful + meaningful screenshots. Design agent consulted (guidelines at /app/design_guidelines.json): dark slate-950 breakout band, orange-500 accent, JSX/Tailwind mockup instead of PNGs, nav → "Partners".

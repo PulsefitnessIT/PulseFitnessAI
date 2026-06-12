@@ -156,6 +156,7 @@ export default function PartnerEngineerLanding() {
   });
   return (
     <MarketingShell>
+      <AudienceSwitch />
       <Hero />
       <Perks />
       <Commission />
@@ -165,6 +166,30 @@ export default function PartnerEngineerLanding() {
       <FAQ />
       <FinalCta />
     </MarketingShell>
+  );
+}
+
+
+/* ── Audience switch (Iter 257b) ─────────────────────────
+   The Partners nav tab serves two audiences. This slim strip lets
+   service COMPANIES self-select out to the Service Desk funnel before
+   they read a page written for individual engineers. */
+function AudienceSwitch() {
+  return (
+    <div className="bg-slate-950 text-white" data-testid="pe-audience-switch">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+        <span className="font-semibold text-slate-300">
+          <span className="text-emerald-400 font-bold">Independent engineer?</span> You're in the right place — read on.
+        </span>
+        <Link
+          to="/service-provider/signup"
+          className="inline-flex items-center gap-1.5 font-bold text-orange-400 hover:text-orange-300 transition-colors"
+          data-testid="pe-audience-supplier-link"
+        >
+          Run a service company? Get your own Service Desk <ArrowRight size={13} />
+        </Link>
+      </div>
+    </div>
   );
 }
 
