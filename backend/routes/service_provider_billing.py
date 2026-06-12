@@ -177,6 +177,9 @@ async def check_upgrade_status(session_id: str, user: dict = Depends(get_current
                 "subscription_plan": PLAN["id"],
                 "subscription_started_at": now,
                 "subscription_stripe_session": session_id,
+                # Iter 258b — kept for the billing portal + renewal lookups.
+                "stripe_customer_id": session.get("customer"),
+                "stripe_subscription_id": session.get("subscription"),
             }},
         )
         logger.info("Service Desk org %s converted to paid (session %s)", txn["organization_id"], session_id)
@@ -187,6 +190,87 @@ async def check_upgrade_status(session_id: str, user: dict = Depends(get_current
         "amount_total": session.get("amount_total"),
         "currency": session.get("currency"),
     }
+
+
+@router.get("/subscription")
+async def get_subscription(user: dict = Depends(get_current_user)) -> dict:
+    """Subscription status card for the provider dashboard (Iter 258b).
+
+    Trial orgs answer without touching Stripe; converted orgs best-effort
+    fetch the renewal date from the live subscription."""
+    org = await _provider_org(user)
+    converted = bool(org.get("subscription_active")) or org.get("trial_status") == "converted"
+    if not converted:
+        days_left = None
+        ends = org.get("trial_ends_at")
+        if ends:
+            try:
+                end_dt = datetime.fromisoformat(ends)
+                days_left = max(0, (end_dt - datetime.now(timezone.utc)).days)
+            except ValueError:
+                pass
+        return {
+            "status": "trial",
+            "plan_name": "Free trial",
+            "price_display": f"£{PLAN['amount_pennies'] // 100}/{PLAN['interval']} after trial",
+            "trial_ends_at": ends,
+            "days_left": days_left,
+        }
+
+    renewal_at = None
+    from utils.database import STRIPE_API_KEY
+    sub_id = org.get("stripe_subscription_id")
+    if STRIPE_API_KEY and sub_id:
+        try:
+            import stripe
+            stripe.api_key = STRIPE_API_KEY
+            sub = stripe.Subscription.retrieve(sub_id)
+            period_end = sub.get("current_period_end")
+            if period_end:
+                renewal_at = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat()
+        except Exception as e:  # renewal date is cosmetic — never fail the card
+            logger.warning("Stripe subscription lookup failed for %s: %s", org["id"], e)
+    return {
+        "status": "active",
+        "plan_name": PLAN["name"],
+        "price_display": f"£{PLAN['amount_pennies'] // 100}/{PLAN['interval']}",
+        "started_at": org.get("subscription_started_at"),
+        "renewal_at": renewal_at,
+        "can_manage": bool(org.get("stripe_customer_id")),
+    }
+
+
+@router.post("/billing-portal")
+async def create_billing_portal(
+    body: dict = Body(default={}),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Owner → Stripe customer Billing Portal (manage card / cancel)."""
+    from utils.database import STRIPE_API_KEY
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Stripe not configured")
+    org = await _provider_org(user)
+    if user.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Only the account owner can manage billing")
+    customer_id = org.get("stripe_customer_id")
+    if not (org.get("subscription_active") and customer_id):
+        raise HTTPException(status_code=400, detail="No active subscription to manage")
+
+    origin_url = (body.get("origin_url") or os.environ.get("FRONTEND_URL") or "").rstrip("/")
+    if not origin_url:
+        raise HTTPException(status_code=400, detail="origin_url required")
+
+    import stripe
+    stripe.api_key = STRIPE_API_KEY
+    try:
+        portal = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{origin_url}/service-desk",
+        )
+    except Exception as e:
+        logger.exception("Stripe billing portal failed")
+        raise HTTPException(status_code=502, detail=f"Stripe error: {e}")
+    return {"url": portal.url}
 
 
 __all__ = ["router"]

@@ -1,3 +1,12 @@
+## Iter 258b — Subscription card + badge + Stripe billing portal ✅ (Jun 12, 2026)
+
+- Backend (`routes/service_provider_billing.py`):
+  - `GET /api/service-provider/subscription` — trial: plan_name "Free trial", days_left, price after trial (no Stripe call); active: plan, price, best-effort `renewal_at` from stripe.Subscription (never fails the card), `can_manage`.
+  - `POST /api/service-provider/billing-portal` — owner-only, active-subscription-only (400 on trial, 403 non-provider): stripe.billing_portal.Session → manage card / cancel; returns to /service-desk.
+  - Conversion now also stores `stripe_customer_id` + `stripe_subscription_id` on the org (needed by the portal + renewal lookup).
+- Frontend: `SubscriptionCard` in DeskSummary (providers only) — amber TRIAL variant (days left, £99/month after trial, "Upgrade to Pro" → /service-desk/upgrade) and emerald PRO variant (price, renews date, "Manage billing" → portal redirect). Dark-mode variants per the gymaxis/no-dark-mode-leakage eslint rule. testids: desk-subscription-card/-badge/-plan/-upgrade/-manage.
+- Tests: iter258 suite extended to 7/7 (subscription trial state, non-provider 403, portal 400-on-trial/403-non-provider). Full provider package 26/26. Browser-verified: card on dashboard, badge TRIAL, upgrade routing. PRO/portal path untestable without a real charge (guards tested; standard Stripe API).
+
 ## Iter 258 — Trial → paid Stripe upgrade for Service Providers ✅ (Jun 12, 2026)
 
 **Closes the revenue loop: 14-day trial → £99/month self-serve subscription.** Pattern mirrors the proven `routes/crm_modes.py` Stripe flow (raw stripe SDK + payment_transactions ledger + idempotency + polling status). Integration playbook consulted via integration_expert.

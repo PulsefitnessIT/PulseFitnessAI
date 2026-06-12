@@ -1,9 +1,65 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, Clock, Archive, ScrollText, FileText, Download } from 'lucide-react';
+import { Users, Building2, Clock, Archive, ScrollText, FileText, Download, CreditCard, Loader2 } from 'lucide-react';
 import { authConfig } from './authConfig';
+
+/** Iter 258b — subscription status card for provider dashboards:
+ *  trial → upgrade CTA; active → plan + renewal + Stripe billing portal. */
+function SubscriptionCard({ API }) {
+  const navigate = useNavigate();
+  const [sub, setSub] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API}/service-provider/subscription`, authConfig())
+      .then((r) => setSub(r.data)).catch(() => {});
+  }, [API]);
+
+  const managePortal = async () => {
+    setBusy(true);
+    try {
+      const { data } = await axios.post(`${API}/service-provider/billing-portal`,
+        { origin_url: window.location.origin }, authConfig());
+      window.location.href = data.url;
+    } catch { setBusy(false); }
+  };
+
+  if (!sub) return null;
+  const isTrial = sub.status === 'trial';
+  return (
+    <Card className={`p-5 ${isTrial ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-900/40' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 dark:border-emerald-900/40'}`} data-testid="desk-subscription-card">
+      <div className="flex items-center gap-2 mb-2">
+        <CreditCard className={`w-4 h-4 ${isTrial ? 'text-amber-600' : 'text-emerald-600'}`} />
+        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Subscription</div>
+        <span className={`ml-auto text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${isTrial ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`} data-testid="desk-subscription-badge">
+          {isTrial ? 'Trial' : 'Pro'}
+        </span>
+      </div>
+      <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100" data-testid="desk-subscription-plan">{sub.plan_name}</div>
+      <div className="text-xs text-zinc-500 mt-0.5">
+        {isTrial
+          ? `${sub.days_left ?? '—'} day${sub.days_left === 1 ? '' : 's'} left · ${sub.price_display}`
+          : `${sub.price_display}${sub.renewal_at ? ` · renews ${sub.renewal_at.slice(0, 10)}` : ''}`}
+      </div>
+      <div className="mt-3">
+        {isTrial ? (
+          <Button size="sm" onClick={() => navigate('/service-desk/upgrade')}
+            className="bg-orange-600 hover:bg-orange-700 text-white" data-testid="desk-subscription-upgrade">
+            Upgrade to Pro
+          </Button>
+        ) : sub.can_manage ? (
+          <Button size="sm" variant="outline" onClick={managePortal} disabled={busy}
+            className="border-emerald-300 text-emerald-700 hover:bg-emerald-100" data-testid="desk-subscription-manage">
+            {busy ? <Loader2 size={13} className="animate-spin" /> : 'Manage billing'}
+          </Button>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
 
 export default function DeskSummary({ API, onJumpToCustomers }) {
   const [data, setData] = useState(null);
@@ -96,6 +152,7 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
+        {isProvider && <SubscriptionCard API={API} />}
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3">
             <ScrollText className="w-4 h-4 text-zinc-500" />

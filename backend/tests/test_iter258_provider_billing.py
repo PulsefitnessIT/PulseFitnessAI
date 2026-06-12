@@ -82,3 +82,28 @@ def test_cannot_poll_foreign_session():
     h2 = _login(*MASTER_ADMIN)
     r = requests.get(f"{BASE_URL}/api/service-provider/upgrade/status/{sid}", headers=h2, timeout=20)
     assert r.status_code == 403
+
+
+def test_subscription_card_trial_state():
+    """Iter 258b — trial orgs get the trial card without touching Stripe."""
+    h = _login(*PROVIDER)
+    r = requests.get(f"{BASE_URL}/api/service-provider/subscription", headers=h, timeout=20)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["status"] == "trial"
+    assert d["plan_name"] == "Free trial"
+    assert isinstance(d["days_left"], int) and d["days_left"] >= 0
+    # non-provider blocked
+    h2 = _login(*MASTER_ADMIN)
+    assert requests.get(f"{BASE_URL}/api/service-provider/subscription", headers=h2, timeout=20).status_code == 403
+
+
+def test_billing_portal_requires_active_subscription():
+    h = _login(*PROVIDER)
+    r = requests.post(f"{BASE_URL}/api/service-provider/billing-portal",
+                      headers=h, json={"origin_url": ORIGIN}, timeout=20)
+    assert r.status_code == 400  # still on trial — nothing to manage
+    h2 = _login(*MASTER_ADMIN)
+    r = requests.post(f"{BASE_URL}/api/service-provider/billing-portal",
+                      headers=h2, json={"origin_url": ORIGIN}, timeout=20)
+    assert r.status_code == 403  # not a provider
