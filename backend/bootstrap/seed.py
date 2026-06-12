@@ -259,4 +259,61 @@ async def backfill_service_org_ids() -> None:
         )
 
 
-__all__ = ["seed_master_admin", "seed_services", "backfill_service_org_ids"]
+__all__ = ["seed_master_admin", "seed_services", "backfill_service_org_ids", "seed_test_accounts"]
+
+
+async def seed_test_accounts() -> None:
+    """Idempotently seed regression test fixture accounts (non-prod data,
+    harmless in prod). Self-healing like ``seed_master_admin``: each boot
+    re-syncs the password and clears lockouts so CI/preview always sign in.
+
+    Currently: ``lee.somers@pulsefitness.com`` — a *regular* (non-admin)
+    Pulse Pro user used by `test_p1c_security.py` to prove that ordinary
+    Pulse users are denied master-admin audit endpoints yet can still use
+    the support assistant + conversation export.
+
+    Gate with ``SEED_TEST_ACCOUNTS=0`` to skip entirely.
+    """
+    if os.environ.get("SEED_TEST_ACCOUNTS", "1") == "0":
+        return
+    from utils.auth import hash_password
+    from utils.security import clear_failed_logins
+
+    email = "lee.somers@pulsefitness.com"
+    pwd = "TempPass123!"
+    now = datetime.now(timezone.utc).isoformat()
+
+    existing = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "organization_id": 1})
+    if existing:
+        org_id = existing.get("organization_id")
+    else:
+        org_id = str(uuid.uuid4())
+        await db.organizations.insert_one({
+            "id": org_id,
+            "name": "Pulse Fitness — Somers (test)",
+            "account_type": "pulse_pro",
+            "subscription_tier": "pulse_pro",
+            "created_at": now,
+        })
+
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "full_name": "Lee Somers",
+            "password": hash_password(pwd),
+            "role": "owner",
+            "account_type": "pulse_pro",
+            "organization_id": org_id,
+            "is_master_admin": False,
+            "is_pulse_admin": False,
+            "active": True,
+            "must_change_password": False,
+            "password_changed_at": now,
+        },
+         "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": now},
+         "$unset": {"lockout_until": "", "temp_password_expires_at": ""}},
+        upsert=True,
+    )
+    clear_failed_logins(email)
+    logger.info("Test account seeded/healed: %s", email)

@@ -400,6 +400,12 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"Service seed failed: {e}")
 
+    try:
+        from bootstrap.seed import seed_test_accounts
+        await seed_test_accounts()
+    except Exception as e:
+        logger.error(f"Test account seed failed: {e}")
+
     # Iter 216g · Phase 2 — start the sign-up journey worker (welcome
     # emails + abandoned-cart recovery). One-shot per pod.
     try:

@@ -28012,3 +28012,9 @@ User ask: Pulse Fitness Service Desk users — role nomination; nominated users 
 **Tests**: `tests/test_iter251_pentest_recheck.py` 6/6 (in Makefile). CI security battery: 139/139 pass (12 suites: 220as/au/av/ba/be/bp, security_hardening, crm_tenant_isolation, regex_hardening, secrets_audit, p3_hardening, mfa_and_audit — the 1 transient mfa rate-limit "fail" passes in isolation; concurrency artifact).
 **Non-issues (NOT regressions)**: `test_security_p2_full.py` / `test_security_p2_surface.py` 429s are self-inflicted by the audit's brute-force probe (older suites without the bypass header; not in CI). `test_p1c_security.py` 4 errors = stale `lee.somers@pulsefitness.com/TempPass123!` account absent in preview (same as iter 247; not in CI).
 - NOTE: Preview-only — DEPLOY for gymaxisai.com (iters 244–251).
+
+---
+## Iter 251b — Restored lee.somers test account (Jun 12, 2026)
+- Added self-healing seed `bootstrap.seed.seed_test_accounts()` (wired into server.py startup after `_seed_services`): idempotently creates/heals `lee.somers@pulsefitness.com / TempPass123!` as a *regular non-admin* Pulse Pro owner in its own test org. Re-syncs password + clears lockouts each boot (like `seed_master_admin`); reuses existing `utils.auth.hash_password` (no new auth code). Gate: `SEED_TEST_ACCOUNTS=0`.
+- This unblocked the two previously-orphaned suites — `test_p1c_security.py` (13/13) and `test_iter226_image_lookup.py` (7/7) — both now ADDED to the Makefile regression.
+- Full `make regression` 2,508 pass / 0 fail (was 2,482; +26 from the two newly-CI'd suites). Login verified.
