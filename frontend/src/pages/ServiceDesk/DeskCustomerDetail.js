@@ -147,7 +147,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
               />
             </div>
           ))}
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="f-notes" className="text-xs text-zinc-600">Internal notes (Service Desk only)</Label>
             <textarea
               id="f-notes" rows={3}

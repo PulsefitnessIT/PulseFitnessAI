@@ -99,3 +99,14 @@ def test_frontend_mobile_audit_pins():
     detail = open(f"{base}/ServiceDesk/DeskCustomerDetail.js", encoding="utf-8").read()
     assert "grid-cols-2 md:grid-cols-4" in detail
     assert 'id="desk-section-sites"' in detail
+    # Notes field must not force a phantom 2nd column on mobile.
+    assert '"col-span-2"' not in detail and 'sm:col-span-2' in detail
+
+    # Iter 263 follow-ups from the testing agent.
+    eng = open(f"{base}/ServiceOps/EngineersAdminPage.js", encoding="utf-8").read()
+    assert 'className="svc-btn-primary"' not in eng, (
+        "buttons must carry the svc-btn base class or they render unstyled"
+    )
+    assert "svc-search { flex: 0 0 100%" in css, (
+        "mobile: cases search takes its own full-width row"
+    )

@@ -181,7 +181,7 @@ export default function EngineersAdminPage() {
     <button
       type="button"
       onClick={() => setShowAdd((v) => !v)}
-      className="svc-btn-primary"
+      className="svc-btn svc-btn-primary"
       data-testid="engineers-add-btn"
     >
       <Plus size={14} /> Add engineer
@@ -347,7 +347,7 @@ export default function EngineersAdminPage() {
           </div>
 
           <div className="flex gap-2 mt-3">
-            <button type="button" className="svc-btn-primary" onClick={create} disabled={addBusy} data-testid="engineers-add-submit">
+            <button type="button" className="svc-btn svc-btn-primary" onClick={create} disabled={addBusy} data-testid="engineers-add-submit">
               {addBusy ? <Loader2 size={14} className="animate-spin" /> : null} Add engineer
             </button>
             <button type="button" className="svc-btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>

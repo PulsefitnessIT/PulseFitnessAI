@@ -28167,3 +28167,16 @@ NEXT: P0 commercial layer — recommend seat-based billing SKU first, then self-
 **Verified**: UI both paths (internal Pulse engineer → "PULSE FITNESS · ENGINEER", no tile/no Tools; partner engineer.smoke → "GYMAXIS AI ADMIN · ENGINEER", tile visible). Tests: `test_iter261_engineer_org_brand.py` 3/3 (added to Makefile regression) + iter236/iter227 suites 9/9.
 **Gotcha recurrence**: search_replace phantom edit (EngineerDiary header) + EOF corruption (EngineerNotifications stray `n>` tail) — both caught by grep verification and fixed.
 NOTE: fixes live in PREVIEW — user must redeploy to production (gymaxisai.com).
+
+---
+## Iter 262/263 — Service Desk full mobile audit + interactive cards (Jun 12, 2026)
+**User report (production)**: "Audit the service desk and ensure that it is fully mobile optimised. Every card/modal/option/text. Cards are interactive where possible navigating to the correct information."
+**Interactive cards**:
+- Dashboard stat cards (DeskSummary) → navigate to tabs (provider: cases/cases/engineers/customers; platform: all → customers). Recent Activity card → audit log tab. New `onNavigate` prop wired from desk shell (3 render sites).
+- Cases KPI cards now buttons: Open/Unassigned/SLA at risk/Breached drill into the filtered queue (`drillTo`), show a clearable quick-filter chip (`filter-quick-clear`), scroll to `case-queue-section`. Field engineers KPI scrolls to Live engineers panel.
+- Backend: GET /api/svc/cases gained `assigned=unassigned` (uses `$in:[None,""]`, matches missing) and `sla=at_risk|breached` (ISO-string compare on sla_resolve_at, defaults to OPEN_STATES).
+- DeskCustomerDetail mini-stat cards scroll to Sites/Staff/Suppliers sections (ids desk-section-*).
+**Mobile fixes**: `.svc-table-wrap` overflow:hidden→overflow-x:auto (clipped tables now scroll); `.svc-kpi-value` overflow-wrap:anywhere; DeskSummary grids 2-up/1-up mobile; DeskCustomerDetail form 1-col + notes `sm:col-span-2` (the bare col-span-2 forced a phantom 2nd column squeezing inputs); DeskImports 3-col grid responsive; Parts catalogue/rules 12-col rows → 2-col mobile, tables wrapped overflow-x-auto, modals max-h-[90vh] overflow-y-auto; Billing inner table overflow-x-auto; Engineers table minWidth 52rem in scrollable section + buttons fixed (`svc-btn` base class was missing → unstyled overflow); Safety table scrollable; Reports downtime KPI >1000h shown as days; cases search full-width row on mobile (media rule flex:0 0 100%).
+**Verified**: testing agent iteration_263.json — 11/11 mobile flows passed; 3 follow-ups all fixed & screenshot-verified (engineers btn pill, customer form 1-col 316px inputs, search row). NOTE: 272px search width = FULL content-box width at 390vw (section head has 18px padding) — not a bug. Tests: test_iter262_desk_mobile_audit.py 4/4 (in Makefile).
+**Gotchas this session**: 3 more phantom edits (KPICard onClick, parts overflow replace_all, DeskCustomerDetail col-span) + 1 EOF duplicate-tail corruption (ServiceOps/ServiceDeskPage.js) — used python string replace for re-application; ALWAYS grep-verify after search_replace.
+NOTE: fixes live in PREVIEW — user must redeploy to production.

@@ -428,6 +428,10 @@
   pointer-events: none;
 }
 .svc-search > input { padding-left: 32px; }
+/* Iter 262 — mobile: the queue search takes its own full-width row */
+@media (max-width: 639px) {
+  .svc-section-head .svc-search { flex: 0 0 100%; width: 100%; margin-left: 0; }
+}
 
 /* ──────────────────────────────────────────────────────────
    7. PILLS / BADGES
