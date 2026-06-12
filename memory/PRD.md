@@ -27927,3 +27927,13 @@ Verified live on SVC-00410.
 - Implementation method: scripted python replacements with exact-match assertions (/tmp/wire_*.py) — avoids the recurring search_replace silent-failure/EOF-corruption issue on these large files.
 **Remaining EN-only surfaces (future)**: TrialSignupModal, MarketingChat, deep marketing pages (platform/*, compare/*, blog, about/contact already translated), Sales decks. SEO note: content is client-side translated on same URLs — no hreflang added (would require per-language URLs).
 **Minor note from tester**: en.json stores some CRM keys flat-dotted at top level vs nested in fr/de — works fine with i18next defaults; normalize if keySeparator ever changes.
+
+---
+## Iter 244 — Service Desk for Pulse Fitness Org + Engineer allocation (Jun 12, 2026)
+- **Access**: Service Desk (`/service-desk`) now opens to Pulse Master Admins + flagged desk agents + GymAxis master admin via new capability `view_service_desk` (capabilities.js → AppRoutes gate, ServiceDeskPage guard, AdminSidebar `portal-switch-service-desk` unhidden for pulse admins). Backend `utils/service_desk_auth._is_service_desk` includes `is_pulse_admin`/role `pulse_master_admin`; desk audit log records `pulse_master_admin` actor role.
+- **Org context for Service Ops**: every `routes/svc/*.py` org scope now falls back `organization_id → service_org_id` (sed across 32 files, both `user["organization_id"]` and `.get` forms). Platform-level (org-less) desk agents / pulse admins get `service_org_id` at provisioning (`service_desk_admin.py` create+grant, `pulse_master_admin.py` create) and existing ones are backfilled at startup (`bootstrap.seed.backfill_service_org_ids` → master admin's org `9fa701ef`, the Sicon case hub with 684 cases).
+- **Engineer roster**: `engineers_admin._require_admin` now allows desk agents + pulse admins (manage roster from the desk Engineers tab).
+- **Allocation flow verified e2e**: desk PUT `/api/svc/cases/{id}` `{assigned_engineer_id}` → case appears in Engineer App `GET /api/svc/engineer/jobs?when=open` (default `when=today` filters by scheduled_at).
+- **Creds**: desk@pulsefitness.com / DeskAgent123! (password reset, recorded in test_credentials.md).
+- **Tested**: `tests/test_iter244_pulse_service_desk.py` 10/10 (added to Makefile regression), full `make regression` 2446 pass (1 flaky sessions test passes in isolation), testing agent 100% backend + frontend (`/app/test_reports/iteration_iter244_pulse_service_desk.json`).
+- NOTE: Preview-only — user must DEPLOY for gymaxisai.com to pick this up.
