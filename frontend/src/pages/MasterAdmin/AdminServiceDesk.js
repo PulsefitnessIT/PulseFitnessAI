@@ -18,7 +18,7 @@ const BRAND_BADGE = {
   pulse:   'bg-blue-50 text-blue-700 border-blue-200',
 };
 
-export default function AdminServiceDesk({ API }) {
+export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
   const [members, setMembers] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ export default function AdminServiceDesk({ API }) {
 
   // Grant existing form
   const [grantEmail, setGrantEmail] = useState('');
-  const [grantBrand, setGrantBrand] = useState('gymaxis');
+  const [grantBrand, setGrantBrand] = useState(isPulseAdmin ? 'pulse' : 'gymaxis');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,7 +105,10 @@ export default function AdminServiceDesk({ API }) {
             <HeadphonesIcon className="w-5 h-5 text-orange-600" /> Service Desk Members
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            {total} {total === 1 ? 'person has' : 'people have'} Service Desk access. Two brands: <strong>GymAxis</strong> and <strong>Pulse Fitness</strong>.
+            {total} {total === 1 ? 'person has' : 'people have'} Service Desk access.{' '}
+            {isPulseAdmin
+              ? 'Nominate Pulse Fitness people — they are routed straight to the Service Desk when they sign in.'
+              : <>Two brands: <strong>GymAxis</strong> and <strong>Pulse Fitness</strong>.</>}
           </p>
         </div>
         <Button
@@ -143,7 +146,7 @@ export default function AdminServiceDesk({ API }) {
             {[
               { v: 'gymaxis', label: 'GymAxis Service Desk' },
               { v: 'pulse',   label: 'Pulse Fitness Service Desk' },
-            ].map((b) => {
+            ].filter((b) => !isPulseAdmin || b.v === 'pulse').map((b) => {
               const active = createForm.brand === b.v;
               return (
                 <button
@@ -173,7 +176,7 @@ export default function AdminServiceDesk({ API }) {
             </Button>
           </div>
           <p className="text-[11px] text-zinc-500 mt-2">
-            Service Desk users sign in at <span className="font-mono">/service-desk</span>. They can view tickets across all clients in their brand, reply, change status, assign, and import equipment.
+            Service Desk users are routed <strong>straight to the Service Desk</strong> when they sign in. They can view tickets across all clients in their brand, reply, change status, assign, and import equipment.
           </p>
         </Card>
       )}
@@ -216,7 +219,7 @@ export default function AdminServiceDesk({ API }) {
             className="text-sm border border-zinc-200 rounded-md px-2 py-1.5 bg-white"
             data-testid="desk-grant-brand"
           >
-            <option value="gymaxis">GymAxis</option>
+            {!isPulseAdmin && <option value="gymaxis">GymAxis</option>}
             <option value="pulse">Pulse</option>
           </select>
           <Button

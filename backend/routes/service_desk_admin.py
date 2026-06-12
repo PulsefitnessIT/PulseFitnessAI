@@ -22,9 +22,18 @@ router = APIRouter(prefix="/master-admin/service-desk", tags=["Service Desk Admi
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 
 
-def _require_master_admin(user: dict) -> None:
-    if not user.get("is_master_admin"):
-        raise HTTPException(status_code=403, detail="Master admin required")
+def _require_desk_admin(user: dict) -> bool:
+    """Who may nominate / revoke Service Desk users.
+
+    GymAxis master admins manage BOTH brands; Pulse Master Admins manage
+    only pulse-brand desk users (their own service team). Returns True
+    when the caller is Pulse-scoped.
+    """
+    if user.get("is_master_admin"):
+        return False
+    if user.get("is_pulse_admin") or user.get("role") == "pulse_master_admin":
+        return True
+    raise HTTPException(status_code=403, detail="Master admin required")
 
 
 def _generate_temp_password(length: int = 14) -> str:
@@ -123,7 +132,10 @@ async def create_service_desk_user(
     is stored as `service_desk_brand` for filtering in the Service Desk UI
     (e.g. so Pulse agents see only Pulse customers' tickets).
     """
-    _require_master_admin(user)
+    pulse_scoped = _require_desk_admin(user)
+    if pulse_scoped:
+        # Pulse Master Admins can only nominate into their own brand.
+        body.brand = "pulse"
     email = body.email.strip().lower()
 
     existing = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
@@ -188,10 +200,13 @@ async def create_service_desk_user(
 
 @router.get("/members")
 async def list_desk_members(user: dict = Depends(get_current_user)) -> dict:
-    """List every user with the Service Desk role."""
-    _require_master_admin(user)
+    """List every user with the Service Desk role (Pulse admins: pulse brand only)."""
+    pulse_scoped = _require_desk_admin(user)
+    q: dict = {"is_service_desk": True}
+    if pulse_scoped:
+        q["service_desk_brand"] = "pulse"
     cursor = db.users.find(
-        {"is_service_desk": True},
+        q,
         {"_id": 0, "id": 1, "email": 1, "full_name": 1, "is_master_admin": 1,
          "service_desk_granted_at": 1, "service_desk_granted_by_email": 1,
          "service_desk_brand": 1, "must_change_password": 1,
@@ -207,11 +222,11 @@ async def grant_service_desk(
     user: dict = Depends(get_current_user),
 ) -> dict:
     """Promote an EXISTING user to Service Desk. Body: {email: str, brand?: 'gymaxis'|'pulse'}."""
-    _require_master_admin(user)
+    pulse_scoped = _require_desk_admin(user)
     email = (body.get("email") or "").strip().lower()
     brand = (body.get("brand") or "gymaxis").lower()
-    if brand not in ("gymaxis", "pulse"):
-        brand = "gymaxis"
+    if brand not in ("gymaxis", "pulse") or pulse_scoped:
+        brand = "pulse" if pulse_scoped else "gymaxis"
     if not email:
         raise HTTPException(status_code=400, detail="email required")
 
@@ -249,13 +264,22 @@ async def revoke_service_desk(
     user: dict = Depends(get_current_user),
 ) -> dict:
     """Remove Service Desk role from a user. Body: {email: str}."""
-    _require_master_admin(user)
+    pulse_scoped = _require_desk_admin(user)
     email = (body.get("email") or "").strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="email required")
 
-    target = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+    target = await db.users.find_one(
+        {"email": email},
+        {"_id": 0, "id": 1, "service_desk_brand": 1, "is_master_admin": 1})
     if not target:
+        raise HTTPException(status_code=404, detail=f"User {email} not found")
+    # Pulse admins manage only their own brand — out-of-brand members are
+    # 404 (indistinguishable from non-existent), and master admins are
+    # never revocable by a pulse admin.
+    if pulse_scoped and (
+        (target.get("service_desk_brand") or "") != "pulse" or target.get("is_master_admin")
+    ):
         raise HTTPException(status_code=404, detail=f"User {email} not found")
 
     await db.users.update_one(

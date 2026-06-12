@@ -34,7 +34,12 @@ export default function ForceChangePasswordPage() {
   // If the user lands here without the flag (e.g. refreshed after a real
   // change) just bounce them to their proper console.
   if (user && !user.must_change_password) {
-    navigate(user.is_master_admin || user.is_pulse_admin ? '/master-admin' : '/dashboard', { replace: true });
+    navigate(
+      user.is_master_admin || user.is_pulse_admin ? '/master-admin'
+        : user.is_service_desk ? '/service-desk'
+          : '/dashboard',
+      { replace: true },
+    );
     return null;
   }
   if (!user) {
@@ -74,7 +79,14 @@ export default function ForceChangePasswordPage() {
       login(data.token, { ...user, must_change_password: false });
       show({ tone: 'success', title: 'Password updated', detail: 'Redirecting you in…' });
       setTimeout(() => {
-        navigate(user.is_master_admin || user.is_pulse_admin ? '/master-admin' : '/dashboard', { replace: true });
+        // Iter 250 — Service-Desk-nominated users go straight to the desk
+        // after setting their first password.
+        navigate(
+          user.is_master_admin || user.is_pulse_admin ? '/master-admin'
+            : user.is_service_desk ? '/service-desk'
+              : '/dashboard',
+          { replace: true },
+        );
       }, 800);
     } catch (err) {
       show({

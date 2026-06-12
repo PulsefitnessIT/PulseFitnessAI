@@ -119,7 +119,7 @@ const AdminRoles = ({ API, globalUsersProps, isPulseAdmin }) => {
         />
       )}
       {tab === 'matrix' && <PermissionsMatrix API={API} />}
-      {tab === 'service-desk' && <AdminServiceDesk API={API} />}
+      {tab === 'service-desk' && <AdminServiceDesk API={API} isPulseAdmin={isPulseAdmin} />}
       {tab === 'pulse-admins' && <AdminPulseAdmins API={API} />}
       {tab === 'legacy-users' && <GlobalUsersPanel {...(globalUsersProps || {})} />}
 

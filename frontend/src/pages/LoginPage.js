@@ -75,11 +75,14 @@ export default function LoginPage() {
       }
       const fallback = (u.is_master_admin || u.is_pulse_admin)
         ? '/master-admin'
-        : (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner')
-          ? '/partner-engineer'
-          : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
-            ? '/pulse'
-            : (moduleHomePath(u) || '/dashboard');
+        : u.is_service_desk
+          // Iter 250 — Service-Desk-nominated users go straight to the desk.
+          ? '/service-desk'
+          : (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner')
+            ? '/partner-engineer'
+            : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
+              ? '/pulse'
+              : (moduleHomePath(u) || '/dashboard');
       navigate(nextParam || fallback, { replace: true });
     } catch (err) {
       // Gym-floor fallback — same form, but POST against /gym-floor/login

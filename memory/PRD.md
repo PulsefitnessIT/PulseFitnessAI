@@ -27988,3 +27988,15 @@ User ask: "service team schedule cases on Sicon → engineers receive on enginee
 - `ServiceOps/ServiceDeskPage.js`: `SiconSyncChip` under the status pill (`case-sicon-sync-{ref}` testids) — green "Sicon ✓", amber "Sicon · queued (n)", blue "Sicon · dry-run", red "Sicon · error", each with an explanatory tooltip.
 - Tested: `tests/test_iter249_sicon_sync_chip.py` 4/4 (inbound-only→synced, local edit→queued, drain→dry_run, frontend wiring) in Makefile; full `make regression` 2,475 pass / 0 fail; 55 chips verified on the desk board via screenshot as desk@pulsefitness.com.
 - NOTE: Preview-only — DEPLOY for gymaxisai.com (iters 244–249 pending release).
+
+---
+## Iter 250 — Service Desk role nomination + straight-to-desk sign-in (Jun 12, 2026)
+User ask: Pulse Fitness Service Desk users — role nomination; nominated users routed straight to the Service Desk on sign-in; design/create the process, no gaps.
+**Process (now complete)**:
+1. NOMINATE — Master Admin → People → "Service Desk team" tab (`AdminServiceDesk.js`, backed by `routes/service_desk_admin.py`). Pulse Master Admins can now use it: `_require_desk_admin` (replaces `_require_master_admin`) returns pulse_scoped; for pulse admins the brand is FORCED to "pulse" (create + grant), member list is pulse-brand-scoped, revoke of out-of-brand/master users → 404. UI locks the brand picker to "Pulse Fitness Service Desk" via `isPulseAdmin` prop (passed from AdminRoles).
+2. FIRST SIGN-IN — temp password emailed/echoed → `must_change_password` → `/api/auth/force-change-password`.
+3. STRAIGHT TO DESK — `LoginPage.js`, `LoginRedirectPage.js`, `ForceChangePasswordPage.js` fallbacks now route `is_service_desk` users to `/service-desk` (after master/pulse-admin → /master-admin, before partner-engineer/module-home). Nominee inherits `service_org_id` from granting admin (iter 244) so the case board resolves immediately.
+4. REVOKE — access drops instantly (verified 403 after revoke).
+**Tested**: `tests/test_iter250_desk_role_nomination.py` 7/7 e2e (nominate w/ brand forcing, brand-scoped list, out-of-brand revoke 404, owner 403, temp-password→force-change→desk access, revoke, frontend wiring) — in Makefile. Full `make regression` 2,482 pass / 0 fail. Browser-verified: desk@pulsefitness.com login lands directly on /service-desk; pulse admin nomination tab locked to Pulse brand.
+**LESSON**: parallel `search_replace` calls to the SAME file can clobber each other (the /members edit was silently lost and re-applied). Edit one file sequentially.
+- NOTE: Preview-only — DEPLOY for gymaxisai.com (iters 244–250).
