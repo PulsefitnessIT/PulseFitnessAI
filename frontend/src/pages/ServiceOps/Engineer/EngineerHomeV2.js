@@ -32,6 +32,7 @@ import EngineerAccountSettings from './EngineerAccountSettings';
 import { OutboxStatusPill, installEngineerErrorReporters } from '@/utils/engineerStatusBoot';
 import PausedUploadsPill from './PausedUploadsPill';
 import useEngineerAttention from './hooks/useEngineerAttention';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 import EngineerAppShellNudge from './EngineerAppShellNudge';
 import { useLocalization, formatMoney } from '@/utils/localization';
 
@@ -190,6 +191,8 @@ export default function EngineerHomeV2() {
   const [briefing, setBriefing] = useState(null);
   // Iter 220j — pulsing-dot attention digest (compliance, sub, app status).
   const attention = useEngineerAttention({ poll: true });
+  // Iter 261 — org name in the header + internal/partner split.
+  const orgBrand = useEngineerOrgBrand();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -226,8 +229,8 @@ export default function EngineerHomeV2() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-              GymAxis · Engineer
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700" data-testid="engineer-home-brand">
+              {orgBrand.label}
             </p>
             <h1 className="text-xl font-extrabold text-slate-900 truncate" data-testid="engineer-home-greeting">
               {me?.engineer?.full_name ? `Hi, ${me.engineer.full_name.split(' ')[0]}` : 'Field engineer'}
@@ -388,8 +391,10 @@ export default function EngineerHomeV2() {
                        onClick={() => navigate('/svc/engineer/invoices')} />
             </div>
 
-            {/* Iter 220ea·33 — Legacy import promo tile (dismissible). */}
-            {!legacyTileHidden && (
+            {/* Iter 220ea·33 — Legacy import promo tile (dismissible).
+                Iter 261 — hidden for internal engineers: their Service Desk
+                imports historical reports via Settings instead. */}
+            {!legacyTileHidden && !orgBrand.internal && (
               <div
                 className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-blue-50/40 p-4 flex items-center gap-3"
                 data-testid="engineer-home-legacy-tile"

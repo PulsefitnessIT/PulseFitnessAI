@@ -243,6 +243,17 @@ async def engineer_me(user=Depends(get_current_user)):
     """Profile + today's job count for the home screen."""
     eng = await _ensure_engineer(user)
     of = _of(user)
+    # Iter 261 — org identity for the app header + internal/partner split.
+    # Internal engineers (provisioned by an org that runs the Service Desk)
+    # see their organisation's name in the header and DON'T need the
+    # legacy-report self-upload (the desk imports history via Settings).
+    org = await db.organizations.find_one(
+        {"id": of["organization_id"]}, {"_id": 0, "name": 1},
+    )
+    partner = await db.partner_engineers.find_one(
+        {"user_id": user["id"]}, {"_id": 0, "id": 1},
+    )
+    is_partner = bool(partner) or bool(user.get("is_partner_engineer"))
     today = datetime.now(timezone.utc).date().isoformat()
     open_q = {**of, "assigned_engineer_id": user["id"], "status": {"$in": list(OPEN_STATES)}}
     today_count = await db.svc_cases.count_documents({**open_q, "scheduled_at": {"$regex": f"^{today}"}})
@@ -253,6 +264,9 @@ async def engineer_me(user=Depends(get_current_user)):
     )
     return {
         "engineer": eng,
+        "organization_name": (org or {}).get("name"),
+        "is_partner_engineer": is_partner,
+        "internal_engineer": not is_partner,
         "stats": {
             "today_jobs": today_count,
             "open_jobs": open_count,

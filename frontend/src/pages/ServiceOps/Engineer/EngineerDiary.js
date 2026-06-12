@@ -24,6 +24,7 @@ import {
   Wrench, ShieldCheck, Coffee, Loader2, X, Clock,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -376,6 +377,7 @@ const NewBlockModal = ({ open, onClose, onCreate }) => {
 
 // ── main component ─────────────────────────────────────────────
 export default function EngineerDiary() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
   const [view, setView] = useState('week'); // 'week' | 'day'
@@ -494,7 +496,7 @@ export default function EngineerDiary() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-                GymAxis · Engineer
+                {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <Calendar size={20} /> My Diary

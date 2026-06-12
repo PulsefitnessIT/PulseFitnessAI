@@ -16,6 +16,7 @@ import {
   Mail as MailIcon,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -386,6 +387,7 @@ const Row = ({ r, onAccept, onDecline }) => {
 
 // ── Main page ──────────────────────────────────────────────────
 export default function EngineerInbox() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -460,7 +462,7 @@ export default function EngineerInbox() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-                GymAxis · Engineer
+                {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <InboxIcon size={20} /> Incoming requests

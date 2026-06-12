@@ -22,6 +22,7 @@ import {
   Search, BookmarkPlus, History, X, MapPin, Calendar,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -63,6 +64,7 @@ const Field = ({ label, children, required }) => (
 const inputCls = 'w-full border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-lg px-3 py-2 text-sm focus:outline-none';
 
 export default function EngineerNewJob() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -271,7 +273,7 @@ export default function EngineerNewJob() {
           </button>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-              GymAxis · Engineer
+              {orgBrand.label}
             </p>
             <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
               <Wrench size={20} /> Log a new job

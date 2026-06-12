@@ -13,6 +13,7 @@ import {
   AlertTriangle, CloudOff,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 import {
   engineerListOps, engineerRemoveOp, engineerClearQueue, engineerFlushQueue,
   useEngineerOfflineQueue,
@@ -30,6 +31,7 @@ const fmtRelative = (ms) => {
 };
 
 export default function EngineerSyncPanel() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const { online } = useEngineerOfflineQueue();
   const [ops, setOps] = useState([]);
@@ -90,7 +92,7 @@ export default function EngineerSyncPanel() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-                GymAxis · Engineer
+                {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 {online ? <Wifi size={20} className="text-emerald-600" /> : <WifiOff size={20} className="text-red-600" />}

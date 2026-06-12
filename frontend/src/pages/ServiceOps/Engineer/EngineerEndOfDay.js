@@ -17,6 +17,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL
@@ -49,6 +50,7 @@ function Stat({ icon: Icon, label, value, sub, accent, testid }) {
 }
 
 export default function EngineerEndOfDay() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const loc = useLocalization();
   const fmtGBP = (n) => formatMoney(n, loc);
@@ -96,7 +98,7 @@ export default function EngineerEndOfDay() {
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-              GymAxis · Engineer
+              {orgBrand.label}
             </p>
             <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
               <Sun size={18} className="text-amber-500" />

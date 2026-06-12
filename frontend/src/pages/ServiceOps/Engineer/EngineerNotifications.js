@@ -466,6 +466,7 @@ const NotificationPrefsPanel = ({ open, onClose }) => {
 
 // ── Main page ──────────────────────────────────────────────
 export default function EngineerNotifications() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -545,7 +546,7 @@ export default function EngineerNotifications() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-                GymAxis · Engineer
+                {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <Bell size={20} /> Notifications
@@ -657,3 +658,4 @@ export default function EngineerNotifications() {
     </div>
   );
 }
+

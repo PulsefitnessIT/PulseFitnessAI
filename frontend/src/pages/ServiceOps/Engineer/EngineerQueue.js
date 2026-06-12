@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { List } from 'react-window';
 import { notify } from '@/components/notifications';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 import { warmEngineerCache } from '@/utils/swEngineerWarmer';
 
 const API = process.env.REACT_APP_BACKEND_URL
@@ -508,6 +509,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode,
 
 // ── Main page ──────────────────────────────────────────────
 export default function EngineerQueue() {
+  const orgBrand = useEngineerOrgBrand();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState({ total: 0, p1: 0, sla_breached_or_due: 0 });
@@ -689,7 +691,7 @@ export default function EngineerQueue() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-                GymAxis · Engineer
+                {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <Hand size={20} /> Up for grabs

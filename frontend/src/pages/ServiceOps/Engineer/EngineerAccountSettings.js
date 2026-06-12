@@ -28,6 +28,7 @@ import { notify } from '@/components/notifications';
 import { useLocalization } from '@/utils/localization';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
 import NotificationSettings from './NotificationSettings';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -76,6 +77,8 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
   const [partnerLoading, setPartnerLoading] = useState(false);
   // Iter 220e7 — Web Push & notification preferences drawer.
   const [notificationOpen, setNotificationOpen] = useState(false);
+  // Iter 261 — org name in the drawer header + internal/partner split.
+  const orgBrand = useEngineerOrgBrand();
   const attentionItems = (attention?.items) || [];
 
   useEffect(() => {
@@ -176,8 +179,8 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
       >
         <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-              GymAxis · Engineer
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700" data-testid="engineer-settings-brand">
+              {orgBrand.label}
             </p>
             <h2 className="text-base font-extrabold text-slate-900">Account settings</h2>
           </div>
@@ -410,7 +413,10 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           </section>
 
           {/* Iter 220ea·33 — Legacy report import. One-off migration tool:
-              turn historic PDFs/spreadsheets into branded GymAxis PDFs. */}
+              turn historic PDFs/spreadsheets into branded GymAxis PDFs.
+              Iter 261 — hidden for internal engineers: their Service Desk
+              imports historical reports via Settings instead. */}
+          {!orgBrand.internal && (
           <section data-testid="engineer-settings-section-tools">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Tools</p>
             <Row
@@ -422,6 +428,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               testid="engineer-settings-legacy-import-row"
             />
           </section>
+          )}
 
           {/* Iter 220 — Work-report custom fields */}
           <section data-testid="engineer-settings-section-work-reports">

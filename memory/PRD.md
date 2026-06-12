@@ -28155,3 +28155,15 @@ NEXT: P0 commercial layer — recommend seat-based billing SKU first, then self-
 ## Iter 260 — Mobile password change fix + Engineer in MA org role dropdown (Jun 12, 2026)
 **Bug 1 (production-reported)**: On mobile, users could not change their password in Account Settings → Security. Root cause: in `AccountSettingsModal.js` mobile flex-col layout, the content pane lacked `flex-1 min-h-0`, so it grew to full content height (~4000px) and overflowed the `overflow-hidden` modal shell — programmatic scrolling worked but real touch/wheel scrolling could never reach the password form. Fix: added `flex-1 min-h-0` to the content pane + `flex-shrink-0` to the nav pill rail. Verified at 375×667 viewport: wheel scrolling reaches the form, inputs typeable, nav rail stays pinned.
 **Bug 2**: Master Admin org users panel — inline per-user role dropdown (`user-role-{id}` in `AdminOrganizations.js` ~line 1067) was missing "Engineer" (the Add User and Edit User dialogs already had it since Iter 236). Added `<SelectItem value="engineer">`. Backend PATCH `/master-admin/users/{id}` already accepts role=engineer and syncs `svc_engineers` (Iter 236 logic, `test_iter236_org_engineer_role.py` 2/2 passing). Verified in UI: dropdown now shows Owner/Manager/Staff/Engineer/Master Admin.
+
+---
+## Iter 261 — Engineer App: org-branded header + legacy import hidden for internal engineers (Jun 12, 2026)
+**User report (production)**: 1) Engineer App header should show the engineer's organisation name instead of "GymAxis · Engineer". 2) Engineers associated with organisations/Service Desk don't need the legacy-report self-upload (the desk imports history via Settings).
+**Built**:
+- Backend `GET /api/svc/engineer/me` now returns `organization_name`, `is_partner_engineer` (partner_engineers row OR users.is_partner_engineer), `internal_engineer` (= not partner).
+- New hook `pages/ServiceOps/Engineer/hooks/useEngineerOrgBrand.js` — one cached /me fetch per session (module + sessionStorage `gx_engineer_org_brand_v1`); `label` = "{Org} · Engineer" with "GymAxis · Engineer" fallback.
+- Header eyebrow replaced in 9 pages: HomeV2, AccountSettings drawer, SyncPanel, Queue, EndOfDay, NewJob, Diary, Inbox, Notifications (`data-testid="engineer-home-brand"` / `engineer-settings-brand`).
+- Legacy import hidden for internal engineers: Home promo tile (`!legacyTileHidden && !orgBrand.internal`) + Settings → Tools section (`!orgBrand.internal`). Partner engineers keep it.
+**Verified**: UI both paths (internal Pulse engineer → "PULSE FITNESS · ENGINEER", no tile/no Tools; partner engineer.smoke → "GYMAXIS AI ADMIN · ENGINEER", tile visible). Tests: `test_iter261_engineer_org_brand.py` 3/3 (added to Makefile regression) + iter236/iter227 suites 9/9.
+**Gotcha recurrence**: search_replace phantom edit (EngineerDiary header) + EOF corruption (EngineerNotifications stray `n>` tail) — both caught by grep verification and fixed.
+NOTE: fixes live in PREVIEW — user must redeploy to production (gymaxisai.com).
