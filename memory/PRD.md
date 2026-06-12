@@ -27981,3 +27981,10 @@ User ask: "service team schedule cases on Sicon → engineers receive on enginee
 **Verified e2e (simulate path = same merge code as live)**: Sicon schedules case w/ AssignedToSageUserID=TEST-216v-SAGE001 → case created assigned to engineer.smoke → appears in GET /svc/engineer/jobs?when=open → engineer travel time start/stop → outbox `appointment` row pending → simulate-drain → simulated_succeeded. Amend re-merge updates (no duplicate, OnSite→on_site). H&S checklist gate before on-site timer confirmed intact.
 **Tested**: `tests/test_iter248_sicon_engineer_loop.py` 9/9 (crosswalk integrity, schedule→engineer, idempotent amend, anti-echo, engineer→outbox, drain, poll-now+health, timeline audit, autostart wiring) — in Makefile. Full `make regression` 2,471 pass / 0 fail. UI button verified via screenshot.
 **TO GO LIVE**: enter Sicon credentials at /admin/integrations/sicon (per org, sets `sicon_config.enabled`), then set `SICON_AUTOSTART_WORKER=true` (or use the manual Drain now / Poll inbound buttons). Until then everything accumulates in dry-run exactly as the console states.
+
+---
+## Iter 249 — Sicon sync chip on the Service Desk case board (Jun 12, 2026)
+- `GET /api/svc/cases` enriches each row with `sicon_sync_state` + `sicon_sync_pending` via one outbox aggregate per page (matched on payload.ServiceCallReference / CallReference). Worst-wins: `error` (failed/dead_letter) > `queued` (pending/in_flight) > `synced` (succeeded, or inbound-only case with `sicon_case_id`/`last_sicon_sync_at`) > `dry_run` (simulated_succeeded).
+- `ServiceOps/ServiceDeskPage.js`: `SiconSyncChip` under the status pill (`case-sicon-sync-{ref}` testids) — green "Sicon ✓", amber "Sicon · queued (n)", blue "Sicon · dry-run", red "Sicon · error", each with an explanatory tooltip.
+- Tested: `tests/test_iter249_sicon_sync_chip.py` 4/4 (inbound-only→synced, local edit→queued, drain→dry_run, frontend wiring) in Makefile; full `make regression` 2,475 pass / 0 fail; 55 chips verified on the desk board via screenshot as desk@pulsefitness.com.
+- NOTE: Preview-only — DEPLOY for gymaxisai.com (iters 244–249 pending release).

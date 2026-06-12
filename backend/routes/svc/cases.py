@@ -186,6 +186,50 @@ async def list_cases(
         .skip(skip).limit(limit)
         .to_list(limit)
     )
+
+    # Iter 249 — Sicon sync chip. One aggregate over the outbox for this
+    # page's references; worst state wins: error > queued > synced > dry_run.
+    # Cases that only exist via inbound Sicon sync (no outbox rows yet)
+    # count as synced — Sicon is the writer of record for them.
+    refs = [c.get("reference") for c in items if c.get("reference")]
+    if refs:
+        sync_counts: dict[str, dict[str, int]] = {}
+        pipe = [
+            {"$match": {
+                "organization_id": q["organization_id"],
+                "$or": [
+                    {"payload.ServiceCallReference": {"$in": refs}},
+                    {"payload.CallReference": {"$in": refs}},
+                ],
+            }},
+            {"$project": {
+                "_id": 0, "status": 1,
+                "ref": {"$ifNull": ["$payload.ServiceCallReference", "$payload.CallReference"]},
+            }},
+            {"$group": {"_id": {"ref": "$ref", "status": "$status"}, "n": {"$sum": 1}}},
+        ]
+        async for row in db.svc_sicon_outbox.aggregate(pipe):
+            d = sync_counts.setdefault(row["_id"]["ref"], {})
+            d[row["_id"]["status"]] = d.get(row["_id"]["status"], 0) + row["n"]
+        for c in items:
+            counts = sync_counts.get(c.get("reference") or "", {})
+            pending = counts.get("pending", 0) + counts.get("in_flight", 0)
+            if counts.get("failed") or counts.get("dead_letter"):
+                state = "error"
+            elif pending:
+                state = "queued"
+            elif counts.get("succeeded"):
+                state = "synced"
+            elif counts.get("simulated_succeeded") or counts.get("simulated"):
+                state = "dry_run"
+            elif c.get("sicon_case_id") or c.get("last_sicon_sync_at"):
+                state = "synced"
+            else:
+                state = None
+            if state:
+                c["sicon_sync_state"] = state
+                c["sicon_sync_pending"] = pending
+
     return {"cases": items, "total": total}
 
 

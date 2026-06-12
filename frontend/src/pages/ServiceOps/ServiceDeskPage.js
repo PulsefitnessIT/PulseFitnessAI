@@ -42,6 +42,34 @@ const STATUS_LABEL = {
   repaired: 'Repaired', awaiting_sign_off: 'Sign-off', closed: 'Closed', invoiced: 'Invoiced',
 };
 
+// Iter 249 — per-case Sicon sync chip (computed server-side from the
+// Sicon outbox + inbound sync stamps).
+const SICON_SYNC_META = {
+  synced: { label: 'Sicon ✓', bg: '#ecfdf5', fg: '#047857', title: 'In sync with the Sicon Service Desk' },
+  queued: { label: 'Sicon · queued', bg: '#fffbeb', fg: '#b45309', title: 'Updates queued for Sicon — the worker will push them on the next drain' },
+  dry_run: { label: 'Sicon · dry-run', bg: '#eff6ff', fg: '#1d4ed8', title: 'Pushed in dry-run mode — goes live the moment Sicon credentials are configured' },
+  error: { label: 'Sicon · error', bg: '#fef2f2', fg: '#b91c1c', title: 'Some updates failed to reach Sicon — check the Integrations console' },
+};
+
+function SiconSyncChip({ c }) {
+  const meta = SICON_SYNC_META[c.sicon_sync_state];
+  if (!meta) return null;
+  const pending = c.sicon_sync_pending || 0;
+  return (
+    <span
+      data-testid={`case-sicon-sync-${c.reference}`}
+      title={meta.title}
+      style={{
+        display: 'inline-block', marginTop: 3, padding: '1px 6px',
+        fontSize: 10, fontWeight: 600, borderRadius: 999,
+        background: meta.bg, color: meta.fg, whiteSpace: 'nowrap',
+      }}
+    >
+      {meta.label}{c.sicon_sync_state === 'queued' && pending > 1 ? ` (${pending})` : ''}
+    </span>
+  );
+}
+
 function fmtRelative(iso) {
   if (!iso) return '—';
   const ms = new Date(iso).getTime() - Date.now();
@@ -427,7 +455,10 @@ export default function ServiceDeskPage() {
                       <div className="text-[11px] svc-muted truncate">{c.fault_code || c.fault_category || '—'}</div>
                     </td>
                     <td className="text-xs svc-muted">{c.site_name || '—'}</td>
-                    <td className="text-xs"><span className="svc-pill">{STATUS_LABEL[c.status] || c.status}</span></td>
+                    <td className="text-xs">
+                      <span className="svc-pill">{STATUS_LABEL[c.status] || c.status}</span>
+                      <div><SiconSyncChip c={c} /></div>
+                    </td>
                     <td className="text-xs svc-muted">
                       {c.assigned_engineer_name ? (
                         c.assigned_engineer_name
