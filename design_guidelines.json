@@ -1,193 +1,49 @@
 {
-  "project_name": "GymAxis Pulse Fitness Portal Landing",
-  "theme": "light",
-  "archetype": "Archetype 4 (Swiss & High-Contrast) infused with Pulse Branding",
-  "design_philosophy": {
-    "core_principles": [
-      "Heritage Meets Tech: Combine the 45-year manufacturing legacy of Pulse Fitness with modern SaaS portal capabilities.",
-      "High-End Hardware Aesthetic: Use large, edge-to-edge photography, bento box grids for data, and stark typography. Avoid generic SaaS 'flatness'.",
-      "Trust & Reliability: Highlight the 95.5% first-time fix rate and MOD partnerships prominently.",
-      "Pulse Cyan as Action: Use the signature #66ccff almost exclusively for interactive elements and key data highlights, resting against a monochrome structural palette."
-    ]
+  "project_context": "Gym Axis Homepage - B2B Service Desk Addition",
+  "theme": "LIGHT with a DARK Breakout Section",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) - Authority, clarity, function-first",
+  "typography": {
+    "headings": "Use existing font stack but apply tracking-tight or tracking-tighter to large headings. Avoid default bold, use font-light or font-medium to create E1 tension.",
+    "body": "Existing sans-serif. Keep leading-relaxed.",
+    "hierarchy_rules": "H2 for the new section must not exceed text-4xl sm:text-5xl."
   },
   "colors": {
-    "primary": {
-      "DEFAULT": "#66ccff",
-      "hover": "#4dbfff",
-      "deep": "#33b8ff"
+    "base": "Existing slate palette.",
+    "service_desk_accent": "orange-500 (#f97316). Use strictly for the Service Desk product highlights and its specific CTA.",
+    "new_section_bg": "slate-950 (#020617) - Use this for the new Service Desk section wrapper to create a high-contrast 'break' in the page flow, signaling a different target audience (Service Companies vs Gyms)."
+  },
+  "spacing_and_layout": {
+    "generous_spacing": "Use py-24 or py-32 for the new Service Desk section to give it massive breathing room.",
+    "grid_mode": "Split-Screen (md:grid-cols-2). Wide gap (gap-12 or gap-16).",
+    "alignment": "Left-align text in the new section. Asymmetrical balance with the mockup taking up the right column."
+  },
+  "components": {
+    "header_nav": {
+      "instruction": "Rename the 'Engineers' tab to 'Partners' (or 'Service Network' if i18n prefers). This encompasses both Suppliers/Companies and individual Engineers without crowding the nav."
     },
-    "neutral": {
-      "black": "#212721",
-      "dark_grey": "#505759",
-      "light_grey": "#A2ACAB",
-      "bg": "#F8F9FA",
-      "surface": "#FFFFFF"
-    },
-    "accessibility": {
-      "text_on_primary": "#212721",
-      "text_on_black": "#FFFFFF",
-      "overlay": "rgba(33, 39, 33, 0.4)"
+    "service_desk_section": {
+      "wrapper": "bg-slate-950 text-white overflow-hidden relative",
+      "content_left": "High-contrast typography. Focus on: self-serve signup, 4-step setup wizard, smart dispatch, owner analytics. CTA: 'Start 14-day free trial' pointing to /service-provider/signup.",
+      "content_right_mockup": "CRITICAL: Build the screenshot as a JSX/Tailwind mockup (like LiveCustomerAppPreview). NO PNGs. Light-themed UI, rounded-xl, shadow-2xl. Sidebar layout (Dashboard, Cases, Scheduler, Customers, Equipment, Parts, Billing, Engineers). Active state in orange-500. Show a 'Case Board' with SLA countdown pills (e.g., '14m remaining' in red/orange)."
     }
   },
-  "typography": {
-    "headings": {
-      "font_family": "Montserrat",
-      "style": "tracking-tight font-black uppercase-for-labels",
-      "sizes": {
-        "h1": "text-5xl sm:text-6xl md:text-7xl tracking-tighter leading-none",
-        "h2": "text-4xl sm:text-5xl tracking-tight leading-tight",
-        "h3": "text-2xl sm:text-3xl tracking-tight",
-        "h4": "text-xl sm:text-2xl font-bold"
-      }
-    },
-    "body": {
-      "font_family": "Manrope",
-      "style": "tracking-normal leading-relaxed text-pulse-grey-dark",
-      "sizes": {
-        "default": "text-base md:text-lg",
-        "small": "text-sm text-pulse-grey-light",
-        "overline": "text-xs font-bold tracking-[0.2em] uppercase text-pulse-grey-dark"
-      }
-    }
-  },
-  "layout_and_spacing": {
-    "spacing_scale": "Generous spacing. Use py-24 to py-32 for section padding. Use gap-8 to gap-12 for bento grids.",
-    "grid_system": "Bento Grid Protocol. Strict column alignment. Grid children must stretch to fill cells.",
-    "container": "max-w-7xl mx-auto px-6 lg:px-8",
-    "surface_styles": {
-      "glass": "backdrop-blur-xl bg-white/70 border border-white/40 shadow-sm",
-      "bento_card": "bg-white rounded-xl border border-pulse-grey-light/20 shadow-sm p-8 flex flex-col justify-between hover:shadow-md transition-shadow",
-      "dark_card": "bg-pulse-black rounded-xl border border-white/10 p-8 text-white"
+  "image_urls": {
+    "section_background": {
+      "url": "https://images.pexels.com/photos/1526/dark-blur-blurred-gradient.jpg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Optional: Can be used as a low-opacity (opacity-10 to opacity-20) background or mask-image layer behind the dark bg-slate-950 Service Desk section to add a premium, subtle texture instead of flat color.",
+      "category": "background_texture"
     }
   },
   "testing": {
-    "requirements": "All interactive and key informational elements MUST include a data-testid attribute (kebab-case, role-based). Examples: data-testid='hero-cta-button', data-testid='login-modal-trigger'."
+    "requirements": "All new interactive and key informational elements MUST have data-testid attributes (e.g., data-testid='nav-partners-link', data-testid='service-desk-signup-btn')."
   },
-  "media_assets": {
-    "hero": "/pulse-photos/hero-heart-of-fitness.webp",
-    "timeline_trakk": "/pulse-photos/trakk-connected.webp",
-    "timeline_product": "/pulse-photos/product-crosstrainer.webp",
-    "stats_bg": "/pulse-photos/gym-interior-cardio.webp",
-    "gym_floor_interactive": "/pulse-photos/strength-floor.webp",
-    "mobile_dark_section": "/pulse-photos/gym-orange-lights.webp",
-    "sustainability_bg": "/pulse-photos/leisure-centre-aerial.webp",
-    "product_grid": [
-      "/pulse-photos/product-stepmill.webp",
-      "/pulse-photos/product-cable-machine.webp",
-      "/pulse-photos/product-bike.webp"
-    ],
-    "capabilities_woman": "/pulse-photos/woman-strength.webp",
-    "tailored_gym": "/pulse-photos/gym-treadmill-row.webp",
-    "final_cta": "/pulse-photos/gym-interior-sleek.webp",
-    "extra_decor": [
-      "carshalton-igym.webp",
-      "strength-accessories.webp",
-      "/pulse-photos/gym-interior-modern.webp"
-    ]
-  },
-  "page_sections": [
-    {
-      "id": "1",
-      "name": "Sticky Header",
-      "guidelines": "z-50 fixed top-0 w-full glassmorphism style. Left: Logo. Center: Nav anchors. Right: Theme toggle, Language, Sign In Button (data-testid='nav-login-btn')."
-    },
-    {
-      "id": "2",
-      "name": "Hero",
-      "guidelines": "Full height (min-h-[90vh]). Background image: hero-heart-of-fitness.webp with bg-pulse-black/40 overlay. Content left-aligned: 'Pulse Fitness Self-Service Portal'. Primary CTA 'Get Started' and Secondary 'Login'. Floating live-stats preview card aligned right.",
-      "data_testids": ["hero-primary-cta", "hero-login-cta", "hero-live-stats"]
-    },
-    {
-      "id": "3",
-      "name": "Trusted By / Partnerships (NEW)",
-      "guidelines": "A sleek, low-contrast grayscale logo strip below the hero. Since image logos are not provided, use clean typographic logos with distinct fonts (e.g., 'MINISTRY OF DEFENCE', 'THIRD SPACE', 'IMPERIAL COLLEGE', 'LEISURE UNITED') using text-pulse-grey-light font-black tracking-widest."
-    },
-    {
-      "id": "4",
-      "name": "Heritage Story: 45 Years of Innovation (NEW)",
-      "guidelines": "Scroll-triggered vertical timeline. 1980 (Foundations) -> 2019 (TRAKK) -> 2025 (Cirrus V4). Use trakk-connected.webp and product-crosstrainer.webp overlapping the timeline path. Text must convey engineering legacy."
-    },
-    {
-      "id": "5",
-      "name": "Company & Service Stats Bento (NEW)",
-      "guidelines": "Dense, Control-Room style grid. Highlight: '30K+ R&D hours', '48hr response', '95.5% first-time fix rate'. One grid cell should feature gym-interior-cardio.webp with a dark overlay and '450+ Products' metric. Use Pulse Cyan for the large numbers."
-    },
-    {
-      "id": "6",
-      "name": "What You Can Do (Capabilities Grid)",
-      "guidelines": "Keep functional grid. Feature woman-strength.webp in a span-2 tall bento card. Clean iconography (lucide-react). Focus on fault-logging and asset management."
-    },
-    {
-      "id": "7",
-      "name": "AI Features & Ask Orb",
-      "guidelines": "Keep existing mock. Surround with generous padding. Use subtle cyan drop-shadow to make the orb 'glow'."
-    },
-    {
-      "id": "8",
-      "name": "How it Works",
-      "guidelines": "3-step process. Simple typography, heavy emphasis on frictionless UX."
-    },
-    {
-      "id": "9",
-      "name": "Gamified Experience",
-      "guidelines": "Keep wizard mock. Render inside a stylized browser or phone frame."
-    },
-    {
-      "id": "10",
-      "name": "Gym Floor Showcase",
-      "guidelines": "Background: strength-floor.webp. Foreground: Interactive phone frame demonstrating QR scan -> log fault steps."
-    },
-    {
-      "id": "11",
-      "name": "Mobile Experience (Dark Section)",
-      "guidelines": "Invert theme to dark mode for this section. bg-pulse-black. Deep cinematic feel. Feature gym-orange-lights.webp.",
-      "data_testids": ["mobile-experience-section"]
-    },
-    {
-      "id": "12",
-      "name": "Sustainability & Engineering (NEW)",
-      "guidelines": "Highlight 100% recycled steel, 90% strength recycling. Layout: split 50/50. Text on left, leisure-centre-aerial.webp on right with an embedded grid of product_bike.webp and product_cable_machine.webp."
-    },
-    {
-      "id": "13",
-      "name": "Customer Benefits",
-      "guidelines": "Focus on ROI for gym owners, equipment uptime, and member satisfaction."
-    },
-    {
-      "id": "14",
-      "name": "Support",
-      "guidelines": "Reinforce in-house UK service team and flexible service contracts."
-    },
-    {
-      "id": "15",
-      "name": "Lite vs Pro Plans",
-      "guidelines": "Pricing/Tier cards. Pro tier gets a subtle 'tracing beam' or cyan border glow."
-    },
-    {
-      "id": "16",
-      "name": "Tailored to Your Gym",
-      "guidelines": "Use gym-treadmill-row.webp as a wide banner graphic."
-    },
-    {
-      "id": "17",
-      "name": "Final CTA",
-      "guidelines": "Use gym-interior-sleek.webp with heavy dark overlay. Massive typography: 'Ready to elevate your equipment management?'."
-    },
-    {
-      "id": "18",
-      "name": "Footer",
-      "guidelines": "Standard SaaS footer, dark theme (bg-pulse-black). Includes global distribution note (35+ dealers, 30+ countries)."
-    },
-    {
-      "id": "19",
-      "name": "Login Modal",
-      "guidelines": "Keep existing functional modal. Apply Pulse styling (cyan buttons, clean borders). MUST include data-testid='login-submit-btn'.",
-      "data_testids": ["login-modal", "login-email-input", "login-password-input", "login-submit-btn"]
-    }
-  ],
-  "components_instructions": {
-    "buttons": "Square or rounded-md (max 6px). Primary: bg-pulse-primary text-pulse-black font-bold. Hover: bg-pulse-primary-hover.",
-    "cards": "1px border border-pulse-grey-light/20. No aggressive drop shadows, prefer crisp minimalist borders.",
-    "animations": "Use Framer Motion. Keep animations to opacity fades and slight y-axis translations (translate-y-4) on scroll. No excessive bouncy spring animations."
-  }
+  "instructions_to_main_agent": [
+    "UPDATE NAVIGATION: In the main Header component, update the 'Engineers' navigation item to 'Partners' to correctly represent both individual engineers and service companies/suppliers.",
+    "CREATE NEW SECTION: Create a new React component (e.g., `ServiceDeskPromo`) and place it on the Homepage. Optimal placement is below the `ModuleGrid` and `CustomerExperience`, but ABOVE the `EngineerBanner`.",
+    "APPLY HIGH CONTRAST: To separate this B2B supplier audience from the gym audience, wrap this new section in a dark background (`bg-slate-950`) with generous vertical padding (`py-24`).",
+    "BUILD CSS MOCKUP: Do not use static images for the product screenshot. Build a JSX-based product mockup. Make it a light-theme dashboard with a left sidebar (showing items like Cases, Scheduler, Equipment) and a main area showing a 'Case Board' with SLA countdowns. Use `orange-500` for active states and primary buttons inside the mockup.",
+    "CONTENT: Ensure the copy highlights the 14-day free trial, self-serve signup, and 4-step setup wizard. Link the primary CTA to `/service-provider/signup`. Apply `orange-500` to the CTA.",
+    "I18N: Wrap all new user-facing text strings in the existing `t()` translation function.",
+    "TESTING: Add `data-testid` attributes to the new nav link and the new CTA button."
+  ]
 }
