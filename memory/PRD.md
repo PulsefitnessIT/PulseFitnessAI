@@ -1,3 +1,11 @@
+## Iter 254 — Owner Analytics dashboard (Service Desk › Insights › Analytics) ✅ (Jun 12, 2026)
+
+**Sales hook for the Service Provider package** — works for providers AND the Pulse/platform desk (org-scoped).
+- Backend: `GET /api/svc/analytics/owner?from&to` (`routes/svc/analytics.py`) — headline KPIs (cases, avg time-to-respond/resolve, response + resolve SLA %), SLA by priority (mixed-case live priorities normalised p1–p4), engineer utilisation (svc_time_entries hours vs 8h×weekday capacity, jobs done, open workload), revenue (svc_engineer_invoices non-void + invoiced svc_quotes deduped via linked_quote_id; avg per job, paid/outstanding), weekly trend (created/closed/SLA on-time %). Max range 2 years; inverted range → 400.
+- Frontend: new "Analytics" tab (first under Insights) in ServiceDeskPage → `pages/ServiceDesk/DeskAnalytics.js`. Range presets 7/30/90 days + custom from/to date pickers with Apply (user choice). Recharts weekly composed chart, SLA-by-priority bars, revenue card, engineer utilisation bars. data-testids: desk-tab-analytics, desk-analytics, analytics-range-{7,30,90}, analytics-from-date/to-date/apply-range, analytics-kpis/trend/sla-priority/revenue/engineers.
+- Tenant isolation verified: provider account sees only its own (empty) numbers; master admin sees hub org (684 cases, £56.6k billed).
+- Tests: `tests/test_iter254_owner_analytics.py` (4/4, added to Makefile regression); iter253 suite still green (10/10 combined).
+
 ## Iter 253 — Self-serve Service Provider funnel (P0b) ✅ (Jun 12, 2026)
 
 **Commercial wrapper to sell the Service Desk + Engineer App to third-party service suppliers.**

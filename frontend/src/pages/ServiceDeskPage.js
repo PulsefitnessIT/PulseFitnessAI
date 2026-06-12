@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, TrendingDown, ScrollText, Loader2,
-  ShieldCheck, Menu, X,
+  ShieldCheck, Menu, X, BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,8 @@ import DeskCustomerDetail from './ServiceDesk/DeskCustomerDetail';
 import DeskAuditLog from './ServiceDesk/DeskAuditLog';
 import DeskEquipment from './ServiceDesk/DeskEquipment';
 import DeskSuppliers from './ServiceDesk/DeskSuppliers';
+// Iter 254 — Owner Analytics (SLA / utilisation / revenue-per-job)
+const DeskAnalytics = lazy(() => import('./ServiceDesk/DeskAnalytics'));
 import { ServiceOpsEmbeddedContext } from './ServiceOps/ServiceOpsShell';
 
 // Lazy-load the heavier Service Ops pages — keeps the initial shell light.
@@ -60,6 +62,7 @@ const TABS = [
 // Insights nav lives under the user/menu footer — keeps the main tab
 // row clean and matches Lee's 8-tab spec exactly.
 const INSIGHTS_TABS = [
+  { id: 'analytics',  label: 'Analytics',       icon: BarChart3 },
   { id: 'suppliers',  label: 'Supplier health', icon: TrendingDown },
   { id: 'reports',    label: 'Reports',         icon: ScrollText },
   { id: 'safety',     label: 'H&S checklist',   icon: ShieldCheck },
@@ -110,6 +113,8 @@ export default function ServiceDeskPage() {
         return <DeskSuppliers API={API} />;
       case 'audit':
         return <DeskAuditLog API={API} />;
+      case 'analytics':
+        return <Suspense fallback={<EmbedFallback />}><DeskAnalytics API={API} /></Suspense>;
       // Service Ops embedded pages
       case 'cases':
         return (
