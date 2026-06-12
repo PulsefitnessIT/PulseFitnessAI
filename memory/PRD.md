@@ -1,3 +1,16 @@
+## Iter 255 — Migration import wizard (Service Desk › Insights › Import data) ✅ (Jun 12, 2026)
+
+**Bulk customer/site + historical-case import for suppliers migrating onto the platform.** User choices: rule-based mapping + AI fallback, 10,000-row cap.
+- Backend `routes/svc/imports.py` (registered in route_registry/features.py):
+  - `POST /api/svc/imports/parse` — CSV/XLSX upload (≤10k rows / 10MB, reuses `utils/spreadsheet_import.iter_rows` + `parse_date_cell`), staging job in `svc_import_jobs`, rule-based header auto-map (~90 synonyms per type)
+  - `POST /{id}/ai-map` — Claude (sonnet-4-5 via EMERGENT_LLM_KEY, same pattern as svc/ai.py) recommends fields for unmatched headers using sample values; logged to svc_ai_calls kind `import_map`; never double-assigns a field
+  - `POST /{id}/validate` — required-column guard, per-row errors (Excel-style row numbers), duplicate counts (customers: email else name+postcode; cases: reference), preview of normalised records
+  - `POST /{id}/commit` — customers → `svc_engineer_customers` via the Engineer Lite CRM `CustomerIn`/`_to_doc` (skip|update strategy); cases → `svc_cases` as CLOSED historical records with original dd/mm/yyyy dates, priority normalised, engineer names matched to `svc_engineers` ids (feeds utilisation analytics), `source: import` + tags ['imported'], refs auto-generated `IMP-{job}-{n}` when absent. Case dupes always skipped (history immutable). Idempotent (second commit → 400). Desk audit-logged; staging rows purged after commit.
+  - `GET /{id}/errors.csv` — errored rows + reason for fix-and-reupload
+- Frontend: "Import data" tab (Insights) → `pages/ServiceDesk/DeskImports.js`: 4-step wizard (type cards + upload → mapping table with sample values, per-header selects, "Ask AI to map N unmatched" → preview with valid/dupe/error cards + dupe strategy + error list + preview table → done summary + error-CSV download). testids: desk-tab-imports, import-file-input, import-ai-map, map-select-{header}, import-validate, import-commit, import-result-*, import-download-errors.
+- Bug fixed during testing: `UploadCloud` lucide import missing in ServiceDeskPage (runtime crash) — re-applied.
+- Tests: `tests/test_iter255_import_wizard.py` (4/4, in Makefile). Full UI E2E verified via playwright incl. live AI mapping (Organisation→name, Remarks→notes). Iter253+254 suites still green (14/14 combined).
+
 ## Iter 254 — Owner Analytics dashboard (Service Desk › Insights › Analytics) ✅ (Jun 12, 2026)
 
 **Sales hook for the Service Provider package** — works for providers AND the Pulse/platform desk (org-scoped).

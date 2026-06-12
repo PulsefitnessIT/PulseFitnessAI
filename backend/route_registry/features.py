@@ -128,6 +128,8 @@ from routes.svc.billing import router as svc_billing_router
 from routes.svc.reports import router as svc_reports_router
 # Iter 254 — Owner Analytics (SLA compliance, utilisation, revenue/job)
 from routes.svc.analytics import router as svc_analytics_router
+# Iter 255 — Migration import wizard (customers/sites + historical cases)
+from routes.svc.imports import router as svc_imports_router
 # Iter 215dv — Phase 7b Customer Comms Hub
 from routes.svc.comms import router as svc_comms_router
 # Iter 216y — Phase 6+ Saved Views
@@ -298,6 +300,7 @@ _UNGATED_ROUTERS = (
     # Iter 215du — Phase 7 Reports & Audit
     svc_reports_router,
     svc_analytics_router,
+    svc_imports_router,
     # Iter 215dv — Phase 7b Comms Hub
     svc_comms_router,
     # Iter 216y — Phase 6+ Saved Views
