@@ -77,7 +77,8 @@ export default function LoginPage() {
         ? '/master-admin'
         : u.is_service_desk
           // Iter 250 — Service-Desk-nominated users go straight to the desk.
-          ? '/service-desk'
+          // Iter 253 — self-serve providers finish the setup wizard first.
+          ? (u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk')
           : (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner')
             ? '/partner-engineer'
             : (u.account_type === 'lite' || u.account_type === 'pulse_pro')

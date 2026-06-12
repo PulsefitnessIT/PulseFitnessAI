@@ -1,0 +1,34 @@
+{
+  "summary": "P0b Service Provider self-serve funnel: backend 4/4 PASS, frontend wizard PASS, but newly-signed-up provider hits 'Your free trial has ended' paywall on /service-desk after finishing wizard. Also engineer-landing-cta-provider missing on /engineer.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ServiceDesk landing for new provider", "issue": "After completing 3-step wizard, redirect to /service-desk shows 'Your free trial has ended — Upgrade Plan' modal. New service_provider org is immediately treated as trial-expired, blocking access to the Service Desk they just set up. This breaks the entire funnel.", "selector": "/service-desk", "priority": "CRITICAL"},
+      {"component": "Engineer landing CTA", "issue": "data-testid 'engineer-landing-cta-provider' NOT present on /engineer public page. Public CTA linking to /service-provider/signup is missing.", "selector": "[data-testid='engineer-landing-cta-provider']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Login redirect (incomplete + completed provider)", "issue": "Could not exercise login redirect E2E: /logout route + re-navigation to /login did not present an email input (timeout waiting for input[type=email]). Backend behavior (service_ops_setup_complete on /auth/me) verified via curl, but UI login redirect path was not validated.", "affected_selectors": ["input[type='email']", "/login"]}
+    ],
+    "design_issues": [
+      {"screen": "Service Desk SEO prerender", "issues": ["Pre-React HTML dump includes marketing copy 'AI-Powered Gym Management Software...' that briefly flashes; OK SEO-wise but worth noting"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_iter253_sp_funnel.json"],
+  "action_items": [
+    "URGENT: Bypass trial-expiry gate for freshly-signed-up service_provider orgs on /service-desk. Either grant a fresh trial window (>0 days) at signup or skip the trial gate entirely for account_type=service_provider.",
+    "Add data-testid='engineer-landing-cta-provider' button linking to /service-provider/signup in the bottom CTA section of /engineer landing page.",
+    "Validate login redirect (LoginPage ~line 76 / LoginRedirectPage ~line 33) end-to-end manually — automation could not reach the /login form fields in this preview run."
+  ],
+  "critical_code_review_comments": [
+    "service-provider signup creates an org whose trial window is already exhausted — check organization creation defaults in routes/service_provider.py (signup) vs trial_ends_at logic that the trial-paywall modal reads.",
+    "Wizard finish redirect must land in a usable Service Desk; today it lands on a Upgrade-Plan paywall which makes the whole funnel pointless."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "60%"},
+  "test_credentials": "Created during test: sp.fe.1781277405@example.com / Str0ngPass!23 (completed wizard, blocked by trial paywall). API-created: sp.test.1781277380@example.com / Str0ngPass!23 (signup-only, never opened wizard).",
+  "seed_data_creation": "Two new service-provider orgs created via signup endpoint (one via API, one via UI wizard end-to-end).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend signup/setup/duplicate/auth endpoints all verified via curl and return correct responses incl. /auth/me service_ops_setup_complete (per agent-to-agent note). Wizard FE flow (signup → setup → branding next → sla next → engineer finish) confirmed working including data-testids sp-signup-*, sp-setup-page, sp-setup-sla, sp-sla-row-p1..p4, sp-eng-name/email, sp-finish. After sp-finish, app navigates to /service-desk but Service Desk shows trial-ended paywall — this is the main blocker. Engineer-landing-cta-provider was NOT in DOM at /engineer (re-check after main agent adds it). Login-redirect behaviour for incomplete-vs-complete providers still needs a real UI confirmation (auto fallback / cookie wipe needs investigation).",
+  "rca of the issue": "ROOT CAUSE (Trial paywall on fresh provider): newly created service_provider organisations are being routed through the standard trial-expiry gate without a valid trial window, so the Service Desk page renders TrialEndedGate instead of the desk. Fix: when creating an org in routes/service_provider.signup, either set is_trial=false (provider self-serve plan) or seed trial_ends_at sufficiently in the future, OR exclude account_type='service_provider' from the trial-ended gate component. Reproduction: POST /api/service-provider/signup → complete /service-desk/setup wizard → land on /service-desk → see 'Your free trial has ended' card."
+}

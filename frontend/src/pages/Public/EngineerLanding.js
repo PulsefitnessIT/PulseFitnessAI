@@ -241,13 +241,21 @@ export default function EngineerLanding() {
             <h3 className="text-2xl font-extrabold mb-1">Ready to ditch the dispatcher?</h3>
             <p className="text-sm text-blue-100">Join GymAxis as a partner engineer and start taking work in days.</p>
           </div>
-          <div className="flex gap-3 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
             <Link
               to="/partners/engineers/apply"
               className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-3 rounded-xl text-sm hover:bg-blue-50"
               data-testid="engineer-landing-cta-apply-bottom"
             >
               Apply now <ArrowRight size={14} />
+            </Link>
+            {/* Iter 253 — self-serve Service Provider funnel entry point */}
+            <Link
+              to="/service-provider/signup"
+              className="inline-flex items-center gap-2 border border-white/40 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10"
+              data-testid="engineer-landing-cta-provider"
+            >
+              Run a service company? Get your own desk <ArrowRight size={14} />
             </Link>
           </div>
         </div>

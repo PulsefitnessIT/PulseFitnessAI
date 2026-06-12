@@ -200,6 +200,9 @@ const KioskCheckin = lazy(() => import('@/pages/Memberships/KioskCheckin'));
 const StaffingKioskPage = lazy(() => import('@/pages/Staffing/KioskPage'));
 const BrandedBragPage = lazy(() => import('@/pages/Memberships/BrandedBragPage'));
 const ForceChangePasswordPage = lazy(() => import('@/pages/ForceChangePasswordPage'));
+// Iter 253 — self-serve Service Provider signup + setup wizard
+const ServiceProviderSignup = lazy(() => import('@/pages/ServiceProviderSignup'));
+const ServiceProviderSetup = lazy(() => import('@/pages/ServiceProviderSetup'));
 const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const HelpCentrePage = lazy(() => import('@/pages/HelpCentrePage'));
 
@@ -437,6 +440,10 @@ export default function AppRoutes({ user, login }) {
 
       {/* ─── Service Desk (unified — iter 216h53 full merge of Service Ops) ─── */}
       <Route path="/service-desk" element={can(user, 'view_service_desk') ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
+      {/* Iter 253 — self-serve Service Provider funnel: public signup +
+          post-signup setup wizard (branding → SLA → first engineer). */}
+      <Route path="/service-provider/signup" element={<ServiceProviderSignup />} />
+      <Route path="/service-desk/setup" element={user ? <ServiceProviderSetup /> : <Navigate to="/login?next=/service-desk/setup" replace />} />
       {/* Legacy /service-ops/* URLs redirect to the unified hub. Deep links still work — the merged shell defaults to Dashboard. */}
       <Route path="/service-ops" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/scheduler" element={<Navigate to="/service-desk" replace />} />

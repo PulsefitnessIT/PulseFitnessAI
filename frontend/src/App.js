@@ -589,6 +589,17 @@ function App() {
  window.dispatchEvent(new Event('pwa-check-install'));
  };
 
+ // Iter 253 — re-hydrate the user from /auth/me after server-side state
+ // changes mid-session (e.g. the Service Provider setup wizard finishing,
+ // which flips `service_ops_setup_complete` on the org).
+ const refreshUser = async () => {
+ try {
+ const res = await axios.get(`${API}/auth/me`);
+ setUser(res.data);
+ return res.data;
+ } catch { return null; }
+ };
+
  const logout = () => {
  // Iter 227 — clear the HttpOnly session cookie server-side (best-effort);
  // it can't be removed from JS. Navigation below happens regardless.
@@ -682,7 +693,7 @@ function App() {
  }
 
  return (
- <AuthContext.Provider value={{ user, token, login, logout, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite: setActiveSitePersisted, refreshSites }}>
+ <AuthContext.Provider value={{ user, token, login, logout, refreshUser, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite: setActiveSitePersisted, refreshSites }}>
  <div className="App">
  {/* WCAG: Skip to main content link */}
  <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[999] focus:bg-[var(--color-brand-blue)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm">

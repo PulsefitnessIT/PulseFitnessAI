@@ -293,6 +293,9 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "must_change_password": user.get('must_change_password', False),
         "account_type": org.get('account_type', 'full') if org else 'full',
+        # Iter 253 — self-serve Service Provider setup wizard gate. Non-provider
+        # accounts default True so existing flows never see a wizard.
+        "service_ops_setup_complete": (org or {}).get('service_ops_setup_complete', True) if org else True,
         # Iter 220ea·32 — partner engineers have NO org, so account_type
         # resolves to 'full' and they were being routed to the Operations
         # dashboard on login. Surface an explicit flag the frontend uses to
@@ -849,6 +852,9 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         "account_type": org.get('account_type', 'full') if org else 'full',
+        # Iter 253 — self-serve Service Providers: the frontend routes
+        # incomplete setups to /service-desk/setup on login/refresh.
+        "service_ops_setup_complete": (org or {}).get('service_ops_setup_complete', True) if org else True,
         # Iter 220ea·32 — see /auth/login: partner engineers (no org) must
         # route to the Engineer App, not the Operations dashboard.
         "is_partner_engineer": bool(

@@ -33,7 +33,8 @@ const LoginRedirectPage = () => {
       ? '/master-admin'
       : user.is_service_desk
         // Iter 250 — Service-Desk-nominated users go straight to the desk.
-        ? '/service-desk'
+        // Iter 253 — self-serve providers finish the setup wizard first.
+        ? (user.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk')
         : (user.is_partner_engineer || user.account_type === 'partner_engineer' || user.role === 'engineer_partner')
           ? '/partner-engineer'
           : (user.account_type === 'lite' || user.account_type === 'pulse_pro')
