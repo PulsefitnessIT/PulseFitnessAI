@@ -17,13 +17,14 @@ import {
   Building2, GitBranch, LineChart,
   CalendarClock, Receipt, Smartphone, BookOpen,
   Image as ImageIcon, MailPlus, Heart,
-  MapPin, Camera, PoundSterling,
+  MapPin, PoundSterling, Headset,
 } from 'lucide-react';
 
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import AxisOrbit from './AxisOrbit';
 import LiveCustomerAppPreview from './LiveCustomerAppPreview';
+import ServiceDeskPromo from './ServiceDeskPromo';
 import { openTrial } from './TrialSignupModal';
 import { useSeo } from '@/utils/seo';
 
@@ -96,18 +97,20 @@ export const MODULES = (t) => [
   // Iter 220bd — Engineers as 5th module. Maps to /partners/engineers
   // (the partner-engineer landing page). High-vis amber accent
   // distinguishes "partner network" from the four core SaaS modules.
+  // Iter 257 — renamed to "Partners": now covers BOTH individual partner
+  // engineers and service companies running their own Service Desk.
   {
     id: 'engineers',
     icon: HardHat,
     color: '#F59E0B',
     to: '/partners/engineers',
-    name: t('mkt.mod_engineers', 'Engineers'),
-    tagline: t('mkt.m_eng_tag', 'Your partner network on the ground.'),
-    body: t('mkt.m_eng_body', 'A vetted UK-wide engineer network — Uber-style live tracking, mobile-first job dispatch, AI photo triage, signed service reports and a referral revenue share.'),
+    name: t('mkt.mod_partners', 'Partners'),
+    tagline: t('mkt.m_eng_tag', 'Engineers & service suppliers.'),
+    body: t('mkt.m_eng_body', 'A vetted UK-wide engineer network with Uber-style tracking and mobile dispatch — plus a full self-serve Service Desk for service companies: SLA boards, scheduling, invoicing and owner analytics.'),
     features: [
       { icon: MapPin,        label: t('mkt.f_routing', 'Job Routing') },
       { icon: Smartphone,    label: t('mkt.f_mobile', 'Mobile App') },
-      { icon: Camera,        label: t('mkt.f_phototriage', 'AI Photo Triage') },
+      { icon: Headset,       label: t('mkt.f_servicedesk', 'Service Desk') },
       { icon: PoundSterling, label: t('mkt.f_earnings', 'Earnings') },
     ],
   },
@@ -126,6 +129,10 @@ export default function MarketingHome() {
       <ModuleGrid />
       <CustomerExperience />
       <SocialProof />
+      {/* Iter 257 — dark-breakout band for the B2B Service Desk package
+          (service companies), placed above the individual-engineer banner
+          so the two partner audiences read in sequence without mixing. */}
+      <ServiceDeskPromo />
       <EngineerBanner />
       <FinalCta />
     </MarketingShell>
@@ -297,7 +304,7 @@ function SocialProof() {
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.sp_title', 'What the platform delivers on day one')}</h2>
         </div>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Stat value={t('mkt.sp1_v', '5 modules')} label={t('mkt.sp1_l', 'Operations · CRM · Memberships · Marketing · Engineers')} />
+          <Stat value={t('mkt.sp1_v', '5 modules')} label={t('mkt.sp1_l', 'Operations · CRM · Memberships · Marketing · Partners')} />
           <Stat value={t('mkt.sp2_v', 'AI-first')} label={t('mkt.sp2_l', 'Lead scoring, churn prediction, copywriter, fault triage — all built in')} />
           <Stat value={t('mkt.sp3_v', 'Multi-site')} label={t('mkt.sp3_l', 'Head-office onboarding wizard handles unlimited child sites in one pass')} />
           <Stat value={t('mkt.sp4_v', 'GDPR-ready')} label={t('mkt.sp4_l', 'UK GDPR DPA, UK-only data residency, tamper-evident audit log')} />

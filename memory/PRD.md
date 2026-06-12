@@ -1,3 +1,13 @@
+## Iter 257 — Homepage: Service Desk band + "Partners" nav (design-agent guided) ✅ (Jun 12, 2026)
+
+User request: include the Service Desk in the homepage info, consider renaming the Engineers header tab to cover suppliers, beautiful + meaningful screenshots. Design agent consulted (guidelines at /app/design_guidelines.json): dark slate-950 breakout band, orange-500 accent, JSX/Tailwind mockup instead of PNGs, nav → "Partners".
+- New `pages/Marketing/ServiceDeskPromo.js`: dark high-contrast band placed between SocialProof and EngineerBanner — eyebrow "For service companies", split layout, 6 benefit bullets (self-serve signup, 4-step wizard, AI import, analytics, engineer app, invoicing), CTA `gx-sd-signup-cta` → /service-provider/signup, secondary link to /partners/engineers ("Solo engineer?" disambiguation). Right column: hand-built CSS product mockup (`gx-sd-mockup`) — browser chrome, FITFIX LTD sidebar (Cases active in orange), live case board with SLA countdown pills (red/amber/green), floating "Engineer dispatched" toast + "SLA met 94%" chip.
+- Nav: "Engineers" → "Partners" (`mkt.mod_partners`, slug/testid gx-nav-partners; no test referenced the old id). Footer: added "For service suppliers" (`gx-footer-suppliers`) → /service-provider/signup.
+- Homepage 5th module card renamed Partners, tagline "Engineers & service suppliers.", body mentions the Service Desk, feature pill "Service Desk" (Headset icon) replaces AI Photo Triage. SocialProof stat label updated.
+- i18n: ~30 new mkt.* keys added to fr.json + de.json (incl. all mockup labels); en uses inline defaults. FR verified in browser ("Partenaires", full translated band incl. mockup).
+- Fixed during review: marketing.css h2 color override made headline line 1 near-invisible on dark — explicit text-slate-200 span.
+- Verified: desktop screenshot (EN + FR), mobile 390px (single column clean), mobile drawer shows Partners, CTA navigates to signup page, module card content check.
+
 ## Iter 256c+d — "Bring your data" setup step + one-click engineer dispatch ✅ (Jun 12, 2026)
 
 **256c — optional import step in the provider setup wizard:**
