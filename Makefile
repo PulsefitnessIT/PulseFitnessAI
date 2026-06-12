@@ -327,6 +327,7 @@ regression:
 	  tests/test_iter251_pentest_recheck.py \
 	  tests/test_p1c_security.py \
 	  tests/test_iter226_image_lookup.py \
+	  tests/test_iter252_ops_portal_bridge.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

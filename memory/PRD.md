@@ -28018,3 +28018,20 @@ User ask: Pulse Fitness Service Desk users — role nomination; nominated users 
 - Added self-healing seed `bootstrap.seed.seed_test_accounts()` (wired into server.py startup after `_seed_services`): idempotently creates/heals `lee.somers@pulsefitness.com / TempPass123!` as a *regular non-admin* Pulse Pro owner in its own test org. Re-syncs password + clears lockouts each boot (like `seed_master_admin`); reuses existing `utils.auth.hash_password` (no new auth code). Gate: `SEED_TEST_ACCOUNTS=0`.
 - This unblocked the two previously-orphaned suites — `test_p1c_security.py` (13/13) and `test_iter226_image_lookup.py` (7/7) — both now ADDED to the Makefile regression.
 - Full `make regression` 2,508 pass / 0 fail (was 2,482; +26 from the two newly-CI'd suites). Login verified.
+
+---
+## Iter 252 — Operations Portal ⇄ Service Desk reverse bridge (Jun 12, 2026)
+**Context**: building toward selling Service Desk + Engineer App as a self-serve package to service suppliers (ERP optional, self-serve + supported). User's explicit gate: Operations Portal data must keep flowing to/from the Service Desk for customers on the ops portal.
+**Gap found & FIXED**: the FORWARD bridge existed (`routes/issues._mirror_issue_to_svc_case`: ops fault escalated→engineer creates `svc_cases` row stamped `source_meta.issue_id`) but there was NO REVERSE flow — a completed case left the gym's portal fault stuck "open".
+**Built** `utils/svc_ops_bridge.mirror_case_state_to_issue` + hooked into the canonical `utils.svc_state.transition` (fire-and-forget, after comms notify) so EVERY path (engineer complete, desk status change, sign-off, inbound Sicon sync) mirrors back. Keyed purely on `source_meta.issue_id` within the org → GENERIC for any supplier, not just Pulse. Maps: en_route→engineer_assigned_at/first_response_at; on_site→engineer_arrived_at/work_started_at; repaired/awaiting_sign_off→work_completed_at; closed→issue.status='resolved'+resolved_at+resolution_type='engineer'+resolved_by; rejected→timeline note (stays open). Always stamps `linked_case_id`/`linked_case_reference`/`case_status`/`last_case_sync_at` + pushes an issue `timeline` entry (source='service_desk') so the gym sees live progress.
+**Tested**: `tests/test_iter252_ops_portal_bridge.py` 5/5 (en_route/on_site mirror, close resolves fault, non-ops case untouched, wiring) — in Makefile. Full `make regression` 2,513 pass / 0 fail.
+
+### SELLABILITY ASSESSMENT (recorded for roadmap)
+Platform is ~85% there technically. Service Desk (45+ endpoints) + Engineer App (PWA w/ offline, 15 endpoints) + true multi-tenancy + white-label branding + optional ERP (Sicon/Sage degrade gracefully) + Stripe Connect engineer payouts. GAPS to sell as a packaged Service Provider SKU:
+- 🔴 P0 Self-serve Service Provider signup + "Service Ops" pricing/SKU (public signup is gym-membership oriented; suppliers onboarded manually).
+- 🔴 P0 Supplier-side SEAT-based billing ("X engineers = £Y/mo" subscription + Stripe checkout + seat enforcement). Engineer *payouts* exist; supplier *subscription* does not.
+- 🔴 P0 Self-serve setup wizard (case types, SLAs, cover types, picklists, branding, first engineer).
+- 🟡 P1 Generic accounting path (Xero/QuickBooks or no-ERP) — offer Sicon/Sage when present. (Per user: not tied to Sage-Sicon, but offered if they have it.)
+- 🟡 P1 Owner analytics dashboard (SLA %, engineer utilisation, revenue/job) as a sales hook.
+- 🟢 P2 Bulk customer/site + historical-case import for migration.
+NEXT: P0 commercial layer — recommend seat-based billing SKU first, then self-serve signup + setup wizard.

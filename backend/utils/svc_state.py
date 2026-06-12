@@ -157,6 +157,15 @@ async def transition(
         # Never block a state transition on a comms failure.
         pass
 
+    # Iter 252 — reverse Ops-Portal bridge. If this case originated from an
+    # Operations Portal fault, mirror the new state back onto that issue so
+    # the customer's portal shows live progress + resolution. Fire-and-forget.
+    try:
+        from utils.svc_ops_bridge import mirror_case_state_to_issue  # noqa: WPS433
+        await mirror_case_state_to_issue(case=case, target_state=target_state, actor=actor)
+    except Exception:
+        pass
+
     return case
 
 
