@@ -34,6 +34,7 @@ from routes.feature_presets import router as feature_presets_router
 from routes.archive import router as archive_router
 from routes.service_desk_admin import router as service_desk_admin_router
 from routes.service_desk import router as service_desk_router
+from routes.master_admin_access_matrix import router as master_admin_access_matrix_router
 from routes.admin_docs_static import router as admin_docs_static_router
 from routes.trust import router as trust_router
 from routes.security_checks import router as security_checks_router
@@ -115,6 +116,7 @@ def register_admin(api_router: APIRouter) -> None:
         admin_analytics_router, admin_documents_router,
         docs_export_router, onboarding_packets_router, feature_presets_router,
         archive_router, service_desk_admin_router, service_desk_router,
+        master_admin_access_matrix_router,
         admin_docs_static_router, trust_router, security_checks_router, support_admin_router,
         support_escalate_admin_router,
         master_admin_pricing_router, master_admin_billing_router,

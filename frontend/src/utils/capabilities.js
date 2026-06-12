@@ -55,3 +55,17 @@ export const can = (user, capability, { role } = {}) => {
   }
   return !!rule(user, role || user?.role || 'staff');
 };
+
+/** Every declared capability key — consumed by the Access Matrix page. */
+export const listCapabilities = () => Object.keys(RULES);
+
+/** Human labels for the Access Matrix grid (Iter 246). */
+export const CAPABILITY_LABELS = {
+  manage_operations: 'Operations module — full tab set',
+  switch_sites: 'Switch between sites',
+  dismiss_nudges: 'Dismiss dashboard nudges',
+  view_suppliers: 'View suppliers',
+  view_capex: 'View CAPEX planner',
+  manage_fault_templates: 'Manage fault templates',
+  view_service_desk: 'Open the Service Desk hub',
+};

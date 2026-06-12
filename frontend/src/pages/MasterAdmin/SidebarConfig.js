@@ -162,6 +162,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'audit-log',          label: 'Audit log',          icon: ScrollText },
       { id: 'audit-logs',         label: 'Compliance trail',   icon: ScrollText },
       { id: 'login-events',       label: 'Login events',       icon: ShieldAlert },
+      { id: 'access-matrix',      label: 'Access matrix',      icon: BadgeCheck },
       { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert, gymaxisOnly: true },
       { id: 'documents',          label: 'Documents',          icon: FolderArchive },
       // Iter 216h59 — relocated from Overview. Archive is a data-
@@ -220,6 +221,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   // consolidations explicit and reviewable.
   'audit-log':          'settings-compliance',
   'login-events':       'settings-compliance',
+  'access-matrix':      'settings-compliance',
   'client-errors':      'settings-compliance',
   'documents':          'settings-compliance',
   'archive':            'settings-compliance',
@@ -335,6 +337,7 @@ export const sectionDescriptions = {
   'estate-rollup': 'Module entitlements across every org — license audit, trial expiry, orphan accounts.',
   collections: 'Aging buckets, top overdue accounts and dunning telemetry — your AR control room.',
   'login-events': 'Security timeline — every login, MFA challenge, failed attempt and brute-force signal.',
+  'access-matrix': 'Live role × capability grid — evaluated straight from the permission code, so it can never drift.',
   'client-errors': 'Front-end render crashes captured by ModalErrorBoundary — see the stack & component-stack to debug what broke for a user.',
   'audit-log': 'Unified timeline of every platform-wide security event — logins, wallet activity, Auto-Bill charges, retry-ladder escalations. CSV export for SOC 2 / pentest evidence packets.',
   'locked-staff': 'Read-only audit view of every user with a per-site restriction set. Joins org name + site names + last-changed timestamp.',

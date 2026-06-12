@@ -27947,3 +27947,11 @@ Verified live on SVC-00410.
 - Data: `desk@pulsefitness.com` set to `service_desk_brand: "pulse"` (scoped: 44 orgs vs 976 platform-wide).
 - Tested: `tests/test_iter245_desk_brand_scope.py` 6/6 + iter244 10/10 (both in Makefile regression), full `make regression` 2,453 pass / 0 fail, UI screenshot verified badge + scoped list as pulse admin.
 - NOTE: Preview-only — DEPLOY for gymaxisai.com.
+
+---
+## Iter 246 — Master Admin "Access Matrix" page (Jun 12, 2026)
+- New live role × capability grid: Master Admin → Settings & Compliance → **Access matrix** (`?section=access-matrix`).
+- Backend: `routes/master_admin_access_matrix.py` → `GET /api/master-admin/access-matrix` (registered in `route_registry/admin.py`). Evaluates the REAL guard functions (`_is_service_desk`, `_is_pulse_scoped`, `engineers_admin._require_admin`, `require_master_admin`, `require_gymaxis_master_only`) against 8 synthetic personas (staff/engineer/manager/owner/desk-gymaxis/desk-pulse/pulse-master-admin/master-admin) + live user headcounts per persona. Guard: require_master_admin (pulse admins may read; org owners 403). Personas carry `_jwt_mfa_verified` so ENFORCE_MASTER_ADMIN_MFA can't produce false negatives.
+- Frontend: `pages/MasterAdmin/AccessMatrixPanel.js` — two row groups: backend gates (from API) + UI capabilities evaluated in-browser via `can(persona.user, cap)` (new exports `listCapabilities()` + `CAPABILITY_LABELS` in capabilities.js). Green check = allowed, dash = none, blue funnel = data scope (informational rows like Pulse filtering). Sidebar entry in SidebarConfig (`access-matrix` → settings-compliance group), case in MasterAdminPage.
+- Tested: `tests/test_iter246_access_matrix.py` 5/5 incl. a pinned truth table (any accidental privilege change fails CI loudly); in Makefile regression; full `make regression` 2,458 pass / 0 fail; UI screenshot verified (8 columns, 5 gate rows, 7 capability rows).
+- NOTE: Preview-only — DEPLOY for gymaxisai.com.
