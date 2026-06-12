@@ -78,7 +78,7 @@ def _now() -> str:
 
 
 def _of(user: dict) -> dict:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org}
@@ -762,7 +762,7 @@ async def _resolve_card(user: dict) -> tuple[dict, str, dict]:
          "photo_url": 1, "bio": 1, "qualifications": 1},
     ) or {}
     org = await db.organizations.find_one(
-        {"id": user["organization_id"]},
+        {"id": (user.get("organization_id") or user.get("service_org_id"))},
         {"_id": 0, "name": 1, "brand_color": 1, "logo_url": 1},
     ) or {}
     base = (os.environ.get("PUBLIC_APP_URL")

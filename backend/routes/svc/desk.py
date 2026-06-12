@@ -39,7 +39,7 @@ router = APIRouter(prefix="/svc/desk", tags=["Service Ops · Desk"])
 
 
 def _of(user: dict) -> dict:
-    return {"organization_id": user.get("organization_id") or "__none__"}
+    return {"organization_id": (user.get("organization_id") or user.get("service_org_id")) or "__none__"}
 
 
 @router.get("/summary")

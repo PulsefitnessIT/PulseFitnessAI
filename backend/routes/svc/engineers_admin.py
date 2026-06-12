@@ -34,13 +34,18 @@ ALLOWED_ENGINEER_FIELDS = {
 
 
 def _of(user: dict) -> dict:
-    return {"organization_id": user.get("organization_id")}
+    return {"organization_id": (user.get("organization_id") or user.get("service_org_id"))}
 
 
 def _require_admin(user: dict) -> None:
     role = (user.get("role") or "").lower()
-    if role not in ("owner", "manager") and not user.get("is_master_admin"):
-        raise HTTPException(status_code=403, detail="Owners and managers only")
+    if role in ("owner", "manager", "pulse_master_admin"):
+        return
+    # Iter 244 — Service Desk agents and Pulse Master Admins manage the
+    # engineer roster from the Service Desk hub.
+    if user.get("is_master_admin") or user.get("is_pulse_admin") or user.get("is_service_desk"):
+        return
+    raise HTTPException(status_code=403, detail="Owners and managers only")
 
 
 def _public(eng: dict) -> dict:
@@ -78,7 +83,7 @@ async def create_engineer(body: dict, user=Depends(get_current_user)) -> dict:
     if not email or not full_name:
         raise HTTPException(status_code=400, detail="full_name and email are required")
     user_doc = await db.users.find_one(
-        {"email": email, "organization_id": user.get("organization_id")},
+        {"email": email, "organization_id": (user.get("organization_id") or user.get("service_org_id"))},
         {"_id": 0, "id": 1, "full_name": 1, "email": 1},
     )
     if not user_doc:
@@ -95,7 +100,7 @@ async def create_engineer(body: dict, user=Depends(get_current_user)) -> dict:
     now_iso = datetime.now(timezone.utc).isoformat()
     eng = {
         "id": user_doc["id"],
-        "organization_id": user.get("organization_id"),
+        "organization_id": (user.get("organization_id") or user.get("service_org_id")),
         "sage_user_id": (body.get("sage_user_id") or "").strip(),
         "full_name": user_doc["full_name"],
         "email": user_doc["email"],
@@ -360,7 +365,7 @@ async def quote_pdf(case_id: str, user=Depends(get_current_user)):
     quote = await db.svc_quotes.find_one({"case_id": case_id, **of}, {"_id": 0})
     if not quote:
         raise HTTPException(status_code=404, detail="No quote attached to this case")
-    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0}) or {}
+    org = await db.organizations.find_one({"id": (user.get("organization_id") or user.get("service_org_id"))}, {"_id": 0}) or {}
     pdf = _build_quote_pdf(case, quote, org)
     filename = f"quote-{case.get('reference', case_id[:8])}.pdf"
     return Response(

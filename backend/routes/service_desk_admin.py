@@ -155,6 +155,10 @@ async def create_service_desk_user(
         "service_desk_granted_by_email": user["email"],
         "provisioned_by": user.get("email"),
         "organization_id": None,
+        # Iter 244 — Service-Ops surfaces (cases / scheduler / engineers)
+        # scope by organization. Platform-level agents inherit the granting
+        # admin's org as their working service org.
+        "service_org_id": user.get("organization_id") or user.get("service_org_id"),
         "subscription_tier": "none",
         "company_name": "Pulse Fitness" if body.brand == "pulse" else "GymAxis AI",
         "active": True,
@@ -218,16 +222,20 @@ async def grant_service_desk(
         return {"success": True, "already_service_desk": True}
 
     now = datetime.now(timezone.utc).isoformat()
-    await db.users.update_one(
-        {"id": target["id"]},
-        {"$set": {
-            "is_service_desk": True,
-            "service_desk_brand": brand,
-            "service_desk_granted_at": now,
-            "service_desk_granted_by": user["id"],
-            "service_desk_granted_by_email": user["email"],
-        }},
-    )
+    set_fields = {
+        "is_service_desk": True,
+        "service_desk_brand": brand,
+        "service_desk_granted_at": now,
+        "service_desk_granted_by": user["id"],
+        "service_desk_granted_by_email": user["email"],
+    }
+    # Iter 244 — org-less (platform-level) users need a working service org
+    # for the org-scoped Service-Ops surfaces (cases / scheduler / engineers).
+    if not target.get("organization_id") and not target.get("service_org_id"):
+        svc_org = user.get("organization_id") or user.get("service_org_id")
+        if svc_org:
+            set_fields["service_org_id"] = svc_org
+    await db.users.update_one({"id": target["id"]}, {"$set": set_fields})
     await log_desk_action(
         user, "desk.grant", "user", target["id"],
         f"Granted {brand} Service Desk role to {email}",

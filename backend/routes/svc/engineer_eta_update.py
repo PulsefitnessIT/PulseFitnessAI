@@ -40,7 +40,7 @@ def _now() -> str:
 
 
 def _of(user: dict) -> dict:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org}
@@ -367,7 +367,7 @@ async def maybe_renotify_eta_drift(*, user: dict) -> list[dict]:
     ``DRIFT_THRESHOLD_MIN`` since the last sent value. Returns one
     result dict per case touched (empty list when nothing fired).
     """
-    org_id = user.get("organization_id")
+    org_id = (user.get("organization_id") or user.get("service_org_id"))
     if not org_id:
         return []
     cases = await db.svc_cases.find(

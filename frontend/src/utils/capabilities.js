@@ -34,6 +34,10 @@ const RULES = {
   view_capex: managerial,
   // Settings → fault templates (org-scoped create/delete/promote).
   manage_fault_templates: managerial,
+  // Service Desk hub (/service-desk): flagged desk agents, GymAxis master
+  // admins and Pulse master admins (Pulse runs the service operation).
+  view_service_desk: (user) =>
+    !!(user?.is_service_desk || user?.is_master_admin) || isPulseAdmin(user),
 };
 
 /**

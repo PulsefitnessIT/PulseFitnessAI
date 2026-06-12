@@ -23,7 +23,14 @@ from utils.database import db
 
 
 def _is_service_desk(user: dict) -> bool:
-    return bool(user.get("is_service_desk") or user.get("is_master_admin"))
+    # Iter 244 — Pulse Master Admins run the Pulse Fitness service operation,
+    # so they get Service Desk access alongside flagged desk agents.
+    return bool(
+        user.get("is_service_desk")
+        or user.get("is_master_admin")
+        or user.get("is_pulse_admin")
+        or user.get("role") == "pulse_master_admin"
+    )
 
 
 async def require_service_desk(user: dict = Depends(get_current_user)) -> dict:
@@ -55,7 +62,12 @@ async def log_desk_action(
         "id": str(uuid.uuid4()),
         "actor_id": actor.get("id"),
         "actor_email": actor.get("email"),
-        "actor_role": "master_admin" if actor.get("is_master_admin") else "service_desk",
+        "actor_role": (
+            "master_admin" if actor.get("is_master_admin")
+            else "pulse_master_admin"
+            if (actor.get("is_pulse_admin") or actor.get("role") == "pulse_master_admin")
+            else "service_desk"
+        ),
         "action": action,
         "target_type": target_type,
         "target_id": target_id,

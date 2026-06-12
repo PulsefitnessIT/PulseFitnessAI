@@ -106,7 +106,7 @@ def _now_iso() -> str:
 
 
 def _of(user: dict) -> str:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return org

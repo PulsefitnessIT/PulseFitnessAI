@@ -57,7 +57,7 @@ def _new_short() -> str:
 
 
 async def _get_invoice(invoice_id: str, user: dict) -> dict:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     inv = await db.svc_engineer_invoices.find_one(
@@ -344,7 +344,7 @@ async def test_mark_paid(invoice_id: str, user=Depends(get_current_user)):
     if not (user.get("is_master_admin") or user.get("is_pulse_admin")):
         raise HTTPException(403, "Admin only")
     inv = await db.svc_engineer_invoices.find_one(
-        {"id": invoice_id, "organization_id": user.get("organization_id")},
+        {"id": invoice_id, "organization_id": (user.get("organization_id") or user.get("service_org_id"))},
         {"_id": 0},
     )
     if not inv:

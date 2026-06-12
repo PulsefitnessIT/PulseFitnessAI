@@ -34,7 +34,7 @@ router = APIRouter()
 
 
 def _of(user: dict) -> dict:
-    return {"organization_id": user.get("organization_id")}
+    return {"organization_id": (user.get("organization_id") or user.get("service_org_id"))}
 
 
 def _hex(value: str | None, fallback: str) -> str:
@@ -1029,7 +1029,7 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
         subject=subject,
         html=html,
         attachments=attachments,
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         category="service",
     )
     if not ok:
@@ -1037,7 +1037,7 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
 
     now_iso = datetime.now(timezone.utc).isoformat()
     await db.svc_cases.update_one(
-        {"id": case_id, "organization_id": user.get("organization_id")},
+        {"id": case_id, "organization_id": (user.get("organization_id") or user.get("service_org_id"))},
         {"$set": {
             "service_report_sent_at": now_iso,
             "service_report_sent_to": to,
@@ -1049,7 +1049,7 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
         from utils.svc_state import append_event
         await append_event(
             case_id=case_id,
-            organization_id=user.get("organization_id"),
+            organization_id=(user.get("organization_id") or user.get("service_org_id")),
             event_type="note",
             actor=user,
             body=f"Service report emailed to {to}",
@@ -1076,7 +1076,7 @@ async def send_feedback_request(
     data: dict | None = None,
     user=Depends(get_current_user),
 ):
-    of_clause = {"organization_id": user.get("organization_id")}
+    of_clause = {"organization_id": (user.get("organization_id") or user.get("service_org_id"))}
     case = await db.svc_cases.find_one({"id": case_id, **of_clause})
     if not case:
         raise HTTPException(404, "Case not found")
@@ -1130,7 +1130,7 @@ async def send_feedback_request(
     )
     ok = await send_email(
         to=to, subject=subject, html=html,
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         category="service",
     )
     if not ok:
@@ -1149,7 +1149,7 @@ async def send_feedback_request(
         from utils.svc_state import append_event
         await append_event(
             case_id=case_id,
-            organization_id=user.get("organization_id"),
+            organization_id=(user.get("organization_id") or user.get("service_org_id")),
             event_type="note",
             actor=user,
             body=f"Feedback request emailed to {to}",

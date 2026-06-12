@@ -211,6 +211,9 @@ async def create_pulse_admin(body: PulseAdminCreate, user: dict = Depends(get_cu
         "temp_password_expires_at": expires_at,
         "provisioned_by": user.get("email"),
         "organization_id": None,  # Pulse admins are platform-level, not org-scoped
+        # Iter 244 — working org for Service-Ops surfaces (Service Desk cases,
+        # scheduler, engineers). Inherits the provisioning master admin's org.
+        "service_org_id": user.get("organization_id") or user.get("service_org_id"),
         "subscription_tier": "none",
         "company_name": "Pulse Fitness",
         "active": True,

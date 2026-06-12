@@ -205,7 +205,8 @@ const AdminSidebar = ({
  >
  <Wrench size={16} className="text-blue-500" /> Pulse Fitness Portal
  </button>
- {!isPulseAdmin && (
+ {/* Iter 244 — Service Desk is the Sicon case hub for Pulse Fitness;
+     visible to Pulse Master Admins as well as GymAxis Master Admin. */}
  <button
  onClick={() => { window.location.href = '/service-desk'; }}
  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
@@ -213,7 +214,6 @@ const AdminSidebar = ({
  >
  <HeadphonesIcon size={16} className="text-orange-500" /> Service Desk
  </button>
- )}
  {/* Iter 216h256 — Engineer App switch lets Master Admin demo the
      mobile-first engineer surface to prospective field engineers
      without logging in as an engineer. */}

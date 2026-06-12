@@ -43,7 +43,7 @@ def _now() -> str:
 
 
 def _of(user: dict) -> dict:
-    return {"organization_id": user.get("organization_id")}
+    return {"organization_id": (user.get("organization_id") or user.get("service_org_id"))}
 
 
 def _require_admin(user: dict) -> None:
@@ -92,7 +92,7 @@ async def _resolve_template(org_id: str) -> dict:
 
 @router.get("/svc/safety/template")
 async def get_template(user=Depends(get_current_user)):
-    tpl = await _resolve_template(user.get("organization_id"))
+    tpl = await _resolve_template((user.get("organization_id") or user.get("service_org_id")))
     tpl.pop("_id", None)
     return tpl
 
@@ -122,7 +122,7 @@ async def update_template(body: dict, user=Depends(get_current_user)):
         })
     if not cleaned:
         raise HTTPException(400, "At least one valid checklist item is required")
-    org_id = user.get("organization_id")
+    org_id = (user.get("organization_id") or user.get("service_org_id"))
     now = _now()
     await db.svc_safety_templates.update_one(
         {"organization_id": org_id, "active": True},
@@ -313,7 +313,7 @@ async def export_csv(user=Depends(get_current_user)):
     """Download the org's active checklist as CSV (label, required, id)."""
     import csv
     import io
-    tpl = await _resolve_template(user.get("organization_id"))
+    tpl = await _resolve_template((user.get("organization_id") or user.get("service_org_id")))
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["label", "required", "id"])
@@ -376,7 +376,7 @@ async def import_csv(
     if not imported:
         raise HTTPException(400, "No valid rows found. Each row needs a non-empty `label`.")
 
-    org_id = user.get("organization_id")
+    org_id = (user.get("organization_id") or user.get("service_org_id"))
     existing = await _resolve_template(org_id)
     if replace:
         items = imported

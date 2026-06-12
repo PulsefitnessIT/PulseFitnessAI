@@ -63,7 +63,7 @@ def _normalise_priority(p: str) -> str:
 
 
 async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
-    org_id = user.get("organization_id")
+    org_id = (user.get("organization_id") or user.get("service_org_id"))
     if not org_id:
         raise HTTPException(403, "Organization context required")
 

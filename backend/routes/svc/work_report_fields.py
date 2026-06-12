@@ -200,7 +200,7 @@ def _now() -> str:
 
 
 def _of(user: dict) -> dict:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org}
@@ -819,7 +819,7 @@ async def preview_shared_fields(token: str, user=Depends(get_current_user)):
         "field_count": share.get("field_count"),
         "fields": share.get("fields") or [],
         "expires_at": share.get("expires_at"),
-        "is_own_org": share.get("organization_id") == user.get("organization_id"),
+        "is_own_org": share.get("organization_id") == (user.get("organization_id") or user.get("service_org_id")),
     }
 
 

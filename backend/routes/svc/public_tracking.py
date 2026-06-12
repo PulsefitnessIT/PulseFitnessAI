@@ -37,7 +37,7 @@ router = APIRouter()
 
 
 def _of(user: dict) -> dict:
-    return {"organization_id": user.get("organization_id")}
+    return {"organization_id": (user.get("organization_id") or user.get("service_org_id"))}
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:

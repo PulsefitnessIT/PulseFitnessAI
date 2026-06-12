@@ -37,7 +37,7 @@ def _now() -> str:
 
 
 def _scope(user: dict) -> str:
-    return user.get("organization_id") or f"eng:{user['id']}"
+    return (user.get("organization_id") or user.get("service_org_id")) or f"eng:{user['id']}"
 
 
 async def _fetch_logo_bytes(url: str | None) -> bytes | None:

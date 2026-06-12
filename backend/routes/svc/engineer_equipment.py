@@ -104,7 +104,7 @@ def _of(user: dict) -> dict:
     """Return the ``{organization_id: …}`` filter, 403'ing if missing.
     Mirrors ``per_machine_reports._of`` so tenant scoping is identical
     across engineer endpoints."""
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org}

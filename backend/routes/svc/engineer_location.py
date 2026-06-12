@@ -46,7 +46,7 @@ async def post_location(body: dict, user=Depends(get_current_user)):
     now = datetime.now(timezone.utc).isoformat()
     doc = {
         "engineer_id": user["id"],
-        "organization_id": user.get("organization_id"),
+        "organization_id": (user.get("organization_id") or user.get("service_org_id")),
         "lat": lat,
         "lng": lng,
         "accuracy_m": accuracy,

@@ -8,8 +8,8 @@
  * Lee's 8-tab spec:
  *   Dashboard | Cases | Scheduler | Customers | Equipment | Parts | Billing | Engineers
  *
- * Auth: master_admin or is_service_desk for now. Tenant owners get
- * access in a later iteration when this becomes Pulse-facing.
+ * Auth: capability `view_service_desk` — master_admin, is_service_desk,
+ * or Pulse Master Admin (Pulse Fitness runs the service operation).
  *
  * Embedded ServiceOps pages: each ServiceOps page renders inside
  * <ServiceOpsShell>. We wrap them with <ServiceOpsEmbeddedContext.Provider>
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { can, isPulseAdmin } from '@/utils/capabilities';
 
 import DeskSummary from './ServiceDesk/DeskSummary';
 import DeskCustomers from './ServiceDesk/DeskCustomers';
@@ -82,7 +83,7 @@ export default function ServiceDeskPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (!user?.is_service_desk && !user?.is_master_admin) {
+    if (!can(user, 'view_service_desk')) {
       navigate('/login', { replace: true });
     }
   }, [user, navigate]);
@@ -248,8 +249,11 @@ export default function ServiceDeskPage() {
             {user?.is_master_admin && (
               <Badge variant="outline" className="mt-1 text-[9px] border-slate-200">Master Admin</Badge>
             )}
+            {!user?.is_master_admin && isPulseAdmin(user) && (
+              <Badge variant="outline" className="mt-1 text-[9px] border-slate-200" data-testid="desk-pulse-admin-badge">Pulse Master Admin</Badge>
+            )}
           </div>
-          {user?.is_master_admin && (
+          {(user?.is_master_admin || isPulseAdmin(user)) && (
             <Button
               variant="ghost" size="sm"
               onClick={() => navigate('/master-admin')}

@@ -192,7 +192,7 @@ async def _ensure_customer_machines_attached(case: dict, of: dict) -> None:
 
 
 def _of(user: dict) -> dict:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org}

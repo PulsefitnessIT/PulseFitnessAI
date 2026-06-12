@@ -96,7 +96,7 @@ async def fire_ppm_due_reminders(
     if user.get("is_master_admin") and organization_id:
         flt["organization_id"] = organization_id
     elif not user.get("is_master_admin"):
-        flt["organization_id"] = user["organization_id"]
+        flt["organization_id"] = (user.get("organization_id") or user.get("service_org_id"))
 
     cases = await db.svc_cases.find(
         flt,

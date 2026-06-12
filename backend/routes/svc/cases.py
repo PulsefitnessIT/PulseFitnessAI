@@ -93,7 +93,7 @@ def _now() -> str:
 
 
 def _of(user: dict) -> dict:
-    org = user.get("organization_id")
+    org = (user.get("organization_id") or user.get("service_org_id"))
     if not org:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org}
@@ -255,7 +255,7 @@ async def update_case(case_id: str, data: dict, user=Depends(get_current_user)):
     ]
     if changes:
         await append_event(
-            case_id=case_id, organization_id=user["organization_id"],
+            case_id=case_id, organization_id=(user.get("organization_id") or user.get("service_org_id")),
             event_type="edit", actor=user, body=f"{len(changes)} field(s) updated",
             extra={"changes": changes},
         )
@@ -273,7 +273,7 @@ async def transition_case(case_id: str, data: dict, user=Depends(get_current_use
     try:
         case = await state_transition(
             case_id=case_id,
-            organization_id=user["organization_id"],
+            organization_id=(user.get("organization_id") or user.get("service_org_id")),
             target_state=target,
             actor=user,
             reason=reason,
@@ -329,7 +329,7 @@ async def add_note(case_id: str, data: dict, user=Depends(get_current_user)):
     if not case:
         raise HTTPException(404, "Case not found")
     event = await append_event(
-        case_id=case_id, organization_id=user["organization_id"],
+        case_id=case_id, organization_id=(user.get("organization_id") or user.get("service_org_id")),
         event_type="note", actor=user, body=body,
         extra={"visibility": data.get("visibility", "internal")},
     )

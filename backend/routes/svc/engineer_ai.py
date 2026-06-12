@@ -191,7 +191,7 @@ async def transcribe(
     text = await _transcribe_audio(data, audio.filename or "audio.webm")
     latency_ms = int((time.perf_counter() - start) * 1000)
     await _log_call(
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         kind="engineer_dictation_stt",
         prompt_chars=len(data), response_chars=len(text),
         latency_ms=latency_ms, ok=True,
@@ -212,7 +212,7 @@ async def rewrite_summary(body: RewriteIn, user=Depends(get_current_user)):
     polished = await _rewrite_with_gpt(body.transcript, body.hint)
     latency_ms = int((time.perf_counter() - start) * 1000)
     await _log_call(
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         kind="engineer_dictation_rewrite",
         prompt_chars=len(body.transcript), response_chars=len(polished),
         latency_ms=latency_ms, ok=True,
@@ -241,7 +241,7 @@ async def dictate_summary(
     polished = await _rewrite_with_gpt(transcript, hint)
     latency_ms = int((time.perf_counter() - start) * 1000)
     await _log_call(
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         kind="engineer_dictation_full",
         prompt_chars=len(data), response_chars=len(polished),
         latency_ms=latency_ms, ok=True,
@@ -300,7 +300,7 @@ async def voice_to_job(
 
     latency_ms = int((time.perf_counter() - start) * 1000)
     await _log_call(
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         kind="engineer_voice_to_job",
         prompt_chars=len(data), response_chars=len(transcript),
         latency_ms=latency_ms, ok=True,

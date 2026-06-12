@@ -54,7 +54,7 @@ def _now() -> str:
 
 
 def _of(user: dict) -> dict:
-    org_id = user.get("organization_id")
+    org_id = (user.get("organization_id") or user.get("service_org_id"))
     if not org_id:
         raise HTTPException(403, "Organization context required")
     return {"organization_id": org_id}
@@ -65,7 +65,7 @@ async def _org_loc(user: dict) -> dict:
     Defaults to UK/GBP/VAT when the org is unset or not found."""
     from utils.localization import org_localization
     org = await db.organizations.find_one(
-        {"id": user.get("organization_id")},
+        {"id": (user.get("organization_id") or user.get("service_org_id"))},
         {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
     )
     return org_localization(org)
@@ -102,7 +102,7 @@ def _compute_totals(lines: list[dict], vat_rate: float, discount_pct: float = 0)
 
 
 async def _engineer_profile(user: dict) -> dict:
-    org_id = user.get("organization_id")
+    org_id = (user.get("organization_id") or user.get("service_org_id"))
     eng = await db.svc_engineers.find_one(
         {"organization_id": org_id, "id": user["id"]}, {"_id": 0},
     )
@@ -233,7 +233,7 @@ async def create_quote(
     quote = {
         "id": str(uuid.uuid4()),
         "quote_number": _new_quote_number(),
-        "organization_id": user.get("organization_id"),
+        "organization_id": (user.get("organization_id") or user.get("service_org_id")),
         "engineer_id": user.get("id"),
         "engineer_name": engineer.get("full_name"),
         "engineer_email": engineer.get("email"),
@@ -280,7 +280,7 @@ async def create_quote(
     try:
         from routes.svc.engineer_customers import touch_last_job
         await touch_last_job(
-            user.get("organization_id"),
+            (user.get("organization_id") or user.get("service_org_id")),
             email=quote.get("customer_email"),
             phone=quote.get("customer_phone"),
         )
@@ -435,7 +435,7 @@ async def send_quote(
     ok = await send_email(
         to=to_addr, subject=subject, html=html,
         attachments=[attachment],
-        organization_id=user.get("organization_id"),
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
         category="service",
     )
     if not ok:
@@ -520,7 +520,7 @@ async def convert_to_job(quote_id: str, user=Depends(get_current_user)):
     reference = f"SC-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
     case = {
         "id": case_id, "reference": reference,
-        "organization_id": user.get("organization_id"),
+        "organization_id": (user.get("organization_id") or user.get("service_org_id")),
         "title": (quote.get("description_of_work") or "Follow-up from quote")[:120],
         "status": "assigned",
         "priority": "p3",

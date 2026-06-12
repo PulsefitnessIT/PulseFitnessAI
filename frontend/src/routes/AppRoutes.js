@@ -16,6 +16,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { moduleHomePath } from '@/utils/moduleHome';
+import { can } from '@/utils/capabilities';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -435,7 +436,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/gym-floor" element={<MODForbidden><GymFloorPage /></MODForbidden>} />
 
       {/* ─── Service Desk (unified — iter 216h53 full merge of Service Ops) ─── */}
-      <Route path="/service-desk" element={(user?.is_master_admin || user?.is_service_desk) ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
+      <Route path="/service-desk" element={can(user, 'view_service_desk') ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
       {/* Legacy /service-ops/* URLs redirect to the unified hub. Deep links still work — the merged shell defaults to Dashboard. */}
       <Route path="/service-ops" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/scheduler" element={<Navigate to="/service-desk" replace />} />

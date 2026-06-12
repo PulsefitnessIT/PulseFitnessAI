@@ -215,6 +215,48 @@ async def seed_services() -> None:
             logger.info("Memberships demo seeded")
         except Exception as e:  # pragma: no cover
             logger.warning("Memberships seed failed: %s", e)
+    try:
+        await backfill_service_org_ids()
+    except Exception as e:  # pragma: no cover
+        logger.warning("Service-org backfill failed: %s", e)
 
 
-__all__ = ["seed_master_admin", "seed_services"]
+async def backfill_service_org_ids() -> None:
+    """Iter 244 — Service Desk for Pulse Fitness.
+
+    Platform-level Service Desk agents and Pulse Master Admins are stored
+    with ``organization_id: None``, but the Service-Ops surfaces (cases,
+    scheduler, engineers…) scope every query by organization. Org-less
+    desk/pulse users therefore need a ``service_org_id`` — the organization
+    whose service operation they run (defaults to the master admin's org,
+    where the Sicon case data lives). Idempotent: only fills users that
+    don't already have one.
+    """
+    master = await db.users.find_one(
+        {"is_master_admin": True, "organization_id": {"$nin": [None, ""]}},
+        {"_id": 0, "organization_id": 1},
+        sort=[("created_at", 1)],
+    )
+    if not master:
+        return
+    service_org = master["organization_id"]
+    res = await db.users.update_many(
+        {
+            "organization_id": {"$in": [None, ""]},
+            "service_org_id": {"$in": [None, ""]},
+            "$or": [
+                {"is_service_desk": True},
+                {"is_pulse_admin": True},
+                {"role": {"$in": ["service_desk", "pulse_master_admin"]}},
+            ],
+        },
+        {"$set": {"service_org_id": service_org}},
+    )
+    if res.modified_count:
+        logger.info(
+            "Backfilled service_org_id for %s org-less desk/pulse users → %s",
+            res.modified_count, service_org,
+        )
+
+
+__all__ = ["seed_master_admin", "seed_services", "backfill_service_org_ids"]
