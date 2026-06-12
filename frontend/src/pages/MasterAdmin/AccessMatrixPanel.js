@@ -70,6 +70,14 @@ export default function AccessMatrixPanel() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
             <ShieldCheck size={22} className="text-emerald-500" /> Access matrix
+            {data?.scoped_to_pulse && (
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                data-testid="access-matrix-pulse-scope-badge"
+              >
+                Pulse roles &amp; organisations only
+              </span>
+            )}
           </h1>
           <p className="text-sm text-slate-500 mt-1 max-w-2xl">
             Who can see and do what — evaluated <strong>live from the permission code</strong> (backend

@@ -59,6 +59,13 @@ _COUNT_QUERIES = {
     "master_admin": {"is_master_admin": True},
 }
 
+# Iter 246b — Pulse-scoped view: personas/gates that are GymAxis-internal
+# are hidden from Pulse Master Admins, and org-role headcounts only count
+# users inside Pulse-visible organisations.
+_GYMAXIS_ONLY_PERSONAS = {"desk_gymaxis", "master_admin"}
+_GYMAXIS_ONLY_GATES = {"gymaxis_platform_controls"}
+_ORG_ROLE_PERSONAS = {"staff", "engineer", "manager", "owner"}
+
 
 def _gates() -> list[dict]:
     """The real backend guard functions, imported lazily to dodge any
@@ -110,9 +117,24 @@ async def access_matrix(user: dict = Depends(get_current_user)) -> dict:
     from routes.master_admin import require_master_admin
     require_master_admin(user)
 
+    # Iter 246b — Pulse Master Admins see only Pulse roles & organisations:
+    # GymAxis-internal personas/gates are dropped and org-role counts are
+    # restricted to Pulse-visible orgs (same scope as the Service Desk).
+    from utils.service_desk_auth import desk_scope_org_ids
+    scope = await desk_scope_org_ids(user)
+
+    personas = PERSONAS
+    gates = _gates()
+    if scope is not None:
+        personas = [p for p in PERSONAS if p["key"] not in _GYMAXIS_ONLY_PERSONAS]
+        gates = [g for g in gates if g["key"] not in _GYMAXIS_ONLY_GATES]
+
     counts: dict[str, int] = {}
-    for key, q in _COUNT_QUERIES.items():
-        counts[key] = await db.users.count_documents(q)
+    for p in personas:
+        q = dict(_COUNT_QUERIES[p["key"]])
+        if scope is not None and p["key"] in _ORG_ROLE_PERSONAS:
+            q["organization_id"] = {"$in": scope}
+        counts[p["key"]] = await db.users.count_documents(q)
 
     gates_out = [
         {
@@ -120,15 +142,16 @@ async def access_matrix(user: dict = Depends(get_current_user)) -> dict:
             "label": g["label"],
             "source": g["source"],
             "informational": g.get("informational", False),
-            "access": {p["key"]: _passes(g["fn"], p["user"]) for p in PERSONAS},
+            "access": {p["key"]: _passes(g["fn"], p["user"]) for p in personas},
         }
-        for g in _gates()
+        for g in gates
     ]
     return {
         "personas": [
             {"key": p["key"], "label": p["label"], "user": p["user"],
              "count": counts.get(p["key"], 0)}
-            for p in PERSONAS
+            for p in personas
         ],
         "gates": gates_out,
+        "scoped_to_pulse": scope is not None,
     }

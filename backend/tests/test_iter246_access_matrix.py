@@ -88,6 +88,33 @@ def test_access_matrix_auth():
     assert r.status_code == 403, r.status_code
 
 
+def test_pulse_admin_view_is_scoped_to_pulse():
+    """Iter 246b — Pulse Master Admins see only Pulse roles & orgs:
+    GymAxis-internal personas/gates hidden, org-role headcounts limited
+    to Pulse-visible organisations."""
+    pulse = _matrix(_login(*PULSE_ADMIN))
+    assert pulse["scoped_to_pulse"] is True
+    keys = [p["key"] for p in pulse["personas"]]
+    assert "master_admin" not in keys and "desk_gymaxis" not in keys
+    assert keys == ["staff", "engineer", "manager", "owner",
+                    "desk_pulse", "pulse_master_admin"]
+    assert "gymaxis_platform_controls" not in [g["key"] for g in pulse["gates"]]
+    # gate access maps only carry the visible personas
+    for g in pulse["gates"]:
+        assert set(g["access"].keys()) == set(keys)
+
+    master = _matrix(_login(*MASTER_ADMIN))
+    assert master["scoped_to_pulse"] is False
+    m_counts = {p["key"]: p["count"] for p in master["personas"]}
+    p_counts = {p["key"]: p["count"] for p in pulse["personas"]}
+    for role in ("staff", "manager", "owner"):
+        assert p_counts[role] <= m_counts[role], (
+            f"{role} count must be scoped to Pulse-visible orgs"
+        )
+    # 603 platform owners vs Pulse-visible orgs only — must shrink.
+    assert p_counts["owner"] < m_counts["owner"]
+
+
 def test_frontend_wiring():
     caps = open("/app/frontend/src/utils/capabilities.js", encoding="utf-8").read()
     assert "export const listCapabilities" in caps

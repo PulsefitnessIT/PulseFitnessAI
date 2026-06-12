@@ -27955,3 +27955,8 @@ Verified live on SVC-00410.
 - Frontend: `pages/MasterAdmin/AccessMatrixPanel.js` — two row groups: backend gates (from API) + UI capabilities evaluated in-browser via `can(persona.user, cap)` (new exports `listCapabilities()` + `CAPABILITY_LABELS` in capabilities.js). Green check = allowed, dash = none, blue funnel = data scope (informational rows like Pulse filtering). Sidebar entry in SidebarConfig (`access-matrix` → settings-compliance group), case in MasterAdminPage.
 - Tested: `tests/test_iter246_access_matrix.py` 5/5 incl. a pinned truth table (any accidental privilege change fails CI loudly); in Makefile regression; full `make regression` 2,458 pass / 0 fail; UI screenshot verified (8 columns, 5 gate rows, 7 capability rows).
 - NOTE: Preview-only — DEPLOY for gymaxisai.com.
+
+---
+## Iter 246b — Access Matrix scoped for Pulse Master Admins (Jun 12, 2026)
+- Per user question: Access Matrix IS available to Pulse Master Admins, and now shows ONLY Pulse roles & organisations for them: GymAxis-internal personas (`desk_gymaxis`, `master_admin`) and the `gymaxis_platform_controls` gate are hidden; org-role headcounts (staff/engineer/manager/owner) are restricted to Pulse-visible orgs via `desk_scope_org_ids`. Response carries `scoped_to_pulse`; UI shows a "Pulse roles & organisations only" badge (`access-matrix-pulse-scope-badge`). GymAxis master admin keeps the full platform view.
+- Tested: `test_iter246_access_matrix.py` now 6/6 (new scoped-view test pins persona list + count shrink), iter244+245 suites still green. UI verified by screenshot as pulse.admin.test (6 columns, scoped counts e.g. 18 owners vs 603 platform-wide).
