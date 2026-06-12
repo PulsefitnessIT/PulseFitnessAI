@@ -1,3 +1,11 @@
+## Iter 256 — Provider-native desk Customers tab ✅ (Jun 12, 2026)
+
+**Self-serve providers now manage their FIELD-SERVICE customer book in the desk Customers tab** (instead of the platform-org list, which only showed their own org).
+- Backend `routes/svc/desk_customers.py` → `/api/service-desk/provider-customers` (require_service_desk, org-scoped): list/search (name/email/phone/site/postcode), detail with recent cases + case_count (matched by customer email or exact name via safe_regex_exact — links iter-255 imported history), create/patch/delete. Reuses Engineer Lite CRM `CustomerIn`/`CustomerPatch`/`_to_doc` (the Engineer App's own API is 402-gated by require_engineer_app_access which desk owners fail — hence this surface). All mutations desk-audit-logged.
+- Frontend `pages/ServiceDesk/DeskProviderCustomers.js`: list with live search + Add form, row click → detail (info grid incl. source/notes, Edit inline form, Delete with confirm, Cases card with status pills). Wired in ServiceDeskPage: `case 'customers'` renders this when `user.account_type === 'service_provider'`; platform/Pulse desks keep DeskCustomers/DeskCustomerDetail unchanged (regression-verified: admin still sees 1,046 orgs).
+- testids: pc-list, pc-search, pc-add, pc-form-{field}, pc-form-save, pc-row-{id}, pc-detail, pc-detail-name, pc-edit, pc-delete, pc-back, pc-cases, pc-case-{ref}, pc-total, pc-empty.
+- Tests: `tests/test_iter256_provider_customers.py` (4/4, in Makefile). Full suite iters 253–256: 18/18. UI verified via playwright both as provider (list→search→detail with J-1001) and master admin (platform view intact).
+
 ## Iter 255 — Migration import wizard (Service Desk › Insights › Import data) ✅ (Jun 12, 2026)
 
 **Bulk customer/site + historical-case import for suppliers migrating onto the platform.** User choices: rule-based mapping + AI fallback, 10,000-row cap.

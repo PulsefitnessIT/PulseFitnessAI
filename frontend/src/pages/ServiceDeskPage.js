@@ -37,6 +37,8 @@ import DeskSuppliers from './ServiceDesk/DeskSuppliers';
 const DeskAnalytics = lazy(() => import('./ServiceDesk/DeskAnalytics'));
 // Iter 255 — Migration import wizard (customers/sites + historical cases)
 const DeskImports = lazy(() => import('./ServiceDesk/DeskImports'));
+// Iter 256 — Provider-native Customers tab (field-service customer book)
+const DeskProviderCustomers = lazy(() => import('./ServiceDesk/DeskProviderCustomers'));
 import { ServiceOpsEmbeddedContext } from './ServiceOps/ServiceOpsShell';
 
 // Lazy-load the heavier Service Ops pages — keeps the initial shell light.
@@ -107,6 +109,11 @@ export default function ServiceDeskPage() {
       case 'dashboard':
         return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} />;
       case 'customers':
+        // Iter 256 — self-serve providers manage their field-service
+        // customer book; the platform/Pulse desk manages customer orgs.
+        if (user?.account_type === 'service_provider') {
+          return <Suspense fallback={<EmbedFallback />}><DeskProviderCustomers API={API} /></Suspense>;
+        }
         return selectedOrgId
           ? <DeskCustomerDetail API={API} orgId={selectedOrgId} onBack={() => setSelectedOrgId(null)} />
           : <DeskCustomers API={API} onSelect={handleSelectCustomer} />;
