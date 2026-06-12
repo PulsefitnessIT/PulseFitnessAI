@@ -28,7 +28,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field
@@ -105,14 +105,24 @@ async def signup(body: ProviderSignup, request: Request, response: Response) -> 
 
     org_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())
-    now = _now()
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
 
+    # 14-day B2B trial. Without a real trial window the org computes as
+    # instantly expired and the desk renders the upgrade paywall (iter 253).
+    trial_days = int(os.environ.get("SP_TRIAL_DAYS", "14"))
     await db.organizations.insert_one({
         "id": org_id,
         "name": body.company_name.strip(),
         "account_type": "service_provider",
-        "subscription_tier": "trial",
+        "subscription_tier": "pro",
         "is_trial": True,
+        "trial_started_at": now,
+        "trial_ends_at": (now_dt + timedelta(days=trial_days)).isoformat(),
+        "trial_suspends_at": (now_dt + timedelta(days=trial_days + 30)).isoformat(),
+        "trial_duration_days": trial_days,
+        "trial_status": "active",
+        "trial_source": "service_provider_signup",
         "service_ops": True,
         "service_ops_setup_complete": False,
         "service_desk_brand": _brand_slug(body.company_name),

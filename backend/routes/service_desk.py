@@ -11,7 +11,7 @@ from utils.auth import create_token
 from utils.database import db
 from utils.service_desk_auth import (
     require_service_desk, log_desk_action,
-    desk_scope_org_ids, assert_org_in_desk_scope,
+    desk_scope_org_ids, assert_org_in_desk_scope, desk_provider_org_id,
 )
 
 router = APIRouter(prefix="/service-desk", tags=["Service Desk"])
@@ -22,6 +22,28 @@ router = APIRouter(prefix="/service-desk", tags=["Service Desk"])
 @router.get("/summary")
 async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
     """Top-level counters shown on the Service Desk landing page."""
+    since_7d = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    # Iter 253 — self-serve providers get THEIR desk's numbers (cases,
+    # engineers, customers), never the platform customer-org estate.
+    provider_org = await desk_provider_org_id(user)
+    if provider_org:
+        from utils.svc_state import OPEN_STATES
+        return {
+            "desk_kind": "provider",
+            "provider": {
+                "open_cases": await db.svc_cases.count_documents(
+                    {"organization_id": provider_org, "status": {"$in": list(OPEN_STATES)}}),
+                "total_cases": await db.svc_cases.count_documents(
+                    {"organization_id": provider_org}),
+                "engineers": await db.svc_engineers.count_documents(
+                    {"organization_id": provider_org, "active": True}),
+                "customers": await db.svc_engineer_customers.count_documents(
+                    {"organization_id": provider_org}),
+            },
+            "recent_actions_7d": await db.service_desk_audit_log.count_documents(
+                {"actor_org_id": provider_org, "timestamp": {"$gte": since_7d}}),
+            "scoped_to_pulse": False,
+        }
     scope = await desk_scope_org_ids(user)
     base: dict = {"id": {"$in": scope}} if scope is not None else {}
     orgs_total = await db.organizations.count_documents(base)
@@ -29,9 +51,10 @@ async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
     orgs_pending = await db.organizations.count_documents({**base, "status": "pending_invite"})
     orgs_archived = await db.organizations.count_documents({**base, "status": "archived"})
     recent_actions = await db.service_desk_audit_log.count_documents({
-        "timestamp": {"$gte": (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()},
+        "timestamp": {"$gte": since_7d},
     })
     return {
+        "desk_kind": "platform",
         "organizations": {
             "total": orgs_total, "active": orgs_active,
             "pending_invite": orgs_pending, "archived": orgs_archived,
@@ -599,6 +622,10 @@ async def list_audit_log(
     limit = safe_limit(limit, default=200, hard_max=500)
     skip = safe_skip(skip)
     query: dict = {}
+    # Iter 253 — provider desks only see audit actions from their own tenant.
+    provider_org = await desk_provider_org_id(user)
+    if provider_org:
+        query["actor_org_id"] = provider_org
     for field, value in (
         ("actor_id", actor_id), ("target_type", target_type),
         ("target_id", target_id), ("action", action),

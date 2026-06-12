@@ -55,19 +55,31 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
   if (!data) return <div className="text-red-500">Failed to load summary</div>;
 
   const { organizations, recent_actions_7d } = data;
-  const stats = [
-    { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700' },
-    { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700' },
-    { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700' },
-    { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800' },
-  ];
+  // Iter 253 — self-serve providers see their OWN desk's numbers, not the
+  // platform customer-org estate (and none of the Pulse-specific copy).
+  const isProvider = data.desk_kind === 'provider';
+  const stats = isProvider
+    ? [
+        { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700' },
+        { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800' },
+        { label: 'Engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700' },
+        { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-blue-50 text-blue-700' },
+      ]
+    : [
+        { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700' },
+        { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700' },
+        { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700' },
+        { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800' },
+      ];
 
   return (
     <div className="space-y-6" data-testid="desk-summary">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Service Desk</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Customer operations, imports, and staff management for Pulse Fitness.
+          {isProvider
+            ? 'Cases, engineers and customers for your service operation.'
+            : 'Customer operations, imports, and staff management for Pulse Fitness.'}
         </p>
       </div>
 
@@ -102,11 +114,12 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
             Manage Customers
           </Button>
           <div className="text-xs text-zinc-500 mt-3">
-            Bulk imports launch in Sprint 3.
+            {isProvider ? 'Add engineers and raise cases from the tabs on the left.' : 'Bulk imports launch in Sprint 3.'}
           </div>
         </Card>
       </div>
 
+      {!isProvider && (
       <Card className="p-5 border-blue-100 dark:border-blue-900/40 bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -130,6 +143,7 @@ export default function DeskSummary({ API, onJumpToCustomers }) {
           </Button>
         </div>
       </Card>
+      )}
     </div>
   );
 }

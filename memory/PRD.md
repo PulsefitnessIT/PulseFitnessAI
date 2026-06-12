@@ -1,3 +1,13 @@
+## Iter 253 — Self-serve Service Provider funnel (P0b) ✅ (Jun 12, 2026)
+
+**Commercial wrapper to sell the Service Desk + Engineer App to third-party service suppliers.**
+- Public signup at `/service-provider/signup` (entry CTA on `/engineer` landing, testid `engineer-landing-cta-provider`) → creates a `service_provider` org with a real 14-day trial window (`SP_TRIAL_DAYS` env, default 14; fixed instant-paywall bug where `is_trial` was set without `trial_ends_at`).
+- 3-step setup wizard at `/service-desk/setup` (branding → SLA targets → first engineer) → unlocks `/service-desk`.
+- Login routing: `is_service_desk && service_ops_setup_complete === false` → wizard; complete → desk. `/auth/me` now returns `service_ops_setup_complete`. `refreshUser()` added to AuthContext.
+- **TENANT ISOLATION (critical fix found in testing):** providers passed `require_service_desk` and got platform-wide scope — saw all 1,042 orgs + audit log. Now `desk_provider_org_id()` in `utils/service_desk_auth.py` hard-scopes summary/customers/equipment/audit/impersonation to their own org. `/service-desk/summary` returns `desk_kind: provider` with their case/engineer/customer counts; DeskSummary renders a provider variant (no Pulse copy). `log_desk_action` now stamps `actor_org_id`.
+- Tests: `tests/test_iter253_service_provider_funnel.py` (6/6, added to Makefile regression). Regression: master admin platform-wide (1,042 orgs), Pulse agent scoped (45) — both intact.
+- Test accounts: `sp.fe.1781277405@example.com` / `Str0ngPass!23` (setup complete), `sp.test.1781277380@example.com` / `Str0ngPass!23` (setup incomplete → lands in wizard).
+
 ## Iter 227 — P3 security backlog: SEC-006 (libmagic) + localStorage→HttpOnly cookie (main session) ✅ (Jun 10, 2026)
 
 **SEC-006 — strict upload validation.** Installed `libmagic1` so `python-magic` resolves; `utils.file_validation.selftest()` reports `enabled:true` and the startup health check surfaces it. A pure-Python signature-sniff fallback keeps uploads safe even where libmagic is absent (e.g. a prod image without the apt pkg). Tests: `tests/test_iter227_file_validation.py` (5/5). **Prod note:** the deploy image should include `libmagic1` for full detection; fallback covers it otherwise.

@@ -62,6 +62,9 @@ async def log_desk_action(
         "id": str(uuid.uuid4()),
         "actor_id": actor.get("id"),
         "actor_email": actor.get("email"),
+        # Iter 253 — lets provider-scoped desks filter the audit feed to
+        # actions taken inside their own tenant.
+        "actor_org_id": actor.get("organization_id"),
         "actor_role": (
             "master_admin" if actor.get("is_master_admin")
             else "pulse_master_admin"
@@ -107,9 +110,36 @@ def _is_pulse_scoped(user: dict) -> bool:
     )
 
 
+async def desk_provider_org_id(user: dict) -> str | None:
+    """Iter 253 — self-serve service providers run their OWN desk.
+
+    Returns the caller's organisation id when their org is
+    ``account_type == 'service_provider'`` (and they're not a platform /
+    Pulse admin), else ``None``. Used to hard-scope every cross-org desk
+    surface (summary, customers, equipment, audit log, impersonation) to
+    exactly their own tenant."""
+    if (
+        user.get("is_master_admin")
+        or user.get("is_pulse_admin")
+        or user.get("role") == "pulse_master_admin"
+    ):
+        return None
+    org_id = user.get("organization_id")
+    if not org_id:
+        return None
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "account_type": 1})
+    if org and org.get("account_type") == "service_provider":
+        return org_id
+    return None
+
+
 async def desk_scope_org_ids(user: dict) -> list[str] | None:
     """Return ``None`` for platform-wide desk access, else the list of
-    Pulse-visible organisation ids the caller is restricted to."""
+    organisation ids the caller is restricted to."""
+    # Iter 253 — self-serve providers are locked to their own org.
+    provider_org = await desk_provider_org_id(user)
+    if provider_org:
+        return [provider_org]
     if not _is_pulse_scoped(user):
         return None
     orgs = await db.organizations.find(
