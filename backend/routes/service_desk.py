@@ -9,7 +9,10 @@ from typing import Any, Dict, Optional
 
 from utils.auth import create_token
 from utils.database import db
-from utils.service_desk_auth import require_service_desk, log_desk_action
+from utils.service_desk_auth import (
+    require_service_desk, log_desk_action,
+    desk_scope_org_ids, assert_org_in_desk_scope,
+)
 
 router = APIRouter(prefix="/service-desk", tags=["Service Desk"])
 
@@ -19,10 +22,12 @@ router = APIRouter(prefix="/service-desk", tags=["Service Desk"])
 @router.get("/summary")
 async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
     """Top-level counters shown on the Service Desk landing page."""
-    orgs_total = await db.organizations.count_documents({})
-    orgs_active = await db.organizations.count_documents({"status": {"$ne": "archived"}})
-    orgs_pending = await db.organizations.count_documents({"status": "pending_invite"})
-    orgs_archived = await db.organizations.count_documents({"status": "archived"})
+    scope = await desk_scope_org_ids(user)
+    base: dict = {"id": {"$in": scope}} if scope is not None else {}
+    orgs_total = await db.organizations.count_documents(base)
+    orgs_active = await db.organizations.count_documents({**base, "status": {"$ne": "archived"}})
+    orgs_pending = await db.organizations.count_documents({**base, "status": "pending_invite"})
+    orgs_archived = await db.organizations.count_documents({**base, "status": "archived"})
     recent_actions = await db.service_desk_audit_log.count_documents({
         "timestamp": {"$gte": (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()},
     })
@@ -32,6 +37,7 @@ async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
             "pending_invite": orgs_pending, "archived": orgs_archived,
         },
         "recent_actions_7d": recent_actions,
+        "scoped_to_pulse": scope is not None,
     }
 
 
@@ -63,6 +69,10 @@ async def list_customers(
 ) -> dict:
     """Search + filter customer organisations. Billing/cost fields excluded."""
     query = _build_customer_query(q, account_type, status)
+    # Iter 245 — pulse-brand agents see only Pulse-visible customer orgs.
+    scope = await desk_scope_org_ids(user)
+    if scope is not None:
+        query["id"] = {"$in": scope}
     projection = {
         "_id": 0, "id": 1, "name": 1, "account_type": 1, "status": 1,
         "sicon_customer_ref": 1, "head_office_ref": 1, "is_multi_site": 1,
@@ -72,7 +82,7 @@ async def list_customers(
     cursor = db.organizations.find(query, projection).sort("created_at", -1).skip(skip).limit(limit)
     orgs = await cursor.to_list(limit)
     total = await db.organizations.count_documents(query)
-    return {"organizations": orgs, "total": total}
+    return {"organizations": orgs, "total": total, "scoped_to_pulse": scope is not None}
 
 
 # ── Global equipment search (Iter 216h49) ────────────────────────
@@ -109,8 +119,14 @@ async def search_equipment_global(
         skip / limit: pagination
     """
     query: Dict[str, Any] = {}
+    # Iter 245 — pulse-brand agents search only Pulse-visible orgs' kit.
+    scope = await desk_scope_org_ids(user)
     if org_id:
+        if scope is not None and org_id not in scope:
+            raise HTTPException(status_code=404, detail="Organisation not found")
         query["organization_id"] = org_id
+    elif scope is not None:
+        query["organization_id"] = {"$in": scope}
     if site_id:
         query["site_id"] = site_id
     if equipment_type:
@@ -221,9 +237,13 @@ async def supplier_health_global(
     days = max(1, min(365, int(days)))
     window_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
+    # Iter 245 — pulse-brand agents roll up only Pulse-visible orgs.
+    scope = await desk_scope_org_ids(user)
+    scope_q: Dict[str, Any] = {"organization_id": {"$in": scope}} if scope is not None else {}
+
     # 1) Pull every supplier from every org. Then group by normalised name.
     all_suppliers = await db.suppliers.find(
-        {}, {"_id": 0, "id": 1, "name": 1, "organization_id": 1, "email": 1, "service_email": 1, "phone": 1, "supplier_types": 1},
+        scope_q, {"_id": 0, "id": 1, "name": 1, "organization_id": 1, "email": 1, "service_email": 1, "phone": 1, "supplier_types": 1},
     ).to_list(5000)
 
     # name_norm → {names: set, supplier_ids: set, org_ids: set, contact: {...}}
@@ -251,7 +271,7 @@ async def supplier_health_global(
 
     # 2) Pull equipment in one shot, group by normalised supplier name.
     all_equipment = await db.equipment.find(
-        {}, {"_id": 0, "id": 1, "organization_id": 1, "supplier": 1, "supplier_id": 1, "sla_response_time": 1},
+        scope_q, {"_id": 0, "id": 1, "organization_id": 1, "supplier": 1, "supplier_id": 1, "sla_response_time": 1},
     ).to_list(50000)
     eq_by_norm: Dict[str, list] = {}
     for e in all_equipment:
@@ -272,7 +292,7 @@ async def supplier_health_global(
 
     # 3) Pull recent issues in one shot.
     all_issues = await db.issues.find(
-        {},
+        scope_q,
         {"_id": 0, "id": 1, "organization_id": 1, "equipment_id": 1, "asset_id": 1,
          "status": 1, "created_at": 1, "resolved_at": 1, "first_response_at": 1},
     ).to_list(50000)
@@ -408,7 +428,7 @@ async def supplier_health_global(
         details={"window_days": days, "sort": sort},
     )
 
-    return {"suppliers": out, "totals": totals}
+    return {"suppliers": out, "totals": totals, "scoped_to_pulse": scope is not None}
 
 
 # ── Customer detail / edit ───────────────────────────────────────
@@ -426,6 +446,7 @@ async def get_customer(
     user: dict = Depends(require_service_desk),
 ) -> dict:
     """Full customer record including sites, staff, supplier, onboarding state."""
+    await assert_org_in_desk_scope(user, org_id)
     org = await _org_or_404(org_id)
     sites = await db.sites.find({"organization_id": org_id}, {"_id": 0}).to_list(200)
     staff = await db.users.find(
@@ -455,6 +476,7 @@ async def update_customer(
 ) -> dict:
     """Patch whitelisted customer fields. Billing / tier / feature-flag edits
     stay in Master Admin only — they are intentionally absent from the allow-list."""
+    await assert_org_in_desk_scope(user, org_id)
     org = await _org_or_404(org_id)
     updates = {k: v for k, v in body.items() if k in _EDITABLE_ORG_FIELDS}
     if not updates:
@@ -480,6 +502,7 @@ async def update_site(
     user: dict = Depends(require_service_desk),
 ) -> dict:
     """Edit a site's address / contact fields on behalf of the customer."""
+    await assert_org_in_desk_scope(user, org_id)
     site = await db.sites.find_one({"id": site_id, "organization_id": org_id}, {"_id": 0})
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -527,6 +550,7 @@ async def impersonate_customer(
     can show a red banner and audit every action taken during the session.
     Session expires in 1 hour; every refresh requires a fresh impersonation call.
     """
+    await assert_org_in_desk_scope(user, org_id)
     target = await _resolve_impersonation_target(org_id)
     token = create_token(target["id"], expires_hours=1)
     await log_desk_action(

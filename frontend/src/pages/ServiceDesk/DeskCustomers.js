@@ -52,6 +52,9 @@ export default function DeskCustomers({ API, onSelect }) {
   const [accountType, setAccountType] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  // Iter 245 — true when the backend restricted the list to Pulse customers
+  // (pulse-brand desk agents + Pulse Master Admins).
+  const [scopedToPulse, setScopedToPulse] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,6 +63,7 @@ export default function DeskCustomers({ API, onSelect }) {
       const r = await axios.get(`${API}/service-desk/customers?${params}`, authConfig());
       setOrgs(r.data.organizations || []);
       setTotal(r.data.total || 0);
+      setScopedToPulse(!!r.data.scoped_to_pulse);
     } catch (e) {
       console.error(e);
     } finally {
@@ -75,6 +79,11 @@ export default function DeskCustomers({ API, onSelect }) {
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Customers</h1>
         <p className="text-sm text-zinc-500 mt-1">
           {total.toLocaleString()} organisations. Search by name, Sicon ref, or head-office ref.
+          {scopedToPulse && (
+            <Badge variant="outline" className="ml-2 text-[10px] bg-blue-50 text-blue-700 border-blue-200" data-testid="desk-scope-pulse-badge">
+              Pulse customers only
+            </Badge>
+          )}
         </p>
       </div>
 

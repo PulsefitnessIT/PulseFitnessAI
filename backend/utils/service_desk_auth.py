@@ -76,3 +76,54 @@ async def log_desk_action(
         "impersonating_org_id": impersonating_org_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
+
+
+# ── Brand scoping (Iter 245) ─────────────────────────────────────
+#
+# Desk users provisioned with `service_desk_brand == "pulse"` and Pulse
+# Master Admins see only Pulse-visible customer organisations on the
+# cross-org Service Desk surfaces (summary, customers, equipment,
+# supplier health, impersonation). GymAxis master admins and
+# gymaxis-brand agents stay platform-wide.
+
+# Account types that identify a Pulse-serviced customer org. Superset of
+# routes.master_admin.PULSE_VISIBLE_ACCOUNT_TYPES — live data also
+# carries `pulse_lite` and the MOD variants (`mod_site` / `mod_org` /
+# `mod_branch`), which are Pulse-serviced estates.
+PULSE_DESK_ACCOUNT_TYPES = [
+    "pulse_pro", "pulse_lite", "lite",
+    "mod", "mod_site", "mod_org", "mod_branch",
+    "full",
+]
+
+
+def _is_pulse_scoped(user: dict) -> bool:
+    if user.get("is_master_admin"):
+        return False
+    return bool(
+        user.get("is_pulse_admin")
+        or user.get("role") == "pulse_master_admin"
+        or (user.get("service_desk_brand") or "").lower() == "pulse"
+    )
+
+
+async def desk_scope_org_ids(user: dict) -> list[str] | None:
+    """Return ``None`` for platform-wide desk access, else the list of
+    Pulse-visible organisation ids the caller is restricted to."""
+    if not _is_pulse_scoped(user):
+        return None
+    orgs = await db.organizations.find(
+        {"account_type": {"$in": PULSE_DESK_ACCOUNT_TYPES}},
+        {"_id": 0, "id": 1},
+    ).to_list(length=None)
+    return [o["id"] for o in orgs]
+
+
+async def assert_org_in_desk_scope(user: dict, org_id: str) -> None:
+    """Raise 404 when a Pulse-scoped desk user touches a non-Pulse org.
+
+    404 (not 403) so out-of-scope org ids are indistinguishable from
+    non-existent ones."""
+    scope = await desk_scope_org_ids(user)
+    if scope is not None and org_id not in scope:
+        raise HTTPException(status_code=404, detail="Organisation not found")

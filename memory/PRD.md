@@ -27937,3 +27937,13 @@ Verified live on SVC-00410.
 - **Creds**: desk@pulsefitness.com / DeskAgent123! (password reset, recorded in test_credentials.md).
 - **Tested**: `tests/test_iter244_pulse_service_desk.py` 10/10 (added to Makefile regression), full `make regression` 2446 pass (1 flaky sessions test passes in isolation), testing agent 100% backend + frontend (`/app/test_reports/iteration_iter244_pulse_service_desk.json`).
 - NOTE: Preview-only — user must DEPLOY for gymaxisai.com to pick this up.
+
+---
+## Iter 245 — Service Desk brand scoping (Jun 12, 2026)
+- Pulse-scoped desk users (Pulse Master Admins + desk agents with `service_desk_brand=="pulse"`) now see ONLY Pulse-visible customer orgs across the cross-org Service Desk surfaces; GymAxis master admins + gymaxis-brand agents stay platform-wide.
+- Backend: `utils/service_desk_auth.py` → `PULSE_DESK_ACCOUNT_TYPES` (pulse_pro/pulse_lite/lite/mod*/full — superset of master_admin's constant, incl. the mod_site/mod_org/mod_branch variants present in live data), `desk_scope_org_ids(user)` (None = platform-wide), `assert_org_in_desk_scope` (404 for out-of-scope orgs, indistinguishable from non-existent).
+- Applied in `routes/service_desk.py`: /summary (scoped counts + `scoped_to_pulse` flag), /customers list (+flag), /customers/{id} GET+PATCH, /customers/{id}/sites/{id} PATCH, /customers/{id}/impersonate, /equipment global search, /suppliers/health (suppliers/equipment/issues pulls scoped). Audit log intentionally left unscoped (desk transparency).
+- Frontend: `DeskCustomers.js` shows a "Pulse customers only" badge (`desk-scope-pulse-badge`) when the response is scoped.
+- Data: `desk@pulsefitness.com` set to `service_desk_brand: "pulse"` (scoped: 44 orgs vs 976 platform-wide).
+- Tested: `tests/test_iter245_desk_brand_scope.py` 6/6 + iter244 10/10 (both in Makefile regression), full `make regression` 2,453 pass / 0 fail, UI screenshot verified badge + scoped list as pulse admin.
+- NOTE: Preview-only — DEPLOY for gymaxisai.com.
