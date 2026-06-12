@@ -101,6 +101,14 @@ export default function ServiceDeskPage() {
     setTab('customers');
   };
 
+  // Iter 257c — Equipment + Supplier-health are platform concepts (they
+  // search the gym-operator estate), so they're empty for self-serve
+  // providers. Hide them to keep the trial desk purpose-built.
+  const isProvider = user?.account_type === 'service_provider';
+  const PROVIDER_HIDDEN = isProvider ? new Set(['equipment', 'suppliers']) : new Set();
+  const visibleTabs = TABS.filter((t) => !PROVIDER_HIDDEN.has(t.id));
+  const visibleInsights = INSIGHTS_TABS.filter((t) => !PROVIDER_HIDDEN.has(t.id));
+
   // Render the active tab body. The ServiceOps pages render inside their
   // own <ServiceOpsShell> — we wrap with the embedded-context provider
   // so the shell collapses its duplicate hero + nav.
@@ -118,9 +126,9 @@ export default function ServiceDeskPage() {
           ? <DeskCustomerDetail API={API} orgId={selectedOrgId} onBack={() => setSelectedOrgId(null)} />
           : <DeskCustomers API={API} onSelect={handleSelectCustomer} />;
       case 'equipment':
-        return <DeskEquipment API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} /> : <DeskEquipment API={API} />;
       case 'suppliers':
-        return <DeskSuppliers API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} /> : <DeskSuppliers API={API} />;
       case 'audit':
         return <DeskAuditLog API={API} />;
       case 'analytics':
@@ -223,7 +231,7 @@ export default function ServiceDeskPage() {
 
         {/* Primary tabs */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {TABS.map(({ id, label, icon: Icon }) => (
+          {visibleTabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => { setTab(id); setSelectedOrgId(null); setSidebarOpen(false); }}
@@ -241,7 +249,7 @@ export default function ServiceDeskPage() {
 
           {/* Insights group (separated) */}
           <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold">Insights</p>
-          {INSIGHTS_TABS.map(({ id, label, icon: Icon }) => (
+          {visibleInsights.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => { setTab(id); setSelectedOrgId(null); setSidebarOpen(false); }}

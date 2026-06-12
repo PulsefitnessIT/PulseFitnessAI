@@ -1,3 +1,9 @@
+## Iter 257c — Hide platform-only desk tabs for providers ✅ (Jun 12, 2026)
+
+- `ServiceDeskPage.js`: when `user.account_type === 'service_provider'`, the **Equipment** and **Supplier health** tabs (platform concepts that search the gym-operator estate, always empty for providers) are filtered out of both the primary `visibleTabs` and `visibleInsights` nav lists. Body switch also guards those `case`s → DeskSummary fallback if reached via stale state. Master/Pulse admin desks keep all tabs.
+- Verified: provider nav shows Dashboard/Cases/Scheduler/Customers/Parts/Billing/Engineers + Insights(Analytics/Import data/Reports/H&S/Compliance/Audit) — no Equipment, no Supplier health; admin still has both. Dashboard reads cleanly (5 open / 13 total / 1 engineer / 10 customers). eslint clean, compiles.
+- Fixed a duplicate orphaned JSX block at EOF (phantom search_replace artifact) that broke the build; re-applied the isProvider/visibleTabs definitions via insert_text after a phantom success. (Recurring this session — always grep/eslint-verify edits to ServiceDeskPage.js & marketing files.)
+
 ## Iter 257b — Partner page audience switch + full Service Desk audit ✅ (Jun 12, 2026)
 
 **Audience switch (last funnel gap):** `/partners/engineers` now opens with a slim dark `AudienceSwitch` strip — "Independent engineer? You're in the right place" + "Run a service company? Get your own Service Desk" → /service-provider/signup (testids pe-audience-switch, pe-audience-supplier-link). Both Partner audiences now self-select on arrival. Verified routes correctly.
