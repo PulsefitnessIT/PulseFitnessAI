@@ -175,7 +175,7 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
             the original 200px / 1fr two-column grid. */}
         <div className="flex-1 flex flex-col sm:grid sm:grid-cols-[200px_1fr] min-h-0">
           <nav
-            className="account-sidebar border-b sm:border-b-0 sm:border-r account-modal-divider p-2 sm:p-3 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto sm:overflow-x-hidden"
+            className="account-sidebar flex-shrink-0 border-b sm:border-b-0 sm:border-r account-modal-divider p-2 sm:p-3 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto sm:overflow-x-hidden"
             aria-label="Account sections"
           >
             {sections.map(({ id, label, icon: Icon }) => (
@@ -194,7 +194,11 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
             ))}
           </nav>
 
-          <div className="overflow-y-auto p-4 sm:p-6">
+          {/* Iter 260 — `flex-1 min-h-0` is required for the mobile flex-col
+              layout: without it the pane grows to its full content height and
+              overflows the `overflow-hidden` shell, so touch users could never
+              scroll down to the password form in Security. */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
             {section === 'profile' && (
               <ProfileSection profile={profile} onProfileUpdate={(p) => setProfile((prev) => ({ ...(prev || {}), ...p }))} />
             )}

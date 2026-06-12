@@ -28150,3 +28150,8 @@ Platform is ~85% there technically. Service Desk (45+ endpoints) + Engineer App 
 - 🟡 P1 Owner analytics dashboard (SLA %, engineer utilisation, revenue/job) as a sales hook.
 - 🟢 P2 Bulk customer/site + historical-case import for migration.
 NEXT: P0 commercial layer — recommend seat-based billing SKU first, then self-serve signup + setup wizard.
+
+---
+## Iter 260 — Mobile password change fix + Engineer in MA org role dropdown (Jun 12, 2026)
+**Bug 1 (production-reported)**: On mobile, users could not change their password in Account Settings → Security. Root cause: in `AccountSettingsModal.js` mobile flex-col layout, the content pane lacked `flex-1 min-h-0`, so it grew to full content height (~4000px) and overflowed the `overflow-hidden` modal shell — programmatic scrolling worked but real touch/wheel scrolling could never reach the password form. Fix: added `flex-1 min-h-0` to the content pane + `flex-shrink-0` to the nav pill rail. Verified at 375×667 viewport: wheel scrolling reaches the form, inputs typeable, nav rail stays pinned.
+**Bug 2**: Master Admin org users panel — inline per-user role dropdown (`user-role-{id}` in `AdminOrganizations.js` ~line 1067) was missing "Engineer" (the Add User and Edit User dialogs already had it since Iter 236). Added `<SelectItem value="engineer">`. Backend PATCH `/master-admin/users/{id}` already accepts role=engineer and syncs `svc_engineers` (Iter 236 logic, `test_iter236_org_engineer_role.py` 2/2 passing). Verified in UI: dropdown now shows Owner/Manager/Staff/Engineer/Master Admin.

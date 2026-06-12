@@ -1067,6 +1067,10 @@ useEffect(() => {
  <SelectItem value="owner">Owner</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
  <SelectItem value="staff">Staff</SelectItem>
+ {/* Iter 260 — Engineer selectable inline (parity with Add/Edit dialogs).
+     Backend PATCH /master-admin/users/{id} provisions svc_engineers on
+     role→engineer and deactivates it when switching away. */}
+ <SelectItem value="engineer">Engineer</SelectItem>
  <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
  {u.role === 'pulse_master_admin' && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
  </SelectContent>
