@@ -73,11 +73,22 @@ const PulseDbExplorerPanel = () => {
   const goPage = (p) => { setPage(p); loadDocs(active, p, q); };
 
   // Build column set from the first few rows (union of keys, _id first).
+  // `organization_name` is folded into the organization_id column rather
+  // than shown separately (Iter 247).
   const columns = (() => {
     const seen = [];
-    rows.slice(0, 10).forEach((r) => Object.keys(r).forEach((k) => { if (!seen.includes(k)) seen.push(k); }));
+    rows.slice(0, 10).forEach((r) => Object.keys(r).forEach((k) => { if (k !== 'organization_name' && !seen.includes(k)) seen.push(k); }));
     return seen.slice(0, 8); // keep the table readable
   })();
+
+  // Iter 247 — readability: show the organisation NAME instead of the raw
+  // uuid; the id stays one hover away in the tooltip.
+  const cellText = (row, c) =>
+    c === 'organization_id' && row.organization_name ? row.organization_name : fmtValue(row[c]);
+  const cellTitle = (row, c) =>
+    c === 'organization_id' && row.organization_name
+      ? `${row.organization_name} · ${fmtValue(row[c])}`
+      : fmtValue(row[c]);
 
   return (
     <div className="space-y-5" data-testid="pulse-db-explorer">
@@ -150,7 +161,7 @@ const PulseDbExplorerPanel = () => {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
                     {columns.map((c) => (
-                      <th key={c} className="text-left font-bold uppercase tracking-wider text-slate-500 px-3 py-2 whitespace-nowrap">{c}</th>
+                      <th key={c} className="text-left font-bold uppercase tracking-wider text-slate-500 px-3 py-2 whitespace-nowrap">{c === 'organization_id' ? 'organisation' : c}</th>
                     ))}
                   </tr>
                 </thead>
@@ -158,7 +169,7 @@ const PulseDbExplorerPanel = () => {
                   {rows.map((row, i) => (
                     <tr key={row._id || row.id || i} className="border-b border-slate-100 hover:bg-slate-50/60" data-testid="pulse-db-row">
                       {columns.map((c) => (
-                        <td key={c} className="px-3 py-2 text-slate-700 max-w-[260px] truncate" title={fmtValue(row[c])}>{fmtValue(row[c])}</td>
+                        <td key={c} className="px-3 py-2 text-slate-700 max-w-[260px] truncate" title={cellTitle(row, c)}>{cellText(row, c)}</td>
                       ))}
                     </tr>
                   ))}

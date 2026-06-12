@@ -27960,3 +27960,11 @@ Verified live on SVC-00410.
 ## Iter 246b — Access Matrix scoped for Pulse Master Admins (Jun 12, 2026)
 - Per user question: Access Matrix IS available to Pulse Master Admins, and now shows ONLY Pulse roles & organisations for them: GymAxis-internal personas (`desk_gymaxis`, `master_admin`) and the `gymaxis_platform_controls` gate are hidden; org-role headcounts (staff/engineer/manager/owner) are restricted to Pulse-visible orgs via `desk_scope_org_ids`. Response carries `scoped_to_pulse`; UI shows a "Pulse roles & organisations only" badge (`access-matrix-pulse-scope-badge`). GymAxis master admin keeps the full platform view.
 - Tested: `test_iter246_access_matrix.py` now 6/6 (new scoped-view test pins persona list + count shrink), iter244+245 suites still green. UI verified by screenshot as pulse.admin.test (6 columns, scoped counts e.g. 18 owners vs 603 platform-wide).
+
+---
+## Iter 247 — Pulse data explorer: organisation names (Jun 12, 2026)
+- `GET /api/master-admin/pulse-explorer/collections/{name}` now enriches every doc that carries `organization_id` with `organization_name` (single $in lookup per page).
+- `PulseDbExplorerPanel.js`: the `organization_id` column is re-labelled "organisation" and renders the org NAME; the raw uuid stays in the hover tooltip (`cellTitle`). `organization_name` is folded into that column, not shown separately.
+- Tested: `tests/test_iter247_pulse_explorer_org_names.py` 3/3 (enrichment present, name matches the real org doc, frontend wiring) — added to Makefile regression. Existing explorer scope suite (`test_iter226_pulse_explorer_scope.py`) still green. UI verified by screenshot (Sites collection shows "Third Space" etc.).
+- KNOWN PRE-EXISTING: `tests/test_iter226_image_lookup.py` (NOT in CI/Makefile) errors at setup — it logs in as `lee.somers@pulsefitness.com / TempPass123!`, an account that doesn't exist in preview. Unrelated to this change.
+- NOTE: Preview-only — DEPLOY for gymaxisai.com.

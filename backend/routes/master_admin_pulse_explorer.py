@@ -118,6 +118,23 @@ async def pulse_browse_collection(
     pages = max(1, (total + page_size - 1) // page_size)
     cursor = db[name].find(query).sort("_id", -1).skip((page - 1) * page_size).limit(page_size)
     docs = [_redact(d) async for d in cursor]
+
+    # Iter 247 — readability: resolve raw organization_id values to the
+    # organisation's display name. The frontend shows the name in the
+    # "organisation" column (raw id stays available in the tooltip).
+    org_id_set = {d.get("organization_id") for d in docs if d.get("organization_id")}
+    if org_id_set:
+        names = {
+            o["id"]: o.get("name", "")
+            async for o in db.organizations.find(
+                {"id": {"$in": list(org_id_set)}}, {"_id": 0, "id": 1, "name": 1},
+            )
+        }
+        for d in docs:
+            oid = d.get("organization_id")
+            if oid:
+                d["organization_name"] = names.get(oid, "")
+
     return {
         "docs": docs,
         "total": total,
