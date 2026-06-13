@@ -78,7 +78,7 @@ def test_claim_pending_partner_for_user_relinks_matching_pending_row():
     sync_db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     base = os.environ.get(
         "TEST_BASE_URL",
-        "https://seo-fix-preview-4.preview.emergentagent.com",
+        "https://engineer-hub-114.preview.emergentagent.com",
     )
     bypass = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
     pid = str(uuid.uuid4())
@@ -127,7 +127,7 @@ def test_claim_pending_partner_for_user_is_case_insensitive_on_email():
     sync_db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     base = os.environ.get(
         "TEST_BASE_URL",
-        "https://seo-fix-preview-4.preview.emergentagent.com",
+        "https://engineer-hub-114.preview.emergentagent.com",
     )
     bypass = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
     pid = str(uuid.uuid4())

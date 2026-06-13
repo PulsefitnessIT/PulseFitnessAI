@@ -21,7 +21,7 @@ try:
 except ImportError:
     PYZBAR_AVAILABLE = False
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://seo-fix-preview-4.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://engineer-hub-114.preview.emergentagent.com').rstrip('/')
 
 # Master admin credentials
 MASTER_ADMIN_EMAIL = "admin@gymaxisai.com"

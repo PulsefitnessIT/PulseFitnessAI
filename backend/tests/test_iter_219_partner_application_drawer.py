@@ -25,7 +25,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://seo-fix-preview-4.preview.emergentagent.com",
+    "https://engineer-hub-114.preview.emergentagent.com",
 )
 
 _CACHE: dict[str, str] = {}

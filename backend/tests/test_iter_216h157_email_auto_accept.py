@@ -21,7 +21,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://seo-fix-preview-4.preview.emergentagent.com").rstrip("/")
+       or "https://engineer-hub-114.preview.emergentagent.com").rstrip("/")
 DB_NAME = os.environ.get("DB_NAME") or "test_database"
 SECRET = os.environ.get("INBOUND_EMAIL_WEBHOOK_SECRET")
 
