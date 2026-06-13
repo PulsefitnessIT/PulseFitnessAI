@@ -1,3 +1,20 @@
+## Iter 265 — USA readiness for INDEPENDENT (Partner) engineers ✅ (Jun 13, 2026)
+
+**Trigger:** an American independent engineer is about to sign up for the Engineer App. BA audit found the engineer's **market was never captured** — independent partner engineers are created org-less (`organization_id=None`), so every localization read fell back to GB: invoices rendered £, Stripe Connect created a **UK** Express account (a US person can't onboard it), and compliance asked for DBS/RTW instead of the US set. User approved 1A + full wiring + USD plan price.
+
+**Shipped:**
+- **Capture market at signup** — public Partner Engineer apply form (`PartnerApplyPublic.js`) now has a **Country picker** (`pe-apply-country`, 5 markets) in step 1; postcode label/placeholder + validation are country-aware (UK regex only for GB; US ZIP accepted). `country_code` flows through the multipart `FormData`.
+- **Backend `routes/partners.py`** — `public-apply` accepts + validates `country_code` (Form), stores it on the application; approval copies it onto the `partner_engineers` doc; `_compliance_country`/`_partner_country` now prefer the engineer's market.
+- **New resolver `utils/localization.engineer_localization(user)`** — org country wins → else `partner_engineers.country_code` → else GB. Wired into engineer **invoices** + **quotes** `_org_loc` (now render $/Sales Tax for US engineers) and compliance.
+- **Stripe Connect** (`engineer_stripe_connect.py`) already reads `partner.country_code` → now populated, so US engineers get a **US** Express account (ACH/SSN onboarding).
+- **Receipt email £ fix** (`engineer_invoice_payments.py`) — `_receipt_html` + paid-notification body now use `invoice.currency_symbol` instead of hard-coded £.
+- **USD Partner Plan price** — `PARTNER_PLAN_PRICE_IDS_BY_TIER_USD` + country-aware `_partner_plan_price_id_for_tier(tier, country_code)`; US engineers get the USD price (env `STRIPE_PRICE_PARTNER_PLAN_30_USD` / `_15_USD`), **falling back to the GBP price** if the USD price isn't seeded (checkout never breaks).
+- **Tests:** `tests/test_iter265_us_engineer_readiness.py` (6/6) + agent-authored `tests/test_iter265_us_engineer_e2e.py` (6/6), both in Makefile `regression:`. Testing agent: backend 12/12, frontend 100%, no regressions.
+- **OPERATIONAL (user must do):** enable **US** in Stripe Dashboard → Connect → Platform settings (US connected accounts), and create the USD recurring Partner Plan prices, then set the `_USD` env vars. Steps handed to user.
+
+---
+
+
 ## Iter 259 — Provider-aware trial-ending email drip ✅ (Jun 12, 2026) — PROVIDER PACKAGE COMPLETE
 
 - Discovery: a full trial drip already existed (`utils/trial_lifecycle.run_trial_lifecycle_once`, driven by the sicon poller loop every cycle): day-10 + day-13 reminders, dedup via `trial_reminders_sent`, expiry/suspension transitions. Provider orgs were already scanned (is_trial=True) but received GYM copy (PPM/equipment) with the wrong /choose-plan CTA.
