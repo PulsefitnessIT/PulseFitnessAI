@@ -1,4 +1,22 @@
-## Iter 272 — FIX: partner engineer signs in → stuck on "Become a Partner / Apply now" ✅ (Jun 14, 2026)
+## Iter 273 — Engineer App broken for independent (org-less) partner engineers ✅ (Jun 14, 2026)
+
+**Reported (production):** an on-trial partner engineer logs in and sees (a) an empty hero card + invisible white button on the Partner Dashboard, and (b) "Failed to load home — Organization context required" on the Engineer App. User asked for a full Engineer App audit ("feel we have gone backwards").
+
+**Root causes & fixes:**
+1. **Org context (critical):** independent partner engineers are created org-less (`organization_id=None`), but the entire Engineer App (`/svc/engineer/*`) scopes every query by `organization_id` → 403 "Organization context required". Fix: `utils/partner_claim.ensure_engineer_personal_org()` auto-provisions a personal single-tenant org (localized currency/timezone from the engineer's country) — called from the login claim hook + a startup backfill migration (`backfill_engineer_personal_orgs`, marker `engineer_personal_org_backfill_v1`). Each engineer's data is now isolated to their own org. Verified: all 6 engineer endpoints (dashboard/me/jobs/customers/quotes/invoices) return 200; home renders fully.
+2. **Partner Dashboard invisible hero/button:** `index.css` "dark-bleed sweep" rewrites `.bg-zinc-900` → white under `[data-theme="light"]`, only fixing `text-white` when it's a *descendant* — the hero/button had `text-white` on the same element → white-on-white. Fix: made the "Engineer App" button + "Open the Engineer App" hero explicit dark islands via `data-theme="dark"` (+ dropped the `dark:` inverts). Verified visible (bg `rgb(18,18,18)`, white text).
+3. **Mis-flagged users:** `unflag_misflagged_partner_engineers()` (in the startup migration) clears `is_partner_engineer=True` on users with no partner row (e.g. `admin@gymaxisai.com`) — they were being routed to the empty Apply screen.
+4. **402 UX:** active `EngineerHomeV2` caught all errors as "Failed to load home"; a 402 `engineer_app_blocked` (approved-but-not-subscribed) now renders `EngineerAccessGate` (Activate the Engineer App → Start subscription), mirroring legacy `EngineerHome`.
+
+**Note:** The 402 subscription gate itself is by-design (real schema uses nested `partner.subscription.status`; an on-trial engineer = `trialing` → passes). The testing agent's "402 critical" was a seed artifact; the real fix needed was #1+#4.
+
+**Regression:** `tests/test_iter273_engineer_personal_org.py` (3 tests) + `test_iter272` (3) all pass; added to Makefile. New test account: `indie.engineer@gymaxisai.com` / `IndieEng123!` (independent/org-less, trialing).
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**. On boot the migration provisions personal orgs for all org-less engineers + clears mis-flags; the login hook also self-heals.
+
+---
+
+
 
 **Reported (production):** pressing **Sign in** lands a partner engineer on the empty `/partner-engineer` "Become a Partner Engineer / Apply now" screen instead of their dashboard. (Previously misdiagnosed in iter 270 as a "stale production cache" — it was a real backend bug.)
 

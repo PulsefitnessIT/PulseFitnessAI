@@ -34,6 +34,7 @@ import PausedUploadsPill from './PausedUploadsPill';
 import useEngineerAttention from './hooks/useEngineerAttention';
 import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 import EngineerAppShellNudge from './EngineerAppShellNudge';
+import EngineerAccessGate from './EngineerAccessGate';
 import { useLocalization, formatMoney } from '@/utils/localization';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -189,6 +190,9 @@ export default function EngineerHomeV2() {
   // Iter 220cu — one-glance "My day" briefing (next stop, miles,
   // pending parts, pending quotes, unread inbox).
   const [briefing, setBriefing] = useState(null);
+  // Iter 273 — render the subscribe/access paywall instead of an opaque
+  // "Failed to load home" toast when the backend 402s (engineer_app_blocked).
+  const [accessBlock, setAccessBlock] = useState(null);
   // Iter 220j — pulsing-dot attention digest (compliance, sub, app status).
   const attention = useEngineerAttention({ poll: true });
   // Iter 261 — org name in the header + internal/partner split.
@@ -205,12 +209,20 @@ export default function EngineerHomeV2() {
         axios.get(`${API}/svc/engineer/me/briefing`, auth())
           .catch(() => ({ data: null })),
       ]);
+      setAccessBlock(null);
       setData(dRes.data);
       setMe(mRes.data);
       setPayouts(pRes.data);
       setBriefing(bRes.data);
     } catch (e) {
-      notify.error('Failed to load home', e?.response?.data?.detail || e.message);
+      // 402 means the engineer is approved but not yet subscribed / on a
+      // trial — route them to the access gate (clear next-step CTA), not
+      // an opaque error toast.
+      if (e?.response?.status === 402 && e?.response?.data?.detail?.code === 'engineer_app_blocked') {
+        setAccessBlock(e.response.data.detail);
+      } else {
+        notify.error('Failed to load home', e?.response?.data?.detail || e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -222,6 +234,10 @@ export default function EngineerHomeV2() {
   useEffect(() => { installEngineerErrorReporters(); }, []);
 
   const kpis = data?.kpis || {};
+
+  if (accessBlock) {
+    return <EngineerAccessGate detail={accessBlock} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="engineer-home-v2">
