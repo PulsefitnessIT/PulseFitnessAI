@@ -86,6 +86,9 @@ export default function ServiceDeskPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('dashboard');
   const [selectedOrgId, setSelectedOrgId] = useState(null);
+  // Iter 268 — dashboard stat cards deep-link to the Customers tab with the
+  // matching status filter pre-applied (Active / Pending Invite / Archived).
+  const [customerStatus, setCustomerStatus] = useState('');
   // Iter 216h256 — mobile-first: sidebar is an off-canvas drawer below
   // `md`. State drives the hamburger toggle + backdrop.
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -115,7 +118,7 @@ export default function ServiceDeskPage() {
   const Body = () => {
     switch (tab) {
       case 'dashboard':
-        return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t) => { setTab(t); setSelectedOrgId(null); }} />;
+        return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t, status) => { setTab(t); setSelectedOrgId(null); setCustomerStatus(status || ''); }} />;
       case 'customers':
         // Iter 256 — self-serve providers manage their field-service
         // customer book; the platform/Pulse desk manages customer orgs.
@@ -124,11 +127,11 @@ export default function ServiceDeskPage() {
         }
         return selectedOrgId
           ? <DeskCustomerDetail API={API} orgId={selectedOrgId} onBack={() => setSelectedOrgId(null)} />
-          : <DeskCustomers API={API} onSelect={handleSelectCustomer} />;
+          : <DeskCustomers API={API} onSelect={handleSelectCustomer} initialStatus={customerStatus} />;
       case 'equipment':
-        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t) => { setTab(t); setSelectedOrgId(null); }} /> : <DeskEquipment API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t, status) => { setTab(t); setSelectedOrgId(null); setCustomerStatus(status || ''); }} /> : <DeskEquipment API={API} />;
       case 'suppliers':
-        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t) => { setTab(t); setSelectedOrgId(null); }} /> : <DeskSuppliers API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t, status) => { setTab(t); setSelectedOrgId(null); setCustomerStatus(status || ''); }} /> : <DeskSuppliers API={API} />;
       case 'audit':
         return <DeskAuditLog API={API} />;
       case 'analytics':

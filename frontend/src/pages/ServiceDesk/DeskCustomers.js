@@ -45,13 +45,16 @@ function OrgRow({ org, onSelect }) {
   );
 }
 
-export default function DeskCustomers({ API, onSelect }) {
+export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
   const [orgs, setOrgs] = useState([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
   const [accountType, setAccountType] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(false);
+  // Iter 268 — when navigated from a dashboard stat card, pre-apply that
+  // card's status filter (and re-apply if the user clicks a different card).
+  useEffect(() => { setStatus(initialStatus || ''); }, [initialStatus]);
   // Iter 245 — true when the backend restricted the list to Pulse customers
   // (pulse-brand desk agents + Pulse Master Admins).
   const [scopedToPulse, setScopedToPulse] = useState(false);

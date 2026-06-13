@@ -123,10 +123,10 @@ export default function DeskSummary({ API, onJumpToCustomers, onNavigate }) {
         { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-blue-50 text-blue-700', goto: 'customers' },
       ]
     : [
-        { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700', goto: 'customers' },
-        { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'customers' },
-        { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700', goto: 'customers' },
-        { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'customers' },
+        { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700', goto: 'customers', status: '' },
+        { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'customers', status: 'active' },
+        { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700', goto: 'customers', status: 'pending_invite' },
+        { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'customers', status: 'archived' },
       ];
 
   return (
@@ -143,13 +143,13 @@ export default function DeskSummary({ API, onJumpToCustomers, onNavigate }) {
       {/* Iter 262 — 2-up on mobile, 4-up on desktop; every card is a
           button that jumps to the tab holding the underlying records. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {stats.map(({ label, value, icon: Icon, colour, goto }) => (
+        {stats.map(({ label, value, icon: Icon, colour, goto, status }) => (
           <Card
             key={label}
             role="button"
             tabIndex={0}
-            onClick={() => onNavigate && onNavigate(goto)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto); } }}
+            onClick={() => onNavigate && onNavigate(goto, status)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto, status); } }}
             className="p-4 sm:p-5 cursor-pointer transition-all hover:shadow-md hover:border-orange-200 active:scale-[0.98]"
             data-testid={`desk-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}
           >
