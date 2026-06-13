@@ -1860,6 +1860,18 @@ async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> Non
 async def get_my_partner(user: dict = Depends(get_current_user)):
     partner = await _get_partner_by_user(user["id"])
     if not partner:
+        # Self-heal: the user may be flagged as a partner engineer (routed
+        # here) but their partner_engineers row points at a stale/placeholder
+        # user_id (e.g. re-registered after an account reset). Re-run the
+        # claim hook to relink it by email, then retry — so they don't get
+        # stranded on the "Become a Partner Engineer / Apply now" screen.
+        try:
+            from utils.partner_claim import claim_pending_partner_for_user
+            if await claim_pending_partner_for_user(user.get("email"), user["id"]):
+                partner = await _get_partner_by_user(user["id"])
+        except Exception:  # noqa: BLE001
+            logger.exception("[partners] /partners/me self-heal claim failed")
+    if not partner:
         return {"partner": None}
     # Fresh counts
     await _recompute_app_fee(partner["id"])

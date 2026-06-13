@@ -1,3 +1,20 @@
+## Iter 272 — FIX: partner engineer signs in → stuck on "Become a Partner / Apply now" ✅ (Jun 14, 2026)
+
+**Reported (production):** pressing **Sign in** lands a partner engineer on the empty `/partner-engineer` "Become a Partner Engineer / Apply now" screen instead of their dashboard. (Previously misdiagnosed in iter 270 as a "stale production cache" — it was a real backend bug.)
+
+**Root cause (reproduced):** the login claim hook (`utils/partner_claim.claim_pending_partner_for_user`) flagged the user `is_partner_engineer=True` by **email** match (→ frontend routes them to `/partner-engineer`), but the dashboard (`GET /partners/me` → `_get_partner_by_user`) resolves the partner row by **`user_id` ONLY**. When a `partner_engineers` row pointed at a stale/placeholder `user_id` (engineer's original account removed → re-registered with same email; `user_id` unique-indexed, email→row is 1:1), the two disagreed → flagged but empty dashboard. The claim hook only relinked `pending:` rows, not stale ones.
+
+**Fix:**
+- `utils/partner_claim.py` — claim hook now **self-heals**: finds the email's partner row (approved-first), and if it isn't already linked to the current user, relinks its `user_id` to the logged-in user (guards the unique-index edge). Runs on every login/register.
+- `routes/partners.py` `GET /partners/me` — when the partner resolves to null, re-runs the claim hook then retries, so a stuck engineer heals on the dashboard request itself (no re-login needed).
+
+**Verified:** seeded stale-link scenario → before: `/partners/me` partner=null (Apply screen); after login: relinked + partner returned. Happy path (engineer.smoke) still loads; non-partner users are NOT flagged. New regression `tests/test_iter272_partner_relink_selfheal.py` (2/2) added to Makefile `regression:`. Backend healthy, login 200.
+
+**ACTION (production):** preview-only fix — **redeploy gymaxisai.com** to push it live.
+
+---
+
+
 ## Iter 271 — Preview purge + Engineer Activation page localized pricing ✅ (Jun 14, 2026)
 
 **Preview purge (user request):** wiped preview to keep ONLY **GymAxis AI Admin** + **Third Space** (2 orgs, 7 users). Narrowed `scripts/wipe_preview_to_kept_orgs.py` `KEEP_ORG_IDS` to those two (dropped the 3 MOD orgs) and set `SEED_TEST_ACCOUNTS=0` in backend/.env so `lee.somers@pulsefitness.com` + its test org are no longer recreated on boot. Removed 1,060 orgs / 1,043 users + all associated test data; GymAxis Admin's own case-hub data preserved. `admin@gymaxisai.com` login = 200 post-wipe. Surviving accounts documented in test_credentials.md (top banner).
