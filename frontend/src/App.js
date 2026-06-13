@@ -459,7 +459,7 @@ function App() {
  // failure doesn't silently log the operator out (surfaced in
  // 215z/215aa test reports as "session lost when switching
  // modules"). We retry ONCE after 800ms before giving up.
- const bootAuthMe = (attempt = 0) => {
+ const bootAuthMe = (attempt = 0, triedRefresh = false) => {
  axios.get(`${API}/auth/me`, storedToken ? { headers: { Authorization: `Bearer ${storedToken}` } } : {})
  .then(res => {
  setUser(res.data);
@@ -517,6 +517,20 @@ function App() {
  const code = err?.response?.status;
  const hardFail = code === 401 || code === 403;
  if (hardFail) {
+ // Iter 267 — before logging out, try to resume from the long-lived
+ // HttpOnly refresh cookie (idle/sleep recovery). /auth/refresh mints a
+ // fresh access token from `ga_refresh`; then re-run /auth/me once.
+ if (!triedRefresh) {
+ axios.post(`${API}/auth/refresh`, {})
+   .then(() => bootAuthMe(attempt, true))
+   .catch(() => {
+     localStorage.removeItem('token');
+     localStorage.removeItem('user_cache');
+     setToken(null);
+     setLoading(false);
+   });
+ return;
+ }
  localStorage.removeItem('token');
  localStorage.removeItem('user_cache');
  setToken(null);

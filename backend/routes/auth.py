@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import uuid
 import asyncio
 import secrets
 import logging
 
 from utils.database import db
-from utils.auth import get_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
+from utils.auth import get_current_user, optional_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
+from utils.refresh_tokens import issue_refresh_token, clear_refresh_cookie, renew_access_from_refresh, revoke_refresh_cookie
 from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
     rate_limit_login, rate_limit_password_reset, validate_password_strength,
@@ -242,6 +243,8 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
     set_auth_cookie(response, token, max_age_hours=_ttl_hours)
     purge_legacy_cookie_scopes(response, request)
     await record_user_session(user_id, token, request)
+    # Iter 267 — long-lived refresh cookie for idle-gap session resume.
+    await issue_refresh_token(response, user_id, request, mfa_verified=False)
 
     # Iter 216h75 — Partner Engineer Network referral attribution. The
     # ref_code is bound write-once to the new org so the next cleared
@@ -475,6 +478,9 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
     set_auth_cookie(response, token, max_age_hours=ttl_hours)
     purge_legacy_cookie_scopes(response, request)
     await record_user_session(user["id"], token, request)
+    # Iter 267 — issue a long-lived refresh cookie so the session resumes
+    # after the short access token lapses (idle/sleep). Real login only.
+    await issue_refresh_token(response, user["id"], request, mfa_verified=mfa_verified)
 
     ip = request.client.host if request.client else ""
     from utils.audit import audit_log
@@ -884,7 +890,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
 
 
 @router.post("/auth/refresh")
-async def refresh_token(request: Request, response: Response, user: dict = Depends(get_current_user)) -> dict:
+async def refresh_token(request: Request, response: Response, user: Optional[dict] = Depends(optional_current_user)) -> dict:
     """Issue a fresh JWT token + revoke the old one (rotation).
 
     Iter 216h54 — the old jti is revoked with a 60-second grace window
@@ -899,9 +905,20 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
     Iter 227 — also rotates the HttpOnly ``ga_session`` cookie so a
     cookie-only main session (no localStorage token) stays alive past
     the original cookie's max-age.
+
+    Iter 267 — if the access token has FULLY EXPIRED (no valid `user`),
+    fall back to the long-lived ``ga_refresh`` cookie to mint a brand-new
+    access token, so an idle/slept session resumes without re-login.
     """
     from utils.security_plus import revoke_jwt
     from utils.auth_guards import access_token_ttl_hours
+    if user is None:
+        # Recovery path — access token absent/expired; try the refresh cookie.
+        recovered = await renew_access_from_refresh(request, response)
+        if not recovered:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        new_token, _ = recovered
+        return {"token": new_token}
     old_jti = user.get("_jwt_jti")
     old_exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
     ttl_hours = access_token_ttl_hours(user)
@@ -932,27 +949,33 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
 
 
 @router.post("/auth/logout")
-async def logout(response: Response, user: dict = Depends(get_current_user)) -> dict:
+async def logout(request: Request, response: Response, user: Optional[dict] = Depends(optional_current_user)) -> dict:
     """P1+.11 — kill the current JWT so it can't be reused if stolen later.
 
     Also clears the HttpOnly session cookie so the browser no longer
     re-authenticates automatically.
+
+    Iter 267 — additionally revoke + clear the long-lived ``ga_refresh``
+    cookie, and tolerate an expired access token (idempotent logout) so a
+    user whose access token has lapsed can still fully sign out.
     """
     from utils.security_plus import revoke_jwt, audit_required
-    jti = user.get("_jwt_jti")
-    exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
-    if jti:
-        await revoke_jwt(jti, int(exp), reason="logout")
-        await audit_required("security_audit_log", {
-            "event": "auth.logout", "actor_id": user["id"], "actor_email": user.get("email"),
-            "jti": jti,
-        })
-    try:
+    if user is not None:
+        jti = user.get("_jwt_jti")
+        exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
         if jti:
-            await db.user_sessions.delete_one({"jti": jti, "user_id": user["id"]})
-    except Exception:
-        pass
+            await revoke_jwt(jti, int(exp), reason="logout")
+            await audit_required("security_audit_log", {
+                "event": "auth.logout", "actor_id": user["id"], "actor_email": user.get("email"),
+                "jti": jti,
+            })
+            try:
+                await db.user_sessions.delete_one({"jti": jti, "user_id": user["id"]})
+            except Exception:
+                pass
+    await revoke_refresh_cookie(request)
     clear_auth_cookie(response)
+    clear_refresh_cookie(response)
     return {"success": True}
 
 

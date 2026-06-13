@@ -320,6 +320,22 @@ async def get_current_user(
     return user
 
 
+async def optional_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[dict]:
+    """Iter 267 — like ``get_current_user`` but returns ``None`` instead of
+    raising when there's no valid access token. Preserves all of
+    ``get_current_user``'s enrichment (`_jwt_jti`, MFA claim, mod-scope) on the
+    happy path, so endpoints can fall back to the refresh cookie when the
+    access token has expired."""
+    try:
+        return await get_current_user(request, credentials)
+    except HTTPException:
+        return None
+
+
+
 async def try_get_current_user(request) -> Optional[dict]:
     """Return the authenticated user if the request carries a valid JWT, else None.
 
