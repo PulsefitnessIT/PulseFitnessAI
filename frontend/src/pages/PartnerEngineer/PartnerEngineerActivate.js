@@ -31,6 +31,18 @@ import {
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
+// Iter 271 — localized Partner Plan pricing, mirroring the apply form
+// (PartnerApplyPublic.js). GB unchanged (£30 → £15); USD & EUR are
+// 39.99 → 19.99; CAD/AUD mirror the same figures in their local symbol.
+const PARTNER_PRICING = {
+  GB: { base: '£30', discount: '£15' },
+  US: { base: '$39.99', discount: '$19.99' },
+  IE: { base: '€39.99', discount: '€19.99' },
+  CA: { base: 'C$39.99', discount: 'C$19.99' },
+  AU: { base: 'A$39.99', discount: 'A$19.99' },
+};
+const partnerPricing = (code) => PARTNER_PRICING[(code || '').toUpperCase()] || PARTNER_PRICING.GB;
+
 export default function PartnerEngineerActivate() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -135,7 +147,7 @@ export default function PartnerEngineerActivate() {
               <p className="text-sm text-slate-600 mt-2">
                 We already have a GymAxis account for <b className="text-slate-900">{info.email}</b>.
                 Sign in there — we'll link your Partner Engineer record automatically and then
-                take you straight to Stripe to start your £30/mo plan.
+                take you straight to Stripe to start your {partnerPricing(info.country_code).base}/mo plan.
               </p>
               <button
                 type="button"
@@ -161,7 +173,7 @@ export default function PartnerEngineerActivate() {
                 </h1>
                 <p className="text-sm text-slate-600 mt-2">
                   Choose a password — we'll create your GymAxis account and take you straight to
-                  Stripe to start your <b className="text-slate-900">£30/mo Partner Plan</b>.
+                  Stripe to start your <b className="text-slate-900">{partnerPricing(info?.country_code).base}/mo Partner Plan</b>.
                 </p>
               </div>
 
@@ -233,7 +245,7 @@ export default function PartnerEngineerActivate() {
                 {submitting ? (
                   <><Loader2 size={14} className="animate-spin" /> Setting up your account…</>
                 ) : (
-                  <>Continue to Stripe (£30/mo) <ArrowRight size={14} /></>
+                  <>Continue to Stripe ({partnerPricing(info?.country_code).base}/mo) <ArrowRight size={14} /></>
                 )}
               </button>
 
@@ -248,7 +260,7 @@ export default function PartnerEngineerActivate() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 size={11} className="text-emerald-600" />
-                  The £30/mo fee drops as you refer gyms — free at 10 active sites.
+                  The {partnerPricing(info?.country_code).base}/mo fee drops as you refer gyms — free at 10 active sites.
                 </div>
               </div>
             </form>

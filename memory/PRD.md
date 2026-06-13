@@ -1,3 +1,16 @@
+## Iter 271 — Preview purge + Engineer Activation page localized pricing ✅ (Jun 14, 2026)
+
+**Preview purge (user request):** wiped preview to keep ONLY **GymAxis AI Admin** + **Third Space** (2 orgs, 7 users). Narrowed `scripts/wipe_preview_to_kept_orgs.py` `KEEP_ORG_IDS` to those two (dropped the 3 MOD orgs) and set `SEED_TEST_ACCOUNTS=0` in backend/.env so `lee.somers@pulsefitness.com` + its test org are no longer recreated on boot. Removed 1,060 orgs / 1,043 users + all associated test data; GymAxis Admin's own case-hub data preserved. `admin@gymaxisai.com` login = 200 post-wipe. Surviving accounts documented in test_credentials.md (top banner).
+
+**Activation page pricing (the last phantom-edit from iter 270):** `PartnerEngineerActivate.js` still hardcoded "£30/mo" in 4 spots. Added the same `PARTNER_PRICING` map as the apply form (GB £30→£15, US/IE $€39.99→19.99, CA/AU mirror) keyed off `info.country_code` (backend `/partners/activation/info` already returns it). All 4 user-facing strings (existing-account body, password-form body, submit button, footer) now read `partnerPricing(info?.country_code).base`.
+
+**Verified:** seeded a US activation token → screenshot shows "$39.99/mo Partner Plan", button "Continue to Stripe ($39.99/mo)", footer "$39.99/mo fee drops…", Set-Password form renders (no redirect loop / no "sign up again"). ESLint clean, webpack compiled. Test token cleaned up afterwards.
+
+**ACTION (production):** preview-only fix — **redeploy gymaxisai.com** to push the routing + currency fixes and clear the stale prod cache. (Preview DB purge does NOT affect production data.)
+
+---
+
+
 ## Iter 269 — Engineer sign-up: localized Partner Plan pricing ✅ (Jun 13, 2026)
 
 **Reported:** the engineer apply form showed the GBP app fee (£30 → £15) even when a US/European market was selected.
