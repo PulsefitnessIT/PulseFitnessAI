@@ -1,3 +1,18 @@
+## Iter 267-HOTFIX — Production login 502 (refresh-token write crashed login) ✅ (Jun 13, 2026)
+
+**Reported (production):** after deploying iter 267, Master Admin login at gymaxisai.com returned a Cloudflare **502** ("origin returned an invalid/incomplete response"). A wrong-password account returned a clean **401** — proving the backend was up and only the login **SUCCESS path** crashed.
+
+**Root cause (high confidence):** iter 267 added `issue_refresh_token()` on the login success path (`_finalise_successful_login`), which does `db.refresh_tokens.create_index()` + `insert_one()` on a brand-new collection. In the **production** DB environment this write failed (most likely a restricted Mongo user lacking createCollection/createIndex/insert on the new collection, or an index-build/write issue) and the **unhandled exception crashed the login request → 502**. Preview (local Mongo, full perms) worked fine, which is why iter 267 passed all preview tests.
+
+**Fix:** made the refresh-token feature **fully non-fatal** — `issue_refresh_token` and `renew_access_from_refresh` now wrap everything in try/except, log, and return `None` on any failure. The refresh cookie is a pure enhancement: if its DB write fails, **login still succeeds** and the session behaves exactly as pre-267 (access token + iter-266 proactive refresh). 
+
+**Verified (preview):** login 200 (x3); `tests/test_iter267_refresh_token.py` **5/5**, including a new `test_issue_refresh_token_is_non_fatal` that forces `insert_one`/`create_index` to raise ("not authorized…") and asserts login proceeds with no cookie set.
+
+**ACTION (production outage):** fix is in **preview**. Restore production by EITHER (a) **redeploy** gymaxisai.com with this hotfix, OR (b) **Rollback** to the checkpoint before iter 267 for instant recovery. Note: after redeploy, if the prod Mongo user can't write `refresh_tokens`, login works but the refresh-cookie feature silently no-ops (graceful degradation) — to make it active, grant the prod app DB user insert/createIndex on `refresh_tokens` (optional, not required for login).
+
+---
+
+
 ## Iter 267 — Permanent session longevity: long-lived refresh token ✅ (Jun 13, 2026)
 
 **Why:** follow-up hardening to iter 266. The single-token model meant any missed proactive refresh (frozen/slept tab past the access-token TTL) ended the session. Added a proper short-access + long-refresh split so sessions survive idle gaps, without weakening the hourly admin rotation.

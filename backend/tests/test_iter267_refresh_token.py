@@ -80,3 +80,35 @@ def test_happy_path_refresh_still_rotates():
     # Cookie session still authenticates after rotation.
     r_me = s.get(f"{BASE}/api/auth/me", headers=rate_limit_bypass_headers(), timeout=15)
     assert r_me.status_code == 200, r_me.text
+
+
+def test_issue_refresh_token_is_non_fatal(monkeypatch):
+    """Iter 267 hotfix — the refresh-token write must NEVER break login. If the
+    DB insert/index fails (e.g. restricted prod DB perms), issue_refresh_token
+    must swallow the error and return None so login still succeeds."""
+    import asyncio
+    import utils.refresh_tokens as rt
+
+    class _BoomColl:
+        async def insert_one(self, *a, **k):
+            raise RuntimeError("not authorized on db to execute command insert")
+        async def create_index(self, *a, **k):
+            raise RuntimeError("not authorized on db to execute command createIndexes")
+
+    class _BoomDB:
+        refresh_tokens = _BoomColl()
+
+    class _FakeResp:
+        def __init__(self):
+            self.cookies_set = []
+        def set_cookie(self, **kw):
+            self.cookies_set.append(kw)
+
+    monkeypatch.setattr(rt, "db", _BoomDB())
+    rt._indexes_ready = False
+    resp = _FakeResp()
+    # Must NOT raise, and must return None (no cookie set) when the DB is broken.
+    out = asyncio.run(rt.issue_refresh_token(resp, "user-123", None, mfa_verified=False))
+    assert out is None, "issue_refresh_token should return None on DB failure"
+    assert resp.cookies_set == [], "no refresh cookie should be set when the write fails"
+
