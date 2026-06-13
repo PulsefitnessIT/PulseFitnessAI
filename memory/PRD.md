@@ -1,3 +1,18 @@
+## Iter 268 — Service Desk dashboard: stat cards deep-link to correct filter ✅ (Jun 13, 2026)
+
+**Reported (production):** on the Pulse Service Desk dashboard, every KPI card (Total Customers / Active / Pending Invite / Archived) navigated to the SAME unfiltered Customers tab — a regression from the iter-262 "interactive cards" work.
+
+**Root cause:** in `DeskSummary.js` the non-provider `stats` array had `goto: 'customers'` on all four cards with no status, so each landed on the same view.
+
+**Fix:** each card now carries a `status` ('' / active / pending_invite / archived) → `onNavigate(goto, status)` → `ServiceDeskPage` stores `customerStatus` and passes `initialStatus` to `DeskCustomers`, which seeds (and re-applies) its existing `status` filter. Files: `DeskSummary.js`, `ServiceDeskPage.js`, `DeskCustomers.js`.
+
+**Verified:** testing agent (frontend 100%) — all 4 cards apply the correct filter on click + keyboard (Enter/Space), switching cards updates the filter (no stuck state), Recent Activity→Audit and Manage Customers still work, no regressions.
+
+**ACTION:** production-only — fix is in **preview**; user must **redeploy** gymaxisai.com.
+
+---
+
+
 ## Iter 267-HOTFIX — Production login 502 (refresh-token write crashed login) ✅ (Jun 13, 2026)
 
 **Reported (production):** after deploying iter 267, Master Admin login at gymaxisai.com returned a Cloudflare **502** ("origin returned an invalid/incomplete response"). A wrong-password account returned a clean **401** — proving the backend was up and only the login **SUCCESS path** crashed.
