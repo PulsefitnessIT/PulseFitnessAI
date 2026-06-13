@@ -1,3 +1,18 @@
+## Iter 269 — Engineer sign-up: localized Partner Plan pricing ✅ (Jun 13, 2026)
+
+**Reported:** the engineer apply form showed the GBP app fee (£30 → £15) even when a US/European market was selected.
+
+**Fix (display):** `PartnerApplyPublic.js` — new `PARTNER_PRICING` map keyed by country: GBP £30→£15 (unchanged), **USD $39.99→$19.99**, **EUR €39.99→€19.99** (any European market), CAD C$39.99→C$19.99, AUD A$39.99→A$19.99; free at 10+ everywhere. The App-fee line, Commission per-site figure (£3/$3/€3), and the trust-footer chip all read `partnerPricing(profile.country_code)` and update live with the Country dropdown.
+
+**Fix (actual charge routing):** `routes/partners.py` — `_partner_plan_price_id_for_tier` generalized from USD-only to currency-aware (`PARTNER_PLAN_PRICE_IDS_BY_CURRENCY`: USD/EUR/CAD/AUD), resolving currency from `COUNTRY_CONFIG`, falling back to the GBP price if a currency's price isn't seeded.
+
+**Verified:** testing agent frontend 100% (all 5 countries localize, postcode label still adapts, form submits); backend `test_iter265_us_engineer_readiness.py` 8/8 (added EUR routing tests).
+
+**ACTION (important):** the *displayed* price is now correct, but the *actual Stripe charge* uses env Price IDs. To make the charge match the display, create recurring prices in Stripe and set env vars: `STRIPE_PRICE_PARTNER_PLAN_30_USD`=$39.99, `_15_USD`=$19.99, `_30_EUR`=€39.99, `_15_EUR`=€19.99 (and CAD/AUD if used). Until set, US/EU checkout falls back to the GBP price (display would then mismatch the charge). Then **redeploy** gymaxisai.com (preview-only fix).
+
+---
+
+
 ## Iter 268 — Service Desk dashboard: stat cards deep-link to correct filter ✅ (Jun 13, 2026)
 
 **Reported (production):** on the Pulse Service Desk dashboard, every KPI card (Total Customers / Active / Pending Invite / Archived) navigated to the SAME unfiltered Customers tab — a regression from the iter-262 "interactive cards" work.
