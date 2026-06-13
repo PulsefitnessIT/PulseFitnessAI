@@ -933,6 +933,7 @@ async def approve_partner_application(
             full_name=app.get("full_name") or "",
             referral_code=referral_code,
             activation_token=activation_token,
+            country_code=app.get("country_code") or "GB",
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner application-approved email failed: %s", exc)
@@ -1231,6 +1232,7 @@ async def resend_partner_application_approval_email(
             full_name=full_name,
             referral_code=referral_code,
             activation_token=activation_token,
+            country_code=(partner or {}).get("country_code") or app.get("country_code") or "GB",
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Manual resend of approval email failed: %s", exc)
@@ -1400,6 +1402,7 @@ async def send_partner_signin_link(
             full_name=full_name,
             referral_code=referral_code,
             activation_token=activation_token,
+            country_code=(partner or {}).get("country_code") or app.get("country_code") or "GB",
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner activation email failed: %s", exc)
@@ -4133,6 +4136,7 @@ async def admin_approve_partner(
                 email=partner["email"],
                 full_name=partner.get("full_name", ""),
                 referral_code=partner.get("referral_code"),
+                country_code=partner.get("country_code") or "GB",
             )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner approval email failed: %s", exc)

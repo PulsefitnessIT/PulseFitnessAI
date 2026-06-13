@@ -63,6 +63,33 @@ def _apply_again_url() -> str:
     return f"{base}/partners/engineers/apply"
 
 
+# Iter 270 — localize the approval email to the engineer's market. Mirrors the
+# apply-form `PARTNER_PRICING` (GBP unchanged; USD/EUR 39.99→19.99; CAD/AUD same
+# figures in local symbol) and the per-market compliance doc set.
+_PARTNER_PRICING = {
+    "GB": {"base": "£30", "discount": "£15", "site": "£3"},
+    "US": {"base": "$39.99", "discount": "$19.99", "site": "$3"},
+    "IE": {"base": "€39.99", "discount": "€19.99", "site": "€3"},
+    "CA": {"base": "C$39.99", "discount": "C$19.99", "site": "C$3"},
+    "AU": {"base": "A$39.99", "discount": "A$19.99", "site": "A$3"},
+}
+_COMPLIANCE_DOCS = {
+    "GB": "Insurance, DBS, Right-to-Work",
+    "US": "Insurance, I-9 work authorization, background check",
+    "IE": "Insurance, proof of right to work, Garda vetting",
+    "CA": "Insurance, work eligibility, background check",
+    "AU": "Insurance, work rights, police check",
+}
+
+
+def _partner_pricing(country_code: str | None) -> dict:
+    return _PARTNER_PRICING.get((country_code or "GB").strip().upper(), _PARTNER_PRICING["GB"])
+
+
+def _compliance_docs(country_code: str | None) -> str:
+    return _COMPLIANCE_DOCS.get((country_code or "GB").strip().upper(), _COMPLIANCE_DOCS["GB"])
+
+
 # ── Shared layout ───────────────────────────────────────────────────
 
 
@@ -126,26 +153,28 @@ async def send_application_approved(
     full_name: str,
     referral_code: str | None,
     activation_token: str | None = None,
+    country_code: str | None = None,
 ) -> bool:
-    """Iter 219f — single welcome email that funnels the engineer
+    """Iter 219f / 270 — single welcome email that funnels the engineer
     straight to a "Set up your sign-in" page (1-minute password
     form) which then auto-redirects to Stripe Checkout for the
-    £30/mo Partner Plan. The page also creates the user account
-    and links it to the partner row so the engineer is signed in
-    by the time they land back on the dashboard.
+    Partner Plan. Pricing + compliance docs are localized to the
+    engineer's market (``country_code``).
 
     Stripe Connect Express (for *receiving* customer invoice
     payouts) is step 3 in the body — it's wired into the activation
     checklist on the dashboard so progression is visible there too.
     """
     first = (full_name or "").split(" ")[0] or "there"
+    price = _partner_pricing(country_code)
+    docs = _compliance_docs(country_code)
     ref_block = ""
     if referral_code:
         ref_block = (
             f'<p style="background:#F1F5F9;border-left:3px solid #0055FF;padding:14px 16px;border-radius:6px;margin-top:16px;">'
             f'<strong>Your referral code:</strong> '
             f'<span style="font-family:monospace;font-size:16px;font-weight:700;letter-spacing:0.03em;">{referral_code}</span><br/>'
-            f'<span style="font-size:12px;color:#475569;">Share this with any gym owner — every gym that signs up under your code earns you a one-off reward + £3/site/mo recurring (released after 3 months on the platform).</span>'
+            f'<span style="font-size:12px;color:#475569;">Share this with any gym owner — every gym that signs up under your code earns you a one-off reward + {price["site"]}/site/mo recurring (released after 3 months on the platform).</span>'
             f"</p>"
         )
     # If we have a single-use activation token, the CTA is a 1-click
@@ -158,13 +187,13 @@ async def send_application_approved(
         sign_in_line = (
             "<p><strong>Step 1 — set up your sign-in.</strong> Click the button below to "
             "choose your password. We'll create your account, then take you straight to "
-            "Stripe to start your £30/mo Partner Plan.</p>"
+            f"Stripe to start your {price['base']}/mo Partner Plan.</p>"
         )
     else:
         cta_url = _partner_subscribe_url()
-        cta_label = "Start Partner Plan with Stripe (£30/mo)"
+        cta_label = f"Start Partner Plan with Stripe ({price['base']}/mo)"
         sign_in_line = (
-            "<p><strong>Next step — set up your £30/month Partner Plan with Stripe.</strong> "
+            f"<p><strong>Next step — set up your {price['base']}/month Partner Plan with Stripe.</strong> "
             "Click below to go to Stripe Checkout (you'll be asked to sign in or register "
             "with this email first).</p>"
         )
@@ -175,9 +204,9 @@ async def send_application_approved(
         f"{sign_in_line}"
         f"<p style=\"font-size:13px;color:#475569;margin-top:18px;\">After that, we'll guide you through:</p>"
         f"<ol style=\"font-size:13px;color:#1f2937;\">"
-        f"<li><strong>Pay your £30/mo Partner Plan</strong> (drops automatically as you refer gyms — free at 10).</li>"
+        f"<li><strong>Pay your {price['base']}/mo Partner Plan</strong> (drops automatically as you refer gyms — free at 10).</li>"
         f"<li><strong>Connect Stripe Express</strong> so customers can pay your invoices by card — typically 3 minutes.</li>"
-        f"<li><strong>Upload your compliance documents</strong> (Insurance, DBS, Right-to-Work).</li>"
+        f"<li><strong>Upload your compliance documents</strong> ({docs}).</li>"
         f"<li><strong>Open the Engineer App</strong> — mobile-first PWA with offline support.</li>"
         f"</ol>"
         f"{ref_block}"
@@ -189,7 +218,7 @@ async def send_application_approved(
     subject = (
         "You're approved — set up your sign-in (1 min)"
         if activation_token
-        else "You're approved — start your £30/mo Partner Plan with Stripe"
+        else f"You're approved — start your {price['base']}/mo Partner Plan with Stripe"
     )
     return await send_email(
         to=email,
