@@ -92,3 +92,21 @@ def test_partner_plan_price_us_falls_back_to_gbp(monkeypatch):
 def test_partner_plan_price_free_tier_none():
     from routes.partners import _partner_plan_price_id_for_tier
     assert _partner_plan_price_id_for_tier({"price_gbp": 0}, "US") is None
+
+
+def test_partner_plan_price_eur_for_european_country(monkeypatch):
+    """Iter 269 — European engineers (e.g. IE → EUR) get the EUR price."""
+    from routes.partners import _partner_plan_price_id_for_tier
+    monkeypatch.setenv("STRIPE_PRICE_PARTNER_PLAN_30", "price_gbp_30")
+    monkeypatch.setenv("STRIPE_PRICE_PARTNER_PLAN_30_EUR", "price_eur_30")
+    tier = {"price_gbp": 30}
+    assert _partner_plan_price_id_for_tier(tier, "IE") == "price_eur_30"
+    # GB still GBP.
+    assert _partner_plan_price_id_for_tier(tier, "GB") == "price_gbp_30"
+
+
+def test_partner_plan_price_eur_falls_back_to_gbp(monkeypatch):
+    from routes.partners import _partner_plan_price_id_for_tier
+    monkeypatch.setenv("STRIPE_PRICE_PARTNER_PLAN_30", "price_gbp_30")
+    monkeypatch.delenv("STRIPE_PRICE_PARTNER_PLAN_30_EUR", raising=False)
+    assert _partner_plan_price_id_for_tier({"price_gbp": 30}, "IE") == "price_gbp_30"

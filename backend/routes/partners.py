@@ -155,12 +155,15 @@ PARTNER_PLAN_PRICE_IDS_BY_TIER = {
     30: "STRIPE_PRICE_PARTNER_PLAN_30",
     15: "STRIPE_PRICE_PARTNER_PLAN_15",
 }
-# Iter 265 — USA readiness. US engineers are billed in USD so they aren't hit
-# with GBP FX fees. Create matching recurring USD prices in Stripe (e.g.
-# $39 / $19) and set these env vars; if unset we fall back to the GBP price.
-PARTNER_PLAN_PRICE_IDS_BY_TIER_USD = {
-    30: "STRIPE_PRICE_PARTNER_PLAN_30_USD",
-    15: "STRIPE_PRICE_PARTNER_PLAN_15_USD",
+# Iter 265/269 — multi-currency readiness. Non-GBP engineers are billed in
+# their local currency so they aren't hit with FX fees. Create matching
+# recurring prices in Stripe (USD 39.99/19.99, EUR 39.99/19.99, etc.) and set
+# these env vars; if a currency's price is unset we fall back to the GBP price.
+PARTNER_PLAN_PRICE_IDS_BY_CURRENCY = {
+    "USD": {30: "STRIPE_PRICE_PARTNER_PLAN_30_USD", 15: "STRIPE_PRICE_PARTNER_PLAN_15_USD"},
+    "EUR": {30: "STRIPE_PRICE_PARTNER_PLAN_30_EUR", 15: "STRIPE_PRICE_PARTNER_PLAN_15_EUR"},
+    "CAD": {30: "STRIPE_PRICE_PARTNER_PLAN_30_CAD", 15: "STRIPE_PRICE_PARTNER_PLAN_15_CAD"},
+    "AUD": {30: "STRIPE_PRICE_PARTNER_PLAN_30_AUD", 15: "STRIPE_PRICE_PARTNER_PLAN_15_AUD"},
 }
 
 
@@ -1727,15 +1730,20 @@ def _partner_plan_price_id_for_tier(tier: dict, country_code: Optional[str] = No
     `price_gbp` — or None when the tier is free (no subscription needed)
     or when the env var is unset (production must seed the price IDs).
 
-    Iter 265 — US engineers (``country_code == 'US'``) get the USD price when
-    its env var is set, falling back to the GBP price so nothing breaks when the
-    USD prices haven't been seeded yet."""
+    Iter 265/269 — non-GBP engineers get their local-currency price (resolved
+    from `country_code` → currency) when that env var is set, falling back to
+    the GBP price so nothing breaks when a currency's prices aren't seeded."""
     gbp_key = PARTNER_PLAN_PRICE_IDS_BY_TIER.get(tier.get("price_gbp"))
-    if (country_code or "").strip().upper() == "US":
-        usd_key = PARTNER_PLAN_PRICE_IDS_BY_TIER_USD.get(tier.get("price_gbp"))
-        usd_price = os.environ.get(usd_key) if usd_key else None
-        if usd_price:
-            return usd_price
+    code = (country_code or "").strip().upper()
+    if code:
+        from utils.localization import COUNTRY_CONFIG, DEFAULT_COUNTRY
+        currency = COUNTRY_CONFIG.get(code, COUNTRY_CONFIG[DEFAULT_COUNTRY])["currency"]
+        cur_map = PARTNER_PLAN_PRICE_IDS_BY_CURRENCY.get(currency)
+        if cur_map:
+            cur_key = cur_map.get(tier.get("price_gbp"))
+            cur_price = os.environ.get(cur_key) if cur_key else None
+            if cur_price:
+                return cur_price
     if not gbp_key:
         return None
     return os.environ.get(gbp_key) or None

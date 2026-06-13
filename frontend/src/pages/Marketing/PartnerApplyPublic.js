@@ -48,6 +48,18 @@ const COUNTRIES = [
   { code: 'AU', name: 'Australia', cur: 'A$ AUD', postcode: 'Postcode', placeholder: '2000' },
 ];
 
+// Iter 269 — Partner Plan app-fee localized to the engineer's market. GBP
+// unchanged (£30 → £15); USD & EUR are 39.99 → 19.99; CAD/AUD mirror the same
+// figures in their local symbol. Free at 10+ active referrals everywhere.
+const PARTNER_PRICING = {
+  GB: { base: '£30', discount: '£15', site: '£3' },
+  US: { base: '$39.99', discount: '$19.99', site: '$3' },
+  IE: { base: '€39.99', discount: '€19.99', site: '€3' },
+  CA: { base: 'C$39.99', discount: 'C$19.99', site: 'C$3' },
+  AU: { base: 'A$39.99', discount: 'A$19.99', site: 'A$3' },
+};
+const partnerPricing = (code) => PARTNER_PRICING[code] || PARTNER_PRICING.GB;
+
 function isValidEmail(e) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((e || '').trim());
 }
@@ -499,8 +511,8 @@ export default function PartnerApplyPublic() {
                 <div className="rounded-2xl border border-slate-200 p-4 text-xs leading-relaxed text-slate-600 space-y-2 max-h-48 overflow-auto bg-white dark:bg-zinc-900 dark:border-zinc-800">
                   <p><strong>Eligibility</strong>: You must be a qualified fitness equipment engineer. Public liability insurance is required before you accept a job (we can help you get covered).</p>
                   <p><strong>Job access</strong>: You'll be granted job-specific access only — no full-platform visibility, no cross-customer data leakage.</p>
-                  <p><strong>Commission</strong>: 50% of the referred gym's first cleared Operations payment (one-off) + £3/site per month recurring for as long as the gym stays on the platform. Both released after the referred gym has been active for 3 months. Subject to Master Admin approval and refundable claw-back.</p>
-                  <p><strong>App fee</strong>: £30/mo with automatic discounts (£15 at 5+ active referrals · free at 10+). Billed monthly via Stripe.</p>
+                  <p><strong>Commission</strong>: 50% of the referred gym's first cleared Operations payment (one-off) + {partnerPricing(profile.country_code).site}/site per month recurring for as long as the gym stays on the platform. Both released after the referred gym has been active for 3 months. Subject to Master Admin approval and refundable claw-back.</p>
+                  <p><strong>App fee</strong>: {partnerPricing(profile.country_code).base}/mo with automatic discounts ({partnerPricing(profile.country_code).discount} at 5+ active referrals · free at 10+). Billed monthly via Stripe.</p>
                   <p><strong>Termination</strong>: Either side can terminate with 14 days' notice. Master Admin may suspend on safety, fraud, or compliance grounds with immediate effect.</p>
                 </div>
 
@@ -540,7 +552,7 @@ export default function PartnerApplyPublic() {
           {/* Trust footer */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" />Decision in 2 working days</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" />£30/mo · free at 10 referrals</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" />{partnerPricing(profile.country_code).base}/mo · free at 10 referrals</span>
             <span className="inline-flex items-center gap-1.5"><Mail size={12} className="text-slate-500" />Need help? <Link to="/contact" className="underline">Contact us</Link></span>
           </div>
         </div>

@@ -1,0 +1,41 @@
+{
+  "summary": "Iter 269 — Partner Engineer apply form localized pricing verified. Trust-footer chip localizes correctly for all 5 supported countries (GB/US/IE/CA/AU) immediately on Country change. Review step App fee + Commission per-site lines verified for US end-to-end. IE/CA/AU review-step localization is logically guaranteed via shared partnerPricing() lookup against the same PARTNER_PRICING map (confirmed via code review). Postcode label regression also working (US showed ZIP code label).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/partners/engineers/apply", "issues": ["Console warning: 'In HTML, <span> cannot be a child of <option>' — caused by the Emergent visual-editor injecting <span> wrappers inside <option> elements of the Country dropdown (data-testid='pe-apply-country'). Pre-existing infra/devtool issue, not a regression introduced by iter 269. No functional impact (selectOption works, values resolve correctly)."]}
+    ]
+  },
+  "test_evidence": {
+    "chip_values_observed": {
+      "GB": "£30/mo · free at 10 referrals",
+      "US": "$39.99/mo · free at 10 referrals",
+      "IE": "€39.99/mo · free at 10 referrals",
+      "CA": "C$39.99/mo · free at 10 referrals",
+      "AU": "A$39.99/mo · free at 10 referrals"
+    },
+    "review_step_us": {
+      "app_fee_line": "App fee: $39.99/mo with automatic discounts ($19.99 at 5+ active referrals · free at 10+). Billed monthly via Stripe.",
+      "commission_line": "Commission: 50% of the referred gym's first cleared Operations payment (one-off) + $3/site per month recurring for as long as the gym stays on the platform. ...",
+      "chip_on_review_screen": "$39.99/mo · free at 10 referrals"
+    },
+    "postcode_label_regression_us": "Base zip code (verified in step 2)"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PARTNER_PRICING map (PartnerApplyPublic.js L54-60) is well-scoped and keyed by the same set as COUNTRIES (GB/US/IE/CA/AU) — no risk of unknown country falling through. partnerPricing() falls back to GB defensively for any unmatched code.",
+    "Problem statement mentions 'same for any European country' for EUR pricing, but the COUNTRIES dropdown currently only lists Ireland (IE) as the European option. If more EU markets are added to COUNTRIES later, ensure they each get an entry in PARTNER_PRICING (or refactor to map by currency code rather than country code).",
+    "Console hydration warning: <span> child of <option> originates from Emergent visual-editor instrumentation on the dynamic COUNTRIES.map() — harmless at runtime but spams console errors on every page load. Consider suppressing or marking the option as non-editable in source attrs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100%"},
+  "test_credentials": "none — public page",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 269 localized Partner Plan pricing on /partners/engineers/apply is working as specified. Trust-footer chip + Review-step App fee/Commission lines both use partnerPricing(profile.country_code). Verified for GB/US/IE/CA/AU at chip level and US at review-step level. To re-test full e2e for IE: country select IE → next → eircode 'D02 AF30' → next → fill skills/quals/years → next → upload any file via input[data-testid='pe-apply-cv-input'] → next → check 'App fee: €39.99/mo ... (€19.99 at 5+ ... · free at 10+)' and 'Commission: ... + €3/site per month'. Note Field testIds are: pe-apply-name (NOT pe-apply-fullname), pe-apply-email, pe-apply-phone, pe-apply-postcode, pe-apply-skills, pe-apply-quals, pe-apply-years.",
+  "rca": "n/a — no bug found. Previous bug (£30 showing for every market) is fixed."
+}
