@@ -1,3 +1,18 @@
+## Iter 266 — Fix recurring "Your session has expired" for Master Admins ✅ (Jun 13, 2026)
+
+**Reported (production):** logging in as Master Admin, the dashboard shows a "Your session has expired" banner ~1h into a session. Recurring; prior cookie-focused fixes (iters 227/231/232) didn't resolve it.
+
+**Root cause (reproduced + code-confirmed):** master/Pulse admins are issued a **1-HOUR** access token (`auth_guards.access_token_ttl_hours` → 1h; everyone else 24h) for security, and the HttpOnly `ga_session` cookie max-age matches. But the frontend **proactive token refresh ran on a 12-HOUR `setInterval`** (`App.js`) — it fired once on load, then not again for 12h. So an admin's 1h token expired with no proactive renewal; the next API call 401'd, the reactive refresh had no valid cookie → 401 → session-expired banner. 24h users were unaffected (12h interval refreshes them twice per token life), which is why it only hit admins and recurred ~hourly.
+
+**Fix (`frontend/src/App.js`, no backend change):** refresh **every 15 minutes** (comfortably inside the 1h floor, with the backend's existing 60s rotation grace) + refresh **on tab refocus** (`visibilitychange`, throttled to once/min) to cover background-timer throttling / laptop sleep. The existing single-flight `__refreshInflight` guard prevents concurrent-refresh storms. Token still rotates hourly (security posture preserved).
+
+**Verified:** login → 4 consecutive `/auth/refresh` rotations each followed by `/auth/me` = all 200 (chain stable, no self-revocation). `withCredentials=true` global so the cookie is sent. Frontend compiles clean. The long-idle-overnight banner remains by design (SessionResumedBanner).
+
+**ACTION:** production-only fix made in **preview** — user must **redeploy** to push to gymaxisai.com.
+
+---
+
+
 ## Iter 265 — USA readiness for INDEPENDENT (Partner) engineers ✅ (Jun 13, 2026)
 
 **Trigger:** an American independent engineer is about to sign up for the Engineer App. BA audit found the engineer's **market was never captured** — independent partner engineers are created org-less (`organization_id=None`), so every localization read fell back to GB: invoices rendered £, Stripe Connect created a **UK** Express account (a US person can't onboard it), and compliance asked for DBS/RTW instead of the US set. User approved 1A + full wiring + USD plan price.

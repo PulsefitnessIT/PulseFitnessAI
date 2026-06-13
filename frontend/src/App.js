@@ -492,8 +492,24 @@ function App() {
  }
  };
  refreshToken(); // Refresh on load
- const interval = setInterval(refreshToken, 12 * 60 * 60 * 1000);
- return () => clearInterval(interval);
+ // Iter 266 — master/Pulse admins get a 1-HOUR token (security); the old 12h
+ // cadence let it expire mid-session -> spurious "Your session has expired".
+ // Refresh every 15 min (inside the 1h floor, w/ backend 60s rotation grace)
+ // and on tab refocus (background timers throttle / laptops sleep).
+ const interval = setInterval(refreshToken, 15 * 60 * 1000);
+ let _lastVisRefresh = Date.now();
+ const onVisible = () => {
+   if (typeof document !== 'undefined' && document.visibilityState === 'visible'
+       && Date.now() - _lastVisRefresh > 60 * 1000) {
+     _lastVisRefresh = Date.now();
+     refreshToken();
+   }
+ };
+ if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
+ return () => {
+   clearInterval(interval);
+   if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+ };
  })
  .catch((err) => {
  // Only wipe the session for HARD 401/403 (actually invalid).
