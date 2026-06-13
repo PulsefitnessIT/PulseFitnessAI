@@ -38,6 +38,16 @@ const STEPS = [
 const MAX_FILE_MB = 10;
 const ACCEPTED_EXT = '.pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg';
 
+// Iter 265 — USA readiness. The market an engineer chooses here drives their
+// invoice currency, Stripe Connect account country and compliance doc set.
+const COUNTRIES = [
+  { code: 'GB', name: 'United Kingdom', cur: '£ GBP', postcode: 'Postcode', placeholder: 'SW1A 1AA' },
+  { code: 'US', name: 'United States', cur: '$ USD', postcode: 'ZIP code', placeholder: '10001' },
+  { code: 'IE', name: 'Ireland', cur: '€ EUR', postcode: 'Eircode', placeholder: 'D02 AF30' },
+  { code: 'CA', name: 'Canada', cur: 'C$ CAD', postcode: 'Postal code', placeholder: 'M5H 2N2' },
+  { code: 'AU', name: 'Australia', cur: 'A$ AUD', postcode: 'Postcode', placeholder: '2000' },
+];
+
 function isValidEmail(e) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((e || '').trim());
 }
@@ -69,6 +79,7 @@ export default function PartnerApplyPublic() {
     email: '',
     phone: '',
     company_name: '',
+    country_code: 'GB',
     service_postcode: '',
     travel_radius_km: 25,
     brands_supported: '',
@@ -121,7 +132,7 @@ export default function PartnerApplyPublic() {
       else if (p.replace(/\D/g, '').length < 7) er.phone = 'Looks too short — full mobile number please';
     }
     if (step.id === 'area') {
-      if (profile.service_postcode && !isValidUkPostcode(profile.service_postcode)) {
+      if (profile.country_code === 'GB' && profile.service_postcode && !isValidUkPostcode(profile.service_postcode)) {
         er.service_postcode = 'Looks like an invalid UK postcode';
       }
       // Iter 216h216 — Craig's audit: 2km is unworkable. Set min 5km.
@@ -318,6 +329,23 @@ export default function PartnerApplyPublic() {
                   value={profile.phone} onChange={setField('phone')} />
                 <Field label="Company / trading name (optional)" testId="pe-apply-company"
                   value={profile.company_name} onChange={setField('company_name')} />
+                <label className="block">
+                  <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
+                    Country <span className="text-rose-500" aria-hidden>*</span>
+                  </span>
+                  <select
+                    value={profile.country_code}
+                    onChange={setField('country_code')}
+                    className="mt-1.5 w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-slate-900 dark:bg-zinc-900"
+                    data-testid="pe-apply-country">
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.name} ({c.cur})</option>
+                    ))}
+                  </select>
+                  <span className="block text-[11px] text-slate-400 mt-1">
+                    Sets your invoicing currency, payout account country & the compliance documents we'll ask for.
+                  </span>
+                </label>
               </div>
             )}
 
@@ -325,7 +353,8 @@ export default function PartnerApplyPublic() {
             {step.id === 'area' && (
               <div className="space-y-4">
                 <h2 className="text-lg font-bold flex items-center gap-2"><MapPin size={16} /> Service area</h2>
-                <Field label="Base postcode" placeholder="SW1A 1AA" testId="pe-apply-postcode"
+                <Field label={`Base ${(COUNTRIES.find((c) => c.code === profile.country_code) || COUNTRIES[0]).postcode.toLowerCase()}`}
+                  placeholder={(COUNTRIES.find((c) => c.code === profile.country_code) || COUNTRIES[0]).placeholder} testId="pe-apply-postcode"
                   error={errors.service_postcode}
                   value={profile.service_postcode}
                   onChange={(e) => setField('service_postcode')({ target: { value: (e?.target?.value || '').toUpperCase() } })} />

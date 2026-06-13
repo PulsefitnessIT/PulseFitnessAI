@@ -155,6 +155,13 @@ PARTNER_PLAN_PRICE_IDS_BY_TIER = {
     30: "STRIPE_PRICE_PARTNER_PLAN_30",
     15: "STRIPE_PRICE_PARTNER_PLAN_15",
 }
+# Iter 265 — USA readiness. US engineers are billed in USD so they aren't hit
+# with GBP FX fees. Create matching recurring USD prices in Stripe (e.g.
+# $39 / $19) and set these env vars; if unset we fall back to the GBP price.
+PARTNER_PLAN_PRICE_IDS_BY_TIER_USD = {
+    30: "STRIPE_PRICE_PARTNER_PLAN_30_USD",
+    15: "STRIPE_PRICE_PARTNER_PLAN_15_USD",
+}
 
 
 # ───────────────────────── helpers ─────────────────────────
@@ -402,6 +409,10 @@ async def public_apply_partner(
     phone: str = Form(""),
     company_name: str = Form(""),
     service_postcode: str = Form(""),
+    # Iter 265 — USA readiness. The engineer's market (ISO-3166 alpha-2) chosen
+    # at signup. Drives their currency (invoices/quotes), Stripe Connect account
+    # country, compliance doc set (US→I-9/background check) and plan currency.
+    country_code: str = Form("GB"),
     travel_radius_km: int = Form(25),
     brands_supported: str = Form(""),
     skills: str = Form(""),
@@ -442,7 +453,16 @@ async def public_apply_partner(
         raise HTTPException(400, "A valid email address is required")
     if (terms_accepted or "").lower() not in ("true", "1", "on", "yes"):
         raise HTTPException(400, "You must accept the Partner Engineer terms")
-    postcode = _validate_postcode(service_postcode or "TBD") if (service_postcode or "").strip() else ""
+    from utils.localization import COUNTRY_CONFIG, DEFAULT_COUNTRY
+    market = (country_code or "").strip().upper()
+    if market not in COUNTRY_CONFIG:
+        market = DEFAULT_COUNTRY
+    # Postcode format is UK-specific; only validate it for GB applicants so a
+    # US ZIP / other-market postal code isn't rejected.
+    if market == "GB":
+        postcode = _validate_postcode(service_postcode or "TBD") if (service_postcode or "").strip() else ""
+    else:
+        postcode = (service_postcode or "").strip()[:20] or ""
 
     application_id = _new_id()
 
@@ -457,6 +477,7 @@ async def public_apply_partner(
         "email": email,
         "phone": (phone or "").strip()[:40] or None,
         "company_name": (company_name or "").strip()[:200] or None,
+        "country_code": market,
         "service_postcode": postcode or None,
         "travel_radius_km": max(1, min(int(travel_radius_km or 25), 500)),
         "brands_supported": _split_csv(brands_supported),
@@ -848,6 +869,9 @@ async def approve_partner_application(
             # Carry profile fields across from the application.
             "full_name": app.get("full_name"),
             "company_name": app.get("company_name"),
+            # Iter 265 — engineer's market (drives currency, Stripe Connect
+            # account country, compliance doc set). Defaults GB for back-compat.
+            "country_code": (app.get("country_code") or "GB"),
             "phone": app.get("phone"),
             "service_postcode": app.get("service_postcode"),
             "travel_radius_km": app.get("travel_radius_km") or 25,
@@ -1698,14 +1722,23 @@ async def _recompute_app_fee(partner_id: str) -> dict:
 # ───────────────────────── Stripe subscription helpers (iter 216h76) ─────────────────────────
 
 
-def _partner_plan_price_id_for_tier(tier: dict) -> Optional[str]:
+def _partner_plan_price_id_for_tier(tier: dict, country_code: Optional[str] = None) -> Optional[str]:
     """Return the env-configured Stripe price ID matching this tier's
     `price_gbp` — or None when the tier is free (no subscription needed)
-    or when the env var is unset (production must seed the price IDs)."""
-    env_key = PARTNER_PLAN_PRICE_IDS_BY_TIER.get(tier.get("price_gbp"))
-    if not env_key:
+    or when the env var is unset (production must seed the price IDs).
+
+    Iter 265 — US engineers (``country_code == 'US'``) get the USD price when
+    its env var is set, falling back to the GBP price so nothing breaks when the
+    USD prices haven't been seeded yet."""
+    gbp_key = PARTNER_PLAN_PRICE_IDS_BY_TIER.get(tier.get("price_gbp"))
+    if (country_code or "").strip().upper() == "US":
+        usd_key = PARTNER_PLAN_PRICE_IDS_BY_TIER_USD.get(tier.get("price_gbp"))
+        usd_price = os.environ.get(usd_key) if usd_key else None
+        if usd_price:
+            return usd_price
+    if not gbp_key:
         return None
-    return os.environ.get(env_key) or None
+    return os.environ.get(gbp_key) or None
 
 
 async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> None:
@@ -1733,7 +1766,7 @@ async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> Non
         logger.warning("[partners] stripe SDK unavailable — skipping subscription sync")
         return
 
-    target_price_id = _partner_plan_price_id_for_tier(tier)
+    target_price_id = _partner_plan_price_id_for_tier(tier, await _partner_country(partner))
     try:
         sub = stripe.Subscription.retrieve(sub_id)
     except Exception as exc:  # noqa: BLE001
@@ -2032,14 +2065,12 @@ async def _store_compliance_attachment(file: UploadFile, partner_id: str, kind: 
 
 
 async def _compliance_country(user: dict) -> str:
-    """Iter 220p1 — the engineer's compliance market (drives which docs are
-    required: UK→DBS/RTW, US→work authorization/background check). Resolved
-    from the user's org country_code; defaults to GB."""
-    from utils.localization import org_localization
-    org = await db.organizations.find_one(
-        {"id": user.get("organization_id")}, {"_id": 0, "country_code": 1},
-    )
-    return org_localization(org)["country_code"]
+    """Iter 220p1 / 265 — the engineer's compliance market (drives which docs
+    are required: UK→DBS/RTW, US→work authorization/background check). Resolved
+    from the org country_code, then the independent engineer's market chosen at
+    signup (``partner_engineers.country_code``); defaults to GB."""
+    from utils.localization import engineer_localization
+    return (await engineer_localization(user))["country_code"]
 
 
 
@@ -2279,9 +2310,12 @@ async def admin_verify_compliance_doc(
 
 
 async def _partner_country(partner: dict) -> str:
-    """Iter 220p1 — resolve a partner engineer's compliance market from the
-    org they operate under (their user's org), defaulting to GB."""
+    """Iter 220p1 / 265 — resolve a partner engineer's compliance market.
+    The market they chose at signup (``partner_engineers.country_code``) wins;
+    else the org they operate under (their user's org); defaults to GB."""
     from utils.localization import org_localization
+    if partner.get("country_code"):
+        return org_localization({"country_code": partner["country_code"]})["country_code"]
     org_id = partner.get("owner_organization_id") or partner.get("organization_id")
     if not org_id:
         u = await db.users.find_one(
@@ -2536,7 +2570,8 @@ async def _create_partner_checkout_session(partner: dict, origin_url: str) -> di
     tier = await _recompute_app_fee(partner["id"])
     if tier["price_gbp"] == 0:
         raise HTTPException(400, "You're on the free tier — no subscription needed")
-    price_id = _partner_plan_price_id_for_tier(tier)
+    partner_market = await _partner_country(partner)
+    price_id = _partner_plan_price_id_for_tier(tier, partner_market)
     if not price_id:
         raise HTTPException(
             501,

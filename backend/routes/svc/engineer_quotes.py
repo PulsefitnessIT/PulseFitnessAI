@@ -61,14 +61,11 @@ def _of(user: dict) -> dict:
 
 
 async def _org_loc(user: dict) -> dict:
-    """Iter 220p1 — resolve the org's localization (currency / tax / market).
-    Defaults to UK/GBP/VAT when the org is unset or not found."""
-    from utils.localization import org_localization
-    org = await db.organizations.find_one(
-        {"id": (user.get("organization_id") or user.get("service_org_id"))},
-        {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
-    )
-    return org_localization(org)
+    """Iter 220p1 / 265 — resolve the engineer's localization (currency / tax /
+    market). Org country wins; else the independent engineer's market chosen at
+    signup (``partner_engineers.country_code``); else UK/GBP/VAT."""
+    from utils.localization import engineer_localization
+    return await engineer_localization(user)
 
 
 

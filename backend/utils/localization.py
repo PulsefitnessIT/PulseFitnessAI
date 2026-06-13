@@ -106,6 +106,41 @@ def org_localization(org: Optional[dict]) -> dict:
     }
 
 
+async def engineer_localization(user: Optional[dict]) -> dict:
+    """Iter 265 — USA readiness for INDEPENDENT engineers.
+
+    Independent partner engineers are created org-less (``organization_id`` is
+    ``None``), so the org-based ``org_localization`` always fell back to GB —
+    a US engineer's invoices rendered in £ and Stripe/compliance defaulted to
+    the UK. This resolver layers a partner-record fallback:
+
+      1. An explicit org ``country_code`` / ``currency`` wins (gym-employed
+         engineers, master admins viewing the desk).
+      2. Else the engineer's market chosen at signup, stored on
+         ``partner_engineers.country_code``.
+      3. Else GB (back-compat default).
+    """
+    user = user or {}
+    from utils.database import db
+    org = None
+    org_id = user.get("organization_id") or user.get("service_org_id")
+    if org_id:
+        org = await db.organizations.find_one(
+            {"id": org_id},
+            {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1},
+        )
+        if org and (org.get("country_code") or org.get("currency")):
+            return org_localization(org)
+    uid = user.get("id")
+    if uid:
+        partner = await db.partner_engineers.find_one(
+            {"user_id": uid}, {"_id": 0, "country_code": 1},
+        )
+        if partner and partner.get("country_code"):
+            return org_localization({"country_code": partner["country_code"]})
+    return org_localization(org)
+
+
 async def get_org_timezone(organization_id: Optional[str]) -> str:
     """Iter 220p1 — resolve an org's effective IANA timezone (UK default).
     Centralised so scheduling/notifications/reminders all fire on the org's
