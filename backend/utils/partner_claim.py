@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,73 @@ logger = logging.getLogger(__name__)
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+async def ensure_engineer_personal_org(user: dict) -> str | None:
+    """Independent partner engineers are created org-less, but the whole
+    Engineer App (`/svc/engineer/*`) scopes every query by
+    ``organization_id`` — so an org-less engineer gets a 403 "Organization
+    context required" on the home/dashboard and can't use the app at all.
+
+    Provision a personal, single-tenant organization for them (idempotent)
+    so the Engineer App works and their customers / quotes / invoices are
+    isolated per engineer. Localization (currency/timezone/tax) is seeded
+    from the engineer's market so invoices render in the right currency.
+
+    Returns the org id (existing or newly created), or None when N/A.
+    """
+    if not user:
+        return None
+    user_id = user.get("id")
+    if not user_id:
+        return None
+    if user.get("organization_id") or user.get("service_org_id"):
+        return user.get("organization_id") or user.get("service_org_id")
+    is_pe = (
+        user.get("is_partner_engineer")
+        or user.get("account_type") == "partner_engineer"
+        or user.get("role") == "engineer_partner"
+    )
+    if not is_pe:
+        return None
+    try:
+        from utils.database import db
+        # Re-read to dodge a double-create race (login can fire parallel calls).
+        fresh = await db.users.find_one(
+            {"id": user_id}, {"_id": 0, "organization_id": 1, "service_org_id": 1},
+        )
+        if fresh and (fresh.get("organization_id") or fresh.get("service_org_id")):
+            return fresh.get("organization_id") or fresh.get("service_org_id")
+
+        pe = await db.partner_engineers.find_one(
+            {"user_id": user_id}, {"_id": 0, "country_code": 1, "full_name": 1},
+        )
+        country = ((pe or {}).get("country_code") or "GB").strip().upper()
+        from utils.localization import COUNTRY_CONFIG
+        cfg = COUNTRY_CONFIG.get(country) or COUNTRY_CONFIG["GB"]
+        name = (user.get("full_name") or (pe or {}).get("full_name") or "Engineer").strip()
+        org_id = str(uuid.uuid4())
+        await db.organizations.insert_one({
+            "id": org_id,
+            "name": f"{name} (Engineer)"[:140],
+            "account_type": "partner_engineer",
+            "country_code": country,
+            "currency": cfg["currency"],
+            "timezone": cfg["timezone"],
+            "is_engineer_personal_org": True,
+            "created_at": _now().isoformat(),
+        })
+        await db.users.update_one(
+            {"id": user_id, "organization_id": {"$in": [None, ""]}},
+            {"$set": {"organization_id": org_id}},
+        )
+        logger.info("[partners] provisioned personal org %s for engineer %s (%s)",
+                    org_id, user_id, country)
+        return org_id
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[partners] personal org provisioning failed for %s: %s", user_id, exc)
+        return None
+
 
 
 async def claim_pending_partner_for_user(email: str | None, user_id: str | None) -> bool:
@@ -81,6 +149,14 @@ async def claim_pending_partner_for_user(email: str | None, user_id: str | None)
             {"id": user_id, "is_partner_engineer": {"$ne": True}},
             {"$set": {"is_partner_engineer": True}},
         )
+        # 3. Ensure the engineer has an org context so the Engineer App
+        #    (/svc/engineer/*) works — independent engineers are org-less.
+        fresh = await db.users.find_one(
+            {"id": user_id}, {"_id": 0, "id": 1, "full_name": 1, "organization_id": 1,
+                              "service_org_id": 1, "is_partner_engineer": 1,
+                              "account_type": 1, "role": 1},
+        )
+        await ensure_engineer_personal_org(fresh or {"id": user_id, "is_partner_engineer": True})
         logger.info("[partners] flagged user=%s as partner engineer (%s)", user_id, email)
         return True
     except Exception as exc:  # noqa: BLE001
@@ -179,6 +255,79 @@ async def backfill_partner_relink(dry_run: bool = False) -> dict:
     return stats
 
 
+async def unflag_misflagged_partner_engineers(dry_run: bool = False) -> dict:
+    """Unset ``is_partner_engineer`` on users who carry the flag but have NO
+    ``partner_engineers`` row matching them by user_id OR email. Such users
+    are wrongly routed to /partner-engineer and land on the empty "Become a
+    Partner Engineer / Apply now" screen. Master admins are left untouched
+    (master-admin routing wins anyway). Idempotent."""
+    from utils.database import db
+    stats = {"scanned": 0, "unflagged": 0, "errors": 0}
+    flagged = await db.users.find(
+        {"is_partner_engineer": True},
+        {"_id": 0, "id": 1, "email": 1, "is_master_admin": 1},
+    ).to_list(length=None)
+    stats["scanned"] = len(flagged)
+    for u in flagged:
+        try:
+            uid = u.get("id")
+            email = (u.get("email") or "").strip()
+            email_rx = {"$regex": f"^{re.escape(email)}$", "$options": "i"} if email else None
+            ors = [{"user_id": uid}]
+            if email_rx:
+                ors.append({"email": email_rx})
+            has_row = await db.partner_engineers.find_one({"$or": ors}, {"_id": 0, "id": 1})
+            if has_row:
+                continue
+            if dry_run:
+                stats["unflagged"] += 1
+                continue
+            await db.users.update_one({"id": uid}, {"$set": {"is_partner_engineer": False}})
+            stats["unflagged"] += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[partners] unflag failed for %s: %s", u.get("id"), exc)
+            stats["errors"] += 1
+    return stats
+
+
+async def backfill_engineer_personal_orgs(dry_run: bool = False) -> dict:
+    """Provision a personal org for every approved/active partner engineer
+    that is still org-less, so the Engineer App loads for them. Idempotent."""
+    from utils.database import db
+    stats = {"scanned": 0, "provisioned": 0, "skipped_has_org": 0, "errors": 0}
+    users = await db.users.find(
+        {
+            "$or": [
+                {"is_partner_engineer": True},
+                {"account_type": "partner_engineer"},
+                {"role": "engineer_partner"},
+            ],
+            "organization_id": {"$in": [None, ""]},
+            "service_org_id": {"$in": [None, ""]},
+        },
+        {"_id": 0, "id": 1, "full_name": 1, "organization_id": 1, "service_org_id": 1,
+         "is_partner_engineer": 1, "account_type": 1, "role": 1, "is_master_admin": 1},
+    ).to_list(length=None)
+    stats["scanned"] = len(users)
+    for u in users:
+        if u.get("is_master_admin"):
+            stats["skipped_has_org"] += 1
+            continue
+        try:
+            if dry_run:
+                stats["provisioned"] += 1
+                continue
+            org_id = await ensure_engineer_personal_org(u)
+            if org_id:
+                stats["provisioned"] += 1
+            else:
+                stats["skipped_has_org"] += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[partners] personal-org backfill failed for %s: %s", u.get("id"), exc)
+            stats["errors"] += 1
+    return stats
+
+
 async def run_partner_relink_migration_once() -> None:
     """Marker-guarded startup migration so production auto-heals stranded
     engineers on the next redeploy (the user can't run scripts on prod).
@@ -187,14 +336,30 @@ async def run_partner_relink_migration_once() -> None:
     marker = "partner_relink_backfill_v1"
     try:
         already = await db.migrations.find_one({"_id": marker})
-        if already:
-            return
-        stats = await backfill_partner_relink(dry_run=False)
-        await db.migrations.update_one(
-            {"_id": marker},
-            {"$set": {"_id": marker, "ran_at": _now(), "stats": stats}},
-            upsert=True,
-        )
-        logger.info("[partners] relink backfill migration complete: %s", stats)
+        if not already:
+            stats = await backfill_partner_relink(dry_run=False)
+            await db.migrations.update_one(
+                {"_id": marker},
+                {"$set": {"_id": marker, "ran_at": _now(), "stats": stats}},
+                upsert=True,
+            )
+            logger.info("[partners] relink backfill migration complete: %s", stats)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[partners] relink backfill migration failed: %s", exc)
+
+    # Separate marker — provision personal orgs for org-less engineers so the
+    # Engineer App loads (iter 273).
+    marker2 = "engineer_personal_org_backfill_v1"
+    try:
+        if await db.migrations.find_one({"_id": marker2}):
+            return
+        stats2 = await backfill_engineer_personal_orgs(dry_run=False)
+        unflag = await unflag_misflagged_partner_engineers(dry_run=False)
+        await db.migrations.update_one(
+            {"_id": marker2},
+            {"$set": {"_id": marker2, "ran_at": _now(), "stats": stats2, "unflag": unflag}},
+            upsert=True,
+        )
+        logger.info("[partners] personal-org backfill migration complete: %s unflag=%s", stats2, unflag)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[partners] personal-org backfill migration failed: %s", exc)

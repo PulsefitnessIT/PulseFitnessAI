@@ -94,6 +94,9 @@ def test_partners_me_self_heals_stale_user_id_link():
         relinked = db.partner_engineers.find_one({"id": pe_id}, {"_id": 0, "user_id": 1})
         assert relinked and relinked["user_id"] == real_uid
     finally:
+        u = db.users.find_one({"id": real_uid}, {"_id": 0, "organization_id": 1})
+        if u and u.get("organization_id"):
+            db.organizations.delete_one({"id": u["organization_id"], "is_engineer_personal_org": True})
         db.partner_engineers.delete_many({"email": email})
         db.users.delete_many({"email": email})
 

@@ -246,7 +246,8 @@ export default function PartnerDashboard() {
             <span className={'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ' + badge.cls}
               data-testid="partner-status-badge">{badge.label}</span>
             <Link to="/svc/engineer"
-              className="px-3 py-2 text-sm font-bold rounded-md bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white inline-flex items-center gap-1.5"
+              data-theme="dark"
+              className="px-3 py-2 text-sm font-bold rounded-md bg-zinc-900 text-white inline-flex items-center gap-1.5"
               data-testid="partner-open-engineer-app">
               <Wrench size={13} /> Engineer App
             </Link>
@@ -276,11 +277,12 @@ export default function PartnerDashboard() {
         {partner.status === 'approved' && (
           <Link
             to="/svc/engineer"
-            className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-900 dark:border-white bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 p-4 hover:opacity-90 transition"
+            data-theme="dark"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-900 bg-zinc-900 text-white p-4 hover:opacity-90 transition"
             data-testid="partner-open-engineer-app-hero"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-white/10 dark:bg-zinc-900/10 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                 <Wrench size={18} />
               </div>
               <div className="min-w-0">

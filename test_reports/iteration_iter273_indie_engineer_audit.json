@@ -1,0 +1,77 @@
+{
+  "summary": "iter273 audit: org-less indie partner engineer can log in and lands on a fully rendered Partner Dashboard (visible dark hero + Engineer App button, APPROVED badge, referral, plan, compliance sections). The KEY original 403 'Organization context required' bug is FIXED — indie engineer now has personal org auto-provisioned at login (verified via /api/auth/me org_id). HOWEVER the Engineer App (/svc/engineer) is STILL broken for the indie engineer due to a SEPARATE subscription-gate bug: every Engineer App endpoint returns HTTP 402 engineer_app_blocked / needs_subscription, and the frontend shows 'Failed to load home' toasts. Regression logins for engineer.smoke@gymaxisai.com and admin@gymaxisai.com pass.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/svc/engineer/* (dashboard, me, jobs, customers, quotes, invoices, visits)",
+        "issue": "All Engineer App endpoints return 402 engineer_app_blocked / needs_subscription for indie.engineer despite /api/partners/me showing partner.subscription_status='active'. Frontend shows 'Failed to load home'. Root cause: schema mismatch — partner doc stores subscription state as FLAT field partner.subscription_status='active', but the access guard _has_access_via_subscription() in routes/partners.py:4514 reads NESTED partner.subscription.status. needs_subscription is returned because partner.subscription is missing/empty. This is the new user-visible failure mode after the iter273 org-context fix.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "/api/partners/activation/info",
+        "issue": "Returns 405 Method Not Allowed on GET (review_request lists it as a GET endpoint; method/path may have changed)."
+      },
+      {
+        "endpoint": "/api/auth/me (indie user)",
+        "issue": "first_name missing — Partner Dashboard greeting renders 'Hi there' instead of expected 'Hi Indie'."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EngineerHomeV2 (/svc/engineer)",
+        "issue": "Two 'Failed to load home' error toasts shown for indie engineer; KPI cards render with placeholder dashes only because every backend call returned 402. Caused by backend gate bug above — not a frontend bug per se, but the page is unusable.",
+        "selector": "[data-testid='engineer-home'] / toast",
+        "priority": "HIGH"
+      },
+      {
+        "component": "PartnerDashboard greeting",
+        "issue": "Greeting shows 'Hi there' (no first name). Spec expected 'Hi Indie'.",
+        "selector": "[data-testid='partner-dashboard'] h1/greeting",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Indie engineer opens Engineer App from dashboard CTA",
+        "issue": "Dashboard CTA navigates to /svc/engineer which then 402s on every API call; user is stuck with 'Failed to load home' instead of either (a) seeing KPIs or (b) being redirected to the subscription paywall.",
+        "affected_selectors": ["[data-testid='partner-open-engineer-app']", "[data-testid='partner-open-engineer-app-hero']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter273_indie_engineer_audit.py",
+    "/app/backend/tests/test_iter273_engineer_personal_org.py",
+    "/app/backend/tests/test_iter272_partner_relink_selfheal.py",
+    "/app/test_reports/pytest/iter273_indie_audit.xml",
+    "/app/test_reports/iter273_dashboard.png",
+    "/app/test_reports/iter273_engineer.png"
+  ],
+  "action_items": [
+    "FIX SUBSCRIPTION GATE SCHEMA MISMATCH: in /app/backend/routes/partners.py around line 4514, _has_access_via_subscription() reads partner['subscription']['status'] but the partner doc stores the value at partner['subscription_status']. Either (a) update the helper to read either shape, e.g. status = (partner.get('subscription') or {}).get('status') or partner.get('subscription_status'); or (b) update the seed/claim hook for indie.engineer so the partner doc has nested subscription={'status': 'active'}. After fix, /api/svc/engineer/dashboard for indie.engineer must return 200, not 402.",
+    "Populate first_name on the indie.engineer user (or update dashboard to greet by email/handle) so the greeting reads 'Hi Indie' instead of 'Hi there'.",
+    "Verify /api/partners/activation/info HTTP verb — currently GET returns 405."
+  ],
+  "critical_code_review_comments": [
+    "ACTIVE_SUB_STATES gate has two competing representations of subscription status (flat partner.subscription_status vs nested partner.subscription.status). This will silently break access for any partner whose seed/upsert path writes the flat field. Add a unit test that asserts indie.engineer (subscription_status='active') is allowed by evaluate_engineer_app_access().",
+    "routes/partners.py is 5300+ lines — needs splitting per the >700-line guideline.",
+    "The CSP currently blocks emergent-main.js, posthog, and Cloudflare insights — see browser console. Pre-existing; not part of iter273 but worth tracking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter273_indie_engineer_audit.py (new)"
+  ],
+  "success_rate": {
+    "backend": "iter273 org-context fix verified PASS for indie engineer (org_id auto-provisioned, no 'Organization context required' anywhere). Engineer App reachability for indie engineer: 0/8 endpoints accessible (all 402). Regression: engineer.smoke dashboard 200, admin login 200. Existing iter272/iter273 pytest suites still 6/6.",
+    "frontend": "Partner Dashboard 100% — hero/button visible dark, APPROVED badge present, all sections render. Engineer App 0% — Failed to load home toast for indie engineer."
+  },
+  "test_credentials": "indie.engineer@gymaxisai.com / IndieEng123! (org-less partner engineer, now auto-provisioned org 5f88e04e-0ab7-4f1c-9426-4aa4a12ee8cb); engineer.smoke@gymaxisai.com / EngTest123! (regression); admin@gymaxisai.com / MasterAdmin123! (regression, role=owner)",
+  "seed_data_creation": "None. (Customer create attempt was blocked by the 402 gate so no rows created.)",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Re-run /app/backend/tests/test_iter273_indie_engineer_audit.py after the subscription-gate schema fix. Expect /api/svc/engineer/dashboard 200 for indie.engineer and the Engineer App UI to render KPIs without 'Failed to load home' toasts. The iter273 org-context provisioning itself is solid and does not need further work. Keep an eye on /api/partners/activation/info — review_request says it's a GET; preview returns 405.",
+  "rca of the issue": "Iter273 correctly created a personal org for the indie engineer at login (verified via /api/auth/me organization_id). That removed the 'Organization context required' 403. The remaining 'Failed to load home' on /svc/engineer is caused by a second, independent gate: routes/partners.py::evaluate_engineer_app_access() calls _has_access_via_subscription(partner) which looks at partner['subscription']['status'], but the indie partner record has the value at the FLAT key partner['subscription_status']='active'. Because the nested object is missing/empty, the gate returns reason='needs_subscription' and require_engineer_app_access() raises 402 engineer_app_blocked on every Engineer App endpoint. The frontend reacts by showing 'Failed to load home'. Fix: normalize the gate to accept either shape, OR write subscription state into the nested shape on the partner doc."
+}
