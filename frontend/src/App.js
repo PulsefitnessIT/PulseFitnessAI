@@ -692,7 +692,13 @@ function App() {
  const protectedPrefixes = ['/svc/engineer', '/admin', '/partner-engineer', '/partners'];
  const path = typeof window !== 'undefined' ? window.location.pathname : '';
  const hasSessionToken = (() => { try { return !!localStorage.getItem('token'); } catch { return false; } })();
-    const isProtectedRoute = !!path && (
+    // Iter 270 — engineer activation + trial-feedback pages are PUBLIC (opened
+    // from an email by a logged-out engineer). Don't gate them behind the
+    // protected-prefix auth-boot splash, or a slow /auth/me·/auth/refresh boot
+    // could leave them stuck on "Loading…".
+    const publicPartnerPaths = ['/partner-engineer/activate', '/partner-engineer/trial-feedback'];
+    const isPublicException = !!path && publicPartnerPaths.some((p) => path.startsWith(p));
+    const isProtectedRoute = !isPublicException && !!path && (
    protectedRoutes.includes(path) ||
    protectedPrefixes.some((p) => path.startsWith(p))
  );

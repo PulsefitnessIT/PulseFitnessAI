@@ -1477,6 +1477,8 @@ async def get_partner_activation_info(body: dict = Body(default_factory=dict)):
         "email": email,
         "full_name": app.get("full_name") or "",
         "has_existing_account": has_account,
+        # Iter 270 — so the activation page shows the engineer's local pricing.
+        "country_code": (app.get("country_code") or "GB"),
     }
 
 
