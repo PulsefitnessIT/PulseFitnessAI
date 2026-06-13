@@ -30,9 +30,6 @@ from pymongo import MongoClient
 KEEP_ORG_IDS = {
     "9fa701ef-5cc2-4db6-8795-bbfd2c85179d",  # GymAxis AI Admin
     "c695638c-5f60-424d-bdd0-2273e6c24205",  # Third Space
-    "2be58411-61dc-460a-ba53-29d74a662997",  # British Army — Head Office
-    "6c355051-a502-419b-9154-094c425306fc",  # Catterick Garrison
-    "mod-site-army-catterick",                # Catterick Garrison Gym (mod_site)
 }
 
 # Users that must survive irrespective of org membership.
