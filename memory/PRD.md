@@ -1,3 +1,24 @@
+## Iter 267 — Permanent session longevity: long-lived refresh token ✅ (Jun 13, 2026)
+
+**Why:** follow-up hardening to iter 266. The single-token model meant any missed proactive refresh (frozen/slept tab past the access-token TTL) ended the session. Added a proper short-access + long-refresh split so sessions survive idle gaps, without weakening the hourly admin rotation.
+
+**Design (deliberately conservative / additive / backward-compatible):**
+- New **`ga_refresh`** HttpOnly cookie issued **only on real login/register** (NOT impersonation/CRM cross-login). Scoped to **`path=/api/auth`** (least privilege — only sent to auth endpoints), Secure, SameSite=lax, **30-day** TTL (`REFRESH_TOKEN_TTL_DAYS`).
+- **`POST /api/auth/refresh`** now uses `optional_current_user`: happy path (valid access token) behaves exactly as before; if the access token is **gone/expired**, it falls back to `renew_access_from_refresh()` to mint a fresh `ga_session` from the refresh cookie → session resumes with no re-login.
+- **Non-rotating but revocable**: avoids refresh-rotation concurrency races (bursty parallel refreshes). Revoked on **logout** (`revoke_refresh_cookie`) and invalidated by the existing per-user **`tokens_revoked_before`** cutoff (password change / sign-out-everywhere). Rotation + reuse/theft detection noted as future hardening.
+- **Logout** is now idempotent: revokes access jti + refresh token, clears both cookies, tolerates an already-expired access token.
+- **Frontend `App.js`**: `bootAuthMe` tries `/auth/refresh` once on a 401 before logging out (idle-resume); proactive 15-min refresh + tab-refocus refresh from iter 266 retained.
+
+**Files:** `backend/utils/refresh_tokens.py` (new), `backend/utils/auth.py` (`optional_current_user`), `backend/routes/auth.py` (login/register issue, refresh recovery, logout), `frontend/src/App.js`.
+
+**Verified:** curl flow (login sets both cookies → drop access → `/auth/me` 401 → `/auth/refresh` recovers → `/auth/me` 200 → logout → replay refresh = 401). pytest `tests/test_iter267_refresh_token.py` 4/4 + iter227 8/8 (in Makefile regression). Testing agent frontend regression **5/5** (login/dashboards/logout/navigation, both cookies, no session-expired banner). Confirmed the 2 incidental auth-suite failures are **pre-existing on clean HEAD** (60s grace test + bulk-import org-state), not from this change.
+
+**ACTION:** production-only — fix is in **preview**; user must **redeploy** gymaxisai.com.
+**Minor backlog:** logout click could hard-redirect to /login immediately (cosmetic; session is already revoked server-side). Refresh-token rotation + reuse/theft detection (future security hardening). Per-device "revoke session" panel could also revoke that device's refresh token.
+
+---
+
+
 ## Iter 266 — Fix recurring "Your session has expired" for Master Admins ✅ (Jun 13, 2026)
 
 **Reported (production):** logging in as Master Admin, the dashboard shows a "Your session has expired" banner ~1h into a session. Recurring; prior cookie-focused fixes (iters 227/231/232) didn't resolve it.
