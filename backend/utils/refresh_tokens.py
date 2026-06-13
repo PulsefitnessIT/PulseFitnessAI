@@ -23,6 +23,7 @@ Design choices (kept deliberately conservative for a production auth system):
     documented future hardening.
 """
 import os
+import logging
 import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple
@@ -31,6 +32,8 @@ import jwt as _jwt
 from fastapi import Request, Response
 
 from utils.database import db, JWT_SECRET, JWT_ALGORITHM
+
+logger = logging.getLogger(__name__)
 
 REFRESH_COOKIE_NAME = "ga_refresh"
 REFRESH_COOKIE_PATH = "/api/auth"
@@ -60,44 +63,54 @@ async def _ensure_indexes() -> None:
 
 async def issue_refresh_token(
     response: Response, user_id: str, request: Optional[Request], *, mfa_verified: bool = False,
-) -> str:
+) -> Optional[str]:
     """Mint a refresh token, persist its jti for revocation, and set the
-    HttpOnly `ga_refresh` cookie. Call this ONLY on a real login/register."""
-    await _ensure_indexes()
-    jti = secrets.token_urlsafe(24)
-    now = _now()
-    exp = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
-    token = _jwt.encode(
-        {
-            "user_id": user_id,
+    HttpOnly `ga_refresh` cookie. Call this ONLY on a real login/register.
+
+    NON-FATAL by design: the refresh cookie is an enhancement, so ANY failure
+    here (DB perms, index build, write error) is swallowed and logged — the
+    login/registration it's attached to must still succeed. Returns the token,
+    or None if issuance failed (the session then simply has no refresh cookie
+    and relies on the access token + proactive refresh as before)."""
+    try:
+        await _ensure_indexes()
+        jti = secrets.token_urlsafe(24)
+        now = _now()
+        exp = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
+        token = _jwt.encode(
+            {
+                "user_id": user_id,
+                "jti": jti,
+                "type": "refresh",
+                "mfa": bool(mfa_verified),
+                "iat": int(now.timestamp()),
+                "exp": int(exp.timestamp()),
+            },
+            JWT_SECRET,
+            algorithm=JWT_ALGORITHM,
+        )
+        await db.refresh_tokens.insert_one({
             "jti": jti,
-            "type": "refresh",
+            "user_id": user_id,
             "mfa": bool(mfa_verified),
-            "iat": int(now.timestamp()),
-            "exp": int(exp.timestamp()),
-        },
-        JWT_SECRET,
-        algorithm=JWT_ALGORITHM,
-    )
-    await db.refresh_tokens.insert_one({
-        "jti": jti,
-        "user_id": user_id,
-        "mfa": bool(mfa_verified),
-        "created_at": now,
-        "expires_at": exp,
-        "revoked": False,
-        "ip": (request.client.host if request and request.client else None),
-    })
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="lax",
-        max_age=REFRESH_TOKEN_TTL_DAYS * 86400,
-        path=REFRESH_COOKIE_PATH,
-    )
-    return token
+            "created_at": now,
+            "expires_at": exp,
+            "revoked": False,
+            "ip": (request.client.host if request and request.client else None),
+        })
+        response.set_cookie(
+            key=REFRESH_COOKIE_NAME,
+            value=token,
+            httponly=True,
+            secure=_COOKIE_SECURE,
+            samesite="lax",
+            max_age=REFRESH_TOKEN_TTL_DAYS * 86400,
+            path=REFRESH_COOKIE_PATH,
+        )
+        return token
+    except Exception:
+        logger.exception("[refresh] issue_refresh_token failed — login proceeds without a refresh cookie")
+        return None
 
 
 def clear_refresh_cookie(response: Response) -> None:
@@ -138,25 +151,29 @@ async def renew_access_from_refresh(
 
     Does NOT rotate the refresh token — it stays valid for its full TTL, which
     makes concurrent recovery refreshes safe (no reuse false-positives)."""
-    payload = await _valid_refresh_payload(request)
-    if not payload:
+    try:
+        payload = await _valid_refresh_payload(request)
+        if not payload:
+            return None
+        user = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0})
+        if not user:
+            return None
+        # Honour the global per-user revocation cutoff (password change /
+        # sign-out-everywhere stamp `tokens_revoked_before` as an epoch).
+        cutoff = user.get("tokens_revoked_before")
+        if cutoff and int(payload.get("iat", 0)) < int(cutoff):
+            return None
+        from utils.auth import create_token, set_auth_cookie, purge_legacy_cookie_scopes, record_user_session
+        from utils.auth_guards import access_token_ttl_hours
+        ttl_hours = access_token_ttl_hours(user)
+        access = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=bool(payload.get("mfa")))
+        set_auth_cookie(response, access, max_age_hours=ttl_hours)
+        purge_legacy_cookie_scopes(response, request)
+        await record_user_session(user["id"], access, request)
+        return access, user
+    except Exception:
+        logger.exception("[refresh] renew_access_from_refresh failed")
         return None
-    user = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0})
-    if not user:
-        return None
-    # Honour the global per-user revocation cutoff (password change /
-    # sign-out-everywhere stamp `tokens_revoked_before` as an epoch).
-    cutoff = user.get("tokens_revoked_before")
-    if cutoff and int(payload.get("iat", 0)) < int(cutoff):
-        return None
-    from utils.auth import create_token, set_auth_cookie, purge_legacy_cookie_scopes, record_user_session
-    from utils.auth_guards import access_token_ttl_hours
-    ttl_hours = access_token_ttl_hours(user)
-    access = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=bool(payload.get("mfa")))
-    set_auth_cookie(response, access, max_age_hours=ttl_hours)
-    purge_legacy_cookie_scopes(response, request)
-    await record_user_session(user["id"], access, request)
-    return access, user
 
 
 async def revoke_refresh_cookie(request: Request) -> None:
