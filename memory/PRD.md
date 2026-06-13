@@ -12,6 +12,8 @@
 
 **ACTION (production):** preview-only fix — **redeploy gymaxisai.com** to push it live.
 
+**Proactive backfill (added):** `utils/partner_claim.backfill_partner_relink()` + standalone `scripts/backfill_partner_relink.py` (`--dry-run`/`--commit`) relink ALL stale/placeholder `partner_engineers.user_id` to their owning user in one pass (conservative: only relinks placeholders or dead ids, never steals a row from another live user). Wired as a marker-guarded one-time startup migration (`run_partner_relink_migration_once`, marker `partner_relink_backfill_v1` in `db.migrations`) so production auto-heals stranded engineers on the next redeploy without manual script runs. Verified: dry-run/commit relink a seeded stale row + flag the user; startup migration runs once then no-ops. Regression `test_iter272` now 3/3 (self-heal, non-partner no-op, backfill relink + don't-steal guard).
+
 ---
 
 

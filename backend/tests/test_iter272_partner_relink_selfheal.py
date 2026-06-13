@@ -117,3 +117,54 @@ def test_claim_hook_noop_for_non_partner():
         assert not u.get("is_partner_engineer")
     finally:
         db.users.delete_many({"email": email})
+
+
+
+def test_backfill_relinks_stale_and_skips_other_live_user():
+    """The proactive backfill relinks a placeholder/stale row to the owning
+    user, but must NOT steal a row that's already linked to another LIVE user."""
+    import asyncio
+    from utils.partner_claim import backfill_partner_relink
+
+    db = _db()
+    em_stale = f"bf.stale.{uuid.uuid4().hex[:8]}@example.com"
+    uid_stale = f"bf-real-{uuid.uuid4().hex}"
+    pe_stale = f"pe-{uuid.uuid4().hex}"
+
+    em_live = f"bf.live.{uuid.uuid4().hex[:8]}@example.com"
+    uid_live_a = f"bf-livea-{uuid.uuid4().hex}"   # real, owns the row
+    uid_live_b = f"bf-liveb-{uuid.uuid4().hex}"   # real, owns the email (collision-ish)
+    pe_live = f"pe-{uuid.uuid4().hex}"
+
+    for em in (em_stale, em_live):
+        db.partner_engineers.delete_many({"email": em})
+        db.users.delete_many({"email": em})
+    try:
+        # Stale row → owning user exists, row points at a dead id → relink.
+        db.partner_engineers.insert_one({
+            "id": pe_stale, "email": em_stale, "user_id": f"dead-{uuid.uuid4().hex}",
+            "status": "approved", "referral_code": f"BF{uuid.uuid4().hex[:6].upper()}",
+        })
+        db.users.insert_one({"id": uid_stale, "email": em_stale, "role": "engineer_partner"})
+
+        # Row linked to a real, different user → must be left alone.
+        db.partner_engineers.insert_one({
+            "id": pe_live, "email": em_live, "user_id": uid_live_a,
+            "status": "approved", "referral_code": f"BF{uuid.uuid4().hex[:6].upper()}",
+        })
+        db.users.insert_one({"id": uid_live_a, "email": "other.owner@example.com", "role": "owner"})
+        db.users.insert_one({"id": uid_live_b, "email": em_live, "role": "engineer_partner"})
+
+        asyncio.get_event_loop().run_until_complete(backfill_partner_relink(dry_run=False))
+
+        relinked = db.partner_engineers.find_one({"id": pe_stale}, {"_id": 0, "user_id": 1})
+        assert relinked["user_id"] == uid_stale, "stale row should be relinked to owning user"
+        assert db.users.find_one({"id": uid_stale}, {"_id": 0, "is_partner_engineer": 1}).get("is_partner_engineer")
+
+        untouched = db.partner_engineers.find_one({"id": pe_live}, {"_id": 0, "user_id": 1})
+        assert untouched["user_id"] == uid_live_a, "must NOT steal a row owned by another live user"
+    finally:
+        for em in (em_stale, em_live, "other.owner@example.com"):
+            db.partner_engineers.delete_many({"email": em})
+            db.users.delete_many({"email": em})
+        db.users.delete_many({"id": {"$in": [uid_live_a, uid_live_b]}})

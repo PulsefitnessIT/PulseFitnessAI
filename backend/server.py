@@ -406,6 +406,16 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"Test account seed failed: {e}")
 
+    # Iter 272 — one-time backfill: relink stranded partner_engineers rows
+    # (pending/stale user_id) to their owning users so engineers don't land
+    # on the empty "Become a Partner Engineer / Apply now" screen. Marker-
+    # guarded → runs once per DB, cheap no-op thereafter.
+    try:
+        from utils.partner_claim import run_partner_relink_migration_once
+        await run_partner_relink_migration_once()
+    except Exception as e:
+        logger.error(f"Partner relink migration failed: {e}")
+
     # Iter 216g · Phase 2 — start the sign-up journey worker (welcome
     # emails + abandoned-cart recovery). One-shot per pod.
     try:

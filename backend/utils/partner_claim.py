@@ -86,3 +86,115 @@ async def claim_pending_partner_for_user(email: str | None, user_id: str | None)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[partners] claim_pending_partner_for_user failed: %s", exc)
     return False
+
+
+
+async def backfill_partner_relink(dry_run: bool = False) -> dict:
+    """One-pass proactive fix for the iter-272 stale-link bug.
+
+    Relinks every ``partner_engineers`` row whose ``user_id`` is a
+    ``pending:<id>`` placeholder OR a dead/stale id, to the real user that
+    owns the row's email — so engineers who haven't signed in yet are
+    unstuck without waiting for the lazy sign-in self-heal. Idempotent and
+    conservative: it only relinks when (a) a user exists for the row's
+    email and (b) the row isn't already correctly linked AND its current
+    ``user_id`` is a placeholder or doesn't point at any real user (never
+    steals a row from another live account). Also stamps the owning user
+    ``is_partner_engineer=True`` so routing + dashboard agree.
+
+    Returns a stats dict. ``dry_run=True`` reports without writing.
+    """
+    from utils.database import db
+    stats = {
+        "scanned": 0, "relinked": 0, "flagged": 0,
+        "skipped_no_user": 0, "skipped_already_linked": 0,
+        "skipped_other_user": 0, "errors": 0,
+    }
+
+    rows = await db.partner_engineers.find(
+        {}, {"_id": 0, "id": 1, "email": 1, "user_id": 1},
+    ).to_list(length=None)
+    stats["scanned"] = len(rows)
+    if not rows:
+        return stats
+
+    # Build lowercased email -> user_id map + the set of all real user ids.
+    users = await db.users.find({}, {"_id": 0, "id": 1, "email": 1}).to_list(length=None)
+    email_to_uid: dict[str, str] = {}
+    all_user_ids: set[str] = set()
+    for u in users:
+        uid = u.get("id")
+        if uid:
+            all_user_ids.add(uid)
+        em = (u.get("email") or "").strip().lower()
+        if em and uid and em not in email_to_uid:
+            email_to_uid[em] = uid
+
+    for r in rows:
+        try:
+            em = (r.get("email") or "").strip().lower()
+            cur_uid = r.get("user_id") or ""
+            target_uid = email_to_uid.get(em)
+            if not em or not target_uid:
+                stats["skipped_no_user"] += 1
+                continue
+            if cur_uid == target_uid:
+                # Already linked — just ensure the routing flag is set.
+                if not dry_run:
+                    res = await db.users.update_one(
+                        {"id": target_uid, "is_partner_engineer": {"$ne": True}},
+                        {"$set": {"is_partner_engineer": True}},
+                    )
+                    if res.modified_count:
+                        stats["flagged"] += 1
+                stats["skipped_already_linked"] += 1
+                continue
+            # Only relink placeholders or rows whose user_id is dead/unknown.
+            is_relinkable = cur_uid.startswith("pending:") or cur_uid not in all_user_ids
+            if not is_relinkable:
+                # Current id points at a real (different) user — don't steal it.
+                stats["skipped_other_user"] += 1
+                continue
+            if not dry_run:
+                try:
+                    await db.partner_engineers.update_one(
+                        {"id": r["id"]},
+                        {"$set": {"user_id": target_uid, "updated_at": _now()}},
+                    )
+                except Exception as relink_exc:  # noqa: BLE001
+                    # Unique index — target already owns a row. Skip safely.
+                    logger.warning("[partners] backfill relink skipped %s: %s", r["id"], relink_exc)
+                    stats["errors"] += 1
+                    continue
+                res = await db.users.update_one(
+                    {"id": target_uid, "is_partner_engineer": {"$ne": True}},
+                    {"$set": {"is_partner_engineer": True}},
+                )
+                if res.modified_count:
+                    stats["flagged"] += 1
+            stats["relinked"] += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[partners] backfill row failed (%s): %s", r.get("id"), exc)
+            stats["errors"] += 1
+    return stats
+
+
+async def run_partner_relink_migration_once() -> None:
+    """Marker-guarded startup migration so production auto-heals stranded
+    engineers on the next redeploy (the user can't run scripts on prod).
+    Runs the backfill exactly once per database; cheap no-op thereafter."""
+    from utils.database import db
+    marker = "partner_relink_backfill_v1"
+    try:
+        already = await db.migrations.find_one({"_id": marker})
+        if already:
+            return
+        stats = await backfill_partner_relink(dry_run=False)
+        await db.migrations.update_one(
+            {"_id": marker},
+            {"$set": {"_id": marker, "ran_at": _now(), "stats": stats}},
+            upsert=True,
+        )
+        logger.info("[partners] relink backfill migration complete: %s", stats)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[partners] relink backfill migration failed: %s", exc)
