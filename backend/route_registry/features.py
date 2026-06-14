@@ -203,6 +203,8 @@ from routes.svc.attention import router as svc_attention_router
 from routes.svc.engineer_ratings import router as svc_engineer_ratings_router
 # Iter 220s — Unified Accident, Near-Miss, Hazard, RIDDOR module
 from routes.incidents import router as incidents_router
+# Iter 278 — Expenses Tracker & Receipt Photo Scanner
+from routes.expenses import router as expenses_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -227,6 +229,7 @@ _UNGATED_ROUTERS = (
     health_score_router, supplier_portal_router, qr_codes_router,
     svc_engineer_qr_router, svc_engineer_qr_public_router,
     svc_access_requests_router,
+    expenses_router,
     expiry_alerts_router, integrations_router,
     capex_router, financial_ops_router, equipment_import_router, sites_import_router, mod_sites_bulk_import_router, invoice_wizard_parse_router,
     spec_sheets_router, compliance_router,

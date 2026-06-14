@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
-  CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X,
+  CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X, Wallet,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
@@ -486,6 +486,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Boxes} label="Stock"
                              testid="qa-parts"
                              onClick={() => navigate('/svc/engineer/stock')} />
+                <QuickAction icon={Wallet} label="Expenses"
+                             testid="qa-expenses"
+                             onClick={() => navigate('/svc/engineer/expenses')} />
                 {/* — Other — */}
                 <QuickAction icon={FileSignature} label="Send report"
                              testid="qa-report"

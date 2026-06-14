@@ -164,6 +164,8 @@ const ServiceOpsEngineerAnalytics = lazy(() => import('@/pages/ServiceOps/Engine
 // Iter 220cu — End-of-day timesheet roll-up.
 const ServiceOpsEngineerEndOfDay = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerEndOfDay'));
 const ServiceOpsEngineerCustomers = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCustomers'));
+// Iter 278 — Expenses Tracker & Receipt Photo Scanner (engineer mobile UI)
+const ServiceOpsEngineerExpenses = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerExpenses'));
 // Iter 220ci — Engineer Equipment Tab (strict picklists, flows into Ops)
 const ServiceOpsEngineerEquipment = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerEquipment'));
 // Iter 220ea·19 — Engineer App Phase 5: Stock Control hub
@@ -497,6 +499,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/analytics" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerAnalytics /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/end-of-day" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEndOfDay /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/customers" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerCustomers /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/expenses" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerExpenses /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ci — Engineer Equipment Tab */}
       <Route path="/svc/engineer/equipment" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEquipment /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 276 — Machine history from an Operations QR scan */}

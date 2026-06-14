@@ -1,0 +1,32 @@
+{
+  "summary": "Iter 278 Expenses Tracker - frontend + backend verification. Backend pytest (tests/test_iter278_expenses.py) passes 3/3 (verified earlier by main agent). Frontend: ALL data-testids exist on /svc/engineer/expenses (engineer-expenses, stat strip, action buttons, filters) and on Service Desk Insights -> Expenses (desk-expenses, all 3 sub-tabs, KPIs, reports table/group chips/export, settings rules + categories). Engineer manual expense form opens correctly with all named fields. However, two real issues were found: (1) the qa-expenses QuickAction is NOT present on the engineer home for the indie engineer (indie.engineer@gymaxisai.com lands on /partner-engineer, not on EngineerHomeV2 where qa-expenses was added) — engineers must currently deep-link to /svc/engineer/expenses; (2) after submitting a MANUAL expense via exp-submit as the solo engineer, the list still shows the empty state ('No expenses yet. Scan a receipt to get started.') and zero exp-row-* rows render — the create call or the list refresh after submit appears broken on the engineer page. The receipt OCR flow couldn't be fully exercised because subsequent buttons (exp-action-mileage / exp-action-scan) became unreachable after the manual form path (no clean close).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EngineerHomeV2 / partner-engineer home", "issue": "qa-expenses QuickAction not present for indie engineer who lands on /partner-engineer route (not /svc/engineer). Users cannot reach Expenses from home — must type URL manually.", "selector": "[data-testid='qa-expenses']", "priority": "HIGH"},
+      {"component": "EngineerExpenses manual submit", "issue": "After filling Category/Merchant/Date/Amount/Tax and clicking exp-submit as solo engineer (indie.engineer), the list remains in 'No expenses yet' empty state and no exp-row-* rows are rendered. Expected: auto-approved expense appears immediately with status pill 'approved'. Submission/refresh appears broken.", "selector": "[data-testid='exp-submit']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Engineer manual expense create -> list refresh", "issue": "POST /api/expenses (submit=true) for solo engineer either fails or list does not re-fetch. Worth checking the engineer page's fetch-after-create logic and the response shape vs the renderer's expected fields.", "affected_selectors": ["[data-testid='exp-submit']", "[data-testid^='exp-row-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter278_expenses.py"],
+  "action_items": [
+    "Add the qa-expenses QuickAction to whichever home page the indie/partner engineer lands on (/partner-engineer — PartnerDashboard) or redirect indie engineer to /svc/engineer so EngineerHomeV2 (with qa-expenses) is used.",
+    "Debug why manual expense POST + list refresh on EngineerExpenses leaves the empty state visible for solo engineer — check the create payload, response handling, and that the list reload runs after successful POST.",
+    "Once the manual create works, re-verify mileage save-draft and receipt/scan UI path."
+  ],
+  "critical_code_review_comments": [
+    "Engineer expenses page should re-fetch the list (or optimistically insert the new expense) immediately after a successful create — currently the empty state remains.",
+    "QuickAction wiring assumes the engineer hits EngineerHomeV2 — for solo/independent engineers on /partner-engineer it never appears."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "~75% (testids and finance flows OK; engineer home QuickAction missing and manual create not reflecting in list)"},
+  "test_credentials": "indie.engineer@gymaxisai.com / IndieEng123! ; desk@pulsefitness.com / DeskAgent123!",
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test_iter278_expenses.py covers solo auto-approve, operator workflow, mileage, CSV export. Frontend testids are all wired. Two outstanding FE bugs: (a) qa-expenses missing on /partner-engineer home for indie engineer, (b) manual expense submit doesn't reflect in the engineer's expense list. Finance flow under desk@pulsefitness.com at /service-desk -> Insights -> Expenses is fully functional (sidebar nav 'Expenses' under Insights works; all 3 sub-tabs and their testids resolve).",
+  "rca of the issue": "qa-expenses bug: EngineerHomeV2 hosts the QuickAction but indie/partner engineers route to /partner-engineer (PartnerDashboard). Manual submit bug: most likely the EngineerExpenses page doesn't refresh the list state after a successful POST, or the auto-approve response isn't being merged into local state — verify the fetch-list call runs in the onSuccess handler."
+}
