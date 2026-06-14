@@ -39,12 +39,19 @@ export default function EngineersAdminPage() {
   });
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({});
+  // Iter 276b — cross-org machine-access requests from engineers.
+  const [requests, setRequests] = useState([]);
+  const [reqBusy, setReqBusy] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/svc/engineers`, auth());
-      setEngineers(data.engineers || []);
+      const [engRes, reqRes] = await Promise.all([
+        axios.get(`${API}/svc/engineers`, auth()),
+        axios.get(`${API}/svc/access-requests?status=pending`, auth()).catch(() => ({ data: {} })),
+      ]);
+      setEngineers(engRes.data.engineers || []);
+      setRequests(reqRes.data.requests || []);
     } catch {
       toast.error('Could not load engineers');
     }
@@ -52,6 +59,19 @@ export default function EngineersAdminPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const decideRequest = async (id, action) => {
+    setReqBusy(id);
+    try {
+      await axios.post(`${API}/svc/access-requests/${id}/${action}`, {}, auth());
+      toast.success(action === 'approve' ? 'Access granted' : 'Request declined');
+      await load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not update request');
+    } finally {
+      setReqBusy('');
+    }
+  };
 
   const create = async () => {
     if (!addForm.email || !addForm.full_name) {
@@ -196,6 +216,60 @@ export default function EngineersAdminPage() {
       icon={HardHat}
       actions={actions}
     >
+      {requests.length > 0 && (
+        <section
+          className="svc-card mb-3"
+          style={{ padding: 16, border: '1px solid var(--theme-border)' }}
+          data-testid="access-requests-panel"
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)', marginBottom: 10 }}>
+            Machine access requests ({requests.length})
+          </p>
+          <div className="space-y-2">
+            {requests.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-3 rounded-xl"
+                style={{ padding: 10, border: '1px solid var(--theme-border)' }}
+                data-testid={`access-request-${r.id}`}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>
+                    {r.engineer_name}
+                    {r.engineer_company ? <span style={{ color: 'var(--theme-text-muted)', fontWeight: 400 }}> · {r.engineer_company}</span> : null}
+                  </p>
+                  <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+                    wants access to <b>{r.equipment_name || 'a machine'}</b>
+                    {r.message ? ` — "${r.message}"` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => decideRequest(r.id, 'approve')}
+                    disabled={reqBusy === r.id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+                    style={{ background: '#059669' }}
+                    data-testid={`access-request-approve-${r.id}`}
+                  >
+                    {reqBusy === r.id ? '…' : 'Approve'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => decideRequest(r.id, 'decline')}
+                    disabled={reqBusy === r.id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                    style={{ border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' }}
+                    data-testid={`access-request-decline-${r.id}`}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {showAdd ? (
         <section
           className="svc-card mb-3"

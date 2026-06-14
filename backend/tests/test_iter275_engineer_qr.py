@@ -81,7 +81,7 @@ def test_qr_card_is_branded_and_public_fault_creates_assigned_case():
         assert lbl.status_code == 200, lbl.text[:150]
         body = lbl.json()
         assert body["brand_name"] == "FitFix Ltd"
-        assert body["scan_url"].endswith(f"/r/{eq_id}")
+        assert body["scan_url"].endswith(f"/r/eq/{eq_id}")
 
         # qr-card: a real PNG.
         card = s.get(f"{BASE}/api/svc/engineer/equipment/{eq_id}/qr-card?size=62x35", headers=h, timeout=20)

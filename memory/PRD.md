@@ -1,3 +1,41 @@
+## Iter 276b — Engineer "Request access" loop on the machine-history lockout ✅ (Jun 14, 2026)
+
+**Built (the iter-276 enhancement):** when an engineer scans an operator's QR for a machine they don't cover and hits the 403 lockout, they can now request access; the operator's service desk can approve it (which grants `svc_engineers` membership → rule (b) access) or decline.
+
+- **Backend `routes/svc/access_requests.py`** (registered ungated):
+  - `POST /api/svc/engineer/machine-history/{equipment_id}/request-access` — engineer; rejects if they already have access (400), dedupes to one pending per (engineer, operator org), stores a `svc_access_requests` doc and **notifies the operator's admins/service desk** via `create_notification`.
+  - `GET /api/svc/access-requests?status=pending` — operator (admin-gated) list.
+  - `POST /api/svc/access-requests/{id}/approve` — inserts a cross-org `svc_engineers` membership (`external: true, source: access_request`), marks approved, notifies the engineer (deep-links to the machine). Re-deciding → 409.
+  - `POST /api/svc/access-requests/{id}/decline` — marks declined.
+- **Frontend:**
+  - `EngineerMachineHistory.js` — the 403 lockout now has a **`RequestAccess`** widget (button → optional message → "Request sent" confirmation).
+  - `EngineersAdminPage.js` (operator Service Desk) — a **"Machine access requests"** panel at the top with Approve/Decline per request; refreshes the roster on action.
+
+**Verified e2e (preview):** indie engineer on an unauthorised GymAxis machine → "Request access" → "Request sent…" confirmation (screenshot). Backend loop test `test_iter276b_access_requests.py`: blocked→request→dedupe→admin list→approve→membership granted→history 200 (`operator_engineer`)→409 on re-approve→400 when already has access. Combined engineer-QR/history/access suite **5/5**, added to Makefile. ESLint clean. Demo request cleaned up.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
+## Iter 276 — Engineers scan Operations-portal QR → machine history (read-only) ✅ (Jun 14, 2026)
+
+**Requested:** let engineers also scan **Operations-portal QR codes** (`/scan/{id}` operator stickers) to bring up a machine's full history — previous jobs, parts fitted, and who has worked on it. User chose authorization rule **(d)** and **read-only**.
+
+**Shipped:**
+- **Backend `GET /api/svc/engineer/machine-history/{equipment_id}`** (`routes/svc/engineer_qr.py`): resolves the machine across orgs, then gates by rule (d) — `_engineer_machine_access` returns `owner` (machine in engineer's org), `operator_engineer` (registered `svc_engineers` of the machine's org), or `worked` (≥1 `svc_case` on the machine assigned to them); else **403**. Returns the machine summary, `operator_name`, stats (jobs/parts/engineers), a **"who's worked on it"** list (engineer → job count + last date), a flattened **parts-fitted** list, and a **job timeline** (each with status, date, engineer, fault, parts). All sourced from the unified `svc_cases` + `allocated_parts`. 404 on unknown machine.
+- **Scanner (`BarcodeScanModal`)**: new `onMachine` prop + URL parsing — a scanned `…/scan/{id}` (operations) or `…/r/eq/{id}` (engineer) opens the machine-history view; `…/r/c/{code}` falls back to the by-code lookup. Wired in `EngineerEquipment` to `navigate('/svc/engineer/machine/{id}')`.
+- **Frontend page `EngineerMachineHistory.js`** at `/svc/engineer/machine/:equipmentId` — read-only: machine card + stat tiles, engineers, parts fitted, job timeline; friendly **lockout** card on 403.
+
+**⚠️ Regression fixed (introduced in iter 275):** the iter-275 `/r/:equipmentId` route **collided** with the pre-existing `/r/:slug` engineer public business-card route (identical 1-segment patterns) — it was hijacking all engineer card links to the fault page. Moved the equipment fault report to **`/r/eq/:equipmentId`** (2-segment, no collision); updated the QR `scan_url`/card payload accordingly. `/r/:slug` (cards), `/r/eq/:id` (equipment fault), `/r/c/:code` (sticker code) are now all distinct.
+
+**Verified e2e (preview):** owner→200 with history; unrelated operator machine→403 (lockout screenshot); operator-engineer membership→200; `/r/:slug` card renders again (fault page no longer leaks), `/r/eq/{id}` + `/r/c/{code}` render the fault page. Regression `test_iter276_machine_history.py` (4 access cases) + updated `test_iter275` → **4/4 pass**, both added to Makefile. ESLint clean.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com** (fixes the engineer-card route regression live too).
+
+---
+
+
 ## Iter 275b — Assign equipment to PRE-PRINTED sticker codes ✅ (Jun 14, 2026)
 
 **Requested:** engineers (esp. in the US) already have asset QR stickers on machines and want to *reuse* them rather than reprint per-machine UUID labels. Chosen approach (user picked option A): register the code printed on the existing sticker against a machine; a sticker that opens `…/r/c/<code>` then resolves to that machine's fault-report page.

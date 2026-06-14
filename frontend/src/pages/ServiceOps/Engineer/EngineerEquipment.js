@@ -184,6 +184,7 @@ export default function EngineerEquipment() {
       <BarcodeScanModal
         open={scanOpen}
         onClose={() => setScanOpen(false)}
+        onMachine={(id) => navigate(`/svc/engineer/machine/${id}`)}
         onMatch={(eq) => {
           const code = eq.serial_number || eq.asset_tag || eq.name || '';
           if (code) setQ(code);

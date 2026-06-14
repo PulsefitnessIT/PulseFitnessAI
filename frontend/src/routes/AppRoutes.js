@@ -70,6 +70,7 @@ const SupplierCasePage = lazy(() => import('@/pages/SupplierCasePage'));
 const CustomerOnboardingForm = lazy(() => import('@/pages/CustomerOnboardingForm'));
 const QRScanPage = lazy(() => import('@/pages/QRScanPage'));
 const EngineerFaultReportPage = lazy(() => import('@/pages/EngineerFaultReportPage'));
+const EngineerMachineHistory = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerMachineHistory'));
 const PublicFormPage = lazy(() => import('@/pages/PublicFormPage'));
 const PublicLandingPage = lazy(() => import('@/pages/PublicLandingPage'));
 const PartnershipProposalPage = lazy(() => import('@/pages/PartnershipProposalPage'));
@@ -427,7 +428,7 @@ export default function AppRoutes({ user, login }) {
       {/* ─── Public utility ─── */}
       <Route path="/supplier/case/:token" element={<SupplierCasePage />} />
       <Route path="/scan/:equipmentId" element={<QRScanPage />} />
-      <Route path="/r/:equipmentId" element={<EngineerFaultReportPage />} />
+      <Route path="/r/eq/:equipmentId" element={<EngineerFaultReportPage />} />
       <Route path="/r/c/:code" element={<EngineerFaultReportPage />} />
       <Route path="/forms/:slug" element={<PublicFormPage />} />
       <Route path="/p/:slug" element={<PublicLandingPage />} />
@@ -498,6 +499,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/customers" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerCustomers /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ci — Engineer Equipment Tab */}
       <Route path="/svc/engineer/equipment" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEquipment /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      {/* Iter 276 — Machine history from an Operations QR scan */}
+      <Route path="/svc/engineer/machine/:equipmentId" element={user ? <EngineerErrorBoundary><EngineerMachineHistory /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/equipment/new" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerEquipmentForm /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       {/* Iter 220ea·19 — Engineer Stock Control hub */}
       <Route path="/svc/engineer/stock" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerStock /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />

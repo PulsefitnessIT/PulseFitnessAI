@@ -34,7 +34,7 @@ function hasBarcodeDetector() {
   return typeof window !== 'undefined' && 'BarcodeDetector' in window;
 }
 
-export default function BarcodeScanModal({ open, onClose, onMatch, onCode }) {
+export default function BarcodeScanModal({ open, onClose, onMatch, onCode, onMachine }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const detectorRef = useRef(null);
@@ -65,6 +65,24 @@ export default function BarcodeScanModal({ open, onClose, onMatch, onCode }) {
   };
 
   const lookup = async (code) => {
+    // Iter 276 — a scanned GymAxis QR may be a URL that identifies a
+    // machine. Route Operations `/scan/{id}` and engineer `/r/eq/{id}`
+    // stickers to the machine-history view; `/r/c/{code}` → code lookup.
+    if (onMachine) {
+      let machineId = null;
+      let opsCode = null;
+      const ops = /\/scan\/([^/?#]+)/.exec(code) || /\/r\/eq\/([^/?#]+)/.exec(code);
+      if (ops) machineId = decodeURIComponent(ops[1]);
+      const codeUrl = /\/r\/c\/([^/?#]+)/.exec(code);
+      if (codeUrl) opsCode = decodeURIComponent(codeUrl[1]);
+      if (machineId) {
+        stopCamera();
+        onMachine(machineId);
+        handleClose();
+        return;
+      }
+      if (opsCode) code = opsCode; // fall through to by-code lookup below
+    }
     // Iter 275b — when used to LINK a pre-printed sticker, hand back the
     // raw scanned/typed code instead of resolving an existing machine.
     if (onCode) {

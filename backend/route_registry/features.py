@@ -191,6 +191,8 @@ from routes.svc.engineer_qr import (
     router as svc_engineer_qr_router,
     public_router as svc_engineer_qr_public_router,
 )
+# Iter 276b — Engineer "Request access" to operator machine history
+from routes.svc.access_requests import router as svc_access_requests_router
 # Iter 220g — Smart scheduling suggestions (proximity-based)
 from routes.svc.scheduling_suggestions import router as svc_scheduling_router
 # Iter 220i — Engineer / org branding (logo + colours for PDF + portal)
@@ -224,6 +226,7 @@ _UNGATED_ROUTERS = (
     digest_router, onboarding_router, gym_layouts_router,
     health_score_router, supplier_portal_router, qr_codes_router,
     svc_engineer_qr_router, svc_engineer_qr_public_router,
+    svc_access_requests_router,
     expiry_alerts_router, integrations_router,
     capex_router, financial_ops_router, equipment_import_router, sites_import_router, mod_sites_bulk_import_router, invoice_wizard_parse_router,
     spec_sheets_router, compliance_router,

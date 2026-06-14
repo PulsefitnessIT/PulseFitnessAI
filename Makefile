@@ -344,6 +344,8 @@ regression:
           tests/test_iter272_partner_relink_selfheal.py \
           tests/test_iter273_engineer_personal_org.py \
           tests/test_iter275_engineer_qr.py \
+          tests/test_iter276_machine_history.py \
+          tests/test_iter276b_access_requests.py \
           -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

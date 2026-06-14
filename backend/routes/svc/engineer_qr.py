@@ -180,7 +180,7 @@ async def engineer_qr_label(
         "location": eq.get("location", ""),
         "customer_name": eq.get("customer_name", ""),
         "brand_name": brand_name,
-        "scan_url": f"{base_url}/r/{equipment_id}",
+        "scan_url": f"{base_url}/r/eq/{equipment_id}",
         # Iter 275b — pre-printed sticker linkage.
         "sticker_code": eq.get("sticker_code") or "",
         "code_scan_url": (
@@ -259,6 +259,146 @@ async def set_sticker_code(
     }
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Iter 276 — Cross-org machine history from an Operations-portal QR scan.
+# A field engineer scans an operator's existing `/scan/{id}` sticker and
+# (if authorised) sees the machine's full service history: previous jobs,
+# parts fitted and which engineers worked on it. Read-only.
+#
+# Authorisation (user-chosen rule "d"): the engineer may view the history
+# when the machine is in their OWN org, OR they are a registered engineer
+# of the machine's org, OR they have (now or previously) a job assigned to
+# them on that machine.
+# ─────────────────────────────────────────────────────────────────────
+
+
+async def _engineer_machine_access(equipment: dict, user: dict) -> str | None:
+    """Return access reason ('owner'|'operator_engineer'|'worked') or None."""
+    org_id = equipment.get("organization_id")
+    if not org_id:
+        return None
+    user_id = user.get("id")
+    user_org = user.get("organization_id") or user.get("service_org_id")
+    eqid = equipment["id"]
+    if user_org and org_id == user_org:
+        return "owner"
+    member = await db.svc_engineers.find_one(
+        {"id": user_id, "organization_id": org_id}, {"_id": 0, "id": 1},
+    )
+    if member:
+        return "operator_engineer"
+    worked = await db.svc_cases.find_one(
+        {
+            "organization_id": org_id,
+            "assigned_engineer_id": user_id,
+            "$or": [{"asset_id": eqid}, {"equipment_ids": eqid}],
+        },
+        {"_id": 0, "id": 1},
+    )
+    if worked:
+        return "worked"
+    return None
+
+
+@router.get("/machine-history/{equipment_id}")
+async def engineer_machine_history(
+    equipment_id: str,
+    user=Depends(get_current_user),
+):
+    """Read-only service history for a machine reached via an Operations QR."""
+    eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0, "manuals": 0})
+    if not eq:
+        raise HTTPException(404, "Machine not found")
+
+    access = await _engineer_machine_access(eq, user)
+    if not access:
+        raise HTTPException(
+            403,
+            "You don't have access to this machine's history. It belongs to "
+            "another operator and you haven't been assigned work on it.",
+        )
+
+    org_id = eq["organization_id"]
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "name": 1},
+    ) or {}
+
+    cursor = db.svc_cases.find(
+        {"organization_id": org_id, "$or": [{"asset_id": equipment_id},
+                                            {"equipment_ids": equipment_id}]},
+        {
+            "_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1,
+            "priority": 1, "created_at": 1, "updated_at": 1, "closed_at": 1,
+            "scheduled_at": 1, "assigned_engineer_id": 1,
+            "assigned_engineer_name": 1, "fault_description": 1,
+            "description": 1, "source": 1, "allocated_parts": 1,
+        },
+    ).sort("created_at", -1).limit(100)
+    raw_jobs = await cursor.to_list(100)
+
+    jobs = []
+    parts: list[dict] = []
+    eng_stats: dict[str, dict] = {}
+    for j in raw_jobs:
+        jp = []
+        for p in (j.get("allocated_parts") or []):
+            row = {
+                "part_name": p.get("part_name") or p.get("part_sku") or "Part",
+                "part_sku": p.get("part_sku") or "",
+                "qty": p.get("qty") or 1,
+                "case_reference": j.get("reference") or p.get("case_reference") or "",
+                "fitted_at": p.get("allocated_at") or j.get("created_at"),
+                "by": p.get("allocated_by_name") or "",
+            }
+            jp.append(row)
+            parts.append(row)
+        jobs.append({
+            "id": j.get("id"),
+            "reference": j.get("reference") or "",
+            "title": j.get("title") or "",
+            "status": j.get("status") or "",
+            "priority": j.get("priority") or "",
+            "created_at": j.get("created_at"),
+            "closed_at": j.get("closed_at"),
+            "engineer": j.get("assigned_engineer_name") or "",
+            "fault": j.get("fault_description") or j.get("description") or "",
+            "source": j.get("source") or "",
+            "parts": jp,
+        })
+        name = (j.get("assigned_engineer_name") or "").strip()
+        if name:
+            s = eng_stats.setdefault(name, {"name": name, "jobs": 0, "last": None})
+            s["jobs"] += 1
+            ca = j.get("created_at")
+            if ca and (s["last"] is None or ca > s["last"]):
+                s["last"] = ca
+
+    engineers = sorted(eng_stats.values(), key=lambda e: e["last"] or "", reverse=True)
+
+    return {
+        "access": access,
+        "operator_name": org.get("name") or "",
+        "equipment": {
+            "id": eq["id"],
+            "name": eq.get("name", ""),
+            "equipment_type": eq.get("equipment_type", ""),
+            "manufacturer": eq.get("manufacturer", ""),
+            "model": eq.get("model", ""),
+            "serial_number": eq.get("serial_number", ""),
+            "location": eq.get("location", ""),
+            "status": eq.get("status", ""),
+        },
+        "stats": {
+            "total_jobs": len(jobs),
+            "total_parts": len(parts),
+            "engineers": len(engineers),
+        },
+        "engineers": engineers,
+        "parts": parts[:100],
+        "jobs": jobs,
+    }
+
+
 @router.get("/equipment/{equipment_id}/qr-card")
 async def engineer_qr_card(
     equipment_id: str,
@@ -295,7 +435,7 @@ async def engineer_qr_card(
     landscape = width_mm >= height_mm
 
     base_url = resolve_frontend_url(request)
-    scan_url = f"{base_url}/r/{equipment_id}"
+    scan_url = f"{base_url}/r/eq/{equipment_id}"
     qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=1)
     qr.add_data(scan_url)
     qr.make(fit=True)
