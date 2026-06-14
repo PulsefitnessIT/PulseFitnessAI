@@ -685,7 +685,7 @@ function App() {
  } else if (wasPulse && typeof window !== 'undefined') {
    window.location.replace('/pulse');
  } else if (wasEngineer && typeof window !== 'undefined') {
-   window.location.replace(engEmail ? `/login?email=${encodeURIComponent(engEmail)}` : '/login');
+   window.location.replace(engEmail ? `/login?email=${encodeURIComponent(engEmail)}&signedout=1` : '/login?signedout=1');
  } else if (typeof window !== 'undefined') {
    // Iter 216h221 — hard-navigate to the landing page so every route
    // guard + cached component is forced to re-evaluate from a clean

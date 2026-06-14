@@ -6,7 +6,7 @@
  * with the gym-floor kiosk fallback (username login) so on-site terminals
  * keep working.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -31,6 +31,20 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const { banner, _show, clear } = useInlineBanner({ autoDismiss: false });
+
+  // Iter 274 — confirm sign-out: show a success toast when arriving from a
+  // sign-out. The password field auto-focuses (autoFocus={!!email}) since the
+  // email is already pre-filled.
+  useEffect(() => {
+    if (searchParams.get('signedout') === '1') {
+      notify.success('Signed out successfully');
+      // strip the flag so a refresh doesn't re-toast
+      const url = new URL(window.location.href);
+      url.searchParams.delete('signedout');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Iter 216h68 — `?next=/some/path` lets the SessionResumedBanner
   // (and any other deep-link sender) bounce the user back to where
@@ -167,7 +181,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoFocus
+                autoFocus={!email}
                 className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[var(--gx-brand-from)] focus:bg-white transition"
                 placeholder="you@gym.com"
                 data-testid="gx-login-email"
@@ -183,6 +197,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoFocus={!!email}
                   className="w-full h-11 px-3 pr-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[var(--gx-brand-from)] focus:bg-white transition"
                   placeholder="••••••••"
                   data-testid="gx-login-password"

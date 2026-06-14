@@ -1,6 +1,6 @@
 ## Iter 274c — Engineer sign-out lands on pre-filled login + login-link audit ✅ (Jun 14, 2026)
 
-**Engineer login-on-signout:** `logout()` now has an engineer branch — independent engineers land on `/login?email=<their email>` (faster re-login on field/shared devices) instead of the marketing landing page (mirrors the existing MOD→/MODService, Pulse→/pulse pattern). `LoginPage` now pre-fills the email from `?email=`. Verified e2e: sign-out → "Welcome Back" with email pre-filled + `/api/auth/me` = 401.
+**Engineer login-on-signout:** `logout()` now has an engineer branch — independent engineers land on `/login?email=<their email>&signedout=1` (faster re-login on field/shared devices) instead of the marketing landing page (mirrors the existing MOD→/MODService, Pulse→/pulse pattern). `LoginPage` now pre-fills the email from `?email=`, auto-focuses the password field when email is present, and shows a **"Signed out successfully"** toast on `?signedout=1` (flag stripped after to avoid re-toast on refresh). Verified e2e: sign-out → "Welcome Back" with email pre-filled, password focused, toast shown, `/api/auth/me` = 401.
 
 **Login-link audit:** swept all "return/back to login" links. Only `ResetPasswordPage` "Go to Login" was wrong (→ `/`, fixed earlier to `/login`). All other "Back to login" buttons (Navbar forgot-password/system-choice, CRMLogin 2FA) are in-form state resets that correctly stay on the login form; `LoginPage` `to="/"` are intentional logo/home links. No further changes needed.
 
