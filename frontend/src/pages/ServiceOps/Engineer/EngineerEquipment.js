@@ -26,7 +26,7 @@ import {
 import {
   ArrowLeft, Plus, Loader2, Search, Wrench, MapPin, Building2,
   CheckCircle2, AlertTriangle, RefreshCw, ChevronDown, ChevronUp,
-  Sparkles, Camera, FileText, Clock, PoundSterling, QrCode,
+  Sparkles, Camera, FileText, Clock, PoundSterling, QrCode, Link2, Copy,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useLocalization, formatMoney } from '@/utils/localization';
@@ -900,6 +900,12 @@ function EngineerQrModal({ item, onClose }) {
   const [brand, setBrand] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Iter 275b — link a pre-printed sticker code.
+  const [codeInput, setCodeInput] = useState('');
+  const [savedCode, setSavedCode] = useState('');
+  const [codeUrl, setCodeUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -921,6 +927,9 @@ function EngineerQrModal({ item, onClose }) {
         setImgUrl(objUrl);
         setScanUrl(label.data?.scan_url || '');
         setBrand(label.data?.brand_name || '');
+        setSavedCode(label.data?.sticker_code || '');
+        setCodeInput(label.data?.sticker_code || '');
+        setCodeUrl(label.data?.code_scan_url || '');
       } catch (e) {
         if (!cancelled) setError(e?.response?.data?.detail || e?.message || 'Failed to generate QR');
       } finally {
@@ -929,6 +938,26 @@ function EngineerQrModal({ item, onClose }) {
     })();
     return () => { cancelled = true; if (objUrl) URL.revokeObjectURL(objUrl); };
   }, [item.id, size]);
+
+  const saveStickerCode = async (codeOverride) => {
+    const code = (codeOverride !== undefined ? codeOverride : codeInput).trim();
+    setSaving(true);
+    try {
+      const r = await axios.post(
+        `${API}/svc/engineer/equipment/${item.id}/sticker-code`,
+        { code },
+        auth(),
+      );
+      setSavedCode(r.data?.sticker_code || '');
+      setCodeUrl(r.data?.code_scan_url || '');
+      setCodeInput(r.data?.sticker_code || '');
+      notify.success(code ? 'Sticker linked' : 'Sticker code removed');
+    } catch (e) {
+      notify.error('Could not save', e?.response?.data?.detail || 'Try a different code');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const download = () => {
     if (!imgUrl) return;
@@ -960,6 +989,7 @@ function EngineerQrModal({ item, onClose }) {
   };
 
   return (
+    <>
     <div
       className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm"
       onClick={onClose}
@@ -1037,7 +1067,82 @@ function EngineerQrModal({ item, onClose }) {
             Print
           </button>
         </div>
+
+        {/* Iter 275b — link a pre-printed / existing sticker code */}
+        <div className="mt-4 pt-4 border-t border-slate-100" data-testid="engineer-sticker-link">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+            <Link2 size={12} /> Already have a sticker?
+          </p>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Enter the code printed on the existing sticker. A sticker that opens
+            <span className="font-mono"> …/r/c/&lt;code&gt;</span> will report faults to this machine — no reprint needed.
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="text"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              placeholder="e.g. FITFIX-00123"
+              className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              data-testid="engineer-sticker-input"
+            />
+            <button
+              type="button"
+              onClick={() => setScanOpen(true)}
+              className="px-2.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+              title="Scan the sticker"
+              data-testid="engineer-sticker-scan"
+            >
+              <Camera size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => saveStickerCode()}
+              disabled={saving || codeInput.trim() === savedCode}
+              className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold disabled:opacity-50 hover:bg-slate-800"
+              data-testid="engineer-sticker-save"
+            >
+              {saving ? <Loader2 size={13} className="animate-spin" /> : 'Link'}
+            </button>
+          </div>
+          {savedCode && codeUrl && (
+            <button
+              type="button"
+              onClick={async () => {
+                try { await navigator.clipboard.writeText(codeUrl); notify.success('Link copied'); }
+                catch { notify.error('Could not copy'); }
+              }}
+              className="mt-2 w-full flex items-center gap-1.5 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 truncate"
+              data-testid="engineer-sticker-url"
+              title={codeUrl}
+            >
+              <Copy size={11} className="flex-shrink-0" />
+              <span className="truncate">{codeUrl}</span>
+            </button>
+          )}
+          {savedCode && (
+            <button
+              type="button"
+              onClick={() => saveStickerCode('')}
+              disabled={saving}
+              className="mt-1 text-[11px] text-rose-600 hover:underline"
+              data-testid="engineer-sticker-remove"
+            >
+              Unlink this sticker
+            </button>
+          )}
+        </div>
       </div>
     </div>
+    {scanOpen && (
+      <div className="relative z-[400]" onClick={(e) => e.stopPropagation()}>
+        <BarcodeScanModal
+          open
+          onClose={() => setScanOpen(false)}
+          onCode={(raw) => { setCodeInput(raw); saveStickerCode(raw); }}
+        />
+      </div>
+    )}
+    </>
   );
 }

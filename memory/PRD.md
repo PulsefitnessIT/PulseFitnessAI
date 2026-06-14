@@ -1,3 +1,24 @@
+## Iter 275b — Assign equipment to PRE-PRINTED sticker codes ✅ (Jun 14, 2026)
+
+**Requested:** engineers (esp. in the US) already have asset QR stickers on machines and want to *reuse* them rather than reprint per-machine UUID labels. Chosen approach (user picked option A): register the code printed on the existing sticker against a machine; a sticker that opens `…/r/c/<code>` then resolves to that machine's fault-report page.
+
+**Shipped:**
+- **Backend `routes/svc/engineer_qr.py`:**
+  - `POST /api/svc/engineer/equipment/{id}/sticker-code` — set/clear the machine's `sticker_code` (stored + lowercased `sticker_code_lc`, index created). Enforces **global uniqueness** among engineer-set codes → `409` with a "add a prefix" hint, so the public resolver is unambiguous. Returns the exact `…/r/c/<code>` URL to put on stickers.
+  - `GET /api/public/r/c/{code}` (no auth) — resolves a sticker code (case-insensitive) → machine info + engineer brand (same shape as `/public/r/{id}`, incl. `id`).
+  - `qr-label` now returns `sticker_code` + `code_scan_url`.
+  - `engineer_equipment.py` `by-code` scanner now also matches `sticker_code` (exact + fuzzy) so the in-app camera scan of an existing sticker jumps straight to the machine.
+- **Frontend:**
+  - `EngineerQrModal` (in `EngineerEquipment.js`) gained a **"Already have a sticker?"** section: type the printed code or **scan it with the camera** (reused `BarcodeScanModal` via a new `onCode` prop that returns the raw code), Link/Unlink, and a copyable `…/r/c/<code>` URL. Scanner rendered in a `z-[400]` wrapper so it sits above the QR modal.
+  - `EngineerFaultReportPage` now serves both `/r/:equipmentId` and **`/r/c/:code`** (resolves the code, then posts to the existing report-fault endpoint). Route added to `AppRoutes.js`.
+
+**Verified e2e (preview):** set code `FITFIX-00123` → qr-label shows it + URL; public `/r/c/fitfix-00123` (lowercase) resolves to "Upright Bike #3" branded "Indie Engineer" (screenshot); in-app `by-code` scanner resolves it; duplicate code on a 2nd machine → `409`; unlink → public `404`. Regression `test_iter275_engineer_qr.py` now 3/3 (added the linking test). ESLint clean. Demo: indie engineer's "Upright Bike #3" left linked to `FITFIX-00123`.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com** (the `…/r/c/<code>` URL resolves to the live host).
+
+---
+
+
 ## Iter 275 — Engineer QR fault-logging for off-platform customers ✅ (Jun 14, 2026)
 
 **Requested:** when an independent engineer's customer is NOT on the Operations portal, let the engineer print branded QR stickers for the customer's machines so the customer can scan and log a fault that goes STRAIGHT to the engineer (like Operations' QR scan flow, but engineer-native).

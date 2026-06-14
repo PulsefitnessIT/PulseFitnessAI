@@ -301,7 +301,7 @@ async def engineer_equipment_by_code(
     projection = {
         "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
         "manufacturer": 1, "model": 1, "serial_number": 1,
-        "asset_tag": 1, "location": 1, "status": 1, "site_id": 1,
+        "asset_tag": 1, "sticker_code": 1, "location": 1, "status": 1, "site_id": 1,
         "customer_id": 1, "customer_name": 1,
     }
     exact = await db.equipment.find_one(
@@ -310,6 +310,7 @@ async def engineer_equipment_by_code(
             "$or": [
                 {"serial_number": needle},
                 {"asset_tag": needle},
+                {"sticker_code": needle},
                 {"id": needle},
             ],
         },
@@ -325,6 +326,7 @@ async def engineer_equipment_by_code(
                 "$or": [
                     {"serial_number": rgx},
                     {"asset_tag": rgx},
+                    {"sticker_code": rgx},
                     {"name": rgx},
                 ],
             },

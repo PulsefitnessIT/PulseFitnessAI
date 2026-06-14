@@ -428,6 +428,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/supplier/case/:token" element={<SupplierCasePage />} />
       <Route path="/scan/:equipmentId" element={<QRScanPage />} />
       <Route path="/r/:equipmentId" element={<EngineerFaultReportPage />} />
+      <Route path="/r/c/:code" element={<EngineerFaultReportPage />} />
       <Route path="/forms/:slug" element={<PublicFormPage />} />
       <Route path="/p/:slug" element={<PublicLandingPage />} />
 

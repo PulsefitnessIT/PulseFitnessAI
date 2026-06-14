@@ -122,6 +122,63 @@ def test_qr_card_is_branded_and_public_fault_creates_assigned_case():
         db.partner_engineers.delete_many({"email": email})
 
 
+def test_link_pre_printed_sticker_code_and_resolve_publicly():
+    """Iter 275b — engineers bind a pre-printed code to a machine; the
+    public `/r/c/{code}` resolver + in-app scanner then find it; duplicate
+    codes are rejected."""
+    db = _db()
+    email, uid, pw, org_id = _seed_engineer(db)
+    eq1 = f"qr-eq-{uuid.uuid4().hex}"
+    eq2 = f"qr-eq-{uuid.uuid4().hex}"
+    code = f"FITFIX-{uuid.uuid4().hex[:6].upper()}"
+    try:
+        for eid, name in ((eq1, "Treadmill"), (eq2, "Rower")):
+            db.equipment.insert_one({
+                "id": eid, "organization_id": org_id, "user_id": uid,
+                "created_by_id": uid, "name": name, "equipment_type": name,
+                "customer_id": f"cust-{uuid.uuid4().hex}", "customer_name": "Gym",
+            })
+
+        s = requests.Session()
+        r = s.post(f"{BASE}/api/auth/login", json={"email": email, "password": pw},
+                   headers=rate_limit_bypass_headers(), timeout=15)
+        assert r.status_code == 200
+        h = {"Authorization": f"Bearer {r.json()['token']}"}
+
+        # Link the code to machine 1.
+        set1 = s.post(f"{BASE}/api/svc/engineer/equipment/{eq1}/sticker-code",
+                      json={"code": code}, headers=h, timeout=15)
+        assert set1.status_code == 200, set1.text[:200]
+        assert set1.json()["code_scan_url"].endswith(f"/r/c/{code}")
+
+        # Public resolve by code (case-insensitive, no auth) → machine 1.
+        pub = requests.get(f"{BASE}/api/public/r/c/{code.lower()}", timeout=15)
+        assert pub.status_code == 200, pub.text[:200]
+        assert pub.json()["id"] == eq1
+        assert pub.json()["brand_name"] == "FitFix Ltd"
+
+        # In-app scanner resolves the sticker code too.
+        byc = s.get(f"{BASE}/api/svc/engineer/equipment/by-code/{code}", headers=h, timeout=15)
+        assert byc.status_code == 200
+        assert byc.json()["equipment"]["id"] == eq1
+
+        # Same code on machine 2 → 409 (globally unique).
+        dup = s.post(f"{BASE}/api/svc/engineer/equipment/{eq2}/sticker-code",
+                     json={"code": code.lower()}, headers=h, timeout=15)
+        assert dup.status_code == 409, dup.text[:200]
+
+        # Unlink machine 1 → public resolver 404.
+        clr = s.post(f"{BASE}/api/svc/engineer/equipment/{eq1}/sticker-code",
+                     json={"code": ""}, headers=h, timeout=15)
+        assert clr.status_code == 200
+        assert requests.get(f"{BASE}/api/public/r/c/{code}", timeout=15).status_code == 404
+    finally:
+        db.equipment.delete_many({"id": {"$in": [eq1, eq2]}})
+        db.organizations.delete_one({"id": org_id})
+        db.users.delete_many({"email": email})
+        db.partner_engineers.delete_many({"email": email})
+
+
 def test_public_report_requires_description_and_name():
     db = _db()
     email, uid, pw, org_id = _seed_engineer(db)

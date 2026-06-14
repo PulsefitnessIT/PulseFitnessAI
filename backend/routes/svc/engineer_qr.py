@@ -41,6 +41,7 @@ from fastapi import (
     APIRouter, Depends, File, Form, HTTPException, Request, UploadFile,
 )
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -180,6 +181,81 @@ async def engineer_qr_label(
         "customer_name": eq.get("customer_name", ""),
         "brand_name": brand_name,
         "scan_url": f"{base_url}/r/{equipment_id}",
+        # Iter 275b — pre-printed sticker linkage.
+        "sticker_code": eq.get("sticker_code") or "",
+        "code_scan_url": (
+            f"{base_url}/r/c/{eq['sticker_code']}" if eq.get("sticker_code") else ""
+        ),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Iter 275b — Link a PRE-PRINTED sticker code to a machine.
+# Engineers (esp. in the US) already have asset QR stickers on machines.
+# They register the code printed on the sticker against the equipment so
+# a sticker that encodes `…/r/c/<code>` resolves to this machine — no
+# per-machine UUID reprint needed. Codes are globally unique among
+# engineer-set sticker codes so the public resolver is unambiguous.
+# ─────────────────────────────────────────────────────────────────────
+
+
+class StickerCodeBody(BaseModel):
+    code: Optional[str] = None
+
+
+def _normalize_sticker_code(raw: str | None) -> str:
+    code = " ".join((raw or "").split()).strip()
+    return code[:120]
+
+
+@router.post("/equipment/{equipment_id}/sticker-code")
+async def set_sticker_code(
+    equipment_id: str,
+    payload: StickerCodeBody,
+    request: Request,
+    user=Depends(get_current_user),
+):
+    """Set (or clear, with an empty code) the pre-printed sticker code on a
+    machine. Enforces global uniqueness among engineer-set sticker codes."""
+    from routes.qr_codes import resolve_frontend_url
+
+    of = _of(user)
+    eq = await db.equipment.find_one({"id": equipment_id, **of}, {"_id": 0, "id": 1})
+    if not eq:
+        raise HTTPException(404, "Equipment not found")
+
+    code = _normalize_sticker_code(payload.code)
+    if not code:
+        await db.equipment.update_one(
+            {"id": equipment_id, **of},
+            {"$unset": {"sticker_code": "", "sticker_code_lc": ""}},
+        )
+        return {"ok": True, "sticker_code": "", "code_scan_url": ""}
+
+    code_lc = code.lower()
+    try:
+        await db.equipment.create_index("sticker_code_lc")
+    except Exception:  # noqa: BLE001
+        pass
+    clash = await db.equipment.find_one(
+        {"sticker_code_lc": code_lc, "id": {"$ne": equipment_id}},
+        {"_id": 0, "id": 1},
+    )
+    if clash:
+        raise HTTPException(
+            409,
+            "That sticker code is already linked to another machine. "
+            "Add a unique prefix (e.g. your company initials).",
+        )
+    await db.equipment.update_one(
+        {"id": equipment_id, **of},
+        {"$set": {"sticker_code": code, "sticker_code_lc": code_lc}},
+    )
+    base_url = resolve_frontend_url(request)
+    return {
+        "ok": True,
+        "sticker_code": code,
+        "code_scan_url": f"{base_url}/r/c/{code}",
     }
 
 
@@ -305,6 +381,36 @@ async def public_engineer_equipment(equipment_id: str):
     eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0, "manuals": 0})
     if not eq:
         raise HTTPException(404, "Equipment not found")
+    resolved = await _resolve_engineer_for_equipment(eq)
+    return {
+        "id": eq["id"],
+        "name": eq.get("name", ""),
+        "equipment_type": eq.get("equipment_type", ""),
+        "manufacturer": eq.get("manufacturer", ""),
+        "model": eq.get("model", ""),
+        "serial_number": eq.get("serial_number", ""),
+        "location": eq.get("location", ""),
+        "customer_name": eq.get("customer_name", ""),
+        "brand_name": resolved["brand_name"],
+    }
+
+
+@public_router.get("/r/c/{code}")
+async def public_engineer_equipment_by_code(code: str):
+    """Resolve a PRE-PRINTED sticker code → machine info (iter 275b).
+
+    Lets a sticker that encodes `…/r/c/<code>` open the fault-report page
+    for the linked machine. Returns the same shape as `/public/r/{id}`
+    (incl. `id`) so the page posts to the existing report-fault endpoint.
+    """
+    code_lc = _normalize_sticker_code(code).lower()
+    if not code_lc:
+        raise HTTPException(404, "Unknown sticker")
+    eq = await db.equipment.find_one(
+        {"sticker_code_lc": code_lc}, {"_id": 0, "manuals": 0},
+    )
+    if not eq:
+        raise HTTPException(404, "This sticker isn't linked to a machine yet")
     resolved = await _resolve_engineer_for_equipment(eq)
     return {
         "id": eq["id"],

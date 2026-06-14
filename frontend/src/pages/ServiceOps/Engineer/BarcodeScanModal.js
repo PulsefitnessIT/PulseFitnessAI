@@ -34,7 +34,7 @@ function hasBarcodeDetector() {
   return typeof window !== 'undefined' && 'BarcodeDetector' in window;
 }
 
-export default function BarcodeScanModal({ open, onClose, onMatch }) {
+export default function BarcodeScanModal({ open, onClose, onMatch, onCode }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const detectorRef = useRef(null);
@@ -65,6 +65,14 @@ export default function BarcodeScanModal({ open, onClose, onMatch }) {
   };
 
   const lookup = async (code) => {
+    // Iter 275b — when used to LINK a pre-printed sticker, hand back the
+    // raw scanned/typed code instead of resolving an existing machine.
+    if (onCode) {
+      stopCamera();
+      onCode(code);
+      handleClose();
+      return;
+    }
     setBusy(true);
     setError('');
     setOptions([]);

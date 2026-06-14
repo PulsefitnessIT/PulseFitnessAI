@@ -27,8 +27,9 @@ const SEVERITIES = [
 ];
 
 export default function EngineerFaultReportPage() {
-  const { equipmentId } = useParams();
+  const { equipmentId, code } = useParams();
   const [info, setInfo] = useState(null);
+  const [resolvedId, setResolvedId] = useState(equipmentId || '');
   const [loadErr, setLoadErr] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -46,14 +47,18 @@ export default function EngineerFaultReportPage() {
     setLoading(true);
     setLoadErr('');
     try {
-      const r = await axios.get(`${API}/public/r/${equipmentId}`);
+      const url = code
+        ? `${API}/public/r/c/${encodeURIComponent(code)}`
+        : `${API}/public/r/${equipmentId}`;
+      const r = await axios.get(url);
       setInfo(r.data);
+      setResolvedId(r.data?.id || equipmentId || '');
     } catch (e) {
       setLoadErr(e?.response?.data?.detail || 'This machine could not be found.');
     } finally {
       setLoading(false);
     }
-  }, [equipmentId]);
+  }, [equipmentId, code]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,7 +76,7 @@ export default function EngineerFaultReportPage() {
       fd.append('reporter_phone', phone.trim());
       fd.append('reporter_email', email.trim());
       if (photo) fd.append('photo', photo);
-      const r = await axios.post(`${API}/public/r/${equipmentId}/report-fault`, fd);
+      const r = await axios.post(`${API}/public/r/${resolvedId}/report-fault`, fd);
       setResult(r.data);
     } catch (e) {
       setFormErr(e?.response?.data?.detail || 'Could not submit. Please try again.');
