@@ -1,3 +1,25 @@
+## Iter 278 — Expenses Tracker & Receipt Photo Scanner ✅ (Jun 14, 2026)
+
+**Requested (P0):** a simple-but-powerful expenses + receipt-scanner inside GymAxis — country rules engine (currency/VAT/mileage), AI/OCR receipt scanning, mileage claims, job linking, approval workflow, finance accounting CSV exports. Mobile-first for engineers, scales to enterprise finance.
+
+**Shipped:**
+- **Backend `routes/expenses/`** (assembled via new `__init__.py` → settings+reports before core so static paths beat `/{expense_id}`; registered ungated in `route_registry/features.py` → `/api/expenses`):
+  - `common.py` — config, **GPT-4o vision OCR** (`LlmChat`+`ImageContent`, Emergent LLM key), per-org **country rules seeding** (GB/US/DE + OTHER: currency, tax label/rates, mileage rates/unit, thresholds), 19 default categories, duplicate detection, receipt object-storage upload, full **audit trail** (`expense_events`).
+  - `settings.py` — `GET /config` (drives mobile UI: currency, approval_mode, can_review, rules, categories, recent jobs, vehicles); country-rules + categories CRUD (admin-gated).
+  - `core.py` — `POST /ocr` (scan→editable draft, never saved), expense CRUD, `submit`/`review` (approve/reject/needs_details)/`reimburse`/`cancel`, mileage amount calc, **solo-engineer auto-approve** (approval_mode off for personal orgs), private authed receipt serving.
+  - `reports.py` — `dashboard` (my + team KPIs incl. reclaimable VAT, missing receipts), grouped `reports`, `job/{id}` profitability, **`export.csv`** (marks approved→exported+locked, audited).
+- **Engineer UI `EngineerExpenses.js`** (`/svc/engineer/expenses`, QuickAction `qa-expenses` on EngineerHomeV2): mobile-first orange-brand page — stat strip, Scan/Manual/Mileage actions, status filters, live mileage calc, receipt scan→OCR prefill→confirm, draft/submit, inline submit/cancel.
+- **Finance UI `DeskExpenses.js`** (Service Desk → Insights → **Expenses**): Approvals queue (KPI strip + approve/query/reject + mark-reimbursed), Reports (group-by chips + CSV export), Settings (country-rules editor + categories CRUD).
+
+**Verified:** pytest `tests/test_iter278_expenses.py` 3/3 (config seeding, solo auto-approve, operator submit→approve→export-lock→reimburse + mileage + reports) — added to Makefile. Curl: full workflow + reports + CSV + rules/categories all 200. UI e2e (preview): engineer manual create auto-approves & lists (EXP-00001, APPROVED pill, stat £24); finance approvals queue shows submitted claim with VAT KPI + approve/query/reject. **Bug fixed during testing:** engineer form's fixed bottom action bar was intercepted by the global CookieConsent/PWA banners (z-100/200) → moved Save/Submit inline into the scroll flow. ESLint clean.
+
+**Note:** OCR uses real GPT-4o via Emergent LLM key (no new keys). No new test accounts (used `indie.engineer@gymaxisai.com` solo + `desk@pulsefitness.com` reviewer).
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 277b — Export / email engineer performance report as PDF ✅ (Jun 14, 2026)
 
 **Built (the iter-277 enhancement):** engineers can download or email their field-performance report as a branded PDF.

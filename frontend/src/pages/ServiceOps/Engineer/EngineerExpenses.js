@@ -201,7 +201,7 @@ export default function EngineerExpenses() {
   if (view === 'form') {
     const isMileage = form.expense_type === 'mileage';
     return (
-      <div className="min-h-screen bg-slate-50 pb-28" data-testid="engineer-expenses-form">
+      <div className="min-h-screen bg-slate-50 pb-10" data-testid="engineer-expenses-form">
         <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3">
           <button onClick={() => setView('list')} className="text-slate-500" data-testid="exp-form-back" aria-label="Back"><ArrowLeft size={20} /></button>
           <h1 className="text-base font-bold text-slate-900">
@@ -292,18 +292,18 @@ export default function EngineerExpenses() {
             <input type="checkbox" checked={form.billable_to_customer} onChange={(e) => setForm((f) => ({ ...f, billable_to_customer: e.target.checked }))} data-testid="exp-billable" />
             Billable to customer
           </label>
-        </div>
 
-        <div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 p-3 flex gap-2 max-w-xl mx-auto">
-          <button onClick={() => save(false)} disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-300 text-slate-700 font-semibold text-sm" data-testid="exp-save-draft">
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save draft
-          </button>
-          <button onClick={() => save(true)} disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-500 text-white font-semibold text-sm" data-testid="exp-submit">
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            {cfg?.approval_mode === 'off' ? 'Save & approve' : 'Submit'}
-          </button>
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => save(false)} disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-300 text-slate-700 font-semibold text-sm" data-testid="exp-save-draft">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save draft
+            </button>
+            <button onClick={() => save(true)} disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-500 text-white font-semibold text-sm" data-testid="exp-submit">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {cfg?.approval_mode === 'off' ? 'Save & approve' : 'Submit'}
+            </button>
+          </div>
         </div>
       </div>
     );
