@@ -111,7 +111,57 @@ def test_personal_org_provisioning_is_idempotent():
         db.users.delete_many({"email": email})
 
 
-def test_unflag_misflagged_keeps_real_partner():
+def test_admin_engineer_health_buckets_and_summary():
+    """Master Admin engineer-health board categorises stuck engineers."""
+    import requests as _rq
+    db = _db()
+    base_email = f"health.{uuid.uuid4().hex[:8]}"
+    pending_email = f"{base_email}.pending@example.com"
+    orgless_email = f"{base_email}.orgless@example.com"
+    orgless_uid = f"hl-orgless-{uuid.uuid4().hex}"
+    cleanup_emails = [pending_email, orgless_email]
+    from datetime import datetime, timezone
+    recent = datetime.now(timezone.utc).isoformat()
+    try:
+        # Never-activated: pending: placeholder user_id.
+        db.partner_engineers.insert_one({
+            "id": f"pe-{uuid.uuid4().hex}", "email": pending_email,
+            "user_id": f"pending:{uuid.uuid4().hex}", "status": "approved",
+            "full_name": "Pending Eng", "country_code": "GB",
+            "referral_code": f"HP{uuid.uuid4().hex[:6].upper()}",
+            "created_at": recent,
+        })
+        # Org-less: real user, no org, no sub.
+        db.users.insert_one({"id": orgless_uid, "email": orgless_email,
+                             "organization_id": None, "service_org_id": None})
+        db.partner_engineers.insert_one({
+            "id": f"pe-{uuid.uuid4().hex}", "email": orgless_email,
+            "user_id": orgless_uid, "status": "approved",
+            "full_name": "Orgless Eng", "country_code": "US",
+            "referral_code": f"HO{uuid.uuid4().hex[:6].upper()}",
+            "created_at": recent,
+        })
+
+        s = _rq.Session()
+        r = s.post(f"{BASE}/api/auth/login",
+                   json={"email": "admin@gymaxisai.com", "password": "MasterAdmin123!"},
+                   headers=rate_limit_bypass_headers(), timeout=15)
+        assert r.status_code == 200, r.text[:200]
+        tok = r.json().get("token")
+        h = {"Authorization": f"Bearer {tok}"}
+        res = s.get(f"{BASE}/api/master-admin/partners/health", headers=h, timeout=20)
+        assert res.status_code == 200, f"{res.status_code} {res.text[:150]}"
+        body = res.json()
+        for k in ("total_approved", "pending_link", "org_less", "not_subscribed", "healthy"):
+            assert k in body["summary"]
+        emails_pending = {x["email"] for x in body["pending_link"]}
+        emails_orgless = {x["email"] for x in body["org_less"]}
+        assert pending_email in emails_pending
+        assert orgless_email in emails_orgless
+    finally:
+        db.partner_engineers.delete_many({"email": {"$in": cleanup_emails}})
+        db.users.delete_many({"email": {"$in": cleanup_emails}})
+
     import asyncio
     from utils.partner_claim import unflag_misflagged_partner_engineers
     db = _db()

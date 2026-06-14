@@ -4093,6 +4093,88 @@ async def admin_list_partners(
     return {"partners": rows}
 
 
+@router.get("/master-admin/partners/health")
+async def admin_partner_health(user: dict = Depends(get_current_user)):
+    """Iter 273 — Engineer health board. Surfaces approved partner engineers
+    who are silently stuck so the team can nudge them before they churn:
+
+      • pending_link  — approved but never activated their account
+                        (user_id still a `pending:` placeholder / no user).
+      • org_less      — activated but missing an org context (legacy rows
+                        provisioned before the personal-org fix).
+      • not_subscribed— activated + has org but no live Engineer App access
+                        (no active/trialing subscription, not free-tier,
+                        no customer grant) — i.e. can't take jobs yet.
+
+    Each engineer falls into at most one bucket (priority order above).
+    """
+    _require_master_admin(user)
+    approved = await db.partner_engineers.find(
+        {"status": "approved"}, {"_id": 0},
+    ).sort("created_at", -1).to_list(length=2000)
+
+    user_ids = [p.get("user_id") for p in approved
+                if p.get("user_id") and not str(p.get("user_id")).startswith("pending:")]
+    users = await db.users.find(
+        {"id": {"$in": user_ids}},
+        {"_id": 0, "id": 1, "organization_id": 1, "service_org_id": 1},
+    ).to_list(length=len(user_ids) or 1)
+    user_map = {u["id"]: u for u in users}
+
+    granted = set()
+    if user_ids:
+        async for g in db.partner_job_grants.find(
+            {"engineer_user_id": {"$in": user_ids}, "active": True},
+            {"_id": 0, "engineer_user_id": 1},
+        ):
+            granted.add(g["engineer_user_id"])
+
+    def _row(p):
+        return {
+            "id": p.get("id"),
+            "full_name": p.get("full_name") or "—",
+            "email": p.get("email"),
+            "country_code": (p.get("country_code") or "GB").upper(),
+            "subscription_status": (p.get("subscription") or {}).get("status"),
+            "app_fee_gbp": (p.get("app_fee_tier") or {}).get("price_gbp"),
+            "created_at": p.get("created_at"),
+        }
+
+    buckets = {"pending_link": [], "org_less": [], "not_subscribed": []}
+    healthy = 0
+    for p in approved:
+        uid = p.get("user_id")
+        u = user_map.get(uid)
+        if not uid or str(uid).startswith("pending:") or not u:
+            buckets["pending_link"].append(_row(p))
+            continue
+        if not (u.get("organization_id") or u.get("service_org_id")):
+            buckets["org_less"].append(_row(p))
+            continue
+        sub_ok = (p.get("subscription") or {}).get("status") in ACTIVE_SUB_STATES
+        free = ((p.get("app_fee_tier") or {}).get("price_gbp") or 0) == 0
+        if not (sub_ok or free or uid in granted):
+            buckets["not_subscribed"].append(_row(p))
+            continue
+        healthy += 1
+
+    return {
+        "generated_at": _now(),
+        "summary": {
+            "total_approved": len(approved),
+            "pending_link": len(buckets["pending_link"]),
+            "org_less": len(buckets["org_less"]),
+            "not_subscribed": len(buckets["not_subscribed"]),
+            "healthy": healthy,
+        },
+        # Cap displayed rows; summary counts remain the full totals.
+        "pending_link": buckets["pending_link"][:200],
+        "org_less": buckets["org_less"][:200],
+        "not_subscribed": buckets["not_subscribed"][:200],
+    }
+
+
+
 @router.get("/master-admin/partners/{partner_id}")
 async def admin_get_partner(partner_id: str, user: dict = Depends(get_current_user)):
     _require_master_admin(user)

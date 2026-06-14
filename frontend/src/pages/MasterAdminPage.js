@@ -37,6 +37,7 @@ const AdminTasks = lazy(() => import('./MasterAdmin/AdminTasks'));
 const AdminRoles = lazy(() => import('./MasterAdmin/AdminRoles'));
 const AdminPayments = lazy(() => import('./MasterAdmin/AdminPayments'));
 const AdminPartners = lazy(() => import('./MasterAdmin/AdminPartners'));
+const AdminEngineerHealth = lazy(() => import('./MasterAdmin/AdminEngineerHealth'));
 const AdminRefundsPanel = lazy(() => import('./MasterAdmin/AdminRefundsPanel'));
 const AdminSupport = lazy(() => import('./MasterAdmin/AdminSupport'));
 const AdminEmails = lazy(() => import('./MasterAdmin/AdminEmails'));
@@ -393,6 +394,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <AdminPayments stats={stats} organizations={organizations} />;
       case 'partners':
         return <AdminPartners />;
+      case 'engineer-health':
+        return <AdminEngineerHealth />;
       case 'communications':
         return <AdminCommunications />;
       case 'canned-replies':

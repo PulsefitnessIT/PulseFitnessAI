@@ -12,6 +12,8 @@
 
 **Regression:** `tests/test_iter273_engineer_personal_org.py` (3 tests) + `test_iter272` (3) all pass; added to Makefile. New test account: `indie.engineer@gymaxisai.com` / `IndieEng123!` (independent/org-less, trialing).
 
+**Engineer Health panel (Master Admin):** new `GET /api/master-admin/partners/health` + `AdminEngineerHealth.js` (Partner Engineers → "Engineer health" subtab). Surfaces approved engineers stuck in 3 buckets — **Never activated** (`pending:`/no user), **Missing workspace** (org-less legacy rows), **Not subscribed** (no live access) — with summary cards (Healthy N of total), clickable bucket tabs, and a capped detail table. Lets the team nudge onboarding drop-offs before they churn. Verified end-to-end (panel renders, 1999 never-activated test rows shown, tab switching works); backend test added (`test_admin_engineer_health_buckets_and_summary`).
+
 **ACTION (production):** preview-only — **redeploy gymaxisai.com**. On boot the migration provisions personal orgs for all org-less engineers + clears mis-flags; the login hook also self-heals.
 
 ---

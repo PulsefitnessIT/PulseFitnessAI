@@ -142,6 +142,7 @@ export const SIDEBAR_ITEMS = [
     id: 'partners', label: 'Partner Engineers', icon: BadgeCheck, group: 'main', gymaxisOnly: true,
     subTabs: [
       { id: 'partners', label: 'Applications & partners', icon: BadgeCheck },
+      { id: 'engineer-health', label: 'Engineer health', icon: Activity },
     ],
   },
   // 7. Integrations — Hub + sub-pages (Iter 216h22 — Hub is now default).
