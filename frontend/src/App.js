@@ -662,6 +662,15 @@ function App() {
  // Lite operators land on `/pulse` (their branded portal + login
  // dialog) instead of being dropped onto the GymAxis marketing site.
  const wasPulse = ['pulse_pro', 'lite'].includes(user?.account_type);
+ // Iter 274 — independent engineers land back on the login screen with
+ // their email pre-filled (faster re-login on shared/field devices),
+ // not the marketing landing page. Master/pulse admins excluded.
+ const wasEngineer = !user?.is_master_admin && !user?.is_pulse_admin && (
+   user?.is_partner_engineer === true
+   || user?.account_type === 'partner_engineer'
+   || user?.role === 'engineer_partner'
+ );
+ const engEmail = user?.email || '';
  setToken(null);
  setUser(null);
  setBranding(null);
@@ -675,6 +684,8 @@ function App() {
    window.location.replace('/MODService');
  } else if (wasPulse && typeof window !== 'undefined') {
    window.location.replace('/pulse');
+ } else if (wasEngineer && typeof window !== 'undefined') {
+   window.location.replace(engEmail ? `/login?email=${encodeURIComponent(engEmail)}` : '/login');
  } else if (typeof window !== 'undefined') {
    // Iter 216h221 — hard-navigate to the landing page so every route
    // guard + cached component is forced to re-evaluate from a clean

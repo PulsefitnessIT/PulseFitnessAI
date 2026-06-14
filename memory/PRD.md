@@ -1,3 +1,11 @@
+## Iter 274c — Engineer sign-out lands on pre-filled login + login-link audit ✅ (Jun 14, 2026)
+
+**Engineer login-on-signout:** `logout()` now has an engineer branch — independent engineers land on `/login?email=<their email>` (faster re-login on field/shared devices) instead of the marketing landing page (mirrors the existing MOD→/MODService, Pulse→/pulse pattern). `LoginPage` now pre-fills the email from `?email=`. Verified e2e: sign-out → "Welcome Back" with email pre-filled + `/api/auth/me` = 401.
+
+**Login-link audit:** swept all "return/back to login" links. Only `ResetPasswordPage` "Go to Login" was wrong (→ `/`, fixed earlier to `/login`). All other "Back to login" buttons (Navbar forgot-password/system-choice, CRMLogin 2FA) are in-form state resets that correctly stay on the login form; `LoginPage` `to="/"` are intentional logo/home links. No further changes needed.
+
+---
+
 ## Iter 274b — Engineer App "Sign out" didn't sign out ✅ (Jun 14, 2026)
 
 **Bug:** Engineer App sign-out (`EngineerAccountSettings.handleSignOut`) only did `localStorage.removeItem('token') + navigate('/login')`. The app now uses httpOnly cookie sessions (`ga_session`/`ga_refresh`) + an in-memory auth context, so the cookie survived → `LoginRedirectPage` saw the still-authenticated user and bounced the engineer straight back in.

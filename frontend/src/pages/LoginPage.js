@@ -7,7 +7,7 @@
  * keep working.
  */
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -24,7 +24,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  // Iter 274 — pre-fill email when arriving with ?email= (e.g. engineer sign-out).
+  const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
