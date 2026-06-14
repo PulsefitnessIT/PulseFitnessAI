@@ -32,11 +32,24 @@ root.render(
   </React.StrictMode>,
 );
 
-// Unregister any stale service workers and register fresh
+// Service worker: register on the field/desk app surfaces so the
+// Service Desk + Engineer App are installable (Android Chrome needs an
+// active SW with a fetch handler to fire the install prompt) and work
+// offline on flaky gym Wi-Fi. The SW itself is network-first for the app
+// shell + JS/CSS, so updates always land on the next reload. On every
+// other route we proactively unregister to keep marketing/SEO pages free
+// of any caching layer.
 if ('serviceWorker' in navigator) {
+  const _path = window.location.pathname.toLowerCase();
+  const _pwaScopes = ['/service-desk', '/svc/engineer', '/partner-engineer'];
+  const _enablePwa = _pwaScopes.some((p) => _path.startsWith(p));
   window.addEventListener('load', () => {
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      registrations.forEach(reg => reg.unregister());
-    });
+    if (_enablePwa) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    } else {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((reg) => reg.unregister());
+      });
+    }
   });
 }

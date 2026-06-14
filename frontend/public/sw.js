@@ -11,12 +11,14 @@
  * cache. They simply fail with the browser's default offline error,
  * and the app layer is expected to surface a toast.
  */
-const CACHE_NAME = 'gymaxis-v13';
-const API_CACHE  = 'gymaxis-api-v13';
+const CACHE_NAME = 'gymaxis-v14';
+const API_CACHE  = 'gymaxis-api-v14';
 const STATIC_ASSETS = [
   '/',
   '/crm',
+  '/service-desk',
   '/manifest.json',
+  '/manifest-servicedesk.json',
   '/pulse-photos/carshalton-igym.webp',
   '/pulse-photos/strength-accessories.webp',
   '/brand/gymaxis-mark-tight.webp',
@@ -58,6 +60,10 @@ const OFFLINE_API_PATTERNS = [
   '/api/svc/engineer/inbox',
   '/api/svc/cases',  // covers both list and /cases/{id}
   '/api/svc/dispatcher/diary',
+  // Iter 275 — Service Desk PWA: keep the provider desk usable offline.
+  '/api/service-desk',  // summary, provider-customers, audit (org-scoped)
+  '/api/svc/scheduler',
+  '/api/svc/engineers',
 ];
 
 // How long a cached API response stays considered "fresh". After this
@@ -136,7 +142,15 @@ self.addEventListener('fetch', (event) => {
   // Navigations — network-first with static shell fallback.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('/') || caches.match('/crm'))
+      fetch(request).catch(async () => {
+        // Prefer the matching app shell when offline (Service Desk first
+        // for /service-desk routes), else the root SPA shell.
+        if (url.pathname.startsWith('/service-desk')) {
+          const desk = await caches.match('/service-desk');
+          if (desk) return desk;
+        }
+        return (await caches.match('/')) || caches.match('/crm');
+      })
     );
     return;
   }

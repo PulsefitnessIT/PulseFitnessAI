@@ -1,3 +1,19 @@
+## Iter 275 — Installable PWA for the Service Desk ✅ (Jun 14, 2026)
+
+**Shipped (P3 backlog item — no external keys):** the Service Desk is now an installable home-screen app with an offline app shell, mirroring the existing `/pulse` PWA pattern.
+- **New `public/manifest-servicedesk.json`** — orange Service Desk brand (theme `#f97316`), `start_url`/`scope` = `/service-desk`, `display: standalone`, headset data-URI SVG icons (192 + 512 maskable). Launches straight into the desk.
+- **`public/index.html`** — refactored the brand-swap script: on `/service-desk` routes it swaps `#app-manifest` → `manifest-servicedesk.json`, the apple-web-app title → "Service Desk", and the apple-touch-icon → orange headset, so iOS "Add to Home Screen" installs with the right name/icon (iOS needs no SW).
+- **`src/index.js`** — the SW was previously **unregistered on every load** (PWA effectively disabled → Android Chrome's install prompt never fired). Now registers `/sw.js` on the field/desk surfaces (`/service-desk`, `/svc/engineer`, `/partner-engineer`) and keeps unregistering on all other routes (marketing/SEO pages stay caching-free). The SW is network-first for the shell + JS/CSS, so app updates always land on the next reload.
+- **`public/sw.js`** (cache bumped v13→v14) — added `/service-desk` + `manifest-servicedesk.json` to the precached shell, an offline navigation fallback that prefers the desk shell, and extended the offline API whitelist (`/api/service-desk`, `/api/svc/scheduler`, `/api/svc/engineers`).
+- **`src/components/PWAInstallPrompt.js`** — the global install banner now brands as "Service Desk" (orange, "S" mark) when on `/service-desk`.
+
+**Verified e2e (preview):** logged in as desk agent → `/service-desk`: manifest href = `/manifest-servicedesk.json`, apple title = "Service Desk", **SW registered & active** (`/sw.js`). Marketing home `/` correctly keeps `manifest.json` + "GymAxis" with no SW leak. ESLint clean.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com** to push it live, then test "Add to Home Screen" on a real iOS/Android device.
+
+---
+
+
 ## Iter 274c — Engineer sign-out lands on pre-filled login + login-link audit ✅ (Jun 14, 2026)
 
 **Engineer login-on-signout:** `logout()` now has an engineer branch — independent engineers land on `/login?email=<their email>&signedout=1` (faster re-login on field/shared devices) instead of the marketing landing page (mirrors the existing MOD→/MODService, Pulse→/pulse pattern). `LoginPage` now pre-fills the email from `?email=`, auto-focuses the password field when email is present, and shows a **"Signed out successfully"** toast on `?signedout=1` (flag stripped after to avoid re-toast on refresh). Verified e2e: sign-out → "Welcome Back" with email pre-filled, password focused, toast shown, `/api/auth/me` = 401.

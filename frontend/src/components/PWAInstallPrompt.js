@@ -12,11 +12,15 @@ function isStandalone() {
 
 export default function PWAInstallPrompt() {
   const auth = useAuth();
+  const onServiceDesk = typeof window !== 'undefined'
+    && window.location.pathname.toLowerCase().startsWith('/service-desk');
   const isPulse = auth?.user?.account_type === 'pulse_pro' || auth?.user?.account_type === 'lite';
-  const brand = isPulse ? 'Pulse Fitness' : 'GymAxis';
+  // Iter 275 — on the Service Desk surface, brand the install banner as the
+  // Service Desk (orange) so it matches the dedicated /service-desk manifest.
+  const brand = onServiceDesk ? 'Service Desk' : (isPulse ? 'Pulse Fitness' : 'GymAxis');
   // Iter 215bw — per-brand PWA chrome.
-  const brandLetter = isPulse ? 'P' : 'G';
-  const brandColour = isPulse ? 'var(--pulse-primary)' : 'var(--color-info-ios)';
+  const brandLetter = onServiceDesk ? 'S' : (isPulse ? 'P' : 'G');
+  const brandColour = onServiceDesk ? '#f97316' : (isPulse ? 'var(--pulse-primary)' : 'var(--color-info-ios)');
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
