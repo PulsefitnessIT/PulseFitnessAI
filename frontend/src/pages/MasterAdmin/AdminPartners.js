@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, CheckCircle2, X, PoundSterling, Users,
-  Download, Star, TrendingUp, ChevronRight, Rocket, KeyRound,
+  Download, Star, TrendingUp, ChevronRight, Rocket, KeyRound, Link2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -130,6 +130,28 @@ export default function AdminPartners() {
       const kind = r.data?.kind === 'password_reset' ? 'Password reset link' : 'Activation link';
       notify.success(`${kind} sent to ${r.data?.sent_to || p.email}`);
     } catch (e) { notifyApiError(notify, e, 'Could not send link'); }
+    finally { setBusy(null); }
+  };
+
+  // Iter 274 — generate a COPYABLE password reset link for an engineer who
+  // has an account (e.g. James Young, who isn't receiving emails). Reuses
+  // the same invite-link endpoint the Organizations panel uses, so you can
+  // send the link via any channel (WhatsApp/SMS). 72h expiry.
+  const copyResetLink = async (p) => {
+    if (!p.user_id || String(p.user_id).startsWith('pending:')) {
+      notify.error('No account yet', 'This engineer has not activated an account — use "Send link" to email the activation invite.');
+      return;
+    }
+    setBusy(p.id);
+    try {
+      const r = await axios.post(`${API}/api/master-admin/users/${p.user_id}/invite-link`, {}, { headers });
+      const url = r.data?.invite_url;
+      if (url) {
+        try { await navigator.clipboard.writeText(url); } catch { /* clipboard blocked */ }
+        notify.success('Reset link copied', `Send it to ${r.data?.email || p.email} via any channel · valid 72h`, { ttl: 8000 });
+        window.prompt(`Password reset link for ${p.full_name} (copied to clipboard):`, url);
+      }
+    } catch (e) { notifyApiError(notify, e, 'Could not generate reset link'); }
     finally { setBusy(null); }
   };
 
@@ -421,6 +443,14 @@ export default function AdminPartners() {
                             data-testid={`admin-partner-signin-link-${p.id}`}
                             title="Email a password / sign-in link to this engineer">
                             <KeyRound size={10} /> Send link
+                          </button>
+                        )}
+                        {p.status === 'approved' && p.user_id && !String(p.user_id).startsWith('pending:') && (
+                          <button onClick={() => copyResetLink(p)} disabled={busy === p.id}
+                            className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-zinc-300 dark:border-zinc-700 inline-flex items-center gap-1 disabled:opacity-50"
+                            data-testid={`admin-partner-copy-reset-${p.id}`}
+                            title="Generate a copyable password reset link to send manually (WhatsApp/SMS)">
+                            <Link2 size={10} /> Copy reset link
                           </button>
                         )}
                         {p.status === 'approved' && (

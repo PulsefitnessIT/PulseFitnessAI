@@ -17,6 +17,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { moduleHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
+import { isIndependentEngineer } from '@/utils/engineerGuard';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -215,6 +216,8 @@ const HelpCentrePage = lazy(() => import('@/pages/HelpCentrePage'));
  */
 function DashboardRoute({ user }) {
   if (!user) return <Navigate to="/" />;
+  // Iter 274 — independent engineers are locked to the Engineer App.
+  if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
   const params = new URLSearchParams(window.location.search);
   const previewAsOperator = params.get('as') === 'operator';
   // Iter 220bz — mandatory profile-completion gate. New trial signups
@@ -290,6 +293,8 @@ function MODForbidden({ children }) {
  */
 function CrmRouteElement({ user }) {
   if (!user) return <CRMApp />;
+  // Iter 274 — independent engineers are locked to the Engineer App.
+  if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
   const at = user.account_type;
   const isMasterOrFull = user.is_master_admin || user.role === 'master_admin' || user.role === 'master' || at === 'full';
   if (isMasterOrFull) return <CRMApp />;
@@ -542,7 +547,9 @@ export default function AppRoutes({ user, login }) {
 
       {/* ─── Pulse (Iter 216h113 — MOD users land here too) ─── */}
       <Route path="/pulse" element={
-        user ? <LiteDashboardPage /> : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
+        user
+          ? (isIndependentEngineer(user) ? <Navigate to="/partner-engineer" replace /> : <LiteDashboardPage />)
+          : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
       } />
       <Route path="/pulse-pricing" element={<PulsePricingPage onLogin={(d) => login(d.token, d.user)} />} />
 

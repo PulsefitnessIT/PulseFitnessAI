@@ -1,4 +1,17 @@
-## Iter 273 — Engineer App broken for independent (org-less) partner engineers ✅ (Jun 14, 2026)
+## Iter 274 — Engineer reset link, module lockout & "Independent Engineer" dropdown ✅ (Jun 14, 2026)
+
+**Requested:** (1) manually send a password link from any engineer profile (James Young can't log in / not receiving emails); (2) now that engineers are orgs, lock them to the Engineer App (no other modules) + no broken links; (3) add "Independent Engineer" to the dropdowns.
+
+**Done:**
+1. **Copy reset link** on every approved engineer in Master Admin → Partner Engineers (`AdminPartners.js`) — reuses `POST /master-admin/users/{user_id}/invite-link` to generate a 72h reset URL, copies it to clipboard + shows it in a prompt so it can be sent via WhatsApp/SMS (fixes the "no emails" problem). Email "Send link" button retained. Shown only when the engineer has a real account (user_id not `pending:`). Verified: 49 buttons render; invite-link endpoint returns a copyable URL.
+2. **Module lockout:** new `utils/engineerGuard.isIndependentEngineer(user)` (excludes master/pulse admins). Wired into `DashboardRoute`, the `/pulse` route, `CrmRouteElement`, and `ModuleAccessGate` → independent engineers hitting `/dashboard /pulse /crm /memberships /marketing` are redirected to `/partner-engineer`. Verified e2e: all 4 redirect; `/partner-engineer` + `/svc/engineer` still work; **regression clean** — master admin still reaches `/crm` + console, Pulse owner still reaches `/pulse`.
+3. **"Independent Engineer" dropdown:** `AdminOrganizations.js` — added `partner_engineer: 'Independent Engineer'` to `ACCOUNT_TYPE_LABELS` + style badge, and a filter `SelectItem`. Personal engineer orgs now read "Independent Engineer" and are filterable (client-side filter).
+
+**Note:** Engineer personal orgs still report `module_access.operations:true` from the backend default, but the frontend guard now blocks all operator-module routes regardless. ACTION (production): preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 
 **Reported (production):** an on-trial partner engineer logs in and sees (a) an empty hero card + invisible white button on the Partner Dashboard, and (b) "Failed to load home — Organization context required" on the Engineer App. User asked for a full Engineer App audit ("feel we have gone backwards").
 

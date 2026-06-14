@@ -358,8 +358,9 @@ const ACCOUNT_TYPE_STYLES = {
  full: 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium',
  pulse_pro: 'bg-blue-50 text-blue-700 border-blue-200 font-medium',
  lite: 'bg-sky-50 text-sky-700 border-sky-200 font-medium',
+ partner_engineer: 'bg-amber-50 text-amber-700 border-amber-200 font-medium',
 };
-const ACCOUNT_TYPE_LABELS = { full: 'GymAxis', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite' };
+const ACCOUNT_TYPE_LABELS = { full: 'GymAxis', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite', partner_engineer: 'Independent Engineer' };
 
 const _FEATURE_LIST = [
  { key: 'ai_audits', label: 'AI Audits', group: 'portal' },
@@ -688,6 +689,7 @@ useEffect(() => {
  <SelectItem value="full">GymAxis</SelectItem>
  <SelectItem value="pulse_pro">Pulse Pro</SelectItem>
  <SelectItem value="lite">Pulse Lite</SelectItem>
+ <SelectItem value="partner_engineer">Independent Engineer</SelectItem>
  </SelectContent>
  </Select>
  )}

@@ -13,12 +13,15 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { Navigate } from 'react-router-dom';
 import {
   Lock, Sparkles, Crown, ArrowRight, CheckCircle2, Loader2,
   Calendar, Briefcase, Rocket, AlertCircle,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { isIndependentEngineer } from '@/utils/engineerGuard';
+import { useAuth } from '@/App';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const MODULE_META = {
@@ -68,6 +71,7 @@ const formatGBP = (pence) => `£${(pence / 100).toFixed(0)}`;
 
 
 export default function ModuleAccessGate({ module, children }) {
+  const { user } = useAuth();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = React.useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   const [state, setState] = useState({ loading: true });
@@ -82,6 +86,12 @@ export default function ModuleAccessGate({ module, children }) {
   }, [headers]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Iter 274 — independent engineers are locked to the Engineer App; never
+  // show them a gym-operator upgrade screen.
+  if (isIndependentEngineer(user)) {
+    return <Navigate to="/partner-engineer" replace />;
+  }
 
   if (state.loading) {
     return (
