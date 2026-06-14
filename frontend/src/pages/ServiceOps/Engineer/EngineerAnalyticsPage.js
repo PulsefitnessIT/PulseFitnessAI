@@ -142,47 +142,6 @@ export default function EngineerAnalyticsPage() {
           </div>
         </div>
 
-        {/* Iter 277b — export / email */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-2 flex items-center gap-2" data-testid="analytics-export-bar">
-          <button
-            onClick={downloadPdf}
-            disabled={exporting || loading}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
-            data-testid="analytics-download-pdf"
-          >
-            {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Download PDF
-          </button>
-          <button
-            onClick={() => setEmailOpen((v) => !v)}
-            disabled={loading}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
-            data-testid="analytics-email-toggle"
-          >
-            <Mail size={13} /> Email report
-          </button>
-        </div>
-        {emailOpen && (
-          <div className="bg-white rounded-2xl border border-orange-200 p-3 space-y-2" data-testid="analytics-email-form">
-            <p className="text-[11px] text-slate-500">Sends to your own inbox by default — or enter an operator's address to share a summary.</p>
-            <input
-              type="email"
-              value={emailTo}
-              onChange={(e) => setEmailTo(e.target.value)}
-              placeholder="recipient@example.com (optional)"
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-              data-testid="analytics-email-input"
-            />
-            <button
-              onClick={sendEmail}
-              disabled={emailing}
-              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
-              data-testid="analytics-email-send"
-            >
-              {emailing ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />} Send report
-            </button>
-          </div>
-        )}
-
         {loading ? (
           <div className="flex items-center justify-center py-10"><Loader2 className="animate-spin text-blue-500" /></div>
         ) : (
@@ -321,6 +280,46 @@ export default function EngineerAnalyticsPage() {
                     ))}
                 </SectionCard>
               </>
+            )}
+
+            {/* Iter 277b — export / email (moved to bottom; rarely used) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-2 flex items-center gap-2 mt-2" data-testid="analytics-export-bar">
+              <button
+                onClick={downloadPdf}
+                disabled={exporting}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                data-testid="analytics-download-pdf"
+              >
+                {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Download PDF
+              </button>
+              <button
+                onClick={() => setEmailOpen((v) => !v)}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+                data-testid="analytics-email-toggle"
+              >
+                <Mail size={13} /> Email report
+              </button>
+            </div>
+            {emailOpen && (
+              <div className="bg-white rounded-2xl border border-orange-200 p-3 space-y-2" data-testid="analytics-email-form">
+                <p className="text-[11px] text-slate-500">Sends to your own inbox by default — or enter an operator's address to share a summary.</p>
+                <input
+                  type="email"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  placeholder="recipient@example.com (optional)"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  data-testid="analytics-email-input"
+                />
+                <button
+                  onClick={sendEmail}
+                  disabled={emailing}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+                  data-testid="analytics-email-send"
+                >
+                  {emailing ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />} Send report
+                </button>
+              </div>
             )}
 
             <p className="text-[11px] text-center text-slate-400 pt-2 pb-6">
