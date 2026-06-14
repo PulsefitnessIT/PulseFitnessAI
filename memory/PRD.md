@@ -1,3 +1,41 @@
+## Iter 277b — Export / email engineer performance report as PDF ✅ (Jun 14, 2026)
+
+**Built (the iter-277 enhancement):** engineers can download or email their field-performance report as a branded PDF.
+- **Backend (`engineer_quotes.py`):** refactored the reports computation into `_engineer_reports_payload(user, range)` (added `completed_jobs`). New `_build_engineer_report_pdf` (reportlab) renders an orange-branded PDF — KPI grid (jobs/completed/avg response/within-SLA/first-time-fix/return visits) + tables for most-problematic machines (with site), sites, and most-used parts.
+  - `GET /api/svc/engineer/analytics/reports.pdf?range=` → downloads the PDF.
+  - `POST /api/svc/engineer/analytics/reports/email` `{range, to?}` → builds the PDF + a summary HTML and emails via **Resend** (`send_email`, base64 attachment); defaults to the engineer's own inbox, accepts an operator address to share a summary. Validates recipient (400) before sending.
+  - Added `import io` (was missing → fixed an initial 500).
+- **Frontend (`EngineerAnalyticsPage.js`):** an export bar under the range chips — **Download PDF** + **Email report** (toggle reveals an optional recipient input, defaulting to self).
+
+**Verified e2e (preview):** `reports.pdf` returns a valid 2.2 KB `%PDF`; email to self → `{"ok":true,"sent_to":…}` (Resend configured in preview); export bar + email form render (screenshot). Regression `test_iter277b_report_export.py` (PDF magic-bytes + email 400 guard) passes; added to Makefile. ESLint clean.
+
+**Note:** on-demand export/email shipped. **Scheduled monthly auto-send** (to engineer + operator) is a follow-up (needs a cron/worker) — deferred.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
+## Iter 277 — Engineer Analytics: field-performance reports ✅ (Jun 14, 2026)
+
+**Requested:** richer engineer reports — most problematic machines (+ which site), most-used parts, response times, first-time-fix rate; data flowing from Operations/Service Desk as well as the engineer's own app.
+
+**Shipped:**
+- **Backend `GET /api/svc/engineer/analytics/reports?range=`** (`engineer_quotes.py`): aggregates **every case assigned to the engineer across all orgs** (matched purely by `assigned_engineer_id` → their own customers + Operations/Service-Desk work flows in). Returns:
+  - **Most problematic machines** (top 10 by job count, with site + serial; deep-links to the iter-276 machine history).
+  - **Most problematic sites** (top 10).
+  - **Most-used parts** (qty + job count, summed from `allocated_parts`).
+  - **Response time**: avg/median minutes from case `created_at` → the engineer's **first `time_start`** travel/work timer, plus **% responded within SLA** (vs `sla_response_at`).
+  - **First-time-fix rate**: completed jobs with no return visit to the same asset ≤ 30 days (fixed vs repeat-visits).
+- **Frontend `EngineerAnalyticsPage.js`**: parallel-fetches the new endpoint and renders two new KPI tiles (Avg response, First-time fix), an SLA/median detail card, an FTF fixed-vs-return bar, and three ranked lists (machines/sites/parts). `fmtDuration` helper for m/h/d. All range-aware.
+
+**Verified e2e (preview):** seeded demo → page shows Avg response 1.3h, FTF bar, "Most problematic machines: Upright Bike #3 → 3", parts list, SLA 100% (screenshot). Regression `test_iter277_engineer_reports.py` asserts machine/site ranking, part-qty rollup, response sample + within-SLA, and FTF repeat-visit logic — **passes**; added to Makefile. ESLint clean; demo data cleaned up.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 276b — Engineer "Request access" loop on the machine-history lockout ✅ (Jun 14, 2026)
 
 **Built (the iter-276 enhancement):** when an engineer scans an operator's QR for a machine they don't cover and hits the 403 lockout, they can now request access; the operator's service desk can approve it (which grants `svc_engineers` membership → rule (b) access) or decline.

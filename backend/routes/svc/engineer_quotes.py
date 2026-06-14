@@ -22,10 +22,11 @@ PDF: branded light-mode GymAxis (white + navy + brand blue gradient).
 """
 from __future__ import annotations
 
+import io
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import Response
@@ -755,6 +756,366 @@ async def engineer_analytics(
             "earnings": earnings,
         },
     }
+
+
+# ─────────────────────── Field-performance reports ─────────────────
+# Iter 277 — Deeper engineer analytics. Aggregates EVERY case assigned
+# to the engineer (across their own org AND any operator/Service-Desk org
+# they work for — matched purely by ``assigned_engineer_id``) so the data
+# flows in from Operations / Service Desk as well as their own app.
+#   • Most problematic machines (+ the site they're at)
+#   • Most problematic sites
+#   • Most-used parts
+#   • Response time (created → engineer's first travel/work timer)
+#   • First-time-fix rate (no return visit to the same asset ≤ 30 days)
+
+_COMPLETED_STATES = ("closed", "invoiced", "repaired", "completed", "signed_off")
+
+
+def _parse_dt(iso: str | None):
+    if not iso:
+        return None
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
+async def _engineer_reports_payload(user: dict, range: str) -> dict:  # noqa: A002
+    """Deep field-performance reports for the engineer (cross-org)."""
+    user_id = user.get("id")
+    now = datetime.now(timezone.utc)
+    if range not in _ANALYTICS_RANGES:
+        raise HTTPException(400, f"invalid range; must be one of {sorted(_ANALYTICS_RANGES)}")
+    if range == "ytd":
+        start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    elif range == "all":
+        start = None
+    else:
+        start = (now - _ANALYTICS_RANGES[range]).isoformat()
+
+    match = {"assigned_engineer_id": user_id}
+    if start:
+        match["created_at"] = {"$gte": start}
+
+    cases = await db.svc_cases.find(
+        match,
+        {
+            "_id": 0, "id": 1, "asset_id": 1, "asset_name": 1, "asset_serial": 1,
+            "site_name": 1, "status": 1, "created_at": 1, "closed_at": 1,
+            "sla_response_at": 1, "allocated_parts": 1,
+        },
+    ).sort("created_at", -1).limit(3000).to_list(3000)
+
+    # ── Problematic machines + sites ──────────────────────────────
+    machines: dict[str, dict] = {}
+    sites: dict[str, dict] = {}
+    parts: dict[str, dict] = {}
+    asset_dates: dict[str, list[datetime]] = {}
+
+    for c in cases:
+        aid = c.get("asset_id") or ""
+        ca = c.get("created_at")
+        if aid:
+            m = machines.setdefault(aid, {
+                "equipment_id": aid,
+                "name": c.get("asset_name") or "Machine",
+                "site_name": c.get("site_name") or "",
+                "serial": c.get("asset_serial") or "",
+                "jobs": 0, "last_at": None,
+            })
+            m["jobs"] += 1
+            if ca and (m["last_at"] is None or ca > m["last_at"]):
+                m["last_at"] = ca
+            dt = _parse_dt(ca)
+            if dt:
+                asset_dates.setdefault(aid, []).append(dt)
+        sn = (c.get("site_name") or "").strip()
+        if sn:
+            s = sites.setdefault(sn, {"site_name": sn, "jobs": 0})
+            s["jobs"] += 1
+        for p in (c.get("allocated_parts") or []):
+            key = (p.get("part_sku") or p.get("part_name") or "").lower().strip()
+            if not key:
+                continue
+            row = parts.setdefault(key, {
+                "part_name": p.get("part_name") or p.get("part_sku") or "Part",
+                "part_sku": p.get("part_sku") or "",
+                "qty": 0, "jobs": 0,
+            })
+            try:
+                row["qty"] += int(p.get("qty") or 1)
+            except (ValueError, TypeError):
+                row["qty"] += 1
+            row["jobs"] += 1
+
+    problematic_machines = sorted(machines.values(), key=lambda m: m["jobs"], reverse=True)[:10]
+    problematic_sites = sorted(sites.values(), key=lambda s: s["jobs"], reverse=True)[:10]
+    top_parts = sorted(parts.values(), key=lambda p: p["qty"], reverse=True)[:10]
+
+    # ── Response time (created → first time_start event) ──────────
+    case_ids = [c["id"] for c in cases]
+    first_start: dict[str, str] = {}
+    if case_ids:
+        ev_rows = await db.svc_case_events.aggregate([
+            {"$match": {"case_id": {"$in": case_ids}, "type": "time_start"}},
+            {"$group": {"_id": "$case_id", "first": {"$min": "$at"}}},
+        ]).to_list(len(case_ids))
+        first_start = {r["_id"]: r["first"] for r in ev_rows}
+
+    resp_minutes: list[float] = []
+    within_sla = 0
+    sla_eligible = 0
+    for c in cases:
+        fs = _parse_dt(first_start.get(c["id"]))
+        created = _parse_dt(c.get("created_at"))
+        if fs and created and fs >= created:
+            mins = (fs - created).total_seconds() / 60.0
+            resp_minutes.append(mins)
+            sla_target = _parse_dt(c.get("sla_response_at"))
+            if sla_target:
+                sla_eligible += 1
+                if fs <= sla_target:
+                    within_sla += 1
+
+    resp_minutes.sort()
+    avg_resp = round(sum(resp_minutes) / len(resp_minutes), 1) if resp_minutes else None
+    median_resp = round(resp_minutes[len(resp_minutes) // 2], 1) if resp_minutes else None
+    within_sla_pct = round(100 * within_sla / sla_eligible, 1) if sla_eligible else None
+
+    # ── First-time-fix rate (no return to same asset ≤ 30 days) ───
+    THIRTY = timedelta(days=30)
+    for v in asset_dates.values():
+        v.sort()
+    completed = [c for c in cases if (c.get("status") in _COMPLETED_STATES) and c.get("asset_id")]
+    ftf = 0
+    repeat = 0
+    for c in completed:
+        created = _parse_dt(c.get("created_at"))
+        if not created:
+            continue
+        dates = asset_dates.get(c["asset_id"], [])
+        has_followup = any(created < d <= created + THIRTY for d in dates)
+        if has_followup:
+            repeat += 1
+        else:
+            ftf += 1
+    ftf_total = ftf + repeat
+    ftf_rate = round(100 * ftf / ftf_total, 1) if ftf_total else None
+    completed_jobs = sum(1 for c in cases if c.get("status") in _COMPLETED_STATES)
+
+    return {
+        "range": range,
+        "range_start": start,
+        "total_jobs": len(cases),
+        "completed_jobs": completed_jobs,
+        "problematic_machines": problematic_machines,
+        "problematic_sites": problematic_sites,
+        "top_parts": top_parts,
+        "response": {
+            "avg_minutes": avg_resp,
+            "median_minutes": median_resp,
+            "sample": len(resp_minutes),
+            "within_sla_pct": within_sla_pct,
+        },
+        "first_time_fix": {
+            "rate_pct": ftf_rate,
+            "fixed": ftf,
+            "repeat_visits": repeat,
+            "total": ftf_total,
+        },
+    }
+
+
+_RANGE_LABELS = {
+    "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days",
+    "ytd": "Year to date", "all": "All time",
+}
+
+
+@router.get("/analytics/reports")
+async def engineer_analytics_reports(
+    range: str = "90d",  # noqa: A002
+    user=Depends(get_current_user),
+):
+    return await _engineer_reports_payload(user, range)
+
+
+def _fmt_mins(mins) -> str:
+    if mins is None:
+        return "—"
+    if mins < 60:
+        return f"{round(mins)}m"
+    h = mins / 60
+    if h < 48:
+        return f"{h:.1f}h"
+    return f"{round(h / 24)}d"
+
+
+def _build_engineer_report_pdf(meta: dict, payload: dict) -> bytes:
+    """Render the engineer's performance report as a branded PDF."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    )
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
+                            topMargin=18 * mm, bottomMargin=18 * mm)
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=20, leading=24,
+                        textColor=colors.HexColor("#EA580C"))
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=12,
+                        textColor=colors.HexColor("#0F172A"), spaceBefore=10)
+    muted = ParagraphStyle("muted", parent=styles["BodyText"],
+                           textColor=colors.HexColor("#64748B"), fontSize=9)
+
+    brand = meta.get("company") or meta.get("name") or "Service Engineer"
+    story = [
+        Paragraph(brand, h1),
+        Paragraph("Field performance report", styles["Heading2"]),
+        Paragraph(f"{meta.get('range_label')} · generated {meta.get('generated')}", muted),
+        Spacer(1, 6 * mm),
+    ]
+
+    resp = payload.get("response", {})
+    ftf = payload.get("first_time_fix", {})
+    kpi = Table([
+        ["Total jobs", str(payload.get("total_jobs", 0)),
+         "Completed", str(payload.get("completed_jobs", 0))],
+        ["Avg response", _fmt_mins(resp.get("avg_minutes")),
+         "Within SLA", f"{resp.get('within_sla_pct')}%" if resp.get("within_sla_pct") is not None else "—"],
+        ["First-time fix", f"{ftf.get('rate_pct')}%" if ftf.get("rate_pct") is not None else "—",
+         "Return visits", str(ftf.get("repeat_visits", 0))],
+    ], colWidths=[40 * mm, 35 * mm, 40 * mm, 35 * mm])
+    kpi.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#64748B")),
+        ("TEXTCOLOR", (2, 0), (2, -1), colors.HexColor("#64748B")),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
+        ("FONTNAME", (3, 0), (3, -1), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.5, colors.HexColor("#E2E8F0")),
+    ]))
+    story.append(kpi)
+
+    def _table(title, rows, headers, widths):
+        story.append(Paragraph(title, h2))
+        if not rows:
+            story.append(Paragraph("No data in this period.", muted))
+            return
+        data = [headers] + rows
+        t = Table(data, colWidths=widths)
+        t.setStyle(TableStyle([
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#334155")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FAFAFA")]),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t)
+
+    _table(
+        "Most problematic machines",
+        [[m["name"], m.get("site_name") or "—", str(m["jobs"])]
+         for m in payload.get("problematic_machines", [])],
+        ["Machine", "Site", "Jobs"], [80 * mm, 70 * mm, 24 * mm],
+    )
+    _table(
+        "Most problematic sites",
+        [[s["site_name"], str(s["jobs"])] for s in payload.get("problematic_sites", [])],
+        ["Site", "Jobs"], [150 * mm, 24 * mm],
+    )
+    _table(
+        "Most-used parts",
+        [[p["part_name"], p.get("part_sku") or "—", str(p["qty"]), str(p["jobs"])]
+         for p in payload.get("top_parts", [])],
+        ["Part", "SKU", "Qty", "Jobs"], [80 * mm, 44 * mm, 24 * mm, 24 * mm],
+    )
+
+    story.append(Spacer(1, 8 * mm))
+    story.append(Paragraph("Generated by GymAxis · Engineer App", muted))
+    doc.build(story)
+    return buf.getvalue()
+
+
+async def _report_meta(user: dict, payload: dict) -> dict:
+    from routes.svc.engineer_qr import _engineer_brand_for_user_id
+    company = await _engineer_brand_for_user_id(user.get("id"), None)
+    return {
+        "name": user.get("full_name") or user.get("email") or "Engineer",
+        "company": company,
+        "range_label": _RANGE_LABELS.get(payload.get("range"), payload.get("range")),
+        "generated": datetime.now(timezone.utc).strftime("%d %b %Y"),
+    }
+
+
+@router.get("/analytics/reports.pdf")
+async def engineer_report_pdf(
+    range: str = "90d",  # noqa: A002
+    user=Depends(get_current_user),
+):
+    """Download the performance report as a PDF."""
+    payload = await _engineer_reports_payload(user, range)
+    meta = await _report_meta(user, payload)
+    pdf = _build_engineer_report_pdf(meta, payload)
+    fname = f"performance-report-{range}.pdf"
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+class ReportEmailBody(BaseModel):
+    range: str = "90d"
+    to: Optional[str] = None
+
+
+@router.post("/analytics/reports/email")
+async def engineer_report_email(body: ReportEmailBody, user=Depends(get_current_user)):
+    """Email the performance report PDF (defaults to the engineer's own inbox)."""
+    payload = await _engineer_reports_payload(user, body.range)
+    meta = await _report_meta(user, payload)
+    to_addr = (body.to or user.get("email") or "").strip().lower()
+    if not to_addr or "@" not in to_addr:
+        raise HTTPException(400, "A valid recipient email is required")
+
+    import base64
+    pdf = _build_engineer_report_pdf(meta, payload)
+    resp = payload.get("response", {})
+    ftf = payload.get("first_time_fix", {})
+    html = (
+        f"<p>Hi,</p><p>Here's the {meta['range_label'].lower()} field-performance "
+        f"report for <b>{meta['company']}</b>.</p>"
+        f"<ul>"
+        f"<li>Total jobs: <b>{payload.get('total_jobs', 0)}</b> "
+        f"(completed {payload.get('completed_jobs', 0)})</li>"
+        f"<li>Avg response: <b>{_fmt_mins(resp.get('avg_minutes'))}</b>"
+        + (f" · {resp.get('within_sla_pct')}% within SLA" if resp.get('within_sla_pct') is not None else "")
+        + "</li>"
+        f"<li>First-time fix: <b>{ftf.get('rate_pct') if ftf.get('rate_pct') is not None else '—'}%</b></li>"
+        f"</ul><p>Full breakdown attached (PDF).</p>"
+    )
+    attachment = {
+        "filename": f"performance-report-{body.range}.pdf",
+        "content": base64.b64encode(pdf).decode("ascii"),
+    }
+    ok = await send_email(
+        to=to_addr,
+        subject=f"{meta['company']} — {meta['range_label']} performance report",
+        html=html, attachments=[attachment],
+        organization_id=(user.get("organization_id") or user.get("service_org_id")),
+        category="service",
+    )
+    if not ok:
+        raise HTTPException(502, "Email send failed (check Resend configuration)")
+    return {"ok": True, "sent_to": to_addr}
 
 
 # ─────────────────────────── Convert to invoice ────────────────────────────
