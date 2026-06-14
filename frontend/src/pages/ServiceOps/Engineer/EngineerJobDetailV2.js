@@ -351,6 +351,7 @@ export default function EngineerJobDetailV2() {
             onJumpToTab={setActiveTab}
           />
         )}
+        {activeTab === 'summary' && <JobProfitabilityCard caseId={caseId} />}
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
         {activeTab === 'equipment' && <EquipmentTab job={job} onChange={load} />}
@@ -3854,6 +3855,71 @@ function ReportActionsCard({ job }) {
           Email report
         </button>
       </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────── Job profitability / costs ───────────────────
+// Iter 278 — margin view per job: invoiced revenue vs linked expenses,
+// plus labour hours + parts allocated. Reads /api/expenses/job/{id}/profitability.
+function JobProfitabilityCard({ caseId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/expenses/job/${caseId}/profitability`, auth());
+        if (alive) setData(data);
+      } catch { /* org without expenses access — hide silently */ }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [caseId]);
+
+  if (loading || !data) return null;
+  const { revenue, expenses, labour, parts, margin, margin_pct, has_revenue } = data;
+  const cur = (v) => `£${Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Hide entirely if there's nothing to show yet.
+  if (!has_revenue && expenses.count === 0 && labour.entries === 0 && parts.qty === 0) return null;
+  const marginTone = margin >= 0 ? 'text-emerald-700' : 'text-red-600';
+
+  return (
+    <div className="mt-3 rounded-xl bg-white border border-slate-200 p-4" data-testid="job-profitability-card">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-extrabold text-slate-900">Job costs &amp; margin</h3>
+        {has_revenue && (
+          <span className={`text-xs font-bold ${marginTone}`} data-testid="job-prof-margin">
+            {cur(margin)}{margin_pct != null ? ` · ${margin_pct}%` : ''}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-revenue">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Invoiced</p>
+          <p className="font-bold text-slate-900">{cur(revenue.invoiced)}</p>
+          <p className="text-[11px] text-slate-400">{cur(revenue.paid)} paid</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-expenses">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Expenses</p>
+          <p className="font-bold text-slate-900">{cur(expenses.total)}</p>
+          <p className="text-[11px] text-slate-400">{cur(expenses.billable)} billable · {expenses.count}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-labour">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Labour</p>
+          <p className="font-bold text-slate-900">{labour.hours}h</p>
+          <p className="text-[11px] text-slate-400">{labour.chargeable_hours}h chargeable</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-parts">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Parts</p>
+          <p className="font-bold text-slate-900">{parts.qty}</p>
+          <p className="text-[11px] text-slate-400">{parts.lines} line{parts.lines === 1 ? '' : 's'}</p>
+        </div>
+      </div>
+      {!has_revenue && (
+        <p className="text-[11px] text-slate-400 mt-2">No invoice raised yet — margin appears once this job is invoiced.</p>
+      )}
     </div>
   );
 }

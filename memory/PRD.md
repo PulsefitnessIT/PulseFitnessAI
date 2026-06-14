@@ -1,3 +1,18 @@
+## Iter 278b — Expenses polish: edit / thumbnails / needs-details + Job profitability ✅ (Jun 14, 2026)
+
+**Built (the iter-278 follow-up the user asked for):**
+- **Edit-existing-expense UI** (`EngineerExpenses.js`): draft/needs_details rows are now tappable + have an **Edit** button → opens the form pre-filled (`editId`), saving via **PUT `/api/expenses/{id}`**. Header reads "Edit expense". Verified e2e (preview): Halfords/£15 draft re-opens pre-filled with inline Save/Submit.
+- **Receipt thumbnail preview**: new `ReceiptThumb` component blob-fetches the authed `GET /expenses/{id}/receipt` and renders an `<img>` object-URL (PDF/err → receipt-icon fallback). Shown on list rows (44px) + in the edit form (max-h-56).
+- **Needs-details re-edit flow**: needs_details rows show an orange review-note banner (`exp-review-banner`) inside the edit form, the inline action is **Resubmit** (PUT with `submit:true` → backend re-runs `_do_submit`), plus Edit/Cancel.
+- **Job profitability widget** (the suggested enhancement): new **`GET /api/expenses/job/{job_id}/profitability`** (`reports.py`) aggregates **invoiced revenue** (svc_engineer_invoices by case_id, non-void; paid subtotal), **expenses** (total/billable/approved/count), **labour** (svc_time_entries hours + chargeable hours), and **parts** (allocated_parts qty/lines) → returns `margin` (invoiced − expenses) + `margin_pct`. Surfaced as a **"Job costs & margin"** card (`JobProfitabilityCard`) on the engineer job-detail **Summary** tab (auto-hides when a job has no costs/revenue yet).
+
+**Verified:** pytest `tests/test_iter278_expenses.py` now **4/4** (added profitability assertions: revenue 300 / expenses 40 / labour 1.5h / parts qty 3 / margin 260). ESLint clean. UI smoke: edit pre-fill confirmed in preview.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 278 — Expenses Tracker & Receipt Photo Scanner ✅ (Jun 14, 2026)
 
 **Requested (P0):** a simple-but-powerful expenses + receipt-scanner inside GymAxis — country rules engine (currency/VAT/mileage), AI/OCR receipt scanning, mileage claims, job linking, approval workflow, finance accounting CSV exports. Mobile-first for engineers, scales to enterprise finance.

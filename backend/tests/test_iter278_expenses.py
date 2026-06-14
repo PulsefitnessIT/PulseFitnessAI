@@ -132,3 +132,41 @@ def test_operator_workflow_and_mileage_and_export():
             db[c].delete_many({"organization_id": org})
         db.organizations.delete_one({"id": org})
         db.users.delete_many({"email": email})
+
+
+def test_job_profitability_endpoint():
+    db = _db()
+    org, uid, email, pw = _mk_org_user(db, role="owner", account_type="service_provider")
+    job_id = f"case-{uuid.uuid4().hex}"
+    try:
+        db.svc_cases.insert_one({
+            "id": job_id, "organization_id": org, "reference": "SVC-09001",
+            "allocated_parts": [{"part_name": "Belt", "qty": 2}, {"part_name": "Pin", "qty": 1}]})
+        db.svc_engineer_invoices.insert_one({
+            "id": f"inv-{uuid.uuid4().hex}", "organization_id": org, "case_id": job_id,
+            "total": 300.0, "status": "paid"})
+        db.svc_time_entries.insert_one({
+            "id": f"te-{uuid.uuid4().hex}", "organization_id": org, "case_id": job_id,
+            "duration_minutes": 90, "chargeable": True})
+
+        h = {"Authorization": f"Bearer {_login(email, pw)}"}
+        # a billable expense on the job
+        requests.post(f"{BASE}/api/expenses", headers=h, timeout=15, json={
+            "expense_type": "manual", "category_name": "Fuel", "merchant": "Esso",
+            "transaction_date": "2026-06-09", "gross_amount": 40.0, "tax_amount": 6.67,
+            "job_id": job_id, "billable_to_customer": True})
+
+        p = requests.get(f"{BASE}/api/expenses/job/{job_id}/profitability", headers=h, timeout=15).json()
+        assert p["revenue"]["invoiced"] == 300.0 and p["revenue"]["paid"] == 300.0
+        assert p["expenses"]["total"] == 40.0 and p["expenses"]["billable"] == 40.0
+        assert p["labour"]["hours"] == 1.5 and p["labour"]["chargeable_hours"] == 1.5
+        assert p["parts"]["qty"] == 3 and p["parts"]["lines"] == 2
+        assert p["margin"] == 260.0 and p["has_revenue"] is True
+    finally:
+        db.svc_cases.delete_many({"id": job_id})
+        db.svc_engineer_invoices.delete_many({"case_id": job_id})
+        db.svc_time_entries.delete_many({"case_id": job_id})
+        for c in ("expenses", "expense_country_rules", "expense_categories", "expense_events"):
+            db[c].delete_many({"organization_id": org})
+        db.organizations.delete_one({"id": org})
+        db.users.delete_many({"email": email})

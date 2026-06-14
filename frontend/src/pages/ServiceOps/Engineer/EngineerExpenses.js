@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   ArrowLeft, Camera, Plus, Car, Loader2, Receipt,
-  AlertTriangle, Wallet, Send, Save, ScanLine, Trash2,
+  AlertTriangle, Wallet, Send, Save, ScanLine, Trash2, Pencil,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -45,6 +45,32 @@ const StatusPill = ({ status }) => (
   </span>
 );
 
+// Authed receipt thumbnail — fetched as a blob (Bearer/cookie) then shown
+// as an object URL. Handles PDFs (no preview) gracefully.
+function ReceiptThumb({ expenseId, index = 0, className = '' }) {
+  const [url, setUrl] = useState(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let revoke;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await axios.get(`${API}/expenses/${expenseId}/receipt?i=${index}`, { ...auth(), responseType: 'blob' });
+        if (!alive) return;
+        if ((res.data.type || '').startsWith('image/')) {
+          const u = URL.createObjectURL(res.data); revoke = u; setUrl(u);
+        } else { setErr(true); }
+      } catch { if (alive) setErr(true); }
+    })();
+    return () => { alive = false; if (revoke) URL.revokeObjectURL(revoke); };
+  }, [expenseId, index]);
+  if (err) return (
+    <div className={`flex items-center justify-center bg-slate-100 text-slate-400 ${className}`} data-testid={`exp-receipt-thumb-${expenseId}`}><Receipt size={18} /></div>
+  );
+  if (!url) return <div className={`bg-slate-100 animate-pulse ${className}`} />;
+  return <img src={url} alt="Receipt" className={`object-cover ${className}`} data-testid={`exp-receipt-thumb-${expenseId}`} />;
+}
+
 const Field = ({ label, children }) => (
   <label className="block">
     <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
@@ -73,6 +99,8 @@ export default function EngineerExpenses() {
   const [filter, setFilter] = useState('all');
   const [view, setView] = useState('list'); // list | form
   const [form, setForm] = useState(EMPTY);
+  const [editId, setEditId] = useState(null);
+  const [reviewNote, setReviewNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [warnings, setWarnings] = useState([]);
@@ -97,12 +125,26 @@ export default function EngineerExpenses() {
   useEffect(() => { load(); }, [load]);
 
   const openNew = (type) => {
-    setWarnings([]);
+    setWarnings([]); setEditId(null); setReviewNote('');
     setForm({ ...EMPTY, expense_type: type, transaction_date: todayISO(),
       country_code: cfg?.default_country_code || '', currency: cfg?.currency || '',
       mileage: { ...EMPTY.mileage, unit: rule.mileage_unit || 'mi' } });
     setView('form');
     if (type === 'receipt') setTimeout(() => fileRef.current?.click(), 100);
+  };
+
+  const openEdit = (e) => {
+    setWarnings([]); setEditId(e.id); setReviewNote(e.status === 'needs_details' ? (e.review_note || '') : '');
+    setForm({
+      ...EMPTY, ...e,
+      gross_amount: e.gross_amount != null ? String(e.gross_amount) : '',
+      tax_amount: e.tax_amount != null ? String(e.tax_amount) : '',
+      tax_rate: e.tax_rate != null ? String(e.tax_rate) : '',
+      mileage: e.mileage
+        ? { ...EMPTY.mileage, ...e.mileage, distance: e.mileage.distance != null ? String(e.mileage.distance) : '' }
+        : { ...EMPTY.mileage, unit: rule.mileage_unit || 'mi' },
+    });
+    setView('form');
   };
 
   const onScan = async (e) => {
@@ -171,9 +213,14 @@ export default function EngineerExpenses() {
           ? { ...form.mileage, distance: parseFloat(form.mileage.distance) || 0 }
           : null,
       };
-      await axios.post(`${API}/expenses`, payload, auth());
-      notify.success(submit ? (cfg?.approval_mode === 'off' ? 'Expense saved & approved' : 'Expense submitted') : 'Draft saved');
-      setView('list'); await load();
+      if (editId) {
+        await axios.put(`${API}/expenses/${editId}`, payload, auth());
+        notify.success(submit ? 'Expense resubmitted' : 'Changes saved');
+      } else {
+        await axios.post(`${API}/expenses`, payload, auth());
+        notify.success(submit ? (cfg?.approval_mode === 'off' ? 'Expense saved & approved' : 'Expense submitted') : 'Draft saved');
+      }
+      setView('list'); setEditId(null); await load();
     } catch (err) {
       notify.error(err?.response?.data?.detail || 'Could not save');
     } finally { setSaving(false); }
@@ -203,15 +250,21 @@ export default function EngineerExpenses() {
     return (
       <div className="min-h-screen bg-slate-50 pb-10" data-testid="engineer-expenses-form">
         <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3">
-          <button onClick={() => setView('list')} className="text-slate-500" data-testid="exp-form-back" aria-label="Back"><ArrowLeft size={20} /></button>
+          <button onClick={() => { setView('list'); setEditId(null); }} className="text-slate-500" data-testid="exp-form-back" aria-label="Back"><ArrowLeft size={20} /></button>
           <h1 className="text-base font-bold text-slate-900">
-            {isMileage ? 'Mileage claim' : form.expense_type === 'receipt' ? 'Receipt expense' : 'New expense'}
+            {editId ? 'Edit expense' : isMileage ? 'Mileage claim' : form.expense_type === 'receipt' ? 'Receipt expense' : 'New expense'}
           </h1>
         </header>
 
         <input ref={fileRef} type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={onScan} data-testid="exp-file-input" />
 
         <div className="p-4 space-y-4 max-w-xl mx-auto">
+          {reviewNote && (
+            <div className="rounded-lg bg-orange-50 border border-orange-200 p-3" data-testid="exp-review-banner">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-orange-600">Finance needs more detail</p>
+              <p className="text-sm text-orange-800 mt-0.5">“{reviewNote}”</p>
+            </div>
+          )}
           {/* type switch */}
           <div className="flex gap-2 text-xs">
             {['manual', 'receipt', 'mileage'].map((t) => (
@@ -228,6 +281,10 @@ export default function EngineerExpenses() {
               {scanning ? <Loader2 size={18} className="animate-spin" /> : <ScanLine size={18} />}
               {form.receipt_paths.length ? 'Re-scan receipt' : 'Scan / upload receipt'}
             </button>
+          )}
+
+          {editId && (form.receipt_paths || []).length > 0 && (
+            <ReceiptThumb expenseId={editId} className="w-full max-h-56 rounded-lg border border-slate-200" />
           )}
 
           {warnings.length > 0 && (
@@ -359,13 +416,22 @@ export default function EngineerExpenses() {
             <Receipt size={40} className="mx-auto mb-2 opacity-40" />
             <p className="text-sm">No expenses yet. Scan a receipt to get started.</p>
           </div>
-        ) : rows.map((e) => (
+        ) : rows.map((e) => {
+          const editable = e.status === 'draft' || e.status === 'needs_details';
+          const hasReceipt = (e.receipt_paths || []).length > 0;
+          return (
           <div key={e.id} className="bg-white rounded-xl border border-slate-100 p-3" data-testid={`exp-row-${e.id}`}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
+            <button onClick={() => editable ? openEdit(e) : null} className={`w-full text-left flex items-center gap-3 ${editable ? '' : 'cursor-default'}`} data-testid={`exp-open-${e.id}`}>
+              {hasReceipt ? (
+                <ReceiptThumb expenseId={e.id} className="w-11 h-11 rounded-lg shrink-0" />
+              ) : (
+                <div className="w-11 h-11 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 text-slate-300">
+                  {e.expense_type === 'mileage' ? <Car size={18} /> : <Receipt size={18} />}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-900 truncate">{e.merchant || e.category_name || (e.expense_type === 'mileage' ? 'Mileage' : 'Expense')}</span>
-                  {e.expense_type === 'mileage' && <Car size={13} className="text-slate-400 shrink-0" />}
                 </div>
                 <p className="text-[11px] text-slate-400">{e.reference} · {fmtDate(e.transaction_date)}{e.job_reference ? ` · ${e.job_reference}` : ''}</p>
               </div>
@@ -373,10 +439,11 @@ export default function EngineerExpenses() {
                 <p className="text-sm font-bold text-slate-900">{sym(e.currency || ccy)}{(e.gross_amount || 0).toFixed(2)}</p>
                 <StatusPill status={e.status} />
               </div>
-            </div>
-            {(e.status === 'draft' || e.status === 'needs_details') && (
+            </button>
+            {editable && (
               <div className="flex gap-2 mt-2 pt-2 border-t border-slate-50">
-                <button onClick={() => submitExisting(e.id)} className="flex-1 text-xs font-semibold text-orange-600 py-1 flex items-center justify-center gap-1" data-testid={`exp-submit-${e.id}`}><Send size={12} /> Submit</button>
+                <button onClick={() => openEdit(e)} className="flex-1 text-xs font-semibold text-slate-600 py-1 flex items-center justify-center gap-1" data-testid={`exp-edit-${e.id}`}><Pencil size={12} /> Edit</button>
+                <button onClick={() => submitExisting(e.id)} className="flex-1 text-xs font-semibold text-orange-600 py-1 flex items-center justify-center gap-1" data-testid={`exp-submit-${e.id}`}><Send size={12} /> {e.status === 'needs_details' ? 'Resubmit' : 'Submit'}</button>
                 <button onClick={() => cancelExisting(e.id)} className="flex-1 text-xs font-semibold text-slate-400 py-1 flex items-center justify-center gap-1" data-testid={`exp-cancel-${e.id}`}><Trash2 size={12} /> Cancel</button>
               </div>
             )}
@@ -384,7 +451,8 @@ export default function EngineerExpenses() {
               <p className="text-[11px] text-orange-600 mt-1.5 italic">“{e.review_note}”</p>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

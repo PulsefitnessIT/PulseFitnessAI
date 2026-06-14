@@ -15,7 +15,7 @@ from utils.database import db
 
 from .common import (
     router, org_of, can_review, scope_filter, now_iso, audit,
-    DRAFT, SUBMITTED, NEEDS_DETAILS, APPROVED, REJECTED, REIMBURSED, EXPORTED,
+    DRAFT, SUBMITTED, NEEDS_DETAILS, APPROVED, REJECTED, REIMBURSED, EXPORTED, CANCELLED,
 )
 
 
@@ -139,6 +139,61 @@ async def job_expenses(job_id: str, user=Depends(get_current_user)):
             "billable": round(sum(r.get("gross_amount") or 0 for r in active if r.get("billable_to_customer")), 2),
             "count": len(active),
         },
+    }
+
+
+@router.get("/job/{job_id}/profitability")
+async def job_profitability(job_id: str, user=Depends(get_current_user)):
+    """Job margin view: invoiced revenue vs expenses, plus labour hours
+    and parts allocated. Sourced from svc_engineer_invoices (revenue),
+    expenses (this subsystem), svc_time_entries (labour) and the case's
+    allocated_parts. Org-scoped; safe when any collection is empty."""
+    org_id = org_of(user)
+
+    # Expenses linked to the job (reuse the same scoping rules).
+    exp_q = {"organization_id": org_id, "job_id": job_id}
+    if not can_review(user):
+        exp_q["user_id"] = user.get("id")
+    exps = await db.expenses.find(exp_q, {"_id": 0}).to_list(500)
+    active = [e for e in exps if e.get("status") != CANCELLED]
+    exp_total = round(sum(e.get("gross_amount") or 0 for e in active), 2)
+    exp_billable = round(sum(e.get("gross_amount") or 0 for e in active if e.get("billable_to_customer")), 2)
+    exp_approved = round(sum(e.get("gross_amount") or 0 for e in active
+                            if e.get("status") in (APPROVED, EXPORTED, REIMBURSED)), 2)
+
+    # Revenue — engineer invoices tied to the case.
+    invs = await db.svc_engineer_invoices.find(
+        {"organization_id": org_id, "case_id": job_id},
+        {"_id": 0, "total": 1, "status": 1}).to_list(200)
+    invs = [i for i in invs if (i.get("status") or "") != "void"]
+    invoiced = round(sum(i.get("total") or 0 for i in invs), 2)
+    paid = round(sum(i.get("total") or 0 for i in invs if (i.get("status") or "") == "paid"), 2)
+
+    # Labour — time entries on the case.
+    tes = await db.svc_time_entries.find(
+        {"organization_id": org_id, "case_id": job_id},
+        {"_id": 0, "duration_minutes": 1, "chargeable": 1}).to_list(500)
+    labour_min = sum(t.get("duration_minutes") or 0 for t in tes)
+    chargeable_min = sum(t.get("duration_minutes") or 0 for t in tes if t.get("chargeable"))
+
+    # Parts — allocated on the case (qty only; cost not stored on allocation).
+    case = await db.svc_cases.find_one(
+        {"id": job_id, "organization_id": org_id}, {"_id": 0, "allocated_parts": 1, "reference": 1})
+    parts = (case or {}).get("allocated_parts") or []
+    parts_qty = sum(p.get("qty") or 0 for p in parts)
+
+    margin = round(invoiced - exp_total, 2)
+    margin_pct = round((margin / invoiced) * 100, 1) if invoiced else None
+
+    return {
+        "job_id": job_id,
+        "job_reference": (case or {}).get("reference") or "",
+        "revenue": {"invoiced": invoiced, "paid": paid, "invoice_count": len(invs)},
+        "expenses": {"total": exp_total, "billable": exp_billable, "approved": exp_approved, "count": len(active)},
+        "labour": {"hours": round(labour_min / 60.0, 2), "chargeable_hours": round(chargeable_min / 60.0, 2), "entries": len(tes)},
+        "parts": {"qty": parts_qty, "lines": len(parts)},
+        "margin": margin, "margin_pct": margin_pct,
+        "has_revenue": invoiced > 0,
     }
 
 
