@@ -13,6 +13,7 @@ import axios from 'axios';
 import { useInlineBanner } from '@/components/notifications';
 import { TrustedBy, HeritageTimeline, StatsBento, Sustainability } from '@/pages/PulseHeritageSections';
 import { useAuth } from '@/App';
+import { useSignedOutNotice } from '@/hooks/useSignedOutNotice';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1549,9 +1550,9 @@ export function PulseFooter() {
 }
 
 // ── Login Modal ───────────────────────────────────────────────
-export function LoginModal({ open, onOpenChange, onLogin }) {
+export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1700,7 +1701,10 @@ export const PULSE_LANDING_CSS = `
 export default function PulseLandingPage({ onLogin }) {
   const { theme, toggleTheme } = useAuth();
   const { i18n } = useTranslation();
-  const [loginOpen, setLoginOpen] = useState(false);
+  // Iter 274 — consistent sign-out: toast + auto-open the login modal with
+  // the email pre-filled when arriving from a Pulse sign-out.
+  const { prefillEmail, signedOut } = useSignedOutNotice();
+  const [loginOpen, setLoginOpen] = useState(signedOut);
 
   const openLogin = () => setLoginOpen(true);
 
@@ -1743,7 +1747,7 @@ export default function PulseLandingPage({ onLogin }) {
         <Support />
         <FinalCTA onSignIn={openLogin} />
         <PulseFooter />
-        <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLogin={onLogin} />
+        <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLogin={onLogin} prefillEmail={prefillEmail} />
       </div>
     </div>
   );

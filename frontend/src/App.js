@@ -681,9 +681,9 @@ function App() {
    window.dispatchEvent(new CustomEvent('gymaxis:auth-changed'));
  }
  if (wasMOD && typeof window !== 'undefined') {
-   window.location.replace('/MODService');
+   window.location.replace(engEmail ? `/MODService?email=${encodeURIComponent(engEmail)}&signedout=1` : '/MODService?signedout=1');
  } else if (wasPulse && typeof window !== 'undefined') {
-   window.location.replace('/pulse');
+   window.location.replace(engEmail ? `/pulse?email=${encodeURIComponent(engEmail)}&signedout=1` : '/pulse?signedout=1');
  } else if (wasEngineer && typeof window !== 'undefined') {
    window.location.replace(engEmail ? `/login?email=${encodeURIComponent(engEmail)}&signedout=1` : '/login?signedout=1');
  } else if (typeof window !== 'undefined') {

@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/App';
-import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2 } from 'lucide-react';
+import { useSignedOutNotice } from '@/hooks/useSignedOutNotice';import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2 } from 'lucide-react';
 import { useSeo } from '@/utils/seo';
 
 // ── Official artwork (user-supplied) ──────────────────────────────
@@ -63,7 +63,8 @@ export default function MODServiceLogin() {
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { prefillEmail } = useSignedOutNotice();
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
