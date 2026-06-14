@@ -1,3 +1,11 @@
+## Iter 274b — Engineer App "Sign out" didn't sign out ✅ (Jun 14, 2026)
+
+**Bug:** Engineer App sign-out (`EngineerAccountSettings.handleSignOut`) only did `localStorage.removeItem('token') + navigate('/login')`. The app now uses httpOnly cookie sessions (`ga_session`/`ga_refresh`) + an in-memory auth context, so the cookie survived → `LoginRedirectPage` saw the still-authenticated user and bounced the engineer straight back in.
+
+**Fix:** `handleSignOut` now calls the shared `useAuth().logout()` (revokes the cookie via `POST /auth/logout`, clears all cached tokens, resets in-memory state, hard-navigates). Verified e2e: after sign-out URL = `/`, localStorage token = null, `/api/auth/me` = 401 (cookie revoked). Backend logout confirmed via curl.
+
+---
+
 ## Iter 274 — Engineer reset link, module lockout & "Independent Engineer" dropdown ✅ (Jun 14, 2026)
 
 **Requested:** (1) manually send a password link from any engineer profile (James Young can't log in / not receiving emails); (2) now that engineers are orgs, lock them to the Engineer App (no other modules) + no broken links; (3) add "Independent Engineer" to the dropdowns.

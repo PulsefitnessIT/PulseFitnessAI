@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/App';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
@@ -67,6 +68,7 @@ const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#1d4ed8', testid,
 
 export default function EngineerAccountSettings({ open, onClose, payouts, attention, onChanged }) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [importing, setImporting] = useState(false);
   const importRef = useRef(null);
   // Iter 220i — lightweight live partner status so the drawer can
@@ -155,12 +157,13 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
   };
 
   const handleSignOut = () => {
-    try {
-      localStorage.removeItem('token');
-    } catch {
-      /* ignore */
-    }
-    navigate('/login');
+    // Iter 274 — use the shared auth-context logout: it revokes the HttpOnly
+    // session cookie server-side, clears all cached tokens, resets in-memory
+    // auth state and hard-navigates. The previous version only removed the
+    // localStorage token, so the cookie session survived and the engineer was
+    // bounced straight back in.
+    onClose?.();
+    logout();
   };
 
   const stripeReady = !!payouts?.ready;
