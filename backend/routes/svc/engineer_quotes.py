@@ -592,8 +592,19 @@ async def engineer_dashboard(user=Depends(get_current_user)):
     overdue_jobs = await db.svc_cases.count_documents(
         {**base_q, "scheduled_at": {"$lt": today_iso, "$ne": None}},
     )
-    awaiting_parts = await db.svc_cases.count_documents(
-        {**of, "assigned_engineer_id": user_id, "status": "awaiting_parts"},
+    # ── "Return to Fix" — jobs needing a further visit to complete.
+    # Iter 278d — broadened from the old "Awaiting parts" (status only).
+    # Covers: engineer flagged a return visit (return_to_fix stamp), or the
+    # job is parked for parts (paused_parts / legacy awaiting_parts). Excludes
+    # finished jobs. "Awaiting customer" stays its own KPI, so paused_customer
+    # is deliberately not counted here.
+    return_to_fix = await db.svc_cases.count_documents(
+        {**of, "assigned_engineer_id": user_id,
+         "status": {"$nin": ["closed", "invoiced", "cancelled", "rejected"]},
+         "$or": [
+             {"return_to_fix": {"$ne": None}},
+             {"status": {"$in": ["paused_parts", "awaiting_parts"]}},
+         ]},
     )
     awaiting_customer = await db.svc_cases.count_documents(
         {**of, "assigned_engineer_id": user_id,
@@ -645,7 +656,8 @@ async def engineer_dashboard(user=Depends(get_current_user)):
             "today_jobs": today_jobs,
             "upcoming_jobs": upcoming_jobs,
             "overdue_jobs": overdue_jobs,
-            "awaiting_parts": awaiting_parts,
+            "return_to_fix": return_to_fix,
+            "awaiting_parts": return_to_fix,  # back-compat alias (renamed UI → "Return to Fix")
             "awaiting_customer": awaiting_customer,
             "quote_pending": quote_pending,
             "quote_accepted": quote_accepted,

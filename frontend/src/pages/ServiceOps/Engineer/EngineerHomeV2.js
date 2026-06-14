@@ -6,7 +6,7 @@
  * card + active timer behaviour preserved.
  *
  * Surfaces:
- *  • Today / Upcoming / Overdue / Awaiting parts / Awaiting customer
+ *  • Today / Upcoming / Overdue / Return to Fix / Awaiting customer
  *  • Pending quotes (draft + sent) with last-touched + total
  *  • Quick actions: New quote, New invoice (Phase 2), New job (later),
  *    View diary, Send report (already-built /pwa/report-pdf), Support
@@ -21,7 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
-  Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes,
+  Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes, RotateCcw,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
   CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X, Wallet,
@@ -393,8 +393,8 @@ export default function EngineerHomeV2() {
                        testid="kpi-upcoming" onClick={() => navigate('/svc/engineer/upcoming')} />
               <KPITile icon={AlertTriangle} label="Overdue" value={kpis.overdue_jobs} accent="#dc2626"
                        testid="kpi-overdue" onClick={() => navigate('/svc/engineer/jobs?when=overdue')} />
-              <KPITile icon={Package} label="Awaiting parts" value={kpis.awaiting_parts} accent="#f59e0b"
-                       testid="kpi-parts" onClick={() => navigate('/svc/engineer/jobs?when=awaiting_parts')} />
+              <KPITile icon={RotateCcw} label="Return to Fix" value={kpis.return_to_fix ?? kpis.awaiting_parts} accent="#f59e0b"
+                       testid="kpi-return-to-fix" onClick={() => navigate('/svc/engineer/jobs?when=return_to_fix')} />
               <KPITile icon={FileText} label="Pending quotes" value={kpis.quote_pending} accent="#0891b2"
                        testid="kpi-pending-quotes" onClick={() => navigate('/svc/engineer/quotes')} />
               <KPITile icon={CheckCircle2} label="Accepted" value={kpis.quote_accepted} accent="#059669"

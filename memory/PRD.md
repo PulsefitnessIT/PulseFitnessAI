@@ -1,3 +1,19 @@
+## Iter 278d — "Awaiting parts" card → "Return to Fix" ✅ (Jun 14, 2026)
+
+**Request:** rename the engineer "Awaiting parts" KPI card to **"Return to Fix"** — jobs that need a further visit to complete (engineer needed more parts, ran out of time on the previous visit, or a PPM service is only part-complete).
+
+**Done — relabelled AND redefined the data (not just the text):**
+- **New definition** = open jobs (status ∉ closed/invoiced/cancelled/rejected) that **either** carry a `return_to_fix` stamp (the existing "needs a second visit" flag set via `POST /jobs/{id}/return-to-fix`, which covers parts/time/part-complete PPM) **or** are parked for parts (`paused_parts` / legacy `awaiting_parts`). "Awaiting customer" stays its own card (paused_customer excluded).
+- **Backend:** dashboard KPI `engineer_quotes.py` now returns `return_to_fix` (+ `awaiting_parts` back-compat alias); jobs filter `engineer.py` `when=return_to_fix` (accepts `when=awaiting_parts` alias) using the same query so the count and list always agree.
+- **Frontend:** EngineerHomeV2 tile relabelled **"Return to Fix"** with a rotate icon (`RotateCcw`), reads `kpis.return_to_fix`, links `?when=return_to_fix`. EngineerHome jobs-list filter chip now reads "Return to Fix"; VALID_TABS updated.
+
+**Verified:** seeded 5 cases → KPI=3 and `when=return_to_fix`=3 returning exactly the parts/paused/return jobs while excluding the normal on-site job and the closed one; UI shows "RETURN TO FIX · 3" tile + matching filtered list. pytest `test_iter278c_jobs_filters.py` 2/2 (overdue + return-to-fix). ESLint clean.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 278c — Engineer interactive-card audit + bulk equipment import answer ✅ (Jun 14, 2026)
 
 **Q: Bulk import equipment to customers — available on desktop?** Yes. Engineer App → **My customers** → expand a customer → **Template** (download CSV) + **Import equipment** (upload). Component `CustomerEquipmentCsv` in `EngineerCustomers.js`; backend `GET /api/svc/engineer/equipment/template-csv` + `POST /api/svc/engineer/customers/{id}/equipment/import-csv`. Fully responsive (works on desktop & mobile).

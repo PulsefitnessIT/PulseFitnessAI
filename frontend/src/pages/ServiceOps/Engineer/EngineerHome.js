@@ -17,7 +17,7 @@ import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wrench, MapPin, Clock, AlertTriangle, ChevronRight, Loader2, RefreshCw,
-  PlayCircle, WifiOff, ArrowLeft, X,
+  PlayCircle, WifiOff, ArrowLeft, X, RotateCcw,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccessGate from './EngineerAccessGate';
@@ -94,7 +94,7 @@ export default function EngineerHome() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Iter 220ec — honour the ?when= filter passed by the home KPI tiles
   // (Overdue/Today/Awaiting parts) so they actually open a filtered list.
-  const VALID_TABS = ['today', 'upcoming', 'open', 'overdue', 'awaiting_parts', 'closed'];
+  const VALID_TABS = ['today', 'upcoming', 'open', 'overdue', 'return_to_fix', 'awaiting_parts', 'closed'];
   const initialTab = VALID_TABS.includes(searchParams.get('when')) ? searchParams.get('when') : 'today';
   const [me, setMe] = useState(null);
   const [tab, setTabState] = useState(initialTab);
@@ -218,14 +218,14 @@ export default function EngineerHome() {
         {/* Iter 278c — when arriving from the Overdue / Awaiting-parts KPI
             tiles there is no matching pill in the tab bar, so show a clear,
             removable indicator of the active special filter. */}
-        {(tab === 'overdue' || tab === 'awaiting_parts') && (
+        {(tab === 'overdue' || tab === 'return_to_fix' || tab === 'awaiting_parts') && (
           <div className="mt-2 flex items-center gap-2" data-testid="engineer-jobs-special-filter">
             <span
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
               style={{ background: tab === 'overdue' ? '#fee2e2' : '#fef3c7', color: tab === 'overdue' ? '#b91c1c' : '#92400e' }}
             >
-              {tab === 'overdue' ? <AlertTriangle size={11} /> : <Wrench size={11} />}
-              {tab === 'overdue' ? 'Overdue' : 'Awaiting parts'}
+              {tab === 'overdue' ? <AlertTriangle size={11} /> : <RotateCcw size={11} />}
+              {tab === 'overdue' ? 'Overdue' : 'Return to Fix'}
             </span>
             <button
               type="button"
