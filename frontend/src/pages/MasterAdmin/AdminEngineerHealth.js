@@ -10,11 +10,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  Loader2, RefreshCw, MailWarning, UserX, CreditCard, CheckCircle2, Activity,
+  Loader2, RefreshCw, MailWarning, UserX, CreditCard, CheckCircle2, Activity, Send,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+// Per-bucket nudge button label. All call the same smart endpoint
+// (POST /partners/{id}/send-signin-link): no account → re-issues the
+// activation welcome email; existing account → sends a sign-in/reset link
+// so they land back in the app (and an org-less engineer gets a personal
+// org auto-provisioned the moment they sign in).
+const NUDGE_LABEL = {
+  pending_link: 'Resend activation',
+  org_less: 'Send sign-in link',
+  not_subscribed: 'Send sign-in link',
+};
 
 const BUCKETS = [
   {
@@ -42,6 +53,7 @@ export default function AdminEngineerHealth() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState('pending_link');
+  const [nudging, setNudging] = useState(null); // partner id mid-send
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +64,19 @@ export default function AdminEngineerHealth() {
       notify.error('Failed to load engineer health', e?.response?.data?.detail || e.message);
     } finally {
       setLoading(false);
+    }
+  }, [headers]);
+
+  const nudge = useCallback(async (row) => {
+    setNudging(row.id);
+    try {
+      const r = await axios.post(`${API}/api/partners/${row.id}/send-signin-link`, {}, { headers });
+      const kind = r.data?.kind === 'activation' ? 'Activation email' : 'Sign-in link';
+      notify.success(`${kind} sent`, `Delivered to ${r.data?.sent_to || row.email}`);
+    } catch (e) {
+      notify.error('Could not send', e?.response?.data?.detail || e.message);
+    } finally {
+      setNudging(null);
     }
   }, [headers]);
 
@@ -156,6 +181,15 @@ export default function AdminEngineerHealth() {
                       {new Date(r.created_at).toLocaleDateString()}
                     </span>
                   )}
+                  <button
+                    onClick={() => nudge(r)}
+                    disabled={nudging === r.id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-purple-600 text-white font-semibold hover:bg-purple-700 disabled:opacity-50"
+                    data-testid={`health-nudge-${r.id}`}
+                  >
+                    {nudging === r.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                    {NUDGE_LABEL[active]}
+                  </button>
                 </div>
               </div>
             ))}
