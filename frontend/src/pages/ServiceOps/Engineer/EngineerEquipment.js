@@ -239,6 +239,7 @@ function EquipmentRow({ item, sites }) {
   const badge = STATUS_BADGE[item.status || 'in_service'] || STATUS_BADGE.in_service;
   // Iter 220cm — Service-history rollup (lazy-loaded on expand).
   const [open, setOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [history, setHistory] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -269,10 +270,11 @@ function EquipmentRow({ item, sites }) {
       className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
       data-testid={`equipment-row-${item.id}`}
     >
+      <div className="flex items-stretch">
       <button
         type="button"
         onClick={toggle}
-        className="w-full text-left p-3 hover:bg-slate-50 transition-colors"
+        className="flex-1 min-w-0 text-left p-3 hover:bg-slate-50 transition-colors"
         data-testid={`equipment-row-toggle-${item.id}`}
         aria-expanded={open}
       >
@@ -321,6 +323,21 @@ function EquipmentRow({ item, sites }) {
           </span>
         </div>
       </button>
+      <button
+        type="button"
+        onClick={() => setQrOpen(true)}
+        className="px-3 flex items-center justify-center border-l border-slate-100 text-orange-600 hover:bg-orange-50"
+        data-testid={`equipment-qr-btn-${item.id}`}
+        aria-label="QR code / label"
+        title="QR code / label"
+      >
+        <QrCode size={16} />
+      </button>
+      </div>
+
+      {qrOpen && (
+        <EngineerQrModal item={item} onClose={() => setQrOpen(false)} />
+      )}
 
       {open && (
         <div
@@ -859,5 +876,168 @@ function inputCls(hasError) {
     'w-full px-3 py-2.5 rounded-xl border text-sm bg-white focus:outline-none ' +
     'focus:ring-2 focus:ring-blue-500 ' +
     (hasError ? 'border-rose-400' : 'border-slate-200')
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Iter 275 — QR code / label modal
+// Generates a branded QR sticker (engineer's company name) for the
+// machine. The QR encodes the public `/r/{id}` fault-report page so a
+// customer NOT on the operations portal can scan and log a fault that
+// lands straight in the engineer's queue.
+// ─────────────────────────────────────────────────────────────────────
+
+const QR_SIZES = [
+  { value: '62x35', label: 'Label (62×35mm)' },
+  { value: '62x62', label: 'Square (62×62mm)' },
+  { value: 'a4', label: 'A4 sheet' },
+];
+
+function EngineerQrModal({ item, onClose }) {
+  const [size, setSize] = useState('62x35');
+  const [imgUrl, setImgUrl] = useState('');
+  const [scanUrl, setScanUrl] = useState('');
+  const [brand, setBrand] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    let objUrl = '';
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const [card, label] = await Promise.all([
+          axios.get(
+            `${API}/svc/engineer/equipment/${item.id}/qr-card?size=${size}`,
+            { ...auth(), responseType: 'blob' },
+          ),
+          axios.get(`${API}/svc/engineer/equipment/${item.id}/qr-label`, auth())
+            .catch(() => ({ data: {} })),
+        ]);
+        if (cancelled) return;
+        objUrl = URL.createObjectURL(card.data);
+        setImgUrl(objUrl);
+        setScanUrl(label.data?.scan_url || '');
+        setBrand(label.data?.brand_name || '');
+      } catch (e) {
+        if (!cancelled) setError(e?.response?.data?.detail || e?.message || 'Failed to generate QR');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; if (objUrl) URL.revokeObjectURL(objUrl); };
+  }, [item.id, size]);
+
+  const download = () => {
+    if (!imgUrl) return;
+    const a = document.createElement('a');
+    a.href = imgUrl;
+    a.download = `qr-${(item.serial_number || item.name || item.id)}-${size}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const print = () => {
+    if (!imgUrl) return;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(
+      `<html><head><title>QR label</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh"><img src="${imgUrl}" style="max-width:100%" onload="window.focus();window.print();"/></body></html>`,
+    );
+    w.document.close();
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(scanUrl);
+      notify.success('Link copied');
+    } catch {
+      notify.error('Could not copy');
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      onClick={onClose}
+      data-testid="engineer-qr-modal"
+    >
+      <div
+        className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-xl p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-sm font-bold text-slate-900">QR code / label</p>
+          <button type="button" onClick={onClose} className="text-slate-400 text-sm" data-testid="engineer-qr-close">✕</button>
+        </div>
+        <p className="text-[11px] text-slate-500 mb-3">
+          Print &amp; stick on <span className="font-semibold">{item.name}</span>. Customers scan it to report a fault straight to {brand || 'you'}.
+        </p>
+
+        <div className="flex gap-1.5 mb-3">
+          {QR_SIZES.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setSize(s.value)}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold border ${
+                size === s.value
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-slate-200 text-slate-500'
+              }`}
+              data-testid={`engineer-qr-size-${s.value}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex items-center justify-center min-h-[160px]">
+          {loading ? (
+            <Loader2 size={18} className="animate-spin text-slate-400" />
+          ) : error ? (
+            <p className="text-xs text-rose-600 flex items-center gap-1"><AlertTriangle size={12} /> {error}</p>
+          ) : (
+            <img src={imgUrl} alt="QR label" className="max-h-64 w-auto" data-testid="engineer-qr-image" />
+          )}
+        </div>
+
+        {scanUrl && (
+          <button
+            type="button"
+            onClick={copyLink}
+            className="mt-2 w-full text-[11px] text-slate-500 truncate hover:text-slate-700"
+            data-testid="engineer-qr-link"
+            title={scanUrl}
+          >
+            {scanUrl} · tap to copy
+          </button>
+        )}
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={download}
+            disabled={!imgUrl}
+            className="px-3 py-2.5 rounded-xl bg-orange-600 text-white text-sm font-bold disabled:opacity-50 hover:bg-orange-700"
+            data-testid="engineer-qr-download"
+          >
+            Download
+          </button>
+          <button
+            type="button"
+            onClick={print}
+            disabled={!imgUrl}
+            className="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-bold disabled:opacity-50 hover:bg-slate-50"
+            data-testid="engineer-qr-print"
+          >
+            Print
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

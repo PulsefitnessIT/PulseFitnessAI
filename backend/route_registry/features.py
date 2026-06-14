@@ -186,6 +186,11 @@ from routes.svc.case_types import router as svc_case_types_router
 from routes.svc.per_machine_reports import router as svc_per_machine_reports_router
 # Iter 220ci — Engineer-side strict-validation equipment create
 from routes.svc.engineer_equipment import router as svc_engineer_equipment_router
+# Iter 275 — Engineer QR fault-logging (off-platform customers)
+from routes.svc.engineer_qr import (
+    router as svc_engineer_qr_router,
+    public_router as svc_engineer_qr_public_router,
+)
 # Iter 220g — Smart scheduling suggestions (proximity-based)
 from routes.svc.scheduling_suggestions import router as svc_scheduling_router
 # Iter 220i — Engineer / org branding (logo + colours for PDF + portal)
@@ -218,6 +223,7 @@ _UNGATED_ROUTERS = (
     suppliers_catalogue_router,
     digest_router, onboarding_router, gym_layouts_router,
     health_score_router, supplier_portal_router, qr_codes_router,
+    svc_engineer_qr_router, svc_engineer_qr_public_router,
     expiry_alerts_router, integrations_router,
     capex_router, financial_ops_router, equipment_import_router, sites_import_router, mod_sites_bulk_import_router, invoice_wizard_parse_router,
     spec_sheets_router, compliance_router,

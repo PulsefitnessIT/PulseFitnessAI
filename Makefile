@@ -343,6 +343,7 @@ regression:
           tests/test_iter270_approval_email_localization.py \
           tests/test_iter272_partner_relink_selfheal.py \
           tests/test_iter273_engineer_personal_org.py \
+          tests/test_iter275_engineer_qr.py \
           -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

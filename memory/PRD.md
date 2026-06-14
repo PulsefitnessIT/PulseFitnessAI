@@ -1,3 +1,22 @@
+## Iter 275 — Engineer QR fault-logging for off-platform customers ✅ (Jun 14, 2026)
+
+**Requested:** when an independent engineer's customer is NOT on the Operations portal, let the engineer print branded QR stickers for the customer's machines so the customer can scan and log a fault that goes STRAIGHT to the engineer (like Operations' QR scan flow, but engineer-native).
+
+**Why a new flow:** Operations' QR (`routes/qr_codes.py` → `/scan/{id}`) writes to the `issues` collection on the operator org — the Engineer App reads `svc_cases`, so an engineer would never see it. Built an engineer-native counterpart.
+
+**Shipped:**
+- **Backend `routes/svc/engineer_qr.py`** (registered ungated in `route_registry/features.py`):
+  - Authed: `GET /api/svc/engineer/equipment/{id}/qr-label` (scan URL + the engineer's **company name** from `partner_engineers.company_name`) and `GET .../qr-card?size=` (branded orange QR label PNG — company name header, make/model/serial, "Scan to report a fault"; reuses the operations card preset/font helpers). QR encodes `{frontend}/r/{id}`.
+  - Public (no auth): `GET /api/public/r/{id}` (machine info + engineer brand) and `POST /api/public/r/{id}/report-fault` (description/severity/name + optional phone/email/photo). Resolves the engineer from the equipment's org (creator → else the org's partner-engineer), runs **AI triage** (Emergent LLM key), and creates a `svc_case` with `assigned_engineer_id = <engineer user id>`, `status=assigned`, severity→priority (critical→p1). Falls back to an unassigned `new` case if no engineer resolves. SLA targets + timeline event via the standard helpers.
+- **Frontend:** `EngineerEquipment.js` — each customer-linked machine row gets a **QR** button → `EngineerQrModal` (fetches the branded PNG as an authed blob, size presets Label/Square/A4, copyable scan link, Download + Print). New public page `EngineerFaultReportPage.js` at `/r/:equipmentId` (engineer-branded, severity picker, name required, optional phone/email/photo, success screen with case reference + AI assessment). Route + lazy import added to `AppRoutes.js`.
+
+**Verified e2e (preview, indie.engineer):** created customer + equipment → qr-label returns "FitFix"-style brand + `/r/{id}`; qr-card = valid PNG; public `/r/{id}` renders branded; public report-fault created `SVC-00001` (P1, AI triage) **assigned to the engineer** and showing in `/svc/engineer/jobs?when=open` + `/me` open_jobs=1. Screenshots: branded report page + in-app QR modal. Note: the equipment list shows only **customer-linked** machines (the QR button lives there) — correct scope for this feature. Regression `tests/test_iter275_engineer_qr.py` (2/2) added to Makefile. Test artifacts cleaned (left a Riverside demo customer + bike in the indie engineer org for exploration).
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**. QR scan URLs resolve to the request host (or `FRONTEND_URL` if set), so production stickers will point at gymaxisai.com.
+
+---
+
+
 ## Iter 275 — Installable PWA for the Service Desk ✅ (Jun 14, 2026)
 
 **Shipped (P3 backlog item — no external keys):** the Service Desk is now an installable home-screen app with an offline app shell, mirroring the existing `/pulse` PWA pattern.

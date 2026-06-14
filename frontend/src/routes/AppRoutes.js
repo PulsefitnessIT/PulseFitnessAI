@@ -69,6 +69,7 @@ const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 const SupplierCasePage = lazy(() => import('@/pages/SupplierCasePage'));
 const CustomerOnboardingForm = lazy(() => import('@/pages/CustomerOnboardingForm'));
 const QRScanPage = lazy(() => import('@/pages/QRScanPage'));
+const EngineerFaultReportPage = lazy(() => import('@/pages/EngineerFaultReportPage'));
 const PublicFormPage = lazy(() => import('@/pages/PublicFormPage'));
 const PublicLandingPage = lazy(() => import('@/pages/PublicLandingPage'));
 const PartnershipProposalPage = lazy(() => import('@/pages/PartnershipProposalPage'));
@@ -426,6 +427,7 @@ export default function AppRoutes({ user, login }) {
       {/* ─── Public utility ─── */}
       <Route path="/supplier/case/:token" element={<SupplierCasePage />} />
       <Route path="/scan/:equipmentId" element={<QRScanPage />} />
+      <Route path="/r/:equipmentId" element={<EngineerFaultReportPage />} />
       <Route path="/forms/:slug" element={<PublicFormPage />} />
       <Route path="/p/:slug" element={<PublicLandingPage />} />
 
