@@ -392,9 +392,9 @@ export default function EngineerHomeV2() {
               <KPITile icon={Clock} label="Upcoming" value={kpis.upcoming_jobs} accent="#6366f1"
                        testid="kpi-upcoming" onClick={() => navigate('/svc/engineer/upcoming')} />
               <KPITile icon={AlertTriangle} label="Overdue" value={kpis.overdue_jobs} accent="#dc2626"
-                       testid="kpi-overdue" onClick={() => navigate('/svc/engineer/jobs?when=open')} />
+                       testid="kpi-overdue" onClick={() => navigate('/svc/engineer/jobs?when=overdue')} />
               <KPITile icon={Package} label="Awaiting parts" value={kpis.awaiting_parts} accent="#f59e0b"
-                       testid="kpi-parts" onClick={() => navigate('/svc/engineer/jobs?when=open')} />
+                       testid="kpi-parts" onClick={() => navigate('/svc/engineer/jobs?when=awaiting_parts')} />
               <KPITile icon={FileText} label="Pending quotes" value={kpis.quote_pending} accent="#0891b2"
                        testid="kpi-pending-quotes" onClick={() => navigate('/svc/engineer/quotes')} />
               <KPITile icon={CheckCircle2} label="Accepted" value={kpis.quote_accepted} accent="#059669"
@@ -404,7 +404,7 @@ export default function EngineerHomeV2() {
                        onClick={() => navigate('/svc/engineer/quotes?status=sent')} />
               <KPITile icon={Receipt} label="Invoiced" value={kpis.quote_invoiced} accent="#16a34a"
                        testid="kpi-invoiced"
-                       onClick={() => navigate('/svc/engineer/invoices')} />
+                       onClick={() => navigate('/svc/engineer/invoices?status=all')} />
             </div>
 
             {/* Iter 220ea·33 — Legacy import promo tile (dismissible).

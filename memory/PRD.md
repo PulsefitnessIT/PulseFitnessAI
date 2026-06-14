@@ -1,3 +1,21 @@
+## Iter 278c — Engineer interactive-card audit + bulk equipment import answer ✅ (Jun 14, 2026)
+
+**Q: Bulk import equipment to customers — available on desktop?** Yes. Engineer App → **My customers** → expand a customer → **Template** (download CSV) + **Import equipment** (upload). Component `CustomerEquipmentCsv` in `EngineerCustomers.js`; backend `GET /api/svc/engineer/equipment/template-csv` + `POST /api/svc/engineer/customers/{id}/equipment/import-csv`. Fully responsive (works on desktop & mobile).
+
+**Audit of the engineer home KPI cards — each must filter the correct data + target must have a back button:**
+- ❌→✅ **Overdue** tile went to `?when=open` (showed all open jobs). Added backend `when=overdue` = open status set + `scheduled_at < today`, mirroring the dashboard `overdue_jobs` KPI exactly; tile now links `?when=overdue`.
+- ❌→✅ **Awaiting parts** tile went to `?when=open`. Added backend `when=awaiting_parts` = `status == "awaiting_parts"`, matching the KPI; tile now links `?when=awaiting_parts`.
+- ❌→✅ **Jobs list (`EngineerHome`) had no back button** → added (`engineer-jobs-back` → `/svc/engineer`), plus a removable filter chip (`engineer-jobs-special-filter` + "Show all open") shown when arriving via the Overdue/Awaiting-parts deep-links.
+- ✅ **Invoiced** tile now links `?status=all` (was defaulting to unpaid).
+- ✅ Already correct: **Today/Upcoming** (Upcoming page has back), **Pending/Accepted/Awaiting-customer** quotes (back + `?status=` filters), **Invoices** (back).
+
+**Verified:** backend filters return exactly the KPI-matching jobs (curl + UI: Overdue list shows only the overdue job, back button returns to home). pytest `tests/test_iter278c_jobs_filters.py` 1/1 (added to Makefile). ESLint clean. Files: `routes/svc/engineer.py` (`when` filters), `EngineerHome.js` (back btn + chip + VALID_TABS), `EngineerHomeV2.js` (KPI links).
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 278b — Expenses polish: edit / thumbnails / needs-details + Job profitability ✅ (Jun 14, 2026)
 
 **Built (the iter-278 follow-up the user asked for):**

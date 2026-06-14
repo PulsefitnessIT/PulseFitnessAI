@@ -468,7 +468,7 @@ async def engineer_today_rollup(user=Depends(get_current_user)):
 
 @router.get("/jobs")
 async def engineer_jobs(
-    when: str = Query("today", description="today | upcoming | open | closed"),
+    when: str = Query("today", description="today | upcoming | open | overdue | awaiting_parts | closed"),
     user=Depends(get_current_user),
 ):
     """List jobs assigned to the calling engineer, mobile-friendly subset."""
@@ -479,6 +479,20 @@ async def engineer_jobs(
     if when == "closed":
         q = {**of, "assigned_engineer_id": user["id"],
              "status": {"$in": ["closed", "invoiced", "repaired", "awaiting_sign_off", "cancelled"]}}
+    elif when == "awaiting_parts":
+        # Iter 278c — the "Awaiting parts" KPI tile must show ONLY jobs
+        # blocked on parts, not the whole open list. Matches the dashboard
+        # KPI definition (engineer_quotes.py) exactly.
+        q = {**of, "assigned_engineer_id": user["id"], "status": "awaiting_parts"}
+    elif when == "overdue":
+        # Iter 278c — the "Overdue" KPI tile must show ONLY jobs scheduled in
+        # the past that are still open. Mirrors the dashboard KPI definition
+        # (status set + scheduled_at < today) so the count and the list agree.
+        today = datetime.now(timezone.utc).date().isoformat()
+        q = {**of, "assigned_engineer_id": user["id"],
+             "status": {"$in": ["assigned", "en_route", "on_site",
+                                 "in_progress", "awaiting_parts", "quote_required"]},
+             "scheduled_at": {"$lt": today, "$ne": None}}
     else:
         q = {**of, "assigned_engineer_id": user["id"], "status": {"$in": list(OPEN_STATES)}}
     if when == "today":

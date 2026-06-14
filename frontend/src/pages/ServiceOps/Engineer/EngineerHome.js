@@ -17,7 +17,7 @@ import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Wrench, MapPin, Clock, AlertTriangle, ChevronRight, Loader2, RefreshCw,
-  PlayCircle, WifiOff,
+  PlayCircle, WifiOff, ArrowLeft, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccessGate from './EngineerAccessGate';
@@ -94,7 +94,7 @@ export default function EngineerHome() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Iter 220ec — honour the ?when= filter passed by the home KPI tiles
   // (Overdue/Today/Awaiting parts) so they actually open a filtered list.
-  const VALID_TABS = ['today', 'upcoming', 'open', 'closed'];
+  const VALID_TABS = ['today', 'upcoming', 'open', 'overdue', 'awaiting_parts', 'closed'];
   const initialTab = VALID_TABS.includes(searchParams.get('when')) ? searchParams.get('when') : 'today';
   const [me, setMe] = useState(null);
   const [tab, setTabState] = useState(initialTab);
@@ -147,7 +147,18 @@ export default function EngineerHome() {
     <div className="min-h-screen pb-24" style={{ background: 'var(--theme-bg, #f8fafc)' }} data-testid="engineer-home">
       <header className="px-4 pt-5 pb-3 sticky top-0 z-10" style={{ background: 'var(--theme-surface, #fff)', borderBottom: '1px solid var(--theme-border, #e5e7eb)' }}>
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+          <div className="flex items-start gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate('/svc/engineer')}
+              aria-label="Back to home"
+              className="p-2 rounded-full border shrink-0"
+              style={{ borderColor: 'var(--theme-border)' }}
+              data-testid="engineer-jobs-back"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>Service Ops · Engineer</p>
             <h1 className="text-xl font-extrabold truncate" style={{ color: 'var(--theme-text)' }} data-testid="engineer-greeting">
               {me?.engineer?.full_name ? `Hi, ${me.engineer.full_name.split(' ')[0]}` : 'Field engineer'}
@@ -155,6 +166,7 @@ export default function EngineerHome() {
             <p className="text-xs opacity-70">
               {me ? `${me.stats?.today_jobs || 0} today · ${me.stats?.open_jobs || 0} open` : ' '}
             </p>
+          </div>
           </div>
           <div className="flex items-center gap-2">
             {!online ? (
@@ -202,6 +214,29 @@ export default function EngineerHome() {
             </button>
           ))}
         </div>
+
+        {/* Iter 278c — when arriving from the Overdue / Awaiting-parts KPI
+            tiles there is no matching pill in the tab bar, so show a clear,
+            removable indicator of the active special filter. */}
+        {(tab === 'overdue' || tab === 'awaiting_parts') && (
+          <div className="mt-2 flex items-center gap-2" data-testid="engineer-jobs-special-filter">
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+              style={{ background: tab === 'overdue' ? '#fee2e2' : '#fef3c7', color: tab === 'overdue' ? '#b91c1c' : '#92400e' }}
+            >
+              {tab === 'overdue' ? <AlertTriangle size={11} /> : <Wrench size={11} />}
+              {tab === 'overdue' ? 'Overdue' : 'Awaiting parts'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setTab('open')}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold opacity-70"
+              data-testid="engineer-jobs-clear-filter"
+            >
+              <X size={11} /> Show all open
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="px-4 mt-4 space-y-3" data-testid="engineer-job-list">
