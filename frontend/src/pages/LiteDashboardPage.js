@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
-import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain, Wallet } from 'lucide-react';
+import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import MobileBottomNav from '../components/shared/MobileBottomNav';
@@ -31,7 +31,6 @@ import LiteDocumentsTab from './LiteDashboard/LiteDocumentsTab';
 import LiteDialogs from './LiteDashboard/LiteDialogs';
 import OperationsStartTab from './LiteDashboard/OperationsStartTab';
 import StaffingConsole from './LiteDashboard/StaffingConsole';
-import DeskExpenses from './ServiceDesk/DeskExpenses';
 import AllSitesOverview from './LiteDashboard/AllSitesOverview';
 import SiteSwitcher from '../components/shared/SiteSwitcher';
 import DocumentQA from '../components/shared/DocumentQA';
@@ -677,7 +676,6 @@ const LiteDashboardPage = () => {
         ...proBase,
         { id: 'reports',   label: t('dashboard.reports', 'Reports'),   icon: BarChart3 },
         { id: 'suppliers', label: t('dashboard.suppliers_tab', 'Suppliers'), icon: Truck },
-        { id: 'expenses',  label: t('dashboard.expenses', 'Expenses'), icon: Wallet },
       ];
     }
     // Managers and Owners see everything (Weekly Digest lives inside Reports)
@@ -685,9 +683,6 @@ const LiteDashboardPage = () => {
       ...proBase,
       { id: 'reports',    label: t('dashboard.reports', 'Reports'),    icon: BarChart3 },
       { id: 'suppliers',  label: t('dashboard.suppliers_tab', 'Suppliers'),  icon: Truck },
-      // Iter 279c — Expenses & Receipt Scanner finance cockpit, surfaced
-      // in the operations portal for managers/owners (was Service-Desk only).
-      { id: 'expenses',   label: t('dashboard.expenses', 'Expenses'),  icon: Wallet },
       // Iter 216o-11 — Gym Layout label matches GymAxis exactly.
       { id: 'gym-layout', label: t('dashboard.gym_layout', 'Gym Layout'), icon: LayoutGrid },
     ];
@@ -954,11 +949,6 @@ const LiteDashboardPage = () => {
             {isPro && tabVisible('suppliers') && (
               <TabsContent value="suppliers" data-testid="suppliers-content">
                 <SupplierDashboardTab />
-              </TabsContent>
-            )}
-            {isPro && tabVisible('expenses') && (
-              <TabsContent value="expenses" data-testid="expenses-content">
-                <DeskExpenses />
               </TabsContent>
             )}
             {!isPro && (

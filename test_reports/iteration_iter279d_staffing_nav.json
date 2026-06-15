@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend nav-reorganization smoke (iter 279d) on Pulse Operations → Staffing. Logged in as pulse.admin.test@pulsefitness.com (Pulse Master Admin), entered /pulse, validated top Operations tab strip and the nested Staffing group/sub-tab bars. All acceptance criteria pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staffing → Time Clock", "issues": ["A secondary sub-tab bar is rendered with a single 'Team Clock' pill for managers. Functionally fine (Team Clock renders), but the lone pill is visually redundant — consider hiding the sub-tab bar when only one child exists, OR rendering as a leaf group (like Payroll/Expenses). Minor polish only."]}
+    ]
+  },
+  "verified_acceptance_criteria": [
+    "Top Operations strip has NO 'Expenses' tab (only Dashboard, Equipment, Faults, Check Sheets, AI Diagnosis, Documents, Staffing, Reports, Suppliers, Gym Layout).",
+    "Staffing GROUP bar order matches exactly: Dashboard, People, Rota, Time Clock, Performance, Payroll, Expenses, Comms, Ops · Forms, Rules.",
+    "People → sub-tabs Staff + HR. HR view shows 'Manage job roles' button.",
+    "Rota → sub-tabs Schedule, Templates, Time Off, Shift Market, Live Floor, AI Rota — all render content without error.",
+    "Performance → sub-tabs Overview + AI Insights — both render.",
+    "Comms → sub-tabs Announcements + Handover Diary — both render.",
+    "Expenses (inside Staffing, right after Payroll) renders DeskExpenses cockpit — 'Approvals' and 'Reports' text confirmed in DOM.",
+    "Ops · Forms and Rules render directly with NO secondary sub-tab bar.",
+    "Payroll renders the export-CSV card directly (no sub-tabs).",
+    "0 page errors / 0 React exceptions captured during the full sweep. (CSP-blocked emergent-main.js + posthog.js + cloudflareinsights are pre-existing analytics warnings unrelated to this change.)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Optional polish) Suppress the secondary sub-tab bar when an active group has only one visible child (e.g., manager-only Time Clock → single 'Team Clock' pill). Either render as a leaf or hide the row."
+  ],
+  "critical_code_review_comments": [
+    "StaffingConsole.js is 700+ lines and includes many tab components inline (RotaTab, StaffTab, LeaveTab, MarketTab, PerformanceTab, PayrollTab, LiveFloorTab, AnnouncementsTab, RulesTab, AIInsightsTab). Consider splitting per-tab modules into the existing /staffing/ folder pattern (TimeClockTab/CommsTab/etc. already are) to keep the orchestrator file <300 lines.",
+    "Group config GROUPS_ALL hard-codes Time Clock children as Team Clock (MGR) + My Clock (staff only). For a manager-only view the child list collapses to 1 — surfacing a secondary bar with a single pill is visually noisy. Consider auto-flattening to a leaf when filtered children.length === 1."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "pulse.admin.test@pulsefitness.com / PulseAdmin123! (verified)",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Nav reorg validated end-to-end at https://engineer-hub-114.preview.emergentagent.com/pulse → Staffing. data-testids in StaffingConsole.js (staffing-tabs, staffing-tab-<id>, staffing-subtabs, staffing-subtab-<leaf>) are stable. Only minor UX nit is the single-child sub-tab bar in Time Clock — not blocking.",
+  "rca of the issue": "n/a — feature verification only, no bug investigation."
+}

@@ -21,7 +21,7 @@ import {
   Eye, Shield, Megaphone, Sparkles, Trash2,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
-  IdCard, Wand2, ArrowRightLeft,
+  IdCard, Wand2, ArrowRightLeft, Wallet,
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
 } from 'lucide-react';
@@ -38,6 +38,7 @@ import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
+import DeskExpenses from '@/pages/ServiceDesk/DeskExpenses';
 import ProductTour from '@/components/shared/ProductTour';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 
@@ -50,35 +51,52 @@ function humanizeRole(role) {
   return String(role).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Canonical tab registry. Each tab knows which roles can see it.
-// Iter 216h264 — reordered into a "people → schedule → daily ops →
-// performance → comms" flow per user feedback. Old order had
-// `templates` before `staff` which read backwards.
-const TABS_ALL = [
-  { id: 'dashboard',    label: 'Dashboard',     icon: LayoutDashboard, roles: ['owner','manager','master_admin'] },
-  { id: 'staff',        label: 'Staff',         icon: Users,       roles: ['owner','manager','master_admin'] },
-  { id: 'rota',         label: 'Rota',          icon: Calendar,    roles: ['owner','manager','master_admin'] },
-  { id: 'templates',    label: 'Templates',     icon: Layers,      roles: ['owner','manager','master_admin'] },
-  { id: 'leave',        label: 'Time Off',      icon: Plane,       roles: ['owner','manager','master_admin','staff'] },
-  { id: 'market',       label: 'Shift Market',  icon: ShoppingBag, roles: ['owner','manager','master_admin','staff'] },
-  { id: 'timeclock',    label: 'Time Clock',    icon: Activity,    roles: ['owner','manager','master_admin'] },
-  { id: 'myclock',      label: 'My Clock',      icon: Timer,       roles: ['staff'] },
-  { id: 'live',         label: 'Live Floor',    icon: Eye,         roles: ['owner','manager','master_admin','staff'] },
-  { id: 'performance',  label: 'Performance',   icon: BarChart3,   roles: ['owner','manager','master_admin'] },
-  { id: 'payroll',      label: 'Payroll',       icon: PoundSterling,  roles: ['owner','manager','master_admin'] },
-  { id: 'announce',     label: 'Announcements', icon: Megaphone,   roles: ['owner','manager','master_admin','staff'] },
-  { id: 'comms',        label: 'Handover Diary',     icon: MessageSquare, roles: ['owner','manager','master_admin','staff'] },
-  { id: 'operations',   label: 'Ops · Forms',   icon: ClipboardList, roles: ['owner','manager','master_admin','staff'] },
-  { id: 'hr',           label: 'HR',            icon: IdCard,      roles: ['owner','manager','master_admin'] },
-  { id: 'rules',        label: 'Rules',         icon: Shield,      roles: ['owner','manager','master_admin'] },
-  { id: 'ai-rota',      label: 'AI Rota',       icon: Wand2,       roles: ['owner','manager','master_admin'] },
-  { id: 'ai',           label: 'AI Insights',   icon: Sparkles,    roles: ['owner','manager','master_admin'] },
-  // Iter 216h113e — MOD-only: cross-site staff transfer within the
-  // same force. Hidden for non-MOD tenants. The button itself is
-  // gated below by `isMOD`; this entry stays in the registry so the
-  // role filter still resolves correctly.
-  { id: 'mod-transfer', label: 'Transfers',     icon: ArrowRightLeft, roles: ['owner','manager','master_admin','staff'], modOnly: true },
+// Iter 279d — Staffing nav condensed into logical GROUPS with nested
+// sub-tabs (was a flat 18-pill strip). Nothing is removed — features
+// are regrouped so the bar is shorter and reads top-to-bottom in a
+// natural workflow order. Each leaf keeps its original id (so deep
+// state / data-testids stay stable) and its own role gate.
+const MGR = ['owner', 'manager', 'master_admin'];
+const ALL = ['owner', 'manager', 'master_admin', 'staff'];
+
+const GROUPS_ALL = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, leaf: 'dashboard', roles: MGR },
+  // People = Staff roster + HR records (combined per user request).
+  { id: 'people', label: 'People', icon: Users, children: [
+    { id: 'staff', label: 'Staff', icon: Users,  roles: MGR },
+    { id: 'hr',    label: 'HR',    icon: IdCard, roles: MGR },
+  ] },
+  // Rota = everything schedule-related.
+  { id: 'rota', label: 'Rota', icon: Calendar, children: [
+    { id: 'rota',      label: 'Schedule',     icon: Calendar,    roles: MGR },
+    { id: 'templates', label: 'Templates',    icon: Layers,      roles: MGR },
+    { id: 'leave',     label: 'Time Off',     icon: Plane,       roles: ALL },
+    { id: 'market',    label: 'Shift Market', icon: ShoppingBag, roles: ALL },
+    { id: 'live',      label: 'Live Floor',   icon: Eye,         roles: ALL },
+    { id: 'ai-rota',   label: 'AI Rota',      icon: Wand2,       roles: MGR },
+  ] },
+  // Time Clock = manager team clock + the staff member's own clock.
+  { id: 'timeclock', label: 'Time Clock', icon: Activity, children: [
+    { id: 'timeclock', label: 'Team Clock', icon: Activity, roles: MGR },
+    { id: 'myclock',   label: 'My Clock',   icon: Timer,    roles: ['staff'] },
+  ] },
+  // Performance = overview metrics + AI insights (combined per request).
+  { id: 'performance', label: 'Performance', icon: BarChart3, children: [
+    { id: 'performance', label: 'Overview',    icon: BarChart3, roles: MGR },
+    { id: 'ai',          label: 'AI Insights', icon: Sparkles,  roles: MGR },
+  ] },
+  { id: 'payroll',  label: 'Payroll',  icon: PoundSterling, leaf: 'payroll',  roles: MGR },
+  // Expenses moved in from the Operations bar, right after Payroll.
+  { id: 'expenses', label: 'Expenses', icon: Wallet,        leaf: 'expenses', roles: MGR },
+  // Comms = Announcements + Handover Diary (combined per request).
+  { id: 'comms', label: 'Comms', icon: MessageSquare, children: [
+    { id: 'announce', label: 'Announcements',  icon: Megaphone,     roles: ALL },
+    { id: 'comms',    label: 'Handover Diary', icon: MessageSquare, roles: ALL },
+  ] },
+  { id: 'operations', label: 'Ops · Forms', icon: ClipboardList, leaf: 'operations', roles: ALL },
+  { id: 'rules',      label: 'Rules',       icon: Shield,        leaf: 'rules',      roles: MGR },
 ];
+
 
 export default function StaffingConsole() {
   const { user } = useAuth();
@@ -101,43 +119,60 @@ export default function StaffingConsole() {
   const isManager = !previewAsStaff && (role === 'owner' || role === 'manager' || role === 'master_admin');
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
 
-  const tabs = useMemo(
-    () => {
-      // Iter 216h113h — MOD tenants ONLY see Staff + Transfers.
-      // Everything else (rota, timeclock, leave, payroll, etc.) is
-      // managed by MOD HR systems out-of-band, so we hide them
-      // entirely rather than showing irrelevant tools.
-      if (isMOD) {
-        // Staff + Transfers available to every MOD role (owner,
-        // manager, AND staff) — Service Personnel viewing the
-        // gym roster need read access regardless of role.
-        const ids = new Set(['staff', 'mod-transfer']);
-        return TABS_ALL
-          .filter((t) => ids.has(t.id))
-          .map((t) => ({ ...t, roles: ['owner', 'manager', 'master_admin', 'staff'] }));
-      }
-      const filtered = TABS_ALL.filter((t) => t.roles.includes(role) && !t.modOnly);
-      // Iter 220bb — Staff view (Operations → Gym Floor sub-menu) uses
-      // Comms Hub as its handover diary, so it must be the FIRST tab
-      // for quick access during shift change-overs. Manager order is
-      // unchanged (still follows the TABS_ALL "people → schedule →
-      // daily ops → performance → comms" flow).
-      if (role === 'staff') {
-        const comms = filtered.find((t) => t.id === 'comms');
-        if (comms) {
-          return [comms, ...filtered.filter((t) => t.id !== 'comms')];
+  // Build the visible group tree for this role. MOD tenants only get a
+  // Staff roster + Transfers (everything else is managed out-of-band).
+  const groups = useMemo(() => {
+    if (isMOD) {
+      return [
+        { id: 'staff', label: 'Staff', icon: Users, leaf: 'staff' },
+        { id: 'mod-transfer', label: 'Transfers', icon: ArrowRightLeft, leaf: 'mod-transfer' },
+      ];
+    }
+    const childOK = (c) => c.roles.includes(role);
+    const list = GROUPS_ALL
+      .map((g) => {
+        if (g.children) {
+          const kids = g.children.filter(childOK);
+          return kids.length ? { ...g, children: kids } : null;
         }
-      }
-      return filtered;
-    },
-    [role, isMOD],
-  );
-  const [tab, setTab] = useState(tabs[0]?.id || 'leave');
+        return g.roles.includes(role) ? g : null;
+      })
+      .filter(Boolean);
+    // Staff use Comms (handover diary) at shift change-over, so surface it first.
+    if (role === 'staff') {
+      const idx = list.findIndex((g) => g.id === 'comms');
+      if (idx > 0) { const [c] = list.splice(idx, 1); list.unshift(c); }
+    }
+    return list;
+  }, [role, isMOD]);
 
-  // Switch to a valid tab if role-based filtering drops the current one.
+  // Flatten to leaf ids so we can map a leaf → its parent group.
+  const leafToGroup = useMemo(() => {
+    const m = {};
+    groups.forEach((g) => {
+      if (g.children) g.children.forEach((c) => { m[c.id] = g.id; });
+      else m[g.leaf] = g.id;
+    });
+    return m;
+  }, [groups]);
+
+  const firstLeaf = (g) => (g?.children ? g.children[0]?.id : g?.leaf);
+  const [tab, setTab] = useState(() => firstLeaf(groups[0]) || 'leave');
+
+  // Keep `tab` valid when the role-filtered tree changes.
   useEffect(() => {
-    if (!tabs.find((t) => t.id === tab)) setTab(tabs[0]?.id || 'leave');
-  }, [tabs, tab]);
+    if (!leafToGroup[tab]) setTab(firstLeaf(groups[0]) || 'leave');
+  }, [groups, leafToGroup, tab]);
+
+  const activeGroup = groups.find((g) => g.id === leafToGroup[tab]) || groups[0];
+  const subTabs = activeGroup?.children || [];
+
+  const selectGroup = (g) => {
+    // Jump to the group's first leaf unless the active leaf already lives
+    // inside it (so re-clicking the parent doesn't lose your sub-tab).
+    if (leafToGroup[tab] === g.id) return;
+    setTab(firstLeaf(g));
+  };
 
   return (
     <div className="space-y-5 pulse-font-body" data-testid="staffing-console">
@@ -178,18 +213,19 @@ export default function StaffingConsole() {
         ) : null}
       />
 
+      {/* Primary group bar */}
       <PillTabBar
-        activeId={tab}
+        activeId={activeGroup?.id}
         testId="staffing-tabs"
         ariaLabel="Staffing sections"
       >
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {groups.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             data-pill-id={id}
-            onClick={() => setTab(id)}
+            onClick={() => selectGroup(groups.find((g) => g.id === id))}
             className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
-            style={tab === id
+            style={activeGroup?.id === id
               ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
               : { color: 'var(--theme-text-muted)', background: 'transparent' }}
             data-testid={`staffing-tab-${id}`}
@@ -198,6 +234,28 @@ export default function StaffingConsole() {
           </button>
         ))}
       </PillTabBar>
+
+      {/* Secondary sub-tab bar (only when the active group has children) */}
+      {subTabs.length > 0 && (
+        <div
+          className="flex items-center gap-1.5 flex-wrap -mt-2"
+          data-testid="staffing-subtabs"
+        >
+          {subTabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap border"
+              style={tab === id
+                ? { background: 'rgba(25,205,255,0.12)', color: 'var(--color-brand-cyan)', borderColor: 'var(--color-brand-cyan)' }
+                : { color: 'var(--theme-text-muted)', background: 'transparent', borderColor: 'var(--theme-border)' }}
+              data-testid={`staffing-subtab-${id}`}
+            >
+              <Icon size={12} /> {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div>
         {tab === 'dashboard'   && <WorkforceDashboardTab headers={headers} />}
@@ -210,6 +268,7 @@ export default function StaffingConsole() {
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}
         {tab === 'payroll'     && <PayrollTab     headers={headers} />}
+        {tab === 'expenses'    && <DeskExpenses />}
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}
         {tab === 'announce'    && <AnnouncementsTab headers={headers} isManager={isManager} />}
