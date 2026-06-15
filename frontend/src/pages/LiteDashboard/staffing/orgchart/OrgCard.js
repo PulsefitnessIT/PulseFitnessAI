@@ -1,5 +1,5 @@
 /** A single org-chart card (person / vacancy / placeholder / contractor). */
-import { Briefcase, MapPin, Mail, Phone, Users, Wrench, UserX, UserPlus } from 'lucide-react';
+import { Briefcase, MapPin, Mail, Phone, Users, Wrench, UserX, UserPlus, Pencil } from 'lucide-react';
 import { CARD_W, CARD_H } from './layout';
 import { deptColor, humanize } from './api';
 
@@ -42,7 +42,18 @@ export default function OrgCard({
       data-orgcard="1"
       data-node-id={node.id}
     >
-      <div className="p-3 flex items-start gap-2.5">
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onOpen(node); }}
+        className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-md inline-flex items-center justify-center"
+        style={{ background: 'rgba(2,12,40,0.04)', color: 'var(--theme-text-muted, #64748b)' }}
+        title="Edit card"
+        data-testid={`orgcard-open-${node.id}`}
+      >
+        <Pencil size={12} />
+      </button>
+      <div className="p-3 pr-9 flex items-start gap-2.5">
         {toggles.photo && (
           <div
             className="flex-shrink-0 rounded-xl flex items-center justify-center text-xs font-bold"

@@ -1,6 +1,31 @@
 # Changelog
 
 
+## Jun 15, 2026 — Org Chart Builder (Phase 1) — Operations → Staffing → People → Org Chart
+
+New visual org-chart builder that **links to existing `staff_members`** (never duplicates).
+- **Backend** `routes/staffing_orgchart.py` (registered in `route_registry/features.py`):
+  collections `org_charts` + `org_chart_nodes`. Endpoints under `/api/staffing/orgchart/*`:
+  charts CRUD, `sync-staff` (auto-build one node per active staff), node CRUD,
+  `insights`, `import/preview`, `import/apply`, `export.csv`. Manager-only (`_require_manager`),
+  org-scoped. Reporting lines via `manager_node_id`; cycle-guard rejects circular lines (400).
+  `write_back_staff=true` mirrors manager/department/site onto `staff_members`
+  (`manager_staff_id`, `department`, `site_ids`).
+- **Frontend** `pages/LiteDashboard/staffing/orgchart/`: `OrgChartTab` (orchestrator + chart
+  picker + insights chips + sub-nav + filters + search + PNG/PDF/CSV export), `Canvas`
+  (pan/zoom/fit/reset/auto-layout/drag + reporting lines + drag-onto-card → move-confirm),
+  `OrgCard` (5 card types, field toggles, dept colour, explicit edit button), `panels`
+  (add/edit/move-confirm), `ListView`, `Vacancies`, `ImportExport` (CSV wizard via papaparse),
+  `Settings`. New deps: papaparse, html-to-image, jspdf.
+- Wired into `StaffingConsole.js` under group `people` → leaf `orgchart`.
+- Tested: backend pytest `tests/test_iter280_orgchart.py` (PASS, added to Makefile regression);
+  testing agent: backend 100%, frontend ~90% → fixed unreliable dbl-click-to-edit by adding an
+  explicit per-card edit button (`orgcard-open-{id}`).
+- **Deferred to Phase 2**: AI assist (generate-from-staff, gap/cycle detection, JD drafting),
+  version history + restore, audit-trail diff, presentation mode, templates library,
+  comments/notes permissions, dotted-line/secondary reporting, department/site grouping frames.
+
+
 ## Jun 10, 2026 — Fix: Marketing campaign wizard hang + silent data loss (prod report)
 
 Production report: building a campaign from a template, the final submit "disappeared", the page loaded forever, and the campaign details were lost. Root-caused three defects in `CampaignWizard.js` `launch()` (reproduced live):
