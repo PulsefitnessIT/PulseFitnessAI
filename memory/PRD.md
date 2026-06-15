@@ -1,3 +1,27 @@
+## Iter 279c — Custom Job Roles + Master Admin→Operations role sync + Expenses surfaced in Operations ✅ (Jun 15, 2026)
+
+**Requests:** (1) Operations → Staffing/HR needs **custom Job Roles** with a neutral business approach (not gym-only). (2) A role set in **Master Admin** (Ryan Somers = Engineer) must **pull through** to the Operations portal — it was wrongly showing "RECEPTION". (3) "Same for CRM with sales managers/engineers." (4) "Where is the Expenses module? Only visible to engineers." (5) Grammar correct. **User choices:** 1a (pre-fill from Master Admin, editable in Ops), 2b (neutral business defaults + custom), 3a (one shared catalogue per company), 4a (owners/managers manage).
+
+**Root cause of the "RECEPTION" bug:** `staffing._ensure_staff_for_org_users` mapped platform roles with a tiny `{owner→manager, manager→manager, staff→reception}` map — "engineer" wasn't in it, so it defaulted to "reception". Also the sync only INSERTED new staff; it never reconciled existing rows.
+
+**Backend (`routes/staffing.py`):**
+- New neutral catalogue `BUSINESS_DEFAULT_ROLES = [manager, engineer, technician, sales_manager, administrator, receptionist, supervisor, director, other]`; legacy gym roles kept in `VALID_ROLES` for back-compat (existing staff never fail validation).
+- `_staff_role_from_platform_role()` maps the Master-Admin platform role → staffing primary_role (engineer/sales_manager/technician flow straight through; owner/manager→manager; staff→other; unknown→other).
+- Sync now **reconciles** existing `auto_synced_from_users` staff to the current platform role on every staff-list load — UNLESS a manager manually overrode it (`primary_role_source == "manual"`, set by the HR PATCH). This is what makes Ryan show "Engineer".
+- `GET /staffing/roles` returns the business-neutral `platform_defaults` + custom; added `PUT /staffing/roles/{role}` (rename custom role + migrate staff carrying it). Add/delete already existed.
+
+**Frontend:**
+- `HRTab.js`: `humanizeRole()` (Title Case), business-default fallback, role `<select>` shows humanized labels + always includes the staff's current role; new **JobRolesModal** (add/rename/delete custom roles, built-in chips read-only) opened via **"Manage job roles"** button (managers only) + helper line about Master-Admin pull-through.
+- `StaffingConsole.js`: humanized role labels everywhere, business defaults in Add-Staff + shift dialogs.
+- `LiteDashboardPage.js`: surfaced the **Expenses** finance cockpit (`<DeskExpenses/>`) as a top-level Operations tab for managers/owners (was Service-Desk only).
+
+**Verified:** `tests/test_iter279c_job_roles.py` 5/5 (mapping, business catalogue, engineer reconcile, manual-override protection, custom CRUD+rename). Frontend testing agent: ALL flows pass (`iteration_iter279_job_roles_fe.json`) — Expenses tab renders cockpit, Job Roles modal add/rename/delete works, Title-Case labels, no underscored tokens. In Makefile.
+
+**Deferred — CRM job titles:** CRM "team roles" are *permission* roles (owner/admin/manager/sales_rep), a security concept distinct from job titles; did NOT auto-map job titles onto them. Surfacing the shared job-title catalogue in CRM (as a separate display field) needs a product decision — flagged to user.
+
+---
+
+
 ## Iter 279b — DEFINITIVE FIX: CRM lock-out was a STALE-TOKEN / wrong-identity auth bug ✅ (Jun 15, 2026)
 
 **Report (production, CRITICAL):** Lee Somers AND Craig Henshall (both `pulse_master_admin`) still hit "CRM is not enabled for your account" at gymaxisai.com/crm after 4 iterations + 2 redeploys. Every Master Admin screen (GymAxis + Pulse) confirms they should have access.
