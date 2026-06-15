@@ -105,7 +105,7 @@ export default function ImportExport({ chartId, onImported, onExportImage, onExp
             <FileText size={14} /> PDF
           </button>
         </div>
-        <p className="text-[11px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>PNG/PDF capture the current chart view — fit the chart to screen first for a full export.</p>
+        <p className="text-[11px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>PNG/PDF capture the full chart — we automatically open and fit the chart view before exporting.</p>
       </div>
 
       {/* Import */}

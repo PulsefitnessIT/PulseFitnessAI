@@ -61,6 +61,7 @@ export default function OrgChartTab() {
   const [search, setSearch] = useState('');
   const [focusId, setFocusId] = useState(null);
   const [presenting, setPresenting] = useState(false);
+  const [fitSignal, setFitSignal] = useState(0);
   const [filter, setFilter] = useState({ department: '', site: '', type: '', flag: '' });
   const [addOpen, setAddOpen] = useState(false);
   const [editNode, setEditNode] = useState(null);
@@ -166,13 +167,25 @@ export default function OrgChartTab() {
   };
 
   // ─── export ───
-  const captureCanvas = async () => {
+  // The export buttons live on the Import/Export tab, where the canvas is NOT
+  // mounted. Switch to the chart tab, fit the whole chart into view, then
+  // capture — so PNG/PDF always have a fully-rendered canvas to grab.
+  const prepareCanvas = async () => {
+    if (sub !== 'chart') setSub('chart');
+    setFitSignal((n) => n + 1);
+    await new Promise((r) => setTimeout(r, 600)); // mount + fit + transition
     const el = document.querySelector('[data-testid="orgchart-canvas"]');
     if (!el) throw new Error('no canvas');
-    return toPng(el, { backgroundColor: '#fbfcfe', pixelRatio: 2 });
+    return el;
+  };
+  const captureCanvas = async () => {
+    const el = await prepareCanvas();
+    // skipFonts avoids html-to-image rejecting on cross-origin @font-face fetches.
+    return toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2, cacheBust: true, skipFonts: true });
   };
   const exportImage = async () => {
-    try { const url = await captureCanvas(); const a = document.createElement('a'); a.href = url; a.download = `${chart?.name || 'org-chart'}.png`; a.click(); } catch { toast.error('Export failed'); }
+    try { const url = await captureCanvas(); const a = document.createElement('a'); a.href = url; a.download = `${chart?.name || 'org-chart'}.png`; a.click(); toast.success('PNG exported'); }
+    catch (e) { console.error('orgchart PNG export failed', e); toast.error('Export failed'); }
   };
   const exportPdf = async () => {
     try {
@@ -186,7 +199,8 @@ export default function OrgChartTab() {
       const ratio = Math.min((pw - 60) / img.width, (ph - 80) / img.height);
       pdf.addImage(url, 'PNG', 30, 60, img.width * ratio, img.height * ratio);
       pdf.save(`${chart?.name || 'org-chart'}.pdf`);
-    } catch { toast.error('Export failed'); }
+      toast.success('PDF exported');
+    } catch (e) { console.error('orgchart PDF export failed', e); toast.error('Export failed'); }
   };
 
   // ─── filter / search ───
@@ -298,6 +312,7 @@ export default function OrgChartTab() {
           settings={chart?.settings}
           dimmedIds={dimmedIds}
           focusId={focusId}
+          fitSignal={fitSignal}
           onMoveNode={moveNode}
           onRequestSetManager={requestSetManager}
           onOpenNode={(n) => setEditNode(n)}

@@ -22,7 +22,7 @@ function ToolBtn({ onClick, title, children, testId }) {
 }
 
 export default function Canvas({
-  nodes, edges, settings, dimmedIds, focusId, onMoveNode, onRequestSetManager, onOpenNode, onAutoLayout, onAddCard,
+  nodes, edges, settings, dimmedIds, focusId, fitSignal, onMoveNode, onRequestSetManager, onOpenNode, onAutoLayout, onAddCard,
 }) {
   const wrapRef = useRef(null);
   const [scale, setScale] = useState(0.8);
@@ -74,6 +74,13 @@ export default function Canvas({
   // Fit once when node count goes from 0→n.
   const fitKey = nodes.length;
   useEffect(() => { const t = setTimeout(fit, 60); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [fitKey]);
+
+  // On-demand fit (e.g. before an export) — parent bumps `fitSignal`.
+  useEffect(() => {
+    if (!fitSignal) return undefined;
+    const t = setTimeout(fit, 30);
+    return () => clearTimeout(t);
+  }, [fitSignal]); // eslint-disable-line
 
   // Focus a node (from search).
   useEffect(() => {
