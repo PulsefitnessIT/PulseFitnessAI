@@ -1,0 +1,70 @@
+{
+  "summary": "Tested the new org-chart Document Import flow (PDF → editable cards). Mini-PDF unit test passes, but the REAL Pulse Fitness PDF (586 KB, ~108 people) breaks the flow: POST /api/staffing/orgchart/charts/{cid}/import/document blocks for ~60-70 s before sending headers back through the ingress, so Cloudflare returns 502. The async-job design isn't truly fire-and-forget — `asyncio.create_task(_process_import_job(...))` starts running CPU/IO work (fitz text extraction + LLM call) before the route's response is flushed. End-to-end UI test confirmed: the 'Reading your chart…' state appears for ~2 s, then the upload fails silently (no error toast, no review table) and the dropzone resets — the document never makes it onto the canvas. Mini-PDF size hides the bug; the test_iter283 test should be considered insufficient regression coverage.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/staffing/orgchart/charts/{cid}/import/document",
+        "issue": "With the real Pulse PDF (586 KB, 7 pages) the start endpoint takes ~60–70 s to return headers, causing Cloudflare ingress 502 (reproduced twice; backend slow-request log shows '... -> 200 in 69700ms'). The async-job split is correctly DESIGNED but ineffective in practice — fitz extraction is synchronous and the awaited LLM call inside _process_import_job is somehow holding the route's response from flushing through the proxy. Net effect: defeats the whole purpose of the background-job refactor.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "startup",
+        "issue": "Backend boot log: '[security] file validation: DISABLED — uploads will fail with HTTP 415. Reason: python-magic / libmagic not loaded. Fix: apt-get install -y libmagic1 file'. Uploads currently succeed (validation skipped), but if libmagic is later loaded this endpoint will reject all PDFs with 415 unless allow-list is configured."
+      },
+      {
+        "endpoint": "indexes",
+        "issue": "Several non-fatal Mongo IndexOptionsConflict / IndexKeySpecsConflict at startup (email_send_events, ui_error_events, seo_articles). Pre-existing, not from this iteration."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "DocumentImport (Org Chart → Import / Export)",
+        "issue": "When the backend upload fails (502 / network error), the working state disappears but NO error toast, NO error text, and NO error banner is shown. Dropzone silently reverts to its idle 'Choose a chart file' state. User has no idea why the import stopped. Needs explicit error handling + user-visible toast/inline error.",
+        "selector": "[data-testid='orgchart-doc-import']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Import Pulse PDF → editable review table → apply",
+        "issue": "Could not be exercised end-to-end via the UI: the initial POST 502s through Cloudflare so importDocument() never returns a job_id; the polling loop never starts; the review table (orgchart-doc-review) never renders; the 'Add N cards' button (orgchart-doc-apply) is unreachable; the imported cards never appear on the canvas. Blocked entirely by the backend bug above.",
+        "affected_selectors": ["[data-testid='orgchart-doc-working']", "[data-testid='orgchart-doc-review']", "[data-testid='orgchart-doc-apply']", "[data-testid='orgchart-doc-done']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter283_orgchart_import_doc.py",
+    "/app/backend/tests/test_iter284_pulse_pdf_import.py",
+    "/app/test_reports/pytest/iter283_doc_import.xml",
+    "/app/test_reports/pytest/iter284_pulse.xml"
+  ],
+  "action_items": [
+    "Fix POST /api/staffing/orgchart/charts/{cid}/import/document so it ACTUALLY returns within 1–2 s, even when a large/dense PDF is uploaded. Likely fixes: (a) wrap _pdf_text / _pdf_to_images with `await asyncio.to_thread(...)` so fitz never runs on the event loop; (b) yield control once before kicking off the heavy work, e.g. `await asyncio.sleep(0)` before scheduling; (c) consider FastAPI BackgroundTasks or a dedicated worker / thread-pool so the response is flushed before LLM work begins; (d) audit whether the slow_request_log / response middleware is the one holding the response (since slow-request log shows 69.7 s even though the create_task is in place — suggests something downstream of the return is waiting).",
+    "After backend fix: re-run /app/backend/tests/test_iter284_pulse_pdf_import.py — must pass < 60 s start latency and produce ≥ 80 rows with manager_name links.",
+    "Add user-visible error state to DocumentImport when importDocument() rejects (toast + inline 'Upload failed — please try again' under the dropzone). Currently fails silently.",
+    "Strengthen test_iter283: use a multi-page PDF large enough (e.g. 200+ KB, 5+ pages) to actually exercise the timeout path."
+  ],
+  "critical_code_review_comments": [
+    "routes/staffing_orgchart_ai.py — `_pdf_text` and `_pdf_to_images` (lines 205–231) are sync CPU-bound (PyMuPDF) but are called from a background coroutine on the same event loop. For dense PDFs they will block other in-flight requests too. Must use `await asyncio.to_thread(...)`.",
+    "routes/staffing_orgchart_ai.py — `_process_import_job` started via `asyncio.create_task` (line 295) is good, but the route returns before yielding once. If FastAPI / middleware order has the task running before the response body is flushed, the proxy still sees a long-lived request. Adding `await asyncio.sleep(0)` immediately before create_task (and ensuring no sync work between create_task and `return`) is the safer pattern; the current code already does that, so the prime suspect is sync work inside _process_import_job blocking the loop before its first await.",
+    "Backend logs flag libmagic is missing — file validation is silently DISABLED. Either install libmagic (apt-get install -y libmagic1 file) and confirm uploads still work, or document the temporary skip."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter284_pulse_pdf_import.py (new — Pulse-PDF regression)"
+  ],
+  "success_rate": {
+    "backend": "50% (mini-PDF import test passes; real Pulse-PDF import 502s through ingress)",
+    "frontend": "50% (UI/tab/upload wiring all correct; end-to-end blocked by backend; no error UX on failure)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "iter284 test seeds its own org + owner and cleans up; no manual seed data left behind.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "1) Run `pytest /app/backend/tests/test_iter284_pulse_pdf_import.py` — currently FAILS (502 with start latency ~36–70 s). 2) Pulse PDF already downloaded at /tmp/pulse.pdf. 3) UI flow verified up to and including the file-input upload — Staffing top-level tab → People → Org Chart → Import/Export → orgchart-doc-file. The 'working' state DOES appear for ~2 s before the 502 silently kills it. 4) Backend slow-request log proves the route blocks (~70 s) even with `asyncio.create_task` in place.",
+  "rca of the issue": "Root cause: the supposedly-async background-job split for document import doesn't return its HTTP response within Cloudflare's ~60 s ingress timeout when given a real-world dense PDF. POST /api/staffing/orgchart/charts/{cid}/import/document logs '-> 200 in 69700ms' on the slow-request middleware while clients receive Cloudflare 502. The fitz operations in _pdf_text / _pdf_to_images are synchronous and run on the asyncio event loop inside the create_task'd `_process_import_job`, and there is no `await asyncio.sleep(0)` / `asyncio.to_thread` to yield the loop before they execute — so uvicorn cannot flush the route's response body until well past the timeout. Reproduction: 1) login admin@gymaxisai.com, 2) /pulse → Staffing → People → Org Chart → Import / Export, 3) upload https://customer-assets.emergentagent.com/job_63849f92-2b6c-4a7b-a085-feb6a7edab74/artifacts/gj10vti5_Pulse%20Group%20Organisational%20Chart%20May%202025.pdf into orgchart-doc-file, 4) observe the working state for ~2 s, then dropzone silently resets (no review table, no toast). Backend log shows ‘slow-request POST .../import/document -> 200 in 69700ms’. Mitigation: wrap fitz calls with `await asyncio.to_thread(...)` and/or schedule _process_import_job via FastAPI BackgroundTasks so the response is flushed before any sync work; additionally, add a visible error state on the DocumentImport React component when importDocument() throws."
+}

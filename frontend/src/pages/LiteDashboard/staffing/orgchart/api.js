@@ -42,6 +42,12 @@ export const ocApi = {
   unpublish: (cid) => axios.delete(`${API}/charts/${cid}/publish`, { headers: auth() }).then((r) => r.data),
   rotateLink: (cid) => axios.post(`${API}/charts/${cid}/publish/rotate`, {}, { headers: auth() }).then((r) => r.data),
   publicUrl: (token) => `${window.location.origin}/org/${token}`,
+  importDocument: (cid, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return axios.post(`${API}/charts/${cid}/import/document`, fd, { headers: auth() }).then((r) => r.data);
+  },
+  importJobStatus: (cid, jobId) => axios.get(`${API}/charts/${cid}/import/document/${jobId}`, { headers: auth() }).then((r) => r.data),
 };
 
 export const EDGE_TYPES = [

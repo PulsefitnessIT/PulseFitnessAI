@@ -6,6 +6,7 @@ import {
   UploadCloud, FileSpreadsheet, Download, CheckCircle2, AlertTriangle, ArrowRight, Loader2, Image as ImageIcon, FileText,
 } from 'lucide-react';
 import { ocApi } from './api';
+import DocumentImport from './DocumentImport';
 
 const TARGET_FIELDS = [
   { key: 'full_name', label: 'Name', required: true },
@@ -87,6 +88,9 @@ export default function ImportExport({ chartId, onImported, onExportImage, onExp
 
   return (
     <div className="space-y-5" data-testid="orgchart-import-export">
+      {/* Import an existing chart (PDF / image) */}
+      <DocumentImport chartId={chartId} onImported={onImported} />
+
       {/* Export */}
       <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border)' }}>
         <h4 className="text-sm font-bold mb-3 inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}><Download size={15} /> Export</h4>

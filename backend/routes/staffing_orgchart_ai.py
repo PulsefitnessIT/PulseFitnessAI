@@ -10,12 +10,16 @@ manager reviews and applies via the normal import / edit endpoints.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from utils.auth import get_current_user
@@ -27,6 +31,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MODEL_PROVIDER, MODEL_NAME = "anthropic", "claude-sonnet-4-6"
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 async def _ask_json(system: str, prompt: str) -> dict | list:
@@ -71,30 +79,40 @@ async def ai_generate(cid: str, body: GenerateRequest, user: dict = Depends(get_
     text = sanitize_prompt(body.text, max_chars=12000)
     if not text.strip():
         raise HTTPException(400, "Paste a staff list to generate from")
-    system = (
-        "You convert a free-text staff list into a structured org chart. "
-        "Return ONLY valid JSON, no markdown. Schema: a JSON array of objects with keys: "
-        "full_name (string), job_title (string|null), department (string|null), "
-        "manager_name (string|null, must exactly match another row's full_name), "
-        "email (string|null), vacancy (\"yes\"|\"no\"). Infer reporting lines and departments "
-        "sensibly for a fitness business. Mark clearly-empty/open roles as vacancy=yes."
-    )
-    prompt = f"Build the org-chart rows from this staff list:\n\n{text}"
-    data = await _ask_json(system, prompt)
-    rows = data if isinstance(data, list) else data.get("rows", [])
-    clean = []
-    for r in rows[:300]:
+    rows = await _rows_from_text(text)
+    return {"rows": rows, "count": len(rows)}
+
+
+_ROWS_SYSTEM = (
+    "You convert a free-text staff list into a structured org chart. "
+    "Return ONLY valid JSON, no markdown. Schema: a JSON array of objects with keys: "
+    "full_name (string), job_title (string|null), department (string|null), "
+    "manager_name (string|null, must exactly match another row's full_name), "
+    "email (string|null), vacancy (\"yes\"|\"no\"). Infer reporting lines and departments "
+    "sensibly for a fitness business. Mark clearly-empty/open roles as vacancy=yes."
+)
+
+
+def _clean_rows(data) -> list[dict]:
+    rows = data if isinstance(data, list) else (data.get("rows") if isinstance(data, dict) else [])
+    out = []
+    for r in (rows or [])[:600]:
         if not isinstance(r, dict) or not (r.get("full_name") or "").strip():
             continue
-        clean.append({
-            "full_name": str(r.get("full_name")).strip(),
-            "job_title": r.get("job_title"),
-            "department": r.get("department"),
-            "manager_name": r.get("manager_name"),
-            "email": r.get("email"),
+        out.append({
+            "full_name": str(r.get("full_name")).strip()[:120],
+            "job_title": (r.get("job_title") or None),
+            "department": (r.get("department") or None),
+            "manager_name": (r.get("manager_name") or None),
+            "email": (r.get("email") or None),
             "vacancy": "yes" if str(r.get("vacancy")).lower() in ("yes", "true", "1") else "no",
         })
-    return {"rows": clean, "count": len(clean)}
+    return out
+
+
+async def _rows_from_text(text: str) -> list[dict]:
+    data = await _ask_json(_ROWS_SYSTEM, f"Build the org-chart rows from this staff list:\n\n{text}")
+    return _clean_rows(data)
 
 
 # ───────────────────────── analyse structure ─────────────────────────
@@ -164,3 +182,155 @@ async def ai_draft_jd(cid: str, body: DraftJDRequest, user: dict = Depends(get_c
     if not isinstance(data, dict):
         raise HTTPException(502, "AI returned an unexpected response")
     return data
+
+
+# ───────────────────────── import an existing org chart (PDF / image) ─────────────────────────
+
+_VISION_SYSTEM = (
+    "You read an ORGANISATION CHART from image(s) and convert it into structured data. "
+    "Return ONLY valid JSON, no markdown — a JSON array of objects with keys: "
+    "full_name (the person's name in the box; if the box only shows a job title and no name, "
+    "use the job title as full_name), job_title (string|null), department (string|null — infer "
+    "from section headers or colour groupings if shown), manager_name (string|null — the EXACT "
+    "full_name of the box directly connected ABOVE this one in the hierarchy), vacancy "
+    "(\"yes\" if the box is clearly an empty/open/TBC/vacant role, else \"no\"). "
+    "Work top-to-bottom, follow the connecting lines carefully to set manager_name, and include "
+    "EVERY box you can read. If two boxes share a title, keep them as separate rows."
+)
+
+_PDF_TEXT_MIN = 140          # below this we treat the PDF as image-only and use vision
+_MAX_FILE_BYTES = 25 * 1024 * 1024
+
+
+def _pdf_text(data: bytes) -> str:
+    import fitz
+    try:
+        doc = fitz.open(stream=data, filetype="pdf")
+        parts = [p.get_text("text") for p in doc]
+        doc.close()
+        return "\n".join(parts).strip()
+    except Exception:
+        return ""
+
+
+def _pdf_to_images(data: bytes, dpi: int = 200, max_pages: int = 6) -> list[str]:
+    import base64 as _b64
+    import fitz
+    out = []
+    try:
+        doc = fitz.open(stream=data, filetype="pdf")
+        mat = fitz.Matrix(dpi / 72, dpi / 72)
+        for page in doc:
+            if len(out) >= max_pages:
+                break
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            out.append(_b64.b64encode(pix.tobytes("png")).decode("ascii"))
+        doc.close()
+    except Exception as e:
+        raise HTTPException(400, f"Could not read the PDF: {e}")
+    return out
+
+
+async def _rows_from_images(images_b64: list[str]) -> list[dict]:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "AI is not configured")
+    llm = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=str(uuid.uuid4()), system_message=_VISION_SYSTEM).with_model(MODEL_PROVIDER, MODEL_NAME)
+    raw = (await llm.send_message(UserMessage(
+        text="Extract the full organisation chart from the attached page image(s) as JSON rows.",
+        file_contents=[ImageContent(image_base64=b) for b in images_b64[:6]],
+    ))).strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"(\[.*\]|\{.*\})", raw, re.S)
+        if not m:
+            raise HTTPException(502, "Could not read a chart from that file")
+        data = json.loads(m.group(1))
+    return _clean_rows(data)
+
+
+@router.post("/staffing/orgchart/charts/{cid}/import/document")
+async def import_document(
+    cid: str,
+    file: UploadFile | None = File(None),
+    file_url: str | None = Form(None),
+    user: dict = Depends(get_current_user),
+):
+    """Kick off conversion of an EXISTING org chart (PDF / PNG / JPG) into
+    reviewable rows. Vision OCR can take >60s on dense charts, which exceeds
+    the ingress timeout — so we run it as a background job and the client
+    polls :func:`import_document_status`.
+    """
+    _require_manager(user)
+    org_id = _org(user)
+    await _chart_or_404(cid, org_id)
+
+    data, filename = None, "upload"
+    if file is not None:
+        data = await file.read()
+        filename = file.filename or "upload"
+    elif file_url:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
+            r = await c.get(file_url)
+            if r.status_code != 200:
+                raise HTTPException(400, "Could not download that file")
+            data = r.content
+            filename = file_url.split("?")[0].rsplit("/", 1)[-1] or "upload"
+    if not data:
+        raise HTTPException(400, "Upload a file or provide file_url")
+    if len(data) > _MAX_FILE_BYTES:
+        raise HTTPException(400, "File too large (max 25MB)")
+
+    job_id = str(uuid.uuid4())
+    await db.org_chart_import_jobs.insert_one({
+        "id": job_id, "chart_id": cid, "organization_id": org_id,
+        "status": "processing", "filename": filename, "rows": [], "count": 0,
+        "source": None, "error": None,
+        "created_at": _now_iso(), "updated_at": _now_iso(),
+    })
+    asyncio.create_task(_process_import_job(job_id, cid, org_id, data, filename))
+    return {"job_id": job_id, "status": "processing", "filename": filename}
+
+
+@router.get("/staffing/orgchart/charts/{cid}/import/document/{job_id}")
+async def import_document_status(cid: str, job_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    job = await db.org_chart_import_jobs.find_one(
+        {"id": job_id, "chart_id": cid, "organization_id": org_id}, {"_id": 0})
+    if not job:
+        raise HTTPException(404, "Import job not found")
+    return job
+
+
+async def _process_import_job(job_id: str, cid: str, org_id: str, data: bytes, filename: str):
+    try:
+        lower = filename.lower()
+        is_pdf = lower.endswith(".pdf") or data[:5] == b"%PDF-"
+        if is_pdf:
+            text = _pdf_text(data)
+            if len(text) >= _PDF_TEXT_MIN:
+                rows = await _rows_from_text(sanitize_prompt(text, max_chars=16000))
+                source = "text"
+            else:
+                rows = await _rows_from_images(_pdf_to_images(data))
+                source = "vision"
+        else:
+            import base64 as _b64
+            rows = await _rows_from_images([_b64.b64encode(data).decode("ascii")])
+            source = "vision"
+        await db.org_chart_import_jobs.update_one(
+            {"id": job_id},
+            {"$set": {"status": "done", "rows": rows, "count": len(rows),
+                      "source": source, "updated_at": _now_iso()}})
+    except HTTPException as e:
+        await db.org_chart_import_jobs.update_one(
+            {"id": job_id}, {"$set": {"status": "error", "error": str(e.detail), "updated_at": _now_iso()}})
+    except Exception as e:  # noqa: BLE001
+        logger.exception("orgchart import job failed")
+        await db.org_chart_import_jobs.update_one(
+            {"id": job_id}, {"$set": {"status": "error", "error": "Could not read that chart", "updated_at": _now_iso()}})

@@ -358,6 +358,7 @@ regression:
           tests/test_iter280_orgchart.py \
           tests/test_iter281_orgchart_phase2.py \
           tests/test_iter282_orgchart_share.py \
+          tests/test_iter283_orgchart_import_doc.py \
           -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
