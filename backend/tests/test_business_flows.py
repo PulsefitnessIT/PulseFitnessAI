@@ -19,7 +19,7 @@ import httpx
 import pytest
 
 
-API_URL = os.environ.get("BACKEND_BASE_URL", "https://engineer-hub-114.preview.emergentagent.com")
+API_URL = os.environ.get("BACKEND_BASE_URL", "https://staffing-ops-preview.preview.emergentagent.com")
 MASTER_EMAIL = "admin@gymaxisai.com"
 MASTER_PASS = "MasterAdmin123!"
 

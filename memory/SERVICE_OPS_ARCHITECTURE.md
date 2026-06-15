@@ -286,7 +286,7 @@ All AI calls funnel through a single `utils/svc/ai_client.py` so we can swap mod
 - Trigger points: case created, assigned, engineer en route, on site, completed, awaiting sign-off.
 - Inbound replies match by case ID footer (`Re: #SVC-1042`) → appended to timeline.
 - All messages logged to `svc_case_events` with channel + delivery status (Twilio webhooks for SMS, Resend webhooks for email).
-- Customer self-serve link: `https://engineer-hub-114.preview.emergentagent.com/svc/track/{token}` shows status, ETA, photos, lets them reply.
+- Customer self-serve link: `https://staffing-ops-preview.preview.emergentagent.com/svc/track/{token}` shows status, ETA, photos, lets them reply.
 
 ---
 
