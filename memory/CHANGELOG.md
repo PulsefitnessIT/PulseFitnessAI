@@ -1,6 +1,21 @@
 # Changelog
 
 
+## Jun 15, 2026 — Org Chart: Publish & share a read-only public link
+
+- Backend (`routes/staffing_orgchart.py`): `POST/DELETE .../publish`, `POST .../publish/rotate`,
+  and a **no-auth** `GET /staffing/orgchart/public/{token}`. Token is `secrets.token_urlsafe(16)`,
+  stored on `org_charts` (`is_public`, `public_token`, `public_show_contact`). Public response is
+  sanitised — never returns notes, salary bands, linked `staff_id`, or email/phone (email/phone only
+  when the publisher opts in via `show_contact`). Rotate/unpublish immediately 404 old links.
+- Frontend: `ShareModal.js` (publish, copy, open, rotate, stop-sharing, contact toggle) opened from a
+  header **Share** button (label flips Share↔Shared); public route `/org/:token` →
+  `pages/Public/PublicOrgChartPage.js` renders a clean, branded, read-only top-down tree (reuses
+  `layout.js`), with a "no longer available" state for revoked links.
+- Tested: backend pytest `test_iter282_orgchart_share.py` (GREEN, incl. leak-guards) added to Makefile
+  regression; testing agent **100% backend + 100% frontend** on the live preview.
+
+
 ## Jun 15, 2026 — Org Chart Builder (Phase 2) — AI, history, templates, presentation, dotted lines, notes
 
 Extends the Phase-1 builder (Operations → Staffing → People → Org Chart).
