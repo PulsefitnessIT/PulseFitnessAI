@@ -1,0 +1,35 @@
+{
+  "summary": "All 3 P0 org-chart bugfixes VERIFIED on the existing 'Organisation Chart' (def4ec1f, 121 nodes) under admin@gymaxisai.com. FIX 1 (drag): dragged a card to an empty canvas location — no PageError, no console error, card visibly moves (errs:0). FIX 2 (Presentation): clicked orgchart-present, the orgchart-presentation overlay rendered with title 'Organisation' (rgb(255,255,255) #fff, 24px), subtitle '121 people · 37 departments' (rgba(255,255,255,0.55)), and person card names ('Master Admin', 'Service Desk Agent', 'Craig Henshall', 'Engineer Smoke', 'Sarah', 'EDITED Test', 'Chris Johnson') ALL in solid white on dark navy background — text clearly readable (screenshot confirmed). Department badges show their accent colours. The light-theme .text-white override is bypassed by inline color styles as documented. FIX 3 (Vertical layout): orgchart-settings-layout dropdown exposes 3 options [{v:'vertical', t:'Vertical (stacked)'}, {v:'top-down', t:'Top-down'}, {v:'left-right', t:'Left-to-right'}]. Selecting 'vertical' + clicking orgchart-toolbar-autolayout produces an indented vertical tree: first 15 card positions show X range = 42px (small indent per depth) vs Y range = 504px (stacked downward), confirming teams stack vertically not horizontally. 'Auto-arranged' toast fires. FIX 3 default: Created a new chart via orgchart-new-chart ('TEST_iter286_default') and opened its Settings — Layout dropdown defaults to value='vertical' as required. TOTAL console/pageerror count across the whole test: 0 (excluding pre-existing CSP-blocked 3rd-party analytics scripts which are unrelated).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iter286_01_canvas.png",
+    "/app/test_reports/iter286_02_presentation.png",
+    "/app/test_reports/iter286_03_presentation_slide2.png",
+    "/app/test_reports/iter286_04_vertical.png",
+    "/app/test_reports/iter286_05_topdown.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Canvas.js onCardPointerDown/onPointerUp guards are sound — try/catch around setPointerCapture and null-checked byId lookups eliminated the previous TypeError that crashed the canvas.",
+    "Presentation.js correctly uses inline `style={{color:'#fff'}}` / rgba whites instead of Tailwind .text-white class. This is the right fix because /app/frontend/src/index.css line 630 has a [data-theme=light] .text-white { color: var(--theme-text) !important } rule that would otherwise darken text inside the body-portal presentation. Long-term recommendation: scope that index.css selector or add :not([data-orgchart-presentation]) so .text-white is not globally hijacked — would prevent similar regressions elsewhere.",
+    "layout.js computeLayout 'vertical' branch: V_INDENT=56, V_ROW=144. Indentation is subtle but visible; for very deep trees (>10 levels) the indent column may exceed CARD_W and overlap card text. Consider clamping depth or using a hanging-tree marker. Non-blocking.",
+    "Settings.js correctly defaults `s.layout || 'vertical'` so charts with no stored layout fall through to vertical — matches backend DEFAULT_SETTINGS.layout='vertical'. Good alignment.",
+    "Could not visually trigger MoveConfirmModal in this run because at the auto-fit zoom level cards are 49px wide so drop-on-target hit detection requires very precise mouse coordinates. The drag itself did not crash, which is the P0 acceptance criterion. Recommend e2e test at default zoom (1.0) to assert MoveConfirmModal renders."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested)", "frontend": "100%"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Created TEST_iter286_default chart to verify new-chart default layout, then deleted it via orgchart-delete-confirm. Existing 'Organisation Chart' (def4ec1f) was used for drag/present/auto-layout tests; its current persisted layout is now 'top-down' (last setting before delete-chart cleanup) — if next agent expects vertical persistence on this chart, run autolayout once after switching it back.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 3 bugfixes confirmed working. Navigation: /pulse → click role=button 'Staffing' (top-level Operations tab) → data-testid=staffing-tab-people → data-testid=staffing-subtab-orgchart. Canvas testid=orgchart-canvas with 121 [data-orgcard='1'] cards. Presentation overlay testid=orgchart-presentation uses inline #fff text (verified rgb(255,255,255)). Settings dropdown values: 'vertical' | 'top-down' | 'left-right'.",
+  "rca of the issue": "All three RCAs from the request were correctly diagnosed and fixed: (1) setPointerCapture on ancestor + undefined byId/pos lookups → wrapped in try/catch with null guards; verified zero PageError during 2 separate drag operations. (2) Global [data-theme=light] .text-white !important rule in index.css darkened body-portal presentation text → switched to inline color:'#fff' / rgba whites; verified computed colors are now rgb(255,255,255) and rgba(255,255,255,0.55). (3) computeLayout spread siblings horizontally on shared lanes → added dir='vertical' branch with single-column DFS that increments row per node and indents x by V_INDENT*depth; verified X range 42px vs Y range 504px on 15 successive cards = stacked indented tree."
+}

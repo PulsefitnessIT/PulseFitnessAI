@@ -7,6 +7,8 @@ export const CARD_W = 196;
 export const CARD_H = 116;
 const X_GAP = 224;
 const Y_GAP = 168;
+const V_INDENT = 56;            // horizontal indent per depth (vertical layout)
+const V_ROW = CARD_H + 28;      // row pitch (vertical layout)
 
 export function computeLayout(nodes, dir = 'top-down') {
   const byId = {};
@@ -17,6 +19,26 @@ export function computeLayout(nodes, dir = 'top-down') {
     (children[m] = children[m] || []).push(n.id);
   });
   const roots = children.__root__ || [];
+
+  // ── Vertical (stacked) — indented tree: every report stacks below its
+  // manager and indents right; sibling teams stack on top of each other.
+  // Produces a tall, narrow, print-friendly chart (matches the Pulse style).
+  if (dir === 'vertical') {
+    const posV = {};
+    const seenV = new Set();
+    let row = 0;
+    const visit = (id, depth) => {
+      if (seenV.has(id)) return;
+      seenV.add(id);
+      posV[id] = { x: depth * V_INDENT, y: row * V_ROW };
+      row += 1;
+      (children[id] || []).forEach((k) => visit(k, depth + 1));
+    };
+    roots.forEach((r) => visit(r, 0));
+    nodes.forEach((n) => { if (!posV[n.id]) { posV[n.id] = { x: 0, y: row * V_ROW }; row += 1; } });
+    return nodes.map((n) => ({ ...n, x: posV[n.id].x, y: posV[n.id].y }));
+  }
+
   const pos = {};
   let cursor = 0;
   const seen = new Set();

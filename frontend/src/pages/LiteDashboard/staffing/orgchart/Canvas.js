@@ -89,7 +89,10 @@ export default function Canvas({
   // ─── pointer handlers ───
   const onCardPointerDown = (e, node) => {
     e.stopPropagation();
-    wrapRef.current.setPointerCapture?.(e.pointerId);
+    // setPointerCapture can throw (InvalidStateError / no active pointer) in
+    // some browsers when captured on an ancestor of the pointerdown target —
+    // never let that crash the canvas.
+    try { wrapRef.current?.setPointerCapture?.(e.pointerId); } catch { /* noop */ }
     drag.current = { id: node.id, startX: e.clientX, startY: e.clientY, origX: pos[node.id]?.x || 0, origY: pos[node.id]?.y || 0, moved: false, pointerId: e.pointerId };
     setSelected(node.id);
   };
@@ -127,13 +130,15 @@ export default function Canvas({
       const target = hoverTarget;
       drag.current = null;
       setHoverTarget(null);
+      try { wrapRef.current?.releasePointerCapture?.(d.pointerId); } catch { /* noop */ }
       if (d.moved && target && target !== d.id) {
         // reset visual position; manager change re-layouts via parent
-        setPos((p) => ({ ...p, [d.id]: { x: byId[d.id].x, y: byId[d.id].y } }));
+        const home = byId[d.id];
+        if (home) setPos((p) => ({ ...p, [d.id]: { x: home.x || 0, y: home.y || 0 } }));
         onRequestSetManager(d.id, target);
       } else if (d.moved) {
         const np = pos[d.id];
-        onMoveNode(d.id, { x: Math.round(np.x), y: Math.round(np.y) });
+        if (np) onMoveNode(d.id, { x: Math.round(np.x), y: Math.round(np.y) });
       }
     }
     pan.current = null;
@@ -161,16 +166,25 @@ export default function Canvas({
   };
 
   // connection paths
+  const isVertical = settings?.layout === 'vertical';
   const paths = useMemo(() => nodes.map((n) => {
     if (!n.manager_node_id || !byId[n.manager_node_id]) return null;
     const m = pos[n.manager_node_id]; const c = pos[n.id];
     if (!m || !c) return null;
+    const dim = dimmedIds.has(n.id) || dimmedIds.has(n.manager_node_id);
+    if (isVertical) {
+      // orthogonal "file-tree" elbow: down from the manager then right into the child
+      const sx = m.x + 22;
+      const sy = m.y + CARD_H;
+      const ey = c.y + CARD_H / 2;
+      const ex = c.x;
+      return { id: n.id, d: `M ${sx} ${sy} L ${sx} ${ey} L ${ex} ${ey}`, dim };
+    }
     const sx = m.x + CARD_W / 2; const sy = m.y + CARD_H;
     const ex = c.x + CARD_W / 2; const ey = c.y;
     const midY = (sy + ey) / 2;
-    const dim = dimmedIds.has(n.id) || dimmedIds.has(n.manager_node_id);
     return { id: n.id, d: `M ${sx} ${sy} C ${sx} ${midY}, ${ex} ${midY}, ${ex} ${ey}`, dim };
-  }).filter(Boolean), [nodes, pos, byId, dimmedIds]);
+  }).filter(Boolean), [nodes, pos, byId, dimmedIds, isVertical]);
 
   // dashed secondary-reporting edges
   const edgePaths = useMemo(() => (edges || []).map((e) => {

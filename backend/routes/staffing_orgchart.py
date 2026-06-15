@@ -57,7 +57,7 @@ DEFAULT_SETTINGS = {
         "phone": False, "reports_count": True, "status": True,
         "employment_type": False,
     },
-    "layout": "top-down",       # top-down | left-right
+    "layout": "vertical",       # vertical | top-down | left-right
     "group_by": "none",         # none | department | site
     "show_grid": True,
 }
@@ -182,6 +182,42 @@ def _node_from_staff(chart_id: str, org_id: str, s: dict, x: float = 0, y: float
     }
 
 
+# Vertical (stacked) layout — mirrors the frontend indented-tree algorithm so
+# freshly seeded / imported charts arrive in the print-friendly stacked shape
+# without the user having to hit "Auto-layout" first.
+_V_INDENT = 56
+_V_ROW = 144  # CARD_H (116) + 28
+
+
+def _vertical_positions(nodes: list[dict]) -> dict[str, tuple[float, float]]:
+    ids = {n["id"] for n in nodes}
+    children: dict[str, list[str]] = {}
+    for n in nodes:
+        m = n.get("manager_node_id")
+        key = m if (m in ids) else "__root__"
+        children.setdefault(key, []).append(n["id"])
+    pos: dict[str, tuple[float, float]] = {}
+    seen: set[str] = set()
+    row = {"i": 0}
+
+    def visit(nid: str, depth: int):
+        if nid in seen:
+            return
+        seen.add(nid)
+        pos[nid] = (depth * _V_INDENT, row["i"] * _V_ROW)
+        row["i"] += 1
+        for k in children.get(nid, []):
+            visit(k, depth + 1)
+
+    for r in children.get("__root__", []):
+        visit(r, 0)
+    for n in nodes:
+        if n["id"] not in pos:
+            pos[n["id"]] = (0, row["i"] * _V_ROW)
+            row["i"] += 1
+    return pos
+
+
 # ───────────────────────── charts ─────────────────────────
 
 @router.get("/staffing/orgchart/charts")
@@ -240,6 +276,11 @@ async def _seed_from_staff(chart_id: str, org_id: str) -> int:
             n = next((x for x in new_nodes if x["staff_id"] == s["id"]), None)
             if n and s.get("manager_staff_id") and s["manager_staff_id"] in sid_to_node:
                 n["manager_node_id"] = sid_to_node[s["manager_staff_id"]]
+        # Fresh build (no pre-existing cards) → arrange vertically (stacked).
+        if not existing:
+            posmap = _vertical_positions(new_nodes)
+            for n in new_nodes:
+                n["x"], n["y"] = posmap[n["id"]]
         await db.org_chart_nodes.insert_many([n.copy() for n in new_nodes])
     return len(new_nodes)
 
@@ -551,6 +592,11 @@ async def import_apply(cid: str, body: ImportRequest, user: dict = Depends(get_c
         if mn and mn in name_to_node and name_to_node[mn] != n["id"]:
             n["manager_node_id"] = name_to_node[mn]
     if created:
+        # Arrange the imported batch vertically (stacked) so it lands in the
+        # print-friendly shape immediately.
+        posmap = _vertical_positions(created)
+        for n in created:
+            n["x"], n["y"] = posmap[n["id"]]
         await db.org_chart_nodes.insert_many([n.copy() for n in created])
     await _audit(cid, org_id, user.get("email"), "import", f"{len(created)} cards imported")
     return {"ok": True, "imported": len(created)}

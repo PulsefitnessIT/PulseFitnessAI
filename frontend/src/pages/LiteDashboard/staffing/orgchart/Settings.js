@@ -55,7 +55,8 @@ export default function Settings({ chart, onSave, onRename, onDelete }) {
         <div className="grid sm:grid-cols-3 gap-3">
           <label className="block">
             <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Direction</span>
-            <select value={s.layout || 'top-down'} onChange={(e) => setKey('layout', e.target.value)} className="mt-1 w-full px-2 py-2 rounded-lg text-sm border outline-none" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-settings-layout">
+            <select value={s.layout || 'vertical'} onChange={(e) => setKey('layout', e.target.value)} className="mt-1 w-full px-2 py-2 rounded-lg text-sm border outline-none" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-settings-layout">
+              <option value="vertical">Vertical (stacked)</option>
               <option value="top-down">Top-down</option>
               <option value="left-right">Left-to-right</option>
             </select>

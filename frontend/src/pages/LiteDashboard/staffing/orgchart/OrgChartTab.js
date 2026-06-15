@@ -149,7 +149,7 @@ export default function OrgChartTab() {
   };
 
   const autoLayout = async () => {
-    const laid = computeLayout(nodes, chart?.settings?.layout || 'top-down');
+    const laid = computeLayout(nodes, chart?.settings?.layout || 'vertical');
     setNodes(laid);
     toast.success('Auto-arranged');
     await Promise.all(laid.map((n) => ocApi.updateNode(chartId, n.id, { x: Math.round(n.x), y: Math.round(n.y) }).catch(() => {})));

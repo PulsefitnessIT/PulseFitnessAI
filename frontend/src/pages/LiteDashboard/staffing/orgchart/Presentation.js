@@ -8,8 +8,8 @@ function PCard({ n }) {
   const accent = n.type === 'vacancy' ? '#fb923c' : deptColor(n.department);
   return (
     <div className="rounded-2xl px-4 py-3 min-w-[180px]" style={{ background: 'rgba(255,255,255,0.06)', borderLeft: `4px solid ${accent}`, backdropFilter: 'blur(8px)' }}>
-      <div className="text-sm font-bold text-white">{n.full_name}</div>
-      <div className="text-xs text-white/60">{humanize(n.job_title) || (n.type === 'vacancy' ? 'Open role' : '')}</div>
+      <div className="text-sm font-bold" style={{ color: '#ffffff' }}>{n.full_name}</div>
+      <div className="text-xs" style={{ color: 'rgba(255,255,255,0.65)' }}>{humanize(n.job_title) || (n.type === 'vacancy' ? 'Open role' : '')}</div>
       {n.department && <div className="text-[10px] mt-1 font-semibold" style={{ color: accent }}>{n.department}</div>}
     </div>
   );
@@ -44,25 +44,25 @@ export default function Presentation({ nodes, byId, onClose }) {
     <div className="fixed inset-0 z-[2000] flex flex-col" style={{ background: 'linear-gradient(160deg, #0a1530 0%, #0f1f3d 100%)' }} data-testid="orgchart-presentation">
       <div className="flex items-center justify-between px-8 py-5">
         <div>
-          <div className="text-2xl font-bold text-white pulse-font-heading">{slide?.title}</div>
-          <div className="text-sm text-white/50">{slide?.subtitle}</div>
+          <div className="text-2xl font-bold pulse-font-heading" style={{ color: '#ffffff' }}>{slide?.title}</div>
+          <div className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>{slide?.subtitle}</div>
         </div>
-        <button onClick={onClose} className="w-10 h-10 rounded-xl inline-flex items-center justify-center text-white/70 hover:text-white" style={{ background: 'rgba(255,255,255,0.08)' }} data-testid="orgchart-present-close"><X size={20} /></button>
+        <button onClick={onClose} className="w-10 h-10 rounded-xl inline-flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.8)' }} data-testid="orgchart-present-close"><X size={20} /></button>
       </div>
 
       <div className="flex-1 overflow-auto px-8 pb-8">
         <div className="flex flex-wrap gap-3 content-start">
           {(slide?.nodes || []).map((n) => <PCard key={n.id} n={n} />)}
-          {!slide?.nodes?.length && <div className="text-white/40 text-sm">No cards in this section.</div>}
+          {!slide?.nodes?.length && <div className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>No cards in this section.</div>}
         </div>
       </div>
 
       <div className="flex items-center justify-center gap-4 py-5">
-        <button onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0} className="w-10 h-10 rounded-full inline-flex items-center justify-center text-white disabled:opacity-30" style={{ background: 'rgba(255,255,255,0.1)' }} data-testid="orgchart-present-prev"><ChevronLeft size={20} /></button>
+        <button onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0} className="w-10 h-10 rounded-full inline-flex items-center justify-center disabled:opacity-30" style={{ background: 'rgba(255,255,255,0.1)', color: '#ffffff' }} data-testid="orgchart-present-prev"><ChevronLeft size={20} /></button>
         <div className="flex gap-1.5">
           {slides.map((_, idx) => <span key={idx} className="w-2 h-2 rounded-full" style={{ background: idx === i ? 'var(--color-brand-cyan, #19cdff)' : 'rgba(255,255,255,0.25)' }} />)}
         </div>
-        <button onClick={() => setI((x) => Math.min(slides.length - 1, x + 1))} disabled={i === slides.length - 1} className="w-10 h-10 rounded-full inline-flex items-center justify-center text-white disabled:opacity-30" style={{ background: 'rgba(255,255,255,0.1)' }} data-testid="orgchart-present-next"><ChevronRight size={20} /></button>
+        <button onClick={() => setI((x) => Math.min(slides.length - 1, x + 1))} disabled={i === slides.length - 1} className="w-10 h-10 rounded-full inline-flex items-center justify-center disabled:opacity-30" style={{ background: 'rgba(255,255,255,0.1)', color: '#ffffff' }} data-testid="orgchart-present-next"><ChevronRight size={20} /></button>
       </div>
     </div>, document.body,
   );
