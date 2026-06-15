@@ -1,0 +1,39 @@
+{
+  "summary": "Iter 281 / Phase 2 Org Chart Builder — full backend + frontend verification. Backend deterministic pytest (iter280 + iter281_phase2) PASS. Backend LIVE AI pytest (iter281_orgchart_ai) PASS — all 3 endpoints (ai/generate, ai/analyze, ai/draft-jd) call Claude via Emergent LLM key and return correctly-shaped data (Tom→Sarah reporting inferred, receptionist=vacancy='yes', analyze returns summary/issues[5]/suggestions[5], JD returns 8 responsibilities / 8 requirements). Frontend: logged in as admin@gymaxisai.com → /pulse → Operations→Staffing→People→Org Chart. All Phase-2 sub-tabs (orgchart-subtab-ai/templates/history) + Present button render. AI tab end-to-end works in UI: text→generate produces preview rows w/ Add-N-cards-to-chart apply button; analyze renders structured issues+suggestions in orgchart-ai-analysis; JD draft renders in orgchart-jd-result with Copy button. Templates tab shows 8 apply buttons; clicking orgchart-template-apply-service_company applies + audit logs. History tab: orgchart-version-save creates snapshot (orgchart-version-restore-{id} appears), orgchart-audit-list shows recent actions. Presentation overlay (orgchart-presentation) opens dark deck, next/prev/close all work. Node drawer (opened via orgcard-open-{id}): secondary reporting added (Dotted line → Service Desk Agent confirmed, toast 'Secondary line added' shown, dashed line renders in canvas); note added with Confidential flag and appears in orgchart-notes-list. Settings groupby selector works. Regression: List view, export csv/png/pdf + import dropzone all intact (14 list rows after additions). Only ignorable CSP console errors (assets.emergent.sh/posthog/cloudflare).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Canvas grouping frames", "issue": "After setting Settings → Group by = Department, cards correctly receive department-colored left borders, but I could not detect any coloured-dashed rectangular group FRAMES behind the cards via DOM queries (svg rect[stroke-dasharray], div[style*='dashed'], [data-group-frame] all returned 0). Visual screenshot also does not show frame rectangles. May be a rendering gap (frames depend on layout pass or have a different DOM signature). Worth a manual look — if frames are supposed to be visible behind cards, they currently are not (only per-card colored borders).", "selector": "Canvas (no testid for group frames)", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Org Chart canvas", "issues": ["Cookie consent banner overlays bottom of viewport on first visit (still). Dismissing 'Accept All' works for the session — same minor note as iter280."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter280_orgchart.py",
+    "/app/backend/tests/test_iter281_orgchart_phase2.py",
+    "/app/backend/tests/test_iter281_orgchart_ai.py",
+    "/app/test_reports/pytest/iter281_phase2.xml",
+    "/app/test_reports/pytest/iter281_ai.xml"
+  ],
+  "action_items": [
+    "Verify whether the department group FRAMES (coloured dashed rectangles behind cards) are actually rendering on the Canvas when Settings.group_by=department. In this run only per-card colored borders were visible; no dashed frame rectangles were found in the DOM. If frames are expected, the rendering may be skipped / opacity 0 / mounted outside the canvas SVG. Consider adding a stable data-testid (e.g. orgchart-group-frame-{department}) so this can be asserted automatically."
+  ],
+  "critical_code_review_comments": [
+    "Phase-2 backend cleanly separated into staffing_orgchart.py (deterministic CRUD: versions/audit/edges/notes/templates) and staffing_orgchart_ai.py (LLM I/O). Live Claude calls return well-shaped JSON used directly by the FE table. Good split.",
+    "AI 'analyze' returns 400 'Add some cards before running analysis' on an empty chart — clean guard, but FE should disable the Analyze button (or show a hint) when node_count==0 instead of letting it 400.",
+    "edge-self-loop is properly rejected with 400 (verified by pytest).",
+    "audit log captures template_applied, version_saved, edge_added etc. and renders nicely in History; consider paginating if charts get large."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter281_orgchart_ai.py (new — live AI verification)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~95%"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123! (master admin, GymAxis org) — used for /pulse FE testing.",
+  "seed_data_creation": "Backend tests seed/clean their own iter281* orgs. Frontend test ran on GymAxis org and added: AI-applied rows (Sarah/Tom/Receptionist), service_company template roles, 1 secondary edge, 1 confidential note — left in place for next agent visibility.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 is GREEN end-to-end. The only soft finding is that department group FRAMES (dashed rectangles) were not visible in the DOM after toggling Settings.group_by=department — only per-card department-colored left borders. If main agent intentionally renders frames as SVG rects, please add a stable testid (orgchart-group-frame-{dept}) for automated assertion. AI endpoints take ~5-15s each (live Claude) — wait 20s+ in scripts.",
+  "rca of the issue": "Group frames: queried DOM for svg rect[stroke-dasharray], div[style*='dashed'], [data-group-frame], [class*='group'] — only 'orgchart-stat-Departments' matched. Cards do gain department colour, suggesting group_by is applied to card styling but the actual frame containers may not be implemented yet OR use a class/attribute that wasn't probed. Recommend main agent confirms visually in browser and adds a testid."
+}

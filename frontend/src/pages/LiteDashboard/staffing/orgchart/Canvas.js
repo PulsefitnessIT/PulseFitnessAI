@@ -5,7 +5,9 @@ import {
 } from 'lucide-react';
 import OrgCard from './OrgCard';
 import { CARD_W, CARD_H, computeLayout, bounds } from './layout';
+import { deptColor, EDGE_TYPES } from './api';
 
+const EDGE_COLOR = Object.fromEntries(EDGE_TYPES.map((e) => [e.id, e.color]));
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 2;
 
@@ -20,7 +22,7 @@ function ToolBtn({ onClick, title, children, testId }) {
 }
 
 export default function Canvas({
-  nodes, settings, dimmedIds, focusId, onMoveNode, onRequestSetManager, onOpenNode, onAutoLayout, onAddCard,
+  nodes, edges, settings, dimmedIds, focusId, onMoveNode, onRequestSetManager, onOpenNode, onAutoLayout, onAddCard,
 }) {
   const wrapRef = useRef(null);
   const [scale, setScale] = useState(0.8);
@@ -170,6 +172,35 @@ export default function Canvas({
     return { id: n.id, d: `M ${sx} ${sy} C ${sx} ${midY}, ${ex} ${midY}, ${ex} ${ey}`, dim };
   }).filter(Boolean), [nodes, pos, byId, dimmedIds]);
 
+  // dashed secondary-reporting edges
+  const edgePaths = useMemo(() => (edges || []).map((e) => {
+    const a = pos[e.from_node_id]; const b = pos[e.to_node_id];
+    if (!a || !b) return null;
+    const sx = a.x + CARD_W / 2; const sy = a.y + CARD_H / 2;
+    const ex = b.x + CARD_W / 2; const ey = b.y + CARD_H / 2;
+    return { id: e.id, d: `M ${sx} ${sy} C ${(sx + ex) / 2} ${sy}, ${(sx + ex) / 2} ${ey}, ${ex} ${ey}`, color: EDGE_COLOR[e.line_type] || '#7c3aed' };
+  }).filter(Boolean), [edges, pos]);
+
+  // department / site grouping frames
+  const groupBy = settings?.group_by;
+  const frames = useMemo(() => {
+    if (groupBy !== 'department' && groupBy !== 'site') return [];
+    const groups = {};
+    nodes.forEach((n) => {
+      const key = groupBy === 'department' ? (n.department || 'Unassigned') : (n.site_name || 'No site');
+      const p = pos[n.id]; if (!p) return;
+      const g = groups[key] || { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, count: 0 };
+      g.minX = Math.min(g.minX, p.x); g.minY = Math.min(g.minY, p.y);
+      g.maxX = Math.max(g.maxX, p.x + CARD_W); g.maxY = Math.max(g.maxY, p.y + CARD_H);
+      g.count += 1; groups[key] = g;
+    });
+    const PAD = 22;
+    return Object.entries(groups).filter(([, g]) => g.count > 0 && isFinite(g.minX)).map(([key, g]) => ({
+      key, color: deptColor(key),
+      x: g.minX - PAD, y: g.minY - PAD - 18, w: g.maxX - g.minX + PAD * 2, h: g.maxY - g.minY + PAD * 2 + 18,
+    }));
+  }, [groupBy, nodes, pos]);
+
   return (
     <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--theme-border)', height: '64vh', minHeight: 460 }} data-testid="orgchart-canvas">
       {/* toolbar */}
@@ -205,9 +236,17 @@ export default function Canvas({
         onWheel={onWheel}
       >
         <div style={{ position: 'absolute', left: 0, top: 0, transform: `translate(${tx}px, ${ty}px) scale(${scale})`, transformOrigin: '0 0' }}>
-          <svg style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', width: 1, height: 1, pointerEvents: 'none' }}>
+          {frames.map((f) => (
+            <div key={f.key} className="absolute rounded-2xl" style={{ left: f.x, top: f.y, width: f.w, height: f.h, background: `${f.color}0d`, border: `1.5px dashed ${f.color}55`, zIndex: 1 }}>
+              <span className="absolute -top-0.5 left-3 text-[11px] font-bold px-2 py-0.5 rounded-b-md" style={{ background: f.color, color: '#fff' }}>{f.key}</span>
+            </div>
+          ))}
+          <svg style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', width: 1, height: 1, pointerEvents: 'none', zIndex: 5 }}>
             {paths.map((p) => (
-              <path key={p.id} d={p.d} fill="none" stroke={hoverTarget ? '#94a3b8' : '#94a3b8'} strokeWidth={1.6} strokeOpacity={p.dim ? 0.15 : 0.6} />
+              <path key={p.id} d={p.d} fill="none" stroke="#94a3b8" strokeWidth={1.6} strokeOpacity={p.dim ? 0.15 : 0.6} />
+            ))}
+            {edgePaths.map((p) => (
+              <path key={p.id} d={p.d} fill="none" stroke={p.color} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} />
             ))}
           </svg>
           {nodes.map((n) => {

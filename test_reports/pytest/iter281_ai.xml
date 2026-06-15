@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="32.301" timestamp="2026-06-15T13:28:23.735192+00:00" hostname="agent-env-36af1455-6b06-4633-8356-2a71c2393dcc"><testcase classname="tests.test_iter281_orgchart_ai" name="test_orgchart_ai_live" time="31.984" /></testsuite></testsuites>

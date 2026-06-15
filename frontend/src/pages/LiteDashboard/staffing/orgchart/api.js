@@ -22,7 +22,30 @@ export const ocApi = {
   importPreview: (cid, rows) => axios.post(`${API}/charts/${cid}/import/preview`, { rows }, { headers: auth() }).then((r) => r.data),
   importApply: (cid, rows, options) => axios.post(`${API}/charts/${cid}/import/apply`, { rows, options }, { headers: auth() }).then((r) => r.data),
   exportCsvUrl: (cid) => `${API}/charts/${cid}/export.csv`,
+  // Phase 2
+  listVersions: (cid) => axios.get(`${API}/charts/${cid}/versions`, { headers: auth() }).then((r) => r.data),
+  saveVersion: (cid, label) => axios.post(`${API}/charts/${cid}/versions`, { label }, { headers: auth() }).then((r) => r.data),
+  restoreVersion: (cid, vid) => axios.post(`${API}/charts/${cid}/versions/${vid}/restore`, {}, { headers: auth() }).then((r) => r.data),
+  audit: (cid) => axios.get(`${API}/charts/${cid}/audit`, { headers: auth() }).then((r) => r.data),
+  listTemplates: () => axios.get(`${API}/templates`, { headers: auth() }).then((r) => r.data),
+  applyTemplate: (cid, tid) => axios.post(`${API}/charts/${cid}/apply-template/${tid}`, {}, { headers: auth() }).then((r) => r.data),
+  createEdge: (cid, body) => axios.post(`${API}/charts/${cid}/edges`, body, { headers: auth() }).then((r) => r.data),
+  deleteEdge: (cid, eid) => axios.delete(`${API}/charts/${cid}/edges/${eid}`, { headers: auth() }).then((r) => r.data),
+  listNotes: (cid, nid) => axios.get(`${API}/charts/${cid}/nodes/${nid}/notes`, { headers: auth() }).then((r) => r.data),
+  createNote: (cid, nid, body) => axios.post(`${API}/charts/${cid}/nodes/${nid}/notes`, { node_id: nid, ...body }, { headers: auth() }).then((r) => r.data),
+  deleteNote: (cid, noteId) => axios.delete(`${API}/charts/${cid}/notes/${noteId}`, { headers: auth() }).then((r) => r.data),
+  aiGenerate: (cid, text) => axios.post(`${API}/charts/${cid}/ai/generate`, { text }, { headers: auth() }).then((r) => r.data),
+  aiAnalyze: (cid) => axios.post(`${API}/charts/${cid}/ai/analyze`, {}, { headers: auth() }).then((r) => r.data),
+  aiDraftJd: (cid, body) => axios.post(`${API}/charts/${cid}/ai/draft-jd`, body, { headers: auth() }).then((r) => r.data),
+  importApplyRows: (cid, rows, options) => axios.post(`${API}/charts/${cid}/import/apply`, { rows, options }, { headers: auth() }).then((r) => r.data),
 };
+
+export const EDGE_TYPES = [
+  { id: 'dotted', label: 'Dotted line', color: '#7c3aed' },
+  { id: 'temporary', label: 'Temporary', color: '#0891b2' },
+  { id: 'project', label: 'Project', color: '#ca8a04' },
+  { id: 'escalation', label: 'Escalation', color: '#dc2626' },
+];
 
 // Deterministic department colour so branches read consistently.
 const DEPT_COLORS = [

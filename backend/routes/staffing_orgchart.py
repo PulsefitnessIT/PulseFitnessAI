@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 NODE_TYPES = {"staff", "vacancy", "placeholder", "contractor"}
+NODE_LABELS_BE = {"staff": "Staff", "vacancy": "Vacancy", "placeholder": "Placeholder", "contractor": "Contractor"}
+EDGE_TYPES = {"dotted", "temporary", "project", "escalation"}
 VACANCY_STAGES = {
     "Planned", "Approved", "Recruiting", "Interviewing",
     "Offer Made", "Filled", "On Hold", "Cancelled",
@@ -143,6 +145,18 @@ async def _site_names(org_id: str) -> dict:
     return {r["id"]: r.get("name") for r in rows}
 
 
+async def _audit(cid: str, org_id: str, actor: str, action: str, detail: str = "", old=None, new=None):
+    """Append an immutable audit entry for a chart action."""
+    try:
+        await db.org_chart_audit.insert_one({
+            "id": str(uuid4()), "chart_id": cid, "organization_id": org_id,
+            "actor": actor, "action": action, "detail": detail,
+            "old_value": old, "new_value": new, "at": _now().isoformat(),
+        })
+    except Exception:  # auditing must never break the primary action
+        logger.exception("orgchart audit write failed")
+
+
 def _node_from_staff(chart_id: str, org_id: str, s: dict, x: float = 0, y: float = 0) -> dict:
     role = (s.get("primary_role") or "").lower()
     is_eng = "engineer" in role or "technician" in role
@@ -238,9 +252,15 @@ async def get_chart(cid: str, user: dict = Depends(get_current_user)):
     nodes = await db.org_chart_nodes.find(
         {"chart_id": cid, "organization_id": org_id}, {"_id": 0}).to_list(5000)
     sites = await _site_names(org_id)
+    note_counts = {}
+    for n in await db.org_chart_notes.find({"chart_id": cid, "organization_id": org_id}, {"_id": 0, "node_id": 1}).to_list(10000):
+        note_counts[n["node_id"]] = note_counts.get(n["node_id"], 0) + 1
     for n in nodes:
         n["site_name"] = sites.get(n.get("site_id"))
-    return {"chart": chart, "nodes": nodes, "sites": [{"id": k, "name": v} for k, v in sites.items()]}
+        n["note_count"] = note_counts.get(n["id"], 0)
+    edges = await db.org_chart_edges.find({"chart_id": cid, "organization_id": org_id}, {"_id": 0}).to_list(5000)
+    return {"chart": chart, "nodes": nodes, "edges": edges,
+            "sites": [{"id": k, "name": v} for k, v in sites.items()]}
 
 
 @router.patch("/staffing/orgchart/charts/{cid}")
@@ -308,6 +328,7 @@ async def create_node(cid: str, body: NodeCreate, user: dict = Depends(get_curre
     if body.type == "vacancy" and not doc.get("recruitment_stage"):
         doc["recruitment_stage"] = "Planned"
     await db.org_chart_nodes.insert_one(doc.copy())
+    await _audit(cid, org_id, user.get("email"), "card_added", f"{NODE_LABELS_BE.get(doc.get('type'), doc.get('type'))}: {doc.get('full_name')}")
     sites = await _site_names(org_id)
     doc["site_name"] = sites.get(doc.get("site_id"))
     return _clean(doc)
@@ -333,6 +354,15 @@ async def update_node(cid: str, nid: str, body: NodeUpdate, user: dict = Depends
     patch["updated_at"] = _now().isoformat()
     await db.org_chart_nodes.update_one(
         {"id": nid, "chart_id": cid, "organization_id": org_id}, {"$set": patch})
+    if "manager_node_id" in patch and patch.get("manager_node_id") != node.get("manager_node_id"):
+        mgr_name = "—"
+        if patch.get("manager_node_id"):
+            m = await db.org_chart_nodes.find_one({"id": patch["manager_node_id"], "chart_id": cid}, {"_id": 0, "full_name": 1})
+            mgr_name = (m or {}).get("full_name", "—")
+        await _audit(cid, org_id, user.get("email"), "reporting_changed", f"{node.get('full_name')} → {mgr_name}",
+                     old=node.get("manager_node_id"), new=patch.get("manager_node_id"))
+    else:
+        await _audit(cid, org_id, user.get("email"), "card_edited", node.get("full_name"))
 
     if write_back and node.get("staff_id"):
         sp = {}
@@ -381,6 +411,9 @@ async def delete_node(cid: str, nid: str, user: dict = Depends(get_current_user)
     await db.org_chart_nodes.update_many(
         {"chart_id": cid, "organization_id": org_id, "manager_node_id": nid},
         {"$set": {"manager_node_id": None}})
+    await db.org_chart_edges.delete_many({"chart_id": cid, "organization_id": org_id,
+                                          "$or": [{"from_node_id": nid}, {"to_node_id": nid}]})
+    await _audit(cid, org_id, user.get("email"), "card_removed", nid)
     return {"ok": True}
 
 
@@ -519,6 +552,7 @@ async def import_apply(cid: str, body: ImportRequest, user: dict = Depends(get_c
             n["manager_node_id"] = name_to_node[mn]
     if created:
         await db.org_chart_nodes.insert_many([n.copy() for n in created])
+    await _audit(cid, org_id, user.get("email"), "import", f"{len(created)} cards imported")
     return {"ok": True, "imported": len(created)}
 
 
@@ -548,3 +582,247 @@ async def export_csv(cid: str, user: dict = Depends(get_current_user)):
     return Response(
         content=out.getvalue(), media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=org_chart.csv"})
+
+
+# ───────────────────────── version history ─────────────────────────
+
+class VersionCreate(BaseModel):
+    label: str | None = None
+
+
+async def _snapshot(cid: str, org_id: str, actor: str, label: str | None) -> dict:
+    nodes = await db.org_chart_nodes.find({"chart_id": cid, "organization_id": org_id}, {"_id": 0}).to_list(5000)
+    edges = await db.org_chart_edges.find({"chart_id": cid, "organization_id": org_id}, {"_id": 0}).to_list(5000)
+    chart = await db.org_charts.find_one({"id": cid, "organization_id": org_id}, {"_id": 0, "settings": 1, "name": 1})
+    n = await db.org_chart_versions.count_documents({"chart_id": cid, "organization_id": org_id})
+    doc = {
+        "id": str(uuid4()), "chart_id": cid, "organization_id": org_id,
+        "version": n + 1, "label": label or f"Snapshot {n + 1}",
+        "actor": actor, "created_at": _now().isoformat(),
+        "nodes": nodes, "edges": edges, "settings": (chart or {}).get("settings"),
+        "node_count": len(nodes),
+    }
+    await db.org_chart_versions.insert_one(doc.copy())
+    return doc
+
+
+@router.get("/staffing/orgchart/charts/{cid}/versions")
+async def list_versions(cid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    rows = await db.org_chart_versions.find(
+        {"chart_id": cid, "organization_id": org_id},
+        {"_id": 0, "nodes": 0, "edges": 0}).sort("version", -1).to_list(200)
+    return {"versions": rows}
+
+
+@router.post("/staffing/orgchart/charts/{cid}/versions")
+async def create_version(cid: str, body: VersionCreate, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    doc = await _snapshot(cid, org_id, user.get("email"), body.label)
+    await _audit(cid, org_id, user.get("email"), "version_saved", doc["label"])
+    return {k: v for k, v in doc.items() if k not in ("nodes", "edges")}
+
+
+@router.post("/staffing/orgchart/charts/{cid}/versions/{vid}/restore")
+async def restore_version(cid: str, vid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    ver = await db.org_chart_versions.find_one({"id": vid, "chart_id": cid, "organization_id": org_id}, {"_id": 0})
+    if not ver:
+        raise HTTPException(404, "version not found")
+    # safety snapshot of the current state before overwriting
+    await _snapshot(cid, org_id, user.get("email"), "Auto-save before restore")
+    await db.org_chart_nodes.delete_many({"chart_id": cid, "organization_id": org_id})
+    await db.org_chart_edges.delete_many({"chart_id": cid, "organization_id": org_id})
+    if ver.get("nodes"):
+        await db.org_chart_nodes.insert_many([{**n} for n in ver["nodes"]])
+    if ver.get("edges"):
+        await db.org_chart_edges.insert_many([{**e} for e in ver["edges"]])
+    if ver.get("settings"):
+        await db.org_charts.update_one({"id": cid, "organization_id": org_id}, {"$set": {"settings": ver["settings"]}})
+    await _audit(cid, org_id, user.get("email"), "version_restored", ver.get("label"))
+    return {"ok": True}
+
+
+# ───────────────────────── audit trail ─────────────────────────
+
+@router.get("/staffing/orgchart/charts/{cid}/audit")
+async def list_audit(cid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    rows = await db.org_chart_audit.find(
+        {"chart_id": cid, "organization_id": org_id}, {"_id": 0}).sort("at", -1).to_list(300)
+    return {"audit": rows}
+
+
+# ───────────────────────── secondary / dotted reporting ─────────────────────────
+
+class EdgeCreate(BaseModel):
+    from_node_id: str      # the report (subordinate)
+    to_node_id: str        # the secondary manager
+    line_type: str = "dotted"
+
+
+@router.post("/staffing/orgchart/charts/{cid}/edges")
+async def create_edge(cid: str, body: EdgeCreate, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    if body.line_type not in EDGE_TYPES:
+        raise HTTPException(400, f"line_type must be one of {sorted(EDGE_TYPES)}")
+    if body.from_node_id == body.to_node_id:
+        raise HTTPException(400, "An edge needs two different cards")
+    for nid in (body.from_node_id, body.to_node_id):
+        if not await db.org_chart_nodes.find_one({"id": nid, "chart_id": cid}, {"_id": 0, "id": 1}):
+            raise HTTPException(404, "node not found")
+    doc = {"id": str(uuid4()), "chart_id": cid, "organization_id": org_id,
+           "from_node_id": body.from_node_id, "to_node_id": body.to_node_id,
+           "line_type": body.line_type, "created_at": _now().isoformat()}
+    await db.org_chart_edges.insert_one(doc.copy())
+    await _audit(cid, org_id, user.get("email"), "edge_added", body.line_type)
+    return _clean(doc)
+
+
+@router.delete("/staffing/orgchart/charts/{cid}/edges/{eid}")
+async def delete_edge(cid: str, eid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    res = await db.org_chart_edges.delete_one({"id": eid, "chart_id": cid, "organization_id": org_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "edge not found")
+    return {"ok": True}
+
+
+# ───────────────────────── notes / comments ─────────────────────────
+
+class NoteCreate(BaseModel):
+    node_id: str
+    body: str
+    confidential: bool = False
+
+
+@router.get("/staffing/orgchart/charts/{cid}/nodes/{nid}/notes")
+async def list_notes(cid: str, nid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    rows = await db.org_chart_notes.find(
+        {"chart_id": cid, "organization_id": org_id, "node_id": nid}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"notes": rows}
+
+
+@router.post("/staffing/orgchart/charts/{cid}/nodes/{nid}/notes")
+async def create_note(cid: str, nid: str, body: NoteCreate, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    if not (body.body or "").strip():
+        raise HTTPException(400, "Note body required")
+    doc = {"id": str(uuid4()), "chart_id": cid, "organization_id": org_id, "node_id": nid,
+           "body": body.body.strip(), "confidential": bool(body.confidential),
+           "author": user.get("email"), "created_at": _now().isoformat()}
+    await db.org_chart_notes.insert_one(doc.copy())
+    return _clean(doc)
+
+
+@router.delete("/staffing/orgchart/charts/{cid}/notes/{note_id}")
+async def delete_note(cid: str, note_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    res = await db.org_chart_notes.delete_one({"id": note_id, "chart_id": cid, "organization_id": org_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "note not found")
+    return {"ok": True}
+
+
+# ───────────────────────── starter templates ─────────────────────────
+
+TEMPLATES = {
+    "small_gym": {"name": "Small Independent Gym", "roles": [
+        ("Gym Owner / Manager", "Management", None),
+        ("Front of House", "Front of House", 0), ("Personal Trainer", "Personal Trainers", 0),
+        ("Fitness Instructor", "Fitness Instructors", 0), ("Cleaner", "Cleaning", 0),
+    ]},
+    "boutique_studio": {"name": "Boutique Studio", "roles": [
+        ("Studio Manager", "Management", None),
+        ("Lead Instructor", "Instructors", 0), ("Instructor", "Instructors", 1),
+        ("Reception", "Front of House", 0), ("Sales", "Sales", 0),
+    ]},
+    "multi_site": {"name": "Multi-Site Gym Operator", "roles": [
+        ("Operations Director", "Leadership", None),
+        ("Regional Manager", "Operations", 0), ("Site Manager", "Operations", 1),
+        ("Head of Sales", "Sales", 0), ("Head of Marketing", "Marketing", 0),
+        ("Finance Manager", "Finance", 0),
+    ]},
+    "service_company": {"name": "Fitness Equipment Service Company", "roles": [
+        ("Managing Director", "Leadership", None),
+        ("Service Manager", "Service & Aftersales", 0), ("Lead Engineer", "Field Engineers", 1),
+        ("Field Engineer", "Field Engineers", 2), ("Service Admin", "Service Admin", 1),
+        ("Contracts Manager", "Contracts", 0),
+    ]},
+    "pulse_internal": {"name": "Pulse Fitness Internal Structure", "roles": [
+        ("Managing Director", "Leadership", None),
+        ("Head of Service", "Service & Aftersales", 0), ("Field Engineer", "Field Engineers", 1),
+        ("Service Admin", "Service Admin", 1), ("Contracts Manager", "Contracts", 0),
+        ("Head of Sales", "Sales", 0), ("Head of Marketing", "Marketing", 0),
+        ("Finance Manager", "Finance", 0), ("Warehouse Manager", "Warehouse / Stores", 0),
+        ("Product Lead", "Product / Development", 0),
+    ]},
+    "enterprise_ops": {"name": "Enterprise Operations Team", "roles": [
+        ("COO", "Leadership", None),
+        ("Operations Manager", "Operations", 0), ("Team Lead", "Operations", 1),
+        ("Coordinator", "Operations", 2), ("Quality Lead", "Operations", 0),
+    ]},
+    "engineer_team": {"name": "Engineer Service Team", "roles": [
+        ("Service Director", "Leadership", None),
+        ("Dispatch Lead", "Service Admin", 0), ("Senior Engineer", "Field Engineers", 0),
+        ("Field Engineer", "Field Engineers", 2), ("Apprentice Engineer", "Field Engineers", 2),
+    ]},
+    "sales_cs": {"name": "Sales and Customer Success Team", "roles": [
+        ("Commercial Director", "Leadership", None),
+        ("Head of Sales", "Sales", 0), ("Account Executive", "Sales", 1),
+        ("Customer Success Lead", "Customer Success", 0), ("CS Agent", "Customer Success", 3),
+    ]},
+}
+
+
+@router.get("/staffing/orgchart/templates")
+async def list_templates(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    return {"templates": [{"id": k, "name": v["name"], "roles": len(v["roles"])} for k, v in TEMPLATES.items()]}
+
+
+@router.post("/staffing/orgchart/charts/{cid}/apply-template/{template_id}")
+async def apply_template(cid: str, template_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    tpl = TEMPLATES.get(template_id)
+    if not tpl:
+        raise HTTPException(404, "template not found")
+    base = await db.org_chart_nodes.count_documents({"chart_id": cid, "organization_id": org_id})
+    created = []
+    for i, (title, dept, mgr_idx) in enumerate(tpl["roles"]):
+        col, row = (base + i) % 6, (base + i) // 6
+        created.append({
+            "id": str(uuid4()), "chart_id": cid, "organization_id": org_id,
+            "type": "placeholder", "staff_id": None, "full_name": title, "job_title": title,
+            "department": dept, "is_engineer": "engineer" in title.lower(),
+            "manager_node_id": None, "status": "active",
+            "x": col * 240, "y": row * 170, "created_at": _now().isoformat(),
+            "_mgr_idx": mgr_idx,
+        })
+    for n in created:
+        mi = n.pop("_mgr_idx", None)
+        if mi is not None and mi < len(created):
+            n["manager_node_id"] = created[mi]["id"]
+    if created:
+        await db.org_chart_nodes.insert_many([n.copy() for n in created])
+    await _audit(cid, org_id, user.get("email"), "template_applied", tpl["name"])
+    return {"ok": True, "added": len(created)}

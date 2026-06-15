@@ -1,8 +1,9 @@
 /** Modals + drawers for the Org Chart: add card, edit card, confirm move. */
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Trash2, Link2, UserPlus, Loader2 } from 'lucide-react';
-import { humanize, NODE_LABELS, VACANCY_STAGES } from './api';
+import { X, Trash2, Link2, UserPlus, Loader2, MessageSquare, GitBranch, Lock } from 'lucide-react';
+import { toast } from 'sonner';
+import { humanize, NODE_LABELS, VACANCY_STAGES, ocApi, EDGE_TYPES } from './api';
 
 const overlay = {
   position: 'fixed', inset: 0, zIndex: 1000,
@@ -111,16 +112,38 @@ export function AddNodeModal({ open, onClose, onCreate, staffOptions, sites, dep
 }
 
 // ─── Edit drawer ───
-export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, departments }) {
+export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, departments, chartId, edges, onEdgesChanged }) {
   const [form, setForm] = useState(node || {});
   const [saving, setSaving] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [noteBody, setNoteBody] = useState('');
+  const [noteConfidential, setNoteConfidential] = useState(false);
+  const [secMgr, setSecMgr] = useState('');
+  const [secType, setSecType] = useState('dotted');
   useEffect(() => { setForm(node || {}); }, [node]);
+  useEffect(() => {
+    if (node?.id && chartId) ocApi.listNotes(chartId, node.id).then((r) => setNotes(r.notes || [])).catch(() => {});
+    else setNotes([]);
+  }, [node, chartId]);
   const managerOptions = useMemo(
     () => nodes.filter((n) => n.id !== node?.id), [nodes, node],
   );
+  const myEdges = useMemo(() => (edges || []).filter((e) => e.from_node_id === node?.id), [edges, node]);
   if (!node) return null;
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const addNote = async () => {
+    if (!noteBody.trim()) return;
+    try { await ocApi.createNote(chartId, node.id, { body: noteBody, confidential: noteConfidential }); setNoteBody(''); setNoteConfidential(false); const r = await ocApi.listNotes(chartId, node.id); setNotes(r.notes || []); }
+    catch { toast.error('Could not add note'); }
+  };
+  const delNote = async (id) => { try { await ocApi.deleteNote(chartId, id); setNotes((ns) => ns.filter((n) => n.id !== id)); } catch { /* ignore */ } };
+  const addEdge = async () => {
+    if (!secMgr) return;
+    try { await ocApi.createEdge(chartId, { from_node_id: node.id, to_node_id: secMgr, line_type: secType }); setSecMgr(''); onEdgesChanged?.(); toast.success('Secondary line added'); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'Could not add line'); }
+  };
+  const delEdge = async (id) => { try { await ocApi.deleteEdge(chartId, id); onEdgesChanged?.(); } catch { /* ignore */ } };
   const save = async () => {
     setSaving(true);
     try {
@@ -187,6 +210,54 @@ export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, depa
           </>
         )}
         <Field label="Notes"><textarea rows={3} className={inputCls} style={inputStyle} value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} data-testid="orgchart-edit-notes" /></Field>
+
+        {/* Secondary / dotted-line reporting */}
+        <div className="mt-1 mb-3">
+          <span className="text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}><GitBranch size={11} /> Secondary reporting</span>
+          {myEdges.map((e) => {
+            const tgt = nodes.find((n) => n.id === e.to_node_id);
+            const meta = EDGE_TYPES.find((t) => t.id === e.line_type);
+            return (
+              <div key={e.id} className="flex items-center justify-between mt-1.5 text-xs rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--theme-border)' }} data-testid={`orgchart-edge-${e.id}`}>
+                <span style={{ color: 'var(--theme-text)' }}><b style={{ color: meta?.color }}>{meta?.label}</b> → {tgt?.full_name || '—'}</span>
+                <button onClick={() => delEdge(e.id)} data-testid={`orgchart-edge-delete-${e.id}`}><Trash2 size={12} style={{ color: '#dc2626' }} /></button>
+              </div>
+            );
+          })}
+          <div className="flex gap-1.5 mt-1.5">
+            <select value={secMgr} onChange={(ev) => setSecMgr(ev.target.value)} className="flex-1 px-2 py-1.5 rounded-lg text-xs border outline-none" style={inputStyle} data-testid="orgchart-edge-target">
+              <option value="">+ Add line to…</option>
+              {managerOptions.map((n) => <option key={n.id} value={n.id}>{n.full_name}</option>)}
+            </select>
+            <select value={secType} onChange={(ev) => setSecType(ev.target.value)} className="px-2 py-1.5 rounded-lg text-xs border outline-none" style={inputStyle} data-testid="orgchart-edge-type">
+              {EDGE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <button onClick={addEdge} disabled={!secMgr} className="px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-edge-add">Add</button>
+          </div>
+        </div>
+
+        {/* Notes thread */}
+        <div className="mb-3">
+          <span className="text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}><MessageSquare size={11} /> Notes</span>
+          <div className="space-y-1.5 mt-1.5" data-testid="orgchart-notes-list">
+            {notes.map((nt) => (
+              <div key={nt.id} className="text-xs rounded-lg border px-2.5 py-1.5" style={{ borderColor: 'var(--theme-border)' }} data-testid={`orgchart-note-${nt.id}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <span style={{ color: 'var(--theme-text)' }}>{nt.confidential && <Lock size={10} className="inline mr-1" style={{ color: '#dc2626' }} />}{nt.body}</span>
+                  <button onClick={() => delNote(nt.id)}><Trash2 size={11} style={{ color: '#dc2626' }} /></button>
+                </div>
+                <div className="text-[9px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{nt.author}</div>
+              </div>
+            ))}
+          </div>
+          <textarea rows={2} className={inputCls + ' mt-1.5'} style={inputStyle} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note (succession, restructure…)" data-testid="orgchart-note-input" />
+          <div className="flex items-center justify-between mt-1">
+            <label className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+              <input type="checkbox" checked={noteConfidential} onChange={(e) => setNoteConfidential(e.target.checked)} data-testid="orgchart-note-confidential" /> Confidential
+            </label>
+            <button onClick={addNote} disabled={!noteBody.trim()} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-note-add">Add note</button>
+          </div>
+        </div>
 
         <div className="flex gap-2 mt-2">
           <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-drawer-save">

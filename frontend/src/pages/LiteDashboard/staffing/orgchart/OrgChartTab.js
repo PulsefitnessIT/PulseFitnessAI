@@ -9,7 +9,7 @@ import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
   Network, List, UserPlus, FileUp, Settings as SettingsIcon, Search,
-  Loader2, RefreshCw, Plus, Users, Building2, AlertTriangle, X,
+  Loader2, RefreshCw, Plus, Users, Building2, AlertTriangle, X, Sparkles, LayoutTemplate, History, Presentation as PresentIcon,
 } from 'lucide-react';
 import { ocApi } from './api';
 import { computeLayout } from './layout';
@@ -18,6 +18,10 @@ import ListView from './ListView';
 import Vacancies from './Vacancies';
 import ImportExport from './ImportExport';
 import Settings from './Settings';
+import AIPanel from './AIPanel';
+import HistoryTab from './HistoryTab';
+import Templates from './Templates';
+import PresentationMode from './Presentation';
 import { AddNodeModal, NodeDrawer, MoveConfirmModal } from './panels';
 
 const STAFF_API = `${process.env.REACT_APP_BACKEND_URL}/api/staffing/staff`;
@@ -25,6 +29,9 @@ const SUBTABS = [
   { id: 'chart', label: 'Org Chart', icon: Network },
   { id: 'list', label: 'List View', icon: List },
   { id: 'vacancies', label: 'Vacancies', icon: UserPlus },
+  { id: 'ai', label: 'AI Assist', icon: Sparkles },
+  { id: 'templates', label: 'Templates', icon: LayoutTemplate },
+  { id: 'history', label: 'History', icon: History },
   { id: 'import', label: 'Import / Export', icon: FileUp },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
@@ -45,12 +52,14 @@ export default function OrgChartTab() {
   const [chartId, setChartId] = useState(null);
   const [chart, setChart] = useState(null);
   const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
   const [sites, setSites] = useState([]);
   const [insights, setInsights] = useState(null);
   const [staffOptions, setStaffOptions] = useState([]);
   const [sub, setSub] = useState('chart');
   const [search, setSearch] = useState('');
   const [focusId, setFocusId] = useState(null);
+  const [presenting, setPresenting] = useState(false);
   const [filter, setFilter] = useState({ department: '', site: '', type: '', flag: '' });
   const [addOpen, setAddOpen] = useState(false);
   const [editNode, setEditNode] = useState(null);
@@ -70,6 +79,7 @@ export default function OrgChartTab() {
     const data = await ocApi.getChart(cid);
     setChart(data.chart);
     setNodes(data.nodes || []);
+    setEdges(data.edges || []);
     setSites(data.sites || []);
     ocApi.insights(cid).then(setInsights).catch(() => {});
   }, []);
@@ -223,6 +233,7 @@ export default function OrgChartTab() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--theme-text-muted)' }} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="pl-8 pr-3 py-2 rounded-lg text-sm border outline-none w-44" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-search" />
           </form>
+          <button onClick={() => setPresenting(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-present"><PresentIcon size={13} /> Present</button>
           <button onClick={syncStaff} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-sync"><RefreshCw size={13} /> Sync staff</button>
         </div>
       </div>
@@ -280,6 +291,7 @@ export default function OrgChartTab() {
       {sub === 'chart' && (
         <Canvas
           nodes={nodes}
+          edges={edges}
           settings={chart?.settings}
           dimmedIds={dimmedIds}
           focusId={focusId}
@@ -292,13 +304,17 @@ export default function OrgChartTab() {
       )}
       {sub === 'list' && <ListView nodes={nodes.filter(matchesFilter)} byId={byId} onOpen={(n) => setEditNode(n)} />}
       {sub === 'vacancies' && <Vacancies nodes={nodes} byId={byId} onOpen={(n) => setEditNode(n)} onAdd={() => setAddOpen(true)} onUpdate={updateNode} />}
+      {sub === 'ai' && <AIPanel chartId={chartId} onImported={reload} />}
+      {sub === 'templates' && <Templates chartId={chartId} onApplied={reload} />}
+      {sub === 'history' && <HistoryTab chartId={chartId} onRestored={reload} />}
       {sub === 'import' && <ImportExport chartId={chartId} onImported={reload} onExportImage={exportImage} onExportPdf={exportPdf} />}
       {sub === 'settings' && chart && <Settings chart={chart} onSave={saveSettings} onRename={renameChart} onDelete={deleteChart} />}
 
       {/* modals */}
       <AddNodeModal open={addOpen} onClose={() => setAddOpen(false)} onCreate={createNode} staffOptions={staffOptions.filter((s) => !nodes.some((n) => n.staff_id === s.id))} sites={sites} departments={departments} />
-      <NodeDrawer node={editNode} onClose={() => setEditNode(null)} onSave={updateNode} onDelete={deleteNode} sites={sites} nodes={nodes} departments={departments} />
+      <NodeDrawer node={editNode} onClose={() => setEditNode(null)} onSave={updateNode} onDelete={deleteNode} sites={sites} nodes={nodes} departments={departments} chartId={chartId} edges={edges} onEdgesChanged={reload} />
       <MoveConfirmModal data={moveData} onChoose={chooseMove} onClose={() => setMoveData(null)} />
+      {presenting && <PresentationMode nodes={nodes} byId={byId} onClose={() => setPresenting(false)} />}
     </div>
   );
 }
