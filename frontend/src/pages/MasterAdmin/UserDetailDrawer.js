@@ -17,7 +17,7 @@
  */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight, Layers, CircleCheck, CircleSlash, Wand2 } from 'lucide-react';
+import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight, Layers, CircleCheck, CircleSlash, Wand2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '@/components/shared/Button';
 
@@ -56,24 +56,43 @@ const ModuleAccessSection = ({ userId, headers }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [fixing, setFixing] = useState(null);
+  const [audit, setAudit] = useState([]);
 
-  const fetchData = () => {
-    setLoading(true); setError(false);
-    return axios.get(`${API_BASE}/master-admin/users/${userId}/module-access`, { headers })
-      .then(({ data }) => setData(data))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  };
+  const fetchData = () => axios
+    .get(`${API_BASE}/master-admin/users/${userId}/module-access`, { headers })
+    .then(({ data }) => setData(data))
+    .catch(() => setError(true));
+
+  const fetchAudit = () => axios
+    .get(`${API_BASE}/master-admin/users/${userId}/module-access/audit`, { headers })
+    .then(({ data }) => setAudit(data.events || []))
+    .catch(() => {});
 
   useEffect(() => {
     let alive = true;
     setLoading(true); setError(false);
-    axios.get(`${API_BASE}/master-admin/users/${userId}/module-access`, { headers })
-      .then(({ data }) => { if (alive) setData(data); })
-      .catch(() => { if (alive) setError(true); })
+    Promise.all([
+      axios.get(`${API_BASE}/master-admin/users/${userId}/module-access`, { headers }).then(({ data }) => { if (alive) setData(data); }),
+      axios.get(`${API_BASE}/master-admin/users/${userId}/module-access/audit`, { headers }).then(({ data }) => { if (alive) setAudit(data.events || []); }).catch(() => {}),
+    ]).catch(() => { if (alive) setError(true); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const UNDO_SCOPE = { granted_org: 'org', restored_user: 'user', granted_org_and_restored_user: 'both' };
+
+  const undo = async (m, scope) => {
+    try {
+      const { data } = await axios.post(
+        `${API_BASE}/master-admin/users/${userId}/module-access/${m.key}/revoke`,
+        { scope }, { headers });
+      setData(data); fetchAudit();
+      toast.success(`${m.label} access change undone`);
+    } catch {
+      await Promise.all([fetchData(), fetchAudit()]);
+      toast.error('Could not undo — please try again');
+    }
+  };
 
   const fix = async (m) => {
     setFixing(m.key);
@@ -81,9 +100,17 @@ const ModuleAccessSection = ({ userId, headers }) => {
       const { data } = await axios.post(
         `${API_BASE}/master-admin/users/${userId}/module-access/${m.key}/grant`,
         {}, { headers });
-      setData(data);
+      setData(data); fetchAudit();
+      const scope = UNDO_SCOPE[data.result];
+      const msg = data.result === 'granted_org'
+        ? `${m.label} enabled for the organisation`
+        : data.result === 'granted_org_and_restored_user'
+          ? `${m.label} enabled for the org and restored for this user`
+          : `${m.label} access restored`;
+      toast.success(msg, scope ? { action: { label: 'Undo', onClick: () => undo(m, scope) }, duration: 8000 } : undefined);
     } catch {
       await fetchData();
+      toast.error('Could not update access — please try again');
     } finally {
       setFixing(null);
     }
@@ -152,11 +179,46 @@ const ModuleAccessSection = ({ userId, headers }) => {
           <p className="text-[10px] text-zinc-400 leading-snug">
             <strong>Org</strong> = enabled for the organisation. <strong>User</strong> = this person's effective access. A green Org but amber User means access was revoked for this user.
           </p>
+
+          {audit.length > 0 && (
+            <div className="pt-2 border-t" style={{ borderColor: '#F4F4F5' }} data-testid="module-access-audit">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <History size={12} className="text-zinc-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Recent access changes</span>
+              </div>
+              <ul className="space-y-1">
+                {audit.map((e, i) => (
+                  <li key={i} className="text-[11px] text-zinc-600 flex items-start gap-1.5" data-testid={`module-access-audit-row-${i}`}>
+                    <span className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${e.verb === 'revoked' ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                    <span className="min-w-0">
+                      <span className="text-zinc-800">{e.details}</span>
+                      <span className="text-zinc-400"> · {relativeTime(e.timestamp)} · {e.admin_email}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </div>
   );
 };
+
+function relativeTime(iso) {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const diff = Date.now() - then;
+  const mins = Math.round(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
 
 const AccessDot = ({ on, testid }) => (
   <span className="flex justify-center w-12" data-testid={testid}>

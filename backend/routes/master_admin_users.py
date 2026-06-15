@@ -202,26 +202,19 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
     org_on = bool(org_module_access(org).get(module))
     user_on = bool(resolve_module_access(target, org).get(module))
 
+    label = _MODULE_META.get(module, (module.title(),))[0]
+    actor = user.get("email") or "master_admin"
+    org_name = (org or {}).get("name") or org_id or "organisation"
+    target_name = target.get("full_name") or target.get("email") or user_id
+
     did = None
     # 1. Org-level off → enable the module for the org (merge + sync legacy fields).
     if org and not org_on:
-        modules = {**(org.get("modules") or {})}
-        existing = modules.get(module) or {}
-        entry = {**existing, "enabled": True, "tier": existing.get("tier", "pro")}
-        if module == "crm":
-            entry["leisure_enabled"] = True  # default to the gym/leisure CRM mode
-        modules[module] = entry
-        enabled_list = [k for k, v in modules.items() if isinstance(v, dict) and v.get("enabled")]
-        derived = [m for m in ALL_MODULE_IDS if m in enabled_list] or ["operations"]
-        await db.organizations.update_one(
-            {"id": org_id},
-            {"$set": {"modules": modules, "enabled_modules": derived,
-                      "portal_type": _derive_portal_type(derived)}},
-        )
+        await _set_org_module_enabled(org_id, org, module, True)
         org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
         did = "granted_org"
-        await log_activity(user, "module_access.grant_org",
-                           f"Enabled {module} for org {org_id}", {"module": module, "org_id": org_id})
+        await log_activity("module_access.grant_org",
+                           f"Enabled {label} for {org_name}", actor, "organization", org_id)
 
     # 2. Per-staff override blocking → set it to allow (non-destructive merge).
     overrides = {**(target.get("module_overrides") or {})}
@@ -231,8 +224,8 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
         await coll.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
         target["module_overrides"] = overrides
         did = "restored_user" if did is None else "granted_org_and_restored_user"
-        await log_activity(user, "module_access.restore_user",
-                           f"Restored {module} for user {user_id}", {"module": module, "user_id": user_id})
+        await log_activity("module_access.restore_user",
+                           f"Restored {label} for {target_name}", actor, "user", user_id)
 
     if did is None and not (org_on and user_on):
         # Nothing to toggle (e.g. privileged user or no org). Still return state.
@@ -241,6 +234,111 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
     payload = _module_access_payload(target, org)
     payload["result"] = did
     return payload
+
+
+@router.post("/master-admin/users/{user_id}/module-access/{module}/revoke")
+async def revoke_user_module_access(user_id: str, module: str,
+                                    body: dict = Body(default={}),
+                                    user: dict = Depends(get_current_user)):
+    """Reverse a grant (the toast "Undo") or revoke access explicitly.
+    ``scope`` selects what to undo: "org" disables the module for the org,
+    "user" re-applies the per-staff block, "both" does both."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+    if module not in {"operations", "memberships", "marketing", "crm"}:
+        raise HTTPException(400, "Unknown module")
+    scope = (body or {}).get("scope", "user")
+    if scope not in {"org", "user", "both"}:
+        raise HTTPException(400, "scope must be org | user | both")
+
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    is_crm_user = await db.crm_users.find_one({"id": user_id}, {"_id": 1}) is not None
+
+    org_id = target.get("organization_id")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) if org_id else None
+    label = _MODULE_META.get(module, (module.title(),))[0]
+    actor = user.get("email") or "master_admin"
+    org_name = (org or {}).get("name") or org_id or "organisation"
+    target_name = target.get("full_name") or target.get("email") or user_id
+
+    if scope in ("org", "both") and org:
+        await _set_org_module_enabled(org_id, org, module, False)
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+        await log_activity("module_access.revoke_org",
+                           f"Disabled {label} for {org_name}", actor, "organization", org_id)
+
+    if scope in ("user", "both"):
+        overrides = {**(target.get("module_overrides") or {})}
+        overrides[module] = False
+        coll = db.crm_users if is_crm_user else db.users
+        await coll.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
+        await log_activity("module_access.revoke_user",
+                           f"Revoked {label} for {target_name}", actor, "user", user_id)
+
+    return _module_access_payload(target, org)
+
+
+_ACCESS_ACTIONS = {
+    "module_access.grant_org": ("granted", "org"),
+    "module_access.revoke_org": ("revoked", "org"),
+    "module_access.restore_user": ("restored", "user"),
+    "module_access.revoke_user": ("revoked", "user"),
+}
+
+
+@router.get("/master-admin/users/{user_id}/module-access/audit")
+async def get_user_module_access_audit(user_id: str, user: dict = Depends(get_current_user)):
+    """Recent module-access changes for this user — both user-level changes
+    (target_id == user_id) and org-level changes affecting their org."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1})
+    if not target:
+        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1})
+    if not target:
+        raise HTTPException(404, "User not found")
+    org_id = target.get("organization_id")
+
+    target_ids = [user_id] + ([org_id] if org_id else [])
+    rows = await db.admin_activity_log.find(
+        {"action": {"$in": list(_ACCESS_ACTIONS.keys())}, "target_id": {"$in": target_ids}},
+        {"_id": 0},
+    ).sort("timestamp", -1).to_list(15)
+
+    events = [{
+        "action": r.get("action"),
+        "verb": _ACCESS_ACTIONS.get(r.get("action"), ("changed", ""))[0],
+        "level": _ACCESS_ACTIONS.get(r.get("action"), ("", "user"))[1],
+        "details": r.get("details"),
+        "admin_email": r.get("admin_email"),
+        "timestamp": r.get("timestamp"),
+    } for r in rows]
+    return {"events": events}
+
+
+async def _set_org_module_enabled(org_id: str, org: dict, module: str, enabled: bool) -> None:
+    """Toggle a module's org-level entitlement, keeping the legacy
+    ``enabled_modules`` array and ``portal_type`` in sync (single source of
+    truth shared with the Feature Control panel)."""
+    modules = {**(org.get("modules") or {})}
+    existing = modules.get(module) or {}
+    entry = {**existing, "enabled": enabled, "tier": existing.get("tier", "pro")}
+    if module == "crm" and enabled and not (entry.get("business_enabled") or entry.get("leisure_enabled")):
+        entry["leisure_enabled"] = True  # default to the gym/leisure CRM mode
+    modules[module] = entry
+    enabled_list = [k for k, v in modules.items() if isinstance(v, dict) and v.get("enabled")]
+    derived = [m for m in ALL_MODULE_IDS if m in enabled_list] or ["operations"]
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"modules": modules, "enabled_modules": derived,
+                  "portal_type": _derive_portal_type(derived)}},
+    )
 
 
 

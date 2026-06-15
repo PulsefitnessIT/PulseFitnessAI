@@ -82,6 +82,25 @@ def test_grant_enables_org_and_restores_user():
         restored = requests.post(f"{BASE}/api/master-admin/users/{uid}/module-access/crm/grant", headers=h, timeout=15).json()
         assert restored["result"] == "restored_user"
         assert _crm_row(restored)["user_access"] is True
+
+        # Revoke (the toast "Undo" for a user-level restore) flips it back.
+        revoked = requests.post(f"{BASE}/api/master-admin/users/{uid}/module-access/crm/revoke",
+                                headers=h, json={"scope": "user"}, timeout=15).json()
+        assert _crm_row(revoked)["user_access"] is False
+
+        # Undo of an org grant disables the module for the org again.
+        org_undo = requests.post(f"{BASE}/api/master-admin/users/{uid}/module-access/crm/revoke",
+                                 headers=h, json={"scope": "org"}, timeout=15).json()
+        assert _crm_row(org_undo)["org_enabled"] is False
+
+        # Audit trail records all the changes (grant + restore + 2 revokes).
+        audit = requests.get(f"{BASE}/api/master-admin/users/{uid}/module-access/audit", headers=h, timeout=15).json()
+        actions = {e["action"] for e in audit["events"]}
+        assert {"module_access.grant_org", "module_access.restore_user",
+                "module_access.revoke_user", "module_access.revoke_org"} <= actions
+        # newest first, each event carries who + when
+        assert all(e.get("admin_email") and e.get("timestamp") for e in audit["events"])
     finally:
         db.organizations.delete_many({"id": org_id})
         db.users.delete_many({"id": uid})
+        db.admin_activity_log.delete_many({"target_id": {"$in": [org_id, uid]}})

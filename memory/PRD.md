@@ -1,3 +1,21 @@
+## Iter 278g — Toast/Undo + audit trail for module-access changes ✅ (Jun 15, 2026)
+
+**Enhancement:** made the one-click module-access fixes reversible and traceable.
+
+**Backend (`master_admin_users.py`):**
+- Fixed the `log_activity()` calls in the grant endpoint to the correct signature `(action, details, admin_email, target_type, target_id)` — they previously passed args in the wrong order. Acting admin email + readable details (e.g. "Enabled CRM for Pulse Fitness Limited") now logged correctly.
+- New `POST .../module-access/{module}/revoke` (scope `org` | `user` | `both`) — powers the toast Undo and explicit revokes; disables the org module (synced via shared `_set_org_module_enabled` helper) and/or re-applies the per-staff block; audited (`module_access.revoke_org` / `revoke_user`).
+- New `GET .../module-access/audit` — returns the last 15 `module_access.*` events for the user (their user-level changes + org-level changes for their org) with `verb`, `details`, `admin_email`, `timestamp`.
+
+**Frontend (`UserDetailDrawer.js`):** after a fix, a sonner success toast shows an **Undo** action (8s) that calls revoke with the matching scope; a **Recent access changes** list renders under the diagnostics (green/red dot, "{details} · {relative time} · {admin email}"), refreshing after every grant/undo. data-testid `module-access-audit` / `module-access-audit-row-{i}`.
+
+**Verified:** pytest `test_iter278f_module_access_grant.py` 1/1 (now covers grant→restore→revoke(user)→revoke(org)→audit assertions); full suite 278e+278f 8/8. UI confirmed: "CRM access restored" toast **with Undo button**, CRM flips to Enabled, and the audit trail lists changes with who + when. ESLint clean; test data reset.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 278f+ — One-click "fix module access" from the diagnostics row ✅ (Jun 15, 2026)
 
 **Enhancement:** made the People-drawer module diagnostics actionable. Each blocked row now shows an inline fix button so a master admin resolves a lock-out without leaving the drawer.
