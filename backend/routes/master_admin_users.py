@@ -616,6 +616,27 @@ async def _enrich_with_orgs(all_users: list) -> None:
         u["portals"] = portals
 
 
+async def _enrich_with_module_access(all_users: list) -> None:
+    """Resolve each person's effective module entitlement (operations,
+    memberships, marketing, crm) for the Master Admin "Org People" directory,
+    plus surface a single job_title field. Batch-fetches the referenced orgs
+    once (full docs so trial/modules config resolves accurately)."""
+    if not all_users:
+        return
+    from utils.module_access import MODULE_KEYS, resolve_module_access
+    org_ids = {u.get("organization_id") for u in all_users if u.get("organization_id")}
+    orgs = await db.organizations.find({"id": {"$in": list(org_ids)}}, {"_id": 0}).to_list(length=None)
+    org_map = {o["id"]: o for o in orgs}
+    for u in all_users:
+        org = org_map.get(u.get("organization_id"))
+        try:
+            eff = resolve_module_access(u, org)
+        except Exception:  # never let a single bad record break the list
+            eff = {}
+        u["module_access"] = {k: bool(eff.get(k)) for k in MODULE_KEYS}
+        u["job_title"] = (u.get("job_title") or u.get("primary_role") or "").strip()
+
+
 async def _enrich_partner_engineers(all_users: list) -> None:
     """Iter 220p — flag Partner Engineers so the People Directory shows
     them as 'Partner Engineer' on the Engineer App rather than as generic
@@ -741,6 +762,7 @@ async def get_all_users(user: dict = Depends(get_current_user), brand: str = "al
     all_users = _merge_users_by_email(sp_users, crm_list)
     all_users = await _fan_pulse_platform_admins(all_users)
     await _enrich_with_orgs(all_users)
+    await _enrich_with_module_access(all_users)
     await _enrich_partner_engineers(all_users)
     await _enrich_with_invited_role(all_users)
     await _enrich_with_pending_invite(all_users)

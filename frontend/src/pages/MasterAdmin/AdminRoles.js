@@ -15,16 +15,18 @@
  *   5. Legacy: Users      — pre-P3 GlobalUsersPanel (kept for archive/purge UI).
  */
 import React, { useState } from 'react';
-import { Users, Grid3x3, UserCog, KeyRound, FolderArchive } from 'lucide-react';
+import { Users, Grid3x3, UserCog, KeyRound, FolderArchive, Briefcase } from 'lucide-react';
 import AdminServiceDesk from './AdminServiceDesk';
 import AdminPulseAdmins from './AdminPulseAdmins';
 import PermissionsMatrix from './PermissionsMatrix';
 import GlobalUsersPanel from './GlobalUsersPanel';
 import PeopleDirectory from './PeopleDirectory';
+import OrgPeopleDirectory from './OrgPeopleDirectory';
 import UserDetailDrawer from './UserDetailDrawer';
 
 const TABS = [
   { id: 'directory', label: 'Directory', icon: Users },
+  { id: 'org-people', label: 'Org People', icon: Briefcase },
   { id: 'matrix', label: 'Permissions matrix', icon: Grid3x3 },
   { id: 'service-desk', label: 'Service Desk team', icon: UserCog },
   { id: 'pulse-admins', label: 'Pulse Master Admins', icon: KeyRound },
@@ -114,6 +116,12 @@ const AdminRoles = ({ API, globalUsersProps, isPulseAdmin }) => {
 
       {tab === 'directory' && (
         <PeopleDirectory
+          users={globalUsersProps?.users || []}
+          onOpenUser={(u) => setSelectedUser(u)}
+        />
+      )}
+      {tab === 'org-people' && (
+        <OrgPeopleDirectory
           users={globalUsersProps?.users || []}
           onOpenUser={(u) => setSelectedUser(u)}
         />
