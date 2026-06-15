@@ -17,7 +17,7 @@
  */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight, Layers, CircleCheck, CircleSlash } from 'lucide-react';
+import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight, Layers, CircleCheck, CircleSlash, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '@/components/shared/Button';
 
@@ -55,6 +55,15 @@ const ModuleAccessSection = ({ userId, headers }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [fixing, setFixing] = useState(null);
+
+  const fetchData = () => {
+    setLoading(true); setError(false);
+    return axios.get(`${API_BASE}/master-admin/users/${userId}/module-access`, { headers })
+      .then(({ data }) => setData(data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -65,6 +74,20 @@ const ModuleAccessSection = ({ userId, headers }) => {
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fix = async (m) => {
+    setFixing(m.key);
+    try {
+      const { data } = await axios.post(
+        `${API_BASE}/master-admin/users/${userId}/module-access/${m.key}/grant`,
+        {}, { headers });
+      setData(data);
+    } catch {
+      await fetchData();
+    } finally {
+      setFixing(null);
+    }
+  };
 
   return (
     <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E4E4E7' }} data-testid="people-drawer-module-access">
@@ -104,8 +127,24 @@ const ModuleAccessSection = ({ userId, headers }) => {
                   <AccessDot on={m.org_enabled} />
                   <AccessDot on={m.user_access} testid={`module-access-user-${m.key}`} />
                 </div>
-                <div className="text-[10px] mt-1" style={{ color: m.user_access ? '#16a34a' : (m.org_enabled ? '#d97706' : '#a1a1aa') }}>
-                  {m.reason}
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <span className="text-[10px]" style={{ color: m.user_access ? '#16a34a' : (m.org_enabled ? '#d97706' : '#a1a1aa') }}>
+                    {m.reason}
+                  </span>
+                  {m.fix_action && (
+                    <button
+                      onClick={() => fix(m)}
+                      disabled={fixing === m.key}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors disabled:opacity-50"
+                      style={{ borderColor: '#bfdbfe', color: '#1d4ed8', background: '#eff6ff' }}
+                      data-testid={`module-access-fix-${m.key}`}
+                    >
+                      <Wand2 size={11} />
+                      {fixing === m.key
+                        ? 'Fixing…'
+                        : m.fix_action === 'grant_org' ? `Enable ${m.label} for org` : 'Restore access'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

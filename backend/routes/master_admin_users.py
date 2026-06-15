@@ -33,7 +33,9 @@ from utils.auth import get_current_user
 from utils.database import db
 from routes.master_admin import (
     PULSE_VISIBLE_ACCOUNT_TYPES,
+    ALL_MODULE_IDS,
     _create_org_user,
+    _derive_portal_type,
     assert_org_in_pulse_scope,
     assert_user_in_pulse_scope,
     is_pulse_only,
@@ -120,6 +122,11 @@ async def get_user_module_access(user_id: str, user: dict = Depends(get_current_
     if org_id:
         org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
 
+    return _module_access_payload(target, org)
+
+
+def _module_access_payload(target: dict, org: Optional[dict]) -> dict:
+    """Build the per-module access diagnostics for a user + their org."""
     from utils.module_access import (
         MODULE_KEYS, org_module_access, resolve_module_access,
     )
@@ -143,28 +150,98 @@ async def get_user_module_access(user_id: str, user: dict = Depends(get_current_
         org_on = bool(org_lvl.get(key))
         user_on = bool(effective.get(key))
         if privileged:
-            reason = f"Full access — {priv_label}"
+            reason, action = f"Full access — {priv_label}", None
         elif not org_on:
-            reason = "Not enabled for this organisation"
+            reason, action = "Not enabled for this organisation", "grant_org"
         elif user_on:
-            reason = "Enabled"
+            reason, action = "Enabled", None
         else:
-            reason = "Revoked for this user"
+            reason, action = "Revoked for this user", "restore_user"
         modules.append({
             "key": key, "label": label, "blurb": blurb,
             "org_enabled": org_on or privileged,
-            "user_access": user_on,
+            "user_access": user_on or privileged,
             "reason": reason,
+            "fix_action": action,  # null | "grant_org" | "restore_user"
         })
 
     return {
-        "user_id": user_id,
+        "user_id": target.get("id"),
         "account_type": (org or {}).get("account_type") or target.get("account_type") or "—",
         "organization_name": (org or {}).get("name") or "",
+        "organization_id": (org or {}).get("id"),
         "is_privileged": privileged,
         "privilege_label": priv_label,
         "modules": modules,
     }
+
+
+@router.post("/master-admin/users/{user_id}/module-access/{module}/grant")
+async def grant_user_module_access(user_id: str, module: str, user: dict = Depends(get_current_user)):
+    """One-click fix from the diagnostics row. Resolves whatever is blocking
+    THIS module for THIS user:
+      • org-level off  → enable the module for the organisation
+      • user revoked   → clear the per-staff override that blocks it
+    Returns the refreshed diagnostics so the drawer updates in place."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+    if module not in {"operations", "memberships", "marketing", "crm"}:
+        raise HTTPException(400, "Unknown module")
+
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    is_crm_user = await db.crm_users.find_one({"id": user_id}, {"_id": 1}) is not None
+
+    org_id = target.get("organization_id")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) if org_id else None
+
+    from utils.module_access import org_module_access, resolve_module_access
+    org_on = bool(org_module_access(org).get(module))
+    user_on = bool(resolve_module_access(target, org).get(module))
+
+    did = None
+    # 1. Org-level off → enable the module for the org (merge + sync legacy fields).
+    if org and not org_on:
+        modules = {**(org.get("modules") or {})}
+        existing = modules.get(module) or {}
+        entry = {**existing, "enabled": True, "tier": existing.get("tier", "pro")}
+        if module == "crm":
+            entry["leisure_enabled"] = True  # default to the gym/leisure CRM mode
+        modules[module] = entry
+        enabled_list = [k for k, v in modules.items() if isinstance(v, dict) and v.get("enabled")]
+        derived = [m for m in ALL_MODULE_IDS if m in enabled_list] or ["operations"]
+        await db.organizations.update_one(
+            {"id": org_id},
+            {"$set": {"modules": modules, "enabled_modules": derived,
+                      "portal_type": _derive_portal_type(derived)}},
+        )
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+        did = "granted_org"
+        await log_activity(user, "module_access.grant_org",
+                           f"Enabled {module} for org {org_id}", {"module": module, "org_id": org_id})
+
+    # 2. Per-staff override blocking → set it to allow (non-destructive merge).
+    overrides = {**(target.get("module_overrides") or {})}
+    if overrides.get(module) is False:
+        overrides[module] = True
+        coll = db.crm_users if is_crm_user else db.users
+        await coll.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
+        did = "restored_user" if did is None else "granted_org_and_restored_user"
+        await log_activity(user, "module_access.restore_user",
+                           f"Restored {module} for user {user_id}", {"module": module, "user_id": user_id})
+
+    if did is None and not (org_on and user_on):
+        # Nothing to toggle (e.g. privileged user or no org). Still return state.
+        did = "noop"
+
+    payload = _module_access_payload(target, org)
+    payload["result"] = did
+    return payload
+
 
 
 

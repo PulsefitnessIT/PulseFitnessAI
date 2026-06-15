@@ -1,3 +1,21 @@
+## Iter 278f+ — One-click "fix module access" from the diagnostics row ✅ (Jun 15, 2026)
+
+**Enhancement:** made the People-drawer module diagnostics actionable. Each blocked row now shows an inline fix button so a master admin resolves a lock-out without leaving the drawer.
+
+**Backend:** `POST /api/master-admin/users/{user_id}/module-access/{module}/grant` (master-admin auth + pulse scope). Smartly fixes whatever's blocking the module for that user:
+- org-level off → enables `modules.{key}` for the org (merge + syncs `enabled_modules`/`portal_type`, CRM defaults `leisure_enabled`, audited via `log_activity`);
+- per-staff override revoked → non-destructively sets `module_overrides[key]=True` (merge, other overrides untouched), works for both `users` and `crm_users`.
+Returns refreshed diagnostics with a `result` (`granted_org` / `restored_user` / `granted_org_and_restored_user` / `noop`). The GET diagnostics now also returns a `fix_action` per row (`grant_org` | `restore_user` | null).
+
+**Frontend (`UserDetailDrawer.js`):** the diagnostics row renders a blue "Enable {module} for org" or "Restore access" button (wand icon) when `fix_action` is set; clicking calls the grant endpoint and updates the matrix in place (data-testid `module-access-fix-{key}`).
+
+**Verified:** pytest `test_iter278f_module_access_grant.py` 1/1 (org-off → grant → org enabled + legacy fields synced + user access; then revoke → restore). E2E curl both paths (`granted_org`, `restored_user`). UI confirmed: CRM row "Revoked for this user" → "Restore access" button → flips to "Enabled". ESLint clean. Added to Makefile.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 278f — Module access diagnostics on the People drawer ✅ (Jun 15, 2026)
 
 **Enhancement (follow-up to the 278e CRM lock-out fix):** give master admins a self-serve way to see *why* someone can/can't reach a module, turning access tickets into a 5-second check.
