@@ -1,6 +1,26 @@
 # Changelog
 
 
+## Jun 15, 2026 — Org Chart: import an EXISTING chart (PDF / image → editable cards)
+
+- New backend endpoints (`routes/staffing_orgchart_ai.py`): `POST .../import/document`
+  (multipart file OR file_url) + `GET .../import/document/{job_id}` (poll). Runs as an
+  **async job** — vision OCR on dense charts exceeds the 60s ingress timeout, so the POST
+  returns instantly and the client polls. Extraction strategy: if the PDF has a text layer
+  (`fitz`/PyMuPDF) feed that to the text→rows LLM (most accurate); otherwise rasterise pages
+  and use Claude Sonnet vision. Returns reviewable rows (name/title/department/manager_name/vacancy).
+- **Critical fix**: `emergentintegrations` calls *synchronous* `litellm.completion()` inside an
+  `async` method, blocking the event loop for ~70s → POST never flushed → Cloudflare 502. Now the
+  whole extraction (fitz + LLM) runs in a worker thread via `asyncio.to_thread` (`_extract_rows_sync`,
+  `_llm_json_sync`); only Mongo writes stay on the main loop. POST now returns in ~0.2s, poll latency ~0.15s.
+- Frontend `DocumentImport.js` (idle→working→review→done/error): upload PDF/PNG/JPG → poll → **editable**
+  review table (fix OCR slips) → apply → cards become normal editable nodes. Embedded atop the Import/Export tab.
+- Verified on the real **Pulse Fitness May 2025 PDF: 108 people extracted** (source `text`) with correct
+  reporting lines; applied → 121 editable cards on the canvas.
+- Tested: pytest `test_iter283_orgchart_import_doc.py` (mini PDF) + `test_iter284_pulse_pdf_import.py`
+  (real Pulse PDF) — both GREEN, added to Makefile regression. Testing agent: **100% backend + 100% frontend**.
+
+
 ## Jun 15, 2026 — Org Chart: Publish & share a read-only public link
 
 - Backend (`routes/staffing_orgchart.py`): `POST/DELETE .../publish`, `POST .../publish/rotate`,
