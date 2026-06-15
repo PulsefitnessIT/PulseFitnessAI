@@ -1,3 +1,18 @@
+## Iter 279e — CRM job titles (read-only, from shared catalogue) + persist last Staffing/Operations tab ✅ (Jun 15, 2026)
+
+**(1) CRM job titles.** CRM "team roles" are *permission* roles (owner/admin/manager/sales_rep) — a security concept. Added a separate read-only **Job title** that pulls through from the shared staffing catalogue.
+- Backend (`routes/crm_core.list_crm_users`): enriches each CRM user with `job_title`, derived from the linked platform user's `staff_members.primary_role` (which syncs from the Master Admin role — iter 279c), falling back to the platform `users.role`, humanized to Title Case. Email-matched, org-scoped, batched queries.
+- Frontend (`CRMSettings.js` TeamSection): shows the job title under each member's email (briefcase icon) and read-only in the Edit dialog with the note "Managed in Operations → Staffing. Separate from the CRM role below." CRM permission role badge unchanged.
+- Verified: `tests/test_iter279e_crm_job_title.py` 2/2 (Engineer pulls through as "Engineer" while CRM role stays sales_rep); live screenshot shows Jack Ottey → "Manager", Pulse Admin → "Other" alongside their CRM role badges.
+
+**(2) Remember last Staffing tab.**
+- `StaffingConsole.js`: persists the active leaf (group+sub-tab) to `localStorage` per user (`staffing.activeLeaf:<userId>`), restored on mount (validated against role).
+- `LiteDashboardPage.js`: persists the active **Operations** tab per user (`pulse.activeTab:<userId>`) and restores it on mount UNLESS a `?tab=`/deep-link overrides — so a reload lands the manager back on Staffing (and the saved sub-tab). Validated against visible TABS.
+- Verified: reload landed back on Staffing → Payroll (screenshot). ESLint clean.
+
+---
+
+
 ## ✅ RESOLVED (user-confirmed in production, Jun 15, 2026) — CRM Master Admin lock-out
 
 The recurring P0 where Pulse Master Admins (Lee Somers, Craig Henshall) could not access the CRM module at gymaxisai.com is **FIXED and confirmed by the user in production**. Root cause (iter 279b): the CRM cross-login authenticated using only the stale `localStorage['token']` (left over from a prior registration → wrong/old user_id) instead of the current httpOnly `ga_session` cookie. Fix made cross-login resolve the caller from every candidate token (bearer + cookie) and pick the CRM-capable identity. No further action needed on this item.

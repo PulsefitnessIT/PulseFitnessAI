@@ -694,6 +694,27 @@ const LiteDashboardPage = () => {
   // because pills and content used different hand-written role checks).
   const tabVisible = (id) => TABS.some((tab) => tab.id === id);
 
+  // Iter 279e — persist & restore the manager's last Operations tab per
+  // user, so a reload lands them back where they left off. (The Staffing
+  // sub-tab is remembered separately inside StaffingConsole.)
+  const opsTabKey = user?.id ? `pulse.activeTab:${user.id}` : null;
+  const opsTabRestored = React.useRef(false);
+  React.useEffect(() => {
+    if (!opsTabKey || opsTabRestored.current) return;
+    opsTabRestored.current = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') || params.get('deep_link')) return; // deep-link wins
+    const saved = localStorage.getItem(opsTabKey);
+    if (saved && saved !== activeTab && TABS.some((t) => t.id === saved)) {
+      setActiveTab(saved);
+    }
+  }, [opsTabKey, TABS, activeTab]);
+  React.useEffect(() => {
+    if (opsTabKey && activeTab && TABS.some((t) => t.id === activeTab)) {
+      localStorage.setItem(opsTabKey, activeTab);
+    }
+  }, [activeTab, opsTabKey, TABS]);
+
   // Auto-scroll the active pill into view when tab changes (e.g. via bottom nav)
   React.useEffect(() => {
     if (!pulsePillBarRef.current) return;

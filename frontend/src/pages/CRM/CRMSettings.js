@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Upload, FileSpreadsheet, Shield, Clock, User, ChevronRight, Loader2,
-  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code, ShieldOff
+  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code, ShieldOff, Briefcase
 } from 'lucide-react';
 import axios from 'axios';
 import CRMPermissions from './CRMPermissions';
@@ -106,6 +106,11 @@ function TeamSection({ API, headers, user, c, isDark }) {
                     {isInactive && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgb(var(--rgb-danger-alt)/0.1)] text-[var(--color-danger-alt)] font-medium">Inactive</span>}
                   </div>
                   <p className="text-[11px]" style={{ color: c.textDim }}>{u.email}</p>
+                  {u.job_title && (
+                    <p className="text-[10px] font-medium mt-0.5 inline-flex items-center gap-1" style={{ color: c.textDim }} data-testid={`team-member-jobtitle-${u.id}`}>
+                      <Briefcase size={10} /> {u.job_title}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -141,6 +146,13 @@ function TeamSection({ API, headers, user, c, isDark }) {
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Email</label>
                 <input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })}
                   className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="edit-user-email" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Job Title</label>
+                <div className="w-full mt-1 px-3 py-2 text-sm rounded-md flex items-center gap-1.5" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-bg-subtle, #f8fafc)', border: `1px solid ${c.border}`, color: c.textDim }} data-testid="edit-user-jobtitle">
+                  <Briefcase size={12} /> {showEdit.job_title || 'Not set'}
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: c.textDim }}>Managed in Operations → Staffing. Separate from the CRM role below.</p>
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Role</label>

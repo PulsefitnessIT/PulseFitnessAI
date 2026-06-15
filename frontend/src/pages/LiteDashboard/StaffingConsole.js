@@ -157,12 +157,28 @@ export default function StaffingConsole() {
   }, [groups]);
 
   const firstLeaf = (g) => (g?.children ? g.children[0]?.id : g?.leaf);
-  const [tab, setTab] = useState(() => firstLeaf(groups[0]) || 'leave');
+  // Iter 279e — remember the manager's last Staffing tab across reloads
+  // (per user, so shared browsers don't collide).
+  const storageKey = `staffing.activeLeaf:${user?.id || 'anon'}`;
+  const [tab, setTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return saved;
+    }
+    return firstLeaf(groups[0]) || 'leave';
+  });
 
   // Keep `tab` valid when the role-filtered tree changes.
   useEffect(() => {
     if (!leafToGroup[tab]) setTab(firstLeaf(groups[0]) || 'leave');
   }, [groups, leafToGroup, tab]);
+
+  // Persist the active leaf whenever it's valid for this role.
+  useEffect(() => {
+    if (leafToGroup[tab] && typeof window !== 'undefined') {
+      localStorage.setItem(storageKey, tab);
+    }
+  }, [tab, leafToGroup, storageKey]);
 
   const activeGroup = groups.find((g) => g.id === leafToGroup[tab]) || groups[0];
   const subTabs = activeGroup?.children || [];

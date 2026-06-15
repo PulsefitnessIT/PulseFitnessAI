@@ -736,11 +736,59 @@ async def import_companies_csv(file: UploadFile = File(...), user=Depends(get_cr
 
 
 # ==================== CRM USERS LIST ====================
+def _humanize_role(role):
+    """lower_snake job-role token → Title Case ("sales_manager" → "Sales Manager")."""
+    if not role:
+        return None
+    return str(role).replace("_", " ").replace("-", " ").title()
+
+
 @router.get("/users")
 async def list_crm_users(user=Depends(get_crm_user)):
     org_id = user.get("organization_id")
     query = {"organization_id": org_id} if org_id else {}
     users = await db.crm_users.find(query, {"_id": 0, "password": 0}).to_list(100)
+
+    # Iter 279e — enrich each CRM team member with their company JOB TITLE
+    # (Engineer, Sales Manager …) drawn from the shared staffing catalogue.
+    # This is read-only here and kept SEPARATE from the CRM permission role:
+    # it pulls through from the linked platform user's staffing primary_role
+    # (which itself syncs from the role set in Master Admin — iter 279c).
+    emails_lc = [(u.get("email") or "").lower().strip() for u in users if u.get("email")]
+    if emails_lc and org_id:
+        plat_users = await db.users.find(
+            {"organization_id": org_id, "email": {"$in": emails_lc}},
+            {"_id": 0, "id": 1, "email": 1, "role": 1},
+        ).to_list(500)
+        # case-insensitive email match (platform emails may be stored mixed-case)
+        if len(plat_users) < len(set(emails_lc)):
+            plat_users = await db.users.find(
+                {"organization_id": org_id},
+                {"_id": 0, "id": 1, "email": 1, "role": 1},
+            ).to_list(2000)
+        plat_by_email = {(p.get("email") or "").lower().strip(): p for p in plat_users}
+        plat_ids = [p["id"] for p in plat_by_email.values() if p.get("id")]
+        staff = await db.staff_members.find(
+            {"organization_id": org_id,
+             "$or": [{"user_id": {"$in": plat_ids}}, {"email": {"$in": emails_lc}}]},
+            {"_id": 0, "user_id": 1, "email": 1, "primary_role": 1},
+        ).to_list(2000)
+        staff_by_uid = {s["user_id"]: s for s in staff if s.get("user_id")}
+        staff_by_email = {(s.get("email") or "").lower().strip(): s for s in staff if s.get("email")}
+        for u in users:
+            em = (u.get("email") or "").lower().strip()
+            pu = plat_by_email.get(em)
+            role_token = None
+            if pu:
+                sm = staff_by_uid.get(pu.get("id")) or staff_by_email.get(em)
+                role_token = (sm or {}).get("primary_role") or pu.get("role")
+            elif em in staff_by_email:
+                role_token = staff_by_email[em].get("primary_role")
+            u["job_title"] = _humanize_role(role_token)
+    else:
+        for u in users:
+            u["job_title"] = None
+
     return {"users": users}
 
 
