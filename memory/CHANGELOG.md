@@ -454,3 +454,10 @@ End-user E2E audit (testing agent + manual verification):
 
 - `GET /api/staffing/orgchart/public/{token}` now: reads client IP from X-Forwarded-For, enforces a 60/min/IP cap (HTTP 429 via `_check_public_org_rate`), and writes a per-attempt audit row to `org_chart_access_log` (token/ip/ua/found/ts) — mirroring the F-21 widget enumeration guard. Combined with the 256-bit token + PII stripping, the only new public surface added pre-transfer is now at the platform's standard public-endpoint posture.
 - Verified live (60×404 → 429 on a fixed IP) + regression test `tests/test_iter289_orgchart_public_hardening.py` (2 tests, added to `make regression`). Security-scan gate green (ruff clean, bandit 0 High/0 Medium).
+
+## Jun 15, 2026 — Iter 290: Service Desk dashboard — team performance
+
+- Removed the **Quick Actions / Manage Customers** card and the **Customer Security Briefing** card from the Service Desk dashboard (`DeskSummary.js`).
+- Added a polished **Team Performance** section (`DeskPerformance.js`): FTF (First-Time-Fix) gauge ring + hero throughput (RTF open / avg resolution / closed 7d), six KPI tiles (Open Cases, Return to Fix, SLA Breached, SLA At-Risk, Unassigned, Active Engineers — each deep-links to Cases/Engineers), and an Engineer Leaderboard (jobs closed + FTF% with progress bars).
+- New backend `GET /api/service-desk/performance` (`service_desk.py`) scoped to the desk's org. KPI definitions reuse the app's canonical logic: RTF = open jobs with `return_to_fix` set or in `paused_parts/awaiting_parts`; FTF = closed/invoiced cases that never hit `paused_parts` (matches `svc/reports/ftfr`). 30-day window for FTF/avg-resolution/leaderboard.
+- Verified live (desk agent: FTF 100% of 16, 449 SLA breached, leaderboard populated) + regression `tests/test_iter290_desk_performance.py` (2 tests, in `make regression`). Frontend compiles, 0 page errors.

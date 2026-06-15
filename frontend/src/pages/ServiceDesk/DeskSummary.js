@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, Clock, Archive, ScrollText, FileText, Download, CreditCard, Loader2 } from 'lucide-react';
+import { Users, Building2, Clock, Archive, ScrollText, CreditCard, Loader2 } from 'lucide-react';
 import { authConfig } from './authConfig';
+import DeskPerformance from './DeskPerformance';
 
 /** Iter 258b — subscription status card for provider dashboards:
  *  trial → upgrade CTA; active → plan + renewal + Stripe billing portal. */
@@ -61,37 +62,9 @@ function SubscriptionCard({ API }) {
   );
 }
 
-export default function DeskSummary({ API, onJumpToCustomers, onNavigate }) {
+export default function DeskSummary({ API, onNavigate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
-
-  const downloadPdf = async (endpoint, filename, setBusy) => {
-    setBusy(true);
-    try {
-      const r = await axios.get(`${API}${endpoint}`, {
-        ...authConfig(),
-        responseType: 'blob',
-      });
-      const blob = new Blob([r.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error(`${filename} download failed:`, e);
-      alert(`Failed to download ${filename}. Check console for details.`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const downloadBriefing = () =>
-    downloadPdf('/admin-docs/security-briefing', 'Pulse_Fitness_Security_Briefing.pdf', setDownloading);
 
   useEffect(() => {
     const run = async () => {
@@ -179,46 +152,10 @@ export default function DeskSummary({ API, onJumpToCustomers, onNavigate }) {
           <div className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{recent_actions_7d}</div>
           <div className="text-xs text-zinc-500 mt-1">Service Desk actions in the last 7 days · tap to open the audit log</div>
         </Card>
-        <Card className="p-5 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border-orange-100 dark:border-orange-900/40">
-          <div className="text-sm font-medium text-zinc-900 mb-2 dark:text-zinc-100">Quick Actions</div>
-          <Button
-            size="sm" onClick={onJumpToCustomers}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-            data-testid="desk-quick-manage-customers"
-          >
-            Manage Customers
-          </Button>
-          <div className="text-xs text-zinc-500 mt-3">
-            {isProvider ? 'Add engineers and raise cases from the tabs on the left.' : 'Bulk imports launch in Sprint 3.'}
-          </div>
-        </Card>
       </div>
 
-      {!isProvider && (
-      <Card className="p-5 border-blue-100 dark:border-blue-900/40 bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Customer Security Briefing</div>
-            </div>
-            <div className="text-xs text-zinc-600 max-w-md">
-              A printable 2-page document explaining how we keep Pulse Fitness data and the Sicon link secure.
-              Hand to Directors, finance teams, or compliance reviewers.
-            </div>
-          </div>
-          <Button
-            size="sm"
-            onClick={downloadBriefing}
-            disabled={downloading}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
-            data-testid="desk-download-security-briefing"
-          >
-            <Download className="w-4 h-4 mr-1" /> {downloading ? 'Preparing…' : 'Download PDF'}
-          </Button>
-        </div>
-      </Card>
-      )}
+      {/* Iter 290 — team-performance KPIs (FTF/RTF, SLA health, leaderboard) */}
+      <DeskPerformance API={API} onNavigate={onNavigate} />
     </div>
   );
 }

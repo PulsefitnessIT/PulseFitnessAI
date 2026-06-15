@@ -64,6 +64,116 @@ async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
     }
 
 
+# ── Team performance KPIs ────────────────────────────────────────
+
+@router.get("/performance")
+async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
+    """Team-performance KPIs for the Service Desk landing page.
+
+    Scoped to the desk's own service operation (provider org for self-serve
+    desks, otherwise the desk's organisation). Definitions match the rest of
+    the app:
+      * Return-to-Fix (RTF) — open jobs flagged for a return visit or parked
+        for parts (mirrors ``svc/engineer`` ``return_to_fix`` filter).
+      * First-Time-Fix (FTF) — a closed/invoiced case that never entered
+        ``paused_parts`` (mirrors ``svc/reports/ftfr``).
+    """
+    from utils.svc_state import OPEN_STATES
+
+    org_id = await desk_provider_org_id(user) or user.get("organization_id")
+    of = {"organization_id": org_id}
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    since_7d = (now - timedelta(days=7)).isoformat()
+    since_30d = (now - timedelta(days=30)).isoformat()
+    risk_iso = (now + timedelta(hours=24)).isoformat()
+    open_q = {**of, "status": {"$in": list(OPEN_STATES)}}
+
+    open_cases = await db.svc_cases.count_documents(open_q)
+    rtf_open = await db.svc_cases.count_documents({
+        **open_q,
+        "$or": [
+            {"return_to_fix": {"$ne": None}},
+            {"status": {"$in": ["paused_parts", "awaiting_parts", "paused_customer"]}},
+        ],
+    })
+    unassigned = await db.svc_cases.count_documents(
+        {**open_q, "assigned_engineer_id": {"$in": [None, ""]}})
+    sla_breached = await db.svc_cases.count_documents(
+        {**open_q, "sla_resolve_at": {"$ne": None, "$lt": now_iso}})
+    sla_at_risk = await db.svc_cases.count_documents(
+        {**open_q, "sla_resolve_at": {"$gte": now_iso, "$lt": risk_iso}})
+    closed_7d = await db.svc_cases.count_documents(
+        {**of, "status": {"$in": ["closed", "invoiced"]}, "closed_at": {"$gte": since_7d}})
+
+    # FTF rate + avg resolution (last 30 days)
+    closed_30 = await db.svc_cases.find(
+        {**of, "status": {"$in": ["closed", "invoiced"]},
+         "closed_at": {"$gte": since_30d, "$lte": now_iso}},
+        {"_id": 0, "id": 1, "created_at": 1, "closed_at": 1,
+         "assigned_engineer_id": 1, "assigned_engineer_name": 1},
+    ).to_list(5000)
+    closed_ids = [c["id"] for c in closed_30]
+    paused_ids: set[str] = set()
+    if closed_ids:
+        async for d in db.svc_case_events.aggregate([
+            {"$match": {**of, "case_id": {"$in": closed_ids},
+                        "type": "state_change", "to_state": "paused_parts"}},
+            {"$group": {"_id": "$case_id"}},
+        ]):
+            paused_ids.add(d["_id"])
+    total_closed_30 = len(closed_ids)
+    ftf_count = total_closed_30 - len(paused_ids)
+    ftf_rate = round(100 * ftf_count / total_closed_30) if total_closed_30 else 0
+
+    durations: list[float] = []
+    for c in closed_30:
+        try:
+            ca = datetime.fromisoformat(c["created_at"])
+            cl = datetime.fromisoformat(c["closed_at"])
+            durations.append((cl - ca).total_seconds() / 3600)
+        except (TypeError, ValueError):
+            pass
+    avg_resolution_hours = round(sum(durations) / len(durations), 1) if durations else 0
+
+    active_engineers = await db.svc_engineers.count_documents({**of, "active": True})
+
+    # Engineer leaderboard — cases closed in the last 30 days (top 5)
+    board: dict[str, dict] = {}
+    for c in closed_30:
+        eid = c.get("assigned_engineer_id")
+        if not eid:
+            continue
+        row = board.setdefault(eid, {
+            "engineer_id": eid,
+            "name": c.get("assigned_engineer_name") or "Engineer",
+            "closed": 0, "ftf": 0,
+        })
+        row["closed"] += 1
+        if c["id"] not in paused_ids:
+            row["ftf"] += 1
+    leaderboard = sorted(board.values(), key=lambda r: r["closed"], reverse=True)[:5]
+    for r in leaderboard:
+        r["ftf_rate"] = round(100 * r["ftf"] / r["closed"]) if r["closed"] else 0
+
+    return {
+        "open_cases": open_cases,
+        "rtf_open": rtf_open,
+        "unassigned": unassigned,
+        "sla_breached": sla_breached,
+        "sla_at_risk": sla_at_risk,
+        "closed_7d": closed_7d,
+        "ftf_rate": ftf_rate,
+        "ftf_count": ftf_count,
+        "total_closed_30d": total_closed_30,
+        "avg_resolution_hours": avg_resolution_hours,
+        "active_engineers": active_engineers,
+        "leaderboard": leaderboard,
+        "window_days": 30,
+    }
+
+
+
 # ── Customer list ────────────────────────────────────────────────
 
 def _build_customer_query(q: str, account_type: str, status: str) -> dict:
