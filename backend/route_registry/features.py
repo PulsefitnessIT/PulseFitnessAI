@@ -60,6 +60,7 @@ from routes.staffing_comms import router as staffing_comms_router
 from routes.staffing_tasks import router as staffing_tasks_router
 from routes.staffing_hr import router as staffing_hr_router
 from routes.staffing_ai_phase6 import router as staffing_ai_phase6_router
+from routes.staffing_orgchart import router as staffing_orgchart_router
 from routes.crm_setup import router as crm_setup_router
 from routes.master_admin_estate_rollup import router as master_admin_estate_rollup_router
 from routes.back_in_service import router as back_in_service_router
@@ -266,6 +267,7 @@ _UNGATED_ROUTERS = (
     staffing_tasks_router,
     staffing_hr_router,
     staffing_ai_phase6_router,
+    staffing_orgchart_router,
     crm_setup_router,
     master_admin_estate_rollup_router,
     back_in_service_router,

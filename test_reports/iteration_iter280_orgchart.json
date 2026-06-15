@@ -1,0 +1,34 @@
+{
+  "summary": "Tested iter280 Phase-1 Org Chart Builder end-to-end (backend pytest + frontend UI via Pulse Master Admin in Third Space org). Backend pytest /app/backend/tests/test_iter280_orgchart.py PASSES (1/1). Frontend Org Chart sub-tab renders correctly under Operations->Staffing->People->Org Chart. Auto-build seeded 3 staff cards on first open; insights chips show correct counts (3 people, 0 managers, 3 no_manager, 3 no_site). Toolbar (zoom in/out/fit/reset/auto-layout/add) all click without console errors. Add-card modal accepts type=Vacancy + name and the new vacancy card appears on canvas with 'Card added' toast and open-roles chip increments to 1. Sub-tabs (chart/list/vacancies/import/settings) all render their target panels. List View renders the table with the 3 seeded rows. Import/Export tab exposes orgchart-export-csv/png/pdf and orgchart-import-file dropzone. Filters bar has 3 selects (department/site/flag) and search box accepts input. No business-logic JS console errors (only ignorable CSP blocks for assets.emergent.sh/posthog/cloudflareinsights and unrelated 403s from cookie-banner analytics).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "OrgCard (Canvas)", "issue": "Double-clicking a card via Playwright (cards[0].dblclick(force=True)) did NOT open the orgchart-node-drawer. May be a real bug: the dblclick handler appears swallowed by the pan/zoom Canvas wrapper, or it requires a real DOM dblclick event (two clicks within 300ms) that headless Playwright reproduces but the canvas onDoubleClick may be attached to the inner card and getting cancelled by pointer-move drag detection. Recommend manual verification or guard the drag-start so it doesn't pre-empt dblclick on the same node.", "selector": "[data-testid^=\"orgcard-\"] -> [data-testid=\"orgchart-node-drawer\"]", "priority": "MEDIUM"},
+      {"component": "Settings panel", "issue": "Review request mentioned 'rename + danger zone' but the rename Save button and danger-zone delete do not expose stable testids (e.g. orgchart-settings-save / orgchart-settings-delete). orgchart-settings-name input exists. Consider adding testids for the save and delete buttons to keep selectors stable across refactors.", "selector": "[data-testid=\"orgchart-settings\"] button (Save/Delete)", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Org Chart canvas", "issues": ["The cookie consent banner (Essential Only / Accept All) overlays the bottom of the canvas/cards on a 1920x1080 viewport; may obscure the bottom row of cards until dismissed. Cosmetic but worth a z-index check or auto-collapse for logged-in users."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter280_orgchart.py", "/app/test_reports/pytest/iter280_orgchart.xml"],
+  "action_items": [
+    "Investigate why dblclick on an orgcard does not open the node drawer in headless Playwright (likely drag-pan handler interfering). Add an explicit data-testid (e.g. orgcard-open-drawer-{id}) or a single-click 'edit' affordance for keyboard/accessibility/test parity.",
+    "Add testids for Settings rename-save and danger-zone delete-chart buttons (orgchart-settings-save, orgchart-settings-delete) to align with the review's testing surface.",
+    "Optional: hide cookie consent banner for authenticated sessions so it does not overlay /pulse content."
+  ],
+  "critical_code_review_comments": [
+    "OrgChart frontend folder is well-modularised (OrgChartTab/Canvas/OrgCard/panels/ListView/etc) with consistent data-testid coverage.",
+    "Backend /app/backend/routes/staffing_orgchart.py uses the shared _org/_require_manager helpers correctly; route registry is wired via features.py.",
+    "auto_build=true seed is idempotent (1 node per active staff_member; no duplicates) — verified by pytest.",
+    "Recommend a frontend unit/e2e check around the drag-vs-dblclick race on Canvas to lock in the behaviour."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "~90%"},
+  "test_credentials": "pulse.admin.test@pulsefitness.com / PulseAdmin123! (Third Space, pulse_master_admin) — used for /pulse FE testing.",
+  "seed_data_creation": "Auto-build seeded 3 staff nodes from existing staff_members on first chart open; one TEST_Vacancy Engineer vacancy node added via UI for verification (left in chart for next agent visibility).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend is GREEN. Frontend is reachable at /pulse -> lite-tab-staffing -> staffing-tab-people -> staffing-subtab-orgchart (NOT directly /pulse top-level — must click into Staffing first). To open the edit drawer programmatically, prefer single-click + a dedicated open button (if added) or simulate two close mousedown+mouseup pairs within 250ms; raw page.dblclick on the card div did not trigger the drawer in this run.",
+  "rca of the issue": "Drawer-not-opening on Playwright dblclick: OrgCard sits inside Canvas which attaches pointerdown/move/up listeners for drag and pan. When Playwright dispatches dblclick (which fires mousedown/up twice), the first mousedown may register as the start of a drag, masking the dblclick on the card root. Mitigation options: (1) reset drag-state if pointer-up fires within < 5px movement & <250ms, (2) add an explicit 'Open' action/testid on the card."
+}

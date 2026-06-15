@@ -21,7 +21,7 @@ import {
   Eye, Shield, Megaphone, Sparkles, Trash2,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
-  IdCard, Wand2, ArrowRightLeft, Wallet,
+  IdCard, Wand2, ArrowRightLeft, Wallet, Network,
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
 } from 'lucide-react';
@@ -35,6 +35,7 @@ import MyClockTab from '@/pages/LiteDashboard/staffing/MyClockTab';
 import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
+import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
@@ -63,8 +64,9 @@ const GROUPS_ALL = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, leaf: 'dashboard', roles: MGR },
   // People = Staff roster + HR records (combined per user request).
   { id: 'people', label: 'People', icon: Users, children: [
-    { id: 'staff', label: 'Staff', icon: Users,  roles: MGR },
-    { id: 'hr',    label: 'HR',    icon: IdCard, roles: MGR },
+    { id: 'staff',    label: 'Staff',     icon: Users,   roles: MGR },
+    { id: 'hr',       label: 'HR',        icon: IdCard,  roles: MGR },
+    { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
   ] },
   // Rota = everything schedule-related.
   { id: 'rota', label: 'Rota', icon: Calendar, children: [
@@ -291,6 +293,7 @@ export default function StaffingConsole() {
         {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} />}
         {tab === 'operations'  && <OperationsTab   headers={headers} isManager={isManager} />}
         {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
+        {tab === 'orgchart'    && <OrgChartTab />}
         {tab === 'ai-rota'     && <AIWorkforceTab  headers={headers} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}
         {tab === 'mod-transfer' && <MODStaffTransferTab headers={headers} />}
