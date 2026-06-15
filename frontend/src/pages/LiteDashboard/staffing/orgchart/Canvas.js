@@ -237,7 +237,7 @@ export default function Canvas({
       >
         <div style={{ position: 'absolute', left: 0, top: 0, transform: `translate(${tx}px, ${ty}px) scale(${scale})`, transformOrigin: '0 0' }}>
           {frames.map((f) => (
-            <div key={f.key} className="absolute rounded-2xl" style={{ left: f.x, top: f.y, width: f.w, height: f.h, background: `${f.color}0d`, border: `1.5px dashed ${f.color}55`, zIndex: 1 }}>
+            <div key={f.key} className="absolute rounded-2xl" data-group-frame="1" data-testid={`orgchart-group-frame-${f.key}`} style={{ left: f.x, top: f.y, width: f.w, height: f.h, background: `${f.color}0d`, border: `1.5px dashed ${f.color}55`, zIndex: 1 }}>
               <span className="absolute -top-0.5 left-3 text-[11px] font-bold px-2 py-0.5 rounded-b-md" style={{ background: f.color, color: '#fff' }}>{f.key}</span>
             </div>
           ))}

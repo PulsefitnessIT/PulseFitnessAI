@@ -153,8 +153,8 @@ export default function OrgChartTab() {
     await Promise.all(laid.map((n) => ocApi.updateNode(chartId, n.id, { x: Math.round(n.x), y: Math.round(n.y) }).catch(() => {})));
   };
 
-  const saveSettings = async (settings) => { const r = await ocApi.updateChart(chartId, { settings }); setChart(r.chart); };
-  const renameChart = async (name) => { const r = await ocApi.updateChart(chartId, { name }); setChart(r.chart); setCharts((cs) => cs.map((c) => (c.id === chartId ? { ...c, name } : c))); toast.success('Renamed'); };
+  const saveSettings = async (settings) => { const r = await ocApi.updateChart(chartId, { settings }); setChart(r); };
+  const renameChart = async (name) => { const r = await ocApi.updateChart(chartId, { name }); setChart(r); setCharts((cs) => cs.map((c) => (c.id === chartId ? { ...c, name } : c))); toast.success('Renamed'); };
   const deleteChart = async () => {
     await ocApi.deleteChart(chartId);
     const { charts: list } = await ocApi.listCharts();

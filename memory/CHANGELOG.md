@@ -1,6 +1,32 @@
 # Changelog
 
 
+## Jun 15, 2026 — Org Chart Builder (Phase 2) — AI, history, templates, presentation, dotted lines, notes
+
+Extends the Phase-1 builder (Operations → Staffing → People → Org Chart).
+- **AI assist** `routes/staffing_orgchart_ai.py` (Emergent LLM key + `claude-sonnet-4-6`):
+  `ai/generate` (free-text staff list → reviewable rows with inferred reporting + vacancies),
+  `ai/analyze` (gaps/circular/overload/orphan + suggestions), `ai/draft-jd` (job description).
+  AI never mutates the chart — proposals are applied via the normal import endpoint.
+- **Version history + restore + audit trail** (`org_chart_versions`, `org_chart_audit`):
+  save snapshots, restore (auto-snapshots current first), full activity log.
+- **Starter templates** (8: small gym → enterprise/engineer/sales teams) — `GET /templates`,
+  `POST .../apply-template/{id}` adds placeholder roles + reporting lines.
+- **Secondary / dotted-line reporting** (`org_chart_edges`): dotted/temporary/project/escalation
+  lines rendered dashed on the canvas; managed from the card drawer.
+- **Notes / comments** (`org_chart_notes`) per card with confidential flag.
+- **Presentation mode**: full-screen deck stepping through Organisation → departments → vacancies.
+- **Department/site grouping frames** on the canvas (colour-coded dashed regions).
+- **Frontend**: new files `AIPanel`, `HistoryTab`, `Templates`, `Presentation`; `Canvas` gains
+  edges + grouping frames; `panels.NodeDrawer` gains notes + secondary-reporting UI; new sub-tabs
+  (AI Assist · Templates · History) + a Present button.
+- **Bug fixed (this session)**: `PATCH /charts/{cid}` returns the bare chart doc, but the frontend
+  read `r.chart` (undefined) on settings/rename save → wiped `chart` state and hid grouping frames.
+  Now uses the returned doc directly.
+- Tested: backend pytest `test_iter280_orgchart.py` + `test_iter281_orgchart_phase2.py` (both PASS,
+  in Makefile regression) + live-AI test (PASS). Testing agent: backend 100%, frontend ~95%.
+
+
 ## Jun 15, 2026 — Org Chart Builder (Phase 1) — Operations → Staffing → People → Org Chart
 
 New visual org-chart builder that **links to existing `staff_members`** (never duplicates).
