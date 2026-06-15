@@ -1,3 +1,10 @@
+## ✅ RESOLVED (user-confirmed in production, Jun 15, 2026) — CRM Master Admin lock-out
+
+The recurring P0 where Pulse Master Admins (Lee Somers, Craig Henshall) could not access the CRM module at gymaxisai.com is **FIXED and confirmed by the user in production**. Root cause (iter 279b): the CRM cross-login authenticated using only the stale `localStorage['token']` (left over from a prior registration → wrong/old user_id) instead of the current httpOnly `ga_session` cookie. Fix made cross-login resolve the caller from every candidate token (bearer + cookie) and pick the CRM-capable identity. No further action needed on this item.
+
+---
+
+
 ## Iter 279d — Staffing nav condensed into logical groups + Expenses moved into Staffing ✅ (Jun 15, 2026)
 
 **Request:** Staffing console had 18 sub-tabs (too loaded). Condense without losing features, logical order. Specifically: move Expenses from the top-level Operations strip INTO Staffing (right after Payroll) and remove it from Operations; combine Staff+HR; combine Announcements+Handover Diary; nest Templates/Time Off/Shift Market/Live Floor/AI Rota under Rota; nest AI Insights under Performance.
