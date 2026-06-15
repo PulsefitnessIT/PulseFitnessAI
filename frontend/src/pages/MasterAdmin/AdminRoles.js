@@ -123,6 +123,8 @@ const AdminRoles = ({ API, globalUsersProps, isPulseAdmin }) => {
       {tab === 'org-people' && (
         <OrgPeopleDirectory
           users={globalUsersProps?.users || []}
+          API={API}
+          onReload={globalUsersProps?.onReload}
           onOpenUser={(u) => setSelectedUser(u)}
         />
       )}

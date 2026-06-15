@@ -637,6 +637,28 @@ async def _enrich_with_module_access(all_users: list) -> None:
         u["job_title"] = (u.get("job_title") or u.get("primary_role") or "").strip()
 
 
+async def _enrich_job_titles(all_users: list) -> None:
+    """Backfill an empty `job_title` from the org's staffing records
+    (`staff_members.primary_role`), matched by user_id then email, so the
+    Org People directory is populated automatically instead of showing '—'."""
+    if not all_users:
+        return
+    need = [u for u in all_users if not (u.get("job_title") or "").strip()]
+    if not need:
+        return
+    org_ids = {u.get("organization_id") for u in all_users if u.get("organization_id")}
+    staff = await db.staff_members.find(
+        {"organization_id": {"$in": list(org_ids)}},
+        {"_id": 0, "email": 1, "user_id": 1, "primary_role": 1},
+    ).to_list(length=None)
+    by_uid = {s["user_id"]: s for s in staff if s.get("user_id")}
+    by_email = {(s.get("email") or "").lower(): s for s in staff if s.get("email")}
+    for u in need:
+        s = by_uid.get(u.get("id")) or by_email.get((u.get("email") or "").lower())
+        if s:
+            u["job_title"] = (s.get("primary_role") or "").strip()
+
+
 async def _enrich_partner_engineers(all_users: list) -> None:
     """Iter 220p — flag Partner Engineers so the People Directory shows
     them as 'Partner Engineer' on the Engineer App rather than as generic
@@ -763,6 +785,7 @@ async def get_all_users(user: dict = Depends(get_current_user), brand: str = "al
     all_users = await _fan_pulse_platform_admins(all_users)
     await _enrich_with_orgs(all_users)
     await _enrich_with_module_access(all_users)
+    await _enrich_job_titles(all_users)
     await _enrich_partner_engineers(all_users)
     await _enrich_with_invited_role(all_users)
     await _enrich_with_pending_invite(all_users)

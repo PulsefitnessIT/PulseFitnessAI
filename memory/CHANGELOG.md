@@ -435,3 +435,9 @@ End-user E2E audit (testing agent + manual verification):
 - **New view** Master Admin → People → **Org People** sub-tab (`OrgPeopleDirectory.js`, wired in `AdminRoles.js` as `roles-tab-org-people`). One row per person showing JOB TITLE + which MODULES they can access (Operations · CRM · Memberships · Marketing) as check/dash cells, with org + role chip. Includes search (name/title/org), a "Has <module>" filter, and a client-side CSV export. Row click reuses the existing UserDetailDrawer.
 - **Backend** `master_admin_users.py`: new `_enrich_with_module_access()` (called in `GET /master-admin/users`) batch-fetches orgs and resolves each user's effective `module_access` via `utils.module_access.resolve_module_access`, and surfaces a single `job_title` (falls back to `primary_role`). No new endpoint — extends the existing deduped/brand-scoped users payload.
 - Verified e2e (admin@gymaxisai.com): tab renders 11 rows with correct module ticks + role chips, 0 console/pageerrors; curl confirms `module_access`/`job_title` in the payload.
+
+## Jun 15, 2026 — Iter 288b: Org People — job-title backfill + inline edit (P3 follow-up)
+
+- **Auto-populated titles:** new `_enrich_job_titles()` in `master_admin_users.py` backfills an empty `job_title` from the org's `staff_members.primary_role` (matched by user_id then email), so the Org People directory no longer shows "—" for everyone. Wired into `GET /master-admin/users` after module-access enrichment.
+- **Inline editing:** `OrgPeopleDirectory.js` job-title cell is now click-to-edit (Enter/blur saves, Esc cancels) → `PUT /master-admin/users/{id}/edit {job_title}`, optimistic update + toast + parent reload. Empty cells show an "Add title" affordance.
+- Verified e2e (admin@gymaxisai.com): titles backfill (manager/other), PUT persists (200, reflected in list + cleaned up test value), edit input renders on click. 0 page errors.

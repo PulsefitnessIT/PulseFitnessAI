@@ -9,7 +9,9 @@
  * `job_title` and `module_access` (see master_admin_users._enrich_with_module_access).
  */
 import { useMemo, useState } from 'react';
-import { Search, Check, Minus, Download, Briefcase, ChevronRight } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { Search, Check, Minus, Download, Briefcase, ChevronRight, Pencil, Loader2 } from 'lucide-react';
 
 const MODULES = [
   { key: 'operations', label: 'Operations', color: '#0055FF' },
@@ -36,9 +38,38 @@ const ModuleCell = ({ on, color }) => (
   </td>
 );
 
-const OrgPeopleDirectory = ({ users = [], onOpenUser }) => {
+const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
   const [search, setSearch] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
+  const [edits, setEdits] = useState({});       // userId → saved title (optimistic)
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [savingId, setSavingId] = useState(null);
+
+  const titleOf = (u) => (edits[u.id] !== undefined ? edits[u.id] : (u.job_title || ''));
+
+  const startEdit = (e, u) => {
+    e.stopPropagation();
+    setEditingId(u.id);
+    setDraft(titleOf(u));
+  };
+  const cancelEdit = () => { setEditingId(null); setDraft(''); };
+  const saveTitle = async (u) => {
+    const next = draft.trim();
+    if (next === (titleOf(u) || '')) { cancelEdit(); return; }
+    setSavingId(u.id);
+    try {
+      await axios.put(`${API}/master-admin/users/${u.id}/edit`, { job_title: next }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      setEdits((m) => ({ ...m, [u.id]: next }));
+      toast.success('Job title updated');
+      onReload?.();
+      cancelEdit();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not update job title');
+    } finally { setSavingId(null); }
+  };
 
   const active = useMemo(
     () => users.filter((u) => !(u.status === 'archived' || u.is_archived)),
@@ -61,7 +92,7 @@ const OrgPeopleDirectory = ({ users = [], onOpenUser }) => {
     const head = ['Name', 'Email', 'Job title', 'Organisation', 'Role', ...MODULES.map((m) => m.label)];
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const lines = filtered.map((u) => [
-      u.full_name || '', u.email || '', u.job_title || '', u.organization_name || '', roleLabel(u),
+      u.full_name || '', u.email || '', titleOf(u), u.organization_name || '', roleLabel(u),
       ...MODULES.map((m) => ((u.module_access || {})[m.key] ? 'Yes' : 'No')),
     ].map(esc).join(','));
     const csv = [head.map(esc).join(','), ...lines].join('\n');
@@ -153,7 +184,35 @@ const OrgPeopleDirectory = ({ users = [], onOpenUser }) => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-zinc-700">{u.job_title || <span className="text-zinc-400 italic">—</span>}</td>
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    {editingId === u.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          autoFocus
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(u); if (e.key === 'Escape') cancelEdit(); }}
+                          onBlur={() => saveTitle(u)}
+                          placeholder="Job title"
+                          className="px-2 py-1 rounded border text-xs w-36"
+                          style={{ borderColor: '#CBD5E1' }}
+                          data-testid={`org-people-title-input-${u.id}`}
+                        />
+                        {savingId === u.id && <Loader2 size={13} className="animate-spin text-zinc-400" />}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => startEdit(e, u)}
+                        className="group inline-flex items-center gap-1.5 text-zinc-700 hover:text-[var(--color-brand-blue)]"
+                        title="Edit job title"
+                        data-testid={`org-people-title-${u.id}`}
+                      >
+                        {titleOf(u) || <span className="text-zinc-400 italic">Add title</span>}
+                        <Pencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )}
+                  </td>
                   <td className="px-3 py-3 text-zinc-600 truncate">{u.organization_name && u.organization_name !== 'N/A' ? u.organization_name : <span className="text-zinc-400">—</span>}</td>
                   <td className="px-3 py-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-600">{roleLabel(u)}</span>
