@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 import jwt
 import bcrypt
@@ -13,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm/auth", tags=["CRM Auth"])
 security = HTTPBearer()
+# Iter 279b — the cross-login must also accept the httpOnly session cookie
+# when the localStorage bearer is stale/absent, so this optional variant
+# never 403s on a missing Authorization header.
+optional_security = HTTPBearer(auto_error=False)
 
 
 def crm_hash_password(password: str) -> str:
@@ -302,61 +307,35 @@ async def crm_me_post(user=Depends(get_crm_user)):
 # screen even though they're already signed in (iter 215d3 fix).
 
 @router.post("/cross-login")
-async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Exchange a valid main-platform JWT for a CRM-scoped token.
+async def crm_cross_login(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
+):
+    """Exchange a valid main-platform session for a CRM-scoped token.
 
-    - 401 if the token is missing / invalid / revoked.
-    - 400 if the caller already holds a CRM-domain token.
-    - 403 if the user's org has the CRM module disabled (master admins bypass).
+    - 401 if there is no valid session at all (header AND cookie).
+    - 400 if the only credential presented is already a CRM token.
+    - 403 if the resolved user's org has the CRM module disabled
+      (platform / Pulse master admins bypass).
+
+    Iter 279b — authenticate against the CURRENT session, not just the
+    localStorage bearer. Long-lived accounts (Lee/Craig) carry a STALE
+    ``localStorage['token']`` left over from an earlier registration whose
+    ``user_id`` points at an old/deleted record, while their httpOnly
+    ``ga_session`` cookie reflects the real, current pulse_master_admin
+    login. The cross-login historically trusted ONLY the bearer header, so
+    it kept resolving the WRONG user → 401/403 → the recurring "CRM is not
+    enabled" lock-out, no matter how the entitlement resolver was fixed.
+    We now collect EVERY candidate token (bearer + all ``ga_session``
+    cookie values — the iter-231 multi-cookie shadowing fix) and pick the
+    identity that actually yields CRM access.
     """
     import jwt as _jwt
     import os as _os
     import re as _re
     from utils.security_plus import is_jwt_revoked
+    from utils.auth import _cookie_token_candidates
 
-    token = credentials.credentials if credentials else ""
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    # Decode the main token. `crm: True` in the payload means the caller
-    # already has a CRM token and is trying to re-exchange it — reject.
-    try:
-        payload = _jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    if payload.get("crm") is True:
-        raise HTTPException(status_code=400, detail="Already a CRM token")
-
-    # Reject member-portal tokens (they have `kind: member` and no user_id).
-    if payload.get("kind") == "member":
-        raise HTTPException(status_code=403, detail="Member accounts cannot access CRM")
-
-    if await is_jwt_revoked(payload.get("jti")):
-        raise HTTPException(status_code=401, detail="Session revoked")
-
-    user_id = payload.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-
-    main_user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not main_user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    # Is this user a platform / Pulse master admin?
-    #
-    # Iter 279 — the lock-out fix. Previously `is_master` only honoured
-    # `is_master_admin` (reserved for the GymAxis operator) + the master
-    # email, so a Pulse Master Admin (`role="pulse_master_admin"` /
-    # `is_pulse_admin=True`, `is_master_admin=False`) fell through to the
-    # `has_module()` gate. That gate then DEPENDED on the resolver in
-    # `utils/module_access._is_platform_admin`; any deployment skew or a
-    # mismatched/duplicate `users` record (a user can hold several rows
-    # under one email — Service Portal + CRM + Pulse Platform identities)
-    # re-introduced the recurring "CRM is not enabled for your account"
-    # screen for an admin who clearly has full access. Recognise Pulse
-    # admins HERE so the cross-login never depends on the resolver for
-    # them.
     master_email = (_os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com") or "").lower()
 
     def _is_priv(u: dict) -> bool:
@@ -366,36 +345,104 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
             u.get("is_master_admin")
             or u.get("is_pulse_admin")
             or (u.get("role") or "").lower() == "pulse_master_admin"
+            or (u.get("email") or "").lower() == master_email
         )
 
-    is_master = _is_priv(main_user) or (main_user.get("email") or "").lower() == master_email
+    # ── Collect candidate tokens: bearer header first, then every
+    #    ga_session cookie value present on the request. ───────────────
+    candidate_tokens: list[str] = []
+    if credentials and credentials.credentials:
+        bv = credentials.credentials.strip()
+        if bv and bv.lower() not in ("null", "undefined", "cookie"):
+            candidate_tokens.append(bv)
+    for cv in _cookie_token_candidates(request):
+        if cv and cv not in candidate_tokens:
+            candidate_tokens.append(cv)
 
-    # CRM module access check — master admins bypass.
+    if not candidate_tokens:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # ── Decode each candidate → resolve to a live user. Skip CRM/member
+    #    tokens and revoked sessions. ─────────────────────────────────
+    resolved_users: list[dict] = []
+    saw_crm_token = False
+    saw_member_token = False
+    for tok in candidate_tokens:
+        try:
+            p = _jwt.decode(tok, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        except Exception:
+            continue
+        if p.get("crm") is True:
+            saw_crm_token = True
+            continue
+        if p.get("kind") == "member":
+            saw_member_token = True
+            continue
+        if await is_jwt_revoked(p.get("jti")):
+            continue
+        uid = p.get("user_id")
+        if not uid:
+            continue
+        u = await db.users.find_one({"id": uid}, {"_id": 0})
+        if u and not any(x.get("id") == u.get("id") for x in resolved_users):
+            resolved_users.append(u)
+
+    if not resolved_users:
+        if saw_crm_token:
+            raise HTTPException(status_code=400, detail="Already a CRM token")
+        if saw_member_token:
+            raise HTTPException(status_code=403, detail="Member accounts cannot access CRM")
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # ── Pick the CRM-capable identity. Prefer a privileged admin, then
+    #    any record with CRM entitlement; fall back to the first resolved
+    #    user so a genuine "no access" case still produces a clean 403. ─
+    from utils.module_access import has_module
+
+    async def _crm_ok(u: dict) -> bool:
+        if _is_priv(u):
+            return True
+        if (u.get("account_type") or "") in ("mod_site", "mod_branch", "mod_org"):
+            return False
+        org_id = u.get("organization_id")
+        org_doc = await db.organizations.find_one({"id": org_id}, {"_id": 0}) if org_id else None
+        return bool(has_module(u, org_doc, "crm"))
+
+    main_user = None
+    is_master = False
+    # 1) a privileged admin among the sessions wins outright.
+    for u in resolved_users:
+        if _is_priv(u):
+            main_user, is_master = u, True
+            break
+    # 2) else the first CRM-entitled identity.
+    if main_user is None:
+        for u in resolved_users:
+            if await _crm_ok(u):
+                main_user = u
+                break
+    # 3) else fall back to the first resolved user (will hit the 403 gate).
+    if main_user is None:
+        main_user = resolved_users[0]
+
+    # ── Final entitlement gate for non-admins. ───────────────────────
     if not is_master:
         account_type = main_user.get("account_type") or ""
-        # MOD accounts never get CRM.
         if account_type in ("mod_site", "mod_branch", "mod_org"):
             raise HTTPException(status_code=403, detail="CRM not available for this account")
 
-        # Iter 216h221 — use the canonical `has_module()` resolver so
-        # the gate honours the same source of truth as every other
-        # module gate (and the Master Admin Feature Control panel).
         org_id = main_user.get("organization_id")
         org_doc = await db.organizations.find_one(
             {"id": org_id}, {"_id": 0},
         ) if org_id else None
 
-        from utils.module_access import has_module
         allowed = has_module(main_user, org_doc, "crm")
 
-        # Iter 279 — duplicate/mismatched-record safety net. A single
-        # person can have multiple `users` rows under one email (legacy
-        # re-registration, cross-portal provisioning). If the row this
-        # token resolved to can't reach CRM, but ANOTHER row for the same
-        # email is a privileged admin or sits in a CRM-enabled org, grant
-        # the exchange and adopt that identity's org for scoping. This is
-        # exactly the Pulse Master Admin lock-out: login authenticated a
-        # non-admin duplicate while the directory shows the admin row.
+        # Duplicate/mismatched-record safety net: a single person can hold
+        # several `users` rows under one email (legacy re-registration,
+        # cross-portal provisioning). If the chosen row can't reach CRM but
+        # another row for the same email is a privileged admin or sits in a
+        # CRM-enabled org, adopt that identity.
         if not allowed:
             email_lc = (main_user.get("email") or "").lower().strip()
             if email_lc:
@@ -433,7 +480,7 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
     if not is_org_owner and main_org_id:
         _owner_org = await db.organizations.find_one(
             {"id": main_org_id}, {"_id": 0, "owner_id": 1})
-        if _owner_org and _owner_org.get("owner_id") == user_id:
+        if _owner_org and _owner_org.get("owner_id") == main_user.get("id"):
             is_org_owner = True
 
     crm_user = await db.crm_users.find_one({"email": email}, {"_id": 0})

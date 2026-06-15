@@ -78,11 +78,30 @@ async def _cleanup():
     c.close()
 
 
-def _cross_login(user_id: str):
+def _cross_login(user_id: str, *, use_cookie: bool = False, bogus_bearer: bool = False):
+    """Drive the cross-login. By default sends a valid bearer for `user_id`.
+
+    - use_cookie: send the token as the `ga_session` cookie instead of the
+      Authorization header (simulates a cookie-only session).
+    - bogus_bearer: ALSO send a bearer for a non-existent user_id (simulates
+      the stale localStorage['token'] that points at an old/deleted record).
+    """
     token = create_token(user_id)
+    headers = {}
+    cookies = {}
+    if bogus_bearer:
+        headers["Authorization"] = f"Bearer {create_token('iter279-nonexistent-user-id')}"
+    if use_cookie:
+        cookies["ga_session"] = token
+        if not bogus_bearer:
+            # cookie-only: no Authorization header at all
+            pass
+    else:
+        headers["Authorization"] = f"Bearer {token}"
     return requests.post(
         f"{API}/api/crm/auth/cross-login",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=headers,
+        cookies=cookies,
         timeout=20,
     )
 
@@ -110,3 +129,25 @@ def test_regular_staff_in_crm_disabled_org_still_denied():
     rejected with 403 (no silent open gate)."""
     r = _cross_login(_STAFF_ID)
     assert r.status_code == 403, f"expected 403, got {r.status_code}: {r.text}"
+
+
+def test_stale_bearer_falls_back_to_current_cookie_session():
+    """THE production bug: the localStorage bearer is STALE (points at a
+    deleted/old user_id) while the httpOnly ga_session cookie holds the
+    real, current Pulse Master Admin login. Cross-login must resolve the
+    cookie session and return a CRM token (200) — not 401/403."""
+    r = _cross_login(_PULSE_ADMIN_ID, use_cookie=True, bogus_bearer=True)
+    assert r.status_code == 200, f"expected 200, got {r.status_code}: {r.text}"
+    assert r.json().get("token"), "no CRM token returned"
+
+
+def test_cookie_only_session_works():
+    """A cookie-only session (no Authorization header) for a Pulse admin
+    also exchanges successfully."""
+    r = _cross_login(_PULSE_ADMIN_ID, use_cookie=True)
+    assert r.status_code == 200, f"expected 200, got {r.status_code}: {r.text}"
+
+
+def test_no_credentials_returns_401():
+    r = requests.post(f"{API}/api/crm/auth/cross-login", timeout=20)
+    assert r.status_code == 401, f"expected 401, got {r.status_code}: {r.text}"

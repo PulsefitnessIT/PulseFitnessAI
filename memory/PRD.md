@@ -1,3 +1,18 @@
+## Iter 279b — DEFINITIVE FIX: CRM lock-out was a STALE-TOKEN / wrong-identity auth bug ✅ (Jun 15, 2026)
+
+**Report (production, CRITICAL):** Lee Somers AND Craig Henshall (both `pulse_master_admin`) still hit "CRM is not enabled for your account" at gymaxisai.com/crm after 4 iterations + 2 redeploys. Every Master Admin screen (GymAxis + Pulse) confirms they should have access.
+
+**Why every previous fix failed (the real root cause — finally):** the CRM cross-login (`POST /crm/auth/cross-login`) authenticated using **ONLY the `Authorization: Bearer` header**, which the frontend fills from `localStorage['token']`. The app moved to httpOnly **cookie sessions** (`ga_session`) back in iter 227–232 (which has a whole saga about stale/duplicate cookies shadowing the fresh session). Long-lived accounts like Lee/Craig — who survived multiple re-registrations (the iter-272 stale-`user_id` saga) — carry a **STALE `localStorage['token']`** whose `user_id` points at an old/deleted record, while their **cookie session** holds the real, current `pulse_master_admin` login. So the cross-login kept resolving the **WRONG user** → `has_module()` False / user-not-found → 401/403 → lock-out. **No amount of fixing the entitlement resolver (`module_access.py`) mattered, because the wrong identity was being authenticated in the first place.** The People-drawer diagnostic looked correct because it reads the *current* directory record, not the stale token.
+
+**Fix (`routes/crm_auth.py` cross-login):** authenticate against the CURRENT session, not just the bearer. The endpoint now (a) accepts an **optional** bearer + the **httpOnly cookie** (`request` + `_cookie_token_candidates`, handling the iter-231 multi-cookie case), (b) decodes **every** candidate token and resolves each to a live `users` row, and (c) picks the **CRM-capable identity** — a privileged admin first, else any CRM-entitled record — so a genuine Pulse/Platform admin can never be locked out by a stale bearer. Retains the iter-279 direct Pulse-admin recognition + duplicate-record safety net, and still 403s real no-access users. Frontend already sends the cookie (`axios.defaults.withCredentials = true`).
+
+**Verified:** `tests/test_iter279_crm_crosslogin_pulse_admin.py` 5/5 — incl. **`test_stale_bearer_falls_back_to_current_cookie_session`** (bogus/stale bearer + valid Pulse-admin cookie → **200**, the exact prod bug), cookie-only → 200, pulse-admin in CRM-disabled org → 200, regular staff → 403, no creds → 401. Real-account curl: `pulse.admin.test`, `admin@gymaxisai.com`, `desk@pulsefitness.com` cross-login all **200**. iter278e 7/7, iter278f 1/1 (13 total green). In Makefile.
+
+**ACTION (production):** preview-only code fix — **redeploy gymaxisai.com**. This time the cause is the cross-login authenticating a stale identity, now fixed at the source; Lee & Craig's CRM access no longer depends on which token their browser happens to send.
+
+---
+
+
 ## Iter 279 — BUGFIX: Pulse Master Admin STILL locked out of CRM (recurring P0, root cause found) ✅ (Jun 15, 2026)
 
 **Report (production gymaxisai.com, after the 278e/f redeploy):** Lee Somers (`lee.somers@pulsefitness.com`, role `pulse_master_admin`) STILL hits "CRM is not enabled for your account" at `/crm`. The Master Admin People-drawer diagnostic for Lee shows CRM ORG ✅ + USER ✅, "Full access — Pulse Master Admin", and the org's CRM module toggle is ON.
