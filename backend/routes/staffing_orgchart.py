@@ -826,3 +826,89 @@ async def apply_template(cid: str, template_id: str, user: dict = Depends(get_cu
         await db.org_chart_nodes.insert_many([n.copy() for n in created])
     await _audit(cid, org_id, user.get("email"), "template_applied", tpl["name"])
     return {"ok": True, "added": len(created)}
+
+
+# ───────────────────────── public share link ─────────────────────────
+import secrets as _secrets  # noqa: E402
+
+
+class PublishRequest(BaseModel):
+    show_contact: bool = False
+
+
+@router.post("/staffing/orgchart/charts/{cid}/publish")
+async def publish_chart(cid: str, body: PublishRequest, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    chart = await _get_chart(cid, org_id)
+    token = chart.get("public_token") or _secrets.token_urlsafe(16)
+    await db.org_charts.update_one(
+        {"id": cid, "organization_id": org_id},
+        {"$set": {"is_public": True, "public_token": token,
+                  "public_show_contact": bool(body.show_contact),
+                  "updated_at": _now().isoformat()}})
+    await _audit(cid, org_id, user.get("email"), "published", "Public link enabled")
+    return {"ok": True, "public_token": token, "show_contact": bool(body.show_contact)}
+
+
+@router.delete("/staffing/orgchart/charts/{cid}/publish")
+async def unpublish_chart(cid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    await _get_chart(cid, org_id)
+    await db.org_charts.update_one(
+        {"id": cid, "organization_id": org_id},
+        {"$set": {"is_public": False, "public_token": None, "updated_at": _now().isoformat()}})
+    await _audit(cid, org_id, user.get("email"), "unpublished", "Public link disabled")
+    return {"ok": True}
+
+
+@router.post("/staffing/orgchart/charts/{cid}/publish/rotate")
+async def rotate_public_token(cid: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    chart = await _get_chart(cid, org_id)
+    if not chart.get("is_public"):
+        raise HTTPException(400, "Chart is not published")
+    token = _secrets.token_urlsafe(16)
+    await db.org_charts.update_one(
+        {"id": cid, "organization_id": org_id},
+        {"$set": {"public_token": token, "updated_at": _now().isoformat()}})
+    await _audit(cid, org_id, user.get("email"), "link_rotated", "Public link regenerated")
+    return {"ok": True, "public_token": token}
+
+
+@router.get("/staffing/orgchart/public/{token}")
+async def public_chart(token: str):
+    """PUBLIC (no auth) read-only org chart by share token.
+
+    Strips every sensitive field — never returns emails/phones (unless the
+    publisher opted in), notes, salary bands, or the linked staff_id.
+    """
+    chart = await db.org_charts.find_one(
+        {"public_token": token, "is_public": True}, {"_id": 0})
+    if not chart:
+        raise HTTPException(404, "This org chart link is no longer available")
+    org_id = chart["organization_id"]
+    show_contact = bool(chart.get("public_show_contact"))
+    sites = await _site_names(org_id)
+    raw = await db.org_chart_nodes.find(
+        {"chart_id": chart["id"], "organization_id": org_id}, {"_id": 0}).to_list(5000)
+    nodes = []
+    for n in raw:
+        safe = {
+            "id": n["id"], "type": n.get("type"), "full_name": n.get("full_name"),
+            "job_title": n.get("job_title"), "department": n.get("department"),
+            "site_name": sites.get(n.get("site_id")), "is_engineer": bool(n.get("is_engineer")),
+            "manager_node_id": n.get("manager_node_id"), "x": n.get("x", 0), "y": n.get("y", 0),
+            "recruitment_stage": n.get("recruitment_stage") if n.get("type") == "vacancy" else None,
+        }
+        if show_contact:
+            safe["email"] = n.get("email")
+            safe["phone"] = n.get("phone")
+        nodes.append(safe)
+    edges = await db.org_chart_edges.find(
+        {"chart_id": chart["id"], "organization_id": org_id},
+        {"_id": 0, "from_node_id": 1, "to_node_id": 1, "line_type": 1}).to_list(5000)
+    return {"name": chart.get("name"), "settings": chart.get("settings"),
+            "show_contact": show_contact, "nodes": nodes, "edges": edges}

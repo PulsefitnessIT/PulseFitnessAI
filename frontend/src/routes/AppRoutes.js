@@ -147,6 +147,7 @@ const ServiceOpsEngineerSyncPanel = lazy(() => import('@/pages/ServiceOps/Engine
 const ServiceOpsEngineerNewJob = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerNewJob'));
 const ServiceOpsEngineerInbox  = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerInbox'));
 const PublicEngineerCard       = lazy(() => import('@/pages/Public/PublicEngineerCard'));
+const PublicOrgChartPage       = lazy(() => import('@/pages/Public/PublicOrgChartPage'));
 // Iter 216h147 — Engineer self-claim queue
 const ServiceOpsEngineerQueue  = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerQueue'));
 // Iter 216h148 — Public Engineer landing/login page
@@ -322,6 +323,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/m/:slug/join/success" element={<JoinSuccess />} />
       {/* Iter 216h83 — public live tracking (no auth, token-gated) */}
       <Route path="/track/:token" element={<PublicTrackingPage />} />
+      <Route path="/org/:token" element={<PublicOrgChartPage />} />
       <Route path="/contracts/accept/:token" element={<PublicContractAcceptPage />} />
       {/* Iter 216h88 — public Engineer Partner marketing landing */}
       <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />

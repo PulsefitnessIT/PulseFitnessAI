@@ -38,6 +38,10 @@ export const ocApi = {
   aiAnalyze: (cid) => axios.post(`${API}/charts/${cid}/ai/analyze`, {}, { headers: auth() }).then((r) => r.data),
   aiDraftJd: (cid, body) => axios.post(`${API}/charts/${cid}/ai/draft-jd`, body, { headers: auth() }).then((r) => r.data),
   importApplyRows: (cid, rows, options) => axios.post(`${API}/charts/${cid}/import/apply`, { rows, options }, { headers: auth() }).then((r) => r.data),
+  publish: (cid, showContact) => axios.post(`${API}/charts/${cid}/publish`, { show_contact: showContact }, { headers: auth() }).then((r) => r.data),
+  unpublish: (cid) => axios.delete(`${API}/charts/${cid}/publish`, { headers: auth() }).then((r) => r.data),
+  rotateLink: (cid) => axios.post(`${API}/charts/${cid}/publish/rotate`, {}, { headers: auth() }).then((r) => r.data),
+  publicUrl: (token) => `${window.location.origin}/org/${token}`,
 };
 
 export const EDGE_TYPES = [

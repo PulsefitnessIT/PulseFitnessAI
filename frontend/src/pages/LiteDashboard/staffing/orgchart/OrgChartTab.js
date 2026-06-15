@@ -9,7 +9,7 @@ import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
   Network, List, UserPlus, FileUp, Settings as SettingsIcon, Search,
-  Loader2, RefreshCw, Plus, Users, Building2, AlertTriangle, X, Sparkles, LayoutTemplate, History, Presentation as PresentIcon,
+  Loader2, RefreshCw, Plus, Users, Building2, AlertTriangle, X, Sparkles, LayoutTemplate, History, Presentation as PresentIcon, Share2,
 } from 'lucide-react';
 import { ocApi } from './api';
 import { computeLayout } from './layout';
@@ -22,6 +22,7 @@ import AIPanel from './AIPanel';
 import HistoryTab from './HistoryTab';
 import Templates from './Templates';
 import PresentationMode from './Presentation';
+import ShareModal from './ShareModal';
 import { AddNodeModal, NodeDrawer, MoveConfirmModal } from './panels';
 
 const STAFF_API = `${process.env.REACT_APP_BACKEND_URL}/api/staffing/staff`;
@@ -64,6 +65,7 @@ export default function OrgChartTab() {
   const [addOpen, setAddOpen] = useState(false);
   const [editNode, setEditNode] = useState(null);
   const [moveData, setMoveData] = useState(null);
+  const [sharing, setSharing] = useState(false);
 
   const byId = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
   const departments = useMemo(() => [...new Set(nodes.map((n) => n.department).filter(Boolean))].sort(), [nodes]);
@@ -233,6 +235,7 @@ export default function OrgChartTab() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--theme-text-muted)' }} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="pl-8 pr-3 py-2 rounded-lg text-sm border outline-none w-44" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-search" />
           </form>
+          <button onClick={() => setSharing(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={chart?.is_public ? { borderColor: '#16a34a', color: '#16a34a' } : { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-share"><Share2 size={13} /> {chart?.is_public ? 'Shared' : 'Share'}</button>
           <button onClick={() => setPresenting(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-present"><PresentIcon size={13} /> Present</button>
           <button onClick={syncStaff} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-sync"><RefreshCw size={13} /> Sync staff</button>
         </div>
@@ -315,6 +318,7 @@ export default function OrgChartTab() {
       <NodeDrawer node={editNode} onClose={() => setEditNode(null)} onSave={updateNode} onDelete={deleteNode} sites={sites} nodes={nodes} departments={departments} chartId={chartId} edges={edges} onEdgesChanged={reload} />
       <MoveConfirmModal data={moveData} onChoose={chooseMove} onClose={() => setMoveData(null)} />
       {presenting && <PresentationMode nodes={nodes} byId={byId} onClose={() => setPresenting(false)} />}
+      {sharing && chart && <ShareModal chart={chart} onClose={() => setSharing(false)} onChanged={reload} />}
     </div>
   );
 }
