@@ -30,9 +30,10 @@ import csv
 import io
 import logging
 import re
+from datetime import timedelta
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -924,15 +925,55 @@ async def rotate_public_token(cid: str, user: dict = Depends(get_current_user)):
     return {"ok": True, "public_token": token}
 
 
+def _oc_client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for") or ""
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+async def _log_public_org_access(*, token: str, ip: str, ua: str, found: bool) -> None:
+    """F-21-style per-attempt audit row so SOC can spot share-token
+    enumeration on the public org-chart endpoint. Logged regardless of
+    outcome; failed hits (``found=False``) are the alert signal."""
+    try:
+        await db.org_chart_access_log.insert_one({
+            "token": token[:96], "ip": ip, "user_agent": ua[:200],
+            "found": bool(found), "ts": _now().isoformat(),
+        })
+    except Exception as e:  # never let audit break the public path
+        logger.warning("org chart access log failed: %s", e)
+
+
+async def _check_public_org_rate(ip: str, max_per_minute: int = 60) -> None:
+    """Cap public share-token lookups to 60/min/IP to block bulk
+    enumeration. 256-bit tokens already make brute force infeasible; this
+    is defence-in-depth mirroring the F-21 widget posture. A legitimate
+    viewer only fetches once on load, so 60/min is generous."""
+    if not ip or ip == "unknown":
+        return  # don't penalise unknown-IP requests (private deploys)
+    cutoff = (_now() - timedelta(minutes=1)).isoformat()
+    recent = await db.org_chart_access_log.count_documents({
+        "ip": ip, "ts": {"$gte": cutoff},
+    })
+    if recent >= max_per_minute:
+        raise HTTPException(429, "Too many requests — please slow down.")
+
+
 @router.get("/staffing/orgchart/public/{token}")
-async def public_chart(token: str):
+async def public_chart(token: str, request: Request):
     """PUBLIC (no auth) read-only org chart by share token.
 
     Strips every sensitive field — never returns emails/phones (unless the
     publisher opted in), notes, salary bands, or the linked staff_id.
+    Per-IP rate-limited + access-logged (F-21 posture) to deter enumeration.
     """
+    ip = _oc_client_ip(request)
+    await _check_public_org_rate(ip)
     chart = await db.org_charts.find_one(
         {"public_token": token, "is_public": True}, {"_id": 0})
+    await _log_public_org_access(
+        token=token, ip=ip, ua=request.headers.get("user-agent") or "", found=bool(chart))
     if not chart:
         raise HTTPException(404, "This org chart link is no longer available")
     org_id = chart["organization_id"]

@@ -281,3 +281,15 @@ reviewed `try/except/pass` storage-path baseline). Security regression suite:
 107 passed / 2 skipped / 1 **environment** failure (`test_iter251` logs in as
 `owner@apexfitness.group`, an org removed by the preview data purge — stale
 fixture, not a control regression; would pass on a freshly-seeded staging env).
+
+## SEC-013 follow-up — public org-chart endpoint rate-limit + access log 🟢
+**Status:** ✅ IMPLEMENTED — 2026-06-15
+
+The defence-in-depth recommendation under SEC-013 is now in code
+(`routes/staffing_orgchart.py`): `GET /api/staffing/orgchart/public/{token}`
+now (1) reads the client IP from `X-Forwarded-For`, (2) enforces a
+**60/min/IP** cap (`_check_public_org_rate` → HTTP 429), and (3) writes a
+per-attempt audit row to **`org_chart_access_log`** (`token`, `ip`, `ua`,
+`found`, `ts`) so SOC can detect enumeration — mirroring the F-21 widget
+posture. Verified live (60×404 then 429 on a fixed IP) and regression-tested
+in `tests/test_iter289_orgchart_public_hardening.py` (2 tests, in `make regression`).

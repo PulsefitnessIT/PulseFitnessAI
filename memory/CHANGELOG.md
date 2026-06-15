@@ -449,3 +449,8 @@ End-user E2E audit (testing agent + manual verification):
 - **Green security-scan gate:** fixed 5 pre-existing cosmetic ruff errors and annotated 1 false-positive bandit B608 (a `print()` in an offline wipe script). Result: ruff clean, bandit 0 High / 0 Medium.
 - Security regression suite: 107 passed / 2 skipped / 1 stale-fixture failure (`test_iter251` uses `owner@apexfitness.group`, purged from preview — not a control regression).
 - Register updated: `memory/SECURITY_AUDIT/findings.md` SEC-012/013/014, last-review bumped to 2026-06-15.
+
+## Jun 15, 2026 — Iter 289b: Public org-chart endpoint hardened (F-21 posture)
+
+- `GET /api/staffing/orgchart/public/{token}` now: reads client IP from X-Forwarded-For, enforces a 60/min/IP cap (HTTP 429 via `_check_public_org_rate`), and writes a per-attempt audit row to `org_chart_access_log` (token/ip/ua/found/ts) — mirroring the F-21 widget enumeration guard. Combined with the 256-bit token + PII stripping, the only new public surface added pre-transfer is now at the platform's standard public-endpoint posture.
+- Verified live (60×404 → 429 on a fixed IP) + regression test `tests/test_iter289_orgchart_public_hardening.py` (2 tests, added to `make regression`). Security-scan gate green (ruff clean, bandit 0 High/0 Medium).
