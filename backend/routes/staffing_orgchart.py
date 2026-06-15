@@ -887,7 +887,7 @@ async def publish_chart(cid: str, body: PublishRequest, user: dict = Depends(get
     _require_manager(user)
     org_id = _org(user)
     chart = await _get_chart(cid, org_id)
-    token = chart.get("public_token") or _secrets.token_urlsafe(16)
+    token = chart.get("public_token") or _secrets.token_urlsafe(32)
     await db.org_charts.update_one(
         {"id": cid, "organization_id": org_id},
         {"$set": {"is_public": True, "public_token": token,
@@ -916,7 +916,7 @@ async def rotate_public_token(cid: str, user: dict = Depends(get_current_user)):
     chart = await _get_chart(cid, org_id)
     if not chart.get("is_public"):
         raise HTTPException(400, "Chart is not published")
-    token = _secrets.token_urlsafe(16)
+    token = _secrets.token_urlsafe(32)
     await db.org_charts.update_one(
         {"id": cid, "organization_id": org_id},
         {"$set": {"public_token": token, "updated_at": _now().isoformat()}})

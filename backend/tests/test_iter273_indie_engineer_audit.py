@@ -21,7 +21,7 @@ def _load_frontend_env_url() -> str:
     if url:
         return url.rstrip("/")
     try:
-        with open("/app/frontend/.env", "r") as fh:
+        with open("/app/frontend/.env") as fh:
             for line in fh:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     return line.split("=", 1)[1].strip().rstrip("/")

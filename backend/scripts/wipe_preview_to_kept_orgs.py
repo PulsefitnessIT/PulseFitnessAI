@@ -134,7 +134,7 @@ def main() -> int:
     total = sum(c for _, _, c in plan)
     print(f"-- DELETE PLAN ({total} docs across {len(plan)} collections) --")
     for name, _f, cnt in plan:
-        print(f"   delete {cnt:>6d} from {name}")
+        print(f"   delete {cnt:>6d} from {name}")  # nosec B608 — human-readable plan printout, not a SQL/Mongo query
     print(f"\n-- DROP COLLECTIONS ({len(drops)}) --")
     for d in drops:
         print(f"   drop {d}")

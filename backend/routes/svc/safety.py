@@ -92,7 +92,7 @@ async def _resolve_template(org_id: str) -> dict:
 
 @router.get("/svc/safety/template")
 async def get_template(user=Depends(get_current_user)):
-    tpl = await _resolve_template((user.get("organization_id") or user.get("service_org_id")))
+    tpl = await _resolve_template(user.get("organization_id") or user.get("service_org_id"))
     tpl.pop("_id", None)
     return tpl
 
@@ -313,7 +313,7 @@ async def export_csv(user=Depends(get_current_user)):
     """Download the org's active checklist as CSV (label, required, id)."""
     import csv
     import io
-    tpl = await _resolve_template((user.get("organization_id") or user.get("service_org_id")))
+    tpl = await _resolve_template(user.get("organization_id") or user.get("service_org_id"))
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["label", "required", "id"])

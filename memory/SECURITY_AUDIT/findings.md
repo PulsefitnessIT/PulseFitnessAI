@@ -7,11 +7,18 @@
 > Severity: 🔴 High · 🟠 Medium · 🟡 Low · 🟢 Resolved / Good
 > Status: `OPEN` · `FIXED` · `MITIGATED` · `ACCEPTED` · `CONFIG` (deploy-time)
 
-Last full review: **2026-06-05** (incl. authorization/IDOR pass)
+Last full review: **2026-06-15** (Org Chart / Org People surface review for Pulse Fitness transfer + pen-test readiness)
+Prior review: **2026-06-05** (incl. authorization/IDOR pass)
 
 ---
 
 ## Summary table
+
+| ID | Severity | Title | Status |
+|----|----------|-------|--------|
+| SEC-012 | 🟢 Good | Org Chart routes tenant-scoped (`_get_chart` 404 on cross-tenant) | ✅ Verified (2026-06-15) |
+| SEC-013 | 🟡 Low | Public org-chart share token was 128-bit | ✅ FIXED → 256-bit (2026-06-15) |
+| SEC-014 | 🟢 Good | Bandit/ruff security-scan gate (0 High, 0 Medium, lint clean) | ✅ Verified (2026-06-15) |
 
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
@@ -236,3 +243,41 @@ module was built with consistent scoping discipline.
 2. Update the summary table.
 3. Bump "Last full review" when you do a fresh sweep.
 4. Reference fixes from `tests/` so they stay regression-covered.
+
+---
+
+## SEC-012 — Org Chart Builder routes tenant-scoped 🟢
+**Status:** ✅ Verified — 2026-06-15
+
+New surface added since the 06-05 review (`routes/staffing_orgchart.py`,
+`staffing_orgchart_ai.py`). Every `/api/staffing/orgchart/charts/{cid}/...`
+route resolves `org_id` from the authenticated user and loads the chart via
+`_get_chart(cid, org_id)` which filters `{"id": cid, "organization_id": org_id}`
+and raises **404** on cross-tenant access (matches F-33 error-shape rule).
+Node/edge/version/note sub-resources also carry `chart_id` + `organization_id`
+filters. Write routes are `_require_manager` gated. No IDOR found.
+
+## SEC-013 — Public org-chart share token strengthened 🟡→🟢
+**Status:** ✅ FIXED — 2026-06-15
+
+`POST /charts/{cid}/publish` and `.../publish/rotate` minted share tokens with
+`secrets.token_urlsafe(16)` (128-bit). Bumped to `token_urlsafe(32)` (256-bit)
+to match the F-21 widget-token standard. Public read endpoint
+`GET /api/staffing/orgchart/public/{token}` is unauthenticated **by design**
+(read-only share) and already strips email/phone (unless publisher opted in),
+notes, salary bands and staff_id; 404 on bad/disabled token (verified live).
+**Recommendation (defense-in-depth, not blocking):** add a per-IP rate-limit +
+access-log to the public token endpoint to mirror F-21's widget posture.
+
+## SEC-014 — Security-scan gate green 🟢
+**Status:** ✅ Verified — 2026-06-15
+
+`bash scripts/security-scan.sh` passes: **ruff clean** (fixed 5 pre-existing
+cosmetic errors — extraneous parens, Yoda condition, unused `except ... as e`,
+unnecessary file-mode arg) and **bandit 0 High / 0 Medium** (the single Medium
+B608 in `scripts/wipe_preview_to_kept_orgs.py` is a false positive on a
+`print()` of a deletion plan — annotated `# nosec B608`). 198 Low remain (the
+reviewed `try/except/pass` storage-path baseline). Security regression suite:
+107 passed / 2 skipped / 1 **environment** failure (`test_iter251` logs in as
+`owner@apexfitness.group`, an org removed by the preview data purge — stale
+fixture, not a control regression; would pass on a freshly-seeded staging env).

@@ -300,7 +300,7 @@ async def poll_org(organization_id: str) -> dict:
             counts["created" if merged["created"] else "updated"] += 1
             await _stash_inbox(organization_id, item, case_id=merged["case"]["id"],
                                created=merged["created"], source="sicon_poll")
-        except Exception as e:
+        except Exception:
             logger.exception("sicon inbound merge failed for %s", organization_id)
             counts["errors"] += 1
 

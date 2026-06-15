@@ -441,3 +441,11 @@ End-user E2E audit (testing agent + manual verification):
 - **Auto-populated titles:** new `_enrich_job_titles()` in `master_admin_users.py` backfills an empty `job_title` from the org's `staff_members.primary_role` (matched by user_id then email), so the Org People directory no longer shows "—" for everyone. Wired into `GET /master-admin/users` after module-access enrichment.
 - **Inline editing:** `OrgPeopleDirectory.js` job-title cell is now click-to-edit (Enter/blur saves, Esc cancels) → `PUT /master-admin/users/{id}/edit {job_title}`, optimistic update + toast + parent reload. Empty cells show an "Add title" affordance.
 - Verified e2e (admin@gymaxisai.com): titles backfill (manager/other), PUT persists (200, reflected in list + cleaned up test value), edit input renders on click. 0 page errors.
+
+## Jun 15, 2026 — Iter 289: Pre-transfer security check (Pulse Fitness / pen-test readiness)
+
+- Reviewed the NEW surfaces added since the 06-05 audit (Org Chart Builder, AI/PDF import, public share link, Org People directory). All `orgchart/charts/{cid}` routes are tenant-scoped via `_get_chart` (404 on cross-tenant — IDOR-safe); writes are manager-gated; the Org People edit reuses the `require_master_admin` + scope-gated `/master-admin/users/{id}/edit` with a field allow-list.
+- **Hardened** public org-chart share token 128→256-bit (`token_urlsafe(32)`) to match the F-21 widget standard; public read endpoint already strips PII/notes/salary and 404s on bad token (verified live).
+- **Green security-scan gate:** fixed 5 pre-existing cosmetic ruff errors and annotated 1 false-positive bandit B608 (a `print()` in an offline wipe script). Result: ruff clean, bandit 0 High / 0 Medium.
+- Security regression suite: 107 passed / 2 skipped / 1 stale-fixture failure (`test_iter251` uses `owner@apexfitness.group`, purged from preview — not a control regression).
+- Register updated: `memory/SECURITY_AUDIT/findings.md` SEC-012/013/014, last-review bumped to 2026-06-15.

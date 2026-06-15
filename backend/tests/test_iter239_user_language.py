@@ -49,7 +49,7 @@ def test_invalid_language_rejected():
 
 def test_email_i18n_helper():
     from utils.email_i18n import SUPPORTED_LANGS, tr, user_lang
-    assert SUPPORTED_LANGS == {"en", "fr", "de"}
+    assert {"en", "fr", "de"} == SUPPORTED_LANGS
     assert user_lang({"language": "fr"}) == "fr"
     assert user_lang({"language": "fr-FR"}) == "fr"
     assert user_lang({"language": "xx"}) == "en"
