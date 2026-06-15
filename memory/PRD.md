@@ -1,3 +1,18 @@
+## Iter 278e — BUGFIX: Pulse Master Admin locked out of CRM (recurring) ✅ (Jun 14, 2026)
+
+**Report (production gymaxisai.com):** Lee Somers, a **Pulse Master Admin**, hits "CRM is not enabled for your account" at `/crm` even though his profile shows the CRM badge and his role has the CRM module ticked. Recurring.
+
+**Root cause:** A Pulse Master Admin is stored as `role="pulse_master_admin"` with **`is_master_admin=False`** (that flag is reserved for the GymAxis operator). The People role editor markets the role as "platform-wide Master Admin access", but `utils/module_access.py` only treated `is_master_admin` or `role=="owner"` as privileged. So a Pulse Master Admin was gated like ordinary staff: if the org's CRM entitlement resolved to off (pulse_pro default is off, or his cross-org `organization_id` didn't point at the CRM-enabled org), `has_module(user, org, "crm")` returned False → the CRM cross-login (`POST /api/crm/auth/cross-login`) replied 403 → frontend `crmExchangeStatus = 'unavailable'` → the lock-out screen.
+
+**Fix (central, one source of truth):** added `_is_platform_admin(user)` in `module_access.py` (True for `is_master_admin` OR `is_pulse_admin` OR `role=="pulse_master_admin"`) and used it in `_org_module_access`, `resolve_module_access`, and `crm_modes`. A Pulse Master Admin now gets all modules and bypasses both org-entitlement and per-staff override gates — matching the UI's promise. Frontend `CRMApp.js` `isMasterAdmin` updated to the same predicate so the in-app upgrade gate is consistent.
+
+**Verified:** pytest `test_iter278e_pulse_admin_crm.py` 7/7 (pulse admin granted CRM when org default-off / org_doc missing / per-user override off / all modules / `is_pulse_admin` flag; **regression**: ordinary staff override + lite-org staff still correctly denied). E2E: with the org's `modules.crm.enabled` flipped **off** (the production scenario), the Pulse admin cross-login now returns **HTTP 200** (was 403). ESLint clean. Added to Makefile.
+
+**ACTION (production):** this is a code fix in **preview only** — **redeploy gymaxisai.com** to resolve it live for Lee.
+
+---
+
+
 ## Iter 278d — "Awaiting parts" card → "Return to Fix" ✅ (Jun 14, 2026)
 
 **Request:** rename the engineer "Awaiting parts" KPI card to **"Return to Fix"** — jobs that need a further visit to complete (engineer needed more parts, ran out of time on the previous visit, or a PPM service is only part-complete).

@@ -814,7 +814,8 @@ export default function CRMApp() {
   // CRM workspace. Master admins are exempt (always have both).
   // Fails open when the modes API can't be called (e.g. CRM-only auth
   // without a platform JWT) so we don't accidentally block legacy users.
-  const isMasterAdmin = !!(mainAuth?.user?.is_master_admin || user?.is_master_admin);
+  const _isAdmin = (u) => !!(u && (u.is_master_admin || u.is_pulse_admin || u.role === 'pulse_master_admin'));
+  const isMasterAdmin = _isAdmin(mainAuth?.user) || _isAdmin(user);
   const modesResolved = !crmModesData.loading && !crmModesData.error;
   if (modesResolved && !crmModesData.any_enabled && !isMasterAdmin) {
     return (

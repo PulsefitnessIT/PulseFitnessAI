@@ -34,6 +34,28 @@ BOLT_ON_MODULES = ("memberships", "marketing", "crm")
 TRIAL_DURATION_DAYS = 3
 
 
+def _is_platform_admin(user: Optional[dict]) -> bool:
+    """True for elevated platform-wide admins who must never be locked out
+    of a module by org-entitlement or per-staff override gates.
+
+    Covers the GymAxis operator master admin (``is_master_admin``) AND Pulse
+    Master Admins (role ``pulse_master_admin`` / ``is_pulse_admin``). The
+    People role editor explicitly markets the Pulse Master Admin role as
+    "platform-wide Master Admin access", yet the user record keeps
+    ``is_master_admin=False`` (that flag is reserved for the GymAxis owner).
+    Without recognising the Pulse role here, a Pulse Master Admin gets gated
+    like ordinary staff — which surfaced as the recurring "CRM is not enabled
+    for your account" lock-out at the CRM cross-login.
+    """
+    if not user:
+        return False
+    return bool(
+        user.get("is_master_admin")
+        or user.get("is_pulse_admin")
+        or user.get("role") == "pulse_master_admin"
+    )
+
+
 def _account_type_defaults(account_type: str) -> dict[str, bool]:
     if account_type in ("mod_site", "mod_branch", "mod_org"):
         return {"operations": False, "memberships": False, "marketing": False, "crm": False}
@@ -66,7 +88,7 @@ def _trial_active(org: Optional[dict], module: str) -> bool:
 
 def _org_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
     """Resolve org-level module access (ignoring per-staff overrides)."""
-    if user.get("is_master_admin"):
+    if _is_platform_admin(user):
         return {k: True for k in MODULE_KEYS}
 
     account_type = (org or {}).get("account_type") or user.get("account_type") or "full"
@@ -105,7 +127,7 @@ def resolve_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
     """
     org_access = _org_module_access(user, org)
 
-    if user.get("is_master_admin") or user.get("role") == "owner":
+    if _is_platform_admin(user) or user.get("role") == "owner":
         out = dict(org_access)
         out["crm_lite"] = bool(out.get("marketing")) or bool(out.get("crm"))
         return out
@@ -159,7 +181,7 @@ def crm_modes(user: dict, org: Optional[dict]) -> dict[str, bool]:
     so leisure-mode access now follows the CRM module toggle alone.
     Business CRM remains a per-org opt-in flag on top of that.
     """
-    if user.get("is_master_admin"):
+    if _is_platform_admin(user):
         return {"leisure": True, "business": True}
     access = resolve_module_access(user, org)
     crm_cfg = ((org.get("modules") or {}).get("crm") or {}) if org else {}
