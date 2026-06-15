@@ -1,3 +1,20 @@
+## Iter 279 — BUGFIX: Pulse Master Admin STILL locked out of CRM (recurring P0, root cause found) ✅ (Jun 15, 2026)
+
+**Report (production gymaxisai.com, after the 278e/f redeploy):** Lee Somers (`lee.somers@pulsefitness.com`, role `pulse_master_admin`) STILL hits "CRM is not enabled for your account" at `/crm`. The Master Admin People-drawer diagnostic for Lee shows CRM ORG ✅ + USER ✅, "Full access — Pulse Master Admin", and the org's CRM module toggle is ON.
+
+**Why 278e didn't actually fix it (the trap):** the People-drawer diagnostic (`master_admin_users._module_access_payload`) computes `privileged` with its OWN inline check and then forces `user_access = user_on or privileged` + `reason = "Full access — Pulse Master Admin"`. So Lee's green ticks are driven purely by the privilege flag — they do **not** prove the entitlement *resolver* (`resolve_module_access`, used by `has_module`) returns True. The previous agent read the green diagnostic as proof the resolver worked and kept editing `module_access.py`.
+
+**Actual root cause (cross-login gate, not the resolver):** `POST /api/crm/auth/cross-login` computed `is_master = is_master_admin OR email==MASTER_ADMIN_EMAIL` — it did **NOT** recognise Pulse Master Admins (`role==pulse_master_admin` / `is_pulse_admin`, `is_master_admin=False`). So a Pulse admin fell through to `has_module()`, making the cross-login entirely dependent on the resolver in `utils/module_access._is_platform_admin`. Any deployment skew (prod `module_access.py` not carrying the 278e edit) or resolver edge case re-locked the admin out. The diagnostic stayed green the whole time, masking it.
+
+**Fix (`routes/crm_auth.py` cross-login):** recognise Pulse Master Admins **directly in the gate** via a local `_is_priv()` (master/pulse-admin/role), so the exchange never depends on the module resolver for them — even when the org's CRM module is toggled OFF. Added a duplicate/mismatched-record safety net (email-based sibling lookup → grant + adopt that identity's org) for robustness, though `users.email` is unique so it's a belt-and-braces path. Ordinary staff in a CRM-disabled org are still denied (403).
+
+**Verified:** new `tests/test_iter279_crm_crosslogin_pulse_admin.py` (2/2, real-HTTP integration): a Pulse Master Admin in a **CRM-disabled** org now gets a CRM token (200, was 403); a plain manager in the same org still gets 403. Curl regression: `pulse.admin.test` → 200, `admin@gymaxisai.com` → 200. `test_iter278e` 7/7, `test_iter278f` 1/1. Added to Makefile `regression:`.
+
+**ACTION (production):** preview-only code fix — **redeploy gymaxisai.com**. After redeploy, Lee's cross-login no longer depends on the resolver, so the lock-out is gone regardless of any prod data/deploy skew.
+
+---
+
+
 ## Iter 278g — Toast/Undo + audit trail for module-access changes ✅ (Jun 15, 2026)
 
 **Enhancement:** made the one-click module-access fixes reversible and traceable.

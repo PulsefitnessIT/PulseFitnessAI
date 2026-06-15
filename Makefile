@@ -352,6 +352,7 @@ regression:
           tests/test_iter278c_jobs_filters.py \
           tests/test_iter278e_pulse_admin_crm.py \
           tests/test_iter278f_module_access_grant.py \
+          tests/test_iter279_crm_crosslogin_pulse_admin.py \
           -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

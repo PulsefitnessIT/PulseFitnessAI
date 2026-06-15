@@ -311,6 +311,7 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
     """
     import jwt as _jwt
     import os as _os
+    import re as _re
     from utils.security_plus import is_jwt_revoked
 
     token = credentials.credentials if credentials else ""
@@ -342,9 +343,32 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
     if not main_user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    # Is this user a platform master admin?
-    master_email = _os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
-    is_master = bool(main_user.get("is_master_admin")) or main_user.get("email") == master_email
+    # Is this user a platform / Pulse master admin?
+    #
+    # Iter 279 — the lock-out fix. Previously `is_master` only honoured
+    # `is_master_admin` (reserved for the GymAxis operator) + the master
+    # email, so a Pulse Master Admin (`role="pulse_master_admin"` /
+    # `is_pulse_admin=True`, `is_master_admin=False`) fell through to the
+    # `has_module()` gate. That gate then DEPENDED on the resolver in
+    # `utils/module_access._is_platform_admin`; any deployment skew or a
+    # mismatched/duplicate `users` record (a user can hold several rows
+    # under one email — Service Portal + CRM + Pulse Platform identities)
+    # re-introduced the recurring "CRM is not enabled for your account"
+    # screen for an admin who clearly has full access. Recognise Pulse
+    # admins HERE so the cross-login never depends on the resolver for
+    # them.
+    master_email = (_os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com") or "").lower()
+
+    def _is_priv(u: dict) -> bool:
+        if not u:
+            return False
+        return bool(
+            u.get("is_master_admin")
+            or u.get("is_pulse_admin")
+            or (u.get("role") or "").lower() == "pulse_master_admin"
+        )
+
+    is_master = _is_priv(main_user) or (main_user.get("email") or "").lower() == master_email
 
     # CRM module access check — master admins bypass.
     if not is_master:
@@ -356,24 +380,43 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
         # Iter 216h221 — use the canonical `has_module()` resolver so
         # the gate honours the same source of truth as every other
         # module gate (and the Master Admin Feature Control panel).
-        #
-        # The legacy implementation here read `org.enabled_modules`
-        # (a flat array) which Master Admin's Modules tab does NOT
-        # write to — the toggle writes `org.modules.crm.enabled`
-        # via PUT /master-admin/organizations/{id}/features. Result:
-        # Pulse Pro orgs with CRM toggled ON in Master Admin were
-        # still rejected here with 403 "CRM not enabled", showing
-        # the user the "Your operator hasn't enabled CRM" screen
-        # despite Master Admin clearly showing the green toggle.
-        # See `utils/module_access._org_module_access` for the
-        # canonical schema.
         org_id = main_user.get("organization_id")
         org_doc = await db.organizations.find_one(
             {"id": org_id}, {"_id": 0},
         ) if org_id else None
 
         from utils.module_access import has_module
-        if not has_module(main_user, org_doc, "crm"):
+        allowed = has_module(main_user, org_doc, "crm")
+
+        # Iter 279 — duplicate/mismatched-record safety net. A single
+        # person can have multiple `users` rows under one email (legacy
+        # re-registration, cross-portal provisioning). If the row this
+        # token resolved to can't reach CRM, but ANOTHER row for the same
+        # email is a privileged admin or sits in a CRM-enabled org, grant
+        # the exchange and adopt that identity's org for scoping. This is
+        # exactly the Pulse Master Admin lock-out: login authenticated a
+        # non-admin duplicate while the directory shows the admin row.
+        if not allowed:
+            email_lc = (main_user.get("email") or "").lower().strip()
+            if email_lc:
+                siblings = await db.users.find(
+                    {"email": {"$regex": f"^{_re.escape(email_lc)}$", "$options": "i"}},
+                    {"_id": 0},
+                ).to_list(length=25)
+                for sib in siblings:
+                    if sib.get("id") == main_user.get("id"):
+                        continue
+                    if _is_priv(sib):
+                        allowed, is_master, main_user = True, True, sib
+                        break
+                    sib_org = await db.organizations.find_one(
+                        {"id": sib.get("organization_id")}, {"_id": 0},
+                    ) if sib.get("organization_id") else None
+                    if has_module(sib, sib_org, "crm"):
+                        allowed, main_user = True, sib
+                        break
+
+        if not allowed:
             raise HTTPException(status_code=403, detail="CRM module not enabled for your organisation")
 
     # Find or create a matching CRM user (deduped by email). Reuse the main
