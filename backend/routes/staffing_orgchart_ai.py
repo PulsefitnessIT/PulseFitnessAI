@@ -231,28 +231,6 @@ def _pdf_to_images(data: bytes, dpi: int = 200, max_pages: int = 6) -> list[str]
     return out
 
 
-async def _rows_from_images(images_b64: list[str]) -> list[dict]:
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(503, "AI is not configured")
-    llm = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=str(uuid.uuid4()), system_message=_VISION_SYSTEM).with_model(MODEL_PROVIDER, MODEL_NAME)
-    raw = (await llm.send_message(UserMessage(
-        text="Extract the full organisation chart from the attached page image(s) as JSON rows.",
-        file_contents=[ImageContent(image_base64=b) for b in images_b64[:6]],
-    ))).strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:json)?\n?", "", raw)
-        raw = re.sub(r"\n?```$", "", raw)
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"(\[.*\]|\{.*\})", raw, re.S)
-        if not m:
-            raise HTTPException(502, "Could not read a chart from that file")
-        data = json.loads(m.group(1))
-    return _clean_rows(data)
-
-
 @router.post("/staffing/orgchart/charts/{cid}/import/document")
 async def import_document(
     cid: str,
@@ -308,29 +286,60 @@ async def import_document_status(cid: str, job_id: str, user: dict = Depends(get
 
 
 async def _process_import_job(job_id: str, cid: str, org_id: str, data: bytes, filename: str):
+    # Run the whole extraction (fitz + the blocking litellm.completion call) in a
+    # worker thread so the event loop stays free — this lets the POST response
+    # flush immediately and keeps the poll endpoint responsive. Only Mongo
+    # writes (motor, bound to the main loop) happen back here.
     try:
-        lower = filename.lower()
-        is_pdf = lower.endswith(".pdf") or data[:5] == b"%PDF-"
-        if is_pdf:
-            text = _pdf_text(data)
-            if len(text) >= _PDF_TEXT_MIN:
-                rows = await _rows_from_text(sanitize_prompt(text, max_chars=16000))
-                source = "text"
-            else:
-                rows = await _rows_from_images(_pdf_to_images(data))
-                source = "vision"
-        else:
-            import base64 as _b64
-            rows = await _rows_from_images([_b64.b64encode(data).decode("ascii")])
-            source = "vision"
+        rows, source = await asyncio.to_thread(_extract_rows_sync, data, filename)
         await db.org_chart_import_jobs.update_one(
             {"id": job_id},
             {"$set": {"status": "done", "rows": rows, "count": len(rows),
                       "source": source, "updated_at": _now_iso()}})
-    except HTTPException as e:
-        await db.org_chart_import_jobs.update_one(
-            {"id": job_id}, {"$set": {"status": "error", "error": str(e.detail), "updated_at": _now_iso()}})
     except Exception as e:  # noqa: BLE001
         logger.exception("orgchart import job failed")
+        detail = e.detail if isinstance(e, HTTPException) else "Could not read that chart"
         await db.org_chart_import_jobs.update_one(
-            {"id": job_id}, {"$set": {"status": "error", "error": "Could not read that chart", "updated_at": _now_iso()}})
+            {"id": job_id}, {"$set": {"status": "error", "error": str(detail), "updated_at": _now_iso()}})
+
+
+def _llm_json_sync(system_message: str, prompt_text: str, images_b64: list[str] | None = None):
+    """Synchronous structured LLM call — safe to run inside ``asyncio.to_thread``.
+
+    ``emergentintegrations`` wraps the *blocking* ``litellm.completion`` inside an
+    ``async`` method, so we drive it with a fresh ``asyncio.run`` in this worker
+    thread; the blocking call then only stalls this thread, never the main loop.
+    """
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "AI is not configured")
+    llm = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=str(uuid.uuid4()),
+                  system_message=system_message).with_model(MODEL_PROVIDER, MODEL_NAME)
+    fc = [ImageContent(image_base64=b) for b in (images_b64 or [])[:6]]
+    msg = UserMessage(text=prompt_text, file_contents=fc) if fc else UserMessage(text=prompt_text)
+    raw = asyncio.run(llm.send_message(msg)).strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"(\[.*\]|\{.*\})", raw, re.S)
+        if not m:
+            raise HTTPException(502, "Could not read a chart from that file")
+        return json.loads(m.group(1))
+
+
+def _extract_rows_sync(data: bytes, filename: str) -> tuple[list[dict], str]:
+    """Fully synchronous extraction pipeline — runs in a worker thread."""
+    import base64 as _b64
+    is_pdf = filename.lower().endswith(".pdf") or data[:5] == b"%PDF-"
+    if is_pdf:
+        text = _pdf_text(data)
+        if len(text) >= _PDF_TEXT_MIN:
+            data_json = _llm_json_sync(_ROWS_SYSTEM, f"Build the org-chart rows from this staff list:\n\n{sanitize_prompt(text, max_chars=16000)}")
+            return _clean_rows(data_json), "text"
+        images = _pdf_to_images(data)
+        return _clean_rows(_llm_json_sync(_VISION_SYSTEM, "Extract the full organisation chart from the attached page image(s) as JSON rows.", images)), "vision"
+    b = _b64.b64encode(data).decode("ascii")
+    return _clean_rows(_llm_json_sync(_VISION_SYSTEM, "Extract the full organisation chart from the attached image as JSON rows.", [b])), "vision"

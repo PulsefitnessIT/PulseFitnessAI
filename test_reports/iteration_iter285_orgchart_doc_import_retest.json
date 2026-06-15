@@ -1,0 +1,31 @@
+{
+  "summary": "RETEST iter283 — Org-chart document import (Pulse PDF). All previously failing flows now PASS. Backend POST /api/staffing/orgchart/charts/{cid}/import/document returns in <1s (no more Cloudflare 502 — fix via asyncio.to_thread verified). Async job completes in ~60-67s and extracts exactly 108 rows from real Pulse PDF with source='text'. UI end-to-end flow exercised: login → /pulse → Staffing top-level → People → Org Chart → Import/Export → upload /tmp/pulse.pdf → working state shown → review table (orgchart-doc-review) rendered with 108 row inputs → edit row 0 → 'Add N cards' (orgchart-doc-apply) → done state (orgchart-doc-done) → switch to Org Chart canvas → auto-layout → 121 cards on canvas. Error-handling path also verified: uploading bad.txt shows orgchart-doc-error banner + 'Try again' button (orgchart-doc-retry) + 'Could not read that chart' toast; retry resets to idle dropzone.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "startup", "issue": "Pre-existing: libmagic missing — file validation DISABLED at boot. Uploads work today; if libmagic is later installed, allow-list must include PDF/PNG/JPG or this endpoint will 415."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter284_pulse_pdf_import.py",
+    "/app/test_reports/pytest/iter285_pulse.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix LGTM: routes/staffing_orgchart_ai.py — _extract_rows_sync and _llm_json_sync now wrapped via asyncio.to_thread inside _process_import_job; the route flushes its 200 within ~0.2s. Polling endpoint stays responsive (~0.15s latency) throughout the worker's ~60s extraction.",
+    "DocumentImport.js error path is solid: fail() sets phase='error', shows orgchart-doc-error + orgchart-doc-retry, AND fires toast.error. No silent revert anymore (the iter283 critical UX bug)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "iter284 pytest creates+cleans its own org/owner; UI retest used existing master-admin org and left 108 imported cards on its org chart (Pulse Self-Service Pro view), which is the intended outcome of the import flow.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Document import flow is fully working end-to-end. Backend regression: pytest tests/test_iter284_pulse_pdf_import.py (83s). UI path: /pulse → Staffing → People (staffing-tab-people) → Org Chart (staffing-subtab-orgchart) → Import / Export (orgchart-subtab-import) → file input orgchart-doc-file. Reviewer note: the first Operations 'Staffing' top-level button must be clicked first via get_by_role('button', name='Staffing') before the staffing-tab-people inner sub-tab is visible — this is by design (two-level nav).",
+  "rca of the issue": "Previously the POST blocked the event loop for ~70s because emergentintegrations called sync litellm.completion inside an async method, causing Cloudflare 502. Fix (verified): heavy fitz extraction (_extract_rows_sync) and LLM call (_llm_json_sync) are now offloaded via asyncio.to_thread inside _process_import_job, so the route returns immediately and the polling endpoint stays responsive. Reproduced fix: POST returns in <1s (start.elapsed=~0.2s in pytest), poll completes ~60-67s, 108 Pulse people extracted with manager links."
+}

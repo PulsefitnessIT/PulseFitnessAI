@@ -14,16 +14,19 @@ const inputCls = 'w-full px-2 py-1.5 rounded-md text-xs border outline-none';
 const inputStyle = { background: 'var(--theme-bg,#fff)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' };
 
 export default function DocumentImport({ chartId, onImported }) {
-  const [phase, setPhase] = useState('idle'); // idle | working | review | done
+  const [phase, setPhase] = useState('idle'); // idle | working | review | done | error
   const [rows, setRows] = useState([]);
   const [source, setSource] = useState(null);
+  const [errMsg, setErrMsg] = useState('');
   const [applyBusy, setApplyBusy] = useState(false);
   const pollRef = useRef(null);
 
   useEffect(() => () => clearInterval(pollRef.current), []);
 
+  const fail = (msg) => { clearInterval(pollRef.current); setErrMsg(msg); setPhase('error'); toast.error(msg); };
+
   const upload = async (file) => {
-    setPhase('working'); setRows([]);
+    setPhase('working'); setRows([]); setErrMsg('');
     try {
       const { job_id } = await ocApi.importDocument(chartId, file);
       pollRef.current = setInterval(async () => {
@@ -35,15 +38,12 @@ export default function DocumentImport({ chartId, onImported }) {
             setPhase('review');
             if (!s.rows?.length) toast('No people could be read — try a clearer file');
           } else if (s.status === 'error') {
-            clearInterval(pollRef.current);
-            setPhase('idle');
-            toast.error(s.error || 'Could not read that chart');
+            fail(s.error || 'Could not read that chart');
           }
-        } catch { /* keep polling */ }
+        } catch { /* transient — keep polling */ }
       }, 3000);
     } catch (e) {
-      setPhase('idle');
-      toast.error(e?.response?.data?.detail || 'Upload failed');
+      fail(e?.response?.data?.detail || 'Upload failed — please try again');
     }
   };
 
@@ -60,7 +60,7 @@ export default function DocumentImport({ chartId, onImported }) {
     } catch { toast.error('Could not add cards'); } finally { setApplyBusy(false); }
   };
 
-  const reset = () => { setPhase('idle'); setRows([]); setSource(null); };
+  const reset = () => { setPhase('idle'); setRows([]); setSource(null); setErrMsg(''); };
 
   return (
     <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid="orgchart-doc-import">
@@ -125,6 +125,15 @@ export default function DocumentImport({ chartId, onImported }) {
           <CheckCircle2 size={26} className="mx-auto mb-2" style={{ color: '#16a34a' }} />
           <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Imported — open the Org Chart tab and run Auto-layout to tidy it.</p>
           <button onClick={reset} className="mt-3 px-4 py-2 rounded-lg text-xs font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Import another</button>
+        </div>
+      )}
+
+      {phase === 'error' && (
+        <div className="rounded-xl border p-6 text-center" style={{ borderColor: '#fca5a5', background: '#fef2f2' }} data-testid="orgchart-doc-error">
+          <X size={24} className="mx-auto mb-2" style={{ color: '#dc2626' }} />
+          <p className="text-sm font-semibold" style={{ color: '#991b1b' }}>{errMsg || 'Could not import that file'}</p>
+          <p className="text-[11px] mt-1" style={{ color: '#b91c1c' }}>Try a PDF/image where the boxes and text are clearly legible.</p>
+          <button onClick={reset} className="mt-3 px-4 py-2 rounded-lg text-xs font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-doc-retry">Try again</button>
         </div>
       )}
     </div>
