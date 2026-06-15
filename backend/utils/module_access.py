@@ -150,6 +150,13 @@ def has_module(user: dict, org: Optional[dict], module: str) -> bool:
     return bool(resolve_module_access(user, org).get(module, False))
 
 
+def org_module_access(org: Optional[dict]) -> dict[str, bool]:
+    """Pure ORG-level entitlement, independent of any specific user's
+    privilege or per-staff overrides. Used by the People drawer's
+    "Module access" diagnostics to show org-level vs user-level state."""
+    return _org_module_access({}, org)
+
+
 # ─── CRM modes (Iter 215c) ───────────────────────────────────────
 # CRM has two distinct audiences:
 #   • leisure  → member lifecycle (auto-bundled with the Memberships module)
@@ -232,6 +239,6 @@ def trial_status(org: Optional[dict]) -> dict:
 __all__ = [
     "MODULE_KEYS", "BOLT_ON_MODULES", "TRIAL_DURATION_DAYS",
     "CRM_MODE_KEYS",
-    "resolve_module_access", "has_module", "trial_status",
+    "resolve_module_access", "has_module", "org_module_access", "trial_status",
     "crm_modes", "has_crm_access",
 ]

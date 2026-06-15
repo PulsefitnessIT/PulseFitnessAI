@@ -92,6 +92,82 @@ async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_
     }
 
 
+# ───────────── module-access diagnostics (Iter 278f) ─────────────
+_MODULE_META = {
+    "operations":  ("Operations", "Service desk, equipment, faults"),
+    "memberships": ("Memberships", "Members, classes, billing"),
+    "marketing":   ("Marketing", "Campaigns, segments, image library"),
+    "crm":         ("CRM", "Leads, deals, business pipeline"),
+}
+
+
+@router.get("/master-admin/users/{user_id}/module-access")
+async def get_user_module_access(user_id: str, user: dict = Depends(get_current_user)):
+    """Diagnostics for the People drawer: per-module ORG-level vs USER-level
+    access plus a plain-English reason, so a master admin can instantly see
+    WHY someone can or can't reach a module (e.g. CRM lock-outs)."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    org = None
+    org_id = target.get("organization_id")
+    if org_id:
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+
+    from utils.module_access import (
+        MODULE_KEYS, org_module_access, resolve_module_access,
+    )
+    org_lvl = org_module_access(org)
+    effective = resolve_module_access(target, org)
+
+    role = (target.get("role") or "").lower()
+    is_master = bool(target.get("is_master_admin"))
+    is_pulse = bool(target.get("is_pulse_admin")) or role == "pulse_master_admin"
+    is_owner = role == "owner"
+    privileged = is_master or is_pulse or is_owner
+    priv_label = (
+        "Platform Master Admin" if is_master
+        else "Pulse Master Admin" if is_pulse
+        else "Owner" if is_owner else ""
+    )
+
+    modules = []
+    for key in MODULE_KEYS:
+        label, blurb = _MODULE_META.get(key, (key.title(), ""))
+        org_on = bool(org_lvl.get(key))
+        user_on = bool(effective.get(key))
+        if privileged:
+            reason = f"Full access — {priv_label}"
+        elif not org_on:
+            reason = "Not enabled for this organisation"
+        elif user_on:
+            reason = "Enabled"
+        else:
+            reason = "Revoked for this user"
+        modules.append({
+            "key": key, "label": label, "blurb": blurb,
+            "org_enabled": org_on or privileged,
+            "user_access": user_on,
+            "reason": reason,
+        })
+
+    return {
+        "user_id": user_id,
+        "account_type": (org or {}).get("account_type") or target.get("account_type") or "—",
+        "organization_name": (org or {}).get("name") or "",
+        "is_privileged": privileged,
+        "privilege_label": priv_label,
+        "modules": modules,
+    }
+
+
+
 # Iter 222 — assigning the "Master Admin" role is BRAND-AWARE. For a user
 # in a Pulse-Fitness org it provisions a data-scoped *Pulse* Master Admin
 # (role=pulse_master_admin, is_pulse_admin=True) — same Master Admin

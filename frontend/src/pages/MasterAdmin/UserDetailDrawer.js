@@ -15,9 +15,9 @@
  * for one release. Once operators are happy with the drawer, the
  * legacy panel is retired (P3b).
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight, Layers, CircleCheck, CircleSlash } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '@/components/shared/Button';
 
@@ -45,6 +45,86 @@ const Field = ({ label, value, icon: Icon, testId }) => (
       <div className="text-sm text-zinc-900 mt-0.5 break-words">{value || <span className="italic text-zinc-400">—</span>}</div>
     </div>
   </div>
+);
+
+// Iter 278f — Module access diagnostics. Shows, per module, whether the
+// ORG has it enabled and whether THIS user effectively gets in, with a
+// plain-English reason — so a master admin can self-diagnose lock-outs
+// (e.g. the recurring "CRM is not enabled" Pulse Master Admin case).
+const ModuleAccessSection = ({ userId, headers }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setError(false);
+    axios.get(`${API_BASE}/master-admin/users/${userId}/module-access`, { headers })
+      .then(({ data }) => { if (alive) setData(data); })
+      .catch(() => { if (alive) setError(true); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E4E4E7' }} data-testid="people-drawer-module-access">
+      <div className="flex items-center gap-2">
+        <Layers size={14} className="text-zinc-600" />
+        <h3 className="text-sm font-bold text-zinc-900">Module access</h3>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-8 rounded bg-zinc-100 animate-pulse" />)}
+        </div>
+      ) : error ? (
+        <p className="text-[11px] text-zinc-500">Couldn't load module access.</p>
+      ) : (
+        <>
+          {data.is_privileged && (
+            <div className="rounded-md bg-blue-50 border border-blue-200 px-2.5 py-1.5 text-[11px] text-blue-800" data-testid="module-access-privileged">
+              {data.privilege_label} — full access to every module.
+            </div>
+          )}
+          <div className="grid grid-cols-[10px_1fr] gap-x-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+            <span />
+            <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+              <span>Module</span>
+              <span className="text-center w-12">Org</span>
+              <span className="text-center w-12">User</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {data.modules.map((m) => (
+              <div key={m.key} className="rounded-md border px-2.5 py-2" style={{ borderColor: '#F4F4F5' }} data-testid={`module-access-row-${m.key}`}>
+                <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-zinc-900 truncate">{m.label}</div>
+                    <div className="text-[10px] text-zinc-400 truncate">{m.blurb}</div>
+                  </div>
+                  <AccessDot on={m.org_enabled} />
+                  <AccessDot on={m.user_access} testid={`module-access-user-${m.key}`} />
+                </div>
+                <div className="text-[10px] mt-1" style={{ color: m.user_access ? '#16a34a' : (m.org_enabled ? '#d97706' : '#a1a1aa') }}>
+                  {m.reason}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-zinc-400 leading-snug">
+            <strong>Org</strong> = enabled for the organisation. <strong>User</strong> = this person's effective access. A green Org but amber User means access was revoked for this user.
+          </p>
+        </>
+      )}
+    </div>
+  );
+};
+
+const AccessDot = ({ on, testid }) => (
+  <span className="flex justify-center w-12" data-testid={testid}>
+    {on
+      ? <CircleCheck size={18} className="text-emerald-500" />
+      : <CircleSlash size={18} className="text-zinc-300" />}
+  </span>
 );
 
 const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
@@ -161,6 +241,8 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
               />
             )}
           </div>
+
+          <ModuleAccessSection userId={user.id} headers={headers} />
 
           <div className="rounded-lg border bg-zinc-50/60 p-4 space-y-3" style={{ borderColor: '#E4E4E7' }}>
             <div className="flex items-center gap-2">

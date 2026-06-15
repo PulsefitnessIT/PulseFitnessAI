@@ -1,3 +1,18 @@
+## Iter 278f — Module access diagnostics on the People drawer ✅ (Jun 15, 2026)
+
+**Enhancement (follow-up to the 278e CRM lock-out fix):** give master admins a self-serve way to see *why* someone can/can't reach a module, turning access tickets into a 5-second check.
+
+**Backend:** `GET /api/master-admin/users/{user_id}/module-access` (master-admin auth + pulse-scope check). Returns per-module `org_enabled` (org-level entitlement via new `org_module_access(org)` helper) + `user_access` (effective, via `resolve_module_access`) + a plain-English `reason`: "Full access — {Owner/Pulse/Platform Master Admin}", "Enabled", "Revoked for this user" (org on, per-staff override off), or "Not enabled for this organisation". Also exposes `is_privileged`, `privilege_label`, `account_type`. Added `org_module_access` to `module_access.__all__`.
+
+**Frontend:** new `ModuleAccessSection` in `UserDetailDrawer.js` — a Module / Org / User matrix (green check vs grey slash dots) with the reason and a legend; shows a privileged banner for owners/master admins. data-testids: `people-drawer-module-access`, `module-access-row-{key}`, `module-access-user-{key}`, `module-access-privileged`.
+
+**Verified:** endpoint returns correct reasons across all four states (curl: pulse admin → "Full access — Pulse Master Admin"; manager → "Enabled"; temporarily revoked CRM → "Revoked for this user"). UI renders cleanly in the People drawer (`/master-admin?section=roles` → click a user). ESLint clean. Resolver logic covered by `test_iter278e_pulse_admin_crm.py`.
+
+**ACTION (production):** preview-only — **redeploy gymaxisai.com**.
+
+---
+
+
 ## Iter 278e — BUGFIX: Pulse Master Admin locked out of CRM (recurring) ✅ (Jun 14, 2026)
 
 **Report (production gymaxisai.com):** Lee Somers, a **Pulse Master Admin**, hits "CRM is not enabled for your account" at `/crm` even though his profile shows the CRM badge and his role has the CRM module ticked. Recurring.
