@@ -1,3 +1,17 @@
+## Iter 279d — Staffing nav condensed into logical groups + Expenses moved into Staffing ✅ (Jun 15, 2026)
+
+**Request:** Staffing console had 18 sub-tabs (too loaded). Condense without losing features, logical order. Specifically: move Expenses from the top-level Operations strip INTO Staffing (right after Payroll) and remove it from Operations; combine Staff+HR; combine Announcements+Handover Diary; nest Templates/Time Off/Shift Market/Live Floor/AI Rota under Rota; nest AI Insights under Performance.
+
+**Done (frontend only, `StaffingConsole.js` + `LiteDashboardPage.js`):**
+- Replaced the flat 18-pill `TABS_ALL` with a hierarchical `GROUPS_ALL` (group → children) + a 2-tier pill UI (primary group bar `staffing-tabs`/`staffing-tab-<id>`, secondary sub-tab bar `staffing-subtabs`/`staffing-subtab-<leafId>`). Per-leaf role gating preserved; a group is visible if ≥1 child is visible (so staff keep Time Off/Shift Market/Live Floor under Rota and Announcements/Handover under Comms). Clicking a group jumps to its first sub-tab; re-clicking keeps the current sub-tab.
+- Final order (managers): **Dashboard · People** (Staff/HR) **· Rota** (Schedule/Templates/Time Off/Shift Market/Live Floor/AI Rota) **· Time Clock** (Team/My Clock) **· Performance** (Overview/AI Insights) **· Payroll · Expenses · Comms** (Announcements/Handover Diary) **· Ops · Forms · Rules**.
+- Expenses now renders `<DeskExpenses/>` inside Staffing (after Payroll); the top-level Operations 'expenses' tab + content + unused imports were removed.
+
+**Verified:** ESLint clean; frontend testing agent — ALL acceptance criteria pass (`iteration_iter279d_staffing_nav.json`): top Operations strip no longer has Expenses; group bar order correct; every sub-tab renders its component with no blank screens/console errors. No backend changes.
+
+---
+
+
 ## Iter 279c — Custom Job Roles + Master Admin→Operations role sync + Expenses surfaced in Operations ✅ (Jun 15, 2026)
 
 **Requests:** (1) Operations → Staffing/HR needs **custom Job Roles** with a neutral business approach (not gym-only). (2) A role set in **Master Admin** (Ryan Somers = Engineer) must **pull through** to the Operations portal — it was wrongly showing "RECEPTION". (3) "Same for CRM with sales managers/engineers." (4) "Where is the Expenses module? Only visible to engineers." (5) Grammar correct. **User choices:** 1a (pre-fill from Master Admin, editable in Ops), 2b (neutral business defaults + custom), 3a (one shared catalogue per company), 4a (owners/managers manage).
