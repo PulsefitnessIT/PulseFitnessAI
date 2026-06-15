@@ -16,7 +16,7 @@ import axios from 'axios';
 import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
   Trash2, X, Check, Search, AlertTriangle,
-  ExternalLink,
+  ExternalLink, Briefcase,
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
@@ -45,6 +45,15 @@ const SEVERITY_TINT = {
 
 function fmtDate(iso) { return iso ? iso.slice(0, 10) : '—'; }
 
+// Iter 279c — roles are stored as lower_snake tokens (e.g. "sales_manager");
+// present them as proper Title Case ("Sales Manager") wherever shown.
+function humanizeRole(role) {
+  if (!role) return '—';
+  return String(role)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // ─────────────────────── Profile panel ───────────────────────────
 
 function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
@@ -71,7 +80,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
 
   // Iter 216h243 — dynamic role list for the Primary role field below.
   // Mirrors the Add Staff dialog (StaffingConsole) — same endpoint.
-  const DEFAULT_ROLES = useMemo(() => ['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'], []);
+  const DEFAULT_ROLES = useMemo(() => ['manager','engineer','technician','sales_manager','administrator','receptionist','supervisor','director','other'], []);
   const [roleOptions, setRoleOptions] = useState(DEFAULT_ROLES);
   const [addingRole, setAddingRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
@@ -198,7 +207,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <p className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{profile.full_name}</p>
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{profile.primary_role} · {profile.email || 'no email on file'}</p>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(profile.primary_role)} · {profile.email || 'no email on file'}</p>
         </div>
         {isManager && !editing && (
           <button type="button" onClick={() => setEditing(true)}
@@ -274,11 +283,14 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="hr-primary-role"
             >
-              {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+              {(roleOptions.includes(form.primary_role) || !form.primary_role
+                ? roleOptions
+                : [form.primary_role, ...roleOptions]
+              ).map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
               <option value="__add_new__">+ Add new role…</option>
             </select>
           )) : (
-            <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.primary_role || '—'}</span>
+            <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{humanizeRole(profile.primary_role) || '—'}</span>
           )}
         </div>
 
@@ -652,14 +664,165 @@ function TrainingPanel({ staffId, headers, isManager }) {
   );
 }
 
-// ─────────────────────── Hub ─────────────────────────────────────
+// ─────────────────────── Job Roles manager ───────────────────────
+// Iter 279c — owners/managers maintain the company's shared job-role
+// catalogue (add / rename / delete custom roles). Platform defaults are
+// shown read-only. The same catalogue feeds every role dropdown.
+function JobRolesModal({ headers, onClose, onChanged }) {
+  const [defaults, setDefaults] = useState([]);
+  const [custom, setCustom] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState('');
+  const [editing, setEditing] = useState(null); // { role, value }
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/staffing/roles`, { headers });
+      setDefaults(data?.platform_defaults || []);
+      setCustom(data?.custom || []);
+    } catch { /* noop */ }
+    setLoading(false);
+  }, [headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const refresh = async () => { await load(); onChanged?.(); };
+
+  const addRole = async () => {
+    const name = adding.trim();
+    if (!name) return;
+    setBusy(true); setError('');
+    try {
+      await axios.post(`${API}/staffing/roles`, { role: name }, { headers });
+      setAdding('');
+      await refresh();
+    } catch (err) { setError(err.response?.data?.detail || 'Could not add role'); }
+    setBusy(false);
+  };
+
+  const saveRename = async () => {
+    if (!editing) return;
+    const next = (editing.value || '').trim();
+    if (!next || next === editing.role) { setEditing(null); return; }
+    setBusy(true); setError('');
+    try {
+      await axios.put(`${API}/staffing/roles/${encodeURIComponent(editing.role)}`, { new_name: next }, { headers });
+      setEditing(null);
+      await refresh();
+    } catch (err) { setError(err.response?.data?.detail || 'Could not rename role'); }
+    setBusy(false);
+  };
+
+  const removeRole = async (role) => {
+    if (!window.confirm(`Delete the "${humanizeRole(role)}" role? Staff already assigned to it keep the label.`)) return;
+    setBusy(true); setError('');
+    try {
+      await axios.delete(`${API}/staffing/roles/${encodeURIComponent(role)}`, { headers });
+      await refresh();
+    } catch (err) { setError(err.response?.data?.detail || 'Could not delete role'); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} data-testid="job-roles-modal">
+      <div className="w-full max-w-md rounded-2xl border shadow-xl flex flex-col max-h-[85vh]"
+        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+          <div className="inline-flex items-center gap-2">
+            <Briefcase size={16} style={{ color: 'var(--color-brand-cyan)' }} />
+            <h3 className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Job roles</h3>
+          </div>
+          <button type="button" onClick={onClose} data-testid="job-roles-close" style={{ color: 'var(--theme-text-muted)' }}><X size={16} /></button>
+        </div>
+
+        <div className="p-4 space-y-4 overflow-y-auto">
+          {error && (
+            <p className="text-xs px-2 py-1 rounded-md" style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444' }} data-testid="job-roles-error">{error}</p>
+          )}
+
+          {/* Add a custom role */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Add a role</span>
+            <div className="flex gap-1.5">
+              <input
+                value={adding}
+                onChange={(e) => setAdding(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') addRole(); }}
+                placeholder="e.g. Project Manager"
+                maxLength={60}
+                className="flex-1 h-9 rounded-md bg-transparent border px-2 text-sm"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="job-roles-add-input"
+              />
+              <button type="button" onClick={addRole} disabled={busy || !adding.trim()}
+                className="h-9 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1 disabled:opacity-50"
+                style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="job-roles-add-btn">
+                <Plus size={13} /> Add
+              </button>
+            </div>
+          </div>
+
+          {/* Custom roles */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Your custom roles</span>
+            {loading ? (
+              <p className="text-xs inline-flex items-center gap-1.5" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={12} className="animate-spin" /> Loading…</p>
+            ) : custom.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No custom roles yet. The defaults below cover most companies.</p>
+            ) : (
+              <div className="rounded-lg border divide-y" style={{ borderColor: 'var(--theme-border)' }}>
+                {custom.map((r) => (
+                  <div key={r} className="flex items-center gap-2 px-2.5 py-2" data-testid={`job-roles-custom-${r}`}>
+                    {editing?.role === r ? (
+                      <>
+                        <input autoFocus value={editing.value} maxLength={60}
+                          onChange={(e) => setEditing({ role: r, value: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setEditing(null); }}
+                          className="flex-1 h-8 rounded-md bg-transparent border px-2 text-sm"
+                          style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                          data-testid="job-roles-rename-input" />
+                        <button type="button" onClick={saveRename} disabled={busy} style={{ color: 'var(--color-brand-cyan)' }} data-testid="job-roles-rename-save"><Check size={15} /></button>
+                        <button type="button" onClick={() => setEditing(null)} style={{ color: 'var(--theme-text-muted)' }}><X size={15} /></button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm" style={{ color: 'var(--theme-text)' }}>{humanizeRole(r)}</span>
+                        <button type="button" onClick={() => setEditing({ role: r, value: r })} title="Rename" style={{ color: 'var(--theme-text-muted)' }} data-testid={`job-roles-rename-${r}`}><Pencil size={14} /></button>
+                        <button type="button" onClick={() => removeRole(r)} title="Delete" style={{ color: '#EF4444' }} data-testid={`job-roles-delete-${r}`}><Trash2 size={14} /></button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Platform defaults (read-only) */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Built-in roles</span>
+            <div className="flex flex-wrap gap-1.5">
+              {defaults.map((r) => (
+                <span key={r} className="text-[11px] px-2 py-1 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{humanizeRole(r)}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────── Hub ─────────────────────────────────────
 export default function HRTab({ headers, isManager }) {
   const [staffList, setStaffList] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [search, setSearch] = useState('');
   const [sub, setSub] = useState(() => localStorage.getItem('staffing.hr.sub') || 'profile');
   const [loading, setLoading] = useState(true);
+  const [rolesOpen, setRolesOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -685,6 +848,24 @@ export default function HRTab({ headers, isManager }) {
 
   return (
     <div className="space-y-3" data-testid="hr-tab">
+
+      {isManager && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+            Roles set in Master Admin pull through automatically — managers can override them per person below.
+          </p>
+          <button type="button" onClick={() => setRolesOpen(true)}
+            className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border shrink-0"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+            data-testid="hr-manage-roles-btn">
+            <Briefcase size={13} /> Manage job roles
+          </button>
+        </div>
+      )}
+
+      {rolesOpen && (
+        <JobRolesModal headers={headers} onClose={() => setRolesOpen(false)} onChanged={load} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 rounded-xl border overflow-hidden"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)', minHeight: '600px' }}>
@@ -719,7 +900,7 @@ export default function HRTab({ headers, isManager }) {
                   }}
                   data-testid={`hr-staff-row-${s.id}`}>
                   <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{s.full_name}</p>
-                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</p>
+                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.primary_role)}</p>
                 </button>
               );
             })}

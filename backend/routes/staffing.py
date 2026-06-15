@@ -131,6 +131,39 @@ async def _my_staff_id_async(user: dict, org_id: str) -> str | None:
 # ───────────────────────── Models ─────────────────────────
 
 VALID_ROLES = {"instructor", "pt", "manager", "reception", "cleaner", "maintenance", "lifeguard", "duty_manager", "other"}
+
+# Iter 279c — neutral, business-wide default job roles. The platform now
+# serves any company (not just gyms), so the suggested catalogue is generic;
+# gyms can still add their own (e.g. "Instructor", "Lifeguard") via the Job
+# Roles manager. The legacy gym roles stay VALID so existing staff records
+# keep their label and never fail validation.
+BUSINESS_DEFAULT_ROLES = [
+    "manager", "engineer", "technician", "sales_manager",
+    "administrator", "receptionist", "supervisor", "director", "other",
+]
+_LEGACY_GYM_ROLES = {
+    "instructor", "pt", "reception", "cleaner",
+    "maintenance", "lifeguard", "duty_manager",
+}
+# Validation superset — anything in here is an accepted primary_role.
+VALID_ROLES = set(BUSINESS_DEFAULT_ROLES) | _LEGACY_GYM_ROLES
+
+
+def _staff_role_from_platform_role(role, allowed: set) -> str:
+    """Map a platform user role (set in Master Admin) to a staffing
+    ``primary_role`` so a person's job role pulls through to Operations.
+
+    Iter 279c — ``engineer`` / ``sales_manager`` / ``technician`` etc. now
+    flow straight through; the historical owner/manager/staff buckets keep
+    their meaning. Unrecognised roles fall back to "other"."""
+    r = (role or "").strip().lower()
+    explicit = {"owner": "manager", "manager": "manager", "staff": "other"}
+    if r in explicit:
+        return explicit[r]
+    allowed_lc = {str(x).lower() for x in (allowed or set())}
+    if r and r in allowed_lc:
+        return r
+    return "other"
 VALID_SHIFT_STATUS = {"scheduled", "confirmed", "completed", "cancelled", "open"}
 VALID_LEAVE_TYPE = {"holiday", "sick", "unpaid", "training", "other"}
 VALID_LEAVE_STATUS = {"pending", "approved", "rejected", "cancelled"}
@@ -300,16 +333,34 @@ async def _ensure_staff_for_org_users(org_id: str) -> int:
         return 0
     existing_staff = await db.staff_members.find(
         {"organization_id": org_id},
-        {"_id": 0, "user_id": 1, "email": 1},
+        {"_id": 0, "id": 1, "user_id": 1, "email": 1, "primary_role": 1,
+         "primary_role_source": 1, "auto_synced_from_users": 1},
     ).to_list(5000)
-    seen_user_ids = {s.get("user_id") for s in existing_staff if s.get("user_id")}
+    by_user_id = {s.get("user_id"): s for s in existing_staff if s.get("user_id")}
+    seen_user_ids = set(by_user_id.keys())
     seen_emails = {(s.get("email") or "").strip().lower() for s in existing_staff if s.get("email")}
 
-    role_map = {"owner": "manager", "manager": "manager", "staff": "reception"}
+    allowed = await _allowed_roles_for(org_id)
     inserted = 0
     now_iso = _now().isoformat()
     for u in users:
+        mapped_role = _staff_role_from_platform_role(u.get("role"), allowed)
         if u["id"] in seen_user_ids:
+            # Iter 279c — reconcile: keep an auto-synced staff member's
+            # primary_role aligned with the platform role set in Master
+            # Admin, UNLESS a manager has manually overridden it in HR
+            # (primary_role_source == "manual"). This is what makes
+            # "Ryan = Engineer in Master Admin" show as Engineer in Ops.
+            s = by_user_id.get(u["id"])
+            if (s and s.get("auto_synced_from_users")
+                    and s.get("primary_role_source") != "manual"
+                    and mapped_role and s.get("primary_role") != mapped_role):
+                await db.staff_members.update_one(
+                    {"id": s["id"], "organization_id": org_id},
+                    {"$set": {"primary_role": mapped_role,
+                              "primary_role_source": "platform",
+                              "updated_at": now_iso}},
+                )
             continue
         em = (u.get("email") or "").strip().lower()
         if em and em in seen_emails:
@@ -326,7 +377,8 @@ async def _ensure_staff_for_org_users(org_id: str) -> int:
             "user_id": u["id"],
             "email": u.get("email"),
             "full_name": u.get("full_name") or (u.get("email") or "").split("@")[0] or "Unnamed",
-            "primary_role": role_map.get((u.get("role") or "").lower(), "reception"),
+            "primary_role": mapped_role,
+            "primary_role_source": "platform",
             "secondary_roles": [],
             "certifications": [],
             "site_ids": [],
@@ -380,6 +432,9 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
         allowed = await _allowed_roles_for(org_id)
         if patch["primary_role"] not in allowed:
             raise HTTPException(400, "invalid primary_role")
+        # Iter 279c — a manager-set role wins over the Master Admin sync;
+        # mark it so the auto-reconcile never clobbers their choice.
+        patch["primary_role_source"] = "manual"
     # Iter 216h241 — see create_staff: keep both contracted-hours keys
     # in lock-step so the HR profile and the staff list never disagree.
     if "hours_per_week" in patch and "weekly_hours" not in patch:
@@ -1724,19 +1779,27 @@ async def workforce_dashboard(user: dict = Depends(get_current_user)):
 
 @router.get("/staffing/roles")
 async def list_staff_roles(user: dict = Depends(get_current_user)):
-    """Return platform-default + org-custom staff roles.
+    """Return the org's job-role catalogue.
 
-    Frontend dropdowns (Add Staff, HR profile) consume this to render
-    the full role list dynamically.
+    Iter 279c — ``platform_defaults`` is now the neutral, business-wide set
+    (Manager, Engineer, Technician, Sales Manager…) rather than the old
+    gym-only list. ``all`` is the catalogue the dropdowns should show:
+    business defaults + the org's custom roles (legacy gym roles stay
+    *valid* for back-compat but are no longer suggested). Frontends append
+    a staff member's current role if it isn't already in the list.
     """
     org_id = _org(user)
-    allowed = sorted(await _allowed_roles_for(org_id))
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "custom_staff_roles": 1})
-    custom = [r for r in ((org or {}).get("custom_staff_roles") or []) if isinstance(r, str) and r.strip()]
+    custom = sorted({r.strip() for r in ((org or {}).get("custom_staff_roles") or [])
+                     if isinstance(r, str) and r.strip()})
+    catalogue = [*BUSINESS_DEFAULT_ROLES, *[c for c in custom if c.lower() not in
+                 {d.lower() for d in BUSINESS_DEFAULT_ROLES}]]
     return {
-        "platform_defaults": sorted(VALID_ROLES),
-        "custom": sorted(set(custom)),
-        "all": allowed,
+        "platform_defaults": list(BUSINESS_DEFAULT_ROLES),
+        "custom": custom,
+        "all": catalogue,
+        # Full validation set (incl. legacy) — exposed for completeness.
+        "valid": sorted(await _allowed_roles_for(org_id)),
     }
 
 
@@ -1798,3 +1861,51 @@ async def delete_staff_role(role: str, user: dict = Depends(get_current_user)):
         {"$set": {"custom_staff_roles": new_list, "updated_at": _now().isoformat()}},
     )
     return {"removed": role, "custom": sorted(set(new_list))}
+
+
+
+class StaffRoleRename(BaseModel):
+    new_name: str
+
+
+@router.put("/staffing/roles/{role}")
+async def rename_staff_role(role: str, body: StaffRoleRename, user: dict = Depends(get_current_user)):
+    """Rename a custom job role and migrate every staff member who carries
+    it to the new label. Platform defaults can't be renamed.
+
+    Manager / admin only. The new name must not collide with a platform
+    default or another existing custom role (case-insensitive).
+    """
+    _require_manager(user)
+    org_id = _org(user)
+    if not org_id:
+        raise HTTPException(400, "organization scope required")
+    new_name = (body.new_name or "").strip()
+    if not new_name:
+        raise HTTPException(400, "new role name required")
+    if len(new_name) > 60:
+        raise HTTPException(400, "role name too long (max 60)")
+    if role.lower() in {r.lower() for r in VALID_ROLES}:
+        raise HTTPException(400, "cannot rename a platform default role")
+    if new_name.lower() in {r.lower() for r in VALID_ROLES}:
+        raise HTTPException(409, f"'{new_name}' is already a platform default")
+
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "custom_staff_roles": 1})
+    existing = (org or {}).get("custom_staff_roles") or []
+    if not any((r or "").lower() == role.lower() for r in existing):
+        raise HTTPException(404, "role not found")
+    if any((r or "").lower() == new_name.lower() for r in existing if (r or "").lower() != role.lower()):
+        raise HTTPException(409, f"'{new_name}' already exists")
+
+    new_list = [new_name if (r or "").lower() == role.lower() else r for r in existing]
+    now_iso = _now().isoformat()
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"custom_staff_roles": new_list, "updated_at": now_iso}},
+    )
+    # Migrate staff members carrying the old label so their role stays valid.
+    await db.staff_members.update_many(
+        {"organization_id": org_id, "primary_role": role},
+        {"$set": {"primary_role": new_name, "updated_at": now_iso}},
+    )
+    return {"renamed": role, "to": new_name, "custom": sorted(set(new_list))}

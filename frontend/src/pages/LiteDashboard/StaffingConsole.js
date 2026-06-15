@@ -43,6 +43,13 @@ import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Iter 279c — job roles are stored as lower_snake tokens; show them as
+// proper Title Case ("sales_manager" → "Sales Manager").
+function humanizeRole(role) {
+  if (!role) return '—';
+  return String(role).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Canonical tab registry. Each tab knows which roles can see it.
 // Iter 216h264 — reordered into a "people → schedule → daily ops →
 // performance → comms" flow per user feedback. Old order had
@@ -410,7 +417,7 @@ function RotaTab({ headers, isManager }) {
                 <tr key={s.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
                   <td className="py-2 px-2" data-testid={`rota-row-${s.id}`}>
                     <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{s.full_name}</div>
-                    <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.primary_role)}</div>
                   </td>
                   {days.map((d) => {
                     const cellKey = `${s.id}|${d}`;
@@ -498,7 +505,7 @@ function RotaTab({ headers, isManager }) {
 function AddShiftDialog({ initial, onCancel, onSubmit }) {
   const [start_time, setStart] = useState('09:00');
   const [end_time, setEnd]     = useState('17:00');
-  const [role, setRole]        = useState('reception');
+  const [role, setRole]        = useState('manager');
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" data-testid="add-shift-dialog" onClick={onCancel}>
       <div className="rounded-2xl border p-5 w-full max-w-sm" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} onClick={(e) => e.stopPropagation()}>
@@ -515,7 +522,7 @@ function AddShiftDialog({ initial, onCancel, onSubmit }) {
           <div className="col-span-2">
             <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>Role</label>
             <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full rounded-lg px-2 py-1.5 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="add-shift-role">
-              {['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'].map((r) => <option key={r}>{r}</option>)}
+              {['manager','engineer','technician','sales_manager','administrator','receptionist','supervisor','director','other'].map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
             </select>
           </div>
         </div>
@@ -531,12 +538,12 @@ function AddShiftDialog({ initial, onCancel, onSubmit }) {
 // ─── Staff directory (manager only) ───
 function StaffTab({ headers }) {
   const [rows, setRows] = useState([]);
-  const [form, setForm] = useState({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' });
+  const [form, setForm] = useState({ full_name: '', email: '', primary_role: 'manager', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' });
   const [showAdd, setShowAdd] = useState(false);
   // Iter 216h243 — dynamic role list. Platform defaults + custom roles
   // come from `GET /staffing/roles` so operators can manage org-specific
   // roles (e.g. "swim coach", "spa therapist") without redeploys.
-  const DEFAULT_ROLES = useMemo(() => ['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'], []);
+  const DEFAULT_ROLES = useMemo(() => ['manager','engineer','technician','sales_manager','administrator','receptionist','supervisor','director','other'], []);
   const [roleOptions, setRoleOptions] = useState(DEFAULT_ROLES);
   const [addingRole, setAddingRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
@@ -552,7 +559,7 @@ function StaffTab({ headers }) {
   }, [headers]);
   useEffect(() => { load(); loadRoles(); }, [load, loadRoles]);
   const save = async () => {
-    try { await axios.post(`${API}/staffing/staff`, form, { headers }); setShowAdd(false); setForm({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' }); load(); }
+    try { await axios.post(`${API}/staffing/staff`, form, { headers }); setShowAdd(false); setForm({ full_name: '', email: '', primary_role: 'manager', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' }); load(); }
     catch (err) { alert(err.response?.data?.detail || 'Failed'); }
   };
   const submitNewRole = async () => {
@@ -649,7 +656,7 @@ function StaffTab({ headers }) {
               {rows.map((s) => (
                 <tr key={s.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`staff-row-${s.id}`}>
                   <td className="py-2 px-2 font-medium" style={{ color: 'var(--theme-text)' }}>{s.full_name}</td>
-                  <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</td>
+                  <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.primary_role)}</td>
                   <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.contract_type || '—'}</td>
                   <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hrs`}>{s.hours_per_week ? `${s.hours_per_week}h` : '—'}</td>
                   <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hourly`}>{formatMoneySync(s.hourly_cost || 0)}</td>
@@ -727,7 +734,7 @@ function StaffTab({ headers }) {
                       style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                       data-testid="staff-add-role"
                     >
-                      {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                      {roleOptions.map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
                       <option value="__add_new__">+ Add new role…</option>
                     </select>
                   )}
@@ -907,7 +914,7 @@ function MarketTab({ headers, isManager }) {
             {open.map((s) => (
               <div key={s.id} className="flex items-center gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`market-open-${s.id}`}>
                 <Clock size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-                <div className="flex-1 text-sm">{s.date} · {s.start_time}–{s.end_time}<span className="ml-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.role}</span></div>
+                <div className="flex-1 text-sm">{s.date} · {s.start_time}–{s.end_time}<span className="ml-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.role)}</span></div>
                 <button type="button" onClick={() => claim(s.id)} className="text-xs font-semibold rounded-full px-3 py-1" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid={`market-claim-${s.id}`}>Claim</button>
               </div>
             ))}
@@ -958,7 +965,7 @@ function PerformanceTab({ headers }) {
         <tbody>
           {data.staff.map((s) => (
             <tr key={s.staff_id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`perf-row-${s.staff_id}`}>
-              <td className="py-2 px-2"><div className="font-medium" style={{ color: 'var(--theme-text)' }}>{s.full_name}</div><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</div></td>
+              <td className="py-2 px-2"><div className="font-medium" style={{ color: 'var(--theme-text)' }}>{s.full_name}</div><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.primary_role)}</div></td>
               <td className="py-2 px-2 text-right tabular-nums">{s.hours_scheduled}</td>
               <td className="py-2 px-2 text-right tabular-nums">{formatMoneySync(s.labour_cost)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{s.classes_delivered}</td>
@@ -1017,7 +1024,7 @@ function LiveFloorTab({ headers }) {
               <li key={s.id} className="flex items-center gap-2 text-sm" data-testid={`live-now-${s.id}`}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'var(--color-success)22', color: 'var(--color-success)' }}>{(s.staff_name || '?').charAt(0).toUpperCase()}</div>
                 <div className="flex-1">{s.staff_name}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.role} · until {s.end_time}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.role)} · until {s.end_time}</div>
               </li>
             ))}
           </ul>
@@ -1031,7 +1038,7 @@ function LiveFloorTab({ headers }) {
               <li key={s.id} className="flex items-center gap-2 text-sm" data-testid={`live-up-${s.id}`}>
                 <Clock size={13} />
                 <div className="flex-1">{s.staff_name}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.start_time}–{s.end_time} · {s.role}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.start_time}–{s.end_time} · {humanizeRole(s.role)}</div>
               </li>
             ))}
           </ul>

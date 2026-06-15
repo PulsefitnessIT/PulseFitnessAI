@@ -1,0 +1,28 @@
+{
+  "summary": "Iter279 frontend verification of (a) Operations 'Expenses' tab in Pulse portal and (b) Staffing → HR (People) job-roles management — all flows pass end-to-end. Pulse admin login → Pulse Fitness Portal switch → /pulse Operations works; Expenses tab is visible in the Operations sub-tab strip and renders the full Expenses cockpit (Approvals/Reports/Settings sub-tabs + KPI strip — Awaiting approval, Needs details, Approved to pay, Reclaimable VAT) under data-testid='expenses-content'. Staffing → HR sub-tab (label is 'HR', not 'People' — sits behind the right-chevron of the staffing sub-tab strip) renders hr-tab with the exact manager helper text 'Roles set in Master Admin pull through automatically — managers can override them per person below.' and the 'Manage job roles' button (hr-manage-roles-btn). Job-roles modal (job-roles-modal) opens and shows 'YOUR CUSTOM ROLES' (empty default copy 'No custom roles yet. The defaults below cover most companies.') and 'BUILT-IN ROLES' chips in Title Case: Manager, Engineer, Technician, Sales Manager, Administrator, Receptionist, Supervisor, Director, Other — all 9 expected business defaults present. Add 'Field Supervisor' → appears under custom roles; rename via pencil (job-roles-rename-Field Supervisor → job-roles-rename-input + job-roles-rename-save) to 'Site Supervisor' → updates; delete via trash (job-roles-delete-Site Supervisor) with confirm dialog → removed cleanly. Profile panel renders roles humanized (MANAGER / OTHER labels, Primary Role = 'Manager'); no underscored role tokens visible. Grammar of the header and modal labels is clean.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "HR Profile panel (Employment section)", "issues": ["CONTRACT TYPE field still renders raw token 'part_time' (lowercase + underscore). Not a job-role token so the iter279 contract is met, but it's the only un-humanized value left on this screen — consider running it through humanizeRole/Title Case for consistency."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, nice-to-have) Humanize the CONTRACT TYPE display in HR Profile so 'part_time' renders as 'Part Time' (or 'Part-Time') — keeps Employment block grammar-consistent with the rest of the Title-Case roles work."
+  ],
+  "critical_code_review_comments": [
+    "Review request text says 'click the People sub-tab (person icon)' but the actual label rendered in StaffingConsole.js TABS_ALL is 'HR' with the IdCard icon — minor copy mismatch between PRD/test instructions and the shipped UI. Either rename the sub-tab to 'People' (Users icon) or update test instructions to say 'HR'. The HR sub-tab is also pushed behind the staffing sub-tab strip chevron at 1920×800 — it works but is not immediately visible; consider reordering so the manager-facing People/HR view is closer to the front of the strip.",
+    "humanizeRole() is duplicated across HRTab.js and StaffingConsole.js (and probably more) — extract to a shared util so display rules stay in sync.",
+    "Contract type 'part_time' is rendered raw; either humanize it or expose a contract-type label map alongside humanizeRole."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (Expenses tab + HR job-roles add/rename/delete + role Title-Case rendering all pass)"},
+  "test_credentials": "pulse.admin.test@pulsefitness.com / PulseAdmin123!",
+  "seed_data_creation": "Created+renamed+deleted a transient custom job role ('Field Supervisor' → 'Site Supervisor' → deleted) for the 'Third Space' org via the Job Roles modal. Net DB state after run: no leftover test rows in /api/staffing/roles.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Job-roles modal selectors are templated by the literal role string (e.g. data-testid='job-roles-rename-Field Supervisor', with the space preserved), not by an id or slug — write selectors with the exact label. Modal Escape key does not close the modal (use the X button if you need to close it programmatically). The HR sub-tab label is 'HR' (not 'People') and is behind the right-chevron of the staffing sub-tab strip at 1920×800. Pulse admin lands on /master-admin; click the 'Pulse Fitness Portal' link under 'Switch Portal' in the left sidebar (or navigate to /pulse) to reach the Operations portal. Dismiss the PWA 'Install App' banner ('Later' button) before clicking deep into tabs.",
+  "rca of the issue": "n/a — no defects found in the iter279 scope."
+}
