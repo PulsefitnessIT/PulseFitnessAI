@@ -1,3 +1,22 @@
+## White-label conversion — GymAxis AI → Pulse Fitness AI ✅ (Jun 16, 2026)
+
+**Goal:** Convert the transferred GymAxis platform into a fully Pulse Fitness AI branded product. No GymAxis branding visible to Pulse users; clean DB; pulsefitness.ai domain; integration key rotation deferred (Phase 5, awaiting user keys).
+
+**Done & verified (backend 6/6, frontend 3/3 testing agents):**
+- **Global text rebrand:** 2,193 case-sensitive substitutions across 472 files (frontend `src` + backend non-test): "GymAxis AI"→"Pulse Fitness AI", "GymAxis"→"Pulse Fitness", `gymaxisai.com`/emails→`pulsefitness.ai`/`@pulsefitness.ai`. Fixed identifier-corruption (space inside camelCase ids) via a collapse pass; renamed 3 component files (AskGymAxis→AskPulseFitness, GymAxisGrowthHub→PulseFitnessGrowthHub, GymAxisMark→PulseFitnessMark).
+- **Brand resolver flipped:** `theme/useBrand.js` + `App.js` `data-brand` + `Navbar.js` now resolve to Pulse Fitness on EVERY surface (was Strategy-B dual brand). 
+- **Logos/icons:** Built Pulse SVGs (`pulse-mark.svg`, `pulse-logo-dark/light/reverse.svg`) from the user's `PulseFitness_Reverse.svg`; regenerated favicons (48/96/192/512/apple-touch/.ico) + `og-cover.jpg` via cairosvg; overwrote the platform default brand PNGs (`brand/gymaxis-*.png`, `backend/static/brand/*`) with Pulse artwork so emails/PDFs/posters inherit Pulse.
+- **Email/PDF branding:** `utils/email.py` co-brand now uses the Pulse mark + "Pulse Fitness AI" for ALL tenants (not just pulse_pro).
+- **SEO:** `index.html` title "Pulse Fitness AI | Fitness Operations Platform", meta/OG/Twitter/schema/robots/sitemap → Pulse + `www.pulsefitness.ai`.
+- **Default landing:** `/` now renders the Pulse Fitness self-service portal (`PulseLandingPage`), replacing the GymAxis `MarketingHome`. `/pulse` retained (Pulse-only).
+- **Clean DB reset:** `backend/scripts/reset_to_pulse.py` cleared all tenant/operational data (kept global reference config); `SEED_TEST_ACCOUNTS=0`; only Master Admin remains, renamed to **admin@pulsefitness.com** / MasterAdmin123! (self-healed by `bootstrap/seed.py`).
+- **System dep:** installed `libmagic1`/`file` so upload validation is ENABLED.
+
+**Deferred (Phase 5 — needs user input):** rotate integration keys (Stripe live, Resend/email domain verification, OAuth, Maps); set production `FRONTEND_URL=https://www.pulsefitness.ai`; attach the `www.pulsefitness.ai` custom domain via Emergent deployment settings. Internal lowercase identifiers (localStorage keys, CSS `data-brand` hooks, event names) intentionally left as `gymaxis` (not user-visible; renaming risks session/state breakage).
+
+---
+
+
 ## Iter 279e — CRM job titles (read-only, from shared catalogue) + persist last Staffing/Operations tab ✅ (Jun 15, 2026)
 
 **(1) CRM job titles.** CRM "team roles" are *permission* roles (owner/admin/manager/sales_rep) — a security concept. Added a separate read-only **Job title** that pulls through from the shared staffing catalogue.
