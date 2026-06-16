@@ -80,7 +80,7 @@ from utils.auth import get_current_user
 from utils.svc_state import (
     transition as state_transition,
     append_event,
-    OPEN_STATES, ALL_STATES,
+    OPEN_STATES, ALL_STATES, SLA_RISK_WINDOW_HOURS,
 )
 from routes.svc.integrations import sicon_sync, sage_invoice
 
@@ -156,7 +156,7 @@ async def list_cases(
         if sla == "breached":
             q["sla_resolve_at"] = {"$ne": None, "$lt": now_iso}
         else:
-            risk_iso = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+            risk_iso = (datetime.now(timezone.utc) + timedelta(hours=SLA_RISK_WINDOW_HOURS)).isoformat()
             q["sla_resolve_at"] = {"$gte": now_iso, "$lt": risk_iso}
         q.setdefault("status", {"$in": list(OPEN_STATES)})
     # Iter 290d — Return-to-Fix drill-down: open jobs flagged for a repeat

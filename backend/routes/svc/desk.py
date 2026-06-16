@@ -33,7 +33,7 @@ from fastapi import APIRouter, Depends, Query
 
 from utils.database import db
 from utils.auth import get_current_user
-from utils.svc_state import OPEN_STATES, CLOSED, INVOICED
+from utils.svc_state import OPEN_STATES, CLOSED, INVOICED, SLA_RISK_WINDOW_HOURS
 
 router = APIRouter(prefix="/svc/desk", tags=["Service Ops · Desk"])
 
@@ -57,11 +57,14 @@ async def desk_summary(user=Depends(get_current_user)):
     })
     sla_at_risk = await db.svc_cases.count_documents({
         **of, "status": {"$in": list(OPEN_STATES)},
-        "sla_resolve_at": {"$lte": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()},
+        "sla_resolve_at": {
+            "$gte": now,
+            "$lt": (datetime.now(timezone.utc) + timedelta(hours=SLA_RISK_WINDOW_HOURS)).isoformat(),
+        },
     })
     sla_breached = await db.svc_cases.count_documents({
         **of, "status": {"$in": list(OPEN_STATES)},
-        "sla_resolve_at": {"$lte": now},
+        "sla_resolve_at": {"$ne": None, "$lt": now},
     })
 
     # First-time-fix proxy: closed cases without re-open in last 30 days.

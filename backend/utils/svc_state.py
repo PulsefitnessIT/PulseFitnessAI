@@ -60,6 +60,13 @@ _TRANSITIONS = {
 # States in which the SLA resolution clock is paused.
 SLA_PAUSED_STATES = {PAUSED_PARTS, PAUSED_CUSTOMER}
 
+# Iter 290f — canonical "SLA at risk" window. A case is *at risk* when its
+# resolution target falls within this many hours AND has not yet passed
+# (already-past targets are "breached", a mutually-exclusive bucket). Shared
+# by the desk KPI strip, the performance dashboard tile and the
+# /svc/cases?sla=at_risk drill-down so the three always reconcile.
+SLA_RISK_WINDOW_HOURS = 24
+
 # States the desk should treat as "open".
 OPEN_STATES = {NEW, TRIAGED, ASSIGNED, EN_ROUTE, ON_SITE, PAUSED_PARTS, PAUSED_CUSTOMER, REPAIRED, AWAITING_SIGN_OFF}
 

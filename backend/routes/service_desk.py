@@ -100,7 +100,7 @@ async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
       * First-Time-Fix (FTF) — a closed/invoiced case that never entered
         ``paused_parts`` (mirrors ``svc/reports/ftfr``).
     """
-    from utils.svc_state import OPEN_STATES
+    from utils.svc_state import OPEN_STATES, SLA_RISK_WINDOW_HOURS
 
     org_id = await desk_provider_org_id(user) or user.get("organization_id")
     of = {"organization_id": org_id}
@@ -109,7 +109,7 @@ async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
     since_7d = (now - timedelta(days=7)).isoformat()
     since_30d = (now - timedelta(days=30)).isoformat()
     since_60d = (now - timedelta(days=60)).isoformat()
-    risk_iso = (now + timedelta(hours=24)).isoformat()
+    risk_iso = (now + timedelta(hours=SLA_RISK_WINDOW_HOURS)).isoformat()
     open_q = {**of, "status": {"$in": list(OPEN_STATES)}}
 
     open_cases = await db.svc_cases.count_documents(open_q)

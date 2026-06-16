@@ -485,3 +485,9 @@ End-user E2E audit (testing agent + manual verification):
 
 - Fixed the desk-summary KPI ("Unassigned") which counted only `assigned_engineer_id == ""`, missing null/missing-field cases (372 vs the dashboard's 649). Aligned `/svc/desk/summary` (unassigned + skill_gap) to the canonical `{$in:[None,""]}` used by the dashboard tile and the `/svc/cases?assigned=unassigned` drill filter.
 - All three surfaces now report the same number (verified live: 649 = 649 = 649). Regression `test_iter290e_unassigned_alignment.py` (added to `make regression`) asserts they stay in sync.
+
+## Jun 15, 2026 — Iter 290f: "SLA at risk" alignment + mutual exclusivity
+
+- "At risk" now means *due soon but not yet breached* everywhere. Previously the Cases KPI counted `sla_resolve_at <= now+2h` (no lower bound) so it included breached cases and read the same as Breached (449/449); the drill used a 2h future window; the dashboard used 24h.
+- Introduced a single canonical `SLA_RISK_WINDOW_HOURS = 24` in `utils/svc_state.py`, applied to the desk KPI (`svc/desk.py`), the `/svc/cases?sla=at_risk` drill (`svc/cases.py`) and the performance tile (`service_desk.py`). At-risk = `now <= sla_resolve_at < now+24h`; breached = `sla_resolve_at < now` — mutually exclusive.
+- Verified live: all three surfaces reconcile (at-risk 0 / breached 449), a seeded future-target case shows at-risk=1 on all three (then cleaned up). Tests `test_iter290f_sla_at_risk_alignment.py` (2) added to `make regression`. ruff clean.
