@@ -92,6 +92,9 @@ export default function ServiceDeskPage() {
   // Iter 268 — dashboard stat cards deep-link to the Customers tab with the
   // matching status filter pre-applied (Active / Pending Invite / Archived).
   const [customerStatus, setCustomerStatus] = useState('');
+  // Iter 290c — dashboard performance tiles can deep-link to the Cases queue
+  // with a pre-applied filter (e.g. SLA breached / at-risk).
+  const [caseFilter, setCaseFilter] = useState(null);
   // Iter 216h256 — mobile-first: sidebar is an off-canvas drawer below
   // `md`. State drives the hamburger toggle + backdrop.
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -105,6 +108,19 @@ export default function ServiceDeskPage() {
   const handleSelectCustomer = (id) => {
     setSelectedOrgId(id);
     setTab('customers');
+  };
+
+  // Unified tab navigation used by the dashboard tiles. The optional 2nd arg
+  // is a status string (Customers tab) or a filter object (Cases tab).
+  const goTo = (t, arg) => {
+    setTab(t);
+    setSelectedOrgId(null);
+    if (t === 'cases') {
+      setCaseFilter(arg && typeof arg === 'object' ? arg : null);
+      setCustomerStatus('');
+    } else {
+      setCustomerStatus(typeof arg === 'string' ? arg : '');
+    }
   };
 
   // Iter 257c — Equipment + Supplier-health are platform concepts (they
@@ -121,7 +137,7 @@ export default function ServiceDeskPage() {
   const Body = () => {
     switch (tab) {
       case 'dashboard':
-        return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t, status) => { setTab(t); setSelectedOrgId(null); setCustomerStatus(status || ''); }} />;
+        return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={goTo} />;
       case 'customers':
         // Iter 256 — self-serve providers manage their field-service
         // customer book; the platform/Pulse desk manages customer orgs.
@@ -132,9 +148,9 @@ export default function ServiceDeskPage() {
           ? <DeskCustomerDetail API={API} orgId={selectedOrgId} onBack={() => setSelectedOrgId(null)} />
           : <DeskCustomers API={API} onSelect={handleSelectCustomer} initialStatus={customerStatus} />;
       case 'equipment':
-        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t, status) => { setTab(t); setSelectedOrgId(null); setCustomerStatus(status || ''); }} /> : <DeskEquipment API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={goTo} /> : <DeskEquipment API={API} />;
       case 'suppliers':
-        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={(t, status) => { setTab(t); setSelectedOrgId(null); setCustomerStatus(status || ''); }} /> : <DeskSuppliers API={API} />;
+        return isProvider ? <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={goTo} /> : <DeskSuppliers API={API} />;
       case 'audit':
         return <DeskAuditLog API={API} />;
       case 'analytics':
@@ -147,7 +163,7 @@ export default function ServiceDeskPage() {
       case 'cases':
         return (
           <ServiceOpsEmbeddedContext.Provider value={true}>
-            <Suspense fallback={<EmbedFallback />}><OpsCases /></Suspense>
+            <Suspense fallback={<EmbedFallback />}><OpsCases initialFilters={caseFilter} /></Suspense>
           </ServiceOpsEmbeddedContext.Provider>
         );
       case 'scheduler':

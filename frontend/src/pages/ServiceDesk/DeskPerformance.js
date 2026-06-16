@@ -85,9 +85,9 @@ export default function DeskPerformance({ API, onNavigate }) {
   const tiles = [
     { key: 'open_cases', label: 'Open Cases', sub: 'In flight now', icon: ClipboardList, accent: 'blue', goto: 'cases' },
     { key: 'rtf_open', label: 'Return to Fix', sub: 'Need a repeat visit', icon: RotateCcw, accent: 'orange', goto: 'cases' },
-    { key: 'sla_breached', label: 'SLA Breached', sub: 'Resolve target passed', icon: AlertTriangle, accent: 'red', goto: 'cases' },
-    { key: 'sla_at_risk', label: 'SLA At-Risk', sub: 'Due within 24h', icon: Timer, accent: 'amber', goto: 'cases' },
-    { key: 'unassigned', label: 'Unassigned', sub: 'Awaiting an engineer', icon: UserX, accent: 'violet', goto: 'cases' },
+    { key: 'sla_breached', label: 'SLA Breached', sub: 'Resolve target passed', icon: AlertTriangle, accent: 'red', goto: 'cases', nav: { sla: 'breached' } },
+    { key: 'sla_at_risk', label: 'SLA At-Risk', sub: 'Due within 24h', icon: Timer, accent: 'amber', goto: 'cases', nav: { sla: 'at_risk' } },
+    { key: 'unassigned', label: 'Unassigned', sub: 'Awaiting an engineer', icon: UserX, accent: 'violet', goto: 'cases', nav: { assigned: 'unassigned' } },
     { key: 'active_engineers', label: 'Active Engineers', sub: 'On the team', icon: HardHat, accent: 'emerald', goto: 'engineers' },
   ];
 
@@ -134,12 +134,12 @@ export default function DeskPerformance({ API, onNavigate }) {
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        {tiles.map(({ key, label, sub, icon: Icon, accent, goto }) => (
+        {tiles.map(({ key, label, sub, icon: Icon, accent, goto, nav }) => (
           <Card
             key={key}
             role="button" tabIndex={0}
-            onClick={() => onNavigate && onNavigate(goto)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto); } }}
+            onClick={() => onNavigate && onNavigate(goto, nav)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto, nav); } }}
             className="group p-4 sm:p-5 cursor-pointer border border-zinc-100 dark:border-zinc-800 transition-all hover:shadow-md hover:-translate-y-0.5"
             data-testid={`desk-perf-${key.replace(/_/g, '-')}`}
           >

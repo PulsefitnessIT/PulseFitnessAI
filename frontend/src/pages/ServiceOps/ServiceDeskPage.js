@@ -239,12 +239,14 @@ function LiveEngineersPanel({ engineers, liveStats, loading, onCaseClick }) {
   );
 }
 
-export default function ServiceDeskPage() {
+export default function ServiceDeskPage({ initialFilters } = {}) {
   const [summary, setSummary] = useState(null);
   const [cases, setCases] = useState([]);
   const [engineers, setEngineers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla', assigned: '', sla: '' });
+  // Iter 290c — when opened from a dashboard tile (e.g. "SLA Breached"),
+  // seed the queue filter so the agent lands on the matching cases.
+  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla', assigned: '', sla: '', ...(initialFilters || {}) });
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [activeCaseId, setActiveCaseId] = useState(null);
   const [lowStockCount, setLowStockCount] = useState(0);

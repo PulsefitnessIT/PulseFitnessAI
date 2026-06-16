@@ -467,3 +467,8 @@ End-user E2E audit (testing agent + manual verification):
 - Engineer Leaderboard now joins `svc_engineers` for the canonical `full_name` (no more blank/"Engineer") and the linked user's `avatar_url` for a profile photo (`<img>`, falls back to gradient initials). Avatar endpoint `/api/account/avatar/{id}` is public so the `<img>` loads without an auth header.
 - FTF gauge gained a **trend arrow**: `GET /service-desk/performance` now also computes the previous 30-day window (`ftf_rate_prev`, `ftf_trend` in points); the ring shows ↑/↓ "+N pts" (green/red) or "flat" when there's no prior data.
 - Verified live (leaderboard → "Master Admin" + photo, trend "flat" with no prior window) + regression `test_iter290_desk_performance.py` updated for the new fields (2 passed). ruff clean.
+
+## Jun 15, 2026 — Iter 290c: Desk performance tiles deep-link to filtered Cases
+
+- Dashboard performance tiles now open the Cases queue pre-filtered: **SLA Breached** → `{sla:'breached'}`, **SLA At-Risk** → `{sla:'at_risk'}`, **Unassigned** → `{assigned:'unassigned'}`. Unified `goTo(tab, arg)` handler in `ServiceDeskPage.js` passes a filter object to the embedded `OpsCases` via a new `initialFilters` prop (cases remounts on tab switch, so the seeded `filters` state applies on mount).
+- Verified live: clicking SLA Breached lands on Cases with the "SLA BREACHED ✕" chip + breached-only table (counts reconcile 449=449), 0 page errors.
