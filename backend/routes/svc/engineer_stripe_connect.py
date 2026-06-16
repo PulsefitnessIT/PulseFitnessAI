@@ -188,7 +188,7 @@ async def create_onboarding_link(user=Depends(get_current_user)):
                     "name": partner.get("trading_name") or partner.get("full_name") or "Pulse Fitness Engineer Partner",
                     "product_description": "Fitness equipment service & maintenance",
                     "mcc": "7623",  # A/C, refrigeration repair (closest available)
-                    "url": (_origin() or "https://gymaxis.com"),
+                    "url": (_origin() or "https://www.pulsefitness.ai"),
                     "support_email": user.get("email"),
                 },
                 metadata={
@@ -206,8 +206,8 @@ async def create_onboarding_link(user=Depends(get_current_user)):
             raise stripe_connect_http_exception(exc)
 
     origin = _origin()
-    refresh_url = f"{origin}/svc/engineer/payouts?onboarding=refresh" if origin else "https://gymaxis.com/"
-    return_url  = f"{origin}/svc/engineer/payouts?onboarding=return"  if origin else "https://gymaxis.com/"
+    refresh_url = f"{origin}/svc/engineer/payouts?onboarding=refresh" if origin else "https://www.pulsefitness.ai/"
+    return_url  = f"{origin}/svc/engineer/payouts?onboarding=return"  if origin else "https://www.pulsefitness.ai/"
     try:
         link = stripe.AccountLink.create(
             account=account_id,

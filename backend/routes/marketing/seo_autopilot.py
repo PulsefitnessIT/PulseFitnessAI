@@ -71,7 +71,7 @@ DEFAULT_BRAND_BLURB = (
     "lifecycle CRM, and a Partner Engineer network of vetted "
     "field engineers. The canonical brand URL is "
     "https://www.pulsefitness.ai — NEVER use any other domain (in particular "
-    "do not invent 'gymaxis.io', 'gym-axis.com', 'gymaxis.co.uk' or "
+    "do not invent 'pulsefitness.ai', 'gym-axis.com', 'gymaxis.co.uk' or "
     "similar). The marketing site lives at https://www.pulsefitness.ai, "
     "the app at https://www.pulsefitness.ai, and the demo-request "
     "landing page at https://www.pulsefitness.ai/demo-request."
@@ -82,12 +82,12 @@ TARGET_WORDS = 1500
 
 
 # Iter 220aq — domain-scrub safety net. Even with strong prompt
-# constraints the LLM occasionally hallucinates "gymaxis.io" /
+# constraints the LLM occasionally hallucinates "pulsefitness.ai" /
 # "gym-axis.com" / "gymaxis.co.uk". Rewrite any such mention to the
 # canonical ``www.pulsefitness.ai``. Operates on Markdown + plain text;
 # preserves the path / fragment portion of the URL where present.
 _BAD_DOMAINS = (
-    "gymaxis.io",
+    "pulsefitness.ai",
     "gym-axis.io",
     "gym-axis.com",
     "gymaxis.co.uk",
@@ -469,7 +469,7 @@ async def _generate_article_payload(
         "  • Close with a single 1-line CTA inviting the reader to book a "
         f"Pulse Fitness demo at {GYMAXIS_BASE_URL}/demo-request.\n"
         "  • Never use any domain other than www.pulsefitness.ai — in "
-        "particular do NOT write gymaxis.io, gymaxis.com, or any other "
+        "particular do NOT write pulsefitness.ai, pulsefitness.ai, or any other "
         "variation. The only valid URLs are under www.pulsefitness.ai.\n"
         "  • End with 4 FAQ Q&A pairs — concise, scannable, optimised for "
         "ChatGPT / Perplexity citation.\n\n"
@@ -514,7 +514,7 @@ async def _generate_article_payload(
         qa_blocks = []
 
     # Iter 220aq — domain-scrub safety net. The LLM occasionally invents
-    # ``gymaxis.io`` / ``gym-axis.com`` even when the prompt forbids it.
+    # ``pulsefitness.ai`` / ``gym-axis.com`` even when the prompt forbids it.
     # Rewrite any such mention to the canonical ``www.pulsefitness.ai``.
     title = _scrub_brand_domain(title)
     excerpt = _scrub_brand_domain(excerpt)
@@ -675,7 +675,7 @@ async def _spin_distributions(article: dict, channels: list[str]) -> dict:
         }
 
     # Iter 220aq — scrub any hallucinated domain across every channel
-    # so the public-facing post never leaks ``gymaxis.io`` etc.
+    # so the public-facing post never leaks ``pulsefitness.ai`` etc.
     if "linkedin" in out:
         out["linkedin"] = [_scrub_brand_domain(s) for s in out["linkedin"]]
     if "x_thread" in out:

@@ -181,6 +181,17 @@ frontend:
         - working: true
           agent: "testing"
           comment: "✅ PASSED - Master Admin login flow works end-to-end. Steps verified: (1) Clicked LOG IN button on landing page, (2) Login modal opened with Pulse Fitness branding, (3) Entered credentials admin@pulsefitness.com / MasterAdmin123!, (4) Successfully authenticated and redirected to /master-admin, (5) Dashboard shows 'Pulse Fitness ADMIN CONSOLE' with full Pulse branding, (6) NO GymAxis text in authenticated area. Login flow is fully functional and Pulse-branded."
+  - task: "Deep branding audit: Master Admin Integrations page contains visible 'gymaxis_only' text"
+    implemented: false
+    working: false
+    file: "frontend/src/pages/MasterAdmin/IntegrationsHub.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "❌ FAILED - Deep module-by-module branding audit found 1 remaining GymAxis leak. Location: /master-admin/Integrations page, line 206 of IntegrationsHub.js. User-visible description text contains: '% of Pydantic fields + manifest entries in routes/svc/* annotated with a Sicon / Sage / <code>gymaxis_only</code> tag.' The text 'gymaxis_only' appears in a <code> tag within visible documentation. This is NOT a CSS class or internal variable - it's actual user-facing text. All other 13 routes tested are 100% clean with Pulse branding. Fix needed: Change 'gymaxis_only' to 'pulse_only' or 'platform_only' in the visible description on line 206."
 
 metadata:
   created_by: "main_agent"
@@ -189,7 +200,8 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Deep branding audit: Master Admin Integrations page contains visible 'gymaxis_only' text"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -260,3 +272,40 @@ agent_communication:
         CONCLUSION: The white-label conversion from GymAxis to Pulse Fitness AI is COMPLETE and 
         SUCCESSFUL. Every user-facing surface shows Pulse Fitness branding with zero GymAxis leaks.
         The platform is ready for production use as Pulse Fitness AI.
+    - agent: "testing"
+      message: >
+        ❌ DEEP BRANDING AUDIT FOUND 1 ISSUE - Comprehensive module-by-module audit completed.
+        
+        TESTED ROUTES (14 total):
+        ✅ PASSED (13/14):
+        - / (Homepage logged out) - Pulse branding, no GymAxis
+        - /master-admin - Pulse branding, no GymAxis
+        - /dashboard - Pulse branding, no GymAxis
+        - /crm - Pulse branding, no GymAxis
+        - /memberships - Pulse branding, no GymAxis
+        - /marketing - Pulse branding, no GymAxis
+        - /service-desk - Pulse branding, no GymAxis
+        - /gym-floor - Pulse branding, no GymAxis
+        - /pulse - Pulse branding, no GymAxis
+        - /help - Pulse branding, no GymAxis
+        - /svc/engineer - Pulse branding, no GymAxis
+        - /partner-engineer - Pulse branding, no GymAxis
+        - /master-admin/Settings - Pulse branding, no GymAxis
+        
+        ❌ FAILED (1/14):
+        - /master-admin/Integrations - Found 3 instances of "gymaxis" in VISIBLE text
+        
+        ISSUE DETAILS:
+        Location: /app/frontend/src/pages/MasterAdmin/IntegrationsHub.js
+        Line 206: User-visible description text contains:
+        "% of Pydantic fields + manifest entries in routes/svc/* annotated with a Sicon / Sage / <code>gymaxis_only</code> tag."
+        
+        The text "gymaxis_only" appears in a <code> tag within a visible description paragraph.
+        This is NOT a CSS class or data attribute - it's actual user-facing documentation text.
+        
+        RECOMMENDATION:
+        Change "gymaxis_only" to "pulse_only" or "platform_only" in the visible description text on line 206.
+        Also update the moduleLabel on line 184 which already correctly shows "Pulse Fitness-only" but the
+        description text still references the old internal tag name.
+        
+        All other routes are 100% clean with Pulse Fitness branding throughout.

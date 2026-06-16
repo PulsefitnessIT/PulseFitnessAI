@@ -71,9 +71,9 @@ def _get_or_create_vapid_keys() -> dict:
     priv = os.environ.get("VAPID_PRIVATE_KEY")
     if pub and priv:
         return {"public": pub, "private": priv,
-                "subject": os.environ.get("VAPID_SUBJECT", "mailto:ops@gymaxis.com")}
+                "subject": os.environ.get("VAPID_SUBJECT", "mailto:ops@pulsefitness.ai")}
     return {"public": None, "private": None,
-            "subject": "mailto:ops@gymaxis.com"}
+            "subject": "mailto:ops@pulsefitness.ai"}
 
 
 async def _ensure_vapid_in_mongo() -> dict:

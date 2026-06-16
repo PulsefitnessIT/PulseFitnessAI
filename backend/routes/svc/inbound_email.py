@@ -12,13 +12,13 @@ from `/svc/engineer/inbox` — exactly the same flow as the public
 supplier-card form.
 
 Setup (operator):
-  1. Pick a subdomain you control, e.g. `in.gymaxis.com`.
+  1. Pick a subdomain you control, e.g. `in.pulsefitness.ai`.
   2. Point MX records at SendGrid: `mx.sendgrid.net` priority 10.
   3. In SendGrid → Settings → Inbound Parse, add the hostname pointing
      to:  https://<your-host>/api/inbound/email?secret=<INBOUND_EMAIL_WEBHOOK_SECRET>
   4. Set `INBOUND_EMAIL_WEBHOOK_SECRET` and (optionally)
      `INBOUND_EMAIL_DOMAIN` in backend .env.
-  5. Each engineer's inbox address becomes `<intake_slug>@in.gymaxis.com`.
+  5. Each engineer's inbox address becomes `<intake_slug>@in.pulsefitness.ai`.
 
 Routes (PUBLIC, secret-gated):
   POST /api/inbound/email           — webhook (multipart OR JSON)
@@ -582,7 +582,7 @@ async def my_inbound_address(user=Depends(get_current_user)):
         slug = await _ensure_intake_slug(user)
     else:
         slug = eng["intake_slug"]
-    domain = os.environ.get("INBOUND_EMAIL_DOMAIN") or "in.gymaxis.com"
+    domain = os.environ.get("INBOUND_EMAIL_DOMAIN") or "in.pulsefitness.ai"
     enabled = bool(os.environ.get("INBOUND_EMAIL_WEBHOOK_SECRET"))
     return {
         "email": f"{slug}@{domain}",

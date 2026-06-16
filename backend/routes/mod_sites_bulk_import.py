@@ -164,7 +164,7 @@ def _credentials_csv(rows: list[dict]) -> str:
         w.writerow([
             r["site_code"], r["site_name"], r["branch"],
             r["username"], r["password_plain"],
-            "https://gymaxis.com/login",
+            "https://www.pulsefitness.ai/login",
         ])
     return buf.getvalue()
 
@@ -647,7 +647,7 @@ async def _run_credentials_dispatch(
             site_name=row["site_name"],
             username=row["username"],
             password=row["password"],
-            login_url=(row.get("login_url") or "https://gymaxis.com/login"),
+            login_url=(row.get("login_url") or "https://www.pulsefitness.ai/login"),
         )
         try:
             ok = await send_email(target, subject, html,
