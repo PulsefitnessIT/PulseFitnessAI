@@ -138,6 +138,50 @@ backend:
           agent: "testing"
           comment: "✅ PASSED - All smoke tests passed (6/6, 100% success rate). GET /api/health returned 200. Authenticated endpoints tested: GET /api/auth/me (200), GET /api/master-admin/organizations (200, 3 orgs), GET /api/organization (200, org name: 'Pulse Fitness AI Admin'), GET /api/memberships/members (200, 0 members). No 500 errors detected. Text rebrand did not break JSON serialization or route logic."
 
+frontend:
+  - task: "Default landing page is the Pulse Fitness self-service portal (was GymAxis MarketingHome)"
+    implemented: true
+    working: true
+    file: "frontend/src/routes/AppRoutes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Route '/' now renders PulseLandingPage for logged-out users (mirrors /pulse). Verify '/' shows the Pulse Fitness landing ('Maintain your gym. In one place.') with Pulse logo/nav, NOT the old GymAxis marketing homepage."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Default landing page (/) correctly shows Pulse Fitness Self-Service Portal. Verified: (1) Browser tab title: 'Pulse Fitness AI | Fitness Operations Platform', (2) Hero headline shows 'Maintain your gym. In one place.', (3) 'PULSE FITNESS SELF-SERVICE PORTAL' badge visible, (4) LOG IN button present, (5) Pulse Fitness logo visible in header. The old GymAxis MarketingHome is NOT shown. Landing page is fully Pulse-branded."
+  - task: "White-label: no visible GymAxis branding (logo, copy, title, footer, favicon)"
+    implemented: true
+    working: true
+    file: "frontend/src (global), useBrand.js, Navbar.js, PulseFitnessMark.js, index.html"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Global rebrand + brand resolver flipped to Pulse on all surfaces; Pulse SVG logos + regenerated favicons/OG cover. Verify landing, login modal, and post-login dashboard show Pulse Fitness branding with zero 'GymAxis' text/logos; browser tab title = Pulse Fitness AI."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Complete brand audit confirms ZERO 'GymAxis' text or logos visible anywhere. Tested: (1) Landing page - NO GymAxis text found, (2) Footer - NO GymAxis text, (3) Login modal - shows 'Sign in to your Pulse Fitness portal', NO GymAxis, (4) Authenticated dashboard - NO GymAxis text found, (5) Navigation/sidebar - shows 'Pulse Fitness' branding throughout. Browser tab titles consistently show 'Pulse Fitness AI'. All logos are Pulse Fitness logos. White-label conversion is complete and successful."
+  - task: "Master Admin login flow from Pulse landing page"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/PulseLandingPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Use admin@pulsefitness.com / MasterAdmin123! via the LOG IN button on '/'. Should authenticate and land on the master-admin/dashboard, which must be Pulse-branded."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Master Admin login flow works end-to-end. Steps verified: (1) Clicked LOG IN button on landing page, (2) Login modal opened with Pulse Fitness branding, (3) Entered credentials admin@pulsefitness.com / MasterAdmin123!, (4) Successfully authenticated and redirected to /master-admin, (5) Dashboard shows 'Pulse Fitness ADMIN CONSOLE' with full Pulse branding, (6) NO GymAxis text in authenticated area. Login flow is fully functional and Pulse-branded."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
@@ -145,9 +189,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Master Admin auth after DB reset + email rename to admin@pulsefitness.com"
-    - "Backend health + core API still functional after global GymAxis->Pulse text rebrand (2193 substitutions across .py)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -177,3 +219,44 @@ agent_communication:
         No 500 errors detected. The white-label rebrand (GymAxis → Pulse Fitness, 2193 substitutions)
         did NOT break JSON serialization or route logic. Master admin authentication working correctly
         after database reset. Backend is healthy and ready for use.
+    - agent: "testing"
+      message: >
+        ✅ FRONTEND WHITE-LABEL VERIFICATION COMPLETE - All tests PASSED (3/3, 100% success rate).
+        
+        Comprehensive Playwright testing confirms the Pulse Fitness AI white-label conversion is 
+        successful with ZERO GymAxis branding visible anywhere:
+        
+        TEST RESULTS:
+        1. ✅ DEFAULT LANDING PAGE (/) - Correctly shows Pulse Fitness Self-Service Portal
+           - Browser tab: "Pulse Fitness AI | Fitness Operations Platform"
+           - Hero: "Maintain your gym. In one place."
+           - Badge: "PULSE FITNESS SELF-SERVICE PORTAL" visible
+           - Pulse logo in header, LOG IN button present
+           - Old GymAxis MarketingHome is NOT shown
+        
+        2. ✅ BRAND AUDIT (LOGGED OUT) - ZERO GymAxis text/logos found
+           - Landing page: NO "GymAxis" or "Gym Axis" text detected
+           - Footer: NO GymAxis references
+           - All logos are Pulse Fitness logos
+           - Scrolled through all sections - clean
+        
+        3. ✅ LOGIN FLOW - Works end-to-end with Pulse branding
+           - Login modal shows: "Sign in to your Pulse Fitness portal"
+           - NO GymAxis text in modal
+           - Credentials admin@pulsefitness.com / MasterAdmin123! work correctly
+           - Successfully redirected to /master-admin dashboard
+        
+        4. ✅ AUTHENTICATED SHELL BRAND AUDIT - Pulse branding throughout
+           - Dashboard title: "Pulse Fitness AI | Fitness Operations Platform"
+           - Sidebar logo: "Pulse Fitness ADMIN CONSOLE"
+           - Portal switcher shows "Pulse Fitness Portal"
+           - NO GymAxis text found in authenticated area
+           - Navigation, headers, all UI elements show Pulse branding
+        
+        5. ✅ NO BROKEN IMAGES - All logos and images load correctly
+        
+        CONSOLE: Only minor CSP warnings for external scripts (PostHog, Emergent) - not critical.
+        
+        CONCLUSION: The white-label conversion from GymAxis to Pulse Fitness AI is COMPLETE and 
+        SUCCESSFUL. Every user-facing surface shows Pulse Fitness branding with zero GymAxis leaks.
+        The platform is ready for production use as Pulse Fitness AI.

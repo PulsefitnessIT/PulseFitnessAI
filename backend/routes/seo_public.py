@@ -757,7 +757,7 @@ def _json_ld(article: dict, url: str) -> str:
             "publisher": {
                 "@type": "Organization", "name": "Pulse Fitness AI",
                 "logo": {"@type": "ImageObject",
-                         "url": f"{site}/brand/gymaxis-logo.svg"},
+                         "url": f"{site}/brand/pulse-mark.svg"},
             },
             "mainEntityOfPage": {"@type": "WebPage", "@id": url},
             "keywords": ", ".join(article.get("tags") or []),

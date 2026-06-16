@@ -317,8 +317,12 @@ export default function AppRoutes({ user, login }) {
   return (
     <>
     <Routes>
-      {/* ─── Marketing site ─── */}
-      <Route path="/" element={<MarketingHome />} />
+      {/* ─── Default landing → Pulse Fitness experience (was GymAxis MarketingHome) ─── */}
+      <Route path="/" element={
+        user
+          ? (isIndependentEngineer(user) ? <Navigate to="/partner-engineer" replace /> : <LiteDashboardPage />)
+          : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
+      } />
       <Route path="/m/:slug/join" element={<JoinPage />} />
       <Route path="/m/:slug/join/success" element={<JoinSuccess />} />
       {/* Iter 216h83 — public live tracking (no auth, token-gated) */}

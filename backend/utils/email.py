@@ -87,10 +87,9 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
         return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
     gym_name = (org.get("name") or "").strip() or gym_name
     gym_logo = _abs_url(org.get("logo_url") or "")
-    # Pulse Pro tenants get the Pulse Fitness lockup as the platform mark.
-    if (org.get("account_type") or "").lower() in ("pulse_pro", "lite"):
-        partner_logo = PULSE_FITNESS_LOGO
-        partner_name = "Pulse Fitness · powered by Pulse Fitness"
+    # Full white-label: all tenants get the Pulse Fitness AI platform mark.
+    partner_logo = GYMAXIS_LOGO_MARK
+    partner_name = "Pulse Fitness AI"
     return {
         "gym_logo": gym_logo, "gym_name": gym_name,
         "partner_logo": partner_logo, "partner_name": partner_name,
