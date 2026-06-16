@@ -1,6 +1,25 @@
 # Changelog
 
 
+## Jun 16, 2026 — Social Media Autopilot: Gymshark/Nike brand-voice revamp (Iter 291)
+
+- **Short & sharp captions**: Rewrote all 3 channel `tone_brief`s + `caption_target/max_chars`
+  in `utils/social_autopilot.py`. IG ≤120/150 chars, TikTok ≤100/150, LinkedIn lean 400-700
+  (max 1200). Added a shared `BRAND_VOICE_RULES` block (Gymshark/Nike/Lululemon: declarative,
+  no AI-speak filler, no hype) injected into `build_prompt`, `build_launch_prompt`,
+  `build_compose_prompt`.
+- **Zero URLs anywhere**: Prompts forbid web addresses; new `strip_urls()` safety-net scrubs
+  any URL/bare-domain (and wrapping quotes) from every saved caption. Removed the `gymaxisai.com`
+  text from all rendered image cards — `social_templates._draw_logo_badge` + the legacy SVG/PNG
+  fallbacks now show the clean logo only. Sora video prompt domain reference dropped.
+- **Real screenshots first**: `pick_layout` now always uses the `screenshot` layout for any
+  feature that has a genuine matching product screenshot; template cards only when none exists.
+- **Hashtags trimmed**: IG 15-25 → 5-8, LinkedIn 3-6 → 3-5 (minimalist brand feel).
+- **Verified**: real LLM generation across IG/TikTok/LinkedIn produced 57-475 char posts, no URLs.
+  New pytest `test_iter291_social_brand_voice.py` (15 tests) added to Makefile `regression:`;
+  updated 4 stale assertions in `test_iter_220bl_social_autopilot.py`. 66 social tests pass.
+
+
 ## Jun 15, 2026 — Org Chart: import an EXISTING chart (PDF / image → editable cards)
 
 - New backend endpoints (`routes/staffing_orgchart_ai.py`): `POST .../import/document`

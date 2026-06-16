@@ -79,8 +79,8 @@ def test_channel_tones_are_distinct():
     assert "no emoji" in tones["linkedin"] or "no emojis" in tones["linkedin"]
     # Instagram must mention emoji positively
     assert "emoji" in tones["instagram"]
-    # TikTok must call out the 7-word hook
-    assert "7 words" in tones["tiktok"]
+    # TikTok must call out the hook landing in the first few words
+    assert "5 words" in tones["tiktok"]
 
 
 def test_channel_aspect_ratios():
@@ -195,7 +195,10 @@ def test_prompt_feature_post_pitches():
              "label": "AI Triage", "hook": "Test.", "feature_id": "ai_triage"}
     prompt = build_prompt(channel, topic)
     assert "FEATURE-PROMOTION" in prompt
-    assert "DO NOT invent specific customer names" in prompt
+    assert "Do NOT invent customer names or numbers" in prompt
+    # Iter 291 — brand voice + no URL guarantees.
+    assert "Gymshark" in prompt
+    assert "gymaxisai.com" not in prompt
 
 
 def test_prompt_caps_hashtag_count_per_channel():
@@ -203,10 +206,10 @@ def test_prompt_caps_hashtag_count_per_channel():
                        {"kind": "industry", "topic_id": "x", "label": "x", "hook": "x"})
     ig = build_prompt(channel_by_id("instagram"),
                        {"kind": "industry", "topic_id": "x", "label": "x", "hook": "x"})
-    # LinkedIn requests 3-6 hashtags
-    assert re.search(r"3-6\s+items", li)
-    # Instagram requests 15-25
-    assert re.search(r"15-25\s+items", ig)
+    # Iter 291 — LinkedIn trimmed to 3-5 hashtags.
+    assert re.search(r"3-5\s+items", li)
+    # Instagram trimmed to 5-8 (minimalist brand feel).
+    assert re.search(r"5-8\s+items", ig)
 
 
 # ── Brand card rendering ─────────────────────────────────────────────
@@ -218,7 +221,8 @@ def test_branded_card_svg_includes_brand_colours_and_headline():
     assert BRAND["color_accent"].lower() in svg.lower()
     assert "Six hour" in svg
     assert BRAND["name"].upper() in svg
-    assert BRAND["domain"] in svg
+    # Iter 291 — the website domain is intentionally NOT rendered on cards.
+    assert BRAND["domain"] not in svg
 
 
 def test_branded_card_handles_long_headline():

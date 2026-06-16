@@ -51,15 +51,15 @@ CHANNELS: list[dict] = [
         "id": "instagram",
         "label": "Instagram",
         "tone_brief": (
-            "Bold, energetic, visual-first. Use tasteful emoji (max 4 per "
-            "caption). Hook in line 1. Caption sweet spot 125-150 chars but "
-            "may extend to 600 if the story warrants it. Hashtag bundle "
-            "15-25 mixing broad + niche (no spam tags)."
+            "Short and sharp. 1-2 confident lines MAX (Gymshark/Nike voice). "
+            "Lead with the punch — no warm-up, no preamble. Caption ≤ 120 "
+            "chars. At most ONE tasteful emoji (often zero). No URLs, no "
+            "'link in bio', no salesy CTA. Hashtags: 5-8, tight and on-brand."
         ),
-        "caption_max_chars": 2200,
-        "caption_target_chars": 600,
-        "hashtag_min": 15,
-        "hashtag_max": 25,
+        "caption_max_chars": 150,
+        "caption_target_chars": 90,
+        "hashtag_min": 5,
+        "hashtag_max": 8,
         "audience": "UK gym operators, ops managers, multi-site fitness leaders",
         "image_aspect": "1:1",
         "image_size_px": 1080,
@@ -68,14 +68,13 @@ CHANNELS: list[dict] = [
         "id": "tiktok",
         "label": "TikTok",
         "tone_brief": (
-            "Punchy, native to TikTok. Hook MUST land in the first 7 words. "
-            "Conversational, slightly cheeky. Emojis sparingly. Caption ≤ 150 "
-            "chars. Output BOTH a static-card caption (for TikTok Photo Mode) "
-            "AND a 12-15 second video script with on-screen text cues. "
-            "Hashtags: 3-5 broad (#GymTok, #GymOps, #FitnessIndustry, etc.)."
+            "Punchy, native, confident. Hook lands in the first 5 words. ONE "
+            "line, ≤ 100 chars. Slightly cheeky but never cheesy. No URLs. "
+            "Output a static-card caption AND a 12-15 second video script "
+            "with on-screen text cues. Hashtags: 3-5 broad (#GymTok, #GymOps)."
         ),
-        "caption_max_chars": 2200,
-        "caption_target_chars": 150,
+        "caption_max_chars": 150,
+        "caption_target_chars": 80,
         "hashtag_min": 3,
         "hashtag_max": 5,
         "audience": "UK gym operators and gym staff",
@@ -86,22 +85,38 @@ CHANNELS: list[dict] = [
         "id": "linkedin",
         "label": "LinkedIn",
         "tone_brief": (
-            "Executive-grade, decision-maker focused. NO emoji unless a "
-            "single bullet marker (•). NO clickbait. Open with a contrarian "
-            "or data-led insight, not a question. Caption sweet spot "
-            "1,200-1,800 chars. Hashtags: 3-6 max, capitalised camel-case "
-            "(#FitnessOperations, #GymManagement). Always end with a "
-            "single-sentence reflection or open question (no salesy CTA)."
+            "Executive-grade but tight. NO emoji. NO clickbait. Open with one "
+            "sharp, contrarian or data-led line — not a question. Keep it "
+            "lean: 400-700 chars, short paragraphs, every line earns its "
+            "place. No filler AI-speak ('In today's fast-paced world…'). No "
+            "URLs, no salesy CTA. Hashtags: 3-5, CamelCase (#FitnessOperations)."
         ),
-        "caption_max_chars": 3000,
-        "caption_target_chars": 1500,
+        "caption_max_chars": 1200,
+        "caption_target_chars": 550,
         "hashtag_min": 3,
-        "hashtag_max": 6,
+        "hashtag_max": 5,
         "audience": "UK gym chain owners, operations directors, multi-site MDs",
         "image_aspect": "1.91:1",
         "image_size_px": 1200,
     },
 ]
+
+
+# ── Brand voice rulebook (Iter 223) ───────────────────────────────────
+# The operator wants posts that read like Gymshark / Nike / Lululemon:
+# short, sharp, confident. No verbose AI-speak, no website URL anywhere.
+BRAND_VOICE_RULES = (
+    "BRAND VOICE — NON-NEGOTIABLE:\n"
+    "• Write like Gymshark, Nike or Lululemon: short, sharp, confident. "
+    "Punchy fragments beat full paragraphs.\n"
+    "• Say less. Cut every word that isn't pulling weight. No throat-"
+    "clearing, no 'In today's fast-paced world', no 'Imagine if…'.\n"
+    "• Confident, declarative statements. Show, don't sell.\n"
+    "• NEVER include a website address, domain, URL or 'link in bio'. "
+    "Do NOT write out any web address anywhere in the caption.\n"
+    "• No cheesy hype, no exclamation spam, no generic motivational "
+    "filler.\n\n"
+)
 
 
 def channel_by_id(cid: str) -> Optional[dict]:
@@ -253,7 +268,14 @@ _INDUSTRY_LAYOUTS = ["stat", "punchline", "hook", "feature"]
 
 def pick_layout(channel_id: str, topic: dict, n_existing: int) -> str:
     """Deterministically rotate card layouts so the feed has variety
-    without any generative hallucination."""
+    without any generative hallucination.
+
+    Iter 223 — the operator wants REAL product screenshots prioritised
+    over generic template cards. So whenever the topic is a feature that
+    has a genuine matching screenshot, we always use the ``screenshot``
+    layout. Topics with no real screen fall back to the rotation."""
+    if topic.get("kind") == "feature" and _screenshot_path_for(topic.get("feature_id")):
+        return "screenshot"
     rotation = _FEATURE_LAYOUTS if topic.get("kind") == "feature" else _INDUSTRY_LAYOUTS
     layout = rotation[n_existing % len(rotation)]
     if layout == "screenshot" and not _screenshot_path_for(topic.get("feature_id")):
@@ -404,11 +426,12 @@ def build_prompt(channel: dict, topic: dict, layout: Optional[str] = None,
     ``layout``/``stat`` (Iter 222) bias the caption to match the chosen
     deterministic card and inject layout-specific JSON keys."""
     intro = (
-        f"You are a senior social-media editor for GymAxis "
-        f"({BRAND['domain']}). {BRAND['tagline']}\n\n"
+        f"You are a senior social-media editor for {BRAND['name']}. "
+        f"{BRAND['tagline']}\n\n"
         f"Write ONE post for {channel['label']} aimed at this audience: "
         f"{channel['audience']}.\n\n"
         f"Tone: {channel['tone_brief']}\n\n"
+        f"{BRAND_VOICE_RULES}"
     )
     if topic["kind"] == "feature":
         focus = (
@@ -420,25 +443,26 @@ def build_prompt(channel: dict, topic: dict, layout: Optional[str] = None,
             f"NEVER invent, rename or substitute a different product (e.g. "
             f"do not call it a 'Rota Builder', 'Smart Scheduling' or 'Ops "
             f"Dashboard' unless that is the exact feature above). Show, "
-            f"don't tell — describe one concrete operator outcome, but DO "
-            f"NOT invent specific customer names or numbers. Close with a "
-            f"soft pull to {BRAND['domain']}.\n\n"
+            f"don't tell — name one concrete operator outcome in as few "
+            f"words as possible. Do NOT invent customer names or numbers. "
+            f"Do NOT end with a website address or 'link in bio'.\n\n"
         )
     else:
         focus = (
             f"This post is an INDUSTRY-INSIGHT post (do NOT pitch GymAxis "
             f"hard). Cover '{topic['label']}'. Lead with this angle: "
-            f"\"{topic['hook']}\". Add one practical takeaway the reader "
-            f"can use even if they never become a GymAxis customer. "
-            f"Mention GymAxis only as a one-line signature at the end.\n\n"
+            f"\"{topic['hook']}\". Add one sharp, practical takeaway in a "
+            f"single line. Mention GymAxis only as a one-word signature at "
+            f"the end if at all — never a URL.\n\n"
         )
     if layout:
         focus += _layout_guidance(layout, channel["id"], stat) + "\n"
     schema = (
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
         "{\n"
-        '  "caption": string (the post body, ≤'
-        f"{channel['caption_max_chars']} chars),\n"
+        '  "caption": string (the post body — keep it SHORT, aim for ~'
+        f"{channel['caption_target_chars']} chars, hard max "
+        f"{channel['caption_max_chars']}. NO URLs or web addresses),\n"
         '  "hashtags": string[] '
         f"({channel['hashtag_min']}-{channel['hashtag_max']} items, each starting with #),\n"
         '  "image_brief": string '
@@ -551,8 +575,8 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
     keywords = ", ".join(campaign.get("keywords", []) or [])
     archetype_instruction = archetype["instruction"].format(feature=feature_name)
     intro = (
-        f"You are a senior social-media editor for GymAxis "
-        f"({BRAND['domain']}). {BRAND['tagline']}\n\n"
+        f"You are a senior social-media editor for {BRAND['name']}. "
+        f"{BRAND['tagline']}\n\n"
         f"GymAxis is in its LAUNCH WEEK — the platform is BRAND NEW. "
         f"DO NOT write as if it has existing customers, case studies, "
         f"or established usage. DO NOT invent metrics like '4 hours "
@@ -561,6 +585,7 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
         f"Write ONE launch post for {channel['label']} aimed at this "
         f"audience: {channel['audience']}.\n\n"
         f"Tone: {channel['tone_brief']}\n\n"
+        f"{BRAND_VOICE_RULES}"
     )
     campaign_section = (
         f"This post is part of the '{campaign.get('name', 'Launch')}' "
@@ -588,8 +613,9 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
     schema = (
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
         "{\n"
-        '  "caption": string (≤'
-        f"{channel['caption_max_chars']} chars),\n"
+        '  "caption": string (keep it SHORT — aim ~'
+        f"{channel['caption_target_chars']} chars, hard max "
+        f"{channel['caption_max_chars']}. NO URLs or web addresses),\n"
         '  "hashtags": string[] '
         f"({channel['hashtag_min']}-{channel['hashtag_max']} items, each starting with #),\n"
         '  "image_brief": string '
@@ -691,8 +717,6 @@ def _branded_card_svg(headline: str, channel: dict, *, subtitle: str = "") -> st
     <text fill="rgba(255,255,255,0.95)" font-size="{int(h*0.028)}"
           font-weight="800" font-family="Inter,Helvetica,Arial,sans-serif"
           letter-spacing="2">{BRAND['name'].upper()}</text>
-    <text y="{int(h*0.032)}" fill="rgba(255,255,255,0.6)" font-size="{int(h*0.020)}"
-          font-family="Inter,Helvetica,Arial,sans-serif">{BRAND['domain']}</text>
   </g>
 </svg>"""
 
@@ -937,18 +961,12 @@ def _pillow_branded_card_png(headline: str, channel: dict,
             rgba.paste(badge, (text_x, brand_block_y), badge)
             img = rgba.convert("RGB")
             draw = ImageDraw.Draw(img)
-            url_y = brand_block_y + badge_h + int(h * 0.012)
-            draw.text((text_x, url_y), BRAND["domain"],
-                      fill=(255, 255, 255), font=sub_font)
         except Exception as exc:  # pragma: no cover
             logger.info("[social] logo paste failed, falling back to text: %s", exc)
             logo_path = None
     if not logo_path:
-        # Text fallback — use the small font (not the headline font!)
-        # so the brand mark doesn't overlap the URL below.
+        # Text fallback — brand name only, no URL (Iter 223).
         draw.text((text_x, brand_block_y), BRAND["name"].upper(),
-                  fill=(255, 255, 255), font=sub_font)
-        draw.text((text_x, brand_block_y + int(h * 0.04)), BRAND["domain"],
                   fill=(255, 255, 255), font=sub_font)
 
     import io
@@ -1089,6 +1107,43 @@ def _id() -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ── Iter 223 · URL / domain stripper (caption safety net) ─────────────
+# The brand-voice prompt already forbids URLs, but the LLM occasionally
+# slips one in. This guarantees no web address ever reaches a published
+# caption regardless of what the model returns.
+import re as _re
+
+_URL_RE = _re.compile(
+    r"(?:https?://[^\s)]+"                    # http(s) links
+    r"|www\.[^\s)]+"                          # www. links
+    r"|\b[\w-]+\.(?:com|co\.uk|io|ai|net|org|app|co)\b(?:/[^\s)]*)?)",  # bare domains
+    _re.IGNORECASE,
+)
+
+
+def strip_urls(text: str) -> str:
+    """Remove any URL / web address / bare domain from a caption and
+    tidy the leftover whitespace, wrapping quotes and dangling
+    punctuation."""
+    if not text:
+        return text
+    cleaned = text.strip()
+    # Strip a pair of wrapping quotes the LLM sometimes adds around the
+    # whole caption value.
+    for q in ('"', "'", "“", "”", "‘", "’"):
+        if len(cleaned) >= 2 and cleaned[0] == q and cleaned[-1] == q:
+            cleaned = cleaned[1:-1].strip()
+            break
+    cleaned = _URL_RE.sub("", cleaned)
+    # Tidy stray punctuation / whitespace left behind by the removal.
+    cleaned = _re.sub(r"\(\s*\)", "", cleaned)         # empty ()
+    cleaned = _re.sub(r"\s+([.,!?;:])", r"\1", cleaned)
+    cleaned = _re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = _re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
 
 
 async def _llm_chat(prompt: str) -> dict:
@@ -1250,7 +1305,7 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
 
     hashtags = [h for h in (text.get("hashtags") or [])
                 if isinstance(h, str) and h.startswith("#")][:channel["hashtag_max"]]
-    caption = (text.get("caption") or "")[:channel["caption_max_chars"]]
+    caption = strip_urls((text.get("caption") or "")[:channel["caption_max_chars"]])
 
     # Iter 220bx — pre-publish tone check. Runs the heuristic launch
     # rulebook against the caption + hashtags so the UI can warn the
@@ -1328,6 +1383,7 @@ def build_compose_prompt(channel: dict, user_prompt: str,
         f"You are composing ONE {channel['label']} post for {BRAND['name']} "
         f"({BRAND['tagline']}), a UK B2B fitness-operations SaaS. Audience: "
         f"{channel['audience']}. Tone: {tone}.\n\n"
+        f"{BRAND_VOICE_RULES}"
         f"The operator's request: \"{user_prompt.strip()}\"\n"
         + (f"They want this headline: \"{headline.strip()}\"\n" if headline else "")
         + f"\n{layout_line}\n\n"
@@ -1341,7 +1397,8 @@ def build_compose_prompt(channel: dict, user_prompt: str,
         "Return STRICT JSON only (no prose, no fences):\n"
         "{\n"
         '  "layout": one of "hook" | "stat" | "feature" | "punchline",\n'
-        f'  "caption": string (the post body, ≤{channel["caption_max_chars"]} chars),\n'
+        f'  "caption": string (the post body — SHORT, aim ~{channel["caption_target_chars"]} '
+        f'chars, hard max {channel["caption_max_chars"]}, NO URLs),\n'
         f'  "hashtags": string[] ({channel["hashtag_min"]}-{channel["hashtag_max"]} items, each starting with #),\n'
         '  "card_headline": string (a COMPLETE 3-5 word headline, Title Case, '
         "no emoji, no trailing ellipsis),\n"
@@ -1423,7 +1480,7 @@ async def compose_post_from_prompt(db, *, channel_id: str, prompt: str,
 
     hashtags = [h2 for h2 in (text.get("hashtags") or [])
                 if isinstance(h2, str) and h2.startswith("#")][:channel["hashtag_max"]]
-    caption = (text.get("caption") or "")[:channel["caption_max_chars"]]
+    caption = strip_urls((text.get("caption") or "")[:channel["caption_max_chars"]])
 
     from utils.social_tone_check import check_draft_tone
     tone_check = check_draft_tone(caption, hashtags=hashtags, on_campaign=False)
@@ -1523,7 +1580,7 @@ def _build_sora_prompt(post: dict) -> str:
     script = (post.get("video_script") or "")[:400]
     brief = (post.get("image_brief") or "")[:200]
     return (
-        f"Cinematic 9:16 vertical short for GymAxis ({BRAND['domain']}), "
+        f"Cinematic 9:16 vertical short for GymAxis, "
         f"a UK B2B fitness SaaS brand. Subject: {headline}. "
         f"{brief}\n\n"
         f"Visual treatment: editorial, modern UK commercial gym setting "

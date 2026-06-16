@@ -144,11 +144,11 @@ def _dark_bg(w: int, h: int, c1: str, c2: str):
 # ── Logo badge ────────────────────────────────────────────────────────
 def _draw_logo_badge(img, x: int, y: int, h: int, brand: dict, logo_path: Optional[str],
                      *, light_bg: bool = False):
-    """Paste a rounded white badge with the real logo + the domain
-    underneath. Mutates and returns ``img`` (RGBA)."""
+    """Paste a rounded white badge with the real logo. The website
+    domain is intentionally NOT rendered (Iter 223 — brand wants clean,
+    URL-free cards). Mutates and returns ``img`` (RGBA)."""
     from PIL import Image, ImageDraw  # type: ignore
     sub_font = _font(int(h * 0.026), bold=False)
-    domain_color = (10, 14, 31, 255) if light_bg else (255, 255, 255, 235)
     if logo_path and os.path.exists(logo_path):
         try:
             logo = Image.open(logo_path).convert("RGBA")
@@ -163,16 +163,13 @@ def _draw_logo_badge(img, x: int, y: int, h: int, brand: dict, logo_path: Option
                                  fill=(255, 255, 255, 250))
             badge.paste(logo, (pad_x, pad_y), logo)
             img.paste(badge, (x, y), badge)
-            ImageDraw.Draw(img).text((x + 4, y + bh + int(h * 0.012)), brand["domain"],
-                                     fill=domain_color, font=sub_font)
             return img
         except Exception as exc:  # pragma: no cover
             logger.info("[social-tpl] logo badge failed: %s", exc)
-    # text fallback
+    # text fallback — brand name only, no URL
     d = ImageDraw.Draw(img)
     d.text((x, y), brand["name"].upper(), fill=(255, 255, 255, 255),
            font=_font(int(h * 0.032)))
-    d.text((x, y + int(h * 0.045)), brand["domain"], fill=domain_color, font=sub_font)
     return img
 
 
