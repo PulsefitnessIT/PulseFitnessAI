@@ -472,3 +472,11 @@ End-user E2E audit (testing agent + manual verification):
 
 - Dashboard performance tiles now open the Cases queue pre-filtered: **SLA Breached** → `{sla:'breached'}`, **SLA At-Risk** → `{sla:'at_risk'}`, **Unassigned** → `{assigned:'unassigned'}`. Unified `goTo(tab, arg)` handler in `ServiceDeskPage.js` passes a filter object to the embedded `OpsCases` via a new `initialFilters` prop (cases remounts on tab switch, so the seeded `filters` state applies on mount).
 - Verified live: clicking SLA Breached lands on Cases with the "SLA BREACHED ✕" chip + breached-only table (counts reconcile 449=449), 0 page errors.
+
+## Jun 15, 2026 — Iter 290d: Service Desk dashboard — full card interactivity
+
+- Audited every dashboard card: all 13 (customer/case stat cards, Recent Activity, FTF hero, 6 perf tiles, leaderboard rows) are now keyboard+click interactive (`role="button"`) and deep-link to the relevant filtered view. 0 non-interactive cards.
+- Closed the two "lands on a generic list" gaps:
+  - **Return to Fix** tile → new `rtf=1` filter on `GET /svc/cases` (open jobs flagged `return_to_fix` or parked for parts; composes with `search` via `$and`/`$or`). Wired through OpsCases (`filters.rtf`, params, quick-clear chip "Return to Fix").
+  - Provider **Total Cases** → opens Cases with `status=''` (all) instead of open-only; **Open Cases** → `status='open'`.
+- Verified: RTF filter matches a seeded RTF case end-to-end (then cleaned up), rtf+search composes (200), SLA drill still works; live screenshot shows 0 non-interactive cards + "RETURN TO FIX" chip on drill. Tests: `test_iter290d_cases_rtf_filter.py` (2) + `test_iter290_desk_performance.py` (2) pass, added to `make regression`. ruff clean.

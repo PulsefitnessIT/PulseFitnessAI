@@ -90,8 +90,8 @@ export default function DeskSummary({ API, onNavigate }) {
   // Iter 262 — every stat card navigates to the tab holding its detail.
   const stats = isProvider
     ? [
-        { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700', goto: 'cases' },
-        { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'cases' },
+        { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700', goto: 'cases', nav: { status: 'open' } },
+        { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'cases', nav: { status: '' } },
         { label: 'Engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'engineers' },
         { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-blue-50 text-blue-700', goto: 'customers' },
       ]
@@ -116,13 +116,13 @@ export default function DeskSummary({ API, onNavigate }) {
       {/* Iter 262 — 2-up on mobile, 4-up on desktop; every card is a
           button that jumps to the tab holding the underlying records. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {stats.map(({ label, value, icon: Icon, colour, goto, status }) => (
+        {stats.map(({ label, value, icon: Icon, colour, goto, status, nav }) => (
           <Card
             key={label}
             role="button"
             tabIndex={0}
-            onClick={() => onNavigate && onNavigate(goto, status)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto, status); } }}
+            onClick={() => onNavigate && onNavigate(goto, nav ?? status)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto, nav ?? status); } }}
             className="p-4 sm:p-5 cursor-pointer transition-all hover:shadow-md hover:border-orange-200 active:scale-[0.98]"
             data-testid={`desk-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}
           >

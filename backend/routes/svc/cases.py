@@ -121,6 +121,7 @@ async def list_cases(
     case_type: str = Query(""),
     assigned: str = Query("", description="unassigned → cases with no engineer"),
     sla: str = Query("", description="at_risk | breached"),
+    rtf: str = Query("", description="1 → Return-to-Fix: open jobs needing a repeat visit"),
     search: str = Query(""),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -158,6 +159,15 @@ async def list_cases(
             risk_iso = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
             q["sla_resolve_at"] = {"$gte": now_iso, "$lt": risk_iso}
         q.setdefault("status", {"$in": list(OPEN_STATES)})
+    # Iter 290d — Return-to-Fix drill-down: open jobs flagged for a repeat
+    # visit or parked for parts (matches the desk performance KPI + engineer
+    # app). Uses `$and` so it composes with the `search` `$or` below.
+    if rtf in ("1", "true", "yes"):
+        q.setdefault("status", {"$in": list(OPEN_STATES)})
+        q.setdefault("$and", []).append({"$or": [
+            {"return_to_fix": {"$ne": None}},
+            {"status": {"$in": ["paused_parts", "awaiting_parts", "paused_customer"]}},
+        ]})
     if search:
         q["$or"] = [
             {"reference": safe_regex(search)},

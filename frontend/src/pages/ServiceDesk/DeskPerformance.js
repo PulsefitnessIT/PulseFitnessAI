@@ -84,7 +84,7 @@ export default function DeskPerformance({ API, onNavigate }) {
 
   const tiles = [
     { key: 'open_cases', label: 'Open Cases', sub: 'In flight now', icon: ClipboardList, accent: 'blue', goto: 'cases' },
-    { key: 'rtf_open', label: 'Return to Fix', sub: 'Need a repeat visit', icon: RotateCcw, accent: 'orange', goto: 'cases' },
+    { key: 'rtf_open', label: 'Return to Fix', sub: 'Need a repeat visit', icon: RotateCcw, accent: 'orange', goto: 'cases', nav: { rtf: '1' } },
     { key: 'sla_breached', label: 'SLA Breached', sub: 'Resolve target passed', icon: AlertTriangle, accent: 'red', goto: 'cases', nav: { sla: 'breached' } },
     { key: 'sla_at_risk', label: 'SLA At-Risk', sub: 'Due within 24h', icon: Timer, accent: 'amber', goto: 'cases', nav: { sla: 'at_risk' } },
     { key: 'unassigned', label: 'Unassigned', sub: 'Awaiting an engineer', icon: UserX, accent: 'violet', goto: 'cases', nav: { assigned: 'unassigned' } },

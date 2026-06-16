@@ -246,7 +246,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
   const [loading, setLoading] = useState(true);
   // Iter 290c — when opened from a dashboard tile (e.g. "SLA Breached"),
   // seed the queue filter so the agent lands on the matching cases.
-  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla', assigned: '', sla: '', ...(initialFilters || {}) });
+  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla', assigned: '', sla: '', rtf: '', ...(initialFilters || {}) });
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [activeCaseId, setActiveCaseId] = useState(null);
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -264,6 +264,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
             case_type: filters.case_type || '',
             assigned: filters.assigned || '',
             sla: filters.sla || '',
+            rtf: filters.rtf || '',
             search: filters.search || '',
             limit: 100,
           },
@@ -278,7 +279,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
     } catch (e) {
       notify.error('Failed to load service desk', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [filters.status, filters.priority, filters.case_type, filters.search, filters.assigned, filters.sla]);
+  }, [filters.status, filters.priority, filters.case_type, filters.search, filters.assigned, filters.sla, filters.rtf]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-refresh every 60s — the SLA clock ticks against the user's screen.
@@ -394,15 +395,15 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
           <div className="flex items-center gap-1.5 text-xs font-bold svc-muted">
             <Filter size={12} /> Filters
           </div>
-          {(filters.assigned || filters.sla) ? (
+          {(filters.assigned || filters.sla || filters.rtf) ? (
             <button
               type="button"
-              onClick={() => setFilters((f) => ({ ...f, assigned: '', sla: '' }))}
+              onClick={() => setFilters((f) => ({ ...f, assigned: '', sla: '', rtf: '' }))}
               className="svc-pill svc-pill--warn inline-flex items-center gap-1"
               title="Clear quick filter"
               data-testid="filter-quick-clear"
             >
-              {filters.assigned === 'unassigned' ? 'Unassigned only' : filters.sla === 'at_risk' ? 'SLA at risk' : 'SLA breached'} ✕
+              {filters.rtf ? 'Return to Fix' : filters.assigned === 'unassigned' ? 'Unassigned only' : filters.sla === 'at_risk' ? 'SLA at risk' : 'SLA breached'} ✕
             </button>
           ) : null}
           <select
