@@ -25,7 +25,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://staffing-ops-preview.preview.emergentagent.com",
+    "https://fitness-ai-migrate.preview.emergentagent.com",
 )
 
 EXPECTED_BREAKDOWN_KEYS = {
