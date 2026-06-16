@@ -188,12 +188,12 @@ async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_curren
 
     context = await _build_assistant_context(org_id)
     system_message = (
-        "You are GymAxis Marketing Copilot — an AI assistant embedded in a "
+        "You are Pulse Fitness Marketing Copilot — an AI assistant embedded in a "
         "marketing platform built for fitness operators (Pulse Pro and "
-        "GymAxis). You give concise, actionable answers grounded in the "
+        "Pulse Fitness). You give concise, actionable answers grounded in the "
         "user's real, live data (provided below).\n\n"
         "## SCOPE GUARDRAIL — CRITICAL\n"
-        "You ONLY answer questions related to topics within the GymAxis / "
+        "You ONLY answer questions related to topics within the Pulse Fitness / "
         "Pulse Fitness platform:\n"
         "- Marketing: campaigns, audiences, segmentation, email/SMS, "
         "creatives, journeys, performance, attribution, A/B tests, "
@@ -518,7 +518,7 @@ async def wizard_copilot(body: dict = Body(...), user: dict = Depends(get_curren
     }[step]
 
     system_message = (
-        "You are GymAxis's Marketing Copilot — an elite gym-industry "
+        "You are Pulse Fitness's Marketing Copilot — an elite gym-industry "
         "growth consultant embedded inside a campaign builder. Respond in UK "
         "English, be punchy and concrete, and never use emojis. "
         "You MUST return STRICTLY VALID JSON — no markdown, no prose, no "

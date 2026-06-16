@@ -21,7 +21,7 @@ const PATHS = [
   // Iter 216h256 — "See it in action" card removed: the canned preview
   // wasn't representative of the live build and was misleading prospects.
   { icon: MessageSquare, title: 'Talk to sales',   body: 'Quick questions about pricing, integrations, multi-site rollouts.', cta: 'Send an enquiry', action: 'enquire', accent: 'var(--gx-accent-crm)' },
-  { icon: ShieldCheck,   title: 'Security & DPA',  body: 'Procurement, DPA, pentest evidence, security questionnaires.', cta: 'Email security', href: 'mailto:security@gymaxisai.com', accent: 'var(--gx-accent-service)' },
+  { icon: ShieldCheck,   title: 'Security & DPA',  body: 'Procurement, DPA, pentest evidence, security questionnaires.', cta: 'Email security', href: 'mailto:security@pulsefitness.ai', accent: 'var(--gx-accent-service)' },
 ];
 
 const INTEREST_OPTIONS = [

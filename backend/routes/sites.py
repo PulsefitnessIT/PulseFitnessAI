@@ -1093,7 +1093,7 @@ async def admin_module_status(user: dict = Depends(get_current_user)) -> dict:
       • sites_with_overrides — number of sites that carry at least one
                                 explicit module override (any value)
 
-    Pulse Master Admins are scoped to their visible orgs; the GymAxis
+    Pulse Master Admins are scoped to their visible orgs; the Pulse Fitness
     master admin sees every org. One aggregation pipeline + one find — no
     N+1 over the org list.
     """

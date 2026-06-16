@@ -289,7 +289,7 @@ function DetailDrawer({ enquiryId, onClose, onAfterMutate }) {
       setCanned(cannedRes.data?.items || []);
       setReply({
         subject: `Re: your enquiry${docRes.data?.company ? ' — ' + docRes.data.company : ''}`,
-        body: `Hi ${(docRes.data?.name || '').split(' ')[0] || 'there'},\n\nThanks for getting in touch with GymAxis.\n\n`,
+        body: `Hi ${(docRes.data?.name || '').split(' ')[0] || 'there'},\n\nThanks for getting in touch with Pulse Fitness.\n\n`,
       });
     } catch (e) {
       toast.error('Failed to load enquiry');

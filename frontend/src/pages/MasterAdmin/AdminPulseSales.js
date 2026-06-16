@@ -1,7 +1,7 @@
 /**
  * AdminPulseSales — Pulse Fitness internal CAPEX-sourced opportunity board.
  *
- * STRICT TENANT SEPARATION: only GymAxis Master Admin + Pulse Master Admins
+ * STRICT TENANT SEPARATION: only Pulse Fitness Master Admin + Pulse Master Admins
  * can see this view. Customers (Third Space, MOD HQ, MOD sites) are 403'd
  * at the backend level — this UI never renders for them.
  *
@@ -163,7 +163,7 @@ export default function AdminPulseSales() {
         <div className="text-sm">
           <p className="text-amber-200 font-semibold mb-1">Internal-only view</p>
           <p className="text-amber-100/80">
-            These opportunities are visible to Pulse Fitness staff (GymAxis + Pulse Master Admins) only.
+            These opportunities are visible to Pulse Fitness staff (Pulse Fitness + Pulse Master Admins) only.
             Customers — Third Space, MOD HQ, MOD sites — cannot see this view.
             Inactive opportunities auto-dismiss after 60 days.
           </p>

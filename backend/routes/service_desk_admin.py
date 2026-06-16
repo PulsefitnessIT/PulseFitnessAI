@@ -25,7 +25,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 def _require_desk_admin(user: dict) -> bool:
     """Who may nominate / revoke Service Desk users.
 
-    GymAxis master admins manage BOTH brands; Pulse Master Admins manage
+    Pulse Fitness master admins manage BOTH brands; Pulse Master Admins manage
     only pulse-brand desk users (their own service team). Returns True
     when the caller is Pulse-scoped.
     """
@@ -62,7 +62,7 @@ async def _send_service_desk_invite(email: str, name: str, temp_password: str, b
         return False
 
     is_pulse = (brand or "").lower() == "pulse"
-    brand_name = "Pulse Fitness" if is_pulse else "GymAxis AI"
+    brand_name = "Pulse Fitness" if is_pulse else "Pulse Fitness AI"
     accent = "#0055FF" if is_pulse else "#19CDFF"
     login_url = f"{FRONTEND_URL.rstrip('/')}/service-desk" if FRONTEND_URL else "/service-desk"
 
@@ -123,7 +123,7 @@ async def create_service_desk_user(
 ) -> dict:
     """Create a brand-new Service Desk user from scratch.
 
-    The user does NOT need a pre-existing Pulse / GymAxis account. They're
+    The user does NOT need a pre-existing Pulse / Pulse Fitness account. They're
     created at platform level (no `organization_id`) with `is_service_desk=True`,
     a temporary password, and `must_change_password=True`. They sign in via
     the normal `/api/auth/login` and are routed to `/service-desk`.
@@ -172,7 +172,7 @@ async def create_service_desk_user(
         # admin's org as their working service org.
         "service_org_id": user.get("organization_id") or user.get("service_org_id"),
         "subscription_tier": "none",
-        "company_name": "Pulse Fitness" if body.brand == "pulse" else "GymAxis AI",
+        "company_name": "Pulse Fitness" if body.brand == "pulse" else "Pulse Fitness AI",
         "active": True,
         "created_at": now_iso,
         "last_login": None,

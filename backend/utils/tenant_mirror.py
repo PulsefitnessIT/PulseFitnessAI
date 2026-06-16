@@ -31,7 +31,7 @@ NOT done here (deliberately) — keep the surface small:
 * No auto-deletion: if a tenant org is deleted, the mirror keeps
   the CRM company with `status="former"` for historical reporting.
 * Mirrors are NOT created for non-Pulse tenants (e.g. MOD orgs,
-  GymAxis Master Admin's own home org).
+  Pulse Fitness Master Admin's own home org).
 
 ### What this iter is NOT solving
 
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 # Pulse subscription tiers that map onto CRM companies. Other tiers
-# (full GymAxis enterprise, MOD/Army, master) are NOT mirrored — they
+# (full Pulse Fitness enterprise, MOD/Army, master) are NOT mirrored — they
 # wouldn't make sense as "customer" rows in the master admin's CRM.
 PULSE_TIERS: tuple[str, ...] = ("pulse_lite", "pulse_pro", "pulse_pro_plus")
 

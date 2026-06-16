@@ -139,7 +139,7 @@ import TrialLockedPage from './components/TrialLockedPage';
 import CookieConsent from './components/shared/CookieConsent';
 import OfflineBanner from './components/shared/OfflineBanner';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
-import AskGymAxis from './components/AskGymAxis';
+import AskPulseFitness from './components/AskPulseFitness';
 import NPSWidget from './components/shared/NPSWidget';
 import FeedbackWidget from './components/shared/FeedbackWidget';
 import SessionResumedBanner from './components/shared/SessionResumedBanner';
@@ -147,13 +147,13 @@ import UnifiedAssistant from './components/UnifiedAssistant';
 import CommandPalette, { useCommandPalette } from './components/CommandPalette';
 
 /**
- * Show the legacy AskGymAxis purple-orb only on routes where the new
+ * Show the legacy AskPulseFitness purple-orb only on routes where the new
  * UnifiedAssistant doesn't take over. UnifiedAssistant covers /pulse,
  * /memberships, /marketing — anywhere else (landing, dashboards, master
- * admin) AskGymAxis still appears for now. Lives outside BrowserRouter
+ * admin) AskPulseFitness still appears for now. Lives outside BrowserRouter
  * so we read window.location directly.
  */
-function AskGymAxisGuard() {
+function AskPulseFitnessGuard() {
  const path = typeof window !== 'undefined' ? window.location.pathname : '/';
  const handledByUnified =
  path === '/' ||
@@ -165,7 +165,7 @@ function AskGymAxisGuard() {
  path.startsWith('/crm') ||
  path === '/dashboard';
  if (handledByUnified) return null;
- return <AskGymAxis />;
+ return <AskPulseFitness />;
 }
 import { Toaster } from 'sonner';
 
@@ -187,14 +187,14 @@ function App() {
  // landed on `/`, it does a single window.location.replace to the
  // tenant's configured surface (/m/{slug}/join, /m/{slug}, etc.)
  // so the SPA mounts BrandedMemberApp / JoinPage instead of the
- // GymAxis marketing site. Idempotent — never loops because the
+ // Pulse Fitness marketing site. Idempotent — never loops because the
  // redirect target path is never `/`.
  const [hostCheckDone, setHostCheckDone] = useState(false);
  const [customHostBranding, setCustomHostBranding] = useState(null);
 
  useEffect(() => {
    const PLATFORM_HOSTS = [
-     'gymaxisai.com', 'www.gymaxisai.com',
+     'www.pulsefitness.ai', 'www.pulsefitness.ai',
      'pulsefitness.ai', 'www.pulsefitness.ai',
      'localhost', '127.0.0.1',
    ];
@@ -292,7 +292,7 @@ function App() {
 
  // Iter 215az — global brand resolver. The HTML root receives `data-brand`
  // ("pulse" | "gymaxis") so brand-token CSS rules can swap the navbar /
- // CTA cyan to the new navy → purple GymAxis palette without any per-page
+ // CTA cyan to the new navy → purple Pulse Fitness palette without any per-page
  // wiring. Pulse-account / Pulse-internal users keep the legacy cyan
  // identity. The CRM has its own override (user.crm_brand) which takes
  // precedence inside that route only. Note: the route-aware update is
@@ -304,9 +304,9 @@ function App() {
  const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
  // Iter 215bc — match BrandAttrSync logic so the initial render of
  // member-facing routes (/members, /m/:slug) doesn't briefly flash
- // GymAxis branding before the route-aware effect runs.
+ // Pulse Fitness branding before the route-aware effect runs.
  const isMemberFacingRoute = path === '/members' || path.startsWith('/m/');
- const brandAttr = (isPulseRoute || isPulseAccount || isMemberFacingRoute) ? 'pulse' : 'gymaxis';
+ const brandAttr = 'pulse'; // full white-label: Pulse Fitness everywhere
  document.documentElement.setAttribute('data-brand', brandAttr);
  }, [user?.account_type]);
 
@@ -656,11 +656,11 @@ function App() {
  }
  // Iter 216h113h — preserve the MOD context on sign-out: visitors
  // who came in via /MODService go back to the MOD login page,
- // not the standard GymAxis marketing surface.
+ // not the standard Pulse Fitness marketing surface.
  const wasMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
  // Iter 216h249 — preserve the Pulse brand on sign-out. Pulse Pro /
  // Lite operators land on `/pulse` (their branded portal + login
- // dialog) instead of being dropped onto the GymAxis marketing site.
+ // dialog) instead of being dropped onto the Pulse Fitness marketing site.
  const wasPulse = ['pulse_pro', 'lite'].includes(user?.account_type);
  // Iter 274 — independent engineers land back on the login screen with
  // their email pre-filled (faster re-login on shared/field devices),
@@ -724,7 +724,7 @@ function App() {
 
  // Iter 216h111 — while the custom-domain host-check is in flight on a
  // non-platform host, render a neutral splash so the visitor doesn't
- // see a flash of the GymAxis marketing site before being redirected
+ // see a flash of the Pulse Fitness marketing site before being redirected
  // to the tenant's branded surface.
  if (!hostCheckDone && typeof window !== 'undefined' && window.location.pathname === '/') {
    const tint = customHostBranding?.primary_color || '#19CDFF';
@@ -808,7 +808,7 @@ function App() {
  <OfflineBanner />
  <PWAInstallPrompt />
  <SessionResumedBanner />
- {user && <AskGymAxisGuard />}
+ {user && <AskPulseFitnessGuard />}
  {user && <NPSWidget />}
  </div>
  </AuthContext.Provider>
@@ -832,25 +832,14 @@ function GlobalCommandPalette() {
  * has access to react-router's location. Sets `data-brand="pulse"` on
  * any /pulse route OR for a Pulse-account user (pulse_pro / lite); else
  * `data-brand="gymaxis"`. The CSS in index.css uses this attribute to
- * swap the legacy cyan brand tokens to the new GymAxis navy → purple
+ * swap the legacy cyan brand tokens to the new Pulse Fitness navy → purple
  * palette globally without per-page wiring.
  */
 function BrandAttrSync({ user }) {
   const location = useLocation();
   useEffect(() => {
-    const path = location.pathname;
-    const isPulseRoute = path.startsWith('/pulse');
-    const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
-    // Iter 215bc — member-facing routes (`/members` and any white-labelled
-    // `/m/:slug`) are end-customer surfaces. Studios choose their own
-    // brand (Pulse studios = cyan/black; custom orgs = their own logo
-    // via BrandedMemberApp). To avoid leaking the GymAxis navy → purple
-    // palette into a Pulse studio's member portal, we default these
-    // routes to `data-brand="pulse"` so the legacy cyan tokens stay.
-    // BrandedMemberApp can override per-studio if needed.
-    const isMemberFacingRoute = path === '/members' || path.startsWith('/m/');
-    const brandAttr = (isPulseRoute || isPulseAccount || isMemberFacingRoute) ? 'pulse' : 'gymaxis';
-    document.documentElement.setAttribute('data-brand', brandAttr);
+    // Full white-label conversion: Pulse Fitness branding on every route.
+    document.documentElement.setAttribute('data-brand', 'pulse');
   }, [user?.account_type, location.pathname]);
   return null;
 }

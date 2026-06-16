@@ -1,4 +1,4 @@
-"""GymAxis Service Operations — Engineer outbound ETA push (Iter 220dg).
+"""Pulse Fitness Service Operations — Engineer outbound ETA push (Iter 220dg).
 
 Inbound: customer already has a public live-tracking page that polls
 every 30 seconds. Outbound: when the engineer hits "on the way" we
@@ -236,11 +236,11 @@ async def _send_eta_email(
                 {"_id": 0},
             )
         eff = _effective_site_branding(org_doc, site_doc)
-        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "GymAxis"
+        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "Pulse Fitness"
         ctx["brand_primary_color"] = eff.get("primary_color") or "#19CDFF"
     except Exception as exc:  # noqa: BLE001
         logger.warning("eta-update branding resolve failed: %s", exc)
-        ctx.setdefault("org_name", "GymAxis")
+        ctx.setdefault("org_name", "Pulse Fitness")
 
     subject = _render(template["subject"], ctx)
     html = _render(template["body_html"], ctx)

@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Launch Kit bundle.
+"""Pulse Fitness Memberships — Launch Kit bundle.
 
 When a gym finishes the Setup Wizard we send them a single email packed
 with everything they need to launch publicly:
@@ -34,7 +34,7 @@ def _origin() -> str:
 
 def _build_templates(studio_name: str, app_url: str) -> dict[str, str]:
     wa = (
-        f"🎉 {studio_name} is now on GymAxis!\n\n"
+        f"🎉 {studio_name} is now on Pulse Fitness!\n\n"
         f"Book classes, track your pass, and never miss a session.\n\n"
         f"👉 {app_url}\n\n"
         f"Save this link or add it to your home screen for instant access."
@@ -48,7 +48,7 @@ def _build_templates(studio_name: str, app_url: str) -> dict[str, str]:
     email = (
         f"Subject: {studio_name} · Our new member app is live 🎉\n\n"
         f"Hey,\n\n"
-        f"We've just launched our new booking experience, powered by GymAxis.\n\n"
+        f"We've just launched our new booking experience, powered by Pulse Fitness.\n\n"
         f"What you get:\n"
         f"  • See live class times at a glance\n"
         f"  • Book in two taps and get instant confirmations\n"
@@ -82,7 +82,7 @@ def _build_email_html(studio_name: str, brand: str, app_url: str, brag_url: str,
     <pre style="background:#05070A;padding:14px;border-radius:8px;color:#e5e7eb;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['email']}</pre>
   </div>
   <div style="background:#05070A;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">GymAxis · Launch kit · Attached: A4 poster PDF · IG square PNG · IG story PNG</p>
+    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness · Launch kit · Attached: A4 poster PDF · IG square PNG · IG story PNG</p>
   </div>
 </div>"""
 

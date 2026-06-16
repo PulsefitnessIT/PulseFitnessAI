@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Engineer Notifications & Web Push.
+Pulse Fitness Service Operations — Engineer Notifications & Web Push.
 
 Iter 216h142 (Phase 4 / Slice 2).
 
@@ -524,7 +524,7 @@ async def push_test(user=Depends(get_current_user)):
         user_id=user["id"],
         organization_id=of["organization_id"],
         kind="test",
-        title="GymAxis push test",
+        title="Pulse Fitness push test",
         body="If you see this on your phone or browser, push is working.",
         link="/svc/engineer/notifications",
         source_type="test",

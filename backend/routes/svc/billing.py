@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Quoting & Billing.
+Pulse Fitness Service Operations — Quoting & Billing.
 
 Iter 215dt (Phase 6).
 
@@ -12,7 +12,7 @@ Quotes live in `svc_quotes` (one quote per case for now; revisions are
 tracked by `version` integer + `history[]`).
 
 Field mapping (extends SVC_FIELD_MAPPING.md §10):
-  GymAxis quote line          ↔ Sage SLInvoiceLine
+  Pulse Fitness quote line          ↔ Sage SLInvoiceLine
   ─────────────────────────────────────────────────
   kind=labour                  ↔ NominalCode (4010 chargeable default)
                                 + Description "Labour — engineer name (Nh)"
@@ -26,40 +26,40 @@ __integration_fields__ = {
     # svc_quotes (header)
     "quotes.id":              "gymaxis_only: local uuid",
     "quotes.organization_id": "gymaxis_only: tenant scoping",
-    "quotes.case_id":         "sicon: ServiceCallID · GymAxis → Sicon · sage: invoice link via case",
-    "quotes.case_reference":  "sicon: ServiceCallReference · sage: SLInvoice.Reference · GymAxis → both",
-    "quotes.reference":       "sage: SLQuote.Reference (when SLQuote wiring lands) · GymAxis → Sage",
+    "quotes.case_id":         "sicon: ServiceCallID · Pulse Fitness → Sicon · sage: invoice link via case",
+    "quotes.case_reference":  "sicon: ServiceCallReference · sage: SLInvoice.Reference · Pulse Fitness → both",
+    "quotes.reference":       "sage: SLQuote.Reference (when SLQuote wiring lands) · Pulse Fitness → Sage",
     "quotes.status":          "gymaxis_only: draft|approved|invoiced|void (drives outbox enqueue)",
-    "quotes.lines":           "sage: SLInvoiceLine[] (rolled per line) · GymAxis → Sage",
-    "quotes.subtotal":        "sage: SLInvoice.NetAmount · GymAxis → Sage",
-    "quotes.discount":        "sage: SLInvoice.GlobalDiscountValue · GymAxis → Sage",
-    "quotes.net":             "sage: SLInvoice.NetAmount (post-discount) · GymAxis → Sage",
-    "quotes.vat":             "sage: SLInvoice.TaxAmount · GymAxis → Sage",
-    "quotes.gross":           "sage: SLInvoice.GrossAmount · GymAxis → Sage",
-    "quotes.vat_rate":        "sage: TaxRate (default 0.20 / T1) · GymAxis → Sage",
-    "quotes.discount_pct":    "sage: GlobalDiscountPercent · GymAxis → Sage",
-    "quotes.notes":           "sage: SLInvoice.SecondReference / Notes · GymAxis → Sage",
+    "quotes.lines":           "sage: SLInvoiceLine[] (rolled per line) · Pulse Fitness → Sage",
+    "quotes.subtotal":        "sage: SLInvoice.NetAmount · Pulse Fitness → Sage",
+    "quotes.discount":        "sage: SLInvoice.GlobalDiscountValue · Pulse Fitness → Sage",
+    "quotes.net":             "sage: SLInvoice.NetAmount (post-discount) · Pulse Fitness → Sage",
+    "quotes.vat":             "sage: SLInvoice.TaxAmount · Pulse Fitness → Sage",
+    "quotes.gross":           "sage: SLInvoice.GrossAmount · Pulse Fitness → Sage",
+    "quotes.vat_rate":        "sage: TaxRate (default 0.20 / T1) · Pulse Fitness → Sage",
+    "quotes.discount_pct":    "sage: GlobalDiscountPercent · Pulse Fitness → Sage",
+    "quotes.notes":           "sage: SLInvoice.SecondReference / Notes · Pulse Fitness → Sage",
     "quotes.version":         "gymaxis_only: revision counter for audit trail",
     "quotes.history":         "gymaxis_only: revision diffs",
-    "quotes.created_by_id":   "sage: Employee.Reference · GymAxis → Sage (line-level if needed)",
-    "quotes.approved_by_id":  "sage: ApprovedBySageUserID · GymAxis → Sage",
-    "quotes.approved_at":     "sage: ApprovedAt · GymAxis → Sage",
-    "quotes.invoiced_at":     "sage: SLInvoice.PostedAt · GymAxis → Sage",
+    "quotes.created_by_id":   "sage: Employee.Reference · Pulse Fitness → Sage (line-level if needed)",
+    "quotes.approved_by_id":  "sage: ApprovedBySageUserID · Pulse Fitness → Sage",
+    "quotes.approved_at":     "sage: ApprovedAt · Pulse Fitness → Sage",
+    "quotes.invoiced_at":     "sage: SLInvoice.PostedAt · Pulse Fitness → Sage",
     # svc_quotes.lines[] (line-item)
     "lines.id":              "gymaxis_only: local uuid (echo on outbox payload for traceability)",
     "lines.kind":            "sage: line type — labour|part|adjustment maps to NominalCode + Description shape",
-    "lines.qty":             "sage: SLInvoiceLine.Quantity · GymAxis → Sage",
-    "lines.unit_amount":     "sage: SLInvoiceLine.UnitNetAmount · GymAxis → Sage",
-    "lines.description":     "sage: SLInvoiceLine.Description · GymAxis → Sage",
-    "lines.nominal_code":    "sage: SLInvoiceLine.NominalCode (4010 labour · 4011 parts default) · GymAxis → Sage",
-    "lines.tax_code":        "sage: SLInvoiceLine.TaxCode (T1 default) · GymAxis → Sage",
-    "lines.part_sku":        "sicon: PartCode · sage: StockCode fallback · GymAxis → both",
-    "lines.stock_code":      "sage: SLInvoiceLine.StockCode · GymAxis → Sage",
-    "lines.engineer_id":     "sage: Employee.Reference (labour line attribution) · GymAxis → Sage",
-    "lines.engineer_name":   "sage: line description fragment · GymAxis → Sage",
-    "lines.time_entry_id":   "sicon: TimeEntryID (back-reference) · GymAxis → Sicon (audit only)",
-    "lines.movement_id":     "sicon: StockMovementID(s) (back-reference) · GymAxis → Sicon (audit only)",
-    "lines.total":           "sage: SLInvoiceLine.LineTotalNetAmount · GymAxis → Sage",
+    "lines.qty":             "sage: SLInvoiceLine.Quantity · Pulse Fitness → Sage",
+    "lines.unit_amount":     "sage: SLInvoiceLine.UnitNetAmount · Pulse Fitness → Sage",
+    "lines.description":     "sage: SLInvoiceLine.Description · Pulse Fitness → Sage",
+    "lines.nominal_code":    "sage: SLInvoiceLine.NominalCode (4010 labour · 4011 parts default) · Pulse Fitness → Sage",
+    "lines.tax_code":        "sage: SLInvoiceLine.TaxCode (T1 default) · Pulse Fitness → Sage",
+    "lines.part_sku":        "sicon: PartCode · sage: StockCode fallback · Pulse Fitness → both",
+    "lines.stock_code":      "sage: SLInvoiceLine.StockCode · Pulse Fitness → Sage",
+    "lines.engineer_id":     "sage: Employee.Reference (labour line attribution) · Pulse Fitness → Sage",
+    "lines.engineer_name":   "sage: line description fragment · Pulse Fitness → Sage",
+    "lines.time_entry_id":   "sicon: TimeEntryID (back-reference) · Pulse Fitness → Sicon (audit only)",
+    "lines.movement_id":     "sicon: StockMovementID(s) (back-reference) · Pulse Fitness → Sicon (audit only)",
+    "lines.total":           "sage: SLInvoiceLine.LineTotalNetAmount · Pulse Fitness → Sage",
 }
 
 from datetime import datetime, timezone

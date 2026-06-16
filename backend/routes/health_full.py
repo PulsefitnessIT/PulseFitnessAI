@@ -1,4 +1,4 @@
-"""GymAxis platform vitals — Iter 216h93.
+"""Pulse Fitness platform vitals — Iter 216h93.
 
 Master-admin-only `/api/health/full` complements the public `/health/deep`:
 that one is for uptime probes; this one is for the human in a hurry

@@ -1,5 +1,5 @@
 /**
- * GymAxis Help Centre — authenticated-only help + tutorial hub.
+ * Pulse Fitness Help Centre — authenticated-only help + tutorial hub.
  *
  * Access: `/help` (and `/help/:guideId` for a specific guide). Linked from
  * the user dropdown in every module. NOT linked from any public page and
@@ -136,7 +136,7 @@ export default function HelpCentrePage() {
   const openGuide = (id) => { setQ(''); setSearchResults(null); navigate(`/help/${id}`); };
   const backToList = () => navigate('/help');
 
-  // Brand the user sees — drives every "GymAxis" → "Pulse Fitness"
+  // Brand the user sees — drives every "Pulse Fitness" → "Pulse Fitness"
   // swap. Backend also white-labels content; this just keeps the UI
   // chrome (titles, subtitles, AI rail header) consistent.
   const brand = useMemo(() => {
@@ -144,7 +144,7 @@ export default function HelpCentrePage() {
     const isPulse = accountType === 'pulse_pro' || accountType === 'lite';
     return isPulse
       ? { id: 'pulse',   name: 'Pulse Fitness', assistantHeading: 'Ask Pulse Fitness' }
-      : { id: 'gymaxis', name: 'GymAxis',       assistantHeading: 'Ask GymAxis' };
+      : { id: 'gymaxis', name: 'Pulse Fitness',       assistantHeading: 'Ask Pulse Fitness' };
   }, [user?.account_type]);
 
   // Keep the document title in sync with the active brand.
@@ -598,7 +598,7 @@ function GuideDetail({ guide, loading, onBack, onOpen }) {
 }
 
 function HelpAssistantRail({ headers, currentModule, currentGuide, onOpenGuide, brand }) {
-  const intro = `Hi! Ask me anything about ${brand?.name || 'GymAxis'}. I'm trained on every Help Centre guide and won't make things up.`;
+  const intro = `Hi! Ask me anything about ${brand?.name || 'Pulse Fitness'}. I'm trained on every Help Centre guide and won't make things up.`;
   const [messages, setMessages] = useState([
     { role: 'assistant', text: intro },
   ]);
@@ -642,7 +642,7 @@ function HelpAssistantRail({ headers, currentModule, currentGuide, onOpenGuide, 
       <div className="flex items-center gap-2 mb-3">
         <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Sparkles size={14} /></div>
         <div className="min-w-0">
-          <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }} data-testid="help-ai-heading">{brand?.assistantHeading || 'Ask GymAxis'}</div>
+          <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }} data-testid="help-ai-heading">{brand?.assistantHeading || 'Ask Pulse Fitness'}</div>
           <div className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>Guide-grounded · never invents features</div>
         </div>
       </div>
@@ -779,7 +779,7 @@ function SupportTicketModal({ API, headers, onClose }) {
               </>
             ) : (
               <div className="rounded-md bg-rose-50 border border-rose-200 p-3 text-rose-800">
-                {result.error || 'Failed to log ticket — please try again or email support@gymaxisai.com.'}
+                {result.error || 'Failed to log ticket — please try again or email support@pulsefitness.ai.'}
               </div>
             )
           ) : (

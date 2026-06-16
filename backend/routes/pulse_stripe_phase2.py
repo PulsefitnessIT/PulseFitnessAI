@@ -331,7 +331,7 @@ async def create_charge(body: ChargeCreate, user: dict = Depends(get_current_use
         "off_session": "true",
         "application_fee_amount": str(application_fee),
         "transfer_data[destination]": account["stripe_account_id"],
-        "description": body.description or f"GymAxis platform charge for {body.customer_email}",
+        "description": body.description or f"Pulse Fitness platform charge for {body.customer_email}",
         "receipt_email": body.customer_email,
         "metadata[customer_email]": body.customer_email,
         "metadata[customer_name]": body.customer_name or "",

@@ -33,7 +33,7 @@ ROTATION_DAYS = 180
 REMINDER_THRESHOLDS = (30, 14, 7, 0, -1, -7)  # negative = already overdue reminders
 _DEFAULT_NOTIFY_EMAIL = os.environ.get(
     "MOD_ROTATION_NOTIFY_EMAIL",
-    os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@gymaxisai.com"),
+    os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai"),
 )
 
 

@@ -1,9 +1,9 @@
-"""Iter 216h129 — Branded engineer quote PDF (light-mode GymAxis).
+"""Iter 216h129 — Branded engineer quote PDF (light-mode Pulse Fitness).
 
-Renders an A4 portrait PDF with the GymAxis brand:
+Renders an A4 portrait PDF with the Pulse Fitness brand:
   • White background
   • Deep navy text (#0F172A)
-  • GymAxis blue accent (#1d4ed8 → #6366f1 gradient header)
+  • Pulse Fitness blue accent (#1d4ed8 → #6366f1 gradient header)
   • Clean tabular line-items
   • Subtotal / VAT / Total stack
   • Terms + validity footer
@@ -75,7 +75,7 @@ def _footer_factory(is_mod: bool):
     def _footer(canvas, doc):
         draw_pdf_footer(
             canvas, doc,
-            primary_line="GymAxis · Field Service for Fitness Equipment",
+            primary_line="Pulse Fitness · Field Service for Fitness Equipment",
             is_mod=is_mod,
             muted_colour=GX_MUTED, line_colour=GX_BORDER,
         )
@@ -87,7 +87,7 @@ def _header_block(s, quote: dict) -> Table:
     issue_date = datetime.utcnow().strftime("%d %b %Y")
     header_cell = Table(
         [
-            [Paragraph("QUOTATION · GymAxis", s["kicker"])],
+            [Paragraph("QUOTATION · Pulse Fitness", s["kicker"])],
             [Paragraph(_esc(qno), s["h1"])],
             [Paragraph(f"Issued {issue_date} · Valid until {_esc(quote.get('valid_until'))}",
                        s["kicker"])],
@@ -205,7 +205,7 @@ def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
         leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=20 * mm,
         title=f"Quote {quote.get('quote_number') or ''}",
-        author="GymAxis",
+        author="Pulse Fitness",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)
@@ -223,7 +223,7 @@ def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
         quote.get("customer_phone") or "",
     ]
     engineer_lines = [
-        quote.get("engineer_name") or "GymAxis Engineer",
+        quote.get("engineer_name") or "Pulse Fitness Engineer",
         quote.get("engineer_email") or "",
         quote.get("engineer_mobile") or "",
         f"Case ref: {quote.get('case_reference') or '—'}",

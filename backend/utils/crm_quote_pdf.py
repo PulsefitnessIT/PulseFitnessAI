@@ -60,7 +60,7 @@ def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
     story = []
 
     # ── Header (org name/address left, QUOTE meta right) ──────────
-    org_name = org.get("name", "") or "GymAxis"
+    org_name = org.get("name", "") or "Pulse Fitness"
     org_addr = "<br/>".join(filter(None, [
         org.get("address_line1"), org.get("address_line2"),
         org.get("city"), org.get("postcode"), org.get("country"),

@@ -3,7 +3,7 @@
  *
  * Pulse Master Admins kick off the OAuth handshake here, returning to
  * /master-admin?stripe=connected once Stripe redirects back. The platform
- * (GymAxis) admin can also set the per-customer pricing / dynamic platform
+ * (Pulse Fitness) admin can also set the per-customer pricing / dynamic platform
  * fee from this tab.
  */
 import React, { useCallback, useEffect, useState } from 'react';
@@ -179,7 +179,7 @@ const AdminStripeConnect = ({ API, isMasterAdmin }) => {
  {status?.configured && !status?.connected && (
  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4" data-testid="stripe-step-connect">
  <p className="text-sm text-zinc-700 mb-3 leading-relaxed">
- Stripe will ask Pulse Fitness to authorise GymAxis to take application fees on Pulse's
+ Stripe will ask Pulse Fitness to authorise Pulse Fitness to take application fees on Pulse's
  charges. This uses Stripe's standard <strong>Connect with Stripe</strong> OAuth — Pulse
  keeps full control of their own Stripe Dashboard.
  </p>
@@ -224,7 +224,7 @@ const AdminStripeConnect = ({ API, isMasterAdmin }) => {
  </div>
  <p className="text-xs text-zinc-500 leading-relaxed mb-4">
  The platform fee is calculated per charge as <code className="font-mono">platform_fee_per_customer + platform_fee_pct%</code>.
- Only the GymAxis Master Admin can change these values.
+ Only the Pulse Fitness Master Admin can change these values.
  </p>
  <form onSubmit={savePricing} className="grid grid-cols-1 md:grid-cols-4 gap-3">
  <div>
@@ -256,7 +256,7 @@ const AdminStripeConnect = ({ API, isMasterAdmin }) => {
  <TrendingUp size={14} className="text-blue-700 mt-0.5" />
  <div className="text-xs text-blue-900 leading-relaxed">
  <strong>Preview:</strong> on a {pricingForm.currency} {Number(pricingForm.price_per_customer).toFixed(2)} charge,
- GymAxis takes {pricingForm.currency} {(parseFloat(pricingForm.platform_fee_per_customer || 0) + parseFloat(pricingForm.price_per_customer || 0) * parseFloat(pricingForm.platform_fee_pct || 0) / 100).toFixed(2)}{' '}
+ Pulse Fitness takes {pricingForm.currency} {(parseFloat(pricingForm.platform_fee_per_customer || 0) + parseFloat(pricingForm.price_per_customer || 0) * parseFloat(pricingForm.platform_fee_pct || 0) / 100).toFixed(2)}{' '}
  ({pricingForm.platform_fee_pct || 0}% + {pricingForm.currency} {pricingForm.platform_fee_per_customer || '0.00'} flat).
  Pulse keeps the rest.
  </div>
@@ -272,7 +272,7 @@ const AdminStripeConnect = ({ API, isMasterAdmin }) => {
  </div>
  <ul className="text-xs text-zinc-600 space-y-1.5 leading-relaxed">
  <li>• Pulse Fitness keeps their own Stripe Dashboard, payouts, refunds, and tax handling.</li>
- <li>• GymAxis only takes the configured application fee per charge — never holds Pulse's money.</li>
+ <li>• Pulse Fitness only takes the configured application fee per charge — never holds Pulse's money.</li>
  <li>• Pulse's Stripe account stays portable: if they ever leave the platform, it goes with them.</li>
  <li>• PCI compliance, fraud screening, and chargebacks are Stripe's problem, not ours.</li>
  </ul>

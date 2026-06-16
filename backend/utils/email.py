@@ -10,7 +10,7 @@ from utils.database import RESEND_API_KEY, SENDER_EMAIL, db
 logger = logging.getLogger(__name__)
 
 # Iter 216h64 — co-branded email wrapper. Every outbound email is wrapped
-# in a header showing GymAxis (the platform) + the operator's logo, plus
+# in a header showing Pulse Fitness (the platform) + the operator's logo, plus
 # a matching footer. Pulse Pro tenants get the Pulse Fitness mark in the
 # co-brand slot. Logos resolve to absolute URLs against the platform's
 # public domain so the <img> tags survive Gmail/Outlook caching.
@@ -66,14 +66,14 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
     """Return logos + names for the co-brand header.
 
     Result keys: gym_logo, gym_name, partner_logo, partner_name.
-    `partner_logo` defaults to the GymAxis mark; Pulse Pro accounts use
+    `partner_logo` defaults to the Pulse Fitness mark; Pulse Pro accounts use
     the Pulse Fitness lockup. Operator logos that aren't yet uploaded
     fall back to an initial-circle inside the header.
     """
     gym_logo = ""
-    gym_name = "GymAxis"
+    gym_name = "Pulse Fitness"
     partner_logo = GYMAXIS_LOGO_MARK
-    partner_name = "GymAxis AI"
+    partner_name = "Pulse Fitness AI"
     if not organization_id:
         return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
     try:
@@ -90,7 +90,7 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
     # Pulse Pro tenants get the Pulse Fitness lockup as the platform mark.
     if (org.get("account_type") or "").lower() in ("pulse_pro", "lite"):
         partner_logo = PULSE_FITNESS_LOGO
-        partner_name = "Pulse Fitness · powered by GymAxis"
+        partner_name = "Pulse Fitness · powered by Pulse Fitness"
     return {
         "gym_logo": gym_logo, "gym_name": gym_name,
         "partner_logo": partner_logo, "partner_name": partner_name,
@@ -105,7 +105,7 @@ def _header_html(brand: dict, accent: str = "#0055FF") -> str:
     gym_logo = brand.get("gym_logo") or ""
     gym_name = brand.get("gym_name") or ""
     partner_logo = brand.get("partner_logo") or GYMAXIS_LOGO_MARK
-    partner_name = brand.get("partner_name") or "GymAxis"
+    partner_name = brand.get("partner_name") or "Pulse Fitness"
     if gym_logo:
         left_block = (
             f'<img src="{gym_logo}" alt="{gym_name}" style="max-height:42px;max-width:160px;'
@@ -140,7 +140,7 @@ def _header_html(brand: dict, accent: str = "#0055FF") -> str:
 def _footer_html(brand: dict) -> str:
     """Co-branded footer with both logos as small marks."""
     gym_name = brand.get("gym_name") or ""
-    partner_name = brand.get("partner_name") or "GymAxis AI"
+    partner_name = brand.get("partner_name") or "Pulse Fitness AI"
     bits = []
     if gym_name:
         bits.append(f'<strong>{gym_name}</strong>')
@@ -174,7 +174,7 @@ async def wrap_branded(html: str, organization_id: str | None = None) -> str:
 
     Iter 216h64 — even without an organization_id we still wrap so
     platform-only emails (welcome, password reset, trial signup) get
-    the GymAxis mark in the header for consistency.
+    the Pulse Fitness mark in the header for consistency.
     """
     if _looks_branded(html):
         return html
@@ -208,7 +208,7 @@ except ImportError:
 # The platform owns four verified Resend domains. Each outbound email is
 # sent from the domain that matches its purpose (better deliverability +
 # clear brand separation). Each is env-overridable; defaults use the
-# verified gymaxisai.com sending subdomains. `support`/default fall back
+# verified www.pulsefitness.ai sending subdomains. `support`/default fall back
 # to the configured root SENDER_EMAIL.
 _CATEGORY_SENDER_ENV = {
     "billing": "SENDER_EMAIL_BILLING",
@@ -216,9 +216,9 @@ _CATEGORY_SENDER_ENV = {
     "service": "SENDER_EMAIL_SERVICE",
 }
 _CATEGORY_SENDER_DEFAULT = {
-    "billing": "GymAxis Billing <billing@billing.gymaxisai.com>",
-    "support": "GymAxis Support <support@support.gymaxisai.com>",
-    "service": "GymAxis Service <service@service.gymaxisai.com>",
+    "billing": "Pulse Fitness Billing <billing@billing.www.pulsefitness.ai>",
+    "support": "Pulse Fitness Support <support@support.www.pulsefitness.ai>",
+    "service": "Pulse Fitness Service <service@service.www.pulsefitness.ai>",
 }
 
 
@@ -255,9 +255,9 @@ _CATEGORY_REPLY_ENV = {
     "service": "REPLY_TO_SERVICE",
 }
 _CATEGORY_REPLY_DEFAULT = {
-    "billing": "billing@gymaxisai.com",
-    "support": "support@gymaxisai.com",
-    "service": "service@gymaxisai.com",
+    "billing": "billing@pulsefitness.ai",
+    "support": "support@pulsefitness.ai",
+    "service": "service@pulsefitness.ai",
 }
 
 
@@ -350,7 +350,7 @@ async def send_email(
     Iter 216bc — when ``organization_id`` is provided, look up that
     org's ``email_sender_friendly_name`` / ``email_sender_reply_to``
     and use them. This keeps the actual From-address on the verified
-    GymAxis sender domain (so SPF/DKIM/DMARC keep passing) while
+    Pulse Fitness sender domain (so SPF/DKIM/DMARC keep passing) while
     showing the operator's brand to their customers and routing replies
     back to the operator.
 
@@ -416,7 +416,7 @@ async def send_email(
 
     try:
         # Iter 216h64 — auto-wrap in the co-branded shell (operator
-        # logo + GymAxis/Pulse Fitness mark) when an organization_id is
+        # logo + Pulse Fitness/Pulse Fitness mark) when an organization_id is
         # supplied. Idempotent: already-wrapped HTML passes through.
         branded_html = await wrap_branded(html, organization_id)
         params = {
@@ -471,11 +471,11 @@ async def send_email(
 async def send_welcome_email(email: str, name: str):
     html = f"""<div style="font-family: Arial; max-width: 600px; margin: 0 auto;">
     <div style="background: #0055FF; padding: 30px; text-align: center;">
-        <h1 style="color: white; margin: 0;">Welcome to GymAxis AI</h1>
+        <h1 style="color: white; margin: 0;">Welcome to Pulse Fitness AI</h1>
     </div>
     <div style="padding: 30px; background: #f9f9f9;">
         <h2>Hi {name},</h2>
-        <p>Welcome to GymAxis AI - the complete gym maintenance platform.</p>
+        <p>Welcome to Pulse Fitness AI - the complete gym maintenance platform.</p>
         <p>Here's what you can do:</p>
         <ul>
             <li><strong>AI Fault Diagnosis</strong> - Get instant repair guidance</li>
@@ -487,13 +487,13 @@ async def send_welcome_email(email: str, name: str):
         <a href="#" style="display: inline-block; background: #0055FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Go to Dashboard</a>
     </div>
     </div>"""
-    await send_email(email, "Welcome to GymAxis AI", html, category="support")
+    await send_email(email, "Welcome to Pulse Fitness AI", html, category="support")
 
 
 async def send_report_notification(email: str, name: str, report_type: str, report_id: str):
     html = f"""<div style="font-family: Arial; max-width: 600px; margin: 0 auto;">
     <div style="background: #0055FF; padding: 20px; text-align: center;">
-        <h2 style="color: white; margin: 0;">GymAxis AI - Report Ready</h2>
+        <h2 style="color: white; margin: 0;">Pulse Fitness AI - Report Ready</h2>
     </div>
     <div style="padding: 30px; background: #f9f9f9;">
         <p>Hi {name},</p>
@@ -505,13 +505,13 @@ async def send_report_notification(email: str, name: str, report_type: str, repo
     test_mode = 'resend.dev' in (os.environ.get('SENDER_EMAIL', '') or '')
     test_recipient = os.environ.get('TEST_RECIPIENT_EMAIL', '')
     recipient = (test_recipient or email) if test_mode else email
-    await send_email(recipient, f"GymAxis AI - {report_type} Ready", html, category="service")
+    await send_email(recipient, f"Pulse Fitness AI - {report_type} Ready", html, category="service")
 
 
 async def send_password_reset_email(email: str, name: str, reset_url: str):
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: #0055FF; padding: 30px; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 22px;">GymAxis AI</h1>
+        <h1 style="color: white; margin: 0; font-size: 22px;">Pulse Fitness AI</h1>
     </div>
     <div style="padding: 40px 30px;">
         <h2 style="color: #1a1a1a; margin: 0 0 12px;">Password Reset Request</h2>
@@ -525,10 +525,10 @@ async def send_password_reset_email(email: str, name: str, reset_url: str):
         <p style="color: #aaa; font-size: 12px;">If the button doesn't work, copy and paste this URL into your browser:<br/><a href="{reset_url}" style="color: #0055FF; word-break: break-all;">{reset_url}</a></p>
     </div>
     <div style="background: #f5f5f5; padding: 16px 30px; text-align: center;">
-        <p style="color: #aaa; font-size: 11px; margin: 0;">GymAxis AI · Gym Equipment Maintenance Platform</p>
+        <p style="color: #aaa; font-size: 11px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
     </div>
     </div>"""
-    return await send_email(email, "Reset Your Password — GymAxis AI", html, category="support")
+    return await send_email(email, "Reset Your Password — Pulse Fitness AI", html, category="support")
 
 
 
@@ -538,14 +538,14 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
     greeting = f"Hi {recipient_name}," if recipient_name else "Hello,"
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: linear-gradient(135deg, #0055FF 0%, #0033AA 100%); padding: 36px 30px; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Welcome to GymAxis AI</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Welcome to Pulse Fitness AI</h1>
         <p style="color: #cfe0ff; margin: 8px 0 0; font-size: 13px;">Your equipment management platform is ready</p>
     </div>
     <div style="padding: 40px 32px;">
         <h2 style="color: #1a1a1a; margin: 0 0 16px; font-size: 20px;">Let's get {customer_name or 'you'} set up</h2>
         <p style="color: #444; line-height: 1.7; margin: 0 0 16px;">{greeting}</p>
         <p style="color: #444; line-height: 1.7; margin: 0 0 20px;">
-            {sender_name} has prepared a secure onboarding form so we can configure GymAxis for your sites, staff,
+            {sender_name} has prepared a secure onboarding form so we can configure Pulse Fitness for your sites, staff,
             and equipment in one go. It takes around <strong>10–15 minutes</strong> and auto-saves as you go —
             you can complete it in multiple sessions.
         </p>
@@ -574,7 +574,7 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
         </p>
     </div>
     <div style="background: #f5f5f5; padding: 18px 30px; text-align: center;">
-        <p style="color: #888; font-size: 12px; margin: 0;">GymAxis AI · Gym Equipment Maintenance Platform</p>
+        <p style="color: #888; font-size: 12px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
         <p style="color: #aaa; font-size: 11px; margin: 4px 0 0;">Sent by {sender_name}</p>
     </div>
     </div>"""
@@ -586,9 +586,9 @@ async def send_trial_signup_notification(trial: dict):
     """Notify the platform owner(s) that a new trial user has signed up.
 
     Recipient(s) controlled by env var TRIAL_SIGNUP_NOTIFY_EMAIL
-    (defaults to Lee@gymaxisai.com). Comma-separated list supported.
+    (defaults to Lee@pulsefitness.ai). Comma-separated list supported.
     """
-    recipients_raw = os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@gymaxisai.com")
+    recipients_raw = os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai")
     recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
     if not recipients:
         return False
@@ -621,7 +621,7 @@ async def send_trial_signup_notification(trial: dict):
     </div>
   </div>
   <div style="background:#05070A;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Sent by the GymAxis trial funnel · landing-page signup</p>
+    <p style="color:#6b7280;font-size:11px;margin:0;">Sent by the Pulse Fitness trial funnel · landing-page signup</p>
   </div>
 </div>"""
 

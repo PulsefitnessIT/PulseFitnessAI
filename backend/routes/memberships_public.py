@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 2 public class detail + embed widget.
+"""Pulse Fitness Memberships — Phase 2 public class detail + embed widget.
 
 Two public, auth-free routes that gyms can share / embed anywhere:
 

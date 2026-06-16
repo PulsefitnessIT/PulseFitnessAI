@@ -265,7 +265,7 @@ INDEXES: Sequence[Tuple[str, Sequence[Sequence[Tuple[str, int]]]]] = [
 
     # ── Iter 220ba — Pre-pen-test hot-collection sweep ─────────────────
     # SEO Autopilot (master-admin self-promo). Lookups are NOT
-    # organization-scoped — the SEO blog is the single GymAxis-owned
+    # organization-scoped — the SEO blog is the single Pulse Fitness-owned
     # tenant. Status + updated_at and status + metrics.views cover the
     # top-performer + recent list endpoints.
     ("seo_articles", [

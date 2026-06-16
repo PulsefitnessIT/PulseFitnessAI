@@ -90,7 +90,7 @@ ENGINEER_TRIAL_GRACE_DAYS = max(0, int(os.environ.get("ENGINEER_TRIAL_GRACE_DAYS
 
 
 # Iter 216h80 — Pulse Fitness isolation. The Partner Engineer Network
-# is a GymAxis-only commercial layer. Pulse customers/orgs must NEVER:
+# is a Pulse Fitness-only commercial layer. Pulse customers/orgs must NEVER:
 #   • see the "Find an engineer" widget
 #   • have their first Operations invoice trigger a signup reward
 #   • be allowed to attach a referral code on signup
@@ -130,11 +130,11 @@ async def _is_pulse_org(org_id: Optional[str]) -> bool:
 
 def _require_gymaxis_only(user: dict) -> None:
     """Raise 403 if the caller is a Pulse Fitness user. The Partner
-    Engineer Network is exclusively a GymAxis programme."""
+    Engineer Network is exclusively a Pulse Fitness programme."""
     if _is_pulse_user(user):
         raise HTTPException(
             status_code=403,
-            detail="The Partner Engineer Network is exclusive to GymAxis — Pulse Fitness customers don't have access to this programme.",
+            detail="The Partner Engineer Network is exclusive to Pulse Fitness — Pulse Fitness customers don't have access to this programme.",
         )
 
 
@@ -1351,7 +1351,7 @@ async def send_partner_signin_link(
         raise HTTPException(400, "Application has no email address on file")
     full_name = app.get("full_name") or ""
 
-    # Does the engineer already have a GymAxis account? Case-insensitive.
+    # Does the engineer already have a Pulse Fitness account? Case-insensitive.
     existing_user = await db.users.find_one(
         {"email": safe_regex_exact(target_email)},
         {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1},
@@ -1463,11 +1463,11 @@ async def get_partner_activation_info(body: dict = Body(default_factory=dict)):
     """Public — token → {email, full_name, has_existing_account}.
     Used by the activation page to pre-fill the form and decide
     whether to show the password-set flow or a "sign in to claim"
-    flow when the email already has a GymAxis account."""
+    flow when the email already has a Pulse Fitness account."""
     token = (body.get("token") or "").strip()
     app = await _find_active_activation(token)
     if not app:
-        raise HTTPException(404, "This activation link is invalid or has expired. Ask the GymAxis team for a new one.")
+        raise HTTPException(404, "This activation link is invalid or has expired. Ask the Pulse Fitness team for a new one.")
     email = app.get("email") or ""
     has_account = bool(await db.users.find_one(
         {"email": safe_regex_exact(email)},
@@ -1503,7 +1503,7 @@ async def complete_partner_activation(
         raise HTTPException(400, "Choose a password of at least 8 characters.")
     app = await _find_active_activation(token)
     if not app:
-        raise HTTPException(404, "This activation link is invalid or has expired. Ask the GymAxis team for a new one.")
+        raise HTTPException(404, "This activation link is invalid or has expired. Ask the Pulse Fitness team for a new one.")
 
     email = (app.get("email") or "").strip()
     full_name = app.get("full_name") or ""
@@ -3354,12 +3354,12 @@ async def my_public_wall(user: dict = Depends(get_current_user)):
     first_name = (partner.get("full_name") or "").split(" ")[0] or "your engineer"
     if average is not None and len(rows) >= 3:
         share_text = (
-            f"{first_name} has {len(rows)} ★ reviews on GymAxis — "
+            f"{first_name} has {len(rows)} ★ reviews on Pulse Fitness — "
             f"averaging {average:.1f}/5. Find a trusted gym engineer here:"
         )
     else:
         share_text = (
-            f"{first_name} is a verified GymAxis Partner Engineer — "
+            f"{first_name} is a verified Pulse Fitness Partner Engineer — "
             f"see the full profile and book here:"
         )
 
@@ -3516,7 +3516,7 @@ async def _credit_engineer_referral_on_approval(partner: dict, actor_id: str) ->
 async def public_eref_lookup(code: str):
     """Public — drives the branded recruit landing page. Returns the
     referring engineer's first name + company so the visitor sees
-    "Jane recommends GymAxis". Never leaks PII (no email, no phone,
+    "Jane recommends Pulse Fitness". Never leaks PII (no email, no phone,
     no full name, no postcode beyond outward code)."""
     partner = await _resolve_eref_partner(code)
     if not partner:
@@ -3779,7 +3779,7 @@ async def welcome_back_send_thanks(token: str) -> HTMLResponse:
                 f"<p>Hi team,</p>"
                 f"<p><strong>{engineer_name}</strong> was off the tools recently and wanted to say thanks "
                 f"to <strong>{gym_name}</strong> for keeping things running — and for your patience while they were away.</p>"
-                f"<p>{engineer_name} is back on GymAxis and picking up any open faults now. "
+                f"<p>{engineer_name} is back on Pulse Fitness and picking up any open faults now. "
                 f"You shouldn't notice any change in service.</p>"
                 f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
                 f"This is a one-tap thanks sent directly from {engineer_name}'s welcome-back digest. "
@@ -3826,7 +3826,7 @@ def _thanks_page_html(headline: str, sub: str) -> str:
     return (
         '<!doctype html><html><head><meta charset="utf-8"/>'
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
-        f"<title>{headline} · GymAxis</title>"
+        f"<title>{headline} · Pulse Fitness</title>"
         '<style>body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;'
         "background:linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 100%);min-height:100vh;"
         "display:flex;align-items:center;justify-content:center;color:#0F172A;}"
@@ -3861,7 +3861,7 @@ async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str
     if not partner:
         return None
     # Iter 216h80 — Pulse Fitness isolation. Block referral attachment
-    # if the org is a Pulse customer (programme is GymAxis-only).
+    # if the org is a Pulse customer (programme is Pulse Fitness-only).
     if await _is_pulse_org(organization_id):
         return None
     # Anti-abuse: partner can't refer their own org.
@@ -4328,7 +4328,7 @@ async def admin_flag_referral_pre_existing(
             {"referral_id": referral_id, "status": {"$in": ["accrued", "approved"]}},
             {"$set": {"status": "clawed_back", "clawed_back_at": _now(),
                       "clawed_back_by": user["id"],
-                      "clawed_back_reason": "Org already in GymAxis pipeline"}},
+                      "clawed_back_reason": "Org already in Pulse Fitness pipeline"}},
         )
         clawed = upd.modified_count
     else:
@@ -4649,7 +4649,7 @@ async def evaluate_engineer_app_access(user: dict) -> dict:
     )
 
     # Iter 216h86 — Internal engineer bypass. Direct employees of a tenant
-    # (Pulse Fitness, GymAxis customer orgs, etc.) get a `svc_engineers`
+    # (Pulse Fitness, Pulse Fitness customer orgs, etc.) get a `svc_engineers`
     # row created by their owner/manager. They are NOT independent
     # contractors and shouldn't be funnelled into the £30/mo Partner Plan.
     #
@@ -4720,7 +4720,7 @@ _BLOCK_MESSAGES = {
     "needs_application":      "Apply to the Partner Engineer Network to start accepting jobs.",
     "application_pending":    "Your Partner Engineer application is under review. We'll email you within 2 working days.",
     "application_rejected":   "Your Partner Engineer application was not approved. Update your details and resubmit.",
-    "suspended":              "Your Partner Engineer access has been suspended. Contact GymAxis support.",
+    "suspended":              "Your Partner Engineer access has been suspended. Contact Pulse Fitness support.",
     "needs_subscription":     "Start the £30/mo Partner Engineer Plan to unlock the Engineer App. Discounts kick in automatically at 5 active referrals.",
     # Iter 220k — claim-time gates (read-only access still works so the
     # engineer can see what's blocking them).
@@ -4913,10 +4913,10 @@ async def create_customer_grant(body: dict = Body(...), user: dict = Depends(get
     if not isinstance(case_ids, list):
         raise HTTPException(400, "case_ids must be a list")
 
-    # Look up the engineer user (must already have a GymAxis account).
+    # Look up the engineer user (must already have a Pulse Fitness account).
     eng_user = await db.users.find_one({"email": engineer_email}, {"_id": 0, "id": 1, "email": 1, "full_name": 1})
     if not eng_user:
-        raise HTTPException(404, f"No GymAxis user with email '{engineer_email}'. Ask them to sign up first.")
+        raise HTTPException(404, f"No Pulse Fitness user with email '{engineer_email}'. Ask them to sign up first.")
 
     grant_id = _new_id()
     # Iter 220l — grants now auto-expire after 30 days (configurable via
@@ -5179,7 +5179,7 @@ async def find_engineers(
     user: dict = Depends(get_current_user),
 ):
     """Return verified / strategic Partner Engineers within reach of the
-    customer's postcode. GymAxis-only — Pulse users get 403.
+    customer's postcode. Pulse Fitness-only — Pulse users get 403.
 
     Surface limited fields only (NO email, phone, commercial data).
     """
@@ -5187,7 +5187,7 @@ async def find_engineers(
     # Also block if the user's own org is Pulse — guards customer-by-org.
     if user.get("organization_id"):
         if await _is_pulse_org(user["organization_id"]):
-            raise HTTPException(403, "The Partner Engineer Network is exclusive to GymAxis customers.")
+            raise HTTPException(403, "The Partner Engineer Network is exclusive to Pulse Fitness customers.")
 
     customer_pc = _validate_postcode(postcode)
     cur = db.partner_engineers.find(
@@ -5264,7 +5264,7 @@ async def request_engineer_contact(
     if not org_id:
         raise HTTPException(403, "Organization context required")
     if await _is_pulse_org(org_id):
-        raise HTTPException(403, "GymAxis-only programme")
+        raise HTTPException(403, "Pulse Fitness-only programme")
     partner = await db.partner_engineers.find_one(
         {"id": partner_id, "status": "approved",
          "level": {"$in": ["verified_partner", "strategic_partner"]}},

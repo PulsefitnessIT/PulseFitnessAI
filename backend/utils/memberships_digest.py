@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Weekly Autopilot Digest.
+"""Pulse Fitness Memberships — Weekly Autopilot Digest.
 
 Once per UTC-Monday, per organisation, we build a PDF executive brief +
 a concise HTML summary (headline + top-5 at-risk members) and email it to
@@ -140,7 +140,7 @@ async def _build_weekly_pdf(org_id: str) -> bytes | None:
         c.rect(0, H - 25 * mm, W, 25 * mm, fill=True, stroke=False)
         c.setFillColorRGB(1, 1, 1)
         c.setFont("Helvetica-Bold", 18)
-        c.drawString(20 * mm, H - 16 * mm, "GymAxis Memberships — Weekly Brief")
+        c.drawString(20 * mm, H - 16 * mm, "Pulse Fitness Memberships — Weekly Brief")
         c.setFont("Helvetica", 9)
         c.drawString(20 * mm, H - 22 * mm, f"Generated {now.isoformat()[:10]}")
 

@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 2 calendar sync.
+"""Pulse Fitness Memberships — Phase 2 calendar sync.
 
 Two ways for members and externals to subscribe to bookings:
 
@@ -85,7 +85,7 @@ def _wrap_calendar(events: list[list[str]], org_name: str) -> str:
     return "\r\n".join([
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//GymAxis//Memberships//EN",
+        "PRODID:-//Pulse Fitness//Memberships//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         f"X-WR-CALNAME:{_esc(org_name + ' bookings')}",
@@ -124,7 +124,7 @@ async def booking_ics(
     ) or {}
     body = _wrap_calendar(
         [_build_vevent(occ, tpl, booking, org.get("name") or "")],
-        org.get("name") or "GymAxis",
+        org.get("name") or "Pulse Fitness",
     )
     safe_name = (tpl.get("name") or "class").replace(" ", "-").lower()
     return Response(
@@ -222,7 +222,7 @@ async def calendar_feed(slug: str, token: str):
     ).to_list(500)
     if not bookings:
         return Response(
-            content=_wrap_calendar([], org.get("name") or "GymAxis"),
+            content=_wrap_calendar([], org.get("name") or "Pulse Fitness"),
             media_type="text/calendar; charset=utf-8",
         )
     occ_ids = [b["occurrence_id"] for b in bookings]
@@ -240,7 +240,7 @@ async def calendar_feed(slug: str, token: str):
             continue
         tpl = tpls.get(occ["template_id"]) or {}
         events.append(_build_vevent(occ, tpl, b, org.get("name") or ""))
-    body = _wrap_calendar(events, org.get("name") or "GymAxis")
+    body = _wrap_calendar(events, org.get("name") or "Pulse Fitness")
     return Response(
         content=body,
         media_type="text/calendar; charset=utf-8",

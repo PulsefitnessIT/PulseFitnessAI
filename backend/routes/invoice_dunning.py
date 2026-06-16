@@ -140,7 +140,7 @@ def _render_dunning_email_html(
     return f"""<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;background:#fff;">
   <div style="background:#0A0C10;padding:28px 30px;text-align:center;">
     <div style="color:{accent};font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px;">{headline}</div>
-    <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:-0.3px;">{org_name or 'GymAxis AI'} — invoice {invoice.get('number','')}</h1>
+    <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:-0.3px;">{org_name or 'Pulse Fitness AI'} — invoice {invoice.get('number','')}</h1>
   </div>
   <div style="padding:32px 30px;color:#1a1a1a;">
     <p style="line-height:1.6;margin:0 0 14px;">Hi,</p>
@@ -171,7 +171,7 @@ def _render_dunning_email_html(
     <p style="color:#9ca3af;font-size:12px;line-height:1.6;margin-top:24px;text-align:center;">{footer}</p>
   </div>
   <div style="background:#f5f5f5;padding:16px 30px;text-align:center;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from {org_name or 'GymAxis AI'} billing</p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from {org_name or 'Pulse Fitness AI'} billing</p>
   </div>
 </div>"""
 

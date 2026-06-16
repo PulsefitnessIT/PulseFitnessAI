@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Email digest dispatcher.
+Pulse Fitness Service Operations — Email digest dispatcher.
 
 Iter 216y (Phase 6+).
 
@@ -89,7 +89,7 @@ async def send_digest_for_org(
         return 0
     cadence = cadence_override or org.get("svc_digest_cadence") or "weekly"
     days = 1 if cadence == "daily" else 7
-    org_name = org.get("name") or "GymAxis"
+    org_name = org.get("name") or "Pulse Fitness"
 
     horizon_iso = (_now() - timedelta(days=days)).isoformat()
     now_iso = _now().isoformat()
@@ -123,7 +123,7 @@ async def send_digest_for_org(
     ).sort("closed_at", -1).limit(8).to_list(8)
 
     period_label = "yesterday" if cadence == "daily" else "the last 7 days"
-    subject = f"GymAxis service digest — {org_name} · {period_label}"
+    subject = f"Pulse Fitness service digest — {org_name} · {period_label}"
 
     def _row(c, ts_field):
         ts = c.get(ts_field) or ""
@@ -200,7 +200,7 @@ async def send_digest_for_org(
   </table>
 
   <p style='font-size:11px;color:#64748b;margin-top:24px'>
-    You're receiving this because the GymAxis Service Ops digest is enabled for {org_name}.
+    You're receiving this because the Pulse Fitness Service Ops digest is enabled for {org_name}.
     Toggle it off in <strong>Service Ops → Reports → Email digest</strong>.
   </p>
 </div>

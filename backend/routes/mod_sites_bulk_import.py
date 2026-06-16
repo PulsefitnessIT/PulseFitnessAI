@@ -505,9 +505,9 @@ async def mod_sites_download_credentials(
 
 CREDENTIALS_EMAIL_HTML = """<!DOCTYPE html><html><body style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #0f172a; line-height: 1.55;">
 <div style="max-width: 560px; margin: 0 auto; padding: 28px 24px;">
-  <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 8px;">Welcome to GymAxis — {site_name}</h1>
+  <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 8px;">Welcome to Pulse Fitness — {site_name}</h1>
   <p style="font-size: 14px; color: #334155; margin: 0 0 16px;">
-    Your base has been set up on the GymAxis Defence Estate Management platform.
+    Your base has been set up on the Pulse Fitness Defence Estate Management platform.
     Below are the credentials your team uses to log faults, view repair status,
     and escalate to DIO.
   </p>
@@ -526,7 +526,7 @@ CREDENTIALS_EMAIL_HTML = """<!DOCTYPE html><html><body style="font-family: ui-sa
       This message is the only record of the temporary password.
     </p>
   </div>
-  <p style="font-size: 12px; color: #64748b; margin-top: 24px;">— The GymAxis team</p>
+  <p style="font-size: 12px; color: #64748b; margin-top: 24px;">— The Pulse Fitness team</p>
 </div>
 </body></html>"""
 
@@ -596,7 +596,7 @@ async def mod_sites_send_credentials(
     background_tasks.add_task(
         _run_credentials_dispatch,
         batch_id, creds,
-        body.subject_override or "Your GymAxis login for {site_name}",
+        body.subject_override or "Your Pulse Fitness login for {site_name}",
         body.test_only_email,
     )
     return {

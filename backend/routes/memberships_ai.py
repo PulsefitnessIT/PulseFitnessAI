@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 5 AI Insights layer.
+"""Pulse Fitness Memberships — Phase 5 AI Insights layer.
 
 Four operator-only endpoints that turn raw class/booking data into
 revenue-positive recommendations:
@@ -422,7 +422,7 @@ async def pricing_recommendations(
     ) or {}
 
     sys = (
-        "You are GymAxis AI Pricing Strategist for an independent gym/"
+        "You are Pulse Fitness AI Pricing Strategist for an independent gym/"
         "studio. Use UK English. ALWAYS reply with ONE JSON object that "
         f"matches this schema EXACTLY (no markdown, no preamble):\n"
         f"{json.dumps(PRICING_SCHEMA)}\n\n"
@@ -445,7 +445,7 @@ async def pricing_recommendations(
         "<90 days strong signal), medium, low.\n"
     )
     user_msg = (
-        f"Studio: {org.get('name') or 'GymAxis customer'}.\n"
+        f"Studio: {org.get('name') or 'Pulse Fitness customer'}.\n"
         f"Org-wide last 90 days: fill_pct={org_fill_pct}%, "
         f"waitlist_ratio={org_waitlist_ratio}%, "
         f"capacity_sum={cap_sum}, bookings_sum={booked_sum}.\n\n"
@@ -585,7 +585,7 @@ async def class_suggestions(user: dict = Depends(get_current_user)):
     ) or {}
 
     sys = (
-        "You are GymAxis AI Programming Strategist for a gym/studio. "
+        "You are Pulse Fitness AI Programming Strategist for a gym/studio. "
         "UK English. ALWAYS reply with ONE JSON object that matches "
         f"this schema EXACTLY (no markdown, no preamble):\n"
         f"{json.dumps(CLASS_SUGGESTION_SCHEMA)}\n\n"
@@ -602,7 +602,7 @@ async def class_suggestions(user: dict = Depends(get_current_user)):
         "free of internal jargon.\n"
     )
     user_msg = (
-        f"Studio: {org.get('name') or 'GymAxis customer'}\n\n"
+        f"Studio: {org.get('name') or 'Pulse Fitness customer'}\n\n"
         f"Top-performing existing classes (last 90d):\n"
         f"{json.dumps(top_loved, indent=2)}\n\n"
         f"Most-waitlisted slots (last 90d):\n"

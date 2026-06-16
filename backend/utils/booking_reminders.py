@@ -1,4 +1,4 @@
-"""Booking reminder digest for GymAxis Memberships.
+"""Booking reminder digest for Pulse Fitness Memberships.
 
 Runs every ~5 minutes via the existing `sicon_poller` loop. For every
 booked class that starts in the next N hours (±2.5 min window so the
@@ -58,7 +58,7 @@ def _reminder_html(first: str, occ: dict, wave_label: str) -> str:
     <p style="color:#9ca3af;font-size:13px;">Can't make it? Tap the class in your member app to cancel — earlier is kinder to the waitlist.</p>
   </div>
   <div style="background:{_BRAND_BG};padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">GymAxis Memberships · Reminder</p>
+    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness Memberships · Reminder</p>
   </div>
 </div>"""
 

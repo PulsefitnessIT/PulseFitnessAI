@@ -3,11 +3,11 @@
 A *curated, brand-scoped* read-only data browser for Pulse Master Admins.
 
 Unlike the raw db-viewer (master_admin_db_viewer.py — every collection,
-GymAxis-only), this surface exposes a hand-picked whitelist of business
+Pulse Fitness-only), this surface exposes a hand-picked whitelist of business
 collections, each HARD-filtered to the requesting brand's Pulse Fitness
 organisations. A Pulse admin can therefore inspect their own
 orgs / users / equipment / faults / members / social posts without ever
-seeing GymAxis or other-tenant data.
+seeing Pulse Fitness or other-tenant data.
 
 Scoping:
   pulse_org_ids = organisation `id`s whose account_type/brand is Pulse
@@ -18,7 +18,7 @@ Scoping:
 Reuses redaction + search-field logic from the raw db-viewer.
 
 Endpoints (under /api/master-admin/pulse-explorer, require_master_admin —
-which permits both GymAxis and Pulse Master Admins; the data is identical
+which permits both Pulse Fitness and Pulse Master Admins; the data is identical
 either way because it is always brand-scoped):
   GET /collections
   GET /collections/{name}?page&page_size&q

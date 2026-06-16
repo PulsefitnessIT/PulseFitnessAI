@@ -7,7 +7,7 @@
  * `partner_applications` collection for Master Admin review.
  *
  * After approval the engineer gets an email magic-link to claim a
- * GymAxis account and finish onboarding via the existing wizard.
+ * Pulse Fitness account and finish onboarding via the existing wizard.
  */
 import { useMemo, useRef, useState } from 'react';
 import axios from 'axios';
@@ -71,9 +71,9 @@ function isValidUkPostcode(p) {
 
 export default function PartnerApplyPublic() {
   useSeo({
-    title: 'Apply — Partner Engineer Network · GymAxis AI',
-    description: 'Apply to join the GymAxis Partner Engineer Network. Upload your CV and certifications — most decisions within 2 working days.',
-    canonical: 'https://gymaxisai.com/partners/engineers/apply',
+    title: 'Apply — Partner Engineer Network · Pulse Fitness AI',
+    description: 'Apply to join the Pulse Fitness Partner Engineer Network. Upload your CV and certifications — most decisions within 2 working days.',
+    canonical: 'https://www.pulsefitness.ai/partners/engineers/apply',
   });
 
   // Iter 216h287 — Gap 9: capture engineer-of-engineer referral code
@@ -282,7 +282,7 @@ export default function PartnerApplyPublic() {
               Apply to the <span className="gx-gradient-text">Engineer Network.</span>
             </h1>
             <p className="mt-3 text-base text-slate-600 leading-relaxed">
-              5-minute form. Upload your CV and any qualifications — we'll review and email you within 2 working days. No GymAxis account needed yet.
+              5-minute form. Upload your CV and any qualifications — we'll review and email you within 2 working days. No Pulse Fitness account needed yet.
             </p>
             {erefCode && (
               <div className="mt-4 inline-flex items-center gap-2 text-[12px] font-semibold text-blue-900 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"

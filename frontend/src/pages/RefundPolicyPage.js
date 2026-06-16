@@ -29,7 +29,7 @@ const RefundPolicyPage = () => (
 
       <div className="prose prose-zinc max-w-none text-sm leading-relaxed text-zinc-700">
         <p className="text-base text-zinc-800 font-medium">
-          We want you to feel comfortable trying GymAxis. This page tells you exactly when you&apos;ll be charged, how to cancel, and how refunds work — no fine-print games.
+          We want you to feel comfortable trying Pulse Fitness. This page tells you exactly when you&apos;ll be charged, how to cancel, and how refunds work — no fine-print games.
         </p>
 
         <Section title="1. The 3-day free trial">
@@ -72,10 +72,10 @@ const RefundPolicyPage = () => (
 
         <Section title="6. How to ask">
           <p>
-            Email <strong>billing@gymaxisai.com</strong> with the subject &ldquo;Refund request&rdquo; or &ldquo;Cancel my plan&rdquo; and the email on the account. We aim to reply the same business day; worst case, two business days.
+            Email <strong>billing@pulsefitness.ai</strong> with the subject &ldquo;Refund request&rdquo; or &ldquo;Cancel my plan&rdquo; and the email on the account. We aim to reply the same business day; worst case, two business days.
           </p>
           <p className="text-zinc-500">
-            <Mail size={12} className="inline mr-1" /> billing@gymaxisai.com — for everything else, see the <a href="/contact" className="text-blue-600 underline">Contact page</a>.
+            <Mail size={12} className="inline mr-1" /> billing@pulsefitness.ai — for everything else, see the <a href="/contact" className="text-blue-600 underline">Contact page</a>.
           </p>
         </Section>
 

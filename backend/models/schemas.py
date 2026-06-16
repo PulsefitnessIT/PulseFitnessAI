@@ -12,7 +12,7 @@ class UserRegister(BaseModel):
     is_trial: Optional[bool] = False
     trial_duration_days: Optional[int] = 3
     # Iter 215bc — when true (default), the trial unlocks every module so
-    # prospects can evaluate the entire GymAxis platform during the
+    # prospects can evaluate the entire Pulse Fitness platform during the
     # 3-day window. Legacy bolt-on funnels (per-module trials) pass false.
     trial_unlock_all_modules: Optional[bool] = True
     phone: Optional[str] = None

@@ -361,11 +361,11 @@ async def search_equipment_global(
 
 # ── Cross-customer Supplier Health (Iter 216h52) ─────────────────
 #
-# GymAxis ops want a top-down view of how their supplier ecosystem
+# Pulse Fitness ops want a top-down view of how their supplier ecosystem
 # is performing across every gym customer — which suppliers are
 # servicing the most kit, who has open faults stacking up, who's
 # blowing through SLAs. This drives renewal negotiations and lets
-# GymAxis chase under-performing suppliers on behalf of customers
+# Pulse Fitness chase under-performing suppliers on behalf of customers
 # rather than each gym chasing individually.
 #
 # Suppliers are grouped by normalised name (lower-cased, suffix-

@@ -172,7 +172,7 @@ const CardShareBox = () => {
     if (!info?.share_url) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'My GymAxis request link', url: info.share_url });
+        await navigator.share({ title: 'My Pulse Fitness request link', url: info.share_url });
       } catch { /* user dismissed */ }
     } else {
       copy();

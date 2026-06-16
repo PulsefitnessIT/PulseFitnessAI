@@ -5,10 +5,10 @@
  *
  * Usage:
  *   useSeo({
- *     title: 'Pricing | GymAxis AI',
+ *     title: 'Pricing | Pulse Fitness AI',
  *     description: '£150/mo for one site. Add modules à la carte. 3-day trial.',
- *     canonical: 'https://gymaxisai.com/pricing',
- *     image: 'https://gymaxisai.com/og/pricing.jpg',
+ *     canonical: 'https://www.pulsefitness.ai/pricing',
+ *     image: 'https://www.pulsefitness.ai/og/pricing.jpg',
  *     type: 'website',
  *     structuredData: { '@context': 'https://schema.org', '@type': 'Product', ... }
  *   });
@@ -58,7 +58,7 @@ export const useSeo = ({ title, description, canonical, image, type = 'website',
     // Iter 216o-6 — capture the previous title so navigating away from
     // a page that called `useSeo` restores the document title (otherwise
     // visiting /pricing then /dashboard leaves the tab labelled
-    // "Pricing — GymAxis AI" forever).
+    // "Pricing — Pulse Fitness AI" forever).
     const previousTitle = document.title;
     if (title) document.title = title;
     if (description) setMeta('meta[name="description"]', 'content', description);
@@ -69,7 +69,7 @@ export const useSeo = ({ title, description, canonical, image, type = 'website',
     setMeta('meta[property="og:type"]', 'content', type);
     setMeta('meta[property="og:url"]', 'content', canonical || window.location.href);
     setMeta('meta[property="og:image"]', 'content', image);
-    setMeta('meta[property="og:site_name"]', 'content', 'GymAxis AI');
+    setMeta('meta[property="og:site_name"]', 'content', 'Pulse Fitness AI');
 
     // Twitter card
     setMeta('meta[name="twitter:card"]', 'content', image ? 'summary_large_image' : 'summary');
@@ -93,15 +93,15 @@ export const useSeo = ({ title, description, canonical, image, type = 'website',
 export const orgJsonLd = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'GymAxis AI',
-  url: 'https://gymaxisai.com',
-  logo: 'https://gymaxisai.com/brand/gymaxis-logo.svg',
+  name: 'Pulse Fitness AI',
+  url: 'https://www.pulsefitness.ai',
+  logo: 'https://www.pulsefitness.ai/brand/pulse-mark.svg',
   description: 'All-in-one platform for fitness operators: CRM, memberships, marketing, and gym operations.',
-  sameAs: ['https://www.instagram.com/gymaxisai'],
+  sameAs: ['https://www.instagram.com/pulsefitnessai'],
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
-    email: 'support@gymaxisai.com',
+    email: 'support@pulsefitness.ai',
     areaServed: 'GB',
     availableLanguage: ['English'],
   },
@@ -110,11 +110,11 @@ export const orgJsonLd = () => ({
 export const softwareJsonLd = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'GymAxis AI',
+  name: 'Pulse Fitness AI',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description: 'Multi-tenant fitness operations platform for gyms, leisure centres, and studios.',
-  image: ['https://gymaxisai.com/brand/og-cover.jpg'],
+  image: ['https://www.pulsefitness.ai/brand/og-cover.jpg'],
   offers: {
     '@type': 'AggregateOffer',
     lowPrice: '29.00',

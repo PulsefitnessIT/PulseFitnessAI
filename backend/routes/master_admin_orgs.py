@@ -128,7 +128,7 @@ async def get_all_organizations(
         org_filter["account_type"] = {"$in": PULSE_VISIBLE_ACCOUNT_TYPES}
     # Iter 216h18 — Master Admin brand context filter. Applies after
     # the pulse-only guard so a Pulse Master Admin who flips the
-    # picker to "GymAxis" still sees nothing (their permission gate
+    # picker to "Pulse Fitness" still sees nothing (their permission gate
     # always wins).
     org_filter = merge_brand_filter(org_filter, brand, collection="organizations")
 
@@ -324,7 +324,7 @@ async def update_org_status(org_id: str, body: dict = Body(...), user: dict = De
 
 @router.put("/master-admin/organizations/{org_id}/subscription")
 async def update_org_subscription(org_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)):
-    """Update org subscription. Accepts both GymAxis tiers (`free`/`pro`/`premium`/
+    """Update org subscription. Accepts both Pulse Fitness tiers (`free`/`pro`/`premium`/
     `enterprise`/`starter`/`professional`) and Pulse tiers (`lite`/`pulse_pro`).
 
     For Pulse tiers we also flip `account_type` so feature gating picks up the new

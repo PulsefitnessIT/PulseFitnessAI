@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Reporting & Analytics Engine.
+"""Pulse Fitness Memberships — Reporting & Analytics Engine.
 
 All read-only aggregation endpoints powering the operator Analytics tab.
 Scoped by `organization_id` via the operator JWT so multi-tenant isolation
@@ -1005,7 +1005,7 @@ async def export_pdf(
     c.rect(0, H - 25 * mm, W, 25 * mm, fill=True, stroke=False)
     c.setFillColorRGB(1, 1, 1)
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(20 * mm, H - 16 * mm, "GymAxis Memberships — Weekly Brief")
+    c.drawString(20 * mm, H - 16 * mm, "Pulse Fitness Memberships — Weekly Brief")
     c.setFont("Helvetica", 9)
     c.drawString(20 * mm, H - 22 * mm, f"Generated {_iso(_now())[:10]}")
 
@@ -1504,11 +1504,11 @@ async def public_share_page(slug: str):
     brand = org.get("primary_brand_colour") or "#19CDFF"
     og_img = f"{origin}/api/m/{slug}/og.png"
     target = f"{origin}/m/{slug}/brag"
-    description = "Live class times, instant booking, and your member app — powered by GymAxis."
+    description = "Live class times, instant booking, and your member app — powered by Pulse Fitness."
     html = f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<title>{name} · GymAxis</title>
+<title>{name} · Pulse Fitness</title>
 <meta name="description" content="{description}">
 <meta property="og:title" content="{name}">
 <meta property="og:description" content="{description}">

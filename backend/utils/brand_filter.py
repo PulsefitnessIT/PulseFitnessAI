@@ -14,10 +14,10 @@ A record belongs to:
               OR `brand` in {gymaxis, ""}
   • all     — no filter applied
 
-`lite`/null are intentionally classified as GymAxis (GymAxis is the
+`lite`/null are intentionally classified as Pulse Fitness (Pulse Fitness is the
 platform default — Pulse Fitness customers are explicitly marked).
 This matches the production reality where 21 orgs have account_type
-NULL and they are all legacy GymAxis customers.
+NULL and they are all legacy Pulse Fitness customers.
 """
 from __future__ import annotations
 

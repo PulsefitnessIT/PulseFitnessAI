@@ -10,7 +10,7 @@ data-quality issues reported by the user on production:
   2. Pulse Pro / Pulse Lite orgs missing branding inheritance.
      Legacy orgs created before Iter 215el's `onboard_head_office` flow
      have no `branding` field, so the operator-facing UI falls back to
-     GymAxis branding. This backfills `branding.company_name = "Pulse
+     Pulse Fitness branding. This backfills `branding.company_name = "Pulse
      Fitness"` and the cyan brand colour for any Pulse-tier org that
      doesn't already have one.
 

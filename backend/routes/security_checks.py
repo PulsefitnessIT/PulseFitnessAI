@@ -24,7 +24,7 @@ Why both?
     between "what we built" and "what's happening right now".
 
 Visibility
-    Restricted to ``platform_role == "master_admin"`` (both GymAxis and
+    Restricted to ``platform_role == "master_admin"`` (both Pulse Fitness and
     Pulse Fitness master admins inherit the same role — there is no
     brand split at this level).
 """
@@ -217,7 +217,7 @@ BUILD_CHECKS: list[dict[str, Any]] = [
         "date": "2026-04-28",
         "category": "code",
         "title": "Brand-aware customer-email URLs",
-        "description": "utils/brand_urls.app_url_for(account_type) routes GymAxis orgs to https://gymaxisai.com and Pulse Fitness orgs to https://pulsefitness.ai. Customer-facing emails (supplier portal, password reset, onboarding) never expose preview.emergentagent.com.",
+        "description": "utils/brand_urls.app_url_for(account_type) routes Pulse Fitness orgs to https://www.pulsefitness.ai and Pulse Fitness orgs to https://pulsefitness.ai. Customer-facing emails (supplier portal, password reset, onboarding) never expose preview.emergentagent.com.",
         "evidence": ["backend/utils/brand_urls.py", "backend/routes/supplier_portal.py", "iteration_205"],
         "status": "passed",
     },
@@ -363,8 +363,8 @@ async def security_checks_pdf(user: dict = Depends(get_current_user)):
         buf, pagesize=A4,
         leftMargin=18 * mm, rightMargin=18 * mm,
         topMargin=18 * mm, bottomMargin=18 * mm,
-        title="GymAxis AI — Security Controls",
-        author="GymAxis AI",
+        title="Pulse Fitness AI — Security Controls",
+        author="Pulse Fitness AI",
     )
 
     styles = getSampleStyleSheet()
@@ -389,12 +389,12 @@ async def security_checks_pdf(user: dict = Depends(get_current_user)):
     story: list = []
 
     # ── Cover page ───────────────────────────────────────────────
-    story.append(Paragraph("GymAxis AI", eyebrow))
+    story.append(Paragraph("Pulse Fitness AI", eyebrow))
     story.append(Paragraph("Security Controls Manifest", h1))
     story.append(Paragraph(
         f"Generated {datetime.now(timezone.utc).strftime('%d %B %Y')} — covers every "
         "deliberate security and reliability control we shipped during the build of the "
-        "GymAxis AI / Pulse Fitness platform. Each entry includes the date it landed, "
+        "Pulse Fitness AI / Pulse Fitness platform. Each entry includes the date it landed, "
         "the category, a short description and a list of evidence files in the repository.",
         body,
     ))

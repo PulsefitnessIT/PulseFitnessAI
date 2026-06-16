@@ -55,7 +55,7 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
   const kpiCards = [
     { label: 'Organisations', value: stats.total_organizations, icon: Building2, palette: KPI_PALETTES.organisations, testid: 'kpi-organisations',
       onClick: () => onGoSection?.('organizations'),
-      tip: 'Total tenants on the platform — counts every organisation in the directory regardless of subscription tier or status (excludes the GymAxis Master Admin tenant).' },
+      tip: 'Total tenants on the platform — counts every organisation in the directory regardless of subscription tier or status (excludes the Pulse Fitness Master Admin tenant).' },
     { label: 'Active Users', value: stats.total_users, icon: Users, palette: KPI_PALETTES.users, testid: 'kpi-active-users',
       onClick: () => onGoSection?.('roles'),
       tip: 'All user accounts across every organisation that have logged in at least once and aren\'t suspended.' },
@@ -139,7 +139,7 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
       </div>
 
       {/* 3 · Trial Pipeline — single source of truth (cross-module).
-           Hidden for Pulse Master Admins (the GymAxis trial pipeline is
+           Hidden for Pulse Master Admins (the Pulse Fitness trial pipeline is
            platform self-promo data, not Pulse-scoped). */}
       {!isPulseAdmin && <UnifiedTrialsCard onGoTrials={onGoTrials} />}
 

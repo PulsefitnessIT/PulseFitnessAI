@@ -1,8 +1,8 @@
-"""Idempotent GymAxis Memberships demo seed.
+"""Idempotent Pulse Fitness Memberships demo seed.
 
 Creates:
   • One demo studio org (`Pulse Studio · Leeds`) attached to the same
-    master-admin user so login flows through the standard GymAxis operator
+    master-admin user so login flows through the standard Pulse Fitness operator
     side.
   • 4 membership plans (Monthly Unlimited / 10-Class Pack / Annual /
     Day Pass).
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 DEMO_ORG_ID = "mbr-demo-org"
-DEMO_OPERATOR_EMAIL = os.environ.get("DEMO_OPERATOR_EMAIL", "studio.leeds@gymaxisai.com")
+DEMO_OPERATOR_EMAIL = os.environ.get("DEMO_OPERATOR_EMAIL", "studio.leeds@pulsefitness.ai")
 DEMO_OPERATOR_PASSWORD = os.environ.get("DEMO_OPERATOR_PASSWORD", "Studio2026!")
 DEMO_INSTRUCTOR_EMAIL = os.environ.get("DEMO_INSTRUCTOR_EMAIL", "jake.ellis@demo.gymaxis")
 DEMO_INSTRUCTOR_PASSWORD = os.environ.get("DEMO_INSTRUCTOR_PASSWORD", "Instructor2026!")

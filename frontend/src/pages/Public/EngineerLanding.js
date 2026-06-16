@@ -6,7 +6,7 @@
  *   • Logged-out: hero pitch + sign-in form + "Apply" CTA.
  *   • Logged-in engineer: instant redirect into /svc/engineer.
  *
- * Designed light-mode GymAxis aesthetic with bold typography. No
+ * Designed light-mode Pulse Fitness aesthetic with bold typography. No
  * dependency on the main marketing site so this can be linked from
  * physical supplier cards, ads, or LinkedIn without footer/menu noise.
  */
@@ -69,7 +69,7 @@ const LoginCard = ({ onSuccess }) => {
       data-testid="engineer-landing-login"
     >
       <h3 className="text-base font-extrabold text-slate-900 mb-1">Sign in</h3>
-      <p className="text-xs text-slate-500 mb-4">For existing GymAxis engineers.</p>
+      <p className="text-xs text-slate-500 mb-4">For existing Pulse Fitness engineers.</p>
       <label className="block mb-3">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1 inline-block">
           Email
@@ -154,7 +154,7 @@ export default function EngineerLanding() {
         <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-slate-900 font-extrabold tracking-tight" data-testid="engineer-landing-logo">
             <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-sm">G</span>
-            GymAxis · Engineer
+            Pulse Fitness · Engineer
           </Link>
           <div className="flex items-center gap-2 text-xs">
             <Link to="/partners/engineers/apply" className="px-3 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 font-semibold" data-testid="engineer-landing-apply-top">
@@ -178,7 +178,7 @@ export default function EngineerLanding() {
             <span className="block text-blue-600">Keep 100% of the invoice.</span>
           </h1>
           <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed mb-6">
-            GymAxis Engineer is the workforce-ops app fitness pros run their entire field operation from — jobs, AI-drafted quotes, Stripe-funded invoices, voice reports — without a dispatcher.
+            Pulse Fitness Engineer is the workforce-ops app fitness pros run their entire field operation from — jobs, AI-drafted quotes, Stripe-funded invoices, voice reports — without a dispatcher.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <a
@@ -207,7 +207,7 @@ export default function EngineerLanding() {
         <div id="signin">
           <LoginCard onSuccess={() => { window.location.href = '/svc/engineer'; }} />
           <p className="text-[11px] text-center text-slate-500 mt-3">
-            Don&apos;t have a GymAxis account yet?{' '}
+            Don&apos;t have a Pulse Fitness account yet?{' '}
             <Link to="/partners/engineers/apply" className="text-blue-700 font-semibold hover:underline">
               Apply to become a partner engineer
             </Link>
@@ -219,7 +219,7 @@ export default function EngineerLanding() {
       <section className="max-w-6xl mx-auto px-5 py-10">
         <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Everything you need on one screen</h2>
         <p className="text-sm text-slate-500 mb-6 max-w-2xl">
-          From the moment a customer scans your card to the second the invoice lands in your bank — GymAxis runs the whole loop.
+          From the moment a customer scans your card to the second the invoice lands in your bank — Pulse Fitness runs the whole loop.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Feature icon={Calendar} title="Diary &amp; scheduling" body="Week and day views over jobs, PPMs and personal blocks. Drag-to-reschedule." testid="feat-diary" />
@@ -239,7 +239,7 @@ export default function EngineerLanding() {
         <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-8 sm:p-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
           <div>
             <h3 className="text-2xl font-extrabold mb-1">Ready to ditch the dispatcher?</h3>
-            <p className="text-sm text-blue-100">Join GymAxis as a partner engineer and start taking work in days.</p>
+            <p className="text-sm text-blue-100">Join Pulse Fitness as a partner engineer and start taking work in days.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
             <Link
@@ -262,7 +262,7 @@ export default function EngineerLanding() {
       </section>
 
       <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} GymAxis · For partner engineers ·{' '}
+        © {new Date().getFullYear()} Pulse Fitness · For partner engineers ·{' '}
         <Link to="/privacy" className="hover:underline">Privacy</Link>{' · '}
         <Link to="/terms" className="hover:underline">Terms</Link>
       </footer>

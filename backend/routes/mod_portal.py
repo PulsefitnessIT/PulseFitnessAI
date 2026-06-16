@@ -1426,7 +1426,7 @@ async def mod_fault_submit(
     # Phase 2 — URGENT escalation email to the platform on-call.
     if priority == "urgent":
         oncall = os.environ.get("MOD_ONCALL_EMAIL") or os.environ.get(
-            "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@gymaxisai.com",
+            "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai",
         )
         subject = f"[MOD URGENT] {ticket_ref} — {org.get('name')} — {equipment.get('name')}"
         html = _escalation_email_html(org, equipment, doc)
@@ -2209,7 +2209,7 @@ async def mod_hq_set_dio_contract(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """HQ owner/manager (or GymAxis master admin) records the DIO
+    """HQ owner/manager (or Pulse Fitness master admin) records the DIO
     contract reference + the nominated escalation contact for a child
     site."""
     is_master = bool(user.get("is_master_admin")
@@ -2243,7 +2243,7 @@ async def mod_hq_set_dio_contract(
 
 @router.get("/mod/pro/sites/{site_id}/dio-contract")
 async def mod_hq_get_dio_contract(site_id: str, user: dict = Depends(get_current_user)):
-    # Master admins (GymAxis ops) can read any MOD site's DIO contract
+    # Master admins (Pulse Fitness ops) can read any MOD site's DIO contract
     # for support purposes.
     is_master = bool(user.get("is_master_admin")
                       or user.get("account_type") == "gymaxis_admin")
@@ -2634,7 +2634,7 @@ async def mod_drill_start(site_id: str, payload: DrillStartPayload, user: dict =
         "usable": "no",
         "safe_in_service": payload.safe_in_service,
         "reporter_name": f"DRILL · {user.get('email', 'master-admin')}",
-        "reporter_email": user.get("email", "admin@gymaxisai.com"),
+        "reporter_email": user.get("email", "admin@pulsefitness.ai"),
         "reporter_phone": "N/A",
         "attachment_urls": [],
         "priority": "urgent",
@@ -2651,7 +2651,7 @@ async def mod_drill_start(site_id: str, payload: DrillStartPayload, user: dict =
     observers_raw = os.environ.get(
         "MOD_DRILL_OBSERVERS_EMAIL",
         os.environ.get("MOD_ROTATION_NOTIFY_EMAIL",
-                       os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@gymaxisai.com")),
+                       os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai")),
     )
     observers = [e.strip() for e in observers_raw.split(",") if e.strip()]
     subject = f"[MOD DRILL · {payload.scenario}] {ticket_ref} — {site.get('name')} — SIMULATION"

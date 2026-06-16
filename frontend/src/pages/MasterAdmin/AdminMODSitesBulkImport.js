@@ -476,7 +476,7 @@ export default function AdminMODSitesBulkImport() {
                   <Mail size={12} /> Option B — Email each base direct
                 </p>
                 <p className="text-xs text-emerald-900 mb-3">
-                  GymAxis emails each site's <code>site_manager_email</code> their
+                  Pulse Fitness emails each site's <code>site_manager_email</code> their
                   individual login + password via Resend. Then download the
                   per-recipient delivery receipt for your audit trail —
                   no manual CSV distribution required.

@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 # Trial-ending CTA destination — login-gated paid checkout page (iter 221).
 # Deliberately the in-app /choose-plan page (no free-trial re-offer), not the
 # public marketing pricing page.
-CHOOSE_PLAN_URL = "https://gymaxisai.com/choose-plan"
+CHOOSE_PLAN_URL = "https://www.pulsefitness.ai/choose-plan"
 # Iter 259 — Service Providers convert on their dedicated Stripe page.
-PROVIDER_UPGRADE_URL = "https://gymaxisai.com/service-desk/upgrade"
+PROVIDER_UPGRADE_URL = "https://www.pulsefitness.ai/service-desk/upgrade"
 
 # Trial status transitions
 STATUS_ACTIVE = "active"
@@ -94,18 +94,18 @@ def _trial_reminder_html(org_name: str, days_left: int, upgrade_url: str) -> str
     hero_bg = "#EF4444" if days_left <= 1 else "#F59E0B" if days_left <= 4 else "#0055FF"
     return f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: {hero_bg}; padding: 36px 30px; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">{urgency} of your GymAxis trial</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">{urgency} of your Pulse Fitness trial</h1>
     </div>
     <div style="padding: 40px 32px;">
         <h2 style="color: #1a1a1a; margin: 0 0 16px;">Hi {org_name},</h2>
-        <p style="color: #444; line-height: 1.7;">Your 2-week trial of GymAxis ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. To keep your equipment data, PPM schedules, and site history, upgrade now and we'll switch you over seamlessly — no re-import required.</p>
+        <p style="color: #444; line-height: 1.7;">Your 2-week trial of Pulse Fitness ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. To keep your equipment data, PPM schedules, and site history, upgrade now and we'll switch you over seamlessly — no re-import required.</p>
         <div style="text-align: center; margin: 32px 0;">
             <a href="{upgrade_url}" style="display: inline-block; background: #0055FF; color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro</a>
         </div>
         <p style="color: #888; font-size: 13px;">If you'd prefer to chat first, just reply to this email.</p>
     </div>
     <div style="background: #f5f5f5; padding: 18px; text-align: center;">
-        <p style="color: #888; font-size: 12px; margin: 0;">GymAxis AI · Gym Equipment Maintenance Platform</p>
+        <p style="color: #888; font-size: 12px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
     </div>
     </div>"""
 
@@ -128,7 +128,7 @@ def _provider_trial_reminder_html(org_name: str, days_left: int, upgrade_url: st
         <p style="color: #888; font-size: 13px;">Unlimited engineers, cases and customers &middot; cancel anytime. Questions? Just reply to this email.</p>
     </div>
     <div style="background: #f5f5f5; padding: 18px; text-align: center;">
-        <p style="color: #888; font-size: 12px; margin: 0;">GymAxis Service Desk &middot; Field service operations for fitness suppliers</p>
+        <p style="color: #888; font-size: 12px; margin: 0;">Pulse Fitness Service Desk &middot; Field service operations for fitness suppliers</p>
     </div>
     </div>"""
 
@@ -182,8 +182,8 @@ async def _send_reminder_if_due(org: Dict[str, Any], frontend_url: str) -> bool:
     else:
         upgrade_url = CHOOSE_PLAN_URL
         html = _trial_reminder_html(org.get("name", "there"), days_left or 1, upgrade_url)
-        subject = ("Final day of your GymAxis trial" if due_marker == "day13"
-                   else f"{days_left} days left of your GymAxis trial")
+        subject = ("Final day of your Pulse Fitness trial" if due_marker == "day13"
+                   else f"{days_left} days left of your Pulse Fitness trial")
     sent_ok = await send_email(recipient, subject, html, organization_id=org_id)
     if sent_ok:
         await db.organizations.update_one(

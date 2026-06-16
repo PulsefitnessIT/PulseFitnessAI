@@ -1,6 +1,6 @@
 /**
  * PageHeader — canonical title + subtitle + actions strip used across
- * GymAxis (full) and Pulse Lite portals so every sub-page (Faults,
+ * Pulse Fitness (full) and Pulse Lite portals so every sub-page (Faults,
  * Reports, Suppliers, Documents, Staffing) shares the same visual
  * architecture.
  *

@@ -959,7 +959,7 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  <div className="space-y-6" data-testid="onboarding-wizard">
  <div>
  <h3 className="text-xl font-semibold text-[var(--theme-text)]">Onboarding Setup</h3>
- <p className="text-[var(--color-text-muted)] text-sm">Follow these steps to get your gym set up on GymAxis AI</p>
+ <p className="text-[var(--color-text-muted)] text-sm">Follow these steps to get your gym set up on Pulse Fitness AI</p>
  </div>
 
  {/* Step Progress */}

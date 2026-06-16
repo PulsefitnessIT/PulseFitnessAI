@@ -71,7 +71,7 @@ export const UK_COUNTIES = [
 // Use as both <datalist> fallback (preserves free-text) AND a typeahead
 // trigger in the host component.
 export const COUNTRIES = [
-  // GymAxis / Pulse Fitness primary markets
+  // Pulse Fitness / Pulse Fitness primary markets
   'United Kingdom',
   'Ireland',
   'France',
@@ -172,7 +172,7 @@ export const CRM_TASK_PRIORITY_OPTIONS = [
 ];
 
 // Currency (Tier B item #11). Real list — we surface GBP first because
-// that's the Pulse Fitness / GymAxis primary market.
+// that's the Pulse Fitness / Pulse Fitness primary market.
 export const CURRENCY_OPTIONS = [
   { value: 'GBP', label: '£ GBP (Pound Sterling)' },
   { value: 'EUR', label: '€ EUR (Euro)' },

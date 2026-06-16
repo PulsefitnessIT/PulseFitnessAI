@@ -101,7 +101,7 @@ async def get_security_document_txt(request: Request) -> Response:
         headers={
             **_CACHE_HEADERS,
             # `inline` (not `attachment`) so it opens in-browser.
-            "Content-Disposition": 'inline; filename="GymAxis_Security.txt"',
+            "Content-Disposition": 'inline; filename="PulseFitness_Security.txt"',
         },
     )
 
@@ -135,7 +135,7 @@ def _build_pdf(markdown_text: str) -> bytes:
 
     pdf.set_font("Helvetica", "", 16)
     pdf.set_text_color(148, 163, 184)
-    pdf.cell(0, 10, _sanitize("GymAxis AI — Posture & Hardening"),
+    pdf.cell(0, 10, _sanitize("Pulse Fitness AI — Posture & Hardening"),
              align="C", new_x="LMARGIN", new_y="NEXT")
 
     pdf.ln(6)
@@ -158,7 +158,7 @@ def _build_pdf(markdown_text: str) -> bytes:
     pdf.set_y(260)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(*BODY_LIGHT)
-    pdf.cell(0, 5, _sanitize("GymAxis AI Ltd — security@gymaxisai.com"),
+    pdf.cell(0, 5, _sanitize("Pulse Fitness AI Ltd — security@pulsefitness.ai"),
              align="C", new_x="LMARGIN", new_y="NEXT")
 
     # Body
@@ -181,6 +181,6 @@ async def get_security_document_pdf(request: Request) -> Response:
         media_type="application/pdf",
         headers={
             **_CACHE_HEADERS,
-            "Content-Disposition": 'attachment; filename="GymAxis_Security.pdf"',
+            "Content-Disposition": 'attachment; filename="PulseFitness_Security.pdf"',
         },
     )

@@ -13,9 +13,9 @@ import { Activity, FileText, Mail } from 'lucide-react';
  */
 const SlaPage = () => {
   useSeo({
-    title: 'Service Level Agreement | GymAxis AI',
-    description: 'Uptime targets, service credits, support response times, backup commitments and incident communications for GymAxis AI customers.',
-    canonical: 'https://gymaxisai.com/sla',
+    title: 'Service Level Agreement | Pulse Fitness AI',
+    description: 'Uptime targets, service credits, support response times, backup commitments and incident communications for Pulse Fitness AI customers.',
+    canonical: 'https://www.pulsefitness.ai/sla',
   });
 
   return (
@@ -32,7 +32,7 @@ const SlaPage = () => {
             <strong>Last updated:</strong> 28 May 2026 · v1.0
           </p>
           <p className="text-base text-slate-600 mb-8">
-            This SLA forms part of the GymAxis AI <Link to="/terms" className="text-[var(--gx-brand-from)] underline">Terms of Service</Link> and applies
+            This SLA forms part of the Pulse Fitness AI <Link to="/terms" className="text-[var(--gx-brand-from)] underline">Terms of Service</Link> and applies
             to all paid plans unless a signed Order Form modifies it. The single-pod preview environment used by free trials is <strong>not</strong>{' '}
             covered — production deployments only.
           </p>
@@ -43,7 +43,7 @@ const SlaPage = () => {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-slate-900">Need a counter-signed copy?</p>
                 <p className="text-sm text-slate-600 mt-1">
-                  Email <a href="mailto:billing@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">billing@gymaxisai.com</a> with
+                  Email <a href="mailto:billing@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">billing@pulsefitness.ai</a> with
                   your company details and plan tier. We respond within one business day with a PDF of this SLA pre-signed by our COO.
                 </p>
               </div>
@@ -53,7 +53,7 @@ const SlaPage = () => {
           <article className="prose prose-slate max-w-none text-sm leading-relaxed">
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">1. Definitions</h2>
             <ul className="list-disc pl-6 space-y-1 text-slate-700">
-              <li><strong>Service</strong>: the GymAxis AI web application — Master Admin, CRM, Memberships, Service Desk, Engineer App, and the public marketing site.</li>
+              <li><strong>Service</strong>: the Pulse Fitness AI web application — Master Admin, CRM, Memberships, Service Desk, Engineer App, and the public marketing site.</li>
               <li><strong>Uptime</strong>: the percentage of minutes in a calendar month during which the Service responds to a <code>GET /api/health</code> request with HTTP 200 within 5 seconds.</li>
               <li><strong>Excluded Time</strong>: scheduled maintenance announced at least 48 hours in advance; downtime caused by Customer-side issues (Customer's network, credentials, third-party integrations they connect themselves); Force Majeure as defined in the Terms of Service.</li>
               <li><strong>Incident</strong>: a continuous period of more than 5 minutes during which the Service is below the Uptime threshold.</li>
@@ -92,7 +92,7 @@ const SlaPage = () => {
               <li>Service credits are the Customer's <strong>sole and exclusive remedy</strong> for failure to meet the Uptime target.</li>
               <li>Maximum credit in any calendar month: <strong>100%</strong> of that month's affected workload fee.</li>
               <li>Credits do not accumulate beyond the month earned and have no cash value.</li>
-              <li>Customer must submit a credit request within <strong>30 days</strong> of the end of the affected month, in writing to <a href="mailto:billing@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">billing@gymaxisai.com</a>, with reasonable supporting evidence (timestamps, screenshots, request IDs).</li>
+              <li>Customer must submit a credit request within <strong>30 days</strong> of the end of the affected month, in writing to <a href="mailto:billing@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">billing@pulsefitness.ai</a>, with reasonable supporting evidence (timestamps, screenshots, request IDs).</li>
             </ul>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">4. Support response times</h2>
@@ -109,11 +109,11 @@ const SlaPage = () => {
                 </tbody>
               </table>
             </div>
-            <p>Support channels: <a href="mailto:support@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">support@gymaxisai.com</a> (all tiers) · Slack Connect (Growth + Enterprise) · Phone (Enterprise only, OOH for P0 only).</p>
+            <p>Support channels: <a href="mailto:support@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">support@pulsefitness.ai</a> (all tiers) · Slack Connect (Growth + Enterprise) · Phone (Enterprise only, OOH for P0 only).</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">5. Scheduled maintenance</h2>
             <ul className="list-disc pl-6 space-y-1 text-slate-700">
-              <li>GymAxis publishes maintenance windows on the status page at least <strong>48 hours</strong> in advance.</li>
+              <li>Pulse Fitness publishes maintenance windows on the status page at least <strong>48 hours</strong> in advance.</li>
               <li>Routine maintenance is targeted at <strong>02:00–05:00 UK time</strong>, max <strong>once per calendar month</strong>, max <strong>4 hours</strong> per window.</li>
               <li>Emergency maintenance (e.g. a critical security patch) may be performed with shorter notice; this time IS counted toward Excluded Time.</li>
             </ul>
@@ -138,14 +138,14 @@ const SlaPage = () => {
             <p>A confirmed personal-data breach affecting Customer Personal Data triggers the breach-notification obligations defined in our <Link to="/legal/dpa" className="text-[var(--gx-brand-from)] underline">Data Processing Agreement</Link>. We will notify the Customer without undue delay and within <strong>72 hours</strong> of becoming aware (UK ICO clock).</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">9. Modifications</h2>
-            <p>GymAxis may modify this SLA with <strong>60 days' written notice</strong>. If the modification is materially adverse, the Customer may terminate the affected workload at the end of the notice period without penalty.</p>
+            <p>Pulse Fitness may modify this SLA with <strong>60 days' written notice</strong>. If the modification is materially adverse, the Customer may terminate the affected workload at the end of the notice period without penalty.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">10. Contact</h2>
             <ul className="list-none space-y-1 text-slate-700">
-              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Service credits: <a href="mailto:billing@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">billing@gymaxisai.com</a></li>
-              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Support: <a href="mailto:support@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">support@gymaxisai.com</a></li>
-              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Security: <a href="mailto:security@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">security@gymaxisai.com</a></li>
-              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> DPO: <a href="mailto:dpo@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">dpo@gymaxisai.com</a></li>
+              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Service credits: <a href="mailto:billing@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">billing@pulsefitness.ai</a></li>
+              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Support: <a href="mailto:support@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">support@pulsefitness.ai</a></li>
+              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Security: <a href="mailto:security@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">security@pulsefitness.ai</a></li>
+              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> DPO: <a href="mailto:dpo@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">dpo@pulsefitness.ai</a></li>
             </ul>
           </article>
         </div>

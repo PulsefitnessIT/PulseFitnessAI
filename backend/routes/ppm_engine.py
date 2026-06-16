@@ -504,7 +504,7 @@ def _render_ppm_reminder_html(schedule: dict, task: dict, months_until: int, urg
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
   <div style="background:#0A0A0A;padding:20px 28px;">
     <h1 style="color:#fff;font-size:16px;margin:0;">{urgency}PPM Service Visit Reminder</h1>
-    <p style="color:#888;font-size:12px;margin:4px 0 0;">via GymAxis AI</p>
+    <p style="color:#888;font-size:12px;margin:4px 0 0;">via Pulse Fitness AI</p>
   </div>
   <div style="padding:28px;">
     <p style="color:#111;font-size:14px;line-height:1.5;">Dear {supplier_name},</p>
@@ -518,7 +518,7 @@ def _render_ppm_reminder_html(schedule: dict, task: dict, months_until: int, urg
     <p style="color:#111;font-size:14px;line-height:1.5;">Please contact us to arrange the visit at your earliest convenience.</p>
   </div>
   <div style="padding:14px 28px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
-    <p style="margin:0;font-size:11px;color:#999;">Sent via GymAxis AI — Equipment Management Platform</p>
+    <p style="margin:0;font-size:11px;color:#999;">Sent via Pulse Fitness AI — Equipment Management Platform</p>
   </div>
 </div>'''
 
@@ -534,7 +534,7 @@ async def _dispatch_ppm_reminder_email(resend_mod, schedule: dict, task: dict,
     try:
         import asyncio
         await asyncio.to_thread(resend_mod.Emails.send, {
-            "from": f"{site_name} <faults@service.gymaxisai.com>",
+            "from": f"{site_name} <faults@service.www.pulsefitness.ai>",
             "to": [supplier_email],
             "subject": f"{urgency}PPM Service Due {sched_date} — {equip_type} at {site_name}",
             "html": html,

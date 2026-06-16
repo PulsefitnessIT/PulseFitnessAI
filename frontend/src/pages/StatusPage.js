@@ -36,7 +36,7 @@ const StatusPage = () => {
   const isPulse = typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/pulse');
   const accent = isPulse ? 'var(--pulse-primary)' : 'var(--color-brand-blue)';
   const homeHref = isPulse ? '/pulse' : '/';
-  const brandName = isPulse ? 'Pulse Fitness' : 'GymAxis';
+  const brandName = isPulse ? 'Pulse Fitness' : 'Pulse Fitness';
   const [data, setData] = React.useState(null);
   const [error, setError] = React.useState(null);
   const [lastChecked, setLastChecked] = React.useState(null);

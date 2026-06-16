@@ -217,12 +217,12 @@ async def fetch_priorities(user: dict = Depends(get_current_user)):
         return {"priorities": [], "error": str(e)[:200]}
 
 
-# ── Outbound: GymAxis → Sicon ─────────────────────────────────────
+# ── Outbound: Pulse Fitness → Sicon ─────────────────────────────────────
 
 @router.post("/sicon/sync-case/{issue_id}")
 @router.post("/sicon/sync-issue/{issue_id}")  # alias kept for backwards compatibility
 async def sync_issue(issue_id: str, user: dict = Depends(get_current_user)):
-    """Manually push a GymAxis issue to Sicon as a new service case."""
+    """Manually push a Pulse Fitness issue to Sicon as a new service case."""
     _require_org(user)
     org_filter = get_organization_filter(user)
 
@@ -242,7 +242,7 @@ async def sync_issue(issue_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/sicon/amend-case/{issue_id}")
 async def amend_case(issue_id: str, user: dict = Depends(get_current_user)):
-    """Push updated GymAxis issue details to an existing Sicon case."""
+    """Push updated Pulse Fitness issue details to an existing Sicon case."""
     org_id = _require_org(user)
     org_filter = get_organization_filter(user)
 
@@ -291,7 +291,7 @@ async def add_note(issue_id: str, data: Dict[str, Any], user: dict = Depends(get
 
     note_id = await post_note_hook(
         issue_id=issue_id, note_text=note_text,
-        created_by=user.get("full_name", "GymAxis User"),
+        created_by=user.get("full_name", "Pulse Fitness User"),
         visible_to_customer=data.get("visible_to_customer", True),
     )
     return {"success": True, "note_id": note_id}
@@ -468,7 +468,7 @@ async def add_sicon_tracking_note(data: Dict[str, Any], user: dict = Depends(get
 
     payload = build_tracking_note_payload(
         note_text=data.get("note", ""),
-        created_by=user.get("full_name", "GymAxis User"),
+        created_by=user.get("full_name", "Pulse Fitness User"),
         visible_to_customer=data.get("visible_to_customer", True),
         visible_to_engineer=data.get("visible_to_engineer", True),
         status_id=data.get("status_id", 0),
@@ -630,7 +630,7 @@ class ContractLineSyncReq(BaseModel):
 
 @router.post("/sicon/contracts/{contract_id}/sync")
 async def sync_contract_to_sicon(contract_id: str, user: dict = Depends(get_current_user)):
-    """Push a GymAxis CRM contract header + all items to Sicon (Phase D)."""
+    """Push a Pulse Fitness CRM contract header + all items to Sicon (Phase D)."""
     _require_owner_or_manager(user)
     org_id = _require_org(user)
     contract = await db.crm_contracts.find_one({"id": contract_id, "organization_id": org_id}, {"_id": 0})

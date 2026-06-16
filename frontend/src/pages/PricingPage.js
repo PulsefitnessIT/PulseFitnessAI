@@ -1,5 +1,5 @@
 /**
- * GymAxis AI — Pricing.
+ * Pulse Fitness AI — Pricing.
  *
  * Dark Swiss high-contrast aesthetic matching the homepage.
  * Three-tier plan grid, one-off Audit tile, comparison strip.
@@ -70,14 +70,14 @@ const PLANS = [
  },
  {
  id: 'bundle',
- name: 'GymAxis Bundle',
+ name: 'Pulse Fitness Bundle',
  price: 199,
  priceHint: 'Save 20% vs buying each',
  desc: 'All three products — Pulse, Memberships & MOD — bundled with cross-module access.',
  cta: 'Start 3-day trial',
  features: [
  'Everything in Pro',
- 'GymAxis Memberships Studio (unlimited members)',
+ 'Pulse Fitness Memberships Studio (unlimited members)',
  'Member class booking + QR check-ins',
  'Instructor portal + commission reporting',
  'White-label member app at /m/your-slug',
@@ -291,7 +291,7 @@ function PricingNav() {
  <nav className="sticky top-0 z-40 bg-[var(--color-surface-darker)]/80 backdrop-blur-lg border-b border-white/10">
  <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
  <Link to="/" className="text-white font-extrabold text-lg tracking-tight" data-testid="pricing-logo-home">
- GymAxis<span className="text-[var(--color-brand-cyan)]">.AI</span>
+ Pulse Fitness<span className="text-[var(--color-brand-cyan)]">.AI</span>
  </Link>
  <div className="flex items-center gap-3">
  <Link to="/" className="text-white/70 hover:text-white text-sm font-semibold hidden sm:inline-flex items-center gap-1.5">

@@ -1,7 +1,7 @@
 """Master-admin Social Media post library.
 
 Stores ready-to-publish social media assets (image + caption + hashtags +
-channel + posting notes). Seeded on first load with the GymAxis Instagram
+channel + posting notes). Seeded on first load with the Pulse Fitness Instagram
 mosaic + cover post set so the user has a working library out of the box.
 
 Endpoints
@@ -35,16 +35,16 @@ def _now() -> str:
 
 # ── Brand scoping ─────────────────────────────────────────────────────
 #
-# The library is shared by the GymAxis platform admin and delegated
+# The library is shared by the Pulse Fitness platform admin and delegated
 # Pulse Master Admins. Each row carries a `brand` ('gymaxis' | 'pulse')
-# so a Pulse admin never sees GymAxis-branded marketing assets (and vice
-# versa). The seeded posts below are all GymAxis marketing → 'gymaxis'.
+# so a Pulse admin never sees Pulse Fitness-branded marketing assets (and vice
+# versa). The seeded posts below are all Pulse Fitness marketing → 'gymaxis'.
 
 
 def _brand_for(user: dict) -> str:
     """Brand bucket the calling master-admin operates in.
 
-    Delegated Pulse Master Admins → 'pulse'. The GymAxis platform admin
+    Delegated Pulse Master Admins → 'pulse'. The Pulse Fitness platform admin
     (and anyone else who passes ``require_master_admin``) → 'gymaxis'.
     """
     if user.get("is_master_admin"):
@@ -75,13 +75,13 @@ async def _mark_seed_done(key: str) -> None:
     )
 
 
-# ── Seed: GymAxis mosaic + cover-post campaign ────────────────────────
+# ── Seed: Pulse Fitness mosaic + cover-post campaign ────────────────────────
 
 
 SEED_ROWS: list[dict[str, Any]] = [
     # ── 9-tile mosaic — POST IN REVERSE ORDER (tile_09 first, tile_01 last)
     {
-        "label": "Mosaic · Tile 09 · GymAxis lockup",
+        "label": "Mosaic · Tile 09 · Pulse Fitness lockup",
         "image_url": "/marketing/mosaic_tiles_fhd_native/tile_09.png",
         "channel": "instagram",
         "campaign": "mosaic_9up",
@@ -90,12 +90,12 @@ SEED_ROWS: list[dict[str, Any]] = [
             "Smarter fitness. Stronger business.\n\n"
             "The platform built by gym operators, for gym operators.\n\n"
             "What's coming over the next 8 days: a 9-piece mosaic of why the "
-            "smartest gyms in the UK are switching to GymAxis. Save this post. "
+            "smartest gyms in the UK are switching to Pulse Fitness. Save this post. "
             "Watch the grid build.\n\n"
             "Start a free trial — link in bio."
         ),
         "hashtags": [
-            "GymAxis", "SmarterFitnessStrongerBusiness", "FitnessSaaS",
+            "Pulse Fitness", "SmarterFitnessStrongerBusiness", "FitnessSaaS",
             "GymOperators", "UKFitness", "HealthClubManagement", "FitnessIndustry",
         ],
         "notes": "Post #1 of the mosaic. Lands in the bottom-right profile slot.",
@@ -115,7 +115,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "GymOps", "FitnessTech", "GymCRM", "MembershipManagement",
-            "FacilityManagement", "GymAxis",
+            "FacilityManagement", "Pulse Fitness",
         ],
         "notes": "Post #2 of the mosaic. Lands in the bottom-centre profile slot.",
     },
@@ -135,7 +135,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "GymOwnerLife", "FitnessBusiness", "BoutiqueFitness",
-            "GymManagement", "OperationalExcellence", "GymAxis",
+            "GymManagement", "OperationalExcellence", "Pulse Fitness",
         ],
         "notes": "Post #3 of the mosaic. Lands in the bottom-left profile slot.",
     },
@@ -155,7 +155,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "KPI", "BusinessIntelligence", "FitnessOperations",
-            "MultiSiteOps", "HealthClubGroup", "GymAxis",
+            "MultiSiteOps", "HealthClubGroup", "Pulse Fitness",
         ],
         "notes": "Post #4. Lands in the middle-right profile slot.",
     },
@@ -175,7 +175,7 @@ SEED_ROWS: list[dict[str, Any]] = [
             "Start a free trial — link in bio."
         ),
         "hashtags": [
-            "GymAxis", "OnePlatform", "FitnessSaaS", "GymTech",
+            "Pulse Fitness", "OnePlatform", "FitnessSaaS", "GymTech",
             "SmarterFitness", "StrongerBusiness",
         ],
         "notes": "Post #5 of the mosaic. The centre/hero tile. Lands in the dead-centre slot.",
@@ -197,7 +197,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "OnePlatform", "Sage200", "ERP", "GymAutomation",
-            "MemberJourney", "FitnessSaaS", "GymAxis",
+            "MemberJourney", "FitnessSaaS", "Pulse Fitness",
         ],
         "notes": "Post #6 of the mosaic. Lands in the middle-left profile slot.",
     },
@@ -209,7 +209,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "post_order": 7,
         "caption": (
             "Members first. Data driven. Built for fitness.\n\n"
-            "Generic CRMs were built to sell software seats. GymAxis was "
+            "Generic CRMs were built to sell software seats. Pulse Fitness was "
             "built on the gym floor — by the same engineers who used to "
             "chase broken treadmills at 6am.\n\n"
             "Every workflow exists because an operator asked for it.\n\n"
@@ -217,7 +217,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "BuiltForFitness", "DataDriven", "MembersFirst",
-            "GymManagement", "FitnessIndustry", "GymAxis",
+            "GymManagement", "FitnessIndustry", "Pulse Fitness",
         ],
         "notes": "Post #7 of the mosaic. Lands in the top-right profile slot.",
     },
@@ -238,7 +238,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "StrongerBusiness", "ScaleYourGym", "FitnessSaaS",
-            "GymOperators", "GymAxis",
+            "GymOperators", "Pulse Fitness",
         ],
         "notes": "Post #8 of the mosaic. Lands in the top-centre profile slot.",
     },
@@ -257,7 +257,7 @@ SEED_ROWS: list[dict[str, Any]] = [
             "Start a free trial — link in bio."
         ),
         "hashtags": [
-            "SmarterFitness", "GymAxis", "FitnessSaaS", "StartFreeTrial",
+            "SmarterFitness", "Pulse Fitness", "FitnessSaaS", "StartFreeTrial",
             "UKGyms", "HealthClub", "FitnessIndustry",
         ],
         "notes": "Post #9 — the LAST one to post. Lands in the top-left profile slot, completing the mosaic.",
@@ -270,10 +270,10 @@ SEED_ROWS: list[dict[str, Any]] = [
         "campaign": "mosaic_9up",
         "post_order": 10,
         "caption": (
-            "The full GymAxis mosaic in one shot. Save it. Share it.\n\n"
+            "The full Pulse Fitness mosaic in one shot. Save it. Share it.\n\n"
             "Smarter fitness. Stronger business."
         ),
-        "hashtags": ["GymAxis", "SmarterFitnessStrongerBusiness"],
+        "hashtags": ["Pulse Fitness", "SmarterFitnessStrongerBusiness"],
         "notes": "Use as a LinkedIn document post / website hero / printed spec sheet. Day-10 carousel companion.",
     },
     {
@@ -283,7 +283,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "campaign": "switch_thread",
         "post_order": 1,
         "caption": (
-            "9 reasons gym operators are switching to GymAxis.\n\n"
+            "9 reasons gym operators are switching to Pulse Fitness.\n\n"
             "One thread. No fluff. Just what your spreadsheet, your CRM, and "
             "your maintenance email chain were never going to fix.\n\n"
             "Save this — you'll want to come back to it.\n\n"
@@ -292,7 +292,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "GymOperators", "GymManagement", "FitnessSaaS",
             "HealthClubManagement", "GymTech", "GymOwnerLife",
-            "FitnessIndustry", "UKFitness", "BoutiqueFitness", "GymAxis",
+            "FitnessIndustry", "UKFitness", "BoutiqueFitness", "Pulse Fitness",
         ],
         "notes": "Cover post for the 'Switch' carousel campaign.",
     },
@@ -306,7 +306,7 @@ SEED_ROWS: list[dict[str, Any]] = [
             "One job. Every broken machine. One tap.\n\n"
             "Five faults across three rigs used to mean three engineer "
             "visits, three invoices, and three different SLAs slipping at "
-            "once. GymAxis batches them under a single job ID — but tracks "
+            "once. Pulse Fitness batches them under a single job ID — but tracks "
             "every machine's resolution clock independently.\n\n"
             "Your engineers love it. Your finance lead loves it more.\n\n"
             "Start a free trial — link in bio."
@@ -314,7 +314,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "GymMaintenance", "FitnessEquipment", "FacilityManagement",
             "GymOps", "PreventiveMaintenance", "GymTech",
-            "LeisureCentre", "GymAxis",
+            "LeisureCentre", "Pulse Fitness",
         ],
         "notes": "",
     },
@@ -326,7 +326,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "post_order": 3,
         "caption": (
             "Every fault has a named owner and a live SLA clock.\n\n"
-            "No more 'I thought you were chasing it.' GymAxis assigns "
+            "No more 'I thought you were chasing it.' Pulse Fitness assigns "
             "ownership at the moment of logging, surfaces the countdown on "
             "every dashboard it touches, and escalates automatically when "
             "the clock turns red.\n\n"
@@ -336,7 +336,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "GymManagement", "SLA", "OperationalExcellence",
             "FitnessOperations", "GymOwners", "HealthClub",
-            "LeisureManagement", "GymAxis",
+            "LeisureManagement", "Pulse Fitness",
         ],
         "notes": "",
     },
@@ -357,7 +357,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "PreventiveMaintenance", "PPM", "FacilityManagement",
             "GymCompliance", "HealthAndSafety", "GymOps",
-            "LeisureIndustry", "GymAxis",
+            "LeisureIndustry", "Pulse Fitness",
         ],
         "notes": "",
     },
@@ -378,7 +378,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "GroupFitness", "ClassScheduling", "BoutiqueFitness",
             "GymMarketing", "MemberRetention", "FitnessSaaS",
-            "StudioManagement", "GymAxis",
+            "StudioManagement", "Pulse Fitness",
         ],
         "notes": "Posts 05 & 06 of the Switch series are pending image regen (budget cap).",
     },
@@ -399,7 +399,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "MultiSiteOps", "FitnessChain", "GymGroup",
             "LeisureOperations", "BusinessIntelligence", "FitnessSaaS",
-            "HealthClubGroup", "GymAxis",
+            "HealthClubGroup", "Pulse Fitness",
         ],
         "notes": "",
     },
@@ -420,7 +420,7 @@ SEED_ROWS: list[dict[str, Any]] = [
         "hashtags": [
             "StartFreeTrial", "GymSoftware", "FitnessSaaS",
             "GymOperators", "DigitalTransformation", "BuiltByOperators",
-            "GymAxis", "SmarterFitnessStrongerBusiness",
+            "Pulse Fitness", "SmarterFitnessStrongerBusiness",
         ],
         "notes": "Closing CTA. Pin alongside Mosaic Tile 09 for max conversion.",
     },
@@ -436,7 +436,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         "post_order": 1,
         "caption": (
             "WE NEED YOU — fitness equipment engineers.\n\n"
-            "We're opening 10 tester spaces on the GymAxis Engineer App. Real "
+            "We're opening 10 tester spaces on the Pulse Fitness Engineer App. Real "
             "service jobs, a serious mobile toolkit, and your own business — we "
             "just need sharp engineers to help us put it through its paces.\n\n"
             "10 spaces. 10-day free trial. Stay on if you love it.\n\n"
@@ -444,7 +444,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "FitnessEquipment", "GymEngineer", "FieldService", "GymMaintenance",
-            "FitnessIndustry", "PPM", "NowHiring", "UKFitness", "GymTech", "GymAxis",
+            "FitnessIndustry", "PPM", "NowHiring", "UKFitness", "GymTech", "Pulse Fitness",
         ],
         "notes": (
             "HERO — POST THIS FIRST + pin it. 9:16 (1080x1920) works for IG "
@@ -460,7 +460,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         "caption": (
             "One job. Every machine.\n\n"
             "Five faults across three rigs used to mean three visits, three "
-            "invoices and three slipping SLAs. The GymAxis Engineer App batches "
+            "invoices and three slipping SLAs. The Pulse Fitness Engineer App batches "
             "them under a single visit — but tracks every machine's resolution "
             "clock independently.\n\n"
             "Less admin. More wrench time.\n\n"
@@ -468,7 +468,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "GymEngineer", "FieldService", "GymMaintenance", "FitnessEquipment",
-            "PreventiveMaintenance", "GymTech", "FitnessIndustry", "GymAxis",
+            "PreventiveMaintenance", "GymTech", "FitnessIndustry", "Pulse Fitness",
         ],
         "notes": "TikTok hook: 'One job. Every broken machine. One tap.'",
     },
@@ -485,7 +485,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "FieldService", "GymMaintenance", "OfflineFirst", "GymEngineer",
-            "FitnessEquipment", "GymTech", "FitnessIndustry", "GymAxis",
+            "FitnessEquipment", "GymTech", "FitnessIndustry", "Pulse Fitness",
         ],
         "notes": "TikTok hook: 'No signal in the plant room? The app doesn't care.'",
     },
@@ -502,7 +502,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "VanStock", "StockControl", "FieldService", "GymMaintenance",
-            "FitnessEquipment", "GymEngineer", "GymTech", "GymAxis",
+            "FitnessEquipment", "GymEngineer", "GymTech", "Pulse Fitness",
         ],
         "notes": "TikTok hook: 'Every part, every van, every job — accounted for.'",
     },
@@ -519,7 +519,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "PPM", "HealthAndSafety", "GymCompliance", "GymMaintenance",
-            "FieldService", "PreventiveMaintenance", "FitnessEquipment", "GymAxis",
+            "FieldService", "PreventiveMaintenance", "FitnessEquipment", "Pulse Fitness",
         ],
         "notes": "TikTok hook: 'Binned the clipboard. Every check-sheet, done on the floor.'",
     },
@@ -536,7 +536,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "FieldService", "ServiceReport", "GymMaintenance", "FitnessEquipment",
-            "GymEngineer", "GymTech", "FitnessIndustry", "GymAxis",
+            "GymEngineer", "GymTech", "FitnessIndustry", "Pulse Fitness",
         ],
         "notes": "TikTok hook: 'Snap. Sign. Sent. Branded report before you leave.'",
     },
@@ -553,7 +553,7 @@ ENGINEER_RECRUIT_ROWS: list[dict[str, Any]] = [
         ),
         "hashtags": [
             "GymEngineer", "RunYourBusiness", "FieldService", "FitnessEquipment",
-            "NowHiring", "FitnessIndustry", "GymTech", "GymAxis",
+            "NowHiring", "FitnessIndustry", "GymTech", "Pulse Fitness",
         ],
         "notes": "CLOSING CTA — post last. TikTok hook: 'Quote, invoice, get paid — all in one app. Last 10 spaces.'",
     },
@@ -598,7 +598,7 @@ async def _seed_engineer_recruit() -> int:
 
 
 async def _seed_if_empty() -> int:
-    """Insert the GymAxis seed rows ONCE. Idempotent via a persistent
+    """Insert the Pulse Fitness seed rows ONCE. Idempotent via a persistent
     seed marker so deletions are never undone by a later load."""
     if await _seed_done("gymaxis_seeded"):
         return 0
@@ -644,9 +644,9 @@ async def list_posts(user: dict = Depends(get_current_user)):
     require_master_admin(user)
     brand = _brand_for(user)
     seeded = 0
-    # Only the GymAxis platform admin triggers (one-time) seeding of the
-    # GymAxis marketing library. Pulse admins start with a clean,
-    # Pulse-only library — no GymAxis assets cross over.
+    # Only the Pulse Fitness platform admin triggers (one-time) seeding of the
+    # Pulse Fitness marketing library. Pulse admins start with a clean,
+    # Pulse-only library — no Pulse Fitness assets cross over.
     if brand == "gymaxis":
         seeded += await _seed_if_empty()
         seeded += await _seed_engineer_recruit()
@@ -654,7 +654,7 @@ async def list_posts(user: dict = Depends(get_current_user)):
     if brand == "pulse":
         query: dict[str, Any] = {"brand": "pulse"}
     else:
-        # GymAxis admin sees GymAxis + any legacy rows without a brand.
+        # Pulse Fitness admin sees Pulse Fitness + any legacy rows without a brand.
         query = {"$or": [{"brand": "gymaxis"}, {"brand": {"$exists": False}}, {"brand": None}]}
 
     rows = (

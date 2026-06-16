@@ -13,9 +13,9 @@ import { Shield, FileText } from 'lucide-react';
  */
 const DpaPage = () => {
   useSeo({
-    title: 'Data Processing Agreement | GymAxis AI',
-    description: 'Standard UK GDPR-compliant Data Processing Agreement between GymAxis AI Ltd and our customers (data controllers).',
-    canonical: 'https://gymaxisai.com/legal/dpa',
+    title: 'Data Processing Agreement | Pulse Fitness AI',
+    description: 'Standard UK GDPR-compliant Data Processing Agreement between Pulse Fitness AI Ltd and our customers (data controllers).',
+    canonical: 'https://www.pulsefitness.ai/legal/dpa',
   });
 
   return (
@@ -32,7 +32,7 @@ const DpaPage = () => {
             <strong>Last updated:</strong> 15 February 2026 · v1.0
           </p>
           <p className="text-base text-slate-600 mb-8">
-            This DPA forms part of the GymAxis AI Subscription Terms when one or both parties processes
+            This DPA forms part of the Pulse Fitness AI Subscription Terms when one or both parties processes
             personal data subject to the UK GDPR or EU GDPR. Customers (the <em>Data Controller</em>) sign
             the Subscription Terms; this DPA applies automatically.
           </p>
@@ -43,7 +43,7 @@ const DpaPage = () => {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-slate-900">Need a counter-signed copy?</p>
                 <p className="text-sm text-slate-600 mt-1">
-                  Email <a href="mailto:dpa@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">dpa@gymaxisai.com</a> with your company details.
+                  Email <a href="mailto:dpa@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">dpa@pulsefitness.ai</a> with your company details.
                   We respond within one business day with a PDF of this DPA pre-signed by our DPO.
                 </p>
               </div>
@@ -52,29 +52,29 @@ const DpaPage = () => {
 
           <article className="prose prose-slate max-w-none text-sm leading-relaxed">
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">1. Definitions</h2>
-            <p>Terms not defined here have the meaning given in the UK GDPR or in the GymAxis AI Subscription Terms.</p>
+            <p>Terms not defined here have the meaning given in the UK GDPR or in the Pulse Fitness AI Subscription Terms.</p>
             <ul className="list-disc pl-6 space-y-1 text-slate-700">
-              <li><strong>Customer</strong>: the entity subscribing to GymAxis AI services.</li>
+              <li><strong>Customer</strong>: the entity subscribing to Pulse Fitness AI services.</li>
               <li><strong>Personal Data</strong>: data relating to identified or identifiable natural persons processed by us on the Customer's behalf.</li>
               <li><strong>Sub-processor</strong>: a third party we engage to assist with processing (Stripe, Resend, Mongo Atlas, AWS S3, etc.).</li>
               <li><strong>Supervisory Authority</strong>: the UK Information Commissioner's Office (ICO).</li>
             </ul>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">2. Scope &amp; processing details</h2>
-            <p><strong>Subject matter:</strong> provision of the GymAxis AI platform.</p>
+            <p><strong>Subject matter:</strong> provision of the Pulse Fitness AI platform.</p>
             <p><strong>Duration:</strong> for the term of the Subscription plus a 30-day grace period for export, then 90 days for backups.</p>
             <p><strong>Nature &amp; purpose:</strong> hosting, storing, processing, and analysing Customer data to deliver gym CRM, memberships, marketing, and operations features.</p>
             <p><strong>Categories of data subjects:</strong> Customer's staff, members, prospects, and contacts.</p>
             <p><strong>Categories of personal data:</strong> contact details (name, email, phone, address), DOB, payment metadata (last-4 only), attendance, communication history, optional emergency contact, optional marketing preferences. We do not process special-category data unless explicitly uploaded by the Customer (e.g. medical waivers).</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">3. Roles</h2>
-            <p>Customer is the <strong>Data Controller</strong>. GymAxis AI Ltd is the <strong>Data Processor</strong> for all Customer data, except where we collect data directly from website visitors (cookies, contact form), in which case we are an independent Controller per our Privacy Policy.</p>
+            <p>Customer is the <strong>Data Controller</strong>. Pulse Fitness AI Ltd is the <strong>Data Processor</strong> for all Customer data, except where we collect data directly from website visitors (cookies, contact form), in which case we are an independent Controller per our Privacy Policy.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">4. Customer instructions</h2>
             <p>We process Personal Data only on documented instructions from the Customer, including transfers to third countries, unless required by UK or EU law. Setting up the platform, configuring features, and using the public API constitute documented instructions.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">5. Confidentiality &amp; staff</h2>
-            <p>All GymAxis personnel with access to Personal Data are bound by written confidentiality obligations and have received UK GDPR awareness training.</p>
+            <p>All Pulse Fitness personnel with access to Personal Data are bound by written confidentiality obligations and have received UK GDPR awareness training.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">6. Security measures (Art. 32)</h2>
             <ul className="list-disc pl-6 space-y-1 text-slate-700">
@@ -126,8 +126,8 @@ const DpaPage = () => {
             <p>Our liability under this DPA is governed by the limitation-of-liability clause in the Subscription Terms.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">14. Contact</h2>
-            <p><strong>Data Protection Officer (DPO):</strong> dpo@gymaxisai.com<br/>
-            <strong>Postal address:</strong> GymAxis AI Ltd, [Registered office address], United Kingdom.</p>
+            <p><strong>Data Protection Officer (DPO):</strong> dpo@pulsefitness.ai<br/>
+            <strong>Postal address:</strong> Pulse Fitness AI Ltd, [Registered office address], United Kingdom.</p>
           </article>
         </div>
       </main>

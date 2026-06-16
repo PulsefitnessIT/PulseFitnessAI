@@ -5,7 +5,7 @@ fields are recursively redacted before serialisation, and exports require
 an explicit `confirm=true` query param to avoid accidental dumps.
 
 Endpoints (all under /api/master-admin/db, behind require_master_admin so
-both GymAxis Master Admins AND Pulse Master Admins can use this):
+both Pulse Fitness Master Admins AND Pulse Master Admins can use this):
 
   GET  /api/master-admin/db/collections
        → [{name, count, indexes_count}, …]

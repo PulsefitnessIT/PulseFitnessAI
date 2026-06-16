@@ -64,13 +64,13 @@ export const body = (
     <p>
       <strong>Chargeable vs covered scope.</strong> Every contract
       should spell out which fault categories are in-cover vs
-      chargeable. GymAxis tags each case with a cover type at intake
+      chargeable. Pulse Fitness tags each case with a cover type at intake
       so there&rsquo;s never a billing surprise.
     </p>
 
     <h2>Measuring yourself</h2>
     <p>
-      The GymAxis reporting module shows SLA compliance % per priority
+      The Pulse Fitness reporting module shows SLA compliance % per priority
       band per site. If your P2 compliance is below 95%, you&rsquo;re
       either under-pricing the tier or under-resourcing it.
     </p>

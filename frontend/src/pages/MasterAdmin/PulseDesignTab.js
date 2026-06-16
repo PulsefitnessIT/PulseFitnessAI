@@ -1,9 +1,9 @@
 /**
  * Pulse Fitness — Design System reference tab.
  *
- * Mirrors the GymAxis design system gallery but in the Pulse brand:
+ * Mirrors the Pulse Fitness design system gallery but in the Pulse brand:
  * cyan accent, dark-on-light type, rounded shadcn cards. Lives inside
- * /admin/design-system as a brand toggle alongside the GymAxis content.
+ * /admin/design-system as a brand toggle alongside the Pulse Fitness content.
  */
 import { Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 
@@ -23,7 +23,7 @@ const TYPE_SAMPLES = [
   { name: 'H2 / Section',  className: 'text-2xl sm:text-3xl font-bold tracking-tight',      sample: 'Two tiers, one portal.' },
   { name: 'Eyebrow',       className: 'text-xs uppercase tracking-[0.18em] font-bold',      sample: 'Pulse Fitness Self-Service Portal' },
   { name: 'Body',          className: 'text-base leading-relaxed',                          sample: 'Log faults in seconds. Track every piece of kit. Get AI-assisted diagnostics before the engineer arrives.' },
-  { name: 'Caption',       className: 'text-xs',                                            sample: 'Powered by GymAxis AI · last updated today' },
+  { name: 'Caption',       className: 'text-xs',                                            sample: 'Powered by Pulse Fitness AI · last updated today' },
 ];
 
 function Swatch({ p }) {
@@ -48,7 +48,7 @@ export default function PulseDesignTab() {
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">Pulse Fitness Brand System</h2>
         <p className="mt-2 text-sm text-slate-500 max-w-2xl">
           Reference for the Pulse-branded surfaces (`/pulse`, `/pulse-pricing`, Lite portal).
-          Don&rsquo;t reuse these tokens on GymAxis-branded surfaces — Pulse keeps its own
+          Don&rsquo;t reuse these tokens on Pulse Fitness-branded surfaces — Pulse keeps its own
           cyan-on-white identity and Proxima Nova typography.
         </p>
       </header>
@@ -133,7 +133,7 @@ export default function PulseDesignTab() {
           <ul className="space-y-1 list-disc pl-5">
             <li>Never apply <code className="font-mono text-xs">.theme-gymaxis</code> to Pulse-branded routes (the global brand-attr sync does this for you).</li>
             <li>The Pulse landing page injects scoped CSS via <code className="font-mono text-xs">PULSE_LANDING_CSS</code>; reuse it for any new Pulse marketing page.</li>
-            <li>No GymAxis purple gradients on Pulse surfaces. The Pulse identity is white + cyan + ink.</li>
+            <li>No Pulse Fitness purple gradients on Pulse surfaces. The Pulse identity is white + cyan + ink.</li>
             <li>Logo: rounded badge, never on dark cyan backgrounds at &gt;60% opacity.</li>
           </ul>
         </div>

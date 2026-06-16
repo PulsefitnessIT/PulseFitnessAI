@@ -10,7 +10,7 @@
  *     onChange={(v) => setForm({...form, name: v})}
  *     onPick={(picked) => applyPick(picked)}
  *     testIdPrefix="org-create-name"
- *     includeInternal // search existing GymAxis orgs alongside CH
+ *     includeInternal // search existing Pulse Fitness orgs alongside CH
  *   />
  *
  * `picked` callback shape:
@@ -162,7 +162,7 @@ export const CompanyAutocomplete = ({
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{o.name || '(unnamed)'}</span>
                     <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">
-                      {o.account_type === 'pulse_pro' || o.account_type === 'lite' ? 'Pulse' : 'GymAxis'}
+                      {o.account_type === 'pulse_pro' || o.account_type === 'lite' ? 'Pulse' : 'Pulse Fitness'}
                     </span>
                   </div>
                   <div className="text-[11px] text-zinc-500 mt-0.5 flex items-center gap-2 flex-wrap">

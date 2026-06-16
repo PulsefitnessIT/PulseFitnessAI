@@ -139,7 +139,7 @@ export default function PublicEngineerCard() {
             </span>
           )}
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.18em] opacity-80">{org.name || 'GymAxis Service'}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] opacity-80">{org.name || 'Pulse Fitness Service'}</p>
             <h1 className="text-xl font-extrabold flex items-center gap-2">
               <Wrench size={20} /> Request service from {eng.full_name || 'your engineer'}
             </h1>
@@ -271,7 +271,7 @@ export default function PublicEngineerCard() {
               data-testid="public-card-consent"
             />
             <span className="text-xs text-slate-600">
-              I agree to {org.name || 'GymAxis'} contacting me about this service request.
+              I agree to {org.name || 'Pulse Fitness'} contacting me about this service request.
             </span>
           </label>
 
@@ -285,7 +285,7 @@ export default function PublicEngineerCard() {
             Send request
           </button>
           <p className="text-[10px] text-slate-400 text-center">
-            Powered by GymAxis · your details stay with {eng.full_name || 'your engineer'} and their service team
+            Powered by Pulse Fitness · your details stay with {eng.full_name || 'your engineer'} and their service team
           </p>
         </form>
       </main>

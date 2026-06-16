@@ -1032,7 +1032,7 @@ async def request_service(request: ServiceRequest, user: dict = Depends(get_curr
             params = {
                 "from": SENDER_EMAIL,
                 "to": [request.contact_email],
-                "subject": "Service Request Received - GymAxis AI",
+                "subject": "Service Request Received - Pulse Fitness AI",
                 "html": html_content
             }
             await asyncio.to_thread(resend.Emails.send, params)

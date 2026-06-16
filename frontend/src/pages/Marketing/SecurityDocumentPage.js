@@ -27,10 +27,10 @@ export default function SecurityDocumentPage() {
   React.useEffect(() => {
     const prev = document.title;
     const prevMeta = document.querySelector('meta[name="description"]')?.getAttribute('content');
-    document.title = 'GymAxis Security — Hardening summary, posture & download';
+    document.title = 'Pulse Fitness Security — Hardening summary, posture & download';
     let m = document.querySelector('meta[name="description"]');
     if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'description'); document.head.appendChild(m); }
-    m.setAttribute('content', 'GymAxis security posture: JWT, MFA, rate limits, audit trail, GDPR. Read in-browser or download as PDF / TXT.');
+    m.setAttribute('content', 'Pulse Fitness security posture: JWT, MFA, rate limits, audit trail, GDPR. Read in-browser or download as PDF / TXT.');
     return () => {
       document.title = prev;
       if (m && prevMeta) m.setAttribute('content', prevMeta);
@@ -54,7 +54,7 @@ export default function SecurityDocumentPage() {
           </span>
 
           <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl tracking-tighter font-black leading-[1.05]">
-            GymAxis AI — <span className="gx-gradient-text">Security</span>
+            Pulse Fitness AI — <span className="gx-gradient-text">Security</span>
           </h1>
           <p className="mt-5 text-base md:text-lg text-slate-600 dark:text-zinc-300 max-w-3xl">
             The full hardening summary, vulnerability-disclosure policy, and the

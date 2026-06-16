@@ -107,7 +107,7 @@ def _cookie_token_candidates(request: Request) -> list:
     """All ``ga_session`` values from the RAW Cookie header, in order.
 
     Iter 231 — browsers can hold MULTIPLE same-named cookies with
-    different scopes (e.g. a legacy ``Domain=.gymaxisai.com`` cookie
+    different scopes (e.g. a legacy ``Domain=.www.pulsefitness.ai`` cookie
     next to the current host-only one). ``request.cookies`` collapses
     them to the FIRST occurrence, which lets a stale token shadow the
     fresh session and brick every call right after a successful login.

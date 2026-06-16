@@ -2,7 +2,7 @@
 
 Each organisation owns a Stripe Connect account (Express by default; gyms
 can also link an existing Standard account by providing the account_id).
-GymAxis charges 1% application_fee_amount on every member transaction
+Pulse Fitness charges 1% application_fee_amount on every member transaction
 made against the connected account.
 
 Endpoints (master admin scope; per-org-admin scope can be added later)
@@ -215,7 +215,7 @@ async def onboarding_link(
                     "stripe_connected_at": _now(),
                 }},
             )
-        origin = _origin_or("https://gymaxisai.com", request)
+        origin = _origin_or("https://www.pulsefitness.ai", request)
         link = stripe.AccountLink.create(
             account=acct_id,
             refresh_url=f"{origin}/master-admin/orgs/{organization_id}/payments?refresh=1",
@@ -253,7 +253,7 @@ async def my_onboarding_link(
     return_path = (body.get("return_path") or "/dashboard").strip()
     if not return_path.startswith("/"):
         return_path = "/" + return_path
-    origin = _origin_or("https://gymaxisai.com", request)
+    origin = _origin_or("https://www.pulsefitness.ai", request)
     sep = "&" if "?" in return_path else "?"
     try:
         if not acct_id:

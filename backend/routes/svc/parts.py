@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Parts catalogue + van stock.
+Pulse Fitness Service Operations — Parts catalogue + van stock.
 
 Iter 215dq · annotations backfilled iter 215eb.
 
@@ -20,26 +20,26 @@ __integration_fields__ = {
     "parts.id":                "gymaxis_only: local uuid",
     "parts.sku":               "sicon: PartCode · sage: StockCode · bidirectional",
     "parts.name":              "sicon: PartDescription · sage: StockDescription · bidirectional",
-    "parts.cost":              "sage: AverageCost · Sage → GymAxis",
-    "parts.list_price":        "sage: SellingPrice · Sage → GymAxis",
-    "parts.lead_time_days":    "sage: ReorderLeadTimeDays · Sage → GymAxis",
+    "parts.cost":              "sage: AverageCost · Sage → Pulse Fitness",
+    "parts.list_price":        "sage: SellingPrice · Sage → Pulse Fitness",
+    "parts.lead_time_days":    "sage: ReorderLeadTimeDays · Sage → Pulse Fitness",
     "parts.reorder_threshold": "gymaxis_only: low-stock alert threshold",
     "parts.reorder_qty":       "gymaxis_only: PO suggestion quantity",
-    "parts.preferred_supplier_id": "sage: SuppliersAccountID · Sage → GymAxis",
+    "parts.preferred_supplier_id": "sage: SuppliersAccountID · Sage → Pulse Fitness",
     # svc_part_movements (allocate / deallocate / consume / transfer / return / receive)
     "movements.id":            "gymaxis_only: local uuid",
-    "movements.movement_type": "sicon: MovementTypeID (PART_MOVEMENT_CROSSWALK) · GymAxis → Sicon",
-    "movements.case_id":       "sicon: ServiceCallID · GymAxis → Sicon",
-    "movements.case_reference":"sicon: ServiceCallReference · GymAxis → Sicon",
-    "movements.allocation_id": "sicon: AllocationID · GymAxis → Sicon",
-    "movements.part_sku":      "sicon: PartCode · GymAxis → Sicon",
-    "movements.qty":           "sicon: Quantity · GymAxis → Sicon",
-    "movements.source":        "sicon: FromLocation (warehouse|van_<engId>) · GymAxis → Sicon",
-    "movements.engineer_id":   "sicon: EngineerID · GymAxis → Sicon",
-    "movements.actor_id":      "sicon: MovedBySageUserID · GymAxis → Sicon",
-    "movements.actor_name":    "sicon: MovedByUserName · GymAxis → Sicon",
-    "movements.at":            "sicon: MovedAt · GymAxis → Sicon",
-    "movements.notes":         "sicon: Notes · GymAxis → Sicon",
+    "movements.movement_type": "sicon: MovementTypeID (PART_MOVEMENT_CROSSWALK) · Pulse Fitness → Sicon",
+    "movements.case_id":       "sicon: ServiceCallID · Pulse Fitness → Sicon",
+    "movements.case_reference":"sicon: ServiceCallReference · Pulse Fitness → Sicon",
+    "movements.allocation_id": "sicon: AllocationID · Pulse Fitness → Sicon",
+    "movements.part_sku":      "sicon: PartCode · Pulse Fitness → Sicon",
+    "movements.qty":           "sicon: Quantity · Pulse Fitness → Sicon",
+    "movements.source":        "sicon: FromLocation (warehouse|van_<engId>) · Pulse Fitness → Sicon",
+    "movements.engineer_id":   "sicon: EngineerID · Pulse Fitness → Sicon",
+    "movements.actor_id":      "sicon: MovedBySageUserID · Pulse Fitness → Sicon",
+    "movements.actor_name":    "sicon: MovedByUserName · Pulse Fitness → Sicon",
+    "movements.at":            "sicon: MovedAt · Pulse Fitness → Sicon",
+    "movements.notes":         "sicon: Notes · Pulse Fitness → Sicon",
 }
 
 from datetime import datetime, timezone

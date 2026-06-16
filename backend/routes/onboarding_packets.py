@@ -41,7 +41,7 @@ def _now() -> str:
 
 
 def _require_master_admin(user: dict) -> None:
-    master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
+    master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")
     if user.get("email") != master_email and not user.get("is_master_admin"):
         raise HTTPException(status_code=403, detail="Master admin access required")
 
@@ -1034,7 +1034,7 @@ async def send_packet_invite(packet_id: str, body: Dict[str, Any], user: dict = 
         raise HTTPException(status_code=400, detail="Packet already provisioned")
 
     recipient, recipient_name = _resolve_invite_recipient(packet, body)
-    sender_name = user.get("full_name") or user.get("email") or "Your GymAxis account manager"
+    sender_name = user.get("full_name") or user.get("email") or "Your Pulse Fitness account manager"
 
     sent = await send_onboarding_invite_email(
         email=recipient, recipient_name=recipient_name,

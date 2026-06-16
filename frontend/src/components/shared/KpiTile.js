@@ -1,5 +1,5 @@
 /**
- * KpiTile — canonical KPI card used across GymAxis (full) and Pulse
+ * KpiTile — canonical KPI card used across Pulse Fitness (full) and Pulse
  * Lite portals so every reports / overview / supplier / docs surface
  * shares the same atomic stat card.
  *

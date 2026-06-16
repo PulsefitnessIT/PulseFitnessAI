@@ -57,7 +57,7 @@ async def checkin_verify(body: CheckinVerify, user: dict = Depends(get_current_u
     except ValueError:
         raise HTTPException(400, "Invalid QR payload")
     if prefix != "GXM":
-        raise HTTPException(400, "Not a GymAxis member pass")
+        raise HTTPException(400, "Not a Pulse Fitness member pass")
     rec = await db.qr_rotation_secret.find_one({"member_id": member_id}, {"_id": 0})
     if not rec:
         raise HTTPException(404, "Unknown member pass")

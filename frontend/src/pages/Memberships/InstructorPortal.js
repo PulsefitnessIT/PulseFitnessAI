@@ -1,9 +1,9 @@
 /**
- * GymAxis Memberships — Instructor Portal (/instructor).
+ * Pulse Fitness Memberships — Instructor Portal (/instructor).
  *
  * Any user whose JWT resolves to a user.id matched on
  * class_templates.instructor_user_id (or has is_instructor=true). Reuses
- * the standard GymAxis operator JWT — logs in via /api/auth/login.
+ * the standard Pulse Fitness operator JWT — logs in via /api/auth/login.
  *
  * Tabs:
  *   • Today   — today's classes (tap → roster + check-off)

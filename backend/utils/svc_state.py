@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — state machine.
+Pulse Fitness Service Operations — state machine.
 
 Iter 215dn (Phase 1).
 

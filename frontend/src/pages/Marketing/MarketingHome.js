@@ -1,5 +1,5 @@
 /**
- * GymAxis homepage — hero with AXIS orbit, platform overview, module
+ * Pulse Fitness homepage — hero with AXIS orbit, platform overview, module
  * preview grid, social proof, final CTA. Iter 215an.
  *
  * Iter 220bc — 6 modules → 4 (Operations, CRM, Memberships, Marketing).
@@ -118,9 +118,9 @@ export const MODULES = (t) => [
 
 export default function MarketingHome() {
   useSeo({
-    title: 'GymAxis AI | Gym Management Software for Gyms, Studios & Engineers',
+    title: 'Pulse Fitness AI | Gym Management Software for Gyms, Studios & Engineers',
     description: 'Connected gym management software for gyms, studios, fitness operators and equipment engineers — CRM, memberships, operations, asset management, service desk, staffing, marketing and reporting in one platform. 3-day free trial, all modules unlocked.',
-    canonical: 'https://gymaxisai.com/',
+    canonical: 'https://www.pulsefitness.ai/',
   });
   return (
     <MarketingShell>
@@ -154,7 +154,7 @@ function Hero() {
             <span className="gx-gradient-text">{t('mkt.hero_h1_2', 'Stronger Business.')}</span>
           </h1>
           <p className="mt-5 text-base sm:text-lg md:text-xl text-slate-600 leading-relaxed max-w-xl" data-testid="gx-hero-sub">
-            {t('mkt.hero_sub', "GymAxis is the all-in-one operations platform for gyms, studios, and fitness businesses — built around the modules you actually run on, not the ones you'll never use.")}
+            {t('mkt.hero_sub', "Pulse Fitness is the all-in-one operations platform for gyms, studios, and fitness businesses — built around the modules you actually run on, not the ones you'll never use.")}
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-hero-trial">
@@ -183,9 +183,9 @@ function PlatformOverview() {
     <section className="py-24 md:py-32 bg-white dark:bg-zinc-900" data-testid="gx-platform-overview">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 grid lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-5">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.ov_eyebrow', 'Why GymAxis')}</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.ov_eyebrow', 'Why Pulse Fitness')}</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.ov_title_1', 'One platform.')}<br /><span className="gx-gradient-text">{t('mkt.ov_title_2', 'Everything connected.')}</span></h2>
-          <p className="mt-5 text-lg text-slate-600 leading-relaxed">{t('mkt.ov_desc', 'Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. GymAxis is one system, five modules, zero handoff bugs.')}</p>
+          <p className="mt-5 text-lg text-slate-600 leading-relaxed">{t('mkt.ov_desc', 'Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. Pulse Fitness is one system, five modules, zero handoff bugs.')}</p>
         </div>
         <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4">
           <OverviewCard icon={<Sparkles size={18} />} title={t('mkt.ov1_t', 'AI built in everywhere')} body={t('mkt.ov1_b', 'Lead scoring in CRM, churn prediction in Memberships, copywriter in Marketing, fault triage in Operations.')} />
@@ -313,7 +313,7 @@ function SocialProof() {
           <p className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 leading-snug">
             {t('mkt.sp_quote', '"Built by gym operators, for gym operators. Replace four tools with one that thinks like you do."')}
           </p>
-          <footer className="mt-5 text-sm text-slate-500">{t('mkt.sp_quote_by', 'Founding principle · GymAxis AI')}</footer>
+          <footer className="mt-5 text-sm text-slate-500">{t('mkt.sp_quote_by', 'Founding principle · Pulse Fitness AI')}</footer>
         </blockquote>
       </div>
     </section>
@@ -341,7 +341,7 @@ function EngineerBanner() {
               <HardHat size={12} /> {t('mkt.eb_badge', 'Independent fitness engineer?')}
             </span>
             <h2 className="mt-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-              {t('mkt.eb_title', 'Run your own business — backed by the GymAxis network.')}
+              {t('mkt.eb_title', 'Run your own business — backed by the Pulse Fitness network.')}
             </h2>
             <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
               {t('mkt.eb_desc', "Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn a one-off signup reward (50% of the gym's first cleared Operations payment) plus £3/site/mo recurring for as long as the gym stays on the platform. Both released after the gym stays on the platform for 3 months. Monthly fee drops to")} <strong className="text-slate-800">{t('mkt.eb_desc_free', 'free')}</strong> {t('mkt.eb_desc_end', 'at 10 referrals.')}

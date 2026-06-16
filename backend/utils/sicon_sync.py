@@ -138,7 +138,7 @@ async def bump_queue_attempt(queue_id: str, error: SiconAPIError) -> None:
     )
 
 
-# ── Event hooks: GymAxis → Sicon ──────────────────────────────────
+# ── Event hooks: Pulse Fitness → Sicon ──────────────────────────────────
 
 async def _get_org_name(organization_id: str) -> str:
     org = await db.organizations.find_one({"id": organization_id}, {"_id": 0, "name": 1})
@@ -191,7 +191,7 @@ async def _post_first_tracking_note(issue_id: str, triage_summary: str) -> None:
             await post_tracking_note(
                 issue_id=issue_id,
                 note_text=f"AI Triage: {triage_summary}",
-                created_by="GymAxis AI", visible_to_customer=False,
+                created_by="Pulse Fitness AI", visible_to_customer=False,
             )
     except Exception as ex:
         logger.warning(f"AI triage note post failed (non-blocking): {ex}")
@@ -226,7 +226,7 @@ async def _fetch_case_context(issue: Dict) -> Dict:
 
 
 async def sync_issue_to_sicon(issue_id: str, user_id: str = "system") -> Optional[int]:
-    """Push a GymAxis issue to Sicon as a new service case. Returns sicon_case_id or None."""
+    """Push a Pulse Fitness issue to Sicon as a new service case. Returns sicon_case_id or None."""
     issue = await db.issues.find_one({"id": issue_id}, {"_id": 0})
     org_id = issue.get("organization_id") if issue else None
     config = await get_sicon_config(org_id) if org_id else None
@@ -265,10 +265,10 @@ async def sync_issue_to_sicon(issue_id: str, user_id: str = "system") -> Optiona
         raise
 
 
-async def post_tracking_note(issue_id: str, note_text: str, created_by: str = "GymAxis AI",
+async def post_tracking_note(issue_id: str, note_text: str, created_by: str = "Pulse Fitness AI",
                               visible_to_customer: bool = True) -> Optional[int]:
     """
-    Post a tracking note to the Sicon case linked to a GymAxis issue.
+    Post a tracking note to the Sicon case linked to a Pulse Fitness issue.
     Non-blocking event hook — errors are queued, not raised.
     """
 
@@ -310,24 +310,24 @@ async def post_tracking_note(issue_id: str, note_text: str, created_by: str = "G
 async def on_ai_triage_completed(issue_id: str, triage_summary: str) -> None:
     """Event hook — post AI triage summary as tracking note."""
     note = f"AI Triage: {triage_summary[:1500]}"
-    await post_tracking_note(issue_id, note, created_by="GymAxis AI", visible_to_customer=False)
+    await post_tracking_note(issue_id, note, created_by="Pulse Fitness AI", visible_to_customer=False)
 
 
 async def on_supplier_contacted(issue_id: str, supplier_name: str) -> None:
     """Event hook — log supplier contact in Sicon timeline."""
-    note = f"Supplier '{supplier_name}' contacted via GymAxis portal"
-    await post_tracking_note(issue_id, note, created_by="GymAxis AI")
+    note = f"Supplier '{supplier_name}' contacted via Pulse Fitness portal"
+    await post_tracking_note(issue_id, note, created_by="Pulse Fitness AI")
 
 
 async def on_supplier_responded(issue_id: str, supplier_name: str, message: str) -> None:
     """Event hook — log supplier response in Sicon timeline."""
     note = f"Supplier '{supplier_name}' responded: {message[:1000]}"
-    await post_tracking_note(issue_id, note, created_by="GymAxis AI")
+    await post_tracking_note(issue_id, note, created_by="Pulse Fitness AI")
 
 
 async def on_supplier_scheduled_visit(issue_id: str, supplier_name: str, visit_date: str) -> None:
     note = f"Supplier '{supplier_name}' scheduled engineer visit: {visit_date}"
-    await post_tracking_note(issue_id, note, created_by="GymAxis AI")
+    await post_tracking_note(issue_id, note, created_by="Pulse Fitness AI")
 
 
 async def on_status_changed(issue_id: str, new_status: str, user_name: str) -> None:
@@ -340,7 +340,7 @@ async def on_media_attached(issue_id: str, user_name: str) -> None:
     await post_tracking_note(issue_id, note, created_by=user_name)
 
 
-# ── Event hooks: GymAxis stock → Sicon (CoreWebAPI) ───────────────
+# ── Event hooks: Pulse Fitness stock → Sicon (CoreWebAPI) ───────────────
 # Dry-run safe: every hook is a no-op unless the org's Sicon config has
 # both `enabled` and `auto_sync_stock` true AND a client is configured.
 # Failures are queued (never raised) so a stock-sync blip can't break the
@@ -457,7 +457,7 @@ async def on_stock_adjusted(organization_id: str, adjustment: Dict) -> bool:
         return False
 
 
-# ── Inbound poll: Sicon → GymAxis ─────────────────────────────────
+# ── Inbound poll: Sicon → Pulse Fitness ─────────────────────────────────
 
 async def _sync_case_status(client, issue: Dict, sicon_case_id) -> bool:
     """Pull fresh Sicon case status; update issue sicon_* fields. Return True if updated."""

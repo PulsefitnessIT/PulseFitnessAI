@@ -8,7 +8,7 @@ collateral assets per partner on demand:
   the friendly URL. Designed for the van, the workshop, or to print
   and stick on a gym wall after a service visit.
 * **Social card** — 1200×630 PNG sized for Instagram, LinkedIn, X,
-  WhatsApp link-preview. Hero text + colour-block GymAxis branding.
+  WhatsApp link-preview. Hero text + colour-block Pulse Fitness branding.
 * **PDF pitch deck** — single-page A4 PDF the engineer can email to a
   gym owner. Includes the proposition, the engineer's name, their
   referral code, and a footer QR.
@@ -116,7 +116,7 @@ def generate_qr_poster(full_name: str, referral_code: str, referral_url: str) ->
     """Return PNG bytes for an A4 portrait poster at 150 DPI.
 
     Layout (centre-aligned):
-      1. "Refer a gym to GymAxis" headline
+      1. "Refer a gym to Pulse Fitness" headline
       2. QR code (centre, ~50 % page width)
       3. "{full_name}" attribution + code
       4. URL printed under the QR for non-camera users
@@ -131,7 +131,7 @@ def generate_qr_poster(full_name: str, referral_code: str, referral_url: str) ->
 
     # Headline
     headline_font = _font(72, "bold")
-    title = "Refer a gym to GymAxis"
+    title = "Refer a gym to Pulse Fitness"
     bbox = d.textbbox((0, 0), title, font=headline_font)
     d.text(((W - (bbox[2] - bbox[0])) / 2, 130), title, fill=COLOR_INK_900, font=headline_font)
 
@@ -149,7 +149,7 @@ def generate_qr_poster(full_name: str, referral_code: str, referral_url: str) ->
 
     # Attribution
     attrib_font = _font(40, "bold")
-    attrib = f"Referred by {full_name or 'a GymAxis partner engineer'}"
+    attrib = f"Referred by {full_name or 'a Pulse Fitness partner engineer'}"
     bbox = d.textbbox((0, 0), attrib, font=attrib_font)
     d.text(((W - (bbox[2] - bbox[0])) / 2, qr_y + qr_size + 60), attrib, fill=COLOR_INK_900, font=attrib_font)
 
@@ -167,7 +167,7 @@ def generate_qr_poster(full_name: str, referral_code: str, referral_url: str) ->
     # Footer pitch
     pitch_font = _font(28, "regular")
     pitch_lines = [
-        "GymAxis is the all-in-one fitness operations platform — maintenance,",
+        "Pulse Fitness is the all-in-one fitness operations platform — maintenance,",
         "memberships, marketing and CRM under one roof. Use a partner code and",
         "you get one month free.",
     ]
@@ -206,7 +206,7 @@ def generate_social_card(full_name: str, referral_code: str, referral_url: str) 
     name_font = _font(36, "bold")
     code_font = _font(24, "regular")
 
-    headline_lines = _wrap("Refer your gyms to GymAxis", 22)
+    headline_lines = _wrap("Refer your gyms to Pulse Fitness", 22)
     y = 90
     for line in headline_lines:
         d.text((70, y), line, fill=COLOR_INK_900, font=headline_font)
@@ -223,7 +223,7 @@ def generate_social_card(full_name: str, referral_code: str, referral_url: str) 
 
     # Attribution block
     y = H - 170
-    d.text((70, y), f"Referred by {full_name or 'a GymAxis partner engineer'}",
+    d.text((70, y), f"Referred by {full_name or 'a Pulse Fitness partner engineer'}",
            fill=COLOR_INK_900, font=name_font)
     d.text((70, y + 46), f"Code: {referral_code}", fill=COLOR_INK_700, font=code_font)
     d.text((70, y + 78), referral_url, fill=COLOR_BRAND_BLUE, font=code_font)
@@ -239,7 +239,7 @@ def generate_social_card(full_name: str, referral_code: str, referral_url: str) 
     img.paste(qr, (qr_x, qr_y))
 
     brand_font = _font(28, "bold")
-    brand_text = "GymAxis · Partner"
+    brand_text = "Pulse Fitness · Partner"
     bbox = d.textbbox((0, 0), brand_text, font=brand_font)
     text_x = block_x + ((W - block_x) - (bbox[2] - bbox[0])) // 2
     d.text((text_x, qr_y + qr_size + 36), brand_text, fill="white", font=brand_font)
@@ -272,7 +272,7 @@ def generate_pdf_pitch(full_name: str, referral_code: str, referral_url: str) ->
     # Logo wordmark + tagline
     c.setFillColorRGB(*[v / 255 for v in COLOR_INK_900])
     c.setFont("Helvetica-Bold", 28)
-    c.drawString(20 * mm, page_h - 30 * mm, "GymAxis")
+    c.drawString(20 * mm, page_h - 30 * mm, "Pulse Fitness")
     c.setFont("Helvetica", 11)
     c.setFillColorRGB(*[v / 255 for v in COLOR_INK_500])
     c.drawString(20 * mm, page_h - 36 * mm, "Operations platform for fitness")
@@ -309,7 +309,7 @@ def generate_pdf_pitch(full_name: str, referral_code: str, referral_url: str) ->
     # Attribution + QR
     c.setFillColorRGB(*[v / 255 for v in COLOR_INK_900])
     c.setFont("Helvetica-Bold", 13)
-    c.drawString(20 * mm, 60 * mm, f"Referred by {full_name or 'a GymAxis partner engineer'}")
+    c.drawString(20 * mm, 60 * mm, f"Referred by {full_name or 'a Pulse Fitness partner engineer'}")
     c.setFillColorRGB(*[v / 255 for v in COLOR_INK_700])
     c.setFont("Helvetica", 11)
     c.drawString(20 * mm, 54 * mm, f"Sign up: {referral_url}")
@@ -327,7 +327,7 @@ def generate_pdf_pitch(full_name: str, referral_code: str, referral_url: str) ->
     # Bottom brand bar + tiny print
     c.setFillColorRGB(*[v / 255 for v in COLOR_INK_500])
     c.setFont("Helvetica", 8)
-    c.drawString(20 * mm, 14 * mm, "GymAxis · gymaxisai.com · Partner engineer referral")
+    c.drawString(20 * mm, 14 * mm, "Pulse Fitness · www.pulsefitness.ai · Partner engineer referral")
     c.setFillColorRGB(*[v / 255 for v in COLOR_BRAND_BLUE])
     c.rect(0, 0, page_w, 6 * mm, fill=1, stroke=0)
     c.showPage()

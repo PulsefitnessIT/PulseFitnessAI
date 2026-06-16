@@ -7,7 +7,7 @@
  * delegated Pulse Master Admin (`is_pulse_admin && !is_master_admin`)
  * the picker is FORCED to "Pulse" on mount and rendered as a
  * non-clickable scope pill so Pulse admins can never accidentally
- * peek at GymAxis-only customers. GymAxis Master Admins keep the
+ * peek at Pulse Fitness-only customers. Pulse Fitness Master Admins keep the
  * full toggle.
  */
 import React from 'react';
@@ -21,7 +21,7 @@ export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
 
   // Force the brand to Pulse for Pulse-only admins on first mount and
   // any time they somehow ended up on a different brand (e.g. stale
-  // localStorage from a previous GymAxis-master session in the same
+  // localStorage from a previous Pulse Fitness-master session in the same
   // browser). Idempotent.
   React.useEffect(() => {
     if (isPulseAdmin && brand !== 'pulse') setBrand('pulse');

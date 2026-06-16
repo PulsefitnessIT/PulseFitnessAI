@@ -14,7 +14,7 @@ import MarketingShell from '../MarketingShell';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://gymaxisai.com';
+const SITE = 'https://www.pulsefitness.ai';
 
 export default function EquipmentIndex() {
   const [equipment, setEquipment] = useState([]);
@@ -26,7 +26,7 @@ export default function EquipmentIndex() {
   }, []);
 
   useSeo({
-    title: 'Gym Equipment Servicing & Repair by Type | GymAxis AI',
+    title: 'Gym Equipment Servicing & Repair by Type | Pulse Fitness AI',
     description:
       'Servicing and maintenance software for every type of gym equipment — treadmills, exercise bikes, rowers, cross trainers and strength machines. Asset register, fault logging, planned maintenance and parts.',
     canonical: `${SITE}/equipment`,
@@ -44,7 +44,7 @@ export default function EquipmentIndex() {
       <section className="gx-grid-bg" data-testid="equipment-index">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-12 lg:pt-20">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <span className="text-slate-700 font-semibold">Equipment</span>
           </nav>

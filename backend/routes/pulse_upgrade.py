@@ -3,7 +3,7 @@
 Public endpoint called from the Pulse landing page when a gym clicks
 "Request Upgrade" on the Pro plan card. Captures contact + estate context,
 persists to `pulse_upgrade_requests`, and emails both the Pulse Fitness
-service team and the platform owner (Lee@gymaxisai.com).
+service team and the platform owner (Lee@pulsefitness.ai).
 """
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def _pulse_fitness_email_html(r: dict) -> str:
 
 
 def _platform_owner_email_html(r: dict) -> str:
-    """Dark branded email for Lee@gymaxisai.com — matches trial-signup notifications."""
+    """Dark branded email for Lee@pulsefitness.ai — matches trial-signup notifications."""
     notes_block = ""
     if r.get("notes"):
         notes_block = (
@@ -145,7 +145,7 @@ async def submit_upgrade_request(payload: PulseUpgradeRequest, request: Request)
 
     # Fan out emails (non-blocking)
     pulse_recipient = os.environ.get("PULSE_UPGRADE_NOTIFY_EMAIL", "service.dept@pulsefitness.com")
-    platform_recipient = os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@gymaxisai.com")
+    platform_recipient = os.environ.get("TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai")
 
     subject_pulse = f"[Pulse Pro] Upgrade request — {record['gym_name']}"
     subject_owner = f"[Pulse Upgrade] {record['gym_name']} ({record['site_count']} site{'s' if record['site_count'] > 1 else ''})"

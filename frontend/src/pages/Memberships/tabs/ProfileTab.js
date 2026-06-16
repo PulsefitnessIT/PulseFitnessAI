@@ -105,7 +105,7 @@ export default function ProfileTab({ member, onSignOut, slug }) {
       <button onClick={onSignOut} className="mt-5 w-full rounded-lg py-3 text-sm font-bold border border-red-500/30 bg-red-500/5 text-red-300 hover:bg-red-500/15" data-testid="member-profile-signout">
         Sign out
       </button>
-      <div className="mt-6 text-[10px] text-white/30 text-center tracking-wider uppercase">GymAxis Memberships · Phase 1a</div>
+      <div className="mt-6 text-[10px] text-white/30 text-center tracking-wider uppercase">Pulse Fitness Memberships · Phase 1a</div>
     </div>
   );
 }

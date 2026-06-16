@@ -40,15 +40,15 @@ import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
-// Iter 215em — Tier order grouped by brand: GymAxis on the left column
+// Iter 215em — Tier order grouped by brand: Pulse Fitness on the left column
 // (Starter → Professional → Enterprise), Pulse on the right column
 // (Lite → Pro). The grid renders 2 columns on md+.
 const TIERS = [
-  { id: 'starter',      label: 'GymAxis · Starter',      desc: 'CRM + Memberships + basic ops',                brand: 'GymAxis AI' },
+  { id: 'starter',      label: 'Pulse Fitness · Starter',      desc: 'CRM + Memberships + basic ops',                brand: 'Pulse Fitness AI' },
   { id: 'lite',         label: 'Pulse · Lite',           desc: 'Equipment + faults + documents',               brand: 'Pulse Fitness' },
-  { id: 'professional', label: 'GymAxis · Professional', desc: 'Adds Service Desk + AI triage + Sage outbox',  brand: 'GymAxis AI' },
+  { id: 'professional', label: 'Pulse Fitness · Professional', desc: 'Adds Service Desk + AI triage + Sage outbox',  brand: 'Pulse Fitness AI' },
   { id: 'pro',          label: 'Pulse · Pro',            desc: 'Full Pulse platform with AI + reports',        brand: 'Pulse Fitness' },
-  { id: 'enterprise',   label: 'GymAxis · Enterprise',   desc: 'Multi-site, audit, SSO, custom SLA',           brand: 'GymAxis AI' },
+  { id: 'enterprise',   label: 'Pulse Fitness · Enterprise',   desc: 'Multi-site, audit, SSO, custom SLA',           brand: 'Pulse Fitness AI' },
 ];
 
 const STEPS = [
@@ -208,7 +208,7 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
   };
 
   // Pull the picked suggestion into the form. Handles both internal-org
-  // picks (existing GymAxis customer) and Companies House picks (UK
+  // picks (existing Pulse Fitness customer) and Companies House picks (UK
   // public-data API). Companies House picks set `company_number` and
   // pre-fill the registered office address; internal picks additionally
   // pull VAT and phone forward.
@@ -305,7 +305,7 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
               <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-emerald-700 hover:bg-emerald-100 shrink-0" data-testid="ho-onboard-invite-mailto"
                 onClick={() => {
                   const targetEmail = form.owner_email || result.organization?.primary_contact_email || '';
-                  const subject = encodeURIComponent(`${result.organization?.name} on GymAxis AI — set your password`);
+                  const subject = encodeURIComponent(`${result.organization?.name} on Pulse Fitness AI — set your password`);
                   const body = encodeURIComponent(
                     `Hi ${form.owner_name?.split(' ')[0] || ''},\n\n` +
                     `Your account on ${result.organization?.name} is ready. Click the link below to set your password (valid for 72 hours):\n\n` +

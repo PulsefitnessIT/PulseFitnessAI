@@ -97,7 +97,7 @@ def _render_invoice_email_html(
     sender_message: str,
     expires_at: datetime,
 ) -> str:
-    """Branded HTML body — keeps colours close to the rest of the GymAxis
+    """Branded HTML body — keeps colours close to the rest of the Pulse Fitness
     transactional emails."""
     ccy = invoice.get("currency", "GBP")
     total = _format_money(invoice.get("total", 0), ccy)
@@ -124,7 +124,7 @@ def _render_invoice_email_html(
         )
     return f"""<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;background:#fff;">
   <div style="background:#0A0C10;padding:28px 30px;text-align:center;">
-    <h1 style="color:#19CDFF;margin:0;font-size:22px;letter-spacing:-0.3px;">Invoice from {org_name or 'GymAxis AI'}</h1>
+    <h1 style="color:#19CDFF;margin:0;font-size:22px;letter-spacing:-0.3px;">Invoice from {org_name or 'Pulse Fitness AI'}</h1>
     <p style="color:#9ca3af;margin:6px 0 0;font-size:13px;">Invoice {invoice.get('number','')}</p>
   </div>
   <div style="padding:32px 30px;color:#1a1a1a;">
@@ -159,7 +159,7 @@ def _render_invoice_email_html(
     </p>
   </div>
   <div style="background:#f5f5f5;padding:16px 30px;text-align:center;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from {org_name or 'GymAxis AI'} billing</p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from {org_name or 'Pulse Fitness AI'} billing</p>
   </div>
 </div>"""
 
@@ -220,7 +220,7 @@ async def send_invoice_to_client(
         "organization_id": org_id,
         "invoice_id": invoice_id,
         "recipient_email": recipient,
-        "subject": f"Invoice {inv.get('number','')} from {org.get('name','GymAxis AI')}",
+        "subject": f"Invoice {inv.get('number','')} from {org.get('name','Pulse Fitness AI')}",
         "message": sender_message,
         "expires_at": expires_at.isoformat(),
         "used_count": 0,

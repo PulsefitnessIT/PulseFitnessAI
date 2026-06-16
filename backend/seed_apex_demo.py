@@ -1,6 +1,6 @@
 """Neutral, Pulse-free demo org for sales-deck screenshots.
 
-Creates "Apex Fitness Group" (account_type=full → GymAxis branding) with
+Creates "Apex Fitness Group" (account_type=full → Pulse Fitness branding) with
 rich, brand-safe data across Operations + Memberships so every operator
 feature slide can show a real, populated screenshot.
 

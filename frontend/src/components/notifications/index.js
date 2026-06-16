@@ -1,5 +1,5 @@
 /**
- * GymAxis Notification System — visual, in-context, intuitive.
+ * Pulse Fitness Notification System — visual, in-context, intuitive.
  *
  * Replaces the previous "sprinkle toast.X everywhere" pattern with a tiered
  * approach that matches the intent of each message:

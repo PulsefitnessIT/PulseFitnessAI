@@ -771,7 +771,7 @@ async def invite_member_portal(
     frontend = (
         _os.environ.get("FRONTEND_URL")
         or _os.environ.get("REACT_APP_BACKEND_URL")
-        or "https://gymaxisai.com"
+        or "https://www.pulsefitness.ai"
     ).rstrip("/")
     slug = org.get("membership_app_slug") or org.get("slug") or org_id
     claim_url = f"{frontend}/m/{slug}/claim?t={token}"

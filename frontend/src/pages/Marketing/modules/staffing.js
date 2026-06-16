@@ -11,7 +11,7 @@ export default {
 
   heroLine1: 'Run the gym',
   heroLine2: 'floor.',
-  heroSubtitle: 'Staffing is the rota, performance and live-floor layer of GymAxis. From a 4-person studio to a 60-instructor multi-site, every shift, swap, time-off request, payroll line and live attendance event in one place.',
+  heroSubtitle: 'Staffing is the rota, performance and live-floor layer of Pulse Fitness. From a 4-person studio to a 60-instructor multi-site, every shift, swap, time-off request, payroll line and live attendance event in one place.',
   heroVisualHeadline: 'On the floor right now',
   heroVisualLines: [
     { label: 'Staff on shift', value: '7' },
@@ -80,7 +80,7 @@ export default {
     { title: 'Shift fit scoring', body: 'When a member books a PT slot, AI suggests the best instructor based on attendance history and rating.' },
   ],
 
-  integrationsHeadline: 'Staffing is wired into the rest of GymAxis.',
+  integrationsHeadline: 'Staffing is wired into the rest of Pulse Fitness.',
   integrations: [
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class instructors auto-publish to the rota. PT sessions take qualified staff out of the open pool.' },
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Member-instructor ratings feed CRM and shape staffing decisions for VIP members.' },

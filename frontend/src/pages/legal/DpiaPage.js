@@ -10,9 +10,9 @@ import { ShieldCheck, AlertTriangle } from 'lucide-react';
  */
 const DpiaPage = () => {
   useSeo({
-    title: 'Data Protection Impact Assessment | GymAxis AI',
-    description: 'Summary DPIA for the GymAxis AI platform — UK GDPR Art. 35 risk assessment of personal-data processing across CRM, memberships, marketing and operations modules.',
-    canonical: 'https://gymaxisai.com/legal/dpia',
+    title: 'Data Protection Impact Assessment | Pulse Fitness AI',
+    description: 'Summary DPIA for the Pulse Fitness AI platform — UK GDPR Art. 35 risk assessment of personal-data processing across CRM, memberships, marketing and operations modules.',
+    canonical: 'https://www.pulsefitness.ai/legal/dpia',
   });
 
   return (
@@ -31,10 +31,10 @@ const DpiaPage = () => {
 
           <article className="prose prose-slate max-w-none text-sm leading-relaxed">
             <h2 className="text-xl font-bold text-slate-900 mt-4 mb-3">Purpose of this assessment</h2>
-            <p>This Data Protection Impact Assessment (DPIA) summarises the risks associated with personal-data processing inside the GymAxis AI platform. It is published as a transparency artefact for prospects, customers, and the ICO if requested.</p>
+            <p>This Data Protection Impact Assessment (DPIA) summarises the risks associated with personal-data processing inside the Pulse Fitness AI platform. It is published as a transparency artefact for prospects, customers, and the ICO if requested.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">1. Description of processing</h2>
-            <p><strong>What:</strong> the GymAxis AI multi-tenant SaaS platform delivers gym CRM, member management, class booking, marketing campaigns, and operational record-keeping.</p>
+            <p><strong>What:</strong> the Pulse Fitness AI multi-tenant SaaS platform delivers gym CRM, member management, class booking, marketing campaigns, and operational record-keeping.</p>
             <p><strong>Why:</strong> to enable fitness operators to run their business — sell memberships, schedule classes, manage staff, market to leads, and track equipment compliance.</p>
             <p><strong>How:</strong> data is collected via web/mobile UI, public APIs, and CSV import. It is stored in MongoDB Atlas, processed by FastAPI services hosted in the EU, and accessed by authenticated operators of the relevant tenant.</p>
 
@@ -72,7 +72,7 @@ const DpiaPage = () => {
                   <td className="p-2">All sub-processors are SOC 2 / ISO 27001 certified; UK IDTA in place for US transfers.</td>
                 </tr>
                 <tr className="border-t border-slate-200">
-                  <td className="p-2">Insider threat (GymAxis staff)</td>
+                  <td className="p-2">Insider threat (Pulse Fitness staff)</td>
                   <td className="p-2">Very low</td>
                   <td className="p-2">High</td>
                   <td className="p-2">Least-privilege IAM, tamper-evident audit log, mandatory annual training.</td>
@@ -120,7 +120,7 @@ const DpiaPage = () => {
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">5. Approval</h2>
-            <p>Reviewed by the GymAxis AI Data Protection Officer. Customers and prospects may request the full internal DPIA package by emailing <a href="mailto:dpo@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">dpo@gymaxisai.com</a>.</p>
+            <p>Reviewed by the Pulse Fitness AI Data Protection Officer. Customers and prospects may request the full internal DPIA package by emailing <a href="mailto:dpo@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">dpo@pulsefitness.ai</a>.</p>
           </article>
         </div>
       </main>

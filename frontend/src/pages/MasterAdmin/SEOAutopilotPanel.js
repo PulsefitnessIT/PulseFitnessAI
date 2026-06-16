@@ -1,7 +1,7 @@
 /**
  * SEOAutopilotPanel — Master Admin → Growth → SEO Autopilot (Iter 220ad).
  *
- * Soro-style SEO autopilot for promoting GymAxis itself. Three sub-tabs:
+ * Soro-style SEO autopilot for promoting Pulse Fitness itself. Three sub-tabs:
  *
  *   1. Dashboard  — KPIs + recent articles
  *   2. Keywords   — research seeds, queued list, promote-to-article
@@ -1269,7 +1269,7 @@ export default function SEOAutopilotPanel() {
             Growth · SEO Autopilot
           </p>
           <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight mt-0.5">
-            Rank GymAxis on Google &amp; ChatGPT
+            Rank Pulse Fitness on Google &amp; ChatGPT
           </h2>
           <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
             Research keywords · generate 1500-word articles with on-brand voice

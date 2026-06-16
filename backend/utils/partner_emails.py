@@ -7,12 +7,12 @@ qualification expiring soon, expired).
 
 All emails go through ``utils.email.send_email`` so they pick up:
 * Resend (real provider) with the env-defined sender domain
-* the GymAxis co-branded shell wrapper (header + footer)
+* the Pulse Fitness co-branded shell wrapper (header + footer)
 * the email-rate-limiter (Resend's 5 req/s cap)
 * the persisted email-event ledger for retries
 
 No org branding is applied — partner engineers are *not* tied to one
-tenant, so emails go out under the platform's master GymAxis brand.
+tenant, so emails go out under the platform's master Pulse Fitness brand.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ async def send_email(*args, **kwargs):
     """Partner/engineer account comms default to the `support` sending domain.
 
     Iter 220y — every email in this module is recruitment / trial / account
-    lifecycle, so route them all from support.gymaxisai.com unless a caller
+    lifecycle, so route them all from support.www.pulsefitness.ai unless a caller
     overrides `category` explicitly.
     """
     kwargs.setdefault("category", "support")
@@ -111,7 +111,7 @@ def _wrap(headline: str, body_html: str, cta_label: str | None = None, cta_url: 
         f"{body_html}"
         f"{cta}"
         f'<p style="margin-top:28px;color:#475569;font-size:12px;">'
-        f"You're receiving this because you applied to the GymAxis Engineer Partner Network. "
+        f"You're receiving this because you applied to the Pulse Fitness Engineer Partner Network. "
         f'If this wasn\'t you, reply and we\'ll remove your record.'
         f"</p>"
         f"</div>"
@@ -126,21 +126,21 @@ async def send_application_received(email: str, full_name: str, application_id: 
     first = (full_name or "").split(" ")[0] or "there"
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>Thanks for applying to the GymAxis Engineer Partner Network. "
+        f"<p>Thanks for applying to the Pulse Fitness Engineer Partner Network. "
         f"We've received your application and the team is reviewing it now — "
         f"you'll hear back within <strong>2 working days</strong>.</p>"
         f"<p>While you wait:</p>"
         f"<ul>"
         f"<li>Make sure your public liability insurance is current (we'll ask).</li>"
         f"<li>Have any scanned certifications (PAT, IOSH, CSCS, 18th Edition) ready in case we need them.</li>"
-        f"<li>Read the <a href=\"https://gymaxisai.com/partners/engineers\">commission &amp; pricing detail</a> "
+        f"<li>Read the <a href=\"https://www.pulsefitness.ai/partners/engineers\">commission &amp; pricing detail</a> "
         f"so you're ready to start once approved.</li>"
         f"</ul>"
         f'<p style="margin-top:18px;color:#475569;font-size:12px;">Application ref: <span style="font-family:monospace;">{application_id}</span></p>'
     )
     return await send_email(
         to=email,
-        subject="GymAxis Engineer Partner — application received",
+        subject="Pulse Fitness Engineer Partner — application received",
         html=_wrap("We've got your application.", body),
     )
 
@@ -200,7 +200,7 @@ async def send_application_approved(
 
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>You're in. Welcome to the GymAxis Engineer Partner Network.</p>"
+        f"<p>You're in. Welcome to the Pulse Fitness Engineer Partner Network.</p>"
         f"{sign_in_line}"
         f"<p style=\"font-size:13px;color:#475569;margin-top:18px;\">After that, we'll guide you through:</p>"
         f"<ol style=\"font-size:13px;color:#1f2937;\">"
@@ -246,13 +246,13 @@ async def send_application_rejected(email: str, full_name: str, reason: str | No
         )
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>Thanks for applying to the GymAxis Engineer Partner Network. After review, we're not able to approve your application at this time.</p>"
+        f"<p>Thanks for applying to the Pulse Fitness Engineer Partner Network. After review, we're not able to approve your application at this time.</p>"
         f"{reason_html}"
         f"<p>This isn't always permanent — if your circumstances change (additional certifications, insurance in place, more gym-side experience), you're welcome to re-apply. We keep no permanent block.</p>"
     )
     return await send_email(
         to=email,
-        subject="GymAxis Engineer Partner — application update",
+        subject="Pulse Fitness Engineer Partner — application update",
         html=_wrap("An update on your application.", body, cta_label="Update & re-apply", cta_url=_apply_again_url()),
     )
 
@@ -315,7 +315,7 @@ def _alternatives_block(alternatives: list[dict]) -> str:
         return ""
     rows: list[str] = []
     for alt in alternatives[:3]:
-        name = alt.get("full_name") or "GymAxis Engineer"
+        name = alt.get("full_name") or "Pulse Fitness Engineer"
         company = alt.get("company_name")
         area = alt.get("service_postcode_area") or ""
         bits = [f"<strong>{name}</strong>"]
@@ -345,7 +345,7 @@ def _welcome_back_subject(open_cases: int) -> str:
     doesn't look like a generic mass-send. An engineer with a queue
     of waiting jobs needs a louder cue than a quiet inbox."""
     if open_cases <= 0:
-        return "Welcome back — your GymAxis queue is clear"
+        return "Welcome back — your Pulse Fitness queue is clear"
     return f"Welcome back — {_plural(open_cases, 'job')} waiting"
 
 
@@ -439,7 +439,7 @@ async def send_welcome_back_digest(
     )
     if my_gyms_open_count <= 0:
         workload_block = (
-            f"<p>{away_phrase}your GymAxis queue is clear right now. "
+            f"<p>{away_phrase}your Pulse Fitness queue is clear right now. "
             f"Nothing urgent waiting from your referred gyms — a clean slate.</p>"
         )
     else:
@@ -486,7 +486,7 @@ async def send_welcome_back_digest(
         f"{activity_block}"
         f"{note_block}"
         f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
-        f"You're now marked <strong>available</strong> on GymAxis again — "
+        f"You're now marked <strong>available</strong> on Pulse Fitness again — "
         f"new contact requests will route to you straight away."
         f"</p>"
     )
@@ -537,7 +537,7 @@ async def send_engineer_unavailable_autoreply(
     body = (
         f"<p>Hi {salutation},</p>"
         f"<p>Thanks for getting in touch about <strong>{engineer_first_name}</strong>"
-        f"{company_suffix} on the GymAxis Engineer Network. {engineer_first_name} {back_phrase} "
+        f"{company_suffix} on the Pulse Fitness Engineer Network. {engineer_first_name} {back_phrase} "
         f"and will respond as soon as they're back.</p>"
         f"{note_block}"
         f"{_alternatives_block(alternatives or [])}"
@@ -579,7 +579,7 @@ async def send_trial_started(email: str, full_name: str, ends_at: str, trial_day
     first = (full_name or "").split(" ")[0] or "there"
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>Your <strong>{trial_days}-day free trial</strong> of the GymAxis Engineer App is live. "
+        f"<p>Your <strong>{trial_days}-day free trial</strong> of the Pulse Fitness Engineer App is live. "
         f"You've got full access to take jobs, batch faults, capture photos, fire off branded "
         f"service reports and track your van stock — no card needed.</p>"
         f'<p style="background:#F1F5F9;border-left:3px solid #0055FF;padding:14px 16px;border-radius:6px;">'
@@ -589,7 +589,7 @@ async def send_trial_started(email: str, full_name: str, ends_at: str, trial_day
     )
     return await send_email(
         to=email,
-        subject=f"Your {trial_days}-day GymAxis Engineer App trial has started",
+        subject=f"Your {trial_days}-day Pulse Fitness Engineer App trial has started",
         html=_wrap("Your free trial is live.", body, "Open the Engineer App", _partner_dashboard_url()),
     )
 
@@ -599,14 +599,14 @@ async def send_trial_ending_tomorrow(email: str, full_name: str, ends_at: str) -
     first = (full_name or "").split(" ")[0] or "there"
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>Quick heads-up — your free trial of the GymAxis Engineer App ends "
+        f"<p>Quick heads-up — your free trial of the Pulse Fitness Engineer App ends "
         f"<strong>tomorrow ({_fmt_date(ends_at)})</strong>.</p>"
         f"<p>Squeeze in any last jobs you want to test, and keep an eye on your inbox: "
         f"we'll send a 2-minute feedback form right after, with the option to continue on the plan.</p>"
     )
     return await send_email(
         to=email,
-        subject="Your GymAxis Engineer App trial ends tomorrow",
+        subject="Your Pulse Fitness Engineer App trial ends tomorrow",
         html=_wrap("One day left on your trial.", body, "Open the Engineer App", _partner_dashboard_url()),
     )
 
@@ -617,7 +617,7 @@ async def send_trial_feedback_request(email: str, full_name: str, token: str, tr
     url = _trial_feedback_url(token)
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>That's a wrap on your {trial_days}-day GymAxis Engineer App trial — thank you for "
+        f"<p>That's a wrap on your {trial_days}-day Pulse Fitness Engineer App trial — thank you for "
         f"putting it through its paces.</p>"
         f"<p>Could you spare <strong>2 minutes</strong> to tell us how it went? At the end you can "
         f"choose to continue on the plan (£30/mo, automatically dropping to free once you refer "
@@ -627,7 +627,7 @@ async def send_trial_feedback_request(email: str, full_name: str, token: str, tr
     )
     return await send_email(
         to=email,
-        subject="How was your GymAxis trial? (2 mins) — continue or step away",
+        subject="How was your Pulse Fitness trial? (2 mins) — continue or step away",
         html=_wrap("Tell us how the trial went.", body, "Give feedback & decide", url),
     )
 
@@ -638,13 +638,13 @@ async def send_trial_lastchance(email: str, full_name: str, token: str) -> bool:
     url = _trial_feedback_url(token)
     body = (
         f"<p>Hi {first},</p>"
-        f"<p>Last chance — your GymAxis Engineer App trial access is about to switch off. "
+        f"<p>Last chance — your Pulse Fitness Engineer App trial access is about to switch off. "
         f"If you'd like to keep going, just complete the quick feedback form and continue on the "
         f"plan. If we don't hear back, your access will pause and any in-flight jobs will be "
         f"returned to the dispatch team.</p>"
     )
     return await send_email(
         to=email,
-        subject="Last chance to keep your GymAxis Engineer App access",
+        subject="Last chance to keep your Pulse Fitness Engineer App access",
         html=_wrap("Your trial access is about to pause.", body, "Continue on the plan", url),
     )

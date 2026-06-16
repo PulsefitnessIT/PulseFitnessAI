@@ -39,7 +39,7 @@ STRIPE_PRICE_PRO = os.environ.get('STRIPE_PRICE_PRO')
 STRIPE_PRICE_ENTERPRISE = os.environ.get('STRIPE_PRICE_ENTERPRISE')
 # Iter 215be — new flexible pricing model. Each Stripe Price ID lives in
 # the dashboard and is stamped here from /app/backend/.env. The bundle
-# (GymAxis Pro) costs £150/mo for 1 site; the per-site add-on costs £50/mo
+# (Pulse Fitness Pro) costs £150/mo for 1 site; the per-site add-on costs £50/mo
 # and is sent as a quantity-based line item so Stripe handles proration
 # automatically when sites are added/removed mid-cycle.
 STRIPE_PRICE_GYMAXIS_PRO   = os.environ.get('STRIPE_PRICE_GYMAXIS_PRO')
@@ -51,7 +51,7 @@ STRIPE_PRICE_OPERATIONS    = os.environ.get('STRIPE_PRICE_OPERATIONS')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
 # Iter 216h256 — Resend stores verified domains in lowercase (per RFC
 # 1035). If the env var supplies a mixed-case domain (e.g.
-# `support@GymAxisAI.com`) the Resend API rejects every send with a
+# `support@pulsefitness.ai`) the Resend API rejects every send with a
 # "domain is not verified" error. Lowercase the domain segment of the
 # sender so case mishaps in deployment configs never break delivery.
 def _normalise_sender(addr: str) -> str:

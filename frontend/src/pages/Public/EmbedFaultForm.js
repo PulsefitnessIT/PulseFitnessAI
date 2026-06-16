@@ -194,7 +194,7 @@ export default function EmbedFaultForm() {
               <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                 {reviewBadge}
                 <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400">
-                  <ShieldCheck size={10} /> Powered by GymAxis
+                  <ShieldCheck size={10} /> Powered by Pulse Fitness
                 </span>
               </div>
             </div>

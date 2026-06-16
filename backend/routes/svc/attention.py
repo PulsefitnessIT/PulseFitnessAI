@@ -1,5 +1,5 @@
 """
-GymAxis · Engineer Attention digest — iter 220j.
+Pulse Fitness · Engineer Attention digest — iter 220j.
 
 Single read-only endpoint that aggregates "things this engineer needs
 to act on" so the Engineer App can render a single pulsing amber dot
@@ -97,7 +97,7 @@ async def engineer_attention(user=Depends(get_current_user)):
                 "key": "partner_suspended",
                 "severity": "red",
                 "label": "Partner access suspended",
-                "hint": "Contact GymAxis support to discuss next steps.",
+                "hint": "Contact Pulse Fitness support to discuss next steps.",
                 "cta_to": "/partner-engineer",
             })
 

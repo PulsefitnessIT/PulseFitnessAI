@@ -4,8 +4,8 @@ Orbit4 API client + deep field mappers (Phase α-δ).
 Phases:
 - α  Inbound: full ticket + asset field capture with conversation + attachments
 - β  Inbound: new event handlers (asset.created/updated/moved, note.created, media.created, user.created)
-- γ  Outbound: mirror GymAxis equipment + CRM contracts into Orbit4
-- δ  Outbound: mirror GymAxis faults (tickets) with status transitions
+- γ  Outbound: mirror Pulse Fitness equipment + CRM contracts into Orbit4
+- δ  Outbound: mirror Pulse Fitness faults (tickets) with status transitions
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ GYMAXIS_SEVERITY_TO_ORBIT4 = {
     "low": "low",
 }
 
-# Orbit4 ticket priority → GymAxis severity
+# Orbit4 ticket priority → Pulse Fitness severity
 ORBIT4_PRIORITY_TO_GYMAXIS = {
     "critical": "critical",
     "urgent": "critical",
@@ -357,7 +357,7 @@ def map_gymaxis_equipment_to_orbit4(equipment: Dict, *,
 def map_gymaxis_contract_to_orbit4(contract: Dict, *,
                                     gym_operator_id: int,
                                     service_provider_id: int) -> Dict:
-    """Phase γ — map a GymAxis CRM contract header to /v1/contracts."""
+    """Phase γ — map a Pulse Fitness CRM contract header to /v1/contracts."""
     payload: Dict = {
         "gym_operator_id": int(gym_operator_id),
         "service_provider_id": int(service_provider_id),
@@ -409,7 +409,7 @@ def map_gymaxis_issue_to_orbit4_ticket(issue: Dict, *,
     return {k: v for k, v in payload.items() if v not in (None, "")}
 
 
-# GymAxis fault status → Orbit4 ticket status (conservative — open/in_progress/closed only)
+# Pulse Fitness fault status → Orbit4 ticket status (conservative — open/in_progress/closed only)
 GYMAXIS_STATUS_TO_ORBIT4 = {
     "open": "open",
     "new": "open",
@@ -439,7 +439,7 @@ def map_gymaxis_status_to_orbit4_patch(issue_status: str,
 
 def map_gymaxis_user_to_orbit4(user: Dict, *, role: str = "gym_operator",
                                  site_name: Optional[str] = None) -> Dict:
-    """Phase γ — provision a GymAxis user onto Orbit4."""
+    """Phase γ — provision a Pulse Fitness user onto Orbit4."""
     language = user.get("language", "en")
     if language not in ORBIT4_LANG_ENUM:
         language = "en"

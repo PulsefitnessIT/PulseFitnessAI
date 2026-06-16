@@ -1,7 +1,7 @@
 /**
  * EngineerLegacyImport — Iter 220ea·33.
  *
- * A wizard that lets field engineers bring their history onto GymAxis:
+ * A wizard that lets field engineers bring their history onto Pulse Fitness:
  * pick / create a customer → bulk-upload historic PDF / CSV / XLSX service
  * reports → Gemini extracts the machines + per-machine custom fields → the
  * engineer reviews & edits everything inline → generate a beautiful branded
@@ -9,7 +9,7 @@
  *
  * Backend: routes/svc/legacy_reports.py (prefix /api/svc/legacy).
  * Works for org engineers AND orgless partner engineers (scope handled
- * server-side). Mobile-first, GymAxis light theme.
+ * server-side). Mobile-first, Pulse Fitness light theme.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
@@ -345,7 +345,7 @@ export default function EngineerLegacyImport() {
             <ArrowLeft size={16} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">GymAxis · Import</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness · Import</p>
             <h1 className="text-lg font-extrabold text-slate-900 truncate">Legacy report import</h1>
           </div>
           <Stepper step={step} />

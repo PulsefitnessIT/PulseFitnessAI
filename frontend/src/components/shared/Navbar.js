@@ -91,7 +91,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  //
  // Iter 216h118 — MOD users (mod_site / mod_branch / mod_org) are
  // Pulse Fitness customers per the iter 216h113 routing rule. They
- // MUST see the Pulse Fitness logo, never the GymAxis lockup.
+ // MUST see the Pulse Fitness logo, never the Pulse Fitness lockup.
  const pulseAccount = (
    user?.account_type === 'pulse_pro' || user?.account_type === 'lite' ||
    user?.account_type === 'mod_site' || user?.account_type === 'mod_branch' ||
@@ -182,7 +182,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  const u = response.data.user;
  // Iter 222 — Pulse Master Admins land on their MODULES (Pulse portal)
  // at login, not the Master Admin console. They reach the console on
- // demand via the Dashboard → Master Admin button. Full GymAxis platform
+ // demand via the Dashboard → Master Admin button. Full Pulse Fitness platform
  // admins still go straight to /master-admin.
  if (u?.is_master_admin) {
  navigate('/master-admin');
@@ -309,20 +309,20 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  { to: '/contact', label: t('nav.contact'), testId: 'nav-contact' },
  ];
 
- // Iter 215az — for GymAxis surfaces (non-Pulse, default branding) we
- // now render the actual GymAxis lockup (mark + "GymAxis" wordmark) in
+ // Iter 215az — for Pulse Fitness surfaces (non-Pulse, default branding) we
+ // now render the actual Pulse Fitness lockup (mark + "Pulse Fitness" wordmark) in
  // the navbar, matching the marketing site. Custom orgs that uploaded
  // their own logo (orgLogo) still get their own branding; Pulse
  // accounts continue to see PulseFitnessLogo. The fallback initial-box
  // (`brandColor` square) is reserved for orgs without a logo who don't
  // map to either brand.
- const _isGymAxisBrand = !showPulseBrand && !orgLogo && (!user || (
+ const _isPulseFitnessBrand = !showPulseBrand && !orgLogo && (!user || (
    !pulseAccount && (branding?.company_name || '').toLowerCase().includes('gymaxis') !== false
  ));
- // Default: show GymAxis lockup whenever Pulse isn't active and the org
+ // Default: show Pulse Fitness lockup whenever Pulse isn't active and the org
  // hasn't uploaded a custom logo. This covers logged-out, master admin,
- // and full-account GymAxis customers.
- const shouldShowGymAxisLockup = !showPulseBrand && !orgLogo;
+ // and full-account Pulse Fitness customers.
+ const shouldShowPulseFitnessLockup = !showPulseBrand && !orgLogo;
 
  return (
  <>
@@ -330,17 +330,17 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  <div className="max-w-7xl mx-auto px-4">
  <div className="flex justify-between items-center h-20">
  <Link to={user ? (showPulseBrand ? '/pulse' : '/dashboard') : '/'} className="flex items-center space-x-2.5" data-testid="nav-logo">
- {/* Iter 216h59 — uploaded org logo now wins over Pulse / GymAxis
+ {/* Iter 216h59 — uploaded org logo now wins over Pulse / Pulse Fitness
      defaults. Per operator request: "Once the user uploads a logo
-     it should overtake the Pulse Fitness/GymAxis logo in the
-     navbar." Falls back to Pulse → GymAxis → initial-box in that
+     it should overtake the Pulse Fitness/Pulse Fitness logo in the
+     navbar." Falls back to Pulse → Pulse Fitness → initial-box in that
      order when no custom logo is uploaded. */}
  {orgLogo ? (
  <img src={orgLogo} alt={branding?.company_name || 'Logo'} className="h-10 w-10 object-contain rounded" data-testid="org-logo" />
  ) : showPulseBrand ? (
  <img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" className="h-10 rounded-md object-cover" style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }} data-testid="pulse-logo" />
- ) : shouldShowGymAxisLockup ? (
- <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="h-10 w-10 object-contain" data-testid="gymaxis-logo" draggable={false} loading="eager" decoding="async" />
+ ) : shouldShowPulseFitnessLockup ? (
+ <img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" className="h-10 rounded-md object-cover" style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }} data-testid="pulse-logo" />
  ) : (
  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: brandColor }}>
  <span className="text-white font-bold text-xl">{branding?.company_name?.charAt(0) || 'G'}</span>
@@ -351,14 +351,14 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--theme-text)' }} data-testid="org-name-label">
  {branding?.company_name || ''}
  </span>
- ) : showPulseBrand ? null : shouldShowGymAxisLockup ? (
+ ) : showPulseBrand ? null : shouldShowPulseFitnessLockup ? (
+ (user && branding?.company_name && !branding.company_name.toLowerCase().includes('gymaxis')) ? (
  <span className="font-bold text-xl tracking-tight" style={{ fontFamily: "'Satoshi', 'Inter', system-ui, sans-serif", color: 'var(--theme-text)' }}>
- {user && branding?.company_name && !branding.company_name.toLowerCase().includes('gymaxis')
- ? branding.company_name
- : 'GymAxis'}
+ {branding.company_name}
  </span>
+ ) : null
  ) : (
- <span className="font-bold text-xl" style={{ color: 'var(--theme-text)' }}>{(user && branding?.company_name) || ((user?.account_type === 'pulse_pro' || user?.account_type === 'lite') ? 'Pulse Fitness' : 'GymAxis AI')}</span>
+ <span className="font-bold text-xl" style={{ color: 'var(--theme-text)' }}>{(user && branding?.company_name) || ((user?.account_type === 'pulse_pro' || user?.account_type === 'lite') ? 'Pulse Fitness' : 'Pulse Fitness AI')}</span>
  )}
  </div>
  </Link>
@@ -443,7 +443,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
 
  {/* Site Switcher — owners only, when >1 site.
      Iter 216h31 — replaced bespoke inline dropdown with the canonical
-     <SiteSwitcher> so the GymAxis Pro `/dashboard` shows the same
+     <SiteSwitcher> so the Pulse Fitness Pro `/dashboard` shows the same
      HQ-star-first list that Pulse Pro / Lite operators see on /pulse.
      Backend (/api/sites) auto-creates a real Head Office row and
      sorts it to the top, so the operator can always pick HQ even

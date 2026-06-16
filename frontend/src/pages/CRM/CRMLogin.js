@@ -53,12 +53,12 @@ export default function CRMLogin({ onLogin }) {
   const txtM = isDark ? 'var(--color-neutral-400)' : 'var(--color-text-faint-alt)';
   const inputBg = isDark ? 'var(--color-ink-alt)' : 'var(--color-white)';
 
-  // Iter 216h101 — branding leak fix. The CRM is shared across GymAxis
+  // Iter 216h101 — branding leak fix. The CRM is shared across Pulse Fitness
   // and Pulse Fitness deployments. Default brand label tracks the host
-  // domain so a Pulse Fitness operator never sees "GymAxis CRM" on the
+  // domain so a Pulse Fitness operator never sees "Pulse Fitness CRM" on the
   // login screen, and vice versa.
   const isPulseHost = typeof window !== 'undefined' && /pulsefitness|pulse-fitness|pulse\.local/i.test(window.location.hostname || '');
-  const brandLabel = isPulseHost ? 'Pulse Fitness CRM' : 'GymAxis CRM';
+  const brandLabel = isPulseHost ? 'Pulse Fitness CRM' : 'Pulse Fitness CRM';
   const brandInitial = isPulseHost ? 'P' : 'G';
 
   const plan = PLANS[selectedPlan];

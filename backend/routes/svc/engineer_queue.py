@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Engineer Self-Allocation Queue.
+Pulse Fitness Service Operations — Engineer Self-Allocation Queue.
 
 Iter 216h147 (Phase 5 follow-on).
 Iter 216h150 — "Nearest to me" haversine sort (Feb 2026).

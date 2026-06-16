@@ -1,11 +1,11 @@
 """Iter 215bs / 215ei — Reset for deployment.
 
 Default mode (KEEP_ORG_IDS) keeps:
-  • Master admin user (admin@gymaxisai.com) + GymAxis Master Admin org
+  • Master admin user (admin@pulsefitness.ai) + Pulse Fitness Master Admin org
   • Tottenham Green Leisure Centre org and ALL of its data
 
 Strict mode (`--master-admin-only`, iter 215ei) keeps:
-  • Master admin user (admin@gymaxisai.com) + GymAxis Master Admin org
+  • Master admin user (admin@pulsefitness.ai) + Pulse Fitness Master Admin org
   • Drops the Tottenham seed too — truly empty platform.
 
 Wipes:
@@ -44,13 +44,13 @@ from pymongo import MongoClient
 
 # ── KEEP CONFIG ─────────────────────────────────────────────────
 KEEP_ORG_IDS = {
-    "9fa701ef-5cc2-4db6-8795-bbfd2c85179d",  # GymAxis Master Admin
+    "9fa701ef-5cc2-4db6-8795-bbfd2c85179d",  # Pulse Fitness Master Admin
     "156c8dc4-8683-4cb4-8a74-facd811655ad",  # Tottenham Green Leisure Centre
 }
 KEEP_USER_IDS = {
-    "d7fc6143-ae1e-45e9-8a49-bcc4237754a6",  # admin@gymaxisai.com
+    "d7fc6143-ae1e-45e9-8a49-bcc4237754a6",  # admin@pulsefitness.ai
 }
-KEEP_USER_EMAILS = {"admin@gymaxisai.com"}
+KEEP_USER_EMAILS = {"admin@pulsefitness.ai"}
 
 # Global reference data — never touch.
 GLOBAL_PRESERVE = {
@@ -87,7 +87,7 @@ def main() -> int:
     parser.add_argument(
         "--master-admin-only",
         action="store_true",
-        help="Strict mode (iter 215ei): keep ONLY the master admin user + GymAxis Master Admin org. "
+        help="Strict mode (iter 215ei): keep ONLY the master admin user + Pulse Fitness Master Admin org. "
              "Drops the Tottenham Green Leisure Centre seed too.",
     )
     args = parser.parse_args()

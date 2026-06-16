@@ -696,7 +696,7 @@ async def _email_commit_done(user: dict, version_doc: dict) -> None:
         from utils.email import send_email
         await send_email(
             to=to,
-            subject="GymAxis — price list import complete",
+            subject="Pulse Fitness — price list import complete",
             html=(
                 f"<div style=\"font-family:Arial,sans-serif;color:#1e293b\">"
                 f"<h2 style=\"color:#0055FF\">Master Price List — import complete</h2>"

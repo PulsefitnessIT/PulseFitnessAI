@@ -64,7 +64,7 @@ const DashboardPage = () => {
   const { user, API, theme } = useAuth();
   // Iter 216o-6 — owns its own document.title so navigating from a SEO
   // page (e.g. /pricing) back to /dashboard correctly resets the tab.
-  useSeo({ title: 'Dashboard · GymAxis AI' });
+  useSeo({ title: 'Dashboard · Pulse Fitness AI' });
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
 
@@ -233,7 +233,7 @@ const DashboardPage = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Iter 215d1 — module switcher sits *between* the header and
-                sub-tabs so GymAxis matches Pulse Fitness Pro's established
+                sub-tabs so Pulse Fitness matches Pulse Fitness Pro's established
                 visual order (title → welcome → module pills → sub-tabs). */}
             <div className="mb-4 flex justify-start" data-testid="gymaxis-module-switcher-wrap">
               <ModuleSwitcher user={user} current="operations" />

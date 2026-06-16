@@ -1,7 +1,7 @@
 /**
  * NotFoundPage — Iter 215by
  *
- * Branded 404 page. Detects the active brand (Pulse Fitness vs GymAxis)
+ * Branded 404 page. Detects the active brand (Pulse Fitness vs Pulse Fitness)
  * from the URL path so the visitor sees the right logo, accent colour,
  * and CTA. Covers truly unknown routes — paid by the App-router fallback
  * `<Route path="*" element={<NotFoundPage />} />`.
@@ -13,7 +13,7 @@ const NotFoundPage = () => {
   const isPulse = typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/pulse');
   const accent = isPulse ? 'var(--pulse-primary)' : 'var(--color-brand-blue)';
   const homeHref = isPulse ? '/pulse' : '/';
-  const brandName = isPulse ? 'Pulse Fitness' : 'GymAxis';
+  const brandName = isPulse ? 'Pulse Fitness' : 'Pulse Fitness';
 
   return (
     <div

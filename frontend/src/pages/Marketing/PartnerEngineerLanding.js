@@ -113,7 +113,7 @@ const COMMISSION_STATS = [
 
 const PERKS = [
   { icon: PoundSterling, title: 'Get paid for referrals',
-    body: `50% one-off + £3/site/month recurring for every gym you bring on. Released once the referred gym has been on GymAxis for ${QUALIFYING_PERIOD}.` },
+    body: `50% one-off + £3/site/month recurring for every gym you bring on. Released once the referred gym has been on Pulse Fitness for ${QUALIFYING_PERIOD}.` },
   { icon: MapPin, title: 'Jobs routed to you',
     body: 'Customers in your area can request you specifically. We surface skill + postcode matches first.' },
   { icon: BadgeCheck, title: 'Verified profile',
@@ -150,9 +150,9 @@ const APP_BULLETS = [
 
 export default function PartnerEngineerLanding() {
   useSeo({
-    title: 'Engineer Partner Network — GymAxis AI',
-    description: 'Join 100+ independent fitness engineers on the GymAxis Partner Network. £30/mo (drops to free at 10 referrals). Apply in 5 minutes.',
-    canonical: 'https://gymaxisai.com/partners/engineers',
+    title: 'Engineer Partner Network — Pulse Fitness AI',
+    description: 'Join 100+ independent fitness engineers on the Pulse Fitness Partner Network. £30/mo (drops to free at 10 referrals). Apply in 5 minutes.',
+    canonical: 'https://www.pulsefitness.ai/partners/engineers',
   });
   return (
     <MarketingShell>
@@ -213,7 +213,7 @@ function Hero() {
         Apply in 5 minutes; we'll come back within 2 working days.
       </>
     : <>
-        Run your own business — but plug into the gym-operator network that already trusts GymAxis. Steady jobs, a powerful mobile app, and a fair monthly fee that drops to <strong className="text-slate-800">free</strong> once you refer 10 active gym sites.
+        Run your own business — but plug into the gym-operator network that already trusts Pulse Fitness. Steady jobs, a powerful mobile app, and a fair monthly fee that drops to <strong className="text-slate-800">free</strong> once you refer 10 active gym sites.
       </>;
   return (
     <section className="gx-grid-bg relative overflow-hidden" data-testid="pe-hero" data-attribution-source={isInstagram ? 'instagram' : 'organic'}>
@@ -309,7 +309,7 @@ function Perks() {
     <section className="py-20 md:py-28 bg-white dark:bg-zinc-900" data-testid="pe-perks">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-12">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Why partner with GymAxis</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Why partner with Pulse Fitness</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">The independent engineer's unfair advantage.</h2>
           <p className="mt-3 text-base text-slate-600 max-w-2xl mx-auto">
             You stay independent. We bring the gym-operator network, the customer-facing tech and the credit-card-ready customers.
@@ -346,7 +346,7 @@ function Commission() {
               Two ways<br /> you get <span className="gx-gradient-text">paid.</span>
             </h2>
             <p className="mt-4 text-base text-slate-600 leading-relaxed">
-              Every gym you bring to GymAxis pays you back two ways — a one-off signup reward (50% of their first cleared Operations payment) and a £3/site/mo recurring share that grows as the network grows. Both are released after the referred gym has stayed on the platform for {QUALIFYING_PERIOD} (protects everyone from trial-and-cancel churn). No cap. No exclusivity. No volume targets.
+              Every gym you bring to Pulse Fitness pays you back two ways — a one-off signup reward (50% of their first cleared Operations payment) and a £3/site/mo recurring share that grows as the network grows. Both are released after the referred gym has stayed on the platform for {QUALIFYING_PERIOD} (protects everyone from trial-and-cancel churn). No cap. No exclusivity. No volume targets.
             </p>
             <div className="mt-7 grid grid-cols-2 gap-3" data-testid="pe-commission-stats">
               {COMMISSION_STATS.map((s) => (
@@ -420,7 +420,7 @@ function Pricing() {
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Auto-tiered pricing</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Your fee drops as you grow the network.</h2>
           <p className="mt-3 text-base text-slate-600 max-w-2xl mx-auto">
-            Bring gyms to GymAxis and we'll discount your monthly engineer fee automatically. No paperwork. Tiers re-evaluate each billing cycle.
+            Bring gyms to Pulse Fitness and we'll discount your monthly engineer fee automatically. No paperwork. Tiers re-evaluate each billing cycle.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
@@ -525,8 +525,8 @@ function FAQ() {
     { q: 'How much can I actually earn?',
       a: `Two stacking commissions per gym you bring on: a one-off signup reward (50% of their first cleared Operations payment) and a £3/site/month recurring share for as long as the gym stays active. Both are released after the referred gym has been active on the platform for ${QUALIFYING_PERIOD} — see the next FAQ. There's no cap on the number of gyms you can refer.` },
     { q: `Why the ${QUALIFYING_PERIOD} qualifying period?`,
-      a: `It protects everyone — engineers and GymAxis — from trial-and-cancel referrals where a gym signs up, takes a free quarter, and leaves. Commissions accrue from day one but are released once the referred gym has paid for ${QUALIFYING_PERIOD} of active service. If a gym cancels inside the window, no commission is paid (no claw-back from you either). Once they cross month 3, the signup reward releases in the next payout and the £3/site/mo recurring kicks in from month 4.` },
-    { q: 'Do I work for GymAxis?',
+      a: `It protects everyone — engineers and Pulse Fitness — from trial-and-cancel referrals where a gym signs up, takes a free quarter, and leaves. Commissions accrue from day one but are released once the referred gym has paid for ${QUALIFYING_PERIOD} of active service. If a gym cancels inside the window, no commission is paid (no claw-back from you either). Once they cross month 3, the signup reward releases in the next payout and the £3/site/mo recurring kicks in from month 4.` },
+    { q: 'Do I work for Pulse Fitness?',
       a: 'No — you stay completely independent. Gyms invoice their customers directly, and you run your own business. We connect you, equip you with the app, and pay your referral commissions monthly.' },
     { q: 'Who handles invoicing customers?',
       a: 'The gym (our customer) bills the end customer. Your relationship is with the gym — they decide how to pay you per job. We only handle your referral commissions.' },
@@ -584,7 +584,7 @@ function FinalCta() {
           <div className="relative">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-[1.04]">Independent engineer?<br />Get on the network.</h2>
             <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">
-              5-minute application. Decision within 2 working days. £30/mo · drops automatically as you bring gyms to GymAxis.
+              5-minute application. Decision within 2 working days. £30/mo · drops automatically as you bring gyms to Pulse Fitness.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link

@@ -30,7 +30,7 @@ const SupplierDashboardTab = () => {
  const [adding, setAdding] = useState(false);
  const [wizardSupplier, setWizardSupplier] = useState(null);
 
- // Supplier CRUD is gated to Pulse Pro and GymAxis Full (Pulse Lite excluded).
+ // Supplier CRUD is gated to Pulse Pro and Pulse Fitness Full (Pulse Lite excluded).
  const canAddSuppliers = ['pulse_pro', 'full', undefined, null].includes(user?.account_type);
 
  // Iter 216h121 — Re-fetch when the active site changes. MOD HQ users

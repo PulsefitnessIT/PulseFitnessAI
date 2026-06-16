@@ -42,7 +42,7 @@ async def _get_platform_counts(org_ids: Optional[list[str]] = None) -> dict:
     """Fetch core platform entity counts.
 
     When ``org_ids`` is provided (Pulse-scoped admins), every count is filtered
-    by ``organization_id ∈ org_ids``. ``None`` means platform-wide (GymAxis
+    by ``organization_id ∈ org_ids``. ``None`` means platform-wide (Pulse Fitness
     master view).
     """
     org_q: dict = {}
@@ -151,7 +151,7 @@ async def get_master_stats(
     # module-scoped via the existing helpers.
     if module in ("operations", "memberships", "marketing", "crm"):
         org_ids = await _resolve_module_org_ids(module, org_ids)
-    # Iter 233 — brand scoping. The header brand selector (GymAxis /
+    # Iter 233 — brand scoping. The header brand selector (Pulse Fitness /
     # Pulse) already filters the organisations and users lists; the KPI
     # cards must ride the SAME scope or the "Organisations" number
     # contradicts the list right below it.

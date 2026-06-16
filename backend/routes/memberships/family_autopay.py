@@ -2,7 +2,7 @@
 
 Dance schools, pilates studios, and term-based parents hate logging in
 to pay a monthly invoice. With Family Auto-Bill a parent saves a card
-once and GymAxis quietly charges their Stripe customer on the 1st of
+once and Pulse Fitness quietly charges their Stripe customer on the 1st of
 each month for the PREVIOUS period's class invoice (draft / sent).
 
 Flow

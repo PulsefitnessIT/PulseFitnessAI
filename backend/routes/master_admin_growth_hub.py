@@ -1,4 +1,4 @@
-"""Master Admin · GymAxis Growth Hub — Iter 220ag / 220ah.
+"""Master Admin · Pulse Fitness Growth Hub — Iter 220ag / 220ah.
 
 Single aggregation endpoint that powers the new
 **Master Admin → Growth → Marketing Studio** landing page (renamed from
@@ -22,7 +22,7 @@ the live collections owned by:
   * ``routes/crm_*``                  → deal pipeline + companies
 
 and surfaces a single ``GET /api/master-admin/growth/overview`` JSON
-payload purpose-built for "How is GymAxis self-marketing performing
+payload purpose-built for "How is Pulse Fitness self-marketing performing
 this month?"
 
 The Hub UI deep-links into the existing modules for any drill-down —
@@ -66,7 +66,7 @@ async def _sum_value_field(coll, query: dict, field: str = "value") -> float:
 
 @router.get("/master-admin/growth/overview")
 async def growth_overview(user: dict = Depends(get_current_user)) -> dict:
-    """One JSON payload powering the GymAxis Growth Hub landing tiles.
+    """One JSON payload powering the Pulse Fitness Growth Hub landing tiles.
 
     Returns five module groups, each with its KPIs *and* the deep-link
     section ID the UI should jump to so the master admin can drill in
@@ -135,7 +135,7 @@ async def growth_overview(user: dict = Depends(get_current_user)) -> dict:
     # public /demo-request landing page still creates a ``crm_deals``
     # row). Before this fix, the tile aggregated ALL tenants' deals
     # globally — a £50k deal in any customer's CRM bled into the
-    # GymAxis self-promo Growth Hub.
+    # Pulse Fitness self-promo Growth Hub.
     ma_org = await _master_admin_org_id()
     of = {"organization_id": ma_org}
     deals_open = (
@@ -420,7 +420,7 @@ async def growth_sparklines(user: dict = Depends(get_current_user)) -> dict:
 
 # ── B2B Journey Templates — Iter 220ah ───────────────────────────
 #
-# Pre-canned multi-step email journeys for GymAxis self-promotion.
+# Pre-canned multi-step email journeys for Pulse Fitness self-promotion.
 # Each template materialises into a real ``marketing_journeys`` row
 # scoped to the master-admin organisation, with ``send_email`` nodes
 # the omni-channel dispatcher already knows how to fire. The operator
@@ -434,8 +434,8 @@ async def growth_sparklines(user: dict = Depends(get_current_user)) -> dict:
 
 _BRAND_SIG_HTML = (
     "<br><br>—<br>"
-    "GymAxis · operations + CRM for fitness operators<br>"
-    "<a href=\"https://gymaxisai.com/demo\">Book a 20-min demo</a>"
+    "Pulse Fitness · operations + CRM for fitness operators<br>"
+    "<a href=\"https://www.pulsefitness.ai/demo\">Book a 20-min demo</a>"
 )
 
 
@@ -472,7 +472,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "first person on your team that hears about it, and how long until "
                     "the service company picks up the phone?</p>"
                     "<p>Most operators we speak to say the answer is &quot;3–6 hours and "
-                    "an angry WhatsApp thread&quot;. We built GymAxis specifically for "
+                    "an angry WhatsApp thread&quot;. We built Pulse Fitness specifically for "
                     "that gap.</p>"
                     "<p>If you're open to a 20-min look, I'll share a 1-page benchmark of "
                     "how multi-site chains are running this in 2026.</p>"
@@ -497,7 +497,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                 html=(
                     "<p>Hi {{first_name}},</p>"
                     "<p>One pattern we keep seeing in 5+ site chains: the on-site team "
-                    "logs faults via QR-code → GymAxis auto-routes to the cheapest "
+                    "logs faults via QR-code → Pulse Fitness auto-routes to the cheapest "
                     "available partner engineer → 24h SLA → invoice posts back to Sage.</p>"
                     "<p>Total time gym manager spends on each fault: ~45 seconds.</p>"
                     "<p>Want a 20-min walkthrough? I can show you the exact dashboard "
@@ -529,7 +529,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "back next quarter.</p>"
                     "<p>Either way, here's our 2026 multi-site downtime benchmark "
                     "(no email gate, just a link): "
-                    "<a href=\"https://gymaxisai.com/benchmark\">gymaxisai.com/benchmark</a>.</p>"
+                    "<a href=\"https://www.pulsefitness.ai/benchmark\">www.pulsefitness.ai/benchmark</a>.</p>"
                 ),
             ),
         ],
@@ -566,7 +566,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p>Hi {{first_name}},</p>"
                     "<p>Forgot to send this in the recap. 4-min walkthrough showing "
                     "what your area manager sees when a fault comes in:</p>"
-                    "<p><a href=\"https://gymaxisai.com/demo-video/partner-flow\">"
+                    "<p><a href=\"https://www.pulsefitness.ai/demo-video/partner-flow\">"
                     "Watch the partner-flow demo (4 min)</a></p>"
                     "<p>Worth showing to whoever runs ops day-to-day.</p>"
                 ),
@@ -594,7 +594,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
         "nodes": [
             _email_node(
                 day=1,
-                subject="Welcome to GymAxis — the 1 thing to do today",
+                subject="Welcome to Pulse Fitness — the 1 thing to do today",
                 html=(
                     "<p>Hi {{first_name}},</p>"
                     "<p>Your trial is live. Most of our converting trials hit value "
@@ -602,7 +602,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p><strong>Add 5 pieces of equipment and log 1 fault.</strong> "
                     "Takes 6 minutes total.</p>"
                     "<p>Quick guide: "
-                    "<a href=\"https://gymaxisai.com/docs/quickstart\">5-min quickstart</a></p>"
+                    "<a href=\"https://www.pulsefitness.ai/docs/quickstart\">5-min quickstart</a></p>"
                     "<p>Stuck? Hit reply — I read these myself.</p>"
                 ),
             ),
@@ -616,7 +616,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "partner engineer. You're in the right ballpark.</p>"
                     "<p>If you want a 15-min review of your specific setup before "
                     "the trial ends, grab a slot here: "
-                    "<a href=\"https://gymaxisai.com/trial-review\">trial-review</a>.</p>"
+                    "<a href=\"https://www.pulsefitness.ai/trial-review\">trial-review</a>.</p>"
                 ),
             ),
             _email_node(
@@ -630,7 +630,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                     "<p>If you're not ready, just reply and we can pause / extend "
                     "rather than lose the work.</p>"
                     "<p>Either way: 3 short clicks here to convert → "
-                    "<a href=\"https://gymaxisai.com/subscribe\">subscribe</a>.</p>"
+                    "<a href=\"https://www.pulsefitness.ai/subscribe\">subscribe</a>.</p>"
                 ),
             ),
         ],
@@ -645,7 +645,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
         "nodes": [
             _email_node(
                 day=0,
-                subject="A 60-second update from GymAxis (no pitch)",
+                subject="A 60-second update from Pulse Fitness (no pitch)",
                 html=(
                     "<p>Hi {{first_name}},</p>"
                     "<p>We chatted ~90 days ago. Quick update — three things shipped "
@@ -667,8 +667,8 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
                 html=(
                     "<p>Hi {{first_name}},</p>"
                     "<p>Quick one — we just published how a 12-site UK chain cut "
-                    "equipment downtime by 38% in 90 days using GymAxis.</p>"
-                    "<p><a href=\"https://gymaxisai.com/case-studies/12-site-chain\">"
+                    "equipment downtime by 38% in 90 days using Pulse Fitness.</p>"
+                    "<p><a href=\"https://www.pulsefitness.ai/case-studies/12-site-chain\">"
                     "Read the case study (5 min)</a></p>"
                     "<p>If the numbers look relevant, happy to share what they "
                     "specifically configured. No pitch attached.</p>"
@@ -680,7 +680,7 @@ JOURNEY_TEMPLATES: dict[str, dict] = {
 
 
 async def _master_admin_org_id() -> str:
-    """Return the GymAxis master-admin organisation_id used as the
+    """Return the Pulse Fitness master-admin organisation_id used as the
     canonical home for self-promo journeys. Falls back to the first
     master admin's ``organization_id`` if a dedicated master-admin org
     isn't found — this matches how the rest of the master-admin tools
@@ -693,7 +693,7 @@ async def _master_admin_org_id() -> str:
     if user and user.get("organization_id"):
         return str(user["organization_id"])
     org = await db.organizations.find_one(
-        {"$or": [{"is_master_admin": True}, {"slug": "gymaxis"}, {"name": "GymAxis"}]},
+        {"$or": [{"is_master_admin": True}, {"slug": "gymaxis"}, {"name": "Pulse Fitness"}]},
         {"_id": 0, "id": 1},
     )
     if org and org.get("id"):

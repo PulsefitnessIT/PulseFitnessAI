@@ -209,7 +209,7 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
         </div>
         <div className="min-w-0">
           <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-            {t('ops_start.reassure_title', 'GymAxis does the boring bits')}
+            {t('ops_start.reassure_title', 'Pulse Fitness does the boring bits')}
           </div>
           <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
             {t('ops_start.reassure_note', 'Auto-route faults to suppliers, auto-generate weekly reports, auto-flag at-risk machines — so your team focuses on members, not spreadsheets.')}

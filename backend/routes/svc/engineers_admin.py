@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Engineers Admin & Reorder Alerts.
+Pulse Fitness Service Operations — Engineers Admin & Reorder Alerts.
 
 Iter 216v (Phase 3).
 
@@ -265,7 +265,7 @@ def _build_quote_pdf(case: dict, quote: dict, org: dict) -> bytes:
     muted = ParagraphStyle("muted", parent=body, textColor=colors.HexColor("#52525B"), fontSize=9)
 
     story = [
-        Paragraph(org.get("name") or "GymAxis", h1),
+        Paragraph(org.get("name") or "Pulse Fitness", h1),
         Paragraph("Service Quote", styles["Heading2"]),
         Spacer(1, 6 * mm),
     ]
@@ -350,7 +350,7 @@ def _build_quote_pdf(case: dict, quote: dict, org: dict) -> bytes:
         "Quote validity: 30 days from the issue date unless stated otherwise. "
         "Acceptance constitutes a purchase order under our standard terms. "
         "Reply to your service desk contact to approve, or contact "
-        "service@gymaxisai.com.", muted,
+        "service@pulsefitness.ai.", muted,
     ))
     doc.build(story)
     return buf.getvalue()

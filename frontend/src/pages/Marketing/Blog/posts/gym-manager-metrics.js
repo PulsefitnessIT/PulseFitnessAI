@@ -17,14 +17,14 @@ export const body = (
       of them say &ldquo;MRR and churn.&rdquo; Those matter — but they&rsquo;re
       lagging indicators. The metrics that actually predict whether your
       next site will be profitable live in operations, not finance. Here
-      are the five we put front-and-centre on the GymAxis dashboard.
+      are the five we put front-and-centre on the Pulse Fitness dashboard.
     </p>
 
     <h2>1. First-time fix rate (FTFR)</h2>
     <p>
       Of the service cases closed this week, what percentage were closed
       on the first engineer visit? If it&rsquo;s below 85% you&rsquo;re
-      leaking engineer-hours and member trust. GymAxis tracks this per
+      leaking engineer-hours and member trust. Pulse Fitness tracks this per
       engineer, per equipment-type, and per site so you can see where the
       leak is.
     </p>
@@ -41,13 +41,13 @@ export const body = (
       Not cases — equipment. A good engineer closes 6-8 machines per
       day if they&rsquo;re routed intelligently and the right parts
       are in the van. Below 4 and your tie-break logic is bad or your
-      van stock is bad. GymAxis scheduler scores both.
+      van stock is bad. Pulse Fitness scheduler scores both.
     </p>
 
     <h2>4. Parts-stock turnover</h2>
     <p>
       Stock sitting in your warehouse longer than 60 days is a working
-      capital leak. The GymAxis inventory report surfaces slow-mover
+      capital leak. The Pulse Fitness inventory report surfaces slow-mover
       SKUs so you can return them to supplier or re-allocate to a site
       where the equipment model is more common.
     </p>
@@ -57,7 +57,7 @@ export const body = (
       Of the cases on out-of-contract equipment, what percentage
       actually resulted in an invoice? Most gyms lose 20-30% of
       chargeable revenue because the quote was drafted on paper and
-      forgotten. The GymAxis auto-draft-to-Sage-outbox flow ties
+      forgotten. The Pulse Fitness auto-draft-to-Sage-outbox flow ties
       capture rate to 100% — the quote exists the moment the
       intake is saved.
     </p>

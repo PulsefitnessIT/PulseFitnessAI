@@ -1,7 +1,7 @@
 /**
  * Engineer Home v2 — iter 216h129.
  *
- * Light-mode GymAxis-branded control centre for field engineers.
+ * Light-mode Pulse Fitness-branded control centre for field engineers.
  * Replaces the basic `EngineerHome` for the home tab. Existing job
  * card + active timer behaviour preserved.
  *
@@ -241,7 +241,7 @@ export default function EngineerHomeV2() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="engineer-home-v2">
-      {/* Header — light mode GymAxis brand */}
+      {/* Header — light mode Pulse Fitness brand */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -427,7 +427,7 @@ export default function EngineerHomeV2() {
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-700">New</p>
                     <p className="text-sm font-bold text-slate-900 truncate">Import legacy reports</p>
-                    <p className="text-xs text-slate-500 truncate">Old PDFs &amp; spreadsheets → branded GymAxis PDFs.</p>
+                    <p className="text-xs text-slate-500 truncate">Old PDFs &amp; spreadsheets → branded Pulse Fitness PDFs.</p>
                   </div>
                 </button>
                 <button

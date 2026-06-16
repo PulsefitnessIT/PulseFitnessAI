@@ -268,7 +268,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
                 const tierLabel = partner.app_fee_tier?.label || '£30/mo';
                 if (partnerStatus === 'pending') return 'Application under review · view referral link + upload compliance docs.';
                 if (partnerStatus === 'rejected') return 'Application not approved · tap to update & resubmit.';
-                if (partnerStatus === 'suspended') return 'Access suspended · contact GymAxis support.';
+                if (partnerStatus === 'suspended') return 'Access suspended · contact Pulse Fitness support.';
                 if (subStatus === 'active' || subStatus === 'trialing') {
                   return `Plan: Active · ${tierLabel} · view referrals & compliance.`;
                 }
@@ -416,7 +416,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           </section>
 
           {/* Iter 220ea·33 — Legacy report import. One-off migration tool:
-              turn historic PDFs/spreadsheets into branded GymAxis PDFs.
+              turn historic PDFs/spreadsheets into branded Pulse Fitness PDFs.
               Iter 261 — hidden for internal engineers: their Service Desk
               imports historical reports via Settings instead. */}
           {!orgBrand.internal && (
@@ -533,7 +533,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               icon={LifeBuoy}
               accent="#0284c7"
               title="Support"
-              subtitle="Chat with the GymAxis team or browse the help centre."
+              subtitle="Chat with the Pulse Fitness team or browse the help centre."
               onClick={() => { onClose(); navigate('/support'); }}
               testid="engineer-settings-support-row"
             />
@@ -555,7 +555,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
         </div>
 
         <footer className="px-4 py-3 border-t border-slate-200 text-[11px] text-slate-400 text-center">
-          GymAxis Engineer · v2
+          Pulse Fitness Engineer · v2
         </footer>
       </aside>
 

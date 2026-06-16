@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — AI Assistant Layer.
+Pulse Fitness Service Operations — AI Assistant Layer.
 
 Iter 215ds (Phase 5).
 
@@ -33,7 +33,7 @@ Robustness:
 """
 __integration_fields__ = {
     # AI outputs feed downstream Sicon/Sage payloads but the AI layer
-    # itself is GymAxis-internal — Claude calls + observability logs only.
+    # itself is Pulse Fitness-internal — Claude calls + observability logs only.
     # svc_ai_calls (observability)
     "ai_calls.id":              "gymaxis_only: local uuid",
     "ai_calls.organization_id": "gymaxis_only: tenant scoping",
@@ -44,20 +44,20 @@ __integration_fields__ = {
     "ai_calls.ok":              "gymaxis_only: success rate dashboard input",
     "ai_calls.at":              "gymaxis_only: timestamp",
     # Triage output (consumed by intake.py → forwarded to Sicon)
-    "triage.priority":          "sicon: PriorityID (PRIORITY_CROSSWALK) · GymAxis → Sicon (via case)",
-    "triage.fault_code":        "sicon: FaultCode · GymAxis → Sicon (via case)",
+    "triage.priority":          "sicon: PriorityID (PRIORITY_CROSSWALK) · Pulse Fitness → Sicon (via case)",
+    "triage.fault_code":        "sicon: FaultCode · Pulse Fitness → Sicon (via case)",
     "triage.likely_parts":      "sicon: AllocatedParts[] suggestion · gymaxis_only until operator confirms",
     "triage.rationale":         "gymaxis_only: operator UX",
     "triage.confidence":        "gymaxis_only: operator UX",
     # Photo classify output (persisted on svc_engineer_photos.ai)
-    "photo.tags":               "sicon: AttachmentTags[] · GymAxis → Sicon (when push_attachment runs)",
+    "photo.tags":               "sicon: AttachmentTags[] · Pulse Fitness → Sicon (when push_attachment runs)",
     "photo.severity":           "gymaxis_only: operator UX",
-    "photo.summary":            "sicon: AttachmentDescription · GymAxis → Sicon",
+    "photo.summary":            "sicon: AttachmentDescription · Pulse Fitness → Sicon",
     # Summarisation output (consumed by comms.py → email body)
     "summary.customer_summary": "gymaxis_only: customer-facing email body",
-    "summary.engineer_summary": "sicon: TrackingNote (when written to timeline) · GymAxis → Sicon",
+    "summary.engineer_summary": "sicon: TrackingNote (when written to timeline) · Pulse Fitness → Sicon",
     # Tie-break output (consumed by scheduler.py)
-    "tiebreak.chosen_engineer_id": "sicon: AppointmentResourceID · GymAxis → Sicon (via assign)",
+    "tiebreak.chosen_engineer_id": "sicon: AppointmentResourceID · Pulse Fitness → Sicon (via assign)",
     "tiebreak.reasoning":          "gymaxis_only: operator UX",
 }
 
@@ -173,7 +173,7 @@ def _extract_json(text: str) -> Any:
 # 1. Intake triage
 # ─────────────────────────────────────────────────────────────────
 
-_TRIAGE_SYSTEM = """You are GymAxis Service Ops triage assistant.
+_TRIAGE_SYSTEM = """You are Pulse Fitness Service Ops triage assistant.
 You are advising a UK service desk operator who is logging a maintenance
 case for commercial gym equipment (treadmills, bikes, ellipticals,
 strength kit). Be concise and decisive.
@@ -256,7 +256,7 @@ async def triage(data: dict, user=Depends(get_current_user)):
 # 2. Photo classification
 # ─────────────────────────────────────────────────────────────────
 
-_PHOTO_SYSTEM = """You are GymAxis Service Ops vision assistant.
+_PHOTO_SYSTEM = """You are Pulse Fitness Service Ops vision assistant.
 You inspect photos taken by field engineers on commercial gym equipment.
 Identify visible issues — wear, damage, leaks, electrical faults, fluid
 or rust. Be concise.
@@ -353,7 +353,7 @@ async def photo_classify(data: dict, user=Depends(get_current_user)):
 # 3. Case summarisation
 # ─────────────────────────────────────────────────────────────────
 
-_SUMMARY_SYSTEM = """You are GymAxis Service Ops summariser.
+_SUMMARY_SYSTEM = """You are Pulse Fitness Service Ops summariser.
 Compress a noisy case timeline into two short summaries that different
 audiences can read in 10 seconds.
 
@@ -420,7 +420,7 @@ async def summarise(case_id: str, user=Depends(get_current_user)):
 # 4. Scheduler tie-break
 # ─────────────────────────────────────────────────────────────────
 
-_TIEBREAK_SYSTEM = """You are GymAxis Service Ops scheduling tie-break.
+_TIEBREAK_SYSTEM = """You are Pulse Fitness Service Ops scheduling tie-break.
 The heuristic scorer has produced 2 or 3 candidate engineers within
 10 points of each other. Your job is to pick ONE based on intuition
 about real-world service work.

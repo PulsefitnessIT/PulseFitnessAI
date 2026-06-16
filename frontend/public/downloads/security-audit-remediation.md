@@ -1,4 +1,4 @@
-# GymAxis — Security Audit Remediation Report
+# Pulse Fitness — Security Audit Remediation Report
 
 **Generated:** 2026-04-22
 **Audit tool:** `/tmp/security_audit.py` (automated security-hygiene audit)
@@ -88,7 +88,7 @@
 
 ### MEDIUM — `litellm@1.80.0` has 3 CVEs (CVE-2026-35029, CVE-2026-35030, GHSA-69x8-hrgq-fjj8)
 - **Scope:** Transitively pinned by `emergentintegrations==0.1.0` via an internal package asset URL. Upgrading litellm to ≥1.83 requires `openai==2.24.0`, which breaks `emergentintegrations` (`openai==1.99.9`).
-- **Mitigation:** no `from litellm import …` exists in the GymAxis codebase — all LLM traffic goes through `emergentintegrations` wrappers with our own validation and budget caps. Tracking upstream fix in the Emergent integrations library.
+- **Mitigation:** no `from litellm import …` exists in the Pulse Fitness codebase — all LLM traffic goes through `emergentintegrations` wrappers with our own validation and budget caps. Tracking upstream fix in the Emergent integrations library.
 
 ### LOW — CSP contains `unsafe-inline` on the frontend root
 - **Scope:** Required for Tailwind JIT style injection during development. Same dev-server-only caveat as `unsafe-eval`.

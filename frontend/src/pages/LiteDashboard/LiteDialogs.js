@@ -238,7 +238,7 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
             </div>
             <div className="flex-1">
               {/* Iter 216o — shared atomic component (cross-portal parity).
-                  Same grid renders in GymAxis/Pulse with brand-correct
+                  Same grid renders in Pulse Fitness/Pulse with brand-correct
                   accent colour and zero drift between portals. */}
               <EquipmentSpecGrid
                 columns={2}
@@ -599,7 +599,7 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
 
 /* ─── Fault Machine Selector: Group by type, then pick serial ───
    Iter 216d2 — uses the shared helper (see Dashboard/faultMachineGrouping.js)
-   so Lite + GymAxis dashboards both group by the same "name → equipment_type"
+   so Lite + Pulse Fitness dashboards both group by the same "name → equipment_type"
    fallback chain, with comma-suffixed names ("Treadmill, Bay 3") collapsed
    into one group. Pinned by `faultMachineGrouping.test.js`. */
 const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault }) => {
@@ -1116,8 +1116,8 @@ const LiteDialogs = ({
 };
 
 export default LiteDialogs;
-// Iter 216n — expose `EquipmentDetailContent` so the GymAxis dashboard
+// Iter 216n — expose `EquipmentDetailContent` so the Pulse Fitness dashboard
 // can reuse the exact same all-in-one card layout (Pulse uses cyan,
-// GymAxis passes brandAccent="var(--color-brand-blue)" to switch the
-// tab highlight to the GymAxis blue without any visual fork).
+// Pulse Fitness passes brandAccent="var(--color-brand-blue)" to switch the
+// tab highlight to the Pulse Fitness blue without any visual fork).
 export { EquipmentDetailContent };

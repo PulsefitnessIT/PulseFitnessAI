@@ -36,7 +36,7 @@ const NPSWidget = () => {
     if (!user || closedLocally) return;
     // Iter 216h216 — Craig's audit: NPS should NEVER appear until the
     // user has actually used the platform — minimum 5 lifetime logins
-    // (asking a brand-new trial user "how would I rate GymAxis" is
+    // (asking a brand-new trial user "how would I rate Pulse Fitness" is
     // meaningless and reads as desperate). The login counter is
     // incremented in App.js on successful auth.
     const loginCount = Number(localStorage.getItem('login_count') || 0);
@@ -123,7 +123,7 @@ const NPSWidget = () => {
       ) : (
         <>
           <p className="text-sm font-semibold text-[var(--theme-text)]">
-            How likely are you to recommend GymAxis?
+            How likely are you to recommend Pulse Fitness?
           </p>
           <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-3">
             0 = not likely · 10 = very likely

@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Parts Inventory deepening.
+Pulse Fitness Service Operations — Parts Inventory deepening.
 
 Iter 215dr (Phase 4).
 
@@ -19,7 +19,7 @@ __integration_fields__ = {
     "warehouse_stock.organization_id": "gymaxis_only: tenant scoping",
     "warehouse_stock.location":       "sage: WarehouseCode · sicon: SubLocationID · bidirectional",
     "warehouse_stock.part_sku":       "sicon: PartCode · sage: StockCode · bidirectional",
-    "warehouse_stock.qty":            "sage: StockBalance.OnHandQuantity · bidirectional (Sage owns truth, GymAxis mirrors)",
+    "warehouse_stock.qty":            "sage: StockBalance.OnHandQuantity · bidirectional (Sage owns truth, Pulse Fitness mirrors)",
     # svc_van_stock (one row per engineer × sku) — same shape, different location
     "van_stock.id":                   "gymaxis_only: local uuid",
     "van_stock.engineer_id":          "sicon: AppointmentResourceID · sage: Employee.Reference · bidirectional",
@@ -27,42 +27,42 @@ __integration_fields__ = {
     "van_stock.qty":                  "sage: StockBalance.OnHandQuantity (van warehouse) · bidirectional",
     # svc_reorder_rules (per location × sku reorder thresholds)
     "reorder_rules.id":               "gymaxis_only: local uuid",
-    "reorder_rules.part_sku":         "sicon: PartCode · sage: StockCode · GymAxis → both (read-only on Sage)",
-    "reorder_rules.location":         "sage: WarehouseCode · GymAxis → Sage",
-    "reorder_rules.engineer_id":      "sicon: AppointmentResourceID (van rules) · GymAxis → Sicon",
+    "reorder_rules.part_sku":         "sicon: PartCode · sage: StockCode · Pulse Fitness → both (read-only on Sage)",
+    "reorder_rules.location":         "sage: WarehouseCode · Pulse Fitness → Sage",
+    "reorder_rules.engineer_id":      "sicon: AppointmentResourceID (van rules) · Pulse Fitness → Sicon",
     "reorder_rules.min_qty":          "sage: ReorderLevel · gymaxis_only when richer than Sage",
     "reorder_rules.max_qty":          "sage: ReorderQuantity · gymaxis_only when richer than Sage",
-    "reorder_rules.supplier":         "sage: SuppliersAccountID (text, resolved on PO) · GymAxis → Sage",
+    "reorder_rules.supplier":         "sage: SuppliersAccountID (text, resolved on PO) · Pulse Fitness → Sage",
     # svc_purchase_orders (header)
-    "purchase_orders.id":             "sage: POPOrderID · GymAxis → Sage",
+    "purchase_orders.id":             "sage: POPOrderID · Pulse Fitness → Sage",
     "purchase_orders.organization_id": "gymaxis_only: tenant scoping",
-    "purchase_orders.reference":      "sage: POPOrder.Reference · GymAxis → Sage",
-    "purchase_orders.supplier":       "sage: POPOrder.SupplierName · GymAxis → Sage",
+    "purchase_orders.reference":      "sage: POPOrder.Reference · Pulse Fitness → Sage",
+    "purchase_orders.supplier":       "sage: POPOrder.SupplierName · Pulse Fitness → Sage",
     "purchase_orders.supplier_email": "gymaxis_only: comms-hub recipient (Resend)",
-    "purchase_orders.status":         "sage: POPOrder.Status (draft|submitted|received|cancelled) · GymAxis → Sage",
-    "purchase_orders.lines":          "sage: POPOrderLine[] (rolled per line) · GymAxis → Sage",
-    "purchase_orders.notes":          "sage: POPOrder.Notes · GymAxis → Sage",
-    "purchase_orders.total":          "sage: POPOrder.GrossTotal · GymAxis → Sage",
-    "purchase_orders.created_by_id":  "sage: Employee.Reference · GymAxis → Sage",
-    "purchase_orders.submitted_at":   "sage: POPOrder.PostedAt · GymAxis → Sage",
-    "purchase_orders.received_at":    "sage: POPOrder.ReceivedAt · GymAxis → Sage",
+    "purchase_orders.status":         "sage: POPOrder.Status (draft|submitted|received|cancelled) · Pulse Fitness → Sage",
+    "purchase_orders.lines":          "sage: POPOrderLine[] (rolled per line) · Pulse Fitness → Sage",
+    "purchase_orders.notes":          "sage: POPOrder.Notes · Pulse Fitness → Sage",
+    "purchase_orders.total":          "sage: POPOrder.GrossTotal · Pulse Fitness → Sage",
+    "purchase_orders.created_by_id":  "sage: Employee.Reference · Pulse Fitness → Sage",
+    "purchase_orders.submitted_at":   "sage: POPOrder.PostedAt · Pulse Fitness → Sage",
+    "purchase_orders.received_at":    "sage: POPOrder.ReceivedAt · Pulse Fitness → Sage",
     "purchase_orders.supplier_email_sent_at": "gymaxis_only: comms-hub send timestamp",
     # svc_purchase_orders.lines[]
-    "po_lines.id":                    "sage: POPOrderLineID · GymAxis → Sage",
-    "po_lines.part_sku":              "sicon: PartCode · sage: StockCode fallback · GymAxis → both",
-    "po_lines.part_name":             "sage: POPOrderLine.Description · GymAxis → Sage",
-    "po_lines.qty":                   "sage: POPOrderLine.Quantity · GymAxis → Sage",
-    "po_lines.received_qty":          "sage: POPOrderLine.QuantityReceived · GymAxis → Sage",
-    "po_lines.unit_cost":             "sage: POPOrderLine.UnitCost · GymAxis → Sage",
-    "po_lines.description":           "sage: POPOrderLine.Description override · GymAxis → Sage",
-    "po_lines.sage_stock_code":       "sage: POPOrderLine.StockCode · GymAxis → Sage",
-    "po_lines.sicon_part_id":         "sicon: PartID (legacy mapping) · GymAxis → Sicon",
+    "po_lines.id":                    "sage: POPOrderLineID · Pulse Fitness → Sage",
+    "po_lines.part_sku":              "sicon: PartCode · sage: StockCode fallback · Pulse Fitness → both",
+    "po_lines.part_name":             "sage: POPOrderLine.Description · Pulse Fitness → Sage",
+    "po_lines.qty":                   "sage: POPOrderLine.Quantity · Pulse Fitness → Sage",
+    "po_lines.received_qty":          "sage: POPOrderLine.QuantityReceived · Pulse Fitness → Sage",
+    "po_lines.unit_cost":             "sage: POPOrderLine.UnitCost · Pulse Fitness → Sage",
+    "po_lines.description":           "sage: POPOrderLine.Description override · Pulse Fitness → Sage",
+    "po_lines.sage_stock_code":       "sage: POPOrderLine.StockCode · Pulse Fitness → Sage",
+    "po_lines.sicon_part_id":         "sicon: PartID (legacy mapping) · Pulse Fitness → Sicon",
     # svc_part_movements rows written by adjust + receive (also defined in parts.py manifest)
-    "movements.adjust.movement_type": "sicon: MovementTypeID=adjust (PART_MOVEMENT_CROSSWALK) · GymAxis → Sicon",
-    "movements.adjust.reason":         "sicon: AdjustmentReason · GymAxis → Sicon",
-    "movements.po_receipt.movement_type": "sicon: MovementTypeID=receive (PART_MOVEMENT_CROSSWALK) · sage: StockTransfer.IN · GymAxis → both",
-    "movements.po_receipt.po_id":      "sage: POPOrderID (back-reference) · GymAxis → Sage",
-    "movements.po_receipt.po_reference": "sage: POPOrder.Reference · GymAxis → Sage",
+    "movements.adjust.movement_type": "sicon: MovementTypeID=adjust (PART_MOVEMENT_CROSSWALK) · Pulse Fitness → Sicon",
+    "movements.adjust.reason":         "sicon: AdjustmentReason · Pulse Fitness → Sicon",
+    "movements.po_receipt.movement_type": "sicon: MovementTypeID=receive (PART_MOVEMENT_CROSSWALK) · sage: StockTransfer.IN · Pulse Fitness → both",
+    "movements.po_receipt.po_id":      "sage: POPOrderID (back-reference) · Pulse Fitness → Sage",
+    "movements.po_receipt.po_reference": "sage: POPOrder.Reference · Pulse Fitness → Sage",
 }
 
 from datetime import datetime, timezone

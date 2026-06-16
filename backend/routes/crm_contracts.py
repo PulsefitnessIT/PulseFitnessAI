@@ -1,11 +1,11 @@
 """
-GymAxis AI — Contracts Management System
+Pulse Fitness AI — Contracts Management System
 ==========================================
 Central commercial + service contract operating system connecting
 CRM, Service Portal, Sicon Service Contracts, and Sage 200.
 
 Source of Truth Rules:
-  - GymAxis Contracts: authoring, approvals, metadata, renewals, umbrella structure
+  - Pulse Fitness Contracts: authoring, approvals, metadata, renewals, umbrella structure
   - Sicon Service Contracts: operational service execution, coverage, SLA, periodic invoicing
   - Sage 200: financial postings, invoices, payments, deferred income
 """

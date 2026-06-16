@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships — Setup Wizard (Iter 216h252 redesign).
+ * Pulse Fitness Memberships — Setup Wizard (Iter 216h252 redesign).
  *
  * Step plan (operator-first, dance-studio friendly):
  *   1. Studio          — name (pre-filled), app address (auto-derived +
@@ -134,7 +134,7 @@ function StepBar({ stepIdx, setStepIdx }) {
 /* ─────────────────── Step 1 — Basics (redesigned) ─────────────────── */
 
 // A common-zones list. The full IANA list is overkill for a studio
-// operator; these cover 99% of the studios GymAxis targets (UK,
+// operator; these cover 99% of the studios Pulse Fitness targets (UK,
 // Europe, North America, Australia, New Zealand).
 const TIMEZONES = [
   'Europe/London', 'Europe/Dublin', 'Europe/Paris', 'Europe/Berlin',

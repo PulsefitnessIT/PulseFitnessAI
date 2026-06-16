@@ -409,7 +409,7 @@
 }
 
 /* ============================================================
-   GymAxis · Button Design System
+   Pulse Fitness · Button Design System
    Single source of truth for every action button in the app.
    - Sizes:  default = h-9  ·  sm = h-8
    - Shape:  pill (rounded-full) — matches module switcher / tab bars
@@ -1243,7 +1243,7 @@ main,
 /* ── Phase 4 (iter 215az) — global brand-token swap by `data-brand` ──
    When the HTML root has `data-brand="gymaxis"` (set by App.js for any
    non-Pulse session), the brand color tokens are remapped from the
-   legacy saturated blue + cyan to the new GymAxis navy → purple palette.
+   legacy saturated blue + cyan to the new Pulse Fitness navy → purple palette.
    Every component that uses `var(--color-brand-blue)` /
    `var(--color-brand-cyan)` (CTAs, links, badges, Operations Portal
    primary buttons, Memberships chips, etc.) automatically picks up the
@@ -1255,7 +1255,7 @@ html[data-brand="gymaxis"] {
   --color-brand-blue-dark:   #1E40AF;
   --color-brand-blue-deep:   #1E3A8A;
   --color-brand-blue-alt:    #3B82F6;
-  /* Iter 215d7 — cyan tokens remap to the GymAxis BLUE family (not
+  /* Iter 215d7 — cyan tokens remap to the Pulse Fitness BLUE family (not
      purple) so every legacy CTA (Log Fault, etc.) renders in the
      correct brand colour without per-component edits. */
   --color-brand-cyan:        #2563EB;
@@ -1264,7 +1264,7 @@ html[data-brand="gymaxis"] {
   --color-brand-cyan-deep:   #1E40AF;
   /* Iter 215d8 — also remap pulse-primary family + rgb tokens so
      PulseReportsTab's active-pill pattern + any `rgb(var(--rgb-brand-cyan-*)
-     / alpha)` usage resolves to blue on GymAxis. Previously the active
+     / alpha)` usage resolves to blue on Pulse Fitness. Previously the active
      "Operational Reports" pill rendered white text on a light-cyan
      background (#4dbfff) — totally illegible on a white page. */
   --pulse-primary:           #2563EB;
@@ -1294,7 +1294,7 @@ html[data-brand="gymaxis"] {
   --card-foreground:      222 47% 11%;
   --popover:              0 0% 100%;
   --popover-foreground:   222 47% 11%;
-  --primary:              221 83% 53%;        /* GymAxis navy */
+  --primary:              221 83% 53%;        /* Pulse Fitness navy */
   --primary-foreground:   0 0% 100%;
   --secondary:            210 40% 96%;        /* slate-100 */
   --secondary-foreground: 222 47% 11%;
@@ -1349,7 +1349,7 @@ html[data-brand="gymaxis"] {
 
    Everything in this layer is purely additive — uses utility class names
    that don't collide with Tailwind's, and only takes effect when a parent
-   opts in. Removing this layer removes all GymAxis brand styling without
+   opts in. Removing this layer removes all Pulse Fitness brand styling without
    touching anything else.
    ============================================================ */
 
@@ -1358,7 +1358,7 @@ html[data-brand="gymaxis"] {
    Tokens + selectors below opt elements into Satoshi inside the scope. */
 
 .theme-gymaxis {
-  /* ── GymAxis design tokens (mirror /app/frontend/src/pages/Marketing/marketing.css) ── */
+  /* ── Pulse Fitness design tokens (mirror /app/frontend/src/pages/Marketing/marketing.css) ── */
   --gx-brand-from: #2563EB;     /* navy-blue */
   --gx-brand-to:   #9D4CDD;     /* premium purple */
   --gx-brand-mid:  #5B5BF5;     /* gradient midpoint */

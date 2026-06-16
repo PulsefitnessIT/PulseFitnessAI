@@ -148,7 +148,7 @@ def build_legacy_pdf(report: dict, branding: dict, logo_bytes: bytes | None) -> 
         canvas.line(MARGIN, 14 * mm, PW - MARGIN, 14 * mm)
         canvas.setFillColor(muted)
         canvas.setFont("Helvetica", 7.5)
-        foot = company or "GymAxis"
+        foot = company or "Pulse Fitness"
         canvas.drawString(MARGIN, 9 * mm, f"{foot} · Service report")
         canvas.drawRightString(PW - MARGIN, 9 * mm, f"Page {doc.page}")
         canvas.restoreState()

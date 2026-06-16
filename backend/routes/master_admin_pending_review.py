@@ -1,4 +1,4 @@
-"""GymAxis Master Admin — Unified Pending Review queue (Iter 220dh).
+"""Pulse Fitness Master Admin — Unified Pending Review queue (Iter 220dh).
 
 A single inbox for every item that needs Master-Admin action across
 the platform. Reads from existing collections and reuses their

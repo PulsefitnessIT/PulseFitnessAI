@@ -86,7 +86,7 @@ class DocPDF(FPDF):
         self.set_font("Helvetica", "I", 7.5)
         self.set_text_color(*MUTED)
         self.set_y(8)
-        self.cell(CONTENT_W / 2, 6, "GymAxis AI - Platform Documentation v1.0", align="L")
+        self.cell(CONTENT_W / 2, 6, "Pulse Fitness AI - Platform Documentation v1.0", align="L")
         self.cell(CONTENT_W / 2, 6, f"Page {self.page_no()}", align="R")
         self.ln(10)
 
@@ -99,7 +99,7 @@ class DocPDF(FPDF):
         self.set_draw_color(*RULE_COLOR)
         self.line(LEFT_MARGIN, self.get_y(), PAGE_W - RIGHT_MARGIN, self.get_y())
         self.ln(3)
-        self.cell(0, 5, "Confidential - GymAxis AI Ltd. - April 2026", align="C")
+        self.cell(0, 5, "Confidential - Pulse Fitness AI Ltd. - April 2026", align="C")
 
     def ensure_space(self, min_y: int = 270):
         """Add page if near bottom."""
@@ -122,7 +122,7 @@ def _render_cover(pdf: DocPDF):
     pdf.set_y(115)
     pdf.set_font("Helvetica", "B", 38)
     pdf.set_text_color(*WHITE)
-    pdf.cell(0, 16, "GymAxis AI", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 16, "Pulse Fitness AI", align="C", new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_font("Helvetica", "", 16)
     pdf.set_text_color(148, 163, 184)
@@ -143,7 +143,7 @@ def _render_cover(pdf: DocPDF):
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(100, 116, 139)
     pdf.cell(0, 6, "This document covers every feature, workflow, data model,", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 6, "and API endpoint across all GymAxis AI systems.", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, "and API endpoint across all Pulse Fitness AI systems.", align="C", new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_y(260)
     pdf.set_font("Helvetica", "I", 8)
@@ -348,7 +348,7 @@ def _process_line(pdf: DocPDF, line: str, stripped: str):
 
 def _is_header_title_skip(stripped: str, line_index: int) -> bool:
     """Skip the redundant markdown title/version lines (already rendered on cover)."""
-    return line_index < 5 and (stripped.startswith("# GymAxis") or stripped.startswith("## Version"))
+    return line_index < 5 and (stripped.startswith("# Pulse Fitness") or stripped.startswith("## Version"))
 
 
 def _parse_table_cells(stripped: str) -> list[str] | None:
@@ -435,7 +435,7 @@ async def download_platform_docs_pdf():
         content=_build_pdf(),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": "attachment; filename=GymAxis_AI_Platform_Documentation.pdf",
+            "Content-Disposition": "attachment; filename=PulseFitness_AI_Platform_Documentation.pdf",
             "Cache-Control": "no-cache",
         },
     )

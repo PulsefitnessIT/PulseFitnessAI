@@ -638,7 +638,7 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
 # replaced and the admin no longer exists / has a stale password. Hit:
 #   curl -X POST $URL/api/auth/admin-recovery \
 #     -H "Content-Type: application/json" \
-#     -d '{"recovery_token":"…","email":"admin@gymaxisai.com","password":"NewPass123!"}'
+#     -d '{"recovery_token":"…","email":"admin@pulsefitness.ai","password":"NewPass123!"}'
 # Then unset / rotate ADMIN_RECOVERY_TOKEN once you're back in.
 
 @router.post("/auth/admin-recovery")
@@ -683,13 +683,13 @@ async def admin_recovery(body: dict, request: Request) -> dict:
         org_id = existing.get("organization_id")
     else:
         # Need an org for the master admin record.
-        org = await db.organizations.find_one({"name": "GymAxis AI Admin"}, {"_id": 0, "id": 1})
+        org = await db.organizations.find_one({"name": "Pulse Fitness AI Admin"}, {"_id": 0, "id": 1})
         if org:
             org_id = org["id"]
         else:
             org_id = str(uuid.uuid4())
             await db.organizations.insert_one({
-                "id": org_id, "name": "GymAxis AI Admin",
+                "id": org_id, "name": "Pulse Fitness AI Admin",
                 "subscription_tier": "premium",
                 "created_at": now_iso,
             })
@@ -746,7 +746,7 @@ async def forgot_password(body: dict, request: Request) -> dict:
     })
 
     # Iter 216h192 — password-reset links must use the brand-aware app URL
-    # so production emails point at gymaxisai.com / pulsefitness.ai instead
+    # so production emails point at www.pulsefitness.ai / pulsefitness.ai instead
     # of the preview deployment (which was the cause of "Invalid Reset Link"
     # in production: clicking the preview-domain link hit a different DB
     # than the one that issued the token).

@@ -388,7 +388,7 @@ function HandoverDiary({ session, onSignOut }) {
  <ClipboardList size={15} />
  </div>
  <div>
- <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-brand-cyan)]">GymAxis</div>
+ <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-brand-cyan)]">Pulse Fitness</div>
  <h1 className="text-base font-bold">Handover Diary</h1>
  </div>
  </div>

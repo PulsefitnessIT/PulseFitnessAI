@@ -209,9 +209,9 @@ function CreatePacketDialog({ API, headers, onClose, onCreated }) {
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wider">Target tier</Label>
             <select className="w-full h-10 rounded-md border border-zinc-200 px-3 text-sm mt-1" value={tier} onChange={e => setTier(e.target.value)} data-testid="create-packet-tier">
-              <option value="starter">GymAxis Starter</option>
-              <option value="pro">GymAxis Pro</option>
-              <option value="enterprise">GymAxis Enterprise</option>
+              <option value="starter">Pulse Fitness Starter</option>
+              <option value="pro">Pulse Fitness Pro</option>
+              <option value="enterprise">Pulse Fitness Enterprise</option>
             </select>
           </div>
           <div>

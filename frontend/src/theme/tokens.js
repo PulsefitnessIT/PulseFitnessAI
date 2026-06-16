@@ -1,5 +1,5 @@
 /**
- * GymAxis Design Tokens — single source of truth.
+ * Pulse Fitness Design Tokens — single source of truth.
  *
  * Use these constants instead of inline hex literals across the app.
  * If you find yourself reaching for `bg-[#0055FF]` or `style={{ color: '#19CDFF' }}`,
@@ -9,11 +9,11 @@
 export const colors = {
   // ── PRIMARY BRAND ─────────────────────────────────────────────
   // Only two blue accents in the whole platform. Use brandCyan for
-  // Pulse operator surfaces (Strategy B), brandBlue for GymAxis
+  // Pulse operator surfaces (Strategy B), brandBlue for Pulse Fitness
   // marketing + Master Admin.
   brandCyan:       '#19CDFF',  // Pulse Fitness accent (cyan)
   brandCyanHover:  '#66CCFF',  // hover/light cyan (legacy #66ccff)
-  brandBlue:       '#0055FF',  // GymAxis accent
+  brandBlue:       '#0055FF',  // Pulse Fitness accent
   brandBlueHover:  '#0044CC',
   brandBlueDark:   '#003DA5',
 

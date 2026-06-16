@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships — Analytics & Reporting engine.
+ * Pulse Fitness Memberships — Analytics & Reporting engine.
  *
  * Role-based dashboards (Manager / Regional / Director) with five
  * sub-sections:

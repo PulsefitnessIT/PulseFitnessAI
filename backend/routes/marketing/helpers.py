@@ -91,7 +91,7 @@ async def _get_org_subscription(organization_id: str) -> dict:
     """Return the org's marketing subscription, defaulting to a 14-day free
     Pro trial on first call so the user can immediately try premium features.
 
-    Iter 216h192 — Orgs that already pay for a Pulse Pro / GymAxis Full / Lite
+    Iter 216h192 — Orgs that already pay for a Pulse Pro / Pulse Fitness Full / Lite
     platform plan get Marketing bundled. Seeding them as a 14-day "trial"
     surfaced a misleading "Free trial" pill in the Marketing header even
     after they had been customers for months. For those orgs we seed an
@@ -163,7 +163,7 @@ def _require_feature(entitlement: dict, feature: str) -> None:
 
 
 def _require_admin(user: dict) -> None:
-    """Allow GymAxis Master + Pulse Master Admin to mutate plans + read
+    """Allow Pulse Fitness Master + Pulse Master Admin to mutate plans + read
     analytics. Local import avoids a circular dep at module load."""
     from routes.master_admin import require_master_admin
     require_master_admin(user)

@@ -1,7 +1,7 @@
 /**
  * Iter 220ea·6 — Router-agnostic "is engineer route?" hook.
  *
- * Some global components (`AskGymAxis`, `CookieConsent`, etc.) are
+ * Some global components (`AskPulseFitness`, `CookieConsent`, etc.) are
  * mounted OUTSIDE the `<BrowserRouter>` and therefore cannot call
  * `useLocation()`. This hook gives them the same reactivity by
  * listening to `popstate` plus a self-dispatched

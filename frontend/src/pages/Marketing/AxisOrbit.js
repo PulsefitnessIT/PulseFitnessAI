@@ -1,5 +1,5 @@
 /**
- * GymAxis AXIS orbit hero — central animated visual.
+ * Pulse Fitness AXIS orbit hero — central animated visual.
  *
  * Iter 220bc — collapsed 6 → 4 modules + interactive feature constellation.
  *
@@ -27,7 +27,7 @@ import {
   MapPin, Camera, PoundSterling,
 } from 'lucide-react';
 
-import GymAxisMark from './GymAxisMark';
+import PulseFitnessMark from './PulseFitnessMark';
 
 // Iter 220bc — Single source of truth lives in MarketingHome.MODULES,
 // but the orbit needs a slightly different shape (per-feature icons +
@@ -171,7 +171,7 @@ export default function AxisOrbit() {
             style={{ boxShadow: '0 18px 50px -12px rgba(37, 99, 235, .35), 0 0 0 1px rgba(15, 23, 42, .04)' }}
             data-testid="gx-orbit-center"
           >
-            <GymAxisMark className="w-[68%] h-[68%]" />
+            <PulseFitnessMark className="w-[68%] h-[68%]" />
           </div>
         </div>
       </div>

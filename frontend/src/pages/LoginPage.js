@@ -1,7 +1,7 @@
 /**
- * GymAxis dedicated /login page (replaces the legacy dark HomePage).
+ * Pulse Fitness dedicated /login page (replaces the legacy dark HomePage).
  *
- * A focused, GymAxis-branded sign-in surface that lives on the same light
+ * A focused, Pulse Fitness-branded sign-in surface that lives on the same light
  * marketing aesthetic as MarketingHome. Wraps a single email/password form
  * with the gym-floor kiosk fallback (username login) so on-site terminals
  * keep working.
@@ -129,7 +129,7 @@ export default function LoginPage() {
       {/* Top bar */}
       <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-slate-200/60 bg-white/60 backdrop-blur">
         <Link to="/" className="text-slate-900 font-black tracking-tighter text-lg" data-testid="gx-login-logo">
-          GymAxis<span className="text-[var(--gx-brand-from)]">.AI</span>
+          Pulse Fitness<span className="text-[var(--gx-brand-from)]">.AI</span>
         </Link>
         <div className="flex items-center gap-4">
           <select
@@ -161,7 +161,7 @@ export default function LoginPage() {
         >
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">{t('auth.login_title', 'Welcome back')}</h1>
-            <p className="mt-1 text-sm text-slate-500">{t('auth.subtitle', 'Sign in to your GymAxis portal.')}</p>
+            <p className="mt-1 text-sm text-slate-500">{t('auth.subtitle', 'Sign in to your Pulse Fitness portal.')}</p>
           </div>
 
           {banner && <div className="mb-3">{banner}</div>}

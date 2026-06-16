@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 
 APEX = "apex-demo-org"
-ENG_ORG = "9fa701ef-5cc2-4db6-8795-bbfd2c85179d"  # engineer.smoke org (GymAxis Admin)
+ENG_ORG = "9fa701ef-5cc2-4db6-8795-bbfd2c85179d"  # engineer.smoke org (Pulse Fitness Admin)
 ENG_ID = "7cc0455f-3206-4069-ab95-6db51276a553"
 
 

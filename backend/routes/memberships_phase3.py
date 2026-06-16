@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 3 operator endpoints.
+"""Pulse Fitness Memberships — Phase 3 operator endpoints.
 
 Four capabilities live here:
 

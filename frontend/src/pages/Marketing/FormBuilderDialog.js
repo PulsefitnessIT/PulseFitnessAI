@@ -48,7 +48,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
   const [successMessage, setSuccessMessage] = useState("Thanks — we've received your details.");
   const [requireConsent, setRequireConsent] = useState(true);
   // Iter 238h — pull the org's brand name into the default consent
-  // copy so Pulse Fitness operators don't see "GymAxis" by default.
+  // copy so Pulse Fitness operators don't see "Pulse Fitness" by default.
   // Falls back to "us" when nothing is available so the sentence still
   // reads naturally during seed/preview states.
   const orgName = (
@@ -273,7 +273,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
             </div>
             <div>
               <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Notify emails (comma-separated)</Label>
-              <Input value={notifyEmails} onChange={(e) => setNotifyEmails(e.target.value)} placeholder="leader@gymaxisai.com" className="mt-1 text-sm" data-testid="form-builder-notify" />
+              <Input value={notifyEmails} onChange={(e) => setNotifyEmails(e.target.value)} placeholder="leader@pulsefitness.ai" className="mt-1 text-sm" data-testid="form-builder-notify" />
               <p className="text-zinc-400 text-xs mt-1">Your email is added automatically.</p>
             </div>
             <div className="md:col-span-2">

@@ -1,4 +1,4 @@
-"""GymAxis Memberships — AI insight helpers.
+"""Pulse Fitness Memberships — AI insight helpers.
 
 Thin wrappers around GPT-4o-mini (Emergent LLM Key) for:
   • Executive weekly/monthly brief

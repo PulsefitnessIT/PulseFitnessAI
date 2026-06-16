@@ -243,7 +243,7 @@ async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe",
             html = _receipt_html(invoice)
             await send_email(
                 to=customer_email,
-                subject=f"Receipt · {invoice.get('invoice_number')} · GymAxis",
+                subject=f"Receipt · {invoice.get('invoice_number')} · Pulse Fitness",
                 html=html,
                 organization_id=invoice.get("organization_id"),
                 category="billing",
@@ -264,7 +264,7 @@ def _receipt_html(invoice: dict) -> str:
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;padding:24px;">
       <div style="background:linear-gradient(135deg,{primary} 0%,{accent} 100%);padding:24px;border-radius:12px;color:white;margin-bottom:24px;">
-        <p style="margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;">GymAxis · Payment Received</p>
+        <p style="margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;">Pulse Fitness · Payment Received</p>
         <h1 style="margin:6px 0 0;font-size:24px;font-weight:700;">{ino}</h1>
       </div>
       <p style="font-size:16px;">Hi {customer},</p>
@@ -278,7 +278,7 @@ def _receipt_html(invoice: dict) -> str:
         </table>
       </div>
       <p style="font-size:14px;">All the best,<br/><strong>{engineer}</strong></p>
-      <p style="font-size:11px;color:#94a3b8;margin-top:30px;">Powered by GymAxis · Field Service for Fitness Equipment</p>
+      <p style="font-size:11px;color:#94a3b8;margin-top:30px;">Powered by Pulse Fitness · Field Service for Fitness Equipment</p>
     </div>
     """
 

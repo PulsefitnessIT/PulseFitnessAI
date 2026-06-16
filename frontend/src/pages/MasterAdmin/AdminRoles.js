@@ -40,7 +40,7 @@ const AdminRoles = ({ API, globalUsersProps, isPulseAdmin }) => {
   // Iter 222 — Pulse Master Admins no longer need the standalone "Pulse
   // Master Admins" provisioning tab or the "Legacy users panel": that
   // information now lives in the Directory + Organisations. They stay
-  // available to the full GymAxis platform Master Admin.
+  // available to the full Pulse Fitness platform Master Admin.
   const visibleTabs = TABS.filter(
     (t) => !isPulseAdmin || (t.id !== 'pulse-admins' && t.id !== 'legacy-users'),
   );

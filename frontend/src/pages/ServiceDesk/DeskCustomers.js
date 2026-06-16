@@ -6,10 +6,10 @@ import { Search, ChevronRight } from 'lucide-react';
 import { authConfig } from './authConfig';
 
 const ACCOUNT_TYPE_LABELS = {
-  full: { label: 'GymAxis', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  full: { label: 'Pulse Fitness', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   pulse_pro: { label: 'Pulse Pro', className: 'bg-blue-50 text-blue-700 border-blue-200' },
   lite: { label: 'Pulse Lite', className: 'bg-sky-50 text-sky-700 border-sky-200' },
-  gymaxis: { label: 'GymAxis', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  gymaxis: { label: 'Pulse Fitness', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
 };
 
 function OrgRow({ org, onSelect }) {
@@ -108,7 +108,7 @@ export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
           className="px-3 py-2 border border-zinc-200 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-800"
         >
           <option value="">All account types</option>
-          <option value="full">GymAxis (full)</option>
+          <option value="full">Pulse Fitness (full)</option>
           <option value="pulse_pro">Pulse Pro</option>
           <option value="lite">Pulse Lite</option>
         </select>

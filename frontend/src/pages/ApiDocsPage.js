@@ -19,7 +19,7 @@ const ApiDocsPage = () => {
               Supplier Integration API
             </h1>
             <p className="text-lg text-[var(--color-text-muted)]">
-              Connect your supplier systems directly to GymAxis AI for seamless equipment management, issue tracking, and service coordination.
+              Connect your supplier systems directly to Pulse Fitness AI for seamless equipment management, issue tracking, and service coordination.
             </p>
           </div>
 
@@ -31,7 +31,7 @@ const ApiDocsPage = () => {
               <div>
                 <h3 className="text-xl font-semibold text-white mb-3">1. Generate API Key</h3>
                 <p className="text-[var(--color-text-muted)] mb-3">
-                  Log into your GymAxis AI dashboard and navigate to Settings \u2192 API Keys. Click "Generate New API Key" and store it securely.
+                  Log into your Pulse Fitness AI dashboard and navigate to Settings \u2192 API Keys. Click "Generate New API Key" and store it securely.
                 </p>
                 <div className="bg-[var(--color-ink-alt)] border border-white/10 rounded-lg p-4 font-mono text-sm text-[var(--color-brand-blue)]">
                   API Key Format: gfx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -286,7 +286,7 @@ const ApiDocsPage = () => {
               Our integration team is here to help you get connected
             </p>
             <p className="text-white">
-              Email: <a href="mailto:api@gymaxisai.com" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)]">api@gymaxisai.com</a>
+              Email: <a href="mailto:api@pulsefitness.ai" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)]">api@pulsefitness.ai</a>
             </p>
           </Card>
         </div>

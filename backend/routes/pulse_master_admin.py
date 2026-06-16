@@ -3,7 +3,7 @@ Pulse Master Admin — provisioning, role management, and Stripe Connect onboard
 
 A Pulse Master Admin is a delegated user provisioned by the platform's Master
 Admin to manage Pulse-Fitness-side concerns (their orgs, payments, MOD sites,
-analytics, integrations) without touching GymAxis-platform internals. They
+analytics, integrations) without touching Pulse Fitness-platform internals. They
 share the same Master Admin UI but data is filtered to Pulse-relevant
 account types.
 
@@ -48,11 +48,11 @@ router = APIRouter()
 
 # ── Constants ────────────────────────────────────────────────────────────
 
-MASTER_ADMIN_EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
+MASTER_ADMIN_EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")
 PULSE_ROLE = "pulse_master_admin"
 
 # Account types a Pulse Master Admin is allowed to see. The platform manages
-# GymAxis-internal demo / starter orgs separately — those stay invisible.
+# Pulse Fitness-internal demo / starter orgs separately — those stay invisible.
 PULSE_VISIBLE_ACCOUNT_TYPES = ["pulse_pro", "lite", "mod", "full"]
 
 # Stripe OAuth — Standard Connect platform settings.
@@ -72,7 +72,7 @@ def _require_gymaxis_master(user: dict) -> None:
 
 
 def _require_pulse_or_master(user: dict) -> None:
-    """Either the GymAxis Master Admin, a Pulse Master Admin, or a Service
+    """Either the Pulse Fitness Master Admin, a Pulse Master Admin, or a Service
     Desk agent is allowed (service desk needs to import equipment for
     customer onboarding)."""
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
@@ -253,7 +253,7 @@ async def create_pulse_admin(body: PulseAdminCreate, user: dict = Depends(get_cu
 async def list_pulse_admins(user: dict = Depends(get_current_user)) -> dict:
     # Read-only list — also powers the SOC-2 Permissions matrix, which a
     # delegated Pulse Master Admin needs to view (Iter 222). Provisioning
-    # (create/revoke/purge) stays GymAxis-master-only below.
+    # (create/revoke/purge) stays Pulse Fitness-master-only below.
     _require_pulse_or_master(user)
     rows = await db.users.find(
         {"role": PULSE_ROLE},
@@ -484,7 +484,7 @@ async def reissue_pulse_admin_temp_password(user_id: str, user: dict = Depends(g
 
     Useful when their original 7-day temp expired before first login or they
     lost the original email. Returns the new temp password to the caller iff
-    Resend delivery fails so the GymAxis Master can hand-deliver it.
+    Resend delivery fails so the Pulse Fitness Master can hand-deliver it.
     """
     _require_gymaxis_master(user)
     target = await db.users.find_one(
@@ -582,7 +582,7 @@ class StripeConnectPricingIn(BaseModel):
 
     The platform fee per charge is ``platform_fee_per_customer`` (flat amount)
     plus optionally ``platform_fee_pct`` (percentage of the charge). Both
-    can be tuned by the GymAxis Master Admin.
+    can be tuned by the Pulse Fitness Master Admin.
     """
     price_per_customer: float = Field(ge=0, le=10000)
     platform_fee_per_customer: float = Field(ge=0, le=10000)
@@ -620,7 +620,7 @@ async def get_stripe_connect_pricing(user: dict = Depends(get_current_user)) -> 
 async def update_stripe_connect_pricing(
     body: StripeConnectPricingIn, user: dict = Depends(get_current_user),
 ) -> dict:
-    # Only the GymAxis Master Admin can change platform pricing — Pulse admins
+    # Only the Pulse Fitness Master Admin can change platform pricing — Pulse admins
     # see it but cannot touch fees that determine our take.
     _require_gymaxis_master(user)
     update = {**body.dict(), "id": _config_doc_id(), "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user.get("email")}
@@ -632,11 +632,11 @@ async def update_stripe_connect_pricing(
 
 def _connect_account_doc_filter(user: dict) -> dict:
     """Each pulse admin owns at most one connected Stripe account, scoped by
-    their user_id. The GymAxis Master Admin can introspect any."""
+    their user_id. The Pulse Fitness Master Admin can introspect any."""
     if user.get("role") == PULSE_ROLE:
         return {"owner_user_id": user["id"]}
     if user.get("is_master_admin"):
-        # When the GymAxis admin asks for status, return the most recent
+        # When the Pulse Fitness admin asks for status, return the most recent
         # Pulse-side connection (there's expected to be one).
         return {"context": "pulse_fitness"}
     raise HTTPException(status_code=403, detail="Forbidden")
@@ -915,7 +915,7 @@ async def list_pulse_organizations(user: dict = Depends(get_current_user)) -> di
 
     Used by the Bulk Imports picker etc. Pulse Master Admins see this without
     triggering the full master-admin/organizations dashboard query (which is
-    GymAxis-master-only and quite expensive).
+    Pulse Fitness-master-only and quite expensive).
     """
     _require_pulse_or_master(user)
     rows = await db.organizations.find(

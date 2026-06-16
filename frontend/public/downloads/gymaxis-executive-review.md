@@ -1,7 +1,7 @@
-# GymAxis Platform — Executive & Technical Implementation Review
+# Pulse Fitness Platform — Executive & Technical Implementation Review
 
 **Prepared for:** Pulse Fitness — Board, Operational Leadership, IT & Aftersales Leadership
-**Prepared by:** GymAxis Engineering (CTO Office)
+**Prepared by:** Pulse Fitness Engineering (CTO Office)
 **Status:** Implementation-Ready · February 2026
 **Confidence:** High · Board-Ready · Recommended for Immediate Rollout
 
@@ -9,11 +9,11 @@
 
 ## Section 1 — Executive Summary
 
-GymAxis is a purpose-built, AI-native operating system for gym performance, service operations and contract intelligence. It is not a generic CRM with gym-shaped stickers on it. Every module — CRM, Service, Contracts, PPM scheduling, KPI engine, AI fault triage, AI tender writing, customer support — has been engineered around one data model, one audit trail, and one security posture, specifically for organisations that manufacture, deploy and maintain commercial fitness equipment at scale.
+Pulse Fitness is a purpose-built, AI-native operating system for gym performance, service operations and contract intelligence. It is not a generic CRM with gym-shaped stickers on it. Every module — CRM, Service, Contracts, PPM scheduling, KPI engine, AI fault triage, AI tender writing, customer support — has been engineered around one data model, one audit trail, and one security posture, specifically for organisations that manufacture, deploy and maintain commercial fitness equipment at scale.
 
 **What has been built.** A complete, production-class platform with:
 
-- A dark, cinematic **enterprise homepage** (GymAxis AI) and a fully-branded **customer-facing service portal** (Pulse Fitness).
+- A dark, cinematic **enterprise homepage** (Pulse Fitness AI) and a fully-branded **customer-facing service portal** (Pulse Fitness).
 - A live **CRM** with accounts, contacts, pipeline, opportunities and commercial intelligence.
 - A live **Service & Operations** module with fault lifecycle, engineer routing, PPM scheduling, warranty ladders and a public-facing supplier case portal.
 - A live **Contracts & Revenue** engine with contract book, renewal automation, and pricing control.
@@ -24,15 +24,15 @@ GymAxis is a purpose-built, AI-native operating system for gym performance, serv
 - A **public Security & Trust page** written for operators, not InfoSec engineers — backed by a live `/api/security/manifest` endpoint.
 - A **Master Admin platform health panel** with financial operations, alerts, revenue tracking from live Stripe webhooks, and a test-data purge control.
 
-**Why it is strategically important.** GymAxis turns Pulse Fitness from a gym equipment manufacturer into a **platform operator**. Every machine sold can now carry a branded QR label that funnels the customer back into a Pulse-branded portal for their entire ownership lifecycle — fault logs, warranty claims, PPM reminders, service upgrades, tender bids. This converts one-time capital sales into a recurring-revenue, data-rich customer relationship. It also gives Pulse Fitness end-to-end visibility of its installed base — something very few OEMs in this sector currently enjoy.
+**Why it is strategically important.** Pulse Fitness turns Pulse Fitness from a gym equipment manufacturer into a **platform operator**. Every machine sold can now carry a branded QR label that funnels the customer back into a Pulse-branded portal for their entire ownership lifecycle — fault logs, warranty claims, PPM reminders, service upgrades, tender bids. This converts one-time capital sales into a recurring-revenue, data-rich customer relationship. It also gives Pulse Fitness end-to-end visibility of its installed base — something very few OEMs in this sector currently enjoy.
 
 **Why an external agency is not required.** The platform is already built. It is running. What remains is **configuration, domain attachment, credential supply and content** — not development. Pulse Fitness does not need a web agency or implementation consultancy to make this go live; it needs an internal owner, a DNS change, and the API credentials for two third parties. That is it.
 
-**Recommendation.** Proceed immediately with a phased rollout. Begin with domain attachment and Stripe live-key cut-over. Within two weeks, GymAxis can carry Pulse Fitness's Service tab at production quality. Within 6 weeks, the Sicon and Orbit4 mirrors can be switched on with confidence.
+**Recommendation.** Proceed immediately with a phased rollout. Begin with domain attachment and Stripe live-key cut-over. Within two weeks, Pulse Fitness can carry Pulse Fitness's Service tab at production quality. Within 6 weeks, the Sicon and Orbit4 mirrors can be switched on with confidence.
 
 ---
 
-## Section 2 — How GymAxis Has Been Built
+## Section 2 — How Pulse Fitness Has Been Built
 
 ### 2.1 Technology Stack (current, production-resident)
 
@@ -53,12 +53,12 @@ GymAxis is a purpose-built, AI-native operating system for gym performance, serv
 
 A single-page React application served at the root domain. Pages are split cleanly between:
 
-- **Public marketing pages** — `HomePage.js` (GymAxis AI enterprise), `PulseLandingPage.js` (Pulse Fitness customer portal), `SecurityPage.js` (operator-friendly trust page), `/pricing`, `/contact`, `/features`, `/about`.
+- **Public marketing pages** — `HomePage.js` (Pulse Fitness AI enterprise), `PulseLandingPage.js` (Pulse Fitness customer portal), `SecurityPage.js` (operator-friendly trust page), `/pricing`, `/contact`, `/features`, `/about`.
 - **Authenticated application** — `Dashboard`, `CRM`, `ServiceDesk`, `ContractsPanel`, `FinancialOpsPanel` (Master Admin), `SupplierCasePage`, `AdminPanel`.
 - **Shared components** — `Footer`, `NudgeBanner`, `CaptchaWidget`, `MFASetupCard`, `DigestPreferencesCard` — all at `/components/shared/`.
 - **UI primitives** — Shadcn UI at `/components/ui/` (Button, Card, Dialog, Input, etc.) — consistent look across every screen.
 
-All brand colours are configured via design guidelines and applied through Tailwind tokens + scoped CSS. The canonical GymAxis palette (navy `#2563EB` → purple `#9D4CDD` gradient on a light slate `#F8FAFC` canvas) lives in `.theme-gymaxis` inside `/app/frontend/src/index.css`; the legacy Pulse Fitness portal retains its own Core Blue `#19CDFF` / Soft Black `#1B1D1D` / Slate `#6E7476` set under `data-brand="pulse"`. Framer Motion drives every scroll-triggered reveal and hover state.
+All brand colours are configured via design guidelines and applied through Tailwind tokens + scoped CSS. The canonical Pulse Fitness palette (navy `#2563EB` → purple `#9D4CDD` gradient on a light slate `#F8FAFC` canvas) lives in `.theme-gymaxis` inside `/app/frontend/src/index.css`; the legacy Pulse Fitness portal retains its own Core Blue `#19CDFF` / Soft Black `#1B1D1D` / Slate `#6E7476` set under `data-brand="pulse"`. Framer Motion drives every scroll-triggered reveal and hover state.
 
 ### 2.3 Backend Architecture
 
@@ -165,7 +165,7 @@ New modules slot in cleanly:
 
 ### 3.5 Overall Code Quality Judgment
 
-**GymAxis has been built to a professional commercial standard that is fit for production growth.** The codebase exhibits the hallmarks of a well-engineered SaaS platform — clear separation of concerns, bounded modules, pure mappers, centralised security, test coverage, and a pipeline from dev → preview → production that already works. Technical debt is low and isolated (a small number of `text-white/X` CSS utilities have been centralised into scoped style blocks to prevent theme cascade bugs, which is now the canonical pattern).
+**Pulse Fitness has been built to a professional commercial standard that is fit for production growth.** The codebase exhibits the hallmarks of a well-engineered SaaS platform — clear separation of concerns, bounded modules, pure mappers, centralised security, test coverage, and a pipeline from dev → preview → production that already works. Technical debt is low and isolated (a small number of `text-white/X` CSS utilities have been centralised into scoped style blocks to prevent theme cascade bugs, which is now the canonical pattern).
 
 ---
 
@@ -233,7 +233,7 @@ The platform is **already strong enough for mainstream commercial use in the SMB
 **Yes** — with two caveats (both trivially addressable).
 
 **Suitability:**
-- Emergent runs containerised workloads on Kubernetes with standard ingress, TLS termination and environment isolation. For a Python/Node stack like GymAxis this is exactly the right primitive.
+- Emergent runs containerised workloads on Kubernetes with standard ingress, TLS termination and environment isolation. For a Python/Node stack like Pulse Fitness this is exactly the right primitive.
 - Hot-reload in preview and stable URLs in production. Preview and production live in separate pods with separate databases.
 - Emergent's native integration with the universal LLM key means AI features have no cold-start or credentialing friction.
 
@@ -296,14 +296,14 @@ Neither is required for rollout.
 
 ---
 
-## Section 7 — Attaching GymAxis to the Service Tab on `pulsefitness.com`
+## Section 7 — Attaching Pulse Fitness to the Service Tab on `pulsefitness.com`
 
 ### 7.1 Options Analysed
 
 | Option | Pros | Cons | Verdict |
 |---|---|---|---|
-| **A. Subdomain CNAME** (`service.pulsefitness.com` → GymAxis) | Fast, reversible, clean SSL, full platform, SEO-friendly, clear ownership | Requires one DNS change | **RECOMMENDED** |
-| **B. Reverse proxy** (Pulse's web server proxies `/service/*` → GymAxis) | Preserves the root domain | Complex; every asset path needs rewriting; SEO ambiguity; Pulse now in the latency path | Not recommended |
+| **A. Subdomain CNAME** (`service.pulsefitness.com` → Pulse Fitness) | Fast, reversible, clean SSL, full platform, SEO-friendly, clear ownership | Requires one DNS change | **RECOMMENDED** |
+| **B. Reverse proxy** (Pulse's web server proxies `/service/*` → Pulse Fitness) | Preserves the root domain | Complex; every asset path needs rewriting; SEO ambiguity; Pulse now in the latency path | Not recommended |
 | **C. Iframe embed** on the existing Service page | No DNS change | Poor UX, login flows break, mobile scroll-trapping, SEO opaque, visually constrained | Not recommended |
 | **D. Plain link-out** (the Service tab just goes to `gymaxis.app`) | Zero config | Loses Pulse brand continuity; user feels shunted | Not recommended |
 
@@ -343,55 +343,55 @@ This feels seamless. The customer sees one brand from end to end.
 
 ### 8.1 Object Model Alignment
 
-GymAxis was designed from day one to be a *superset* of Sicon's data model — everything Sicon tracks, GymAxis tracks, plus AI-derived fields (triage summary, severity, parts prediction), CSAT signals, and provenance fields that Sicon lacks. Mapping is therefore additive, not lossy.
+Pulse Fitness was designed from day one to be a *superset* of Sicon's data model — everything Sicon tracks, Pulse Fitness tracks, plus AI-derived fields (triage summary, severity, parts prediction), CSAT signals, and provenance fields that Sicon lacks. Mapping is therefore additive, not lossy.
 
-- **Customers**: GymAxis `accounts` ↔ Sicon `SiconCRMCompany`.
-- **Contacts**: GymAxis `contacts` ↔ Sicon `SiconCRMPerson`.
-- **Sites**: GymAxis `sites` ↔ Sicon `SubLocation`.
-- **Equipment/Assets**: GymAxis `equipment` ↔ Sicon `Equipments[]`.
-- **Service Cases**: GymAxis `faults` ↔ Sicon `ServiceCase` (via `SiSMCaseId`, `CaseNumber`).
-- **Engineer Visits**: GymAxis `engineer_visits` ↔ Sicon `Appointments`.
-- **Service Contracts**: GymAxis `contracts` ↔ Sicon `ServiceContract`.
-- **Tracking Notes**: GymAxis internal notes + AI triage → Sicon `CaseTrackingNote`.
+- **Customers**: Pulse Fitness `accounts` ↔ Sicon `SiconCRMCompany`.
+- **Contacts**: Pulse Fitness `contacts` ↔ Sicon `SiconCRMPerson`.
+- **Sites**: Pulse Fitness `sites` ↔ Sicon `SubLocation`.
+- **Equipment/Assets**: Pulse Fitness `equipment` ↔ Sicon `Equipments[]`.
+- **Service Cases**: Pulse Fitness `faults` ↔ Sicon `ServiceCase` (via `SiSMCaseId`, `CaseNumber`).
+- **Engineer Visits**: Pulse Fitness `engineer_visits` ↔ Sicon `Appointments`.
+- **Service Contracts**: Pulse Fitness `contracts` ↔ Sicon `ServiceContract`.
+- **Tracking Notes**: Pulse Fitness internal notes + AI triage → Sicon `CaseTrackingNote`.
 
 ### 8.2 Sync Direction & Source of Truth
 
-- **GymAxis → Sicon**: the default sync direction for new faults, new engineer assignments, and new tracking notes. GymAxis is the source of truth because it captures rich AI-derived context that Sicon lacks.
-- **Sicon → GymAxis**: used for engineer appointment status, case closure, and invoice linkage — fields that Sicon owns as the finance system.
+- **Pulse Fitness → Sicon**: the default sync direction for new faults, new engineer assignments, and new tracking notes. Pulse Fitness is the source of truth because it captures rich AI-derived context that Sicon lacks.
+- **Sicon → Pulse Fitness**: used for engineer appointment status, case closure, and invoice linkage — fields that Sicon owns as the finance system.
 - **Conflict rules**: last-write-wins *per-field*, not per-document. The `sicon_last_synced_at` timestamp and the `CaseNumber` are the reconciliation keys.
 - **Error handling**: every failed sync enters the `integration_failures` collection with exponential-backoff retry (1m, 5m, 30m, 2h, 6h, fail).
 
 ### 8.3 Full Sicon Field Mapping Table
 
-| GymAxis Module | GymAxis Field | Sicon Entity | Sicon Field / String | Data Type | Sync Direction | Source of Truth | Notes | Status |
+| Pulse Fitness Module | Pulse Fitness Field | Sicon Entity | Sicon Field / String | Data Type | Sync Direction | Source of Truth | Notes | Status |
 |---|---|---|---|---|---|---|---|---|
 | Fault | `sicon_case_id` | ServiceCase | `SiSMCaseId` | integer | ↔ two-way | Sicon (after first sync) | 0 on create; returned on create response | Confirmed |
-| Fault | `sicon_case_number` | ServiceCase | `CaseNumber` | string | Sicon → GymAxis | Sicon | Passthrough on amend | Confirmed |
-| Fault | `fault_type` → mapped | ServiceCase | `CaseTypeID` + `CaseTypeName` | int + string | GymAxis → Sicon | GymAxis | Default "Reactive"; mapping via `FAULT_TYPE_TO_CASE_TYPE` | Confirmed |
-| Fault | `issue_description` | ServiceCase | `Description` | string(4000) | GymAxis → Sicon | GymAxis | Truncated at 4000 chars | Confirmed |
-| Fault | `machine_type` + `serial_number` | ServiceCase | `Summary` | string | GymAxis → Sicon | GymAxis | Concatenated with em-dash | Confirmed |
-| Fault | `created_at` | ServiceCase | `CallDate` | ISO datetime | GymAxis → Sicon | GymAxis | UTC ISO-8601 | Confirmed |
-| Fault | `severity` → mapped | ServiceCase | `PriorityID` + `PriorityName` | int + string | GymAxis → Sicon | GymAxis | Mapping via `SEVERITY_TO_PRIORITY_NAME` | Confirmed |
-| Contact | `contact.full_name` | ServiceCase | Contact fields (name, email, phone) | object | GymAxis → Sicon | GymAxis | Built by `_build_contact_fields()` | Confirmed |
+| Fault | `sicon_case_number` | ServiceCase | `CaseNumber` | string | Sicon → Pulse Fitness | Sicon | Passthrough on amend | Confirmed |
+| Fault | `fault_type` → mapped | ServiceCase | `CaseTypeID` + `CaseTypeName` | int + string | Pulse Fitness → Sicon | Pulse Fitness | Default "Reactive"; mapping via `FAULT_TYPE_TO_CASE_TYPE` | Confirmed |
+| Fault | `issue_description` | ServiceCase | `Description` | string(4000) | Pulse Fitness → Sicon | Pulse Fitness | Truncated at 4000 chars | Confirmed |
+| Fault | `machine_type` + `serial_number` | ServiceCase | `Summary` | string | Pulse Fitness → Sicon | Pulse Fitness | Concatenated with em-dash | Confirmed |
+| Fault | `created_at` | ServiceCase | `CallDate` | ISO datetime | Pulse Fitness → Sicon | Pulse Fitness | UTC ISO-8601 | Confirmed |
+| Fault | `severity` → mapped | ServiceCase | `PriorityID` + `PriorityName` | int + string | Pulse Fitness → Sicon | Pulse Fitness | Mapping via `SEVERITY_TO_PRIORITY_NAME` | Confirmed |
+| Contact | `contact.full_name` | ServiceCase | Contact fields (name, email, phone) | object | Pulse Fitness → Sicon | Pulse Fitness | Built by `_build_contact_fields()` | Confirmed |
 | Engineer | `engineer_id` | ServiceCase | Assignment fields | object | ↔ two-way | Varies | Built by `_build_assignment_fields()` | Confirmed |
-| Equipment | `equipment[].sicon_equipment_id` | ServiceCase | `EquipmentIDs[]` + full `Equipments[]` | array | GymAxis → Sicon | GymAxis | Full object array (not just IDs) | Confirmed |
-| AI | `ai_triage_summary` | ServiceCase | AnalysisField 1 | string | GymAxis → Sicon | GymAxis | AI-derived | Confirmed |
-| AI | `ai_severity` | ServiceCase | AnalysisField 2 | string | GymAxis → Sicon | GymAxis | AI-derived | Confirmed |
-| AI | `ai_parts_prediction` | ServiceCase | AnalysisField 3 | array[string] | GymAxis → Sicon | GymAxis | AI-derived | Confirmed |
-| Provenance | `org_name` | ServiceCase | AnalysisField 4 (Provenance) | string | GymAxis → Sicon | GymAxis | Inbound audit trail | Confirmed |
-| CSAT | `csat_score` | ServiceCase | AnalysisField 9–12 | int/float | GymAxis → Sicon | GymAxis | Post-closure | Confirmed |
-| Equipment | `equipment.lineage_parent_id` | ServiceCase | AnalysisField 13–20 | string | GymAxis → Sicon | GymAxis | Asset genealogy | Confirmed |
-| Site | `site.full_address` | ServiceCase | `SubLocation` (full object) | object | GymAxis → Sicon | GymAxis | Built by `_build_sub_location()` | Confirmed |
-| Site | `site.address_line_1 … country` | ServiceCase | Location fields | strings | GymAxis → Sicon | GymAxis | Applied by `_apply_location()` | Confirmed |
-| Org | `org.sicon_crm_person_id` | ServiceCase | `SiconCRMPersonID` | integer | GymAxis → Sicon | Cached CRM link | Required on create | Confirmed |
-| Org | `org.sicon_crm_company_id` | ServiceCase | `SiconCRMCompanyID` | integer | GymAxis → Sicon | Cached CRM link | Required on create | Confirmed |
-| Fault | `sicon_sub_status_id` | ServiceCase | `SiSMDocumentSubStatusID` | integer | GymAxis → Sicon | GymAxis | Optional richer progress | Confirmed |
-| Fault | internal notes | TrackingNote | `TrackingNote` | string(2000) | GymAxis → Sicon | GymAxis | Via `build_tracking_note_payload()` | Confirmed |
-| Fault | note status | TrackingNote | `CaseTrackingStatusID` | integer | GymAxis → Sicon | GymAxis | | Confirmed |
-| Engineer | visit GPS | TrackingNote | `Latitude`, `Longitude` | float, float | GymAxis → Sicon | GymAxis | Phase B enhancement | Confirmed |
-| Appointment | `engineer_visits.appointment_id` | Appointment | `SiconAppointmentID` | integer | Sicon → GymAxis | Sicon | Cached in `sicon_engineers` | Confirmed |
+| Equipment | `equipment[].sicon_equipment_id` | ServiceCase | `EquipmentIDs[]` + full `Equipments[]` | array | Pulse Fitness → Sicon | Pulse Fitness | Full object array (not just IDs) | Confirmed |
+| AI | `ai_triage_summary` | ServiceCase | AnalysisField 1 | string | Pulse Fitness → Sicon | Pulse Fitness | AI-derived | Confirmed |
+| AI | `ai_severity` | ServiceCase | AnalysisField 2 | string | Pulse Fitness → Sicon | Pulse Fitness | AI-derived | Confirmed |
+| AI | `ai_parts_prediction` | ServiceCase | AnalysisField 3 | array[string] | Pulse Fitness → Sicon | Pulse Fitness | AI-derived | Confirmed |
+| Provenance | `org_name` | ServiceCase | AnalysisField 4 (Provenance) | string | Pulse Fitness → Sicon | Pulse Fitness | Inbound audit trail | Confirmed |
+| CSAT | `csat_score` | ServiceCase | AnalysisField 9–12 | int/float | Pulse Fitness → Sicon | Pulse Fitness | Post-closure | Confirmed |
+| Equipment | `equipment.lineage_parent_id` | ServiceCase | AnalysisField 13–20 | string | Pulse Fitness → Sicon | Pulse Fitness | Asset genealogy | Confirmed |
+| Site | `site.full_address` | ServiceCase | `SubLocation` (full object) | object | Pulse Fitness → Sicon | Pulse Fitness | Built by `_build_sub_location()` | Confirmed |
+| Site | `site.address_line_1 … country` | ServiceCase | Location fields | strings | Pulse Fitness → Sicon | Pulse Fitness | Applied by `_apply_location()` | Confirmed |
+| Org | `org.sicon_crm_person_id` | ServiceCase | `SiconCRMPersonID` | integer | Pulse Fitness → Sicon | Cached CRM link | Required on create | Confirmed |
+| Org | `org.sicon_crm_company_id` | ServiceCase | `SiconCRMCompanyID` | integer | Pulse Fitness → Sicon | Cached CRM link | Required on create | Confirmed |
+| Fault | `sicon_sub_status_id` | ServiceCase | `SiSMDocumentSubStatusID` | integer | Pulse Fitness → Sicon | Pulse Fitness | Optional richer progress | Confirmed |
+| Fault | internal notes | TrackingNote | `TrackingNote` | string(2000) | Pulse Fitness → Sicon | Pulse Fitness | Via `build_tracking_note_payload()` | Confirmed |
+| Fault | note status | TrackingNote | `CaseTrackingStatusID` | integer | Pulse Fitness → Sicon | Pulse Fitness | | Confirmed |
+| Engineer | visit GPS | TrackingNote | `Latitude`, `Longitude` | float, float | Pulse Fitness → Sicon | Pulse Fitness | Phase B enhancement | Confirmed |
+| Appointment | `engineer_visits.appointment_id` | Appointment | `SiconAppointmentID` | integer | Sicon → Pulse Fitness | Sicon | Cached in `sicon_engineers` | Confirmed |
 | Contract | `contract.sicon_contract_id` | ServiceContract | `SiconContractID` | integer | ↔ two-way | Sicon (finance side) | | Confirmed |
-| Contract Line | `contract_line.sicon_line_id` | ContractLine | `SiconContractLineID` | integer | GymAxis → Sicon | GymAxis | Via `map_gymaxis_contract_line_to_sicon()` | Confirmed |
+| Contract Line | `contract_line.sicon_line_id` | ContractLine | `SiconContractLineID` | integer | Pulse Fitness → Sicon | Pulse Fitness | Via `map_gymaxis_contract_line_to_sicon()` | Confirmed |
 
 **Legend:**
 - *Confirmed* — mapping is implemented and unit-tested in `sicon_client.py`.
@@ -404,43 +404,43 @@ GymAxis was designed from day one to be a *superset* of Sicon's data model — e
 
 ### 9.1 Workflow Alignment
 
-Orbit4 mirrors GymAxis at the **ticket-and-contract** level. Engineer management, PPM scheduling and CSAT remain GymAxis-primary; Orbit4 receives mirrored fault tickets and contract updates for customers who use Orbit4 as their coordination hub.
+Orbit4 mirrors Pulse Fitness at the **ticket-and-contract** level. Engineer management, PPM scheduling and CSAT remain Pulse Fitness-primary; Orbit4 receives mirrored fault tickets and contract updates for customers who use Orbit4 as their coordination hub.
 
-- **Tickets**: GymAxis `faults` ↔ Orbit4 `ticket` (1 per fault).
-- **Contracts**: GymAxis `contracts` ↔ Orbit4 `contract`.
-- **Assets**: GymAxis `equipment` ↔ Orbit4 `asset`.
-- **Users**: GymAxis `users` ↔ Orbit4 gym_operator / service_provider / admin roles.
-- **Lifecycle sync**: GymAxis fault status (open → in_progress → closed) mirrored into Orbit4 ticket status via `GYMAXIS_STATUS_TO_ORBIT4` mapping.
+- **Tickets**: Pulse Fitness `faults` ↔ Orbit4 `ticket` (1 per fault).
+- **Contracts**: Pulse Fitness `contracts` ↔ Orbit4 `contract`.
+- **Assets**: Pulse Fitness `equipment` ↔ Orbit4 `asset`.
+- **Users**: Pulse Fitness `users` ↔ Orbit4 gym_operator / service_provider / admin roles.
+- **Lifecycle sync**: Pulse Fitness fault status (open → in_progress → closed) mirrored into Orbit4 ticket status via `GYMAXIS_STATUS_TO_ORBIT4` mapping.
 
 ### 9.2 Full Orbit4 Field Mapping Table
 
-| GymAxis Module | GymAxis Field | Orbit4 Entity | Orbit4 Field | Data Type | Sync Direction | Source of Truth | Notes | Status |
+| Pulse Fitness Module | Pulse Fitness Field | Orbit4 Entity | Orbit4 Field | Data Type | Sync Direction | Source of Truth | Notes | Status |
 |---|---|---|---|---|---|---|---|---|
-| Fault | `issue_description` | Ticket | `description` | string | GymAxis → Orbit4 | GymAxis | POST `/v1/contracts/{id}/tickets` | Confirmed |
-| Fault | `severity` → mapped | Ticket | `priority` | enum | GymAxis → Orbit4 | GymAxis | Via `_priority_for_orbit4()` | Confirmed |
-| Fault | `fault_type` or explicit | Ticket | `problem_type` | enum | GymAxis → Orbit4 | GymAxis | Defaults to "undefined" | Confirmed |
-| Fault | `fault_tags[]` | Ticket | `tags[]` | array | GymAxis → Orbit4 | GymAxis | Free-form string array | Confirmed |
-| Equipment | `equipment.orbit4_asset_id` | Ticket | `asset_id` | integer | GymAxis → Orbit4 | Orbit4 | FK to Orbit4 asset | Confirmed |
-| Org | `org.orbit4_gym_operator_id` | Ticket | `gym_operator_id` | integer | GymAxis → Orbit4 | Orbit4 | FK to Orbit4 gym operator | Confirmed |
-| Org | `org.orbit4_service_provider_id` | Ticket | `service_provider_id` | integer | GymAxis → Orbit4 | Orbit4 | FK to Orbit4 service provider | Confirmed |
-| Fault | `id`, `organization_id`, `supplier_case_token`, `sicon_case_id` | Ticket | `metadata` | object (stringified) | GymAxis → Orbit4 | GymAxis | Cross-reference block | Confirmed |
-| Fault | `status` → mapped | Ticket | `status` | enum (open/in_progress/closed) | GymAxis → Orbit4 | GymAxis | Via `map_gymaxis_status_to_orbit4_patch()` | Confirmed |
-| Fault | `resolution` | Ticket | `resolution` | string(1000) | GymAxis → Orbit4 | GymAxis | Set only on close | Confirmed |
-| Fault | `closed_at` | Ticket | `closed_at` | ISO datetime | GymAxis → Orbit4 | GymAxis | UTC ISO-8601, set on close | Confirmed |
-| User | `user.full_name[0]` | Orbit4 User | `first_name` | string(60) | GymAxis → Orbit4 | GymAxis | First token of full_name | Confirmed |
-| User | `user.full_name[1]` | Orbit4 User | `last_name` | string(60) | GymAxis → Orbit4 | GymAxis | Remainder, falls back to "-" | Confirmed |
-| User | `user.email` | Orbit4 User | `email` | string | GymAxis → Orbit4 | GymAxis | | Confirmed |
-| User | `user.language` | Orbit4 User | `language` | enum (en/fr/de/es/it/nl/pt) | GymAxis → Orbit4 | GymAxis | Falls back to "en" | Confirmed |
-| User | `user.role` | Orbit4 User | role (gym_operator / service_provider / admin) | enum | GymAxis → Orbit4 | GymAxis | Explicit param | Confirmed |
-| User | `site.name` | Orbit4 User | site/org FK | FK | GymAxis → Orbit4 | GymAxis | Optional | Confirmed |
-| Contract | `contract.start_date` | Orbit4 Contract | `start_date` | ISO date | GymAxis → Orbit4 | GymAxis | Via `map_gymaxis_contract_to_orbit4()` | Confirmed |
-| Contract | `contract.end_date` | Orbit4 Contract | `end_date` | ISO date | GymAxis → Orbit4 | GymAxis | | Confirmed |
-| Contract | `contract.tier` | Orbit4 Contract | `service_level` | enum | GymAxis → Orbit4 | GymAxis | | Confirmed |
-| Contract | `contract.total_value` | Orbit4 Contract | `annual_value` | decimal | GymAxis → Orbit4 | GymAxis | | Confirmed |
-| Equipment | `equipment.*` | Orbit4 Asset | asset fields | object | GymAxis → Orbit4 | GymAxis | Via `map_gymaxis_equipment_to_orbit4()` | Confirmed |
-| Asset | Orbit4 `asset.*` | GymAxis Equipment | equipment fields | object | Orbit4 → GymAxis | Orbit4 | Via `map_orbit4_asset_to_gymaxis()` | Confirmed |
-| Contract | Orbit4 `contract.*` | GymAxis Contract | contract fields | object | Orbit4 → GymAxis | Orbit4 | Via `map_orbit4_contract_to_gymaxis()` | Confirmed |
-| Ticket full | Orbit4 `ticket.*` + assignments | GymAxis Fault | fault fields | object | Orbit4 → GymAxis | Orbit4 | Via `map_orbit4_ticket_full()`; also used as source for Orbit4→Sicon bridging | Confirmed |
+| Fault | `issue_description` | Ticket | `description` | string | Pulse Fitness → Orbit4 | Pulse Fitness | POST `/v1/contracts/{id}/tickets` | Confirmed |
+| Fault | `severity` → mapped | Ticket | `priority` | enum | Pulse Fitness → Orbit4 | Pulse Fitness | Via `_priority_for_orbit4()` | Confirmed |
+| Fault | `fault_type` or explicit | Ticket | `problem_type` | enum | Pulse Fitness → Orbit4 | Pulse Fitness | Defaults to "undefined" | Confirmed |
+| Fault | `fault_tags[]` | Ticket | `tags[]` | array | Pulse Fitness → Orbit4 | Pulse Fitness | Free-form string array | Confirmed |
+| Equipment | `equipment.orbit4_asset_id` | Ticket | `asset_id` | integer | Pulse Fitness → Orbit4 | Orbit4 | FK to Orbit4 asset | Confirmed |
+| Org | `org.orbit4_gym_operator_id` | Ticket | `gym_operator_id` | integer | Pulse Fitness → Orbit4 | Orbit4 | FK to Orbit4 gym operator | Confirmed |
+| Org | `org.orbit4_service_provider_id` | Ticket | `service_provider_id` | integer | Pulse Fitness → Orbit4 | Orbit4 | FK to Orbit4 service provider | Confirmed |
+| Fault | `id`, `organization_id`, `supplier_case_token`, `sicon_case_id` | Ticket | `metadata` | object (stringified) | Pulse Fitness → Orbit4 | Pulse Fitness | Cross-reference block | Confirmed |
+| Fault | `status` → mapped | Ticket | `status` | enum (open/in_progress/closed) | Pulse Fitness → Orbit4 | Pulse Fitness | Via `map_gymaxis_status_to_orbit4_patch()` | Confirmed |
+| Fault | `resolution` | Ticket | `resolution` | string(1000) | Pulse Fitness → Orbit4 | Pulse Fitness | Set only on close | Confirmed |
+| Fault | `closed_at` | Ticket | `closed_at` | ISO datetime | Pulse Fitness → Orbit4 | Pulse Fitness | UTC ISO-8601, set on close | Confirmed |
+| User | `user.full_name[0]` | Orbit4 User | `first_name` | string(60) | Pulse Fitness → Orbit4 | Pulse Fitness | First token of full_name | Confirmed |
+| User | `user.full_name[1]` | Orbit4 User | `last_name` | string(60) | Pulse Fitness → Orbit4 | Pulse Fitness | Remainder, falls back to "-" | Confirmed |
+| User | `user.email` | Orbit4 User | `email` | string | Pulse Fitness → Orbit4 | Pulse Fitness | | Confirmed |
+| User | `user.language` | Orbit4 User | `language` | enum (en/fr/de/es/it/nl/pt) | Pulse Fitness → Orbit4 | Pulse Fitness | Falls back to "en" | Confirmed |
+| User | `user.role` | Orbit4 User | role (gym_operator / service_provider / admin) | enum | Pulse Fitness → Orbit4 | Pulse Fitness | Explicit param | Confirmed |
+| User | `site.name` | Orbit4 User | site/org FK | FK | Pulse Fitness → Orbit4 | Pulse Fitness | Optional | Confirmed |
+| Contract | `contract.start_date` | Orbit4 Contract | `start_date` | ISO date | Pulse Fitness → Orbit4 | Pulse Fitness | Via `map_gymaxis_contract_to_orbit4()` | Confirmed |
+| Contract | `contract.end_date` | Orbit4 Contract | `end_date` | ISO date | Pulse Fitness → Orbit4 | Pulse Fitness | | Confirmed |
+| Contract | `contract.tier` | Orbit4 Contract | `service_level` | enum | Pulse Fitness → Orbit4 | Pulse Fitness | | Confirmed |
+| Contract | `contract.total_value` | Orbit4 Contract | `annual_value` | decimal | Pulse Fitness → Orbit4 | Pulse Fitness | | Confirmed |
+| Equipment | `equipment.*` | Orbit4 Asset | asset fields | object | Pulse Fitness → Orbit4 | Pulse Fitness | Via `map_gymaxis_equipment_to_orbit4()` | Confirmed |
+| Asset | Orbit4 `asset.*` | Pulse Fitness Equipment | equipment fields | object | Orbit4 → Pulse Fitness | Orbit4 | Via `map_orbit4_asset_to_gymaxis()` | Confirmed |
+| Contract | Orbit4 `contract.*` | Pulse Fitness Contract | contract fields | object | Orbit4 → Pulse Fitness | Orbit4 | Via `map_orbit4_contract_to_gymaxis()` | Confirmed |
+| Ticket full | Orbit4 `ticket.*` + assignments | Pulse Fitness Fault | fault fields | object | Orbit4 → Pulse Fitness | Orbit4 | Via `map_orbit4_ticket_full()`; also used as source for Orbit4→Sicon bridging | Confirmed |
 
 **Dependency on credentials:** Orbit4 mirror activation requires `ORBIT4_BASE_URL`, `ORBIT4_API_KEY`, and the customer's `gym_operator_id` / `service_provider_id`. All three load from env/org record at runtime.
 
@@ -452,7 +452,7 @@ Orbit4 mirrors GymAxis at the **ticket-and-contract** level. Engineer management
 
 | Integration | Status | What's Needed to Activate |
 |---|---|---|
-| GymAxis Frontend ↔ Backend | 🟢 **Live** | None — production-resident |
+| Pulse Fitness Frontend ↔ Backend | 🟢 **Live** | None — production-resident |
 | Backend ↔ MongoDB | 🟢 **Live** | None |
 | Backend ↔ Emergent LLM Gateway (GPT-5.2 / Claude / Whisper) | 🟢 **Live** | None — universal key present |
 | Backend ↔ Stripe (payments + webhooks) | 🟢 **Live** (test keys) | Swap to Stripe live keys |
@@ -525,15 +525,15 @@ Backend FastAPI (Emergent pod)
 
 ### 11.3 Confidence Statement
 
-**GymAxis is built to be extended.** Every major customer-requested capability on the known roadmap can be shipped on top of the existing architecture without a rebuild. The modular routes + pure mappers + single data-model pattern means new engineers can join and contribute in days, not weeks.
+**Pulse Fitness is built to be extended.** Every major customer-requested capability on the known roadmap can be shipped on top of the existing architecture without a rebuild. The modular routes + pure mappers + single data-model pattern means new engineers can join and contribute in days, not weeks.
 
 ---
 
-## Section 12 — Why GymAxis Is Strong for Pulse Fitness
+## Section 12 — Why Pulse Fitness Is Strong for Pulse Fitness
 
-1. **Unique AI capability in the sector.** No other gym-equipment platform combines GPT-5.2 fault triage, Claude Haiku pre-flight classification, AI tender writing, and document Q&A in one product. Competitors offer asset registers; GymAxis offers a thinking platform.
+1. **Unique AI capability in the sector.** No other gym-equipment platform combines GPT-5.2 fault triage, Claude Haiku pre-flight classification, AI tender writing, and document Q&A in one product. Competitors offer asset registers; Pulse Fitness offers a thinking platform.
 
-2. **Integrated service intelligence.** Sicon Service and Orbit4 mirrors make GymAxis a superset of existing tools — not a replacement that forces pain. Pulse Fitness keeps its existing stack *and* gains a customer-facing portal that its competitors don't have.
+2. **Integrated service intelligence.** Sicon Service and Orbit4 mirrors make Pulse Fitness a superset of existing tools — not a replacement that forces pain. Pulse Fitness keeps its existing stack *and* gains a customer-facing portal that its competitors don't have.
 
 3. **Competitive differentiation for Pulse customers.** When a gym buys a Pulse Fitness machine, they now also get a world-class service portal included in the purchase. That is a genuine commercial moat against competitors who only sell hardware.
 
@@ -547,7 +547,7 @@ Backend FastAPI (Emergent pod)
 
 8. **Commercial expansion potential.** White-label this platform and license it to other equipment OEMs. Pulse moves from manufacturer to platform operator.
 
-9. **Ownership retained.** Pulse Fitness owns the data, the brand, the customer relationship. GymAxis is the engine; Pulse is the brand customers see.
+9. **Ownership retained.** Pulse Fitness owns the data, the brand, the customer relationship. Pulse Fitness is the engine; Pulse is the brand customers see.
 
 ---
 
@@ -594,14 +594,14 @@ Backend FastAPI (Emergent pod)
 
 **Pulse Fitness should proceed to implementation immediately.**
 
-GymAxis is a credible, production-grade platform already built to a standard that many SaaS businesses only reach after two or three years of funded development. The commercial logic is compelling (recurring revenue, installed-base visibility, customer stickiness, competitive moat). The technical logic is compelling (modular, secure, testable, extensible). The operational logic is compelling (rollout is configuration, not development; no agency retainer required; internal team can own it).
+Pulse Fitness is a credible, production-grade platform already built to a standard that many SaaS businesses only reach after two or three years of funded development. The commercial logic is compelling (recurring revenue, installed-base visibility, customer stickiness, competitive moat). The technical logic is compelling (modular, secure, testable, extensible). The operational logic is compelling (rollout is configuration, not development; no agency retainer required; internal team can own it).
 
 Waiting does not de-risk the rollout — the remaining risks are all addressable in parallel with go-live (penetration test, ClamAV deploy, WAF apply). Waiting *does* cost Pulse Fitness months of deferred recurring revenue and months of competitor head-start.
 
-**Treat GymAxis as a strategic platform, not an experiment.** Attach it to the Service tab. Cut the Stripe keys over. Supply the Sicon + Orbit4 credentials. Run a one-site pilot next week. Expand to the full estate within a quarter.
+**Treat Pulse Fitness as a strategic platform, not an experiment.** Attach it to the Service tab. Cut the Stripe keys over. Supply the Sicon + Orbit4 credentials. Run a one-site pilot next week. Expand to the full estate within a quarter.
 
 The platform is ready. The opportunity is now.
 
 ---
 
-*Document prepared by GymAxis Engineering (CTO Office) · February 2026 · Board-Ready · Implementation-Ready.*
+*Document prepared by Pulse Fitness Engineering (CTO Office) · February 2026 · Board-Ready · Implementation-Ready.*

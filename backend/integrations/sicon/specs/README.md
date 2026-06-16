@@ -1,7 +1,7 @@
 # Sicon Integration — Specs & Mapping Reference
 
 This folder is the canonical reference for the Sicon (Sage 200 add-on) integration
-used by GymAxis. The official Swagger specs are committed below so the mapper code
+used by Pulse Fitness. The official Swagger specs are committed below so the mapper code
 is always traceable to a known schema version (R260200c, April 2026).
 
 ## Specs
@@ -17,7 +17,7 @@ in place; the diff between builds is what tells us which mapper changes are need
 
 ## Where the mapping lives
 
-All GymAxis → Sicon payload construction is centralised in
+All Pulse Fitness → Sicon payload construction is centralised in
 `backend/utils/sicon_client.py`. Key mappers and the spec object they target:
 
 | Mapper                                | Sicon object (Spec)                | Spec file |
@@ -55,7 +55,7 @@ All GymAxis → Sicon payload construction is centralised in
 🟡 Available but not yet used (low priority):
 - `SiconAppointment` — full payload supported via `build_tracking_note_payload`'s
   `sicon_appointment_id` link, but we don't currently *create* appointments from
-  GymAxis. If we ship engineer dispatch this is the next mapper to add.
+  Pulse Fitness. If we ship engineer dispatch this is the next mapper to add.
 - `TimeBookingRequest` — engineer time entries; same caveat as appointments.
 
 ## When to edit `sicon_client.py`

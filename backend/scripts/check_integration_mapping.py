@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GymAxis · Integration mapping lint (iter 215dy).
+Pulse Fitness · Integration mapping lint (iter 215dy).
 
 Read by CI / pre-commit / `make lint-integrations`. Validates the integrity
 of the cross-system field-mapping documentation:

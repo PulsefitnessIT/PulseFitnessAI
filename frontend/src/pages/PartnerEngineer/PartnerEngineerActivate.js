@@ -15,7 +15,7 @@
  *      the engineer lands on Stripe Checkout for the £30/mo plan with
  *      zero further clicks.
  *
- * If the email already belongs to an existing GymAxis account, the
+ * If the email already belongs to an existing Pulse Fitness account, the
  * info endpoint flags `has_existing_account=true` and we show a
  * "Sign in to claim" prompt instead of a password form — the
  * auto-claim hook in /auth/login will link the partner row on
@@ -67,7 +67,7 @@ export default function PartnerEngineerActivate() {
     } catch (e) {
       setError(
         e?.response?.data?.detail ||
-        'This activation link is invalid or has expired. Please ask the GymAxis team for a fresh one.'
+        'This activation link is invalid or has expired. Please ask the Pulse Fitness team for a fresh one.'
       );
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ export default function PartnerEngineerActivate() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-900 text-slate-900 flex flex-col">
       <header className="border-b border-white/10 bg-white/95 backdrop-blur px-6 py-4 flex items-center justify-between shadow-sm">
         <Link to="/" className="text-sm font-extrabold tracking-tight text-slate-900">
-          GymAxis · <span className="text-purple-600">Engineer Partners</span>
+          Pulse Fitness · <span className="text-purple-600">Engineer Partners</span>
         </Link>
         <Link to="/login" className="text-xs text-slate-500 hover:text-purple-600 font-bold" data-testid="activate-sign-in-link">
           Already have an account? Sign in
@@ -134,7 +134,7 @@ export default function PartnerEngineerActivate() {
               <h1 className="text-lg font-extrabold mt-3 text-slate-900">Link unavailable</h1>
               <p className="text-sm text-rose-700 mt-2">{error}</p>
               <a
-                href="mailto:support@gymaxisai.com?subject=Partner%20Engineer%20activation%20link"
+                href="mailto:support@pulsefitness.ai?subject=Partner%20Engineer%20activation%20link"
                 className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-bold"
               >
                 <Mail size={14} /> Email support for a new link
@@ -145,7 +145,7 @@ export default function PartnerEngineerActivate() {
               <ShieldCheck size={24} className="text-emerald-500" />
               <h1 className="text-xl font-extrabold mt-3 text-slate-900">Sign in to claim your approval</h1>
               <p className="text-sm text-slate-600 mt-2">
-                We already have a GymAxis account for <b className="text-slate-900">{info.email}</b>.
+                We already have a Pulse Fitness account for <b className="text-slate-900">{info.email}</b>.
                 Sign in there — we'll link your Partner Engineer record automatically and then
                 take you straight to Stripe to start your {partnerPricing(info.country_code).base}/mo plan.
               </p>
@@ -172,7 +172,7 @@ export default function PartnerEngineerActivate() {
                   Set up your sign-in, {((info?.full_name || '').split(' ')[0]) || 'there'}.
                 </h1>
                 <p className="text-sm text-slate-600 mt-2">
-                  Choose a password — we'll create your GymAxis account and take you straight to
+                  Choose a password — we'll create your Pulse Fitness account and take you straight to
                   Stripe to start your <b className="text-slate-900">{partnerPricing(info?.country_code).base}/mo Partner Plan</b>.
                 </p>
               </div>
@@ -194,7 +194,7 @@ export default function PartnerEngineerActivate() {
                 <p className="text-[11px] text-slate-500 mt-1">
                   This is the email you applied with. Need to change it?
                   {' '}
-                  <a href="mailto:support@gymaxisai.com" className="underline text-purple-600">contact support</a>.
+                  <a href="mailto:support@pulsefitness.ai" className="underline text-purple-600">contact support</a>.
                 </p>
               </label>
 
@@ -269,7 +269,7 @@ export default function PartnerEngineerActivate() {
       </main>
 
       <footer className="text-center text-[11px] text-white/70 py-6">
-        GymAxis · You can email <a href="mailto:support@gymaxisai.com" className="underline text-purple-200 hover:text-white">support@gymaxisai.com</a> any time.
+        Pulse Fitness · You can email <a href="mailto:support@pulsefitness.ai" className="underline text-purple-200 hover:text-white">support@pulsefitness.ai</a> any time.
       </footer>
     </div>
   );

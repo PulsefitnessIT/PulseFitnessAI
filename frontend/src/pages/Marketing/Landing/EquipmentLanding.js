@@ -23,7 +23,7 @@ import { openTrial } from '../TrialSignupModal';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://gymaxisai.com';
+const SITE = 'https://www.pulsefitness.ai';
 const brandSlug = (b) => (b || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 export default function EquipmentLanding() {
@@ -42,16 +42,16 @@ export default function EquipmentLanding() {
   const plural = data?.plural || `${name.toLowerCase()}s`;
   const canonical = `${SITE}/equipment/${slug}`;
   const faqs = data ? [
-    { q: `How often should commercial ${plural} be serviced?`, a: `Most operators run a planned preventive maintenance (PPM) visit on ${plural} every 1–3 months depending on footfall, plus daily staff checks. GymAxis schedules each PPM per asset and auto-queues the next visit when the last is closed.` },
-    { q: `What are the most common ${name.toLowerCase()} faults?`, a: `${(data.faults || []).slice(0, 3).join(', ')} and similar wear items. GymAxis logs each fault with AI-triaged severity and the likely parts, so engineers arrive prepared.` },
-    { q: `Can GymAxis track every ${name.toLowerCase()} as an asset?`, a: `Yes — each ${name.toLowerCase()} carries a full lifecycle record: purchase, warranty, every fault, every PPM visit and every part fitted, with photo and signature proof of work.` },
+    { q: `How often should commercial ${plural} be serviced?`, a: `Most operators run a planned preventive maintenance (PPM) visit on ${plural} every 1–3 months depending on footfall, plus daily staff checks. Pulse Fitness schedules each PPM per asset and auto-queues the next visit when the last is closed.` },
+    { q: `What are the most common ${name.toLowerCase()} faults?`, a: `${(data.faults || []).slice(0, 3).join(', ')} and similar wear items. Pulse Fitness logs each fault with AI-triaged severity and the likely parts, so engineers arrive prepared.` },
+    { q: `Can Pulse Fitness track every ${name.toLowerCase()} as an asset?`, a: `Yes — each ${name.toLowerCase()} carries a full lifecycle record: purchase, warranty, every fault, every PPM visit and every part fitted, with photo and signature proof of work.` },
     { q: `Does it separate warranty from chargeable repairs?`, a: 'Yes. Each asset knows its cover, so warranty and chargeable work are split automatically at the point of repair — no missed warranty claims.' },
   ] : [];
 
   useSeo({
-    title: data ? `${name} Servicing & Repair Software | GymAxis AI` : 'Equipment servicing | GymAxis',
+    title: data ? `${name} Servicing & Repair Software | Pulse Fitness AI` : 'Equipment servicing | Pulse Fitness',
     description: data
-      ? `Service and maintain commercial ${plural} with GymAxis: asset register, AI fault logging, planned maintenance, parts and compliance evidence across every brand on your floor.`
+      ? `Service and maintain commercial ${plural} with Pulse Fitness: asset register, AI fault logging, planned maintenance, parts and compliance evidence across every brand on your floor.`
       : undefined,
     canonical,
     image: `${SITE}/brand/og-cover.jpg`,
@@ -62,7 +62,7 @@ export default function EquipmentLanding() {
           '@type': 'Service',
           name: `${name} Servicing & Maintenance Software`,
           serviceType: data.term,
-          provider: { '@type': 'Organization', name: 'GymAxis AI', url: SITE },
+          provider: { '@type': 'Organization', name: 'Pulse Fitness AI', url: SITE },
           areaServed: 'GB',
           description: `Preventive maintenance, fault repair, asset management and parts control software for commercial ${plural}.`,
         },
@@ -101,7 +101,7 @@ export default function EquipmentLanding() {
       <section className="gx-grid-bg" data-testid={`equipment-hero-${slug}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <Link to="/equipment" className="hover:text-slate-700">Equipment</Link>
             <ChevronRight size={11} />
@@ -166,7 +166,7 @@ export default function EquipmentLanding() {
         <section className="bg-slate-50 py-16 lg:py-20 dark:bg-zinc-900">
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-black tracking-tight">{plural.charAt(0).toUpperCase() + plural.slice(1)} we maintain</h2>
-            <p className="mt-3 text-slate-600 max-w-2xl">A sample of the {plural} tracked in the GymAxis catalogue across {data.brands.length} brand{data.brands.length === 1 ? '' : 's'}. Add yours to the asset register in minutes.</p>
+            <p className="mt-3 text-slate-600 max-w-2xl">A sample of the {plural} tracked in the Pulse Fitness catalogue across {data.brands.length} brand{data.brands.length === 1 ? '' : 's'}. Add yours to the asset register in minutes.</p>
             <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="equipment-products">
               {data.products.map((p) => (
                 <div key={`${p.manufacturer || ''}-${p.title}`} className="rounded-2xl bg-white border border-slate-200 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">

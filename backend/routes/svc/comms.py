@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Customer Comms Hub.
+Pulse Fitness Service Operations — Customer Comms Hub.
 
 Iter 215dv (Phase 7b).
 
@@ -41,17 +41,17 @@ __integration_fields__ = {
     "log.to":               "gymaxis_only: recipient email (Resend)",
     "log.subject":          "gymaxis_only: rendered subject",
     "log.template_key":     "gymaxis_only: which template was used",
-    "log.case_id":          "sicon: ServiceCallID (back-reference for cross-system search) · GymAxis → Sicon (timeline only)",
+    "log.case_id":          "sicon: ServiceCallID (back-reference for cross-system search) · Pulse Fitness → Sicon (timeline only)",
     "log.po_id":            "sage: POPOrderID (back-reference; PO email is also referenced from Sage outbox) · gymaxis_only otherwise",
     "log.ok":               "gymaxis_only: send success flag from Resend",
     "log.error":            "gymaxis_only: provider error string (truncated 500 chars)",
     "log.actor_id":         "gymaxis_only: who triggered the send (audit)",
     "log.at":               "gymaxis_only: timestamp",
     # Side-effect: case timeline event written via append_event(type='comm')
-    "case_event.comm.body":  "sicon: TrackingNote (when push_event runs on the case) · GymAxis → Sicon",
-    "case_event.comm.extra": "sicon: TrackingNote.Metadata (template_key / to / log_id) · GymAxis → Sicon",
+    "case_event.comm.body":  "sicon: TrackingNote (when push_event runs on the case) · Pulse Fitness → Sicon",
+    "case_event.comm.extra": "sicon: TrackingNote.Metadata (template_key / to / log_id) · Pulse Fitness → Sicon",
     # Side-effect: PO supplier_email_sent_at flag written on success
-    "po.supplier_email_sent_at": "sage: POPOrder.NotifiedAt (when SLContract / POPOrder wiring lands) · GymAxis → Sage",
+    "po.supplier_email_sent_at": "sage: POPOrder.NotifiedAt (when SLContract / POPOrder wiring lands) · Pulse Fitness → Sage",
 }
 
 from datetime import datetime, timezone
@@ -107,7 +107,7 @@ _DEFAULTS: list[dict] = [
             "<strong>Priority:</strong> {{priority_label}}</p>"
             "<p>An engineer will be assigned shortly. We'll email you again "
             "as soon as we have an ETA.</p>"
-            "<p>— The GymAxis service desk</p>"
+            "<p>— The Pulse Fitness service desk</p>"
         ),
     },
     {
@@ -122,7 +122,7 @@ _DEFAULTS: list[dict] = [
             "{{engineer_message_html}}"
             "{{tracking_link_html}}"
             "<p>If you need to reach us, reply to this email or call the desk.</p>"
-            "<p>— The GymAxis service desk</p>"
+            "<p>— The Pulse Fitness service desk</p>"
         ),
     },
     {
@@ -135,7 +135,7 @@ _DEFAULTS: list[dict] = [
             "<strong>{{site_name}}</strong> and is starting work on case "
             "<strong>{{reference}}</strong> ({{title}}).</p>"
             "<p>We'll send another update the moment the work is complete.</p>"
-            "<p>— The GymAxis service desk</p>"
+            "<p>— The Pulse Fitness service desk</p>"
         ),
     },
     {
@@ -149,7 +149,7 @@ _DEFAULTS: list[dict] = [
             "<p><strong>Summary:</strong> {{summary}}</p>"
             "<p>If anything still isn't right, reply to this email and we'll "
             "get someone back to you.</p>"
-            "<p>— The GymAxis service desk</p>"
+            "<p>— The Pulse Fitness service desk</p>"
         ),
     },
     {
@@ -402,7 +402,7 @@ async def send_po(po_id: str, data: dict, user=Depends(get_current_user)):
         "total": f"{float(po.get('total') or 0):.2f}",
         "lines_text": _po_lines_text(po),
         "notes": po.get("notes") or "",
-        "org_name": (org or {}).get("name") or "GymAxis",
+        "org_name": (org or {}).get("name") or "Pulse Fitness",
     }
     subject = _render((data or {}).get("override_subject") or template["subject"], ctx)
     body = _render((data or {}).get("override_body_html") or template["body_html"], ctx)
@@ -550,12 +550,12 @@ async def auto_notify_on_transition(
                 {"id": case["site_id"], "organization_id": org_id}, {"_id": 0},
             )
         eff = _effective_site_branding(org_doc, site_doc)
-        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "GymAxis"
+        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "Pulse Fitness"
         ctx["brand_primary_color"] = eff.get("primary_color") or "#19CDFF"
         ctx["brand_logo_url"] = eff.get("logo_url") or ""
     except Exception as exc:  # noqa: BLE001
         logger.warning("auto-notify branding resolve failed for %s: %s", case_id, exc)
-        ctx.setdefault("org_name", "GymAxis")
+        ctx.setdefault("org_name", "Pulse Fitness")
     subject = _render(template["subject"], ctx)
     body = _render(template["body_html"], ctx)
 

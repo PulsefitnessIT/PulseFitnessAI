@@ -317,7 +317,7 @@ const LiteDashboardPage = () => {
 
   // Iter 216d — stage the current machine onto the multi-machine job
   // and reset the form so the user can pick another machine. Triage
-  // happens per-machine in LiteDialogs (matching the GymAxis side).
+  // happens per-machine in LiteDialogs (matching the Pulse Fitness side).
   const handleAddMachineToJob = (overrides = {}) => {
     clearFaultBanner();
     if (!faultForm.serial_number || !faultForm.issue_description) {
@@ -633,9 +633,9 @@ const LiteDashboardPage = () => {
     // Pulse Pro tab bar — Documents is reinstated per Iter 216i (operators
     // still need quick access to certifications, RAMS and supplier docs
     // without diving into Reports).
-    // Iter 220n — AI Triage tab now visible to Pulse Pro AND GymAxis ops
+    // Iter 220n — AI Triage tab now visible to Pulse Pro AND Pulse Fitness ops
     // users (was previously dormant — wired in but never surfaced).
-    // Brand-aware label: "AI Triage" on GymAxis, "AI Diagnosis" on Pulse.
+    // Brand-aware label: "AI Triage" on Pulse Fitness, "AI Diagnosis" on Pulse.
     const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
     const aiTabLabel = isPulseAccount ? t('dashboard.ai_diagnosis', 'AI Diagnosis') : t('dashboard.ai_triage', 'AI Triage');
     const proBase = [
@@ -643,7 +643,7 @@ const LiteDashboardPage = () => {
       { id: 'overview',     label: t('dashboard.overview', 'Dashboard'),    icon: LayoutDashboard },
       { id: 'equipment',    label: t('dashboard.equipment', 'Equipment'),    icon: Dumbbell },
       { id: 'faults',       label: t('dashboard.faults', 'Faults'),       icon: AlertTriangle },
-      // Iter 216o-11 — labels match GymAxis exactly so the two portals
+      // Iter 216o-11 — labels match Pulse Fitness exactly so the two portals
       // look identical to a customer comparing them side-by-side. The
       // underlying components stay separate (each is brand-tuned for
       // its portal); only the user-facing label is unified.
@@ -683,7 +683,7 @@ const LiteDashboardPage = () => {
       ...proBase,
       { id: 'reports',    label: t('dashboard.reports', 'Reports'),    icon: BarChart3 },
       { id: 'suppliers',  label: t('dashboard.suppliers_tab', 'Suppliers'),  icon: Truck },
-      // Iter 216o-11 — Gym Layout label matches GymAxis exactly.
+      // Iter 216o-11 — Gym Layout label matches Pulse Fitness exactly.
       { id: 'gym-layout', label: t('dashboard.gym_layout', 'Gym Layout'), icon: LayoutGrid },
     ];
   };

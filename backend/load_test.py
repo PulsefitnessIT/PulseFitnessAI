@@ -1,4 +1,4 @@
-"""Load-test driver for the GymAxis / Pulse Fitness API.
+"""Load-test driver for the Pulse Fitness / Pulse Fitness API.
 
 A pure-Python asyncio load test (no k6 / wrk install required). Hammers the
 top 20 tenant-scoped endpoints as an authenticated operator and reports

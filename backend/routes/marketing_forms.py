@@ -76,7 +76,7 @@ class FormSchema(BaseModel):
     redirect_url: Optional[str] = None
     require_consent: bool = True
     consent_text: str = (
-        "I agree to be contacted by GymAxis and consent to my data being "
+        "I agree to be contacted by Pulse Fitness and consent to my data being "
         "processed in line with the privacy policy."
     )
     send_confirmation: bool = False

@@ -311,7 +311,7 @@ function AssistantSkeleton() {
 }
 
 /* --------------------------- Main sheet component -------------------------- */
-function AskGymAxisSheet({ onClose }) {
+function AskPulseFitnessSheet({ onClose }) {
  const [session, setSession] = useState(null);
  const [messages, setMessages] = useState([]);
  const [input, setInput] = useState('');
@@ -540,7 +540,7 @@ function AskGymAxisSheet({ onClose }) {
 }
 
 /* ----------------------- Floating orb (entry point) ----------------------- */
-export default function AskGymAxis() {
+export default function AskPulseFitness() {
  const [open, setOpen] = useState(false);
 
  // Keyboard shortcut: Ctrl+/ or Cmd+/
@@ -562,7 +562,7 @@ export default function AskGymAxis() {
  }, []);
 
  // Iter 220ea·5/·6 — Suppress the floating orb on engineer routes;
- // the SpeedDial provides the consolidated launcher. AskGymAxis is
+ // the SpeedDial provides the consolidated launcher. AskPulseFitness is
  // mounted OUTSIDE the BrowserRouter (see App.js — sits at the
  // outer container alongside CookieConsent), so we can't call
  // `useLocation()` here. The custom hook gives the same reactivity
@@ -584,7 +584,7 @@ export default function AskGymAxis() {
  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-emerald-400 border-2 border-white" />
  </button>
  )}
- {open && <AskGymAxisSheet onClose={() => setOpen(false)} />}
+ {open && <AskPulseFitnessSheet onClose={() => setOpen(false)} />}
  </>
  );
 }

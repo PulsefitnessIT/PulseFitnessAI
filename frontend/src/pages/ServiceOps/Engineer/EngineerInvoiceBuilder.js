@@ -240,7 +240,7 @@ export default function EngineerInvoiceBuilder() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">GymAxis Invoice</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness Invoice</p>
               <h1 className="text-xl font-extrabold text-slate-900 truncate">{isNew ? 'New invoice' : form.invoice_number}</h1>
               {!isNew && <p className="text-xs text-slate-500 capitalize">{form.status}{form.due_date ? ` · Due ${form.due_date}` : ''}</p>}
             </div>

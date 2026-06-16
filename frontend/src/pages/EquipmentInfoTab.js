@@ -50,7 +50,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  const [viewAudit, setViewAudit] = useState(null);
  const [_photoUploading, setPhotoUploading] = useState(false);
  // Iter 216h230 — single-machine Add Equipment dialog. Lee's audit
- // (Feb 2026): the full GymAxis dashboard's Equipment tab had NO
+ // (Feb 2026): the full Pulse Fitness dashboard's Equipment tab had NO
  // "Add equipment" CTA at all — operators had to use AI Invoice
  // Import (multi-machine) or the Onboarding wizard, neither of
  // which is right for "I just bought one new piece of kit".
@@ -519,7 +519,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  await new Promise(r => setTimeout(r, 300));
  } catch { /* skip */ }
  }
- notify.success(`Downloading ${equipment.length} GymAxis QR labels`);
+ notify.success(`Downloading ${equipment.length} Pulse Fitness QR labels`);
  }}
  className="border-white/10 text-white hover:bg-white/10"
  data-testid="bulk-download-qr-btn"
@@ -774,7 +774,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
   {/* Iter 216o-9 — Equipment detail uses ONLY the shared
      EquipmentDetailContent (the same component Pulse Fitness uses).
      This gives us 2 tabs ("Details" + "Spec Sheet") — identical to
-     Pulse — instead of the legacy 6-tab GymAxis layout. The deeper
+     Pulse — instead of the legacy 6-tab Pulse Fitness layout. The deeper
      features (audit generation, manual upload, QR card, photos) are
      accessed via the Edit Details button or the row-level QR button
      so the modal stays clean and platform-agnostic for white-label. */}

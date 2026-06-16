@@ -12,7 +12,7 @@
  * Reschedule is a tap-and-pick-new-time flow (drag-and-drop deferred
  * to V2 to keep the mobile experience reliable).
  *
- * Layout: light-mode GymAxis brand, mobile-first with desktop
+ * Layout: light-mode Pulse Fitness brand, mobile-first with desktop
  * comfortable widening — Phase 4 desktop 3-column polish will come
  * later in the iteration.
  */

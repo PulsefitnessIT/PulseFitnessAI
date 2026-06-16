@@ -239,7 +239,7 @@ async def ai_rota_suggest(
                 )
             demand_str = json.dumps(body.demand) if body.demand else "default 5-day commercial gym demand"
             system = (
-                "You are GymAxis Workforce, an expert UK gym workforce planner. "
+                "You are Pulse Fitness Workforce, an expert UK gym workforce planner. "
                 "Build a fair, compliant 7-day rota. Output STRICT JSON only — no prose. "
                 "Schema: {\"shifts\": [{\"staff_id\": str, \"date\": \"YYYY-MM-DD\", "
                 "\"start_time\": \"HH:MM\", \"end_time\": \"HH:MM\", \"role\": str, "

@@ -2,7 +2,7 @@
  * Master Admin — Pricing Panel.
  *
  * Single source of truth editor for module + bundle pricing across both
- * brands (GymAxis, Pulse Fitness). Operator switches brand, edits
+ * brands (Pulse Fitness, Pulse Fitness). Operator switches brand, edits
  * monthly/annual prices in three currencies (GBP/EUR/USD), tunes the
  * per-site volume discount tiers, and saves. The public homepage's
  * pricing page consumes the same data via /api/pricing/public.
@@ -26,7 +26,7 @@ const CURRENCIES = [
 ];
 
 const BRAND_OPTIONS = [
-  { id: 'gymaxis', label: 'GymAxis', accent: 'var(--color-brand-cyan)' },
+  { id: 'gymaxis', label: 'Pulse Fitness', accent: 'var(--color-brand-cyan)' },
   { id: 'pulse',   label: 'Pulse Fitness', accent: 'var(--color-brand-cyan)' },
 ];
 

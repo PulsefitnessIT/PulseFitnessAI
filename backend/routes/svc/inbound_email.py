@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Inbound email webhook.
+Pulse Fitness Service Operations — Inbound email webhook.
 
 Iter 216h146 (Phase 5 follow-on).
 

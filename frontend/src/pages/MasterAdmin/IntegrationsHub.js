@@ -49,7 +49,7 @@ const ICONS = {
 
 const BRAND_TONES = {
   pulse:   { label: 'Pulse Fitness', bg: 'rgba(0,85,255,0.08)', fg: '#1D4ED8' },
-  gymaxis: { label: 'GymAxis',       bg: 'rgba(16,185,129,0.10)', fg: '#047857' },
+  gymaxis: { label: 'Pulse Fitness',       bg: 'rgba(16,185,129,0.10)', fg: '#047857' },
   all:     { label: 'Both brands',   bg: 'rgba(63,63,70,0.08)', fg: '#3F3F46' },
 };
 
@@ -181,7 +181,7 @@ const MappingCoverageStrip = ({ coverage }) => {
     sicon: 'Sicon',
     sage: 'Sage',
     both: 'Both',
-    gymaxis_only: 'GymAxis-only',
+    gymaxis_only: 'Pulse Fitness-only',
   };
 
   return (
@@ -315,7 +315,7 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
             <table className="w-full text-xs min-w-[420px]">
               <thead>
                 <tr className="text-zinc-500">
-                  <th className="text-left py-1 font-semibold">GymAxis field</th>
+                  <th className="text-left py-1 font-semibold">Pulse Fitness field</th>
                   <th className="text-left py-1 font-semibold">Sage 200 field</th>
                 </tr>
               </thead>

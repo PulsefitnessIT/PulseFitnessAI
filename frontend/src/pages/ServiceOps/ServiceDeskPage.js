@@ -23,7 +23,7 @@ import ServiceCaseDrawer from './ServiceCaseDrawer';
 import ServiceOpsShell, { SvcPrimaryButton, SvcSecondaryButton } from './ServiceOpsShell';
 // Iter 216h78 — Engineer Roster (customer-grants UI for ad-hoc contractors)
 import EngineerRosterPanel from './EngineerRosterPanel';
-// Iter 216h80 — Find an engineer (verified partners, GymAxis-only)
+// Iter 216h80 — Find an engineer (verified partners, Pulse Fitness-only)
 import FindEngineerPanel from './FindEngineerPanel';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';

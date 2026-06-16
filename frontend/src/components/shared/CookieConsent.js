@@ -3,7 +3,7 @@
  *
  * Iter 215bw — brand-aware colour. Pulse Fitness branded routes (under
  * /pulse, /pulse-pricing, etc.) and Pulse-portal authenticated users
- * see the Pulse blue accent; everywhere else uses GymAxis brand-blue.
+ * see the Pulse blue accent; everywhere else uses Pulse Fitness brand-blue.
  * Detection is purely client-side (route + body class) so the banner
  * doesn't need to wait on any auth context.
  */

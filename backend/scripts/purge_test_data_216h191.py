@@ -6,7 +6,7 @@ Keep set (confirmed by user):
   • Third Space               (c695638c-…)
   • British Army — Head Office (2be58411-…)
   • Catterick Garrison (MOD)   (6c355051-…)
-  • Pulse Fitness              (8cd02d8c-…)  — hosts e1.agent@gymaxisai.com
+  • Pulse Fitness              (8cd02d8c-…)  — hosts e1.agent@pulsefitness.ai
 
 Protected collections (NEVER deleted from):
   • Auth: users (filtered), password_reset_tokens, sessions
@@ -17,7 +17,7 @@ Protected collections (NEVER deleted from):
   • Master admin shadow accounts: kept by email allowlist + flag check.
 
 Always-preserve users (regardless of org_id):
-  • admin@gymaxisai.com (Master Admin)
+  • admin@pulsefitness.ai (Master Admin)
   • Any user with is_master_admin=True or is_pulse_admin=True
 
 Safety guards:
@@ -40,7 +40,7 @@ KEEP_ORG_IDS = {
     "8cd02d8c-e5a2-4c13-bdb9-8b143b85455f",  # Pulse Fitness
 }
 
-PROTECTED_USER_EMAILS = {"admin@gymaxisai.com"}
+PROTECTED_USER_EMAILS = {"admin@pulsefitness.ai"}
 
 # Collections we NEVER delete from (auth + audit + platform config).
 PROTECTED_COLLECTIONS = {
@@ -172,7 +172,7 @@ async def _print_after() -> None:
 
 
 async def main() -> None:
-    print("\n🧨 GymAxis test-data purge — keep only operator-confirmed orgs.\n")
+    print("\n🧨 Pulse Fitness test-data purge — keep only operator-confirmed orgs.\n")
     await _print_before()
     print()
 
@@ -220,7 +220,7 @@ async def main() -> None:
         print(f"  ✅ {keep_map[oid]}: sites={n_sites} users={n_users} equipment={n_equip}")
 
     # Master admin must still exist
-    admin = await db.users.find_one({"email": "admin@gymaxisai.com"}, {"_id": 0, "id": 1, "email": 1})
+    admin = await db.users.find_one({"email": "admin@pulsefitness.ai"}, {"_id": 0, "id": 1, "email": 1})
     assert admin, "master admin user vanished — restore from backup"
     print(f"  ✅ Master admin preserved: {admin['email']}")
 

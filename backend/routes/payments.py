@@ -33,7 +33,7 @@ ANNUAL_DISCOUNT_MONTHS = 10  # pay for 10, get 12 → 2 months free
 PRICING_CATALOG = {
     "bundle": {
         "id": "gymaxis_pro",
-        "name": "GymAxis Pro",
+        "name": "Pulse Fitness Pro",
         "monthly": 150.0,
         "annual": 150.0 * ANNUAL_DISCOUNT_MONTHS,        # £1,500/yr (vs £1,800)
         "per_site": 50.0,
@@ -64,9 +64,9 @@ PRICING_CATALOG = {
 
 
 PACKAGES = {
-    "starter": {"name": "GymAxis Starter", "amount": 29.0, "price_id": STRIPE_PRICE_STARTER},
-    "pro": {"name": "GymAxis Professional", "amount": 79.0, "price_id": STRIPE_PRICE_PRO},
-    "enterprise": {"name": "GymAxis Enterprise", "amount": 149.0, "price_id": STRIPE_PRICE_ENTERPRISE},
+    "starter": {"name": "Pulse Fitness Starter", "amount": 29.0, "price_id": STRIPE_PRICE_STARTER},
+    "pro": {"name": "Pulse Fitness Professional", "amount": 79.0, "price_id": STRIPE_PRICE_PRO},
+    "enterprise": {"name": "Pulse Fitness Enterprise", "amount": 149.0, "price_id": STRIPE_PRICE_ENTERPRISE},
 }
 
 
@@ -77,7 +77,7 @@ async def get_stripe_config() -> dict:
 
 @router.get("/payments/pricing")
 async def get_pricing_catalog() -> dict:
-    """Iter 215be — public endpoint that returns the GymAxis pricing model.
+    """Iter 215be — public endpoint that returns the Pulse Fitness pricing model.
 
     The pricing page reads from this so the canonical source of truth for
     bundle/module prices lives in one place. Adds a `stripe_configured`
@@ -183,7 +183,7 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
     """Iter 215be — flexible checkout for the new pricing model.
 
     Body:
-      - plan: "bundle" (GymAxis Pro) | "module"
+      - plan: "bundle" (Pulse Fitness Pro) | "module"
       - site_count: int (bundle only, defaults to 1)
       - module_id: str (module plan only, one of memberships/crm/marketing/operations)
       - origin_url: str
@@ -227,7 +227,7 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
         if not mod["stripe_price_id"]:
             raise HTTPException(status_code=501, detail=f"Stripe Price ID for {module_id} not configured")
         line_items.append({"price": mod["stripe_price_id"], "quantity": 1})
-        package_name = f"GymAxis · {mod['name']}"
+        package_name = f"Pulse Fitness · {mod['name']}"
         total_amount = mod["monthly"]
     else:
         raise HTTPException(status_code=400, detail="plan must be 'bundle' or 'module'")
@@ -450,7 +450,7 @@ async def _handle_invoice_payment_failed(data: dict) -> None:
         )
         html = f"""
         <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
-            <h2 style="color:#0f172a;">Payment for GymAxis failed ({attempt_str})</h2>
+            <h2 style="color:#0f172a;">Payment for Pulse Fitness failed ({attempt_str})</h2>
             <p>We were unable to charge {amount_str} for your subscription.</p>
             {suspended_note}
             <p>Please update your card details to avoid interruption.</p>
@@ -461,7 +461,7 @@ async def _handle_invoice_payment_failed(data: dict) -> None:
         </div>
         """
         try:
-            await send_email(target_email, "Action required: payment for GymAxis failed", html, category="billing")
+            await send_email(target_email, "Action required: payment for Pulse Fitness failed", html, category="billing")
         except Exception:
             logger.exception("[stripe-dunning] Failed to send dunning email")
 

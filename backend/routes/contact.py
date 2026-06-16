@@ -107,7 +107,7 @@ def _notification_html(r: dict) -> str:
     </div>
   </div>
   <div style="background:#05070A;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Sent by the GymAxis public contact form · Turnstile-verified · Visible in Master Admin → Growth → Communications inbox</p>
+    <p style="color:#6b7280;font-size:11px;margin:0;">Sent by the Pulse Fitness public contact form · Turnstile-verified · Visible in Master Admin → Growth → Communications inbox</p>
   </div>
 </div>"""
 
@@ -140,7 +140,7 @@ async def submit_contact(payload: ContactSubmission, request: Request):
     await db.public_contact_submissions.insert_one(record)
 
     recipient = os.environ.get("CONTACT_NOTIFY_EMAIL") or os.environ.get(
-        "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@gymaxisai.com",
+        "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai",
     )
     subject = f"[Enquiry] {record['name']} — {record.get('company') or record['email']}"
     try:

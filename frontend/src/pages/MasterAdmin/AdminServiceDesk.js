@@ -57,7 +57,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
       const sent = r.data.email_sent;
       notify.success(
         sent
-          ? `Created ${createForm.brand === 'pulse' ? 'Pulse' : 'GymAxis'} Service Desk user · welcome email sent to ${email}`
+          ? `Created ${createForm.brand === 'pulse' ? 'Pulse' : 'Pulse Fitness'} Service Desk user · welcome email sent to ${email}`
           : `Created ${email} — share the temp password manually below (email failed)`,
         { duration: 8000 },
       );
@@ -78,7 +78,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
     try {
       await axios.post(`${API}/master-admin/service-desk/members/grant`,
         { email, brand: grantBrand }, authConfig());
-      notify.success(`Granted ${grantBrand === 'pulse' ? 'Pulse' : 'GymAxis'} Service Desk to ${email}`);
+      notify.success(`Granted ${grantBrand === 'pulse' ? 'Pulse' : 'Pulse Fitness'} Service Desk to ${email}`);
       setGrantEmail('');
       await load();
     } catch (e) {
@@ -108,7 +108,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
             {total} {total === 1 ? 'person has' : 'people have'} Service Desk access.{' '}
             {isPulseAdmin
               ? 'Nominate Pulse Fitness people — they are routed straight to the Service Desk when they sign in.'
-              : <>Two brands: <strong>GymAxis</strong> and <strong>Pulse Fitness</strong>.</>}
+              : <>Two brands: <strong>Pulse Fitness</strong> and <strong>Pulse Fitness</strong>.</>}
           </p>
         </div>
         <Button
@@ -144,7 +144,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
           <div className="text-xs uppercase tracking-wider font-bold text-zinc-500 mb-1">Service Desk brand</div>
           <div className="flex gap-2 mb-3">
             {[
-              { v: 'gymaxis', label: 'GymAxis Service Desk' },
+              { v: 'gymaxis', label: 'Pulse Fitness Service Desk' },
               { v: 'pulse',   label: 'Pulse Fitness Service Desk' },
             ].filter((b) => !isPulseAdmin || b.v === 'pulse').map((b) => {
               const active = createForm.brand === b.v;
@@ -219,7 +219,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
             className="text-sm border border-zinc-200 rounded-md px-2 py-1.5 bg-white"
             data-testid="desk-grant-brand"
           >
-            {!isPulseAdmin && <option value="gymaxis">GymAxis</option>}
+            {!isPulseAdmin && <option value="gymaxis">Pulse Fitness</option>}
             <option value="pulse">Pulse</option>
           </select>
           <Button
@@ -255,7 +255,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   {m.service_desk_brand && (
                     <Badge variant="outline" className={`text-[10px] ${BRAND_BADGE[m.service_desk_brand] || ''}`}>
-                      {m.service_desk_brand === 'pulse' ? 'Pulse' : 'GymAxis'}
+                      {m.service_desk_brand === 'pulse' ? 'Pulse' : 'Pulse Fitness'}
                     </Badge>
                   )}
                   {m.must_change_password && (

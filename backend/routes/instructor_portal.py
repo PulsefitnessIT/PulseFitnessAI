@@ -1,8 +1,8 @@
-"""GymAxis Memberships — Instructor portal.
+"""Pulse Fitness Memberships — Instructor portal.
 
 Scope: any logged-in user whose `id` matches `instructor_user_id` on one or
 more `class_templates` / `class_occurrences`. No separate login — they
-authenticate through the standard GymAxis JWT and the routes filter by
+authenticate through the standard Pulse Fitness JWT and the routes filter by
 `instructor_user_id == user.id`.
 
 Routes:

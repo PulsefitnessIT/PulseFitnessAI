@@ -77,7 +77,7 @@ export default function PublicOrgChartPage() {
         <Network size={32} className="text-slate-300 mb-3" />
         <h1 className="text-lg font-bold text-slate-800">This org chart link is no longer available</h1>
         <p className="text-sm text-slate-500 mt-1">The owner may have stopped sharing or generated a new link.</p>
-        <a href="/" className="mt-4 text-sm font-semibold" style={{ color: '#19cdff' }}>Go to GymAxis →</a>
+        <a href="/" className="mt-4 text-sm font-semibold" style={{ color: '#19cdff' }}>Go to Pulse Fitness →</a>
       </div>
     );
   }
@@ -93,7 +93,7 @@ export default function PublicOrgChartPage() {
             <p className="text-[11px] text-slate-500">Organisation chart · {(data.nodes || []).length} people · read-only</p>
           </div>
         </div>
-        <a href="/" className="text-xs font-semibold text-slate-400 hover:text-slate-600">Powered by GymAxis</a>
+        <a href="/" className="text-xs font-semibold text-slate-400 hover:text-slate-600">Powered by Pulse Fitness</a>
       </header>
 
       <div ref={wrapRef} className="overflow-auto p-6" style={{ height: 'calc(100vh - 69px)' }}>

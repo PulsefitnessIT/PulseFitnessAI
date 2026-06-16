@@ -11,7 +11,7 @@
  * feeds the expansion-revenue signals the platform uses to trigger
  * upgrade prompts, referral invites, and concierge reach-outs.
  *
- * Placement: rendered inside OverviewTab on the main GymAxis operator
+ * Placement: rendered inside OverviewTab on the main Pulse Fitness operator
  * dashboard + the Pulse Pro dashboard. Hidden once every milestone is
  * hit so the card disappears from the page naturally.
  */
@@ -29,7 +29,7 @@ const DISMISS_KEY = 'gymaxis:activation_milestones_dismissed';
 // Map each milestone event_type to a concrete UI action hint so users
 // know exactly where to go next. Iter 216h193 — paths are now resolved
 // at click-time so Pulse Pro orgs (account_type === 'pulse_pro' / 'lite')
-// land on `/pulse?…` and full GymAxis orgs land on `/dashboard?…`. The
+// land on `/pulse?…` and full Pulse Fitness orgs land on `/dashboard?…`. The
 // `equipment` CTA also passes `onboarding=1` so the operations dashboard
 // auto-opens the OnboardingWizard (Step 1: Add Your Equipment) rather
 // than just switching tab — which was Craig's bug report.
@@ -66,7 +66,7 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
   const navigate = useNavigate();
   // Iter 216h193 — Operations base path swings between brands:
   //   • Pulse Fitness Pro / Lite orgs       → /pulse
-  //   • Full GymAxis Pro / everything else  → /dashboard
+  //   • Full Pulse Fitness Pro / everything else  → /dashboard
   // Picking the right one here means the equipment CTA opens the
   // OnboardingWizard on the user's actual operations page rather than
   // a stale /dashboard route that 404s for Pulse customers.

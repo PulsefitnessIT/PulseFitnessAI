@@ -585,7 +585,7 @@ const SupplierCasePage = () => {
  // compose UI hides + they see a "use your dashboard to reply" banner.
  const isGymViewer = typeof window !== 'undefined' && Boolean(localStorage.getItem('token'));
 
- // Build a custom gradient from the org brand colour (falls back to the default Pulse/GymAxis blue)
+ // Build a custom gradient from the org brand colour (falls back to the default Pulse/Pulse Fitness blue)
  const primary = brand_color || 'var(--color-brand-blue)';
  const shade = (hex, amt) => {
  try {
@@ -617,7 +617,7 @@ const SupplierCasePage = () => {
  onError={(e) => { e.target.style.display = 'none'; }} />
  )}
  <div className="min-w-0">
- <h1 className="text-zinc-900 text-xl font-bold truncate">{platform_name || 'GymAxis AI'}</h1>
+ <h1 className="text-zinc-900 text-xl font-bold truncate">{platform_name || 'Pulse Fitness AI'}</h1>
  <p className="text-zinc-600 text-sm truncate">{organization_name} &middot; {platform_tagline || 'Service Case'}</p>
  </div>
  </div>
@@ -864,7 +864,7 @@ const SupplierCasePage = () => {
  <RatingSection token={token} caseData={caseData} onRefresh={loadCase} />
 
  <p className="text-center text-[#444] text-xs pb-4">
- Powered by {is_pulse_branded ? (platform_name || 'Pulse Fitness') : 'GymAxis AI'}
+ Powered by {is_pulse_branded ? (platform_name || 'Pulse Fitness') : 'Pulse Fitness AI'}
  </p>
  </div>
  </div>

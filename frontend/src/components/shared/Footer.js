@@ -21,7 +21,7 @@ const Footer = () => {
   const { t } = useTranslation();
   const auth = useAuth();
   const isPulse = auth?.user?.account_type === 'pulse_pro' || auth?.user?.account_type === 'lite';
-  const brand = isPulse ? 'Pulse Fitness' : 'GymAxis AI';
+  const brand = isPulse ? 'Pulse Fitness' : 'Pulse Fitness AI';
 
   return (
     <footer className="bg-[var(--theme-surface)] py-12 px-4" style={{ background: 'var(--theme-surface)' }}>

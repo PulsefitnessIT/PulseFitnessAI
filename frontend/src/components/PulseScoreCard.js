@@ -24,10 +24,10 @@ import { useAuth } from '@/App';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /* Iter 220n — brand-aware copy. The component is shared between
- * Pulse Fitness and GymAxis dashboards; only the visible labels +
+ * Pulse Fitness and Pulse Fitness dashboards; only the visible labels +
  * the ring gradient differ. Account type drives the switch:
  *   - 'pulse_pro' / 'lite' → "The Pulse · today" (cyan ring)
- *   - everyone else        → "Gym Health · today" (GymAxis navy→purple)
+ *   - everyone else        → "Gym Health · today" (Pulse Fitness navy→purple)
  */
 const BRAND_COPY = {
   pulse: {
@@ -107,7 +107,7 @@ export const PulseScoreCard = ({ siteId }) => {
   const { user } = useAuth() || {};
   const { t } = useTranslation();
   // Iter 220n — switch copy + ring gradient by brand. Pulse customers
-  // see "The Pulse"; everyone else (GymAxis ops) sees "Gym Health".
+  // see "The Pulse"; everyone else (Pulse Fitness ops) sees "Gym Health".
   const isPulse = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
   const COPY = isPulse ? BRAND_COPY.pulse : BRAND_COPY.gymaxis;
 

@@ -321,7 +321,7 @@ const CustomDomainsPanel = () => {
               data-testid="cd-new-hostname"
               required
             />
-            <p className="text-[11px] text-slate-500 mt-1">Lowercase FQDN. Subdomains of platform-owned hosts (gymaxisai.com / pulsefitness.ai) are blocked.</p>
+            <p className="text-[11px] text-slate-500 mt-1">Lowercase FQDN. Subdomains of platform-owned hosts (www.pulsefitness.ai / pulsefitness.ai) are blocked.</p>
           </div>
           <div className="md:col-span-4">
             <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Primary route</label>
@@ -439,7 +439,7 @@ const CustomDomainsPanel = () => {
                     onClick={() => handleForceVerify(d.id)}
                     disabled={busyId === d.id}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-200 disabled:opacity-50"
-                    title="GymAxis platform admin only — bypasses DNS check for staging hosts"
+                    title="Pulse Fitness platform admin only — bypasses DNS check for staging hosts"
                     data-testid={`cd-force-verify-${d.id}`}
                   >
                     Force

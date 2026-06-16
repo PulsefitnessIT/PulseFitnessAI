@@ -100,7 +100,7 @@ def _seed_plans() -> list[dict[str, Any]]:
     """Out-of-the-box plans for both brands.
 
     Numbers are placeholders the master admin will tune — but they map
-    to the historic GymAxis price points (Pro = £79/m) so the public
+    to the historic Pulse Fitness price points (Pro = £79/m) so the public
     homepage doesn't show £0 the moment we deploy the engine.
     """
     base_tiers = [

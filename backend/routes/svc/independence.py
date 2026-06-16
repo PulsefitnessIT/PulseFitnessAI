@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Engineer self-allocation, AI email
+Pulse Fitness Service Operations — Engineer self-allocation, AI email
 parse and supplier-card public intake.
 
 Iter 216h144 (Phase 5 · "engineer independence").
@@ -819,7 +819,7 @@ async def intake_card_pdf(user=Depends(get_current_user)):
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=A6)
 
-    # Brand colour (default GymAxis blue)
+    # Brand colour (default Pulse Fitness blue)
     brand = org.get("brand_color") or "#1E40AF"
     try:
         accent = HexColor(brand)
@@ -831,7 +831,7 @@ async def intake_card_pdf(user=Depends(get_current_user)):
     c.rect(0, page_h - 30 * mm, page_w, 30 * mm, fill=True, stroke=False)
     c.setFillColor(white)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(10 * mm, page_h - 12 * mm, (org.get("name") or "GymAxis Service").upper())
+    c.drawString(10 * mm, page_h - 12 * mm, (org.get("name") or "Pulse Fitness Service").upper())
     c.setFont("Helvetica-Bold", 16)
     c.drawString(10 * mm, page_h - 22 * mm, "Request service")
 
@@ -886,7 +886,7 @@ async def intake_card_pdf(user=Depends(get_current_user)):
     c.setFillColor(HexColor("#94a3b8"))
     c.setFont("Helvetica", 6)
     c.drawCentredString(page_w / 2, 8 * mm,
-                        "Powered by GymAxis · " + datetime.now(timezone.utc).strftime("%b %Y"))
+                        "Powered by Pulse Fitness · " + datetime.now(timezone.utc).strftime("%b %Y"))
 
     c.showPage()
     c.save()

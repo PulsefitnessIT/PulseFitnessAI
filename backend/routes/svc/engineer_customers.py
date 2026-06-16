@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Engineer Lite CRM.
+Pulse Fitness Service Operations — Engineer Lite CRM.
 
 Iter 216h259. Field engineers needed a lightweight saved-customer book
 so they stop retyping the same name / phone / address into every

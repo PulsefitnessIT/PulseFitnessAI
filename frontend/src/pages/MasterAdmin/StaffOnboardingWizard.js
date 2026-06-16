@@ -8,7 +8,7 @@
  * token.
  *
  * Steps:
- *   1. Identity       — full name + email + brand context (Pulse/GymAxis/All)
+ *   1. Identity       — full name + email + brand context (Pulse/Pulse Fitness/All)
  *   2. Role & scope   — role + organisation (when role is org-scoped)
  *   3. Sites          — site lock (empty = all sites in the org)
  *   4. Modules        — per-module override toggles
@@ -42,7 +42,7 @@ const STEPS = [
 
 const ROLES = [
   // Platform-wide
-  { id: 'master_admin',        group: 'Platform',     label: 'GymAxis Master Admin',  description: 'Full HQ access across every organisation and brand.', orgRequired: false },
+  { id: 'master_admin',        group: 'Platform',     label: 'Pulse Fitness Master Admin',  description: 'Full HQ access across every organisation and brand.', orgRequired: false },
   { id: 'pulse_master_admin',  group: 'Platform',     label: 'Pulse Master Admin',    description: 'Master Admin scope-locked to Pulse Fitness data only.', orgRequired: false },
   { id: 'service_desk',        group: 'Platform',     label: 'Service Desk',          description: 'Internal Pulse support team — cases + helpdesk only.', orgRequired: false },
   // Org-scoped
@@ -163,7 +163,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
         }, { headers });
         created = { user_id: data.user_id, invite_url: null, email: data.email, full_name: form.full_name };
       } else if (form.role === 'master_admin') {
-        // For master_admin role we still need a "home" org — use the first GymAxis org.
+        // For master_admin role we still need a "home" org — use the first Pulse Fitness org.
         const homeOrg = form.organization_id || (orgs.find((o) => o.brand === 'gymaxis')?.id || orgs[0]?.id);
         if (!homeOrg) throw new Error('No organisation available to anchor the master admin.');
         const { data } = await axios.post(`${API}/master-admin/organizations/${homeOrg}/users`, {
@@ -282,7 +282,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
           <div className="flex gap-2">
             {[
               { id: 'pulse',   label: 'Pulse Fitness' },
-              { id: 'gymaxis', label: 'GymAxis' },
+              { id: 'gymaxis', label: 'Pulse Fitness' },
             ].map((b) => (
               <button
                 key={b.id} type="button"
@@ -473,7 +473,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
                 </Button>
                 <Button
                   as="a" variant="secondary" size="sm" icon={Mail}
-                  href={`mailto:${result.email}?subject=Welcome to GymAxis&body=Hi ${encodeURIComponent(result.full_name)},%0D%0A%0D%0AClick this 72h link to set your password and sign in:%0D%0A${encodeURIComponent(result.invite_url)}`}
+                  href={`mailto:${result.email}?subject=Welcome to Pulse Fitness&body=Hi ${encodeURIComponent(result.full_name)},%0D%0A%0D%0AClick this 72h link to set your password and sign in:%0D%0A${encodeURIComponent(result.invite_url)}`}
                   data-testid="staff-wizard-email-link"
                 >
                   Email it
@@ -503,7 +503,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
         {[
           ['Name', form.full_name],
           ['Email', form.email],
-          ['Brand', form.brand === 'pulse' ? 'Pulse Fitness' : form.brand === 'gymaxis' ? 'GymAxis' : 'Both brands'],
+          ['Brand', form.brand === 'pulse' ? 'Pulse Fitness' : form.brand === 'gymaxis' ? 'Pulse Fitness' : 'Both brands'],
           ['Role', role.label],
           ['Organisation', orgRequired ? orgName : 'Platform-wide'],
           ['Sites', orgRequired ? lockedSites : 'All sites (platform)'],

@@ -8,7 +8,7 @@ Two responsibilities:
    can show a green/amber/red light per palette. The audit codifies the
    following architectural constraints:
 
-   * GymAxis tokens live in ``frontend/src/pages/Marketing/marketing.css``
+   * Pulse Fitness tokens live in ``frontend/src/pages/Marketing/marketing.css``
      (``--gx-*``). They MUST only be referenced by marketing surfaces.
    * Pulse tokens live in ``frontend/src/index.css`` (``--pulse-*``).
      They power the in-app Pulse Fitness brand.
@@ -153,7 +153,7 @@ async def theme_audit(user: dict = Depends(get_current_user)):
         "namespaces": [
             {
                 "id": "gymaxis",
-                "label": "GymAxis Marketing",
+                "label": "Pulse Fitness Marketing",
                 "prefix": "--gx-",
                 "surface_scope": "Marketing site, Master Admin, MOD portal",
                 "css_source": "frontend/src/pages/Marketing/marketing.css",

@@ -1,5 +1,5 @@
 """
-GymAxis Expenses — shared helpers (iter 278, Phase 1).
+Pulse Fitness Expenses — shared helpers (iter 278, Phase 1).
 
 A connected expenses subsystem: receipt photo scanner (AI OCR), manual
 entry, mileage claims, out-of-pocket claims, job/customer/site/vehicle

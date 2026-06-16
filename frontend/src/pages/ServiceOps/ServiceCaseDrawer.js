@@ -856,7 +856,7 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
         style={{ margin: 'auto' }}>
         <h2 className="text-lg font-black mb-1">Rate this engineer's work</h2>
         <p className="text-xs svc-muted mb-4">
-          Your rating feeds the partner performance score and helps GymAxis recognise the best engineers. Optional — you can skip.
+          Your rating feeds the partner performance score and helps Pulse Fitness recognise the best engineers. Optional — you can skip.
         </p>
         <div className="flex gap-1.5 justify-center my-4" data-testid="rating-stars">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -878,7 +878,7 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value.slice(0, 500))}
-            placeholder="Anything you'd like to flag to GymAxis or the engineer?"
+            placeholder="Anything you'd like to flag to Pulse Fitness or the engineer?"
             rows={3}
             className="svc-input w-full mt-1"
             data-testid="rating-comment"
@@ -932,7 +932,7 @@ function CommsTab({
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm">Auto-notify customer on key events</p>
             <p className="text-[11.5px] svc-muted mt-0.5">
-              When enabled, GymAxis automatically emails {customerEmail || 'the customer'} as the engineer
+              When enabled, Pulse Fitness automatically emails {customerEmail || 'the customer'} as the engineer
               moves to <em>en route</em>, arrives <em>on site</em>, and the case is <em>completed</em>.
               Each event sends at most once per case.
             </p>

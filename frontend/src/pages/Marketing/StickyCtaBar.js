@@ -46,7 +46,7 @@ export default function StickyCtaBar() {
         <Sparkles size={14} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-slate-900 truncate dark:text-zinc-100">{t('mkt.sticky_title', 'Try GymAxis free for 3 days')}</p>
+        <p className="text-[13px] font-bold text-slate-900 truncate dark:text-zinc-100">{t('mkt.sticky_title', 'Try Pulse Fitness free for 3 days')}</p>
         <p className="text-[11px] text-slate-500 truncate">{t('mkt.sticky_sub', 'All 6 modules unlocked. No credit card. Cancel any time.')}</p>
       </div>
       <button type="button" onClick={openTrial}

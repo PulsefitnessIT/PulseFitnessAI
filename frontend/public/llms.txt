@@ -1,13 +1,13 @@
-# GymAxis AI — llms.txt
+# Pulse Fitness AI — llms.txt
 
 > All-in-one operations platform for fitness operators (gyms, leisure
 > centres, studios). Six integrated modules: Operations, Memberships,
 > CRM, Marketing, Staffing & Reporting. Built for UK SMB fitness
 > businesses through to multi-site groups.
 
-## What is GymAxis?
+## What is Pulse Fitness?
 
-GymAxis is the operating system for fitness businesses. Replace 4-6
+Pulse Fitness is the operating system for fitness businesses. Replace 4-6
 single-purpose tools (CRM + booking + email tool + asset tracker + rota
 spreadsheet + payroll) with one connected platform.
 
@@ -18,7 +18,7 @@ spreadsheet + payroll) with one connected platform.
 
 ## Pricing (as of Feb 2026)
 
-- **Bundle — GymAxis Pro**: £150/mo (all 4 modules + AI + integrations + 1 site)
+- **Bundle — Pulse Fitness Pro**: £150/mo (all 4 modules + AI + integrations + 1 site)
 - Additional sites: +£50/mo each
 - Individual modules:
   - Memberships: £29/mo
@@ -68,20 +68,20 @@ spreadsheet + payroll) with one connected platform.
 
 ## Useful URLs
 
-- Homepage: https://gymaxisai.com/
-- Pricing: https://gymaxisai.com/pricing
+- Homepage: https://www.pulsefitness.ai/
+- Pricing: https://www.pulsefitness.ai/pricing
 - Module pages: /platform/service · /platform/crm · /platform/memberships ·
   /platform/marketing · /platform/staffing · /platform/reporting
 - Compare pages: /compare/mindbody · /compare/glofox · /compare/clubready
 - Security & DPA: /security
 - Blog: /blog
 - Status: /status
-- Sales contact: sales@gymaxisai.com
-- Security contact: security@gymaxisai.com
-- Support contact: support@gymaxisai.com
+- Sales contact: sales@pulsefitness.ai
+- Security contact: security@pulsefitness.ai
+- Support contact: support@pulsefitness.ai
 
 ## License & ownership
 
-GymAxis is a SaaS — operators retain full ownership of their data, can
+Pulse Fitness is a SaaS — operators retain full ownership of their data, can
 export to CSV/PDF/Sage at any time, and can self-delete their account
 through the in-app GDPR controls.

@@ -306,7 +306,7 @@ async def _email_backup_link(user: dict, doc: dict, cfg: dict) -> None:
     </div>"""
     for to in recipients:
         try:
-            await send_email(to=to, subject="GymAxis — Master Price List weekly backup",
+            await send_email(to=to, subject="Pulse Fitness — Master Price List weekly backup",
                              html=html, organization_id=user.get("organization_id"),
                              kind="price_list_backup", category="backup")
         except Exception:

@@ -23,7 +23,7 @@ const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const TIERS = [
   { id: 'lite', label: 'Pulse Lite', desc: 'Equipment tracking, fault reporting, documents', color: '#0891b2', brand: 'Pulse Fitness' },
   { id: 'pro', label: 'Pulse Pro', desc: 'Full platform with AI, reports, suppliers, check sheets', color: 'var(--color-blue-600)', brand: 'Pulse Fitness' },
-  { id: 'gymaxis', label: 'GymAxis AI', desc: 'Full GymAxis AI service — maintenance, CRM, analytics', color: 'var(--color-brand-blue)', brand: 'GymAxis AI' },
+  { id: 'gymaxis', label: 'Pulse Fitness AI', desc: 'Full Pulse Fitness AI service — maintenance, CRM, analytics', color: 'var(--color-brand-blue)', brand: 'Pulse Fitness AI' },
 ];
 
 /* ─────── STEP 0: Choose Mode ─────── */

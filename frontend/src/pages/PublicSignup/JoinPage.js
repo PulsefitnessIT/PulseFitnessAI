@@ -207,7 +207,7 @@ export default function JoinPage() {
             <p className="text-[11px] text-zinc-500">{gym.tagline}</p>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-zinc-500">
-            <ShieldCheck size={12} /> Powered by GymAxis
+            <ShieldCheck size={12} /> Powered by Pulse Fitness
           </span>
         </div>
       </header>

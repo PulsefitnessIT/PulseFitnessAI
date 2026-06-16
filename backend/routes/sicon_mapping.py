@@ -16,8 +16,8 @@ because the mapping is part of the integration contract (version-controlled
 alongside the mapper functions in ``utils/sicon_client.py``).
 
 Direction legend:
-  →   GymAxis → Sicon (push)
-  ←   Sicon → GymAxis (pull / poll)
+  →   Pulse Fitness → Sicon (push)
+  ←   Sicon → Pulse Fitness (pull / poll)
   ↔   Bi-directional (push + pull both wired)
 
 To add a new mapping: append to the relevant section below AND wire the
@@ -103,7 +103,7 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("Case", "issue.ai_triage_parsed.summary",        "case.AnalysisField1",           "→", "string",   "AI triage diagnosis. Truncated 250 chars."),
     _row("Case", "issue.ai_triage_parsed.severity",       "case.AnalysisField2",           "→", "string",   "AI-detected severity (UPPERCASE)."),
     _row("Case", "issue.ai_triage_parsed.recommended_parts","case.AnalysisField3",         "→", "string",   "Comma-joined parts list. 250 chars."),
-    _row("Case", "issue.id",                              "case.AnalysisField4",           "→", "string",   "GymAxis issue id for joins."),
+    _row("Case", "issue.id",                              "case.AnalysisField4",           "→", "string",   "Pulse Fitness issue id for joins."),
     _row("Case", "organization.name",                     "case.AnalysisField5",           "→", "string",   "Truncated 100 chars."),
     _row("Case", "issue.sla_category / sla_tier",         "case.AnalysisField6",           "→", "string",   "SLA bucket for breach calc."),
     _row("Case", "issue.ppm_schedule_id",                 "case.AnalysisField7",           "→", "string",   "PPM schedule join if relevant."),
@@ -134,7 +134,7 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("Contract", "contract.customer_order_number",    "contract.CustomerOrderNumber",  "↔", "string",   "Iter 216h7: amendable post-sync via POST /sicon/update-contract-po."),
     _row("Contract", "contract.start_date",               "contract.StartDate",            "→", "date",     "Header start date."),
     _row("Contract", "contract.end_date",                 "contract.EndDate",              "→", "date",     "Header end date."),
-    _row("Contract", "contract.value_pence",              "contract.AnnualValue",          "→", "money",    "Minor units in GymAxis, GBP major in Sicon."),
+    _row("Contract", "contract.value_pence",              "contract.AnnualValue",          "→", "money",    "Minor units in Pulse Fitness, GBP major in Sicon."),
     _row("Contract", "contract.org.id",                   "contract.CustomerId",           "→", "ref",      "Org → Sicon customer mapping."),
     _row("Contract", "contract.renewal_date",             "contract.RenewalDate",          "→", "date",     "Drives auto-renewal reminders both sides."),
     # ── Spare slots (Iter 216h7 full coverage) ─────────────────────
@@ -203,8 +203,8 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("ContractLine", "line.sla.resolution_hours",     "line.CLAnalysisCode3",          "→", "string",   "Resolution-hours target."),
     _row("ContractLine", "line.sla.oos_credit_terms",     "line.CLAnalysisCode4",          "→", "string",   "Out-of-service credit terms."),
     _row("ContractLine", "line.safety_critical",          "line.CLAnalysisCode5",          "→", "enum",     "YES/NO."),
-    _row("ContractLine", "line.asset_id / equipment_id",  "line.CLAnalysisCode6",          "→", "string",   "GymAxis asset id for joins."),
-    _row("ContractLine", "line.site_id",                  "line.CLAnalysisCode7",          "→", "string",   "GymAxis site id."),
+    _row("ContractLine", "line.asset_id / equipment_id",  "line.CLAnalysisCode6",          "→", "string",   "Pulse Fitness asset id for joins."),
+    _row("ContractLine", "line.site_id",                  "line.CLAnalysisCode7",          "→", "string",   "Pulse Fitness site id."),
     _row("ContractLine", "line.ppm_frequency_override",   "line.CLAnalysisCode8",          "→", "string",   ""),
     _row("ContractLine", "line.tender_reference",         "line.CLAnalysisCode9",          "→", "string",   ""),
     _row("ContractLine", "line.renewal_notice_days",      "line.CLAnalysisCode10",         "→", "int",      "Default 90."),
@@ -223,7 +223,7 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("TrackingNote", "note.status_id",                "note.CaseTrackingStatusID",     "↔", "int",      "Optional status transition with the note."),
     _row("TrackingNote", "note.visible_to_engineer",      "note.VisibleToEngineer",        "↔", "bool",     "Default true."),
     _row("TrackingNote", "note.visible_to_customer",      "note.VisibleToCustomer",        "↔", "bool",     "Customer-portal visibility."),
-    _row("TrackingNote", "note.created_by",               "note.CreatedBy",                "↔", "string",   "Default 'GymAxis AI'."),
+    _row("TrackingNote", "note.created_by",               "note.CreatedBy",                "↔", "string",   "Default 'Pulse Fitness AI'."),
     _row("TrackingNote", "note.timestamp",                "note.Time",                     "↔", "datetime", "ISO 8601."),
     _row("TrackingNote", "note.sicon_appointment_id",     "note.SiconAppointmentID",       "→", "ref",      "Optional appointment link."),
     _row("TrackingNote", "note.latitude",                 "note.Latitude",                 "→", "float",    "GPS from engineer portal — proof-of-location."),

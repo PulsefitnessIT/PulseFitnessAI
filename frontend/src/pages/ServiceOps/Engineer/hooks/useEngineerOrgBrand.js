@@ -2,7 +2,7 @@
  * useEngineerOrgBrand — Iter 261.
  *
  * Resolves the Engineer App header brand: the name of the organisation
- * the engineer is associated with (instead of the generic "GymAxis ·
+ * the engineer is associated with (instead of the generic "Pulse Fitness ·
  * Engineer"), plus the internal/partner split used to hide the legacy
  * report self-upload for internal engineers (their Service Desk imports
  * history via Settings instead).
@@ -61,6 +61,6 @@ export default function useEngineerOrgBrand() {
   return {
     orgName,
     internal: brand?.internal === true,
-    label: orgName ? `${orgName} · Engineer` : 'GymAxis · Engineer',
+    label: orgName ? `${orgName} · Engineer` : 'Pulse Fitness · Engineer',
   };
 }

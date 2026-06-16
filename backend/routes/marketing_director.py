@@ -1,4 +1,4 @@
-"""GymAxis Marketing Suite — AI Creative Director (Phase 1+2).
+"""Pulse Fitness Marketing Suite — AI Creative Director (Phase 1+2).
 
 Replaces the "single-asset generator" mental model with a true Creative
 Director pipeline:
@@ -160,7 +160,7 @@ def _system_prompt(brand_kit: dict, brand_lock: bool) -> str:
         if brand_lock else ""
     )
     return (
-        "You are GymAxis AI Creative Director — a senior marketer, copywriter "
+        "You are Pulse Fitness AI Creative Director — a senior marketer, copywriter "
         "and creative strategist for fitness/leisure brands. You think like a "
         "marketer, designer, and strategist combined.\n\n"
         f"Brand voice: {voice_guard}.  Brand palette: {palette}.  {fonts}{lock_str}  "
@@ -1087,7 +1087,7 @@ async def campaign_post_mortem(
         raise HTTPException(503, "Post-mortem unavailable — LLM key not configured")
 
     sys = (
-        "You are GymAxis AI Creative Director performing a campaign "
+        "You are Pulse Fitness AI Creative Director performing a campaign "
         "post-mortem. Be specific, concrete, and actionable. Use UK English. "
         "Always respond as a single JSON object with this schema:\n"
         "{ headline_score: 'A|B|C|D|F', summary: '1-2 sentences', "
@@ -1179,7 +1179,7 @@ async def _generate_personal_rescue_copy(
         raise HTTPException(503, "Churn rescue unavailable — LLM key not configured")
 
     sys = (
-        "You are GymAxis AI Creative Director writing a HYPER-personalised "
+        "You are Pulse Fitness AI Creative Director writing a HYPER-personalised "
         "win-back message to a single specific member. Be empathetic, "
         "specific, and never salesy. Use UK English. ALWAYS reply with a "
         "single JSON object that exactly matches this schema (no markdown, "
@@ -1557,7 +1557,7 @@ async def churn_risk_refine(
         raise HTTPException(503, "Refine unavailable — LLM key not configured")
 
     sys = (
-        "You are GymAxis AI Creative Director refining an existing 1:1 "
+        "You are Pulse Fitness AI Creative Director refining an existing 1:1 "
         "win-back message. Apply the user's refinement instruction while "
         f"keeping the schema EXACTLY:\n{json.dumps(CHURN_RESCUE_SCHEMA)}\n\n"
         "Return ONLY the JSON object — no preamble, no markdown."

@@ -19,7 +19,7 @@
 export const isPulseAdmin = (user) =>
   !!(user?.is_pulse_admin || user?.role === 'pulse_master_admin');
 
-/** Owners, managers, GymAxis master admins and Pulse master admins. */
+/** Owners, managers, Pulse Fitness master admins and Pulse master admins. */
 const managerial = (user, role) =>
   role === 'owner' || role === 'manager' || !!user?.is_master_admin || isPulseAdmin(user);
 
@@ -29,12 +29,12 @@ const RULES = {
   manage_operations: managerial,
   switch_sites: managerial,
   dismiss_nudges: managerial,
-  // GymAxis ops dashboard surfaces.
+  // Pulse Fitness ops dashboard surfaces.
   view_suppliers: managerial,
   view_capex: managerial,
   // Settings → fault templates (org-scoped create/delete/promote).
   manage_fault_templates: managerial,
-  // Service Desk hub (/service-desk): flagged desk agents, GymAxis master
+  // Service Desk hub (/service-desk): flagged desk agents, Pulse Fitness master
   // admins and Pulse master admins (Pulse runs the service operation).
   view_service_desk: (user) =>
     !!(user?.is_service_desk || user?.is_master_admin) || isPulseAdmin(user),

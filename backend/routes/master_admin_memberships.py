@@ -1,7 +1,7 @@
 """
 Master Admin — Memberships & Group Fitness Commercial Control Engine.
 
-Cross-organisation control plane for GymAxis Memberships. All endpoints
+Cross-organisation control plane for Pulse Fitness Memberships. All endpoints
 require master admin and are strictly scoped under /master-admin/memberships.
 
 Surfaces:

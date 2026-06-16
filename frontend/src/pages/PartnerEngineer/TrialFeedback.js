@@ -68,7 +68,7 @@ export default function TrialFeedback() {
       data-testid="trial-feedback-page">
       <div className="w-full max-w-lg">
         <div className="flex items-center gap-2 mb-6 justify-center">
-          <img src="/brand/gymaxis-full-tight.png" alt="GymAxis" className="h-8 bg-white rounded-lg px-3 py-1.5" />
+          <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-8 bg-white rounded-lg px-3 py-1.5" />
         </div>
 
         {loading ? (
@@ -86,7 +86,7 @@ export default function TrialFeedback() {
               <CheckCircle2 className="mx-auto mb-3 text-emerald-400" size={40} />
               {done === 'decline' ? (
                 <>
-                  <h1 className="text-xl font-black mb-2">Thanks for trying GymAxis</h1>
+                  <h1 className="text-xl font-black mb-2">Thanks for trying Pulse Fitness</h1>
                   <p className="text-zinc-300 text-sm">We've logged your feedback and paused your trial access. If you change your mind, just reply to our email and we'll get you back on.</p>
                 </>
               ) : (

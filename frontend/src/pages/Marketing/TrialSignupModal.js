@@ -2,7 +2,7 @@
  * Marketing-side "Start Free Trial" modal — opens in-place over any
  * MarketingShell page when the user clicks a Start Free Trial CTA.
  *
- * Design: light/glass theme matching the new GymAxis marketing spec
+ * Design: light/glass theme matching the new Pulse Fitness marketing spec
  * (Stripe / Salesforce premium feel). Posts to /api/auth/register
  * with is_trial=true and signs the user in immediately.
  *

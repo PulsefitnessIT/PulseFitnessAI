@@ -123,7 +123,7 @@ def is_safe_next_url(raw: str | None, *, max_length: int = 512) -> bool:
       * ``/%2F%2Fevil.com``                       → still relative, OK
       * ``javascript:alert(1)``                   → scheme
       * ``data:text/html,…``                      → scheme
-      * ``http://app.gymaxisai.com/admin``        → netloc
+      * ``http://www.pulsefitness.ai/admin``        → netloc
       * ``%2F%2Fevil.com``                        → no leading slash
     """
     if not raw or not isinstance(raw, str):

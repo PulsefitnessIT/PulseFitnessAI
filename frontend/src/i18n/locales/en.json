@@ -40,7 +40,7 @@
     "login_failed": "Login failed",
     "signup_failed": "Signup failed",
     "back_home": "Back to home",
-    "subtitle": "Sign in to your GymAxis portal.",
+    "subtitle": "Sign in to your Pulse Fitness portal.",
     "email_or_kiosk": "Email or kiosk username",
     "signing_in": "Signing in…",
     "forgot_password": "Forgot password?",
@@ -115,7 +115,7 @@
     "feat_whitelabel_desc": "Custom branding, logo, and colours. Your clients see your brand, not ours. Perfect for franchise operators and consultants.",
     "coverage_label": "SMART COVERAGE",
     "coverage_title": "Never Get Caught Out on an Uncovered Callout",
-    "coverage_desc_1": "Every time a fault is logged, GymAxis AI checks the machine's warranty and contract status. If it's not covered, you're prompted to create a purchase order — before the supplier even picks up the phone.",
+    "coverage_desc_1": "Every time a fault is logged, Pulse Fitness AI checks the machine's warranty and contract status. If it's not covered, you're prompted to create a purchase order — before the supplier even picks up the phone.",
     "coverage_desc_2": "Automated expiry alerts email both you and the supplier when coverage is about to end, so you can renew or renegotiate before it's too late.",
     "coverage_warranty_title": "Under Warranty",
     "coverage_warranty_desc": "Machine covered — proceed with engineer callout. No PO required.",
@@ -163,7 +163,7 @@
     "lifecycle_alerts": "Lifecycle Alerts",
     "lifecycle_desc": "Proactive notifications for upcoming warranty expirations and contract renewals.",
     "cost_savings_title": "Real Cost Savings",
-    "cost_savings_desc": "Gyms using GymAxis AI report significant reductions in equipment downtime and maintenance costs.",
+    "cost_savings_desc": "Gyms using Pulse Fitness AI report significant reductions in equipment downtime and maintenance costs.",
     "reduce_downtime": "Reduce Downtime",
     "reduce_downtime_val": "Up to 40%",
     "faster_response": "Faster Response",
@@ -171,7 +171,7 @@
     "cost_reduction": "Cost Reduction",
     "cost_reduction_val": "Up to 25%",
     "cta_title": "Ready to Transform Your Gym Maintenance?",
-    "cta_desc": "Join gyms across the UK already using GymAxis AI to reduce downtime and cut costs.",
+    "cta_desc": "Join gyms across the UK already using Pulse Fitness AI to reduce downtime and cut costs.",
     "cta_btn": "Start Your Free Trial"
   },
   "features_page": {
@@ -346,7 +346,7 @@
     "trust_title": "Trusted by Operators",
     "trust_desc": "Serving gyms, leisure centres, councils, and fitness chains across the UK and internationally. Proven results in cost reduction and efficiency.",
     "story_title": "Our Story",
-    "story_p1": "GymAxis AI was founded to solve a critical problem in the fitness industry: equipment downtime and excessive maintenance costs. Traditional maintenance approaches are reactive, expensive, and rely heavily on external engineers.",
+    "story_p1": "Pulse Fitness AI was founded to solve a critical problem in the fitness industry: equipment downtime and excessive maintenance costs. Traditional maintenance approaches are reactive, expensive, and rely heavily on external engineers.",
     "story_p2": "We saw an opportunity to leverage AI technology to empower gym staff with instant diagnostic support, comprehensive audit capabilities, and preventative maintenance guidance. Our platform puts expert knowledge at your fingertips, reducing the need for costly callouts while improving equipment reliability.",
     "story_p3": "Today, we work with fitness operators of all sizes - from single-site independent gyms to large leisure centre chains. Our focus remains the same: delivering practical, cost-effective solutions that make a real difference to your operations.",
     "values_title": "Our Values",
@@ -377,14 +377,14 @@
     "demo_title": "Request a Demo",
     "demo_desc": "Use the form to get in touch and we'll arrange a personalised walkthrough",
     "demo_cta_title": "Want a Demo?",
-    "demo_cta_desc": "See GymAxis AI in action. Book a personalized demo with our team.",
+    "demo_cta_desc": "See Pulse Fitness AI in action. Book a personalized demo with our team.",
     "demo_cta_btn": "Request Demo"
   },
   "footer": {
     "tagline": "The complete gym maintenance platform powered by AI",
     "company": "Company",
     "about": "About",
-    "copyright": "© 2026 GymAxis AI. All rights reserved."
+    "copyright": "© 2026 Pulse Fitness AI. All rights reserved."
   },
   "features": {
     "title": "Powerful Features for Modern Gyms",
@@ -943,7 +943,7 @@
     "powered_by": "Powered by"
   },
   "crm": {
-    "title": "GymAxis CRM",
+    "title": "Pulse Fitness CRM",
     "start": "Start",
     "dashboard": "Dashboard",
     "contacts": "Contacts",
@@ -976,7 +976,7 @@
     "actions": "Actions",
     "created": "Created",
     "updated": "Updated",
-    "login_title": "GymAxis CRM",
+    "login_title": "Pulse Fitness CRM",
     "login_subtitle": "Enterprise Sales & Operations",
     "login_email": "Email",
     "login_password": "Password",
@@ -1422,7 +1422,7 @@
     "j_checks": "Recurring safety checks",
     "j_suppliers": "Contacts + response times",
     "j_reports": "Weekly digest + exports",
-    "reassure_title": "GymAxis does the boring bits",
+    "reassure_title": "Pulse Fitness does the boring bits",
     "reassure_note": "Auto-route faults to suppliers, auto-generate weekly reports, auto-flag at-risk machines — so your team focuses on members, not spreadsheets."
   },
   "activation": {

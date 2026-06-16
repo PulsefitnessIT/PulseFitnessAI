@@ -1,7 +1,7 @@
 /**
  * ROI Calculator — Iter 216ba.
  *
- * Self-serve "what would I save by switching to GymAxis?" widget for
+ * Self-serve "what would I save by switching to Pulse Fitness?" widget for
  * the /pricing page. 4 inputs (sites, current spend, hours/week wasted,
  * member count), 3 outputs (annual savings, payback months, time
  * reclaimed). Pure client-side; no API calls.
@@ -14,7 +14,7 @@ import { openTrial } from './TrialSignupModal';
 // "How we got there" tooltips so the buyer trusts the math.
 const ASSUMPTIONS = {
   hourlyValue: 22,                          // £22/h fully-loaded UK ops manager rate
-  efficiencyGain: 0.65,                     // GymAxis recovers 65% of admin time
+  efficiencyGain: 0.65,                     // Pulse Fitness recovers 65% of admin time
   retentionLift: 0.06,                      // 6% lower churn after switching
   avgRevenuePerMember: 38,                  // £38/mo average for UK gym member
 };
@@ -45,10 +45,10 @@ export default function ROICalculator() {
             <Calculator size={11} className="text-[var(--gx-brand-from)]" /> Show me the math
           </span>
           <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-zinc-100">
-            How much will GymAxis save you?
+            How much will Pulse Fitness save you?
           </h2>
           <p className="mt-3 text-base text-slate-600">
-            4 sliders, no email, no signup. Tell us where you are today — see what year-one looks like with GymAxis.
+            4 sliders, no email, no signup. Tell us where you are today — see what year-one looks like with Pulse Fitness.
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export default function ROICalculator() {
               </div>
 
               <div className="mt-5 flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs dark:bg-zinc-900">
-                <span className="text-slate-600">GymAxis Pro · {sites} {sites === 1 ? 'site' : 'sites'}</span>
+                <span className="text-slate-600">Pulse Fitness Pro · {sites} {sites === 1 ? 'site' : 'sites'}</span>
                 <span className="font-bold text-slate-900 dark:text-zinc-100">£{gymaxisCost}/mo</span>
               </div>
 

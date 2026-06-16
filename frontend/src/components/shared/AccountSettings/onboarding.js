@@ -44,7 +44,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   // Iter 216h60 — resolve symbolic onboarding routes to ACTUAL react-
   // router routes for the current user. Previously the backend handed
   // out `/sites` and `/dashboard?tab=equipment` indiscriminately and
-  // Pulse/Lite operators bounced to the GymAxis 404 page (Lee's
+  // Pulse/Lite operators bounced to the Pulse Fitness 404 page (Lee's
   // screenshot). Now we map them to the right destination.
   const resolveRoute = (route) => {
     if (!route) return route;

@@ -38,7 +38,7 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     const prev = document.title;
-    document.title = 'Complete your profile · GymAxis';
+    document.title = 'Complete your profile · Pulse Fitness';
     return () => { document.title = prev; };
   }, []);
 

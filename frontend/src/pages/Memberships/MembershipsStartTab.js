@@ -188,7 +188,7 @@ export default function MembershipsStartTab({ setTab }) {
         <UpcomingToursPanel compact />
       </div>
 
-      {/* Iter 216h250 — module discovery card. Surfaces the other GymAxis
+      {/* Iter 216h250 — module discovery card. Surfaces the other Pulse Fitness
           modules so a Memberships-first operator knows they can bolt-on
           Operations / CRM / Marketing without leaving the platform. */}
       <ModuleDiscoveryCard />
@@ -214,7 +214,7 @@ function ModuleDiscoveryCard() {
       <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">Add another module</p>
-          <h3 className="text-base font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>Unlock more of GymAxis</h3>
+          <h3 className="text-base font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>Unlock more of Pulse Fitness</h3>
           <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>Trial includes everything. After trial, bolt on only what you need.</p>
         </div>
         <a

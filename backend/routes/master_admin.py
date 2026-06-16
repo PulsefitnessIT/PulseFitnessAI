@@ -125,7 +125,7 @@ def merge_address(payload: dict) -> dict:
     return out
 
 
-MASTER_ADMIN_EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
+MASTER_ADMIN_EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")
 
 # Account types a Pulse Master Admin is allowed to see.
 # Mirrors `routes.pulse_master_admin.PULSE_VISIBLE_ACCOUNT_TYPES` — kept inline
@@ -135,7 +135,7 @@ PULSE_VISIBLE_ACCOUNT_TYPES = ["pulse_pro", "lite", "mod", "full"]
 
 def is_pulse_only(user: dict) -> bool:
     """True when the caller is a Pulse Master Admin (delegated) but NOT the
-    GymAxis platform Master Admin. Used to decide whether to scope list /
+    Pulse Fitness platform Master Admin. Used to decide whether to scope list /
     edit endpoints to Pulse-visible orgs."""
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
         return False
@@ -143,7 +143,7 @@ def is_pulse_only(user: dict) -> bool:
 
 
 def require_master_admin(user: dict) -> None:
-    """Either the GymAxis Master Admin OR a delegated Pulse Master Admin is
+    """Either the Pulse Fitness Master Admin OR a delegated Pulse Master Admin is
     allowed past this gate. Endpoints that need to lock out Pulse admins
     explicitly should call ``require_gymaxis_master_only(user)`` instead.
 
@@ -163,19 +163,19 @@ def require_master_admin(user: dict) -> None:
 
 
 def require_gymaxis_master_only(user: dict) -> None:
-    """Strict gate — only the GymAxis platform Master Admin (not Pulse admins)."""
+    """Strict gate — only the Pulse Fitness platform Master Admin (not Pulse admins)."""
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
         from utils.auth_guards import enforce_master_admin_mfa
         enforce_master_admin_mfa(user)
         return
-    raise HTTPException(status_code=403, detail="GymAxis master admin access required")
+    raise HTTPException(status_code=403, detail="Pulse Fitness master admin access required")
 
 
 async def assert_org_in_pulse_scope(user: dict, org_id: str) -> dict:
     """If caller is Pulse-only, 404 unless the target org is Pulse-visible.
 
     Returns the org doc (sans `_id`) so callers can avoid a redundant fetch.
-    GymAxis master admins skip the scope check.
+    Pulse Fitness master admins skip the scope check.
     """
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     if not org:

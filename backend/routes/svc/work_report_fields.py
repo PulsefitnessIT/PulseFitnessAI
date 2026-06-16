@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Work Report custom fields.
+Pulse Fitness Service Operations — Work Report custom fields.
 
 Iter 220 — Allow engineers (and master admins) to define machine-specific
 custom fields that appear on the Engineer App's job-complete screen and
@@ -78,7 +78,7 @@ MAX_FIELDS_PER_ORG = 200
 # get 5–8 sensible custom fields seeded in one tap. Saves the
 # cold-start "what should I even ask the engineer to capture?"
 # problem for fitness-equipment operators who are setting up
-# GymAxis for the first time. Templates are scoped to a single
+# Pulse Fitness for the first time. Templates are scoped to a single
 # (scope_kind, scope_value) — typically `equipment_type=Treadmill`
 # — and a job_types filter so engineers see the right set at the
 # right moment.

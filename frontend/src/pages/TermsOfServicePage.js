@@ -12,12 +12,12 @@ const TermsOfServicePage = () => (
       <div className="prose prose-zinc max-w-none space-y-6 text-sm leading-relaxed text-zinc-700">
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-3">1. Acceptance of Terms</h2>
-          <p>By accessing or using GymAxis AI and the Pulse Fitness Self-Service Portal ("the Service"), you agree to be bound by these Terms of Service. If you are using the Service on behalf of an organisation, you represent that you have authority to bind that organisation.</p>
+          <p>By accessing or using Pulse Fitness AI and the Pulse Fitness Self-Service Portal ("the Service"), you agree to be bound by these Terms of Service. If you are using the Service on behalf of an organisation, you represent that you have authority to bind that organisation.</p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-3">2. Description of Service</h2>
-          <p>GymAxis AI provides a gym equipment maintenance management platform including:</p>
+          <p>Pulse Fitness AI provides a gym equipment maintenance management platform including:</p>
           <ul className="list-disc pl-6 space-y-1">
             <li>Equipment inventory and lifecycle tracking</li>
             <li>Fault reporting with AI-powered triage</li>
@@ -81,14 +81,14 @@ const TermsOfServicePage = () => (
           <ul className="list-disc pl-6 space-y-1">
             <li>Pulse Fitness Lite: Included as part of equipment purchase</li>
             <li>Pulse Fitness Pro: Monthly subscription, billed via Stripe</li>
-            <li>GymAxis AI Full: Enterprise pricing, contact sales</li>
+            <li>Pulse Fitness AI Full: Enterprise pricing, contact sales</li>
             <li>Refunds are handled per our published <a href="/refunds" className="text-blue-600 underline">Refund &amp; cancellation policy</a></li>
           </ul>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-3">9. Limitation of Liability</h2>
-          <p>To the maximum extent permitted by law, GymAxis AI shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service.</p>
+          <p>To the maximum extent permitted by law, Pulse Fitness AI shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service.</p>
         </section>
 
         <section>
@@ -103,7 +103,7 @@ const TermsOfServicePage = () => (
 
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-3">12. Contact</h2>
-          <p>For questions about these Terms, contact us at <strong>legal@gymaxisai.com</strong>.</p>
+          <p>For questions about these Terms, contact us at <strong>legal@pulsefitness.ai</strong>.</p>
         </section>
       </div>
     </div>

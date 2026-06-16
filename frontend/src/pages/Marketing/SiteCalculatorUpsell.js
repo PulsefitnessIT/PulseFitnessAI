@@ -2,7 +2,7 @@
  * Site-Calculator Upsell Widget
  *
  * Drops onto any module deep-dive page (`/platform/*`) to surface live
- * pricing for the GymAxis Pro bundle as the visitor adjusts their site
+ * pricing for the Pulse Fitness Pro bundle as the visitor adjusts their site
  * count. Mirrors the math used on /pricing so quotes stay consistent.
  *
  * Bundle: £150/mo (1 site included) + £50/mo per additional site.
@@ -63,7 +63,7 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                 in real time.
               </h2>
               <p className="mt-4 text-slate-600 text-base md:text-lg leading-relaxed">
-                Drag the slider to see what GymAxis Pro costs across all your sites — every module
+                Drag the slider to see what Pulse Fitness Pro costs across all your sites — every module
                 included, no upgrade ladder. First site is on us; each extra site is just £{PER_SITE}/mo.
               </p>
 

@@ -347,7 +347,7 @@ async def _set_org_module_enabled(org_id: str, org: dict, module: str, enabled: 
 # in a Pulse-Fitness org it provisions a data-scoped *Pulse* Master Admin
 # (role=pulse_master_admin, is_pulse_admin=True) — same Master Admin
 # dashboard + org impersonation, but limited to Pulse-visible data. For a
-# GymAxis-internal org it stays a full platform admin (is_master_admin).
+# Pulse Fitness-internal org it stays a full platform admin (is_master_admin).
 _PULSE_ACCOUNT_TYPES = ("pulse_pro", "pulse_lite", "pulse")
 _PULSE_BRAND_VALUES = ("pulse", "pulse_fitness")
 
@@ -826,7 +826,7 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
         # Iter 222 — brand-aware elevation + remember the previous role so
         # a later demotion can restore it. Promotes EXISTING staff in place
         # (keeps their password). Pulse-org users become a Pulse Master
-        # Admin (data-scoped); GymAxis-org users become a full admin.
+        # Admin (data-scoped); Pulse Fitness-org users become a full admin.
         target_u = (
             await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1, "organization_id": 1})
             or await db.crm_users.find_one({"id": user_id}, {"_id": 0, "role": 1, "organization_id": 1})
@@ -970,7 +970,7 @@ async def hard_delete_user(user_id: str, body: dict = Body(...), user: dict = De
       • Target must already be `archived=True` (force a soft-delete first).
       • Master admins cannot be hard-deleted (avoids platform lockout).
       • The sole owner of an org cannot be hard-deleted (avoids orphan org).
-      • The dedicated `admin@gymaxisai.com` is never deletable.
+      • The dedicated `admin@pulsefitness.ai` is never deletable.
       • Caller must echo back the target's email in `confirm_email`.
 
     Cascade scope (best-effort, never blocks the delete on a single failure):
@@ -1005,7 +1005,7 @@ async def hard_delete_user(user_id: str, body: dict = Body(...), user: dict = De
         raise HTTPException(status_code=400, detail="User must be archived first. Archive then delete.")
     if target.get("is_master_admin"):
         raise HTTPException(status_code=400, detail="Master admin accounts cannot be hard-deleted.")
-    if (target.get("email") or "").lower() == "admin@gymaxisai.com":
+    if (target.get("email") or "").lower() == "admin@pulsefitness.ai":
         raise HTTPException(status_code=400, detail="The default platform admin account cannot be deleted.")
 
     if not is_crm and target.get("role") == "owner" and target.get("organization_id"):
@@ -1113,7 +1113,7 @@ async def list_provisioned_engineers(user: dict = Depends(get_current_user)) -> 
     """Iter 227 — engineers a master / Pulse admin can "view as" for
     training & support. Lists active ``svc_engineers`` mappings joined
     with their organisation. Pulse Master Admins only see engineers
-    within Pulse-visible orgs (their existing data scope); the GymAxis
+    within Pulse-visible orgs (their existing data scope); the Pulse Fitness
     master admin sees every engineer.
     """
     require_master_admin(user)

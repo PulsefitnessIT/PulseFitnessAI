@@ -1,7 +1,7 @@
 """Master Admin — Reset platform to a fresh test state.
 
 Keeps:
-  - Master admin user (email == admin@gymaxisai.com)
+  - Master admin user (email == admin@pulsefitness.ai)
   - Tottenham Green Leisure Centre org + ALL users belonging to it
   - Master admin's own org doc
 
@@ -97,7 +97,7 @@ async def _resolve_platform_reset_survivors() -> tuple[set[str], set[str]]:
     keep_org_ids = {tottenham["id"]}
 
     master = await db.users.find_one(
-        {"email": "admin@gymaxisai.com"}, {"_id": 0, "id": 1, "organization_id": 1},
+        {"email": "admin@pulsefitness.ai"}, {"_id": 0, "id": 1, "organization_id": 1},
     )
     if not master:
         raise HTTPException(404, "Master admin user not found — cannot reset safely")

@@ -20,7 +20,7 @@ const EQUIPMENT_TYPES = ['Treadmill', 'Exercise Bike', 'Cross Trainer', 'Rowing 
 const PulseAIDiagnosisTab = ({ equipment }) => {
   const { API, user } = useAuth();
   // Iter 220n — brand-aware copy. Pulse customers see "AI Fault
-  // Diagnosis"; GymAxis ops customers see "AI Triage". Same component,
+  // Diagnosis"; Pulse Fitness ops customers see "AI Triage". Same component,
   // same backend — just the user-facing language matches the brand.
   const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
   const COPY = isPulseAccount

@@ -42,7 +42,7 @@ export default function BlogIndex() {
   React.useEffect(() => {
     const prev = document.title;
     const prevMeta = document.querySelector('meta[name="description"]')?.getAttribute('content');
-    document.title = 'GymAxis Blog — Operations, reporting, and service-desk playbooks';
+    document.title = 'Pulse Fitness Blog — Operations, reporting, and service-desk playbooks';
     let m = document.querySelector('meta[name="description"]');
     if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'description'); document.head.appendChild(m); }
     m.setAttribute('content', 'Actionable playbooks for gym operators: cut equipment downtime, track the right KPIs, and write SLAs that stick.');
@@ -57,7 +57,7 @@ export default function BlogIndex() {
       <section className="gx-grid-bg">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
           <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
-            <BookOpen size={12} /> The GymAxis Blog
+            <BookOpen size={12} /> The Pulse Fitness Blog
           </span>
           <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl tracking-tighter font-black leading-[1.05] max-w-4xl">
             Playbooks for operators who<br />

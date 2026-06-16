@@ -19,13 +19,13 @@ const FinancialOpsPanel = lazy(() => import('./FinancialOpsPanel'));
 const AdminOnboardingHub = lazy(() => import('./MasterAdmin/AdminOnboardingHub'));
 const AdminTrials = lazy(() => import('./MasterAdmin/AdminTrials'));
 const AdminMarketingSuite = lazy(() => import('./MasterAdmin/AdminMarketingSuite'));
-// Iter 220ag — Growth → Marketing Studio is now the GymAxis Growth Hub
+// Iter 220ag — Growth → Marketing Studio is now the Pulse Fitness Growth Hub
 // (aggregation surface for self-promo metrics) — replaces the previous
 // GrowthStudio.js which embedded the operator-facing MarketingSuite
 // with class-fill / member-engagement copy inappropriate for B2B SaaS
 // self-promotion. The Hub deep-links into Trials, SEO Autopilot,
 // Outbound emails, CRM and Sales Insights instead of duplicating them.
-const GrowthStudio = lazy(() => import('./MasterAdmin/GymAxisGrowthHub'));
+const GrowthStudio = lazy(() => import('./MasterAdmin/PulseFitnessGrowthHub'));
 // Iter 220ad — Growth → SEO Autopilot
 const SEOAutopilotPanel = lazy(() => import('./MasterAdmin/SEOAutopilotPanel'));
 const SocialAutopilotPanel = lazy(() => import('./MasterAdmin/SocialAutopilotPanel'));
@@ -213,11 +213,11 @@ const MasterAdminPage = ({ _onBack }) => {
   const headers = { Authorization: `Bearer ${token}` };
 
   const handlePulseSwitch = () => { window.location.href = '/pulse'; };
-  // Iter 215bs — One-click "as operator" preview into the GymAxis dashboard
+  // Iter 215bs — One-click "as operator" preview into the Pulse Fitness dashboard
   // so master admins can sanity-check the operator UX without seeding a
   // fake user. The `?as=operator` flag bypasses the master-admin redirect
   // gate in App.js for this navigation.
-  const handleGymAxisSwitch = () => { window.location.href = '/dashboard?as=operator'; };
+  const handlePulseFitnessSwitch = () => { window.location.href = '/dashboard?as=operator'; };
 
   const loadCapexConfig = useCallback(async () => {
     try {
@@ -585,7 +585,7 @@ const MasterAdminPage = ({ _onBack }) => {
         setSidebarOpen={setSidebarOpen}
         onLogout={handleLogout}
         onPulseSwitch={handlePulseSwitch}
-        onGymAxisSwitch={handleGymAxisSwitch}
+        onPulseFitnessSwitch={handlePulseFitnessSwitch}
         isPulseAdmin={isPulseAdmin}
       />
 
@@ -624,7 +624,7 @@ const MasterAdminPage = ({ _onBack }) => {
                 setSelectedOrg(o);
               }}
             />
-            {/* Iter 222 — GymAxis platform email-deliverability health is
+            {/* Iter 222 — Pulse Fitness platform email-deliverability health is
                 internal platform infra; hidden for delegated Pulse admins. */}
             {!isPulseAdmin && <EmailHealthPill />}
             <BrandPicker isPulseAdmin={isPulseAdmin} />

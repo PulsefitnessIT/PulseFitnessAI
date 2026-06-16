@@ -1,4 +1,4 @@
-"""Iter 216h130 — Branded engineer invoice PDF (light-mode GymAxis)."""
+"""Iter 216h130 — Branded engineer invoice PDF (light-mode Pulse Fitness)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -62,7 +62,7 @@ def _footer_factory(is_mod: bool):
     def _footer(canvas, doc):
         draw_pdf_footer(
             canvas, doc,
-            primary_line="GymAxis · Field Service for Fitness Equipment",
+            primary_line="Pulse Fitness · Field Service for Fitness Equipment",
             is_mod=is_mod,
             muted_colour=GX_MUTED, line_colour=GX_BORDER,
         )
@@ -74,7 +74,7 @@ def _header_block(s, inv: dict) -> Table:
     issue_date = inv.get("issue_date") or datetime.utcnow().date().isoformat()
     due_date = inv.get("due_date") or "—"
     header = Table(
-        [[Paragraph("INVOICE · GymAxis", s["kicker"])],
+        [[Paragraph("INVOICE · Pulse Fitness", s["kicker"])],
          [Paragraph(_esc(ino), s["h1"])],
          [Paragraph(f"Issued {_esc(issue_date)} · Due {_esc(due_date)}", s["kicker"])]],
         colWidths=[170 * mm],
@@ -214,7 +214,7 @@ def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
         leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=20 * mm,
         title=f"Invoice {inv.get('invoice_number') or ''}",
-        author="GymAxis",
+        author="Pulse Fitness",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)

@@ -461,7 +461,7 @@ async def export_kpi_csv(org_id: str, period: str = "365d", user: dict = Depends
 
     buf = StringIO()
     w = csv.writer(buf)
-    w.writerow(["GymAxis AI - KPI Performance Report"])
+    w.writerow(["Pulse Fitness AI - KPI Performance Report"])
     w.writerow(["Organisation", org_name])
     w.writerow(["Period", period])
     w.writerow(["Generated", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")])

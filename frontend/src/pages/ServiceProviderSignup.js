@@ -53,7 +53,7 @@ export default function ServiceProviderSignup() {
       <div className="md:w-1/2 bg-slate-900 text-white p-8 md:p-14 flex flex-col justify-center">
         <div className="flex items-center gap-2 mb-8">
           <Headphones className="text-orange-400" size={26} />
-          <span className="text-lg font-bold tracking-tight">GymAxis Service Ops</span>
+          <span className="text-lg font-bold tracking-tight">Pulse Fitness Service Ops</span>
         </div>
         <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-4">
           Run your field-service business on one platform.

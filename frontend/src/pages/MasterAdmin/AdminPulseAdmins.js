@@ -1,6 +1,6 @@
 /**
  * Pulse Master Admins management — list, provision, and revoke delegated
- * Pulse-side master admins. Visible only to the platform-level GymAxis
+ * Pulse-side master admins. Visible only to the platform-level Pulse Fitness
  * Master Admin (not to the Pulse Master Admins themselves).
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -229,7 +229,7 @@ const AdminPulseAdmins = ({ API }) => {
  <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
  Pulse Platform Admins see the same Master Admin console you use, but scoped to
  Pulse-customer data only. They can manage Pulse customers, payments, MOD sites,
- analytics, integrations, and Stripe — but cannot see other GymAxis-internal data.
+ analytics, integrations, and Stripe — but cannot see other Pulse Fitness-internal data.
  </p>
  <form onSubmit={provision} className="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="provision-pulse-admin-form">
  <div>

@@ -213,12 +213,12 @@ export default function TrustPage() {
               Need a security questionnaire, DPA, or pen-test report?
             </h2>
             <p className="mt-3 text-white/70 max-w-xl">
-              Email security@gymaxisai.com — we usually respond within one
+              Email security@pulsefitness.ai — we usually respond within one
               UK working day. Existing customers can also raise a request
               from the Master Admin → Security tab.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="mailto:security@gymaxisai.com"
+              <a href="mailto:security@pulsefitness.ai"
                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] text-sm font-bold uppercase tracking-wider"
                  data-testid="trust-contact-email-btn">
                 Contact security <ArrowRight size={14} />

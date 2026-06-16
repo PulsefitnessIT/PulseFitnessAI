@@ -104,7 +104,7 @@ export default function PartnerReviewPublic() {
     <div className="min-h-screen bg-zinc-50 py-10 px-4">
       <div className="max-w-2xl mx-auto" data-testid="review-public-page">
         <Link to="/engineer" className="text-[12px] text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 mb-4">
-          <ShieldCheck size={11} /> GymAxis · Partner Engineer review
+          <ShieldCheck size={11} /> Pulse Fitness · Partner Engineer review
         </Link>
         <div className="rounded-xl bg-white border border-zinc-200 p-6 sm:p-8">
           {engineer && (

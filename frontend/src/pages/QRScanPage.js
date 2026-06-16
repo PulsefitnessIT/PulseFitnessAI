@@ -362,7 +362,7 @@ const QRScanPage = () => {
  // Fallback: navigate to the full URL
  window.location.href = url;
  } else {
- alert('Invalid QR code — please scan a GymAxis equipment QR code.');
+ alert('Invalid QR code — please scan a Pulse Fitness equipment QR code.');
  }
  };
 
@@ -552,7 +552,7 @@ const QRScanPage = () => {
  return (
  <div className="min-h-screen bg-[var(--color-ink-alt)] p-4" data-testid="qr-scan-page">
  <div className="max-w-lg mx-auto">
- {/* Header — Iter 216d: respect org branding (Pulse Fitness vs GymAxis). */}
+ {/* Header — Iter 216d: respect org branding (Pulse Fitness vs Pulse Fitness). */}
  <div className="flex items-center justify-between mb-6">
  <div className="flex items-center gap-3">
  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: equipment.brand_color || 'var(--color-brand-blue)' }}>
@@ -563,7 +563,7 @@ const QRScanPage = () => {
  )}
  </div>
  <div>
- <h1 className="text-white font-bold text-lg leading-tight">{equipment.brand_name || 'GymAxis AI'}</h1>
+ <h1 className="text-white font-bold text-lg leading-tight">{equipment.brand_name || 'Pulse Fitness AI'}</h1>
  {equipment.gym_name && equipment.gym_name !== equipment.brand_name && <p className="text-[var(--color-text-muted)] text-xs">{equipment.gym_name}</p>}
  </div>
  </div>
@@ -861,14 +861,14 @@ const QRScanPage = () => {
 
  <p className="text-center text-[var(--color-text-muted)] text-xs mt-8">
  {/* Iter 216d — co-branded footer: Pulse Fitness sites show their own
-     brand line + powered-by GymAxis (smaller, beneath). */}
- {equipment.brand_name && equipment.brand_name !== 'GymAxis AI' ? (
+     brand line + powered-by Pulse Fitness (smaller, beneath). */}
+ {equipment.brand_name && equipment.brand_name !== 'Pulse Fitness AI' ? (
    <>
      <span className="block text-[var(--color-text)] font-medium">{equipment.brand_name}</span>
-     <span className="block mt-0.5 opacity-70">Powered by GymAxis AI — Scan to report faults or complete checks</span>
+     <span className="block mt-0.5 opacity-70">Powered by Pulse Fitness AI — Scan to report faults or complete checks</span>
    </>
  ) : (
-   <>Powered by GymAxis AI — Scan QR codes on any machine to report faults or complete checks</>
+   <>Powered by Pulse Fitness AI — Scan QR codes on any machine to report faults or complete checks</>
  )}
  </p>
  </div>

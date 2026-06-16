@@ -1,6 +1,6 @@
 """Iter 216h273 — Master Admin Org Integrity Audit.
 
-Follow-on to h272 (where the GymAxis Master Admin home org doc had
+Follow-on to h272 (where the Pulse Fitness Master Admin home org doc had
 been deleted out from under the user and the operator-facing
 Memberships / CRM / Marketing pages all rendered "Organisation
 not found").

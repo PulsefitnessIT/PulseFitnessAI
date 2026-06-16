@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Branding (logo + colours).
+Pulse Fitness Service Operations — Branding (logo + colours).
 
 Iter 220i — Engineers asked for their portal + work-report PDFs to
 carry their own brand. Two layers:

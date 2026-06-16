@@ -13,9 +13,9 @@ import { Network, FileText, Mail } from 'lucide-react';
  */
 const SubProcessorsPage = () => {
   useSeo({
-    title: 'Sub-processors | GymAxis AI',
-    description: 'Authorised third-party data processors used by GymAxis AI for hosting, communications, payments, AI and observability. 30-day change notice.',
-    canonical: 'https://gymaxisai.com/sub-processors',
+    title: 'Sub-processors | Pulse Fitness AI',
+    description: 'Authorised third-party data processors used by Pulse Fitness AI for hosting, communications, payments, AI and observability. 30-day change notice.',
+    canonical: 'https://www.pulsefitness.ai/sub-processors',
   });
 
   return (
@@ -32,7 +32,7 @@ const SubProcessorsPage = () => {
             <strong>Last updated:</strong> 28 May 2026 · v1.0
           </p>
           <p className="text-base text-slate-600 mb-6">
-            This page lists every third-party processor that may handle Customer Personal Data under GymAxis AI's{' '}
+            This page lists every third-party processor that may handle Customer Personal Data under Pulse Fitness AI's{' '}
             <Link to="/legal/dpa" className="text-[var(--gx-brand-from)] underline">Data Processing Agreement</Link>.
           </p>
 
@@ -42,10 +42,10 @@ const SubProcessorsPage = () => {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-amber-900">30-day change notice</p>
                 <p className="text-sm text-amber-800 mt-1">
-                  GymAxis will provide customers at least <strong>30 days' notice</strong> before adding, replacing or materially changing a
+                  Pulse Fitness will provide customers at least <strong>30 days' notice</strong> before adding, replacing or materially changing a
                   sub-processor. Customers may object in writing; if the objection cannot be resolved within 30 days the customer may terminate
                   the affected workload without penalty. Subscribe at{' '}
-                  <a href="mailto:dpo@gymaxisai.com?subject=subscribe%20sub-processor" className="text-amber-900 underline">dpo@gymaxisai.com</a>.
+                  <a href="mailto:dpo@pulsefitness.ai?subject=subscribe%20sub-processor" className="text-amber-900 underline">dpo@pulsefitness.ai</a>.
                 </p>
               </div>
             </div>
@@ -91,7 +91,7 @@ const SubProcessorsPage = () => {
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">4. AI / LLM providers</h2>
-            <p>GymAxis uses Large Language Models for the AI Assistant, SEO Autopilot, Tender drafting and CRM insights. Provider selection happens via the Emergent LLM Key proxy.</p>
+            <p>Pulse Fitness uses Large Language Models for the AI Assistant, SEO Autopilot, Tender drafting and CRM insights. Provider selection happens via the Emergent LLM Key proxy.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm border border-slate-200 rounded-lg my-4" data-testid="subp-ai-table">
                 <thead className="bg-slate-50">
@@ -138,7 +138,7 @@ const SubProcessorsPage = () => {
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">7. Audit &amp; legal</h2>
-            <p>GymAxis itself acts as <strong>data processor</strong> when handling Customer Personal Data on behalf of a Tenant. Where Tenant Personal Data ends up in our paid sub-processors above, we have a written DPA in place with each. A list of executed DPAs is available on request: <a href="mailto:dpo@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">dpo@gymaxisai.com</a>.</p>
+            <p>Pulse Fitness itself acts as <strong>data processor</strong> when handling Customer Personal Data on behalf of a Tenant. Where Tenant Personal Data ends up in our paid sub-processors above, we have a written DPA in place with each. A list of executed DPAs is available on request: <a href="mailto:dpo@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">dpo@pulsefitness.ai</a>.</p>
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">8. Changes to this list</h2>
             <div className="overflow-x-auto">
@@ -154,8 +154,8 @@ const SubProcessorsPage = () => {
 
             <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">9. Contact</h2>
             <ul className="list-none space-y-1 text-slate-700">
-              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Data Protection Officer (DPO): <a href="mailto:dpo@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">dpo@gymaxisai.com</a></li>
-              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Security disclosure: <a href="mailto:security@gymaxisai.com" className="text-[var(--gx-brand-from)] underline">security@gymaxisai.com</a></li>
+              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Data Protection Officer (DPO): <a href="mailto:dpo@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">dpo@pulsefitness.ai</a></li>
+              <li><Mail className="inline w-4 h-4 mr-1 text-slate-500" /> Security disclosure: <a href="mailto:security@pulsefitness.ai" className="text-[var(--gx-brand-from)] underline">security@pulsefitness.ai</a></li>
             </ul>
           </article>
         </div>

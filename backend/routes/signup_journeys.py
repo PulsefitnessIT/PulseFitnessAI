@@ -113,7 +113,7 @@ def _verify_token(token: str) -> tuple[str | None, str | None]:
 BRAND_PRIMARY = "#2563EB"
 
 
-def _origin(default: str = "https://gymaxisai.com") -> str:
+def _origin(default: str = "https://www.pulsefitness.ai") -> str:
     return (os.getenv("PUBLIC_APP_ORIGIN") or default).rstrip("/")
 
 

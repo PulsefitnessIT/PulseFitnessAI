@@ -4,7 +4,7 @@
  * A curated, read-only, Pulse-scoped data browser for Pulse Master Admins.
  * Lists a whitelist of business collections (each hard-filtered to Pulse
  * Fitness organisations on the backend) and lets the admin search +
- * paginate their own records. No GymAxis / other-tenant data is ever
+ * paginate their own records. No Pulse Fitness / other-tenant data is ever
  * returned — scoping is enforced server-side in
  * routes/master_admin_pulse_explorer.py.
  */
@@ -100,7 +100,7 @@ const PulseDbExplorerPanel = () => {
           <div>
             <h2 className="text-lg font-bold text-slate-900">Pulse data explorer</h2>
             <p className="text-sm text-slate-500">
-              Read-only view of your Pulse Fitness data{orgCount !== null ? ` · ${orgCount} organisation${orgCount === 1 ? '' : 's'} in scope` : ''}. GymAxis and other tenants are never shown.
+              Read-only view of your Pulse Fitness data{orgCount !== null ? ` · ${orgCount} organisation${orgCount === 1 ? '' : 's'} in scope` : ''}. Pulse Fitness and other tenants are never shown.
             </p>
           </div>
         </div>

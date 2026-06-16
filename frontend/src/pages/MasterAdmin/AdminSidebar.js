@@ -19,7 +19,7 @@ import { SIDEBAR_ITEMS, SECTION_TO_GROUP } from './SidebarConfig';
 const AdminSidebar = ({
  section, setSection, setSearch,
  sidebarOpen, setSidebarOpen,
- onLogout, onPulseSwitch, onGymAxisSwitch,
+ onLogout, onPulseSwitch, onPulseFitnessSwitch,
  isPulseAdmin = false,
 }) => {
  const _navigate = useNavigate();
@@ -98,7 +98,7 @@ const AdminSidebar = ({
    return () => { document.body.style.overflow = prev; };
  }, [sidebarOpen]);
 
- // Pulse Master Admins see the same console but with GymAxis-only items
+ // Pulse Master Admins see the same console but with Pulse Fitness-only items
  // (e.g. internal Service Desk membership management) hidden.
  const items = isPulseAdmin
  ? SIDEBAR_ITEMS.filter((i) => !i.gymaxisOnly)
@@ -111,10 +111,10 @@ const AdminSidebar = ({
  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
  <div className="flex items-center gap-3">
  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden gx-grad-ring shadow-sm" data-testid="admin-sidebar-logo">
-            <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="w-7 h-7 object-contain" draggable={false} loading="eager" decoding="async" />
+            <img src="/brand/pulse-mark.svg" alt="Pulse Fitness" className="w-7 h-7 object-contain" draggable={false} loading="eager" decoding="async" />
           </div>
  <div>
- <p className="font-bold text-slate-900 text-sm tracking-tight">{isPulseAdmin ? 'Pulse Fitness' : 'GymAxis'}</p>
+ <p className="font-bold text-slate-900 text-sm tracking-tight">{isPulseAdmin ? 'Pulse Fitness' : 'Pulse Fitness'}</p>
  <p className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">{isPulseAdmin ? 'Master Admin' : 'Admin Console'}</p>
  </div>
  </div>
@@ -191,11 +191,11 @@ const AdminSidebar = ({
  <div className="space-y-1">
  {!isPulseAdmin && (
  <button
- onClick={onGymAxisSwitch}
+ onClick={onPulseFitnessSwitch}
  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
  data-testid="portal-switch-gymaxis"
  >
- <Layers size={16} className="text-violet-500" /> GymAxis Portal
+ <Layers size={16} className="text-violet-500" /> Pulse Fitness Portal
  </button>
  )}
  <button
@@ -206,7 +206,7 @@ const AdminSidebar = ({
  <Wrench size={16} className="text-blue-500" /> Pulse Fitness Portal
  </button>
  {/* Iter 244 — Service Desk is the Sicon case hub for Pulse Fitness;
-     visible to Pulse Master Admins as well as GymAxis Master Admin. */}
+     visible to Pulse Master Admins as well as Pulse Fitness Master Admin. */}
  <button
  onClick={() => { window.location.href = '/service-desk'; }}
  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"

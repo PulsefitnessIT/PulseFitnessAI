@@ -1,6 +1,6 @@
 """Public member sign-up flow for individual gyms.
 
-This is what powers https://app.gymaxisai.com/m/{gym_slug}/join — the
+This is what powers https://www.pulsefitness.ai/m/{gym_slug}/join — the
 operator-side Marketing campaigns funnel members here. The flow:
 
   1. GET  /api/public/signup/{slug}/branding   — gym name, logo, colours
@@ -261,7 +261,7 @@ async def create_checkout(
         raise HTTPException(404, "Plan not found")
     plan_fmt = _format_plan(plan)
 
-    origin = _origin_or("https://gymaxisai.com", request)
+    origin = _origin_or("https://www.pulsefitness.ai", request)
     success_url = f"{origin}/m/{gym.get('slug') or gym['id']}/join/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin}/m/{gym.get('slug') or gym['id']}/join?cancelled=1&draft={draft_id}"
     currency = plan_fmt["currency"].lower()

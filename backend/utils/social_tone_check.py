@@ -56,7 +56,7 @@ _RULES: list[tuple[str, str, re.Pattern, str]] = [
          r"|less|more|faster|slower|growth|conversion|retention|adoption"
          r"|uplift|boost|jump|drop|fewer|higher|lower)\b",
          re.I),
-     "Remove the percentage claim — GymAxis has no track record to "
+     "Remove the percentage claim — Pulse Fitness has no track record to "
      "back it up yet. Rephrase as an aspiration ('expect to save…')."),
     ("metric_claim", "high",
      re.compile(
@@ -198,7 +198,7 @@ def check_draft_tone(
 
 
 _LLM_SYSTEM_PROMPT = (
-    "You are a strict launch-week tone reviewer for GymAxis. The "
+    "You are a strict launch-week tone reviewer for Pulse Fitness. The "
     "platform is BRAND NEW — there are no customers, no metrics, no "
     "case studies. Your job is to find any sentence in the draft below "
     "that implies a track record we don't have yet. Be terse. Return "

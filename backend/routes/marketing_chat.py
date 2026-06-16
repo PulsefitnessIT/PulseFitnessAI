@@ -10,7 +10,7 @@ Design choices:
     feature claims.
   • Rate-limited per IP (10 messages / 5 min) to stop abuse.
   • Anonymous — no PII captured. If the user wants to talk to sales
-    Claude points them at sales@gymaxisai.com or the trial signup.
+    Claude points them at sales@pulsefitness.ai or the trial signup.
   • Logged to db.marketing_chat_logs for funnel analysis (no PII).
 """
 from __future__ import annotations
@@ -111,23 +111,23 @@ async def marketing_chat(
             "session_id": session_id,
             "answer": (
                 "Thanks for the question — our AI assistant is offline right now. "
-                "Email sales@gymaxisai.com and we'll reply within 24 hours, "
+                "Email sales@pulsefitness.ai and we'll reply within 24 hours, "
                 "or click 'Start Free Trial' to try the platform yourself."
             ),
             "engine": "fallback",
         }
 
     system = (
-        "You are GymAxis Sales — a friendly, concise, accurate AI sales assistant for "
-        "GymAxis AI, an all-in-one operations platform for fitness operators. "
+        "You are Pulse Fitness Sales — a friendly, concise, accurate AI sales assistant for "
+        "Pulse Fitness AI, an all-in-one operations platform for fitness operators. "
         "Answer in 2-4 sentences max. Always be honest. If the buyer asks about a feature "
-        "that ISN'T in the corpus below, say so plainly and offer to email sales@gymaxisai.com.\n\n"
+        "that ISN'T in the corpus below, say so plainly and offer to email sales@pulsefitness.ai.\n\n"
         "Pricing facts (verbatim): "
-        "GymAxis Pro is £150/mo (all 4 modules + AI + integrations + 1 site). "
+        "Pulse Fitness Pro is £150/mo (all 4 modules + AI + integrations + 1 site). "
         "Additional sites are £50/mo each. Individual modules: Memberships £29/mo, CRM £49/mo, "
         "Marketing £49/mo, Operations £59/mo. 3-day free trial, all modules unlocked, no credit card.\n\n"
         "When the buyer is ready to act, recommend they click 'Start Free Trial' in the page. "
-        "For procurement / DPA / security: point them at security@gymaxisai.com. "
+        "For procurement / DPA / security: point them at security@pulsefitness.ai. "
         "Do NOT invent customer names, logos, or specific revenue figures.\n\n"
         "Help corpus (the source of truth on what's shipped today):\n"
         + _corpus_text()
@@ -159,7 +159,7 @@ async def marketing_chat(
         return {
             "session_id": session_id,
             "answer": (
-                "I'm having trouble answering that right now. Email sales@gymaxisai.com "
+                "I'm having trouble answering that right now. Email sales@pulsefitness.ai "
                 "and we'll come back to you within 24 hours."
             ),
             "engine": "fallback",

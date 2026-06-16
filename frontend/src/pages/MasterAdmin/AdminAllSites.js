@@ -24,7 +24,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const BrandPill = ({ brand }) => {
   const tones = {
     pulse:   { bg: 'rgba(0,85,255,0.08)',     fg: '#1D4ED8', label: 'Pulse' },
-    gymaxis: { bg: 'rgba(16,185,129,0.10)',   fg: '#047857', label: 'GymAxis' },
+    gymaxis: { bg: 'rgba(16,185,129,0.10)',   fg: '#047857', label: 'Pulse Fitness' },
   };
   const t = tones[brand] || tones.gymaxis;
   return (

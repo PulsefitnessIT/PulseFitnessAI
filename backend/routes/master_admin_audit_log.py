@@ -93,7 +93,7 @@ async def _gather(
     Iter 216h25 — ``brand_org_ids`` is an optional pre-resolved set of
     org IDs from the BrandPicker filter. When provided, every per-org
     query is intersected with this set so Pulse Master Admins cannot
-    see GymAxis events and vice versa.
+    see Pulse Fitness events and vice versa.
     """
     out: list[dict] = []
 
@@ -271,7 +271,7 @@ async def _resolve_brand_org_ids(user: dict, brand: str) -> Optional[set]:
     organisation IDs.
 
     Returns:
-      * ``None`` when no scope restriction is needed (GymAxis admin
+      * ``None`` when no scope restriction is needed (Pulse Fitness admin
         chose 'all') — `_gather` skips its brand intersection.
       * a ``set[str]`` of org IDs when restriction applies. Pulse
         Master Admins are forced to ``pulse`` regardless of the

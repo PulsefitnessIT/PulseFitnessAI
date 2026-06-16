@@ -56,8 +56,8 @@ async def admin_marketing_analytics(brand: str = "all", user: dict = Depends(get
     """Platform-wide marketing KPIs. Pulse-scoped via the same helper used
     elsewhere in master_admin.
 
-    Iter 216h25 — accepts a ``?brand=`` query param so GymAxis Master
-    Admins can focus the view on Pulse-only or GymAxis-only orgs from
+    Iter 216h25 — accepts a ``?brand=`` query param so Pulse Fitness Master
+    Admins can focus the view on Pulse-only or Pulse Fitness-only orgs from
     the top-bar BrandPicker. Pulse Master Admins remain locked to
     ``pulse`` regardless of the query param.
     """
@@ -133,8 +133,8 @@ async def admin_marketing_analytics(brand: str = "all", user: dict = Depends(get
 
 @router.get("/master-admin/marketing/subscriptions")
 async def admin_list_subscriptions(brand: str = "all", user: dict = Depends(get_current_user)):
-    """Iter 216h25 — accepts ``?brand=`` so GymAxis Master Admins can
-    focus the view on Pulse-only or GymAxis-only orgs. Pulse Master
+    """Iter 216h25 — accepts ``?brand=`` so Pulse Fitness Master Admins can
+    focus the view on Pulse-only or Pulse Fitness-only orgs. Pulse Master
     Admins remain locked to ``pulse`` regardless."""
     _require_admin(user)
     from routes.master_admin import is_pulse_only, PULSE_VISIBLE_ACCOUNT_TYPES

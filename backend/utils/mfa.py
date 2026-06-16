@@ -36,7 +36,7 @@ from utils.database import db
 
 logger = logging.getLogger(__name__)
 
-ISSUER_NAME = os.environ.get("MFA_ISSUER_NAME", "GymAxis AI")
+ISSUER_NAME = os.environ.get("MFA_ISSUER_NAME", "Pulse Fitness AI")
 BACKUP_CODE_COUNT = 10
 TOTP_WINDOW = 1  # ±30 s clock skew tolerance
 

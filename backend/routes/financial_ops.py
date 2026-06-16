@@ -28,7 +28,7 @@ DEFAULT_FINANCIAL_CONFIG = {
     "auto_top_up_enabled": True,
     "cost_centres": {
         "gymaxis": {
-            "name": "GymAxis AI",
+            "name": "Pulse Fitness AI",
             "type": "direct",
             "stripe_connected_account_id": None,
             "platform_fee_percentage": 0,

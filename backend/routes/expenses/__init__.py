@@ -1,4 +1,4 @@
-"""GymAxis Expenses subsystem (iter 278).
+"""Pulse Fitness Expenses subsystem (iter 278).
 
 Assembles the single shared ``router`` (defined in ``common``) by importing
 each module so its endpoints attach. Import order matters: the settings and

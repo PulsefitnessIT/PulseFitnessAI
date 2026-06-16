@@ -65,7 +65,7 @@ export default function BarcodeScanModal({ open, onClose, onMatch, onCode, onMac
   };
 
   const lookup = async (code) => {
-    // Iter 276 — a scanned GymAxis QR may be a URL that identifies a
+    // Iter 276 — a scanned Pulse Fitness QR may be a URL that identifies a
     // machine. Route Operations `/scan/{id}` and engineer `/r/eq/{id}`
     // stickers to the machine-history view; `/r/c/{code}` → code lookup.
     if (onMachine) {

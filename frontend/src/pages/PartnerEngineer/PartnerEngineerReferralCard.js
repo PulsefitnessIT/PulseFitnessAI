@@ -52,9 +52,9 @@ export default function PartnerEngineerReferralCard() {
   };
 
   const emailShare = () => {
-    const subject = encodeURIComponent('Join me on the GymAxis Partner Engineer network');
+    const subject = encodeURIComponent('Join me on the Pulse Fitness Partner Engineer network');
     const body = encodeURIComponent(
-      `Hey,\n\nIf you do any gym maintenance work, the GymAxis Partner Engineer network is worth a look. ` +
+      `Hey,\n\nIf you do any gym maintenance work, the Pulse Fitness Partner Engineer network is worth a look. ` +
       `They route inbound jobs to local engineers and the platform fee drops fast — I'd genuinely recommend it.\n\n` +
       `My recommendation link (it auto-attributes me as your sponsor): ${share_link}\n\nCheers`,
     );

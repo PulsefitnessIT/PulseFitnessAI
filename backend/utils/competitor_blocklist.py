@@ -13,7 +13,7 @@ abuse layers (work-email enforcement, pending-review queue,
 audit-trail) sit on top.
 
 Sourced from a mix of (a) names the founder/CEO has called out on
-the GymAxis call list as direct competitors, and (b) public market
+the Pulse Fitness call list as direct competitors, and (b) public market
 mapping of the UK + global gym-software / equipment-service space.
 """
 from __future__ import annotations
@@ -97,7 +97,7 @@ def competitor_block_reason(email: str) -> Optional[str]:
     return (
         "We can't start a self-serve trial from this email domain — "
         "if you'd like a guided demo, please email "
-        "sales@gymaxisai.com and we'll get back to you within a "
+        "sales@pulsefitness.ai and we'll get back to you within a "
         "business day."
     )
 

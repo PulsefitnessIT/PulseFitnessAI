@@ -41,7 +41,7 @@ function DeskMockup() {
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-          <span className="ml-3 text-[10px] font-semibold text-slate-400 truncate">fitfix.gymaxisai.com/service-desk</span>
+          <span className="ml-3 text-[10px] font-semibold text-slate-400 truncate">fitfix.www.pulsefitness.ai/service-desk</span>
         </div>
         <div className="grid grid-cols-[88px_1fr] sm:grid-cols-[120px_1fr]">
           {/* sidebar */}
@@ -115,7 +115,7 @@ export default function ServiceDeskPromo() {
           </span>
           <h2 className="mt-5 text-4xl sm:text-5xl font-medium tracking-tighter leading-[1.05]">
             <span className="text-slate-200">{t('mkt.sd_title_1', 'Service equipment for a living?')}</span><br />
-            <span className="font-black text-orange-500">{t('mkt.sd_title_2', 'Run your whole desk on GymAxis.')}</span>
+            <span className="font-black text-orange-500">{t('mkt.sd_title_2', 'Run your whole desk on Pulse Fitness.')}</span>
           </h2>
           <p className="mt-5 text-base sm:text-lg text-slate-300 leading-relaxed max-w-xl">
             {t('mkt.sd_desc', 'The same Service Desk that powers national fitness suppliers — now self-serve. Phone rings, case raised, engineer dispatched in seconds. SLA countdowns, a drag-and-drop scheduler, your engineers on a mobile app, and owner analytics that prove the numbers.')}

@@ -1,4 +1,4 @@
-"""GymAxis Memberships — "We've missed you" win-back dispatcher.
+"""Pulse Fitness Memberships — "We've missed you" win-back dispatcher.
 
 Scans all Memberships-enabled orgs once per poller cycle for active
 members who:
@@ -99,7 +99,7 @@ def _build_html(first_name: str, studio: str, brand: str, streak: int, app_url: 
     <p style="color:#9ca3af;font-size:12px;margin:22px 0 0;line-height:1.5;">If you want to pause your membership or chat to the team, reply to this email — we're here.</p>
   </div>
   <div style="background:#05070A;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">GymAxis · {studio} · Win-back</p>
+    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness · {studio} · Win-back</p>
   </div>
 </div>"""
 

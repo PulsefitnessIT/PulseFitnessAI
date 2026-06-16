@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, ArrowRight, X, CheckCircle2 } from 'lucide-react';
 
 /**
- * Welcome hero banner shown on the GymAxis Service Portal dashboard for users
+ * Welcome hero banner shown on the Pulse Fitness Service Portal dashboard for users
  * who haven't completed all 4 onboarding stages and haven't dismissed the banner.
  * Deliberately unobtrusive but clearly actionable — opens GamifiedOnboarding.
  */
@@ -36,7 +36,7 @@ const WelcomeHero = ({ gymName, status, onStart, onDismiss }) => {
  </div>
  <div className="min-w-0">
  <h3 className="text-lg font-semibold text-white tracking-tight">
- Welcome to GymAxis, {gymName} <span className="inline-block">👋</span>
+ Welcome to Pulse Fitness, {gymName} <span className="inline-block">👋</span>
  </h3>
  <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
  Let&apos;s get your gym fully set up — takes about 5 minutes.

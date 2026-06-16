@@ -22,18 +22,18 @@ MARKETING_ROOT = Path("/app/marketing")
 # Whitelist of downloadable files — guards against path traversal.
 DOWNLOADS: dict[str, tuple[str, str]] = {
     "mod-briefing.pdf": (
-        "mod-presentation/GymAxis_MOD_Briefing.pdf",
-        "GymAxis_MOD_Briefing.pdf",
+        "mod-presentation/PulseFitness_MOD_Briefing.pdf",
+        "PulseFitness_MOD_Briefing.pdf",
     ),
     # Iter 216h302a — short alias, easier to type on mobile.
     "mod.pdf": (
-        "mod-presentation/GymAxis_MOD_Briefing.pdf",
-        "GymAxis_MOD_Briefing.pdf",
+        "mod-presentation/PulseFitness_MOD_Briefing.pdf",
+        "PulseFitness_MOD_Briefing.pdf",
     ),
     # Iter 216h303 — Sicon WebAPI access request for Pulse Fitness Test.
     "sicon-access.pdf": (
-        "sicon-access/GymAxis_Sicon_Access_Request.pdf",
-        "GymAxis_Sicon_Access_Request.pdf",
+        "sicon-access/PulseFitness_Sicon_Access_Request.pdf",
+        "PulseFitness_Sicon_Access_Request.pdf",
     ),
 }
 

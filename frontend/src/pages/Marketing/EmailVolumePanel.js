@@ -48,8 +48,8 @@ const EmailVolumePanel = ({ API, headers, onClose }) => {
   const attachedCodes = new Set((mine.rows || []).map((r) => r.code));
 
   const requestPack = (pack) => {
-    const subject = `GymAxis · request to enable ${pack.name}`;
-    const body = `Hi GymAxis team,\n\nPlease enable the "${pack.name}" pack on our Marketing module (+${pack.included_emails.toLocaleString()} emails / month at ${fmtMoney(pack.monthly_price_pence)}/mo).\n\nThanks!`;
+    const subject = `Pulse Fitness · request to enable ${pack.name}`;
+    const body = `Hi Pulse Fitness team,\n\nPlease enable the "${pack.name}" pack on our Marketing module (+${pack.included_emails.toLocaleString()} emails / month at ${fmtMoney(pack.monthly_price_pence)}/mo).\n\nThanks!`;
     window.location.href = `mailto:hello@gymaxis.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 

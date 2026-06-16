@@ -6,7 +6,7 @@
  * Desk Cases tab next to the Engineer Roster (h78).
  *
  * Hard scope:
- *   • GymAxis customers only (backend enforces — Pulse orgs get 403).
+ *   • Pulse Fitness customers only (backend enforces — Pulse orgs get 403).
  *   • Engineers we surface: status=approved AND
  *     level IN ['verified_partner', 'strategic_partner'].
  *   • We NEVER expose engineer email/phone; instead the customer can
@@ -89,7 +89,7 @@ export default function FindEngineerPanel({ defaultPostcode = '' }) {
       await axios.post(`${API}/partners/find-engineers/${eng.id}/request-contact`,
         { note }, auth());
       setContactedIds((s) => new Set(s).add(eng.id));
-      notify.success(`Request sent to ${eng.full_name} — they'll reach out via GymAxis.`);
+      notify.success(`Request sent to ${eng.full_name} — they'll reach out via Pulse Fitness.`);
     } catch (e) {
       notifyApiError(notify, e, 'Request failed');
     } finally {

@@ -101,3 +101,79 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: >
+  White-label conversion of the GymAxis AI platform into Pulse Fitness AI. Every user-facing
+  surface must show Pulse Fitness AI (no GymAxis branding, URLs, emails, titles or logos).
+  Database reset to a clean state keeping only the Master Admin. Integration key rotation
+  deferred to a later phase (user will provide new Pulse keys). Domain: https://www.pulsefitness.ai.
+
+backend:
+  - task: "Master Admin auth after DB reset + email rename to admin@pulsefitness.com"
+    implemented: true
+    working: true
+    file: "backend/bootstrap/seed.py, backend/.env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Database cleared via scripts/reset_to_pulse.py (kept global reference data only). Backend restarted; seed re-created the master admin from env. Login is admin@pulsefitness.com / MasterAdmin123!. SEED_TEST_ACCOUNTS=0 so no fixture users. Verify login (POST /api/auth/login) returns a token and master-admin access works."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Master admin login successful with admin@pulsefitness.com / MasterAdmin123!. POST /api/auth/login returned 200 with valid token. User ID: 1fedcc01-1f53-408a-bc48-017375348536, is_master_admin: true. Database seed working correctly after reset."
+  - task: "Backend health + core API still functional after global GymAxis->Pulse text rebrand (2193 substitutions across .py)"
+    implemented: true
+    working: true
+    file: "backend/ (many files)"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "A scripted case-sensitive rebrand replaced GymAxis display strings + gymaxisai.com domains/emails across backend (excluding tests). No Python syntax errors on reload and /api/health=200. Verify representative endpoints (auth, /api/me or equivalent, a CRM/memberships read) still respond without 500s introduced by the string changes."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - All smoke tests passed (6/6, 100% success rate). GET /api/health returned 200. Authenticated endpoints tested: GET /api/auth/me (200), GET /api/master-admin/organizations (200, 3 orgs), GET /api/organization (200, org name: 'Pulse Fitness AI Admin'), GET /api/memberships/members (200, 0 members). No 500 errors detected. Text rebrand did not break JSON serialization or route logic."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Master Admin auth after DB reset + email rename to admin@pulsefitness.com"
+    - "Backend health + core API still functional after global GymAxis->Pulse text rebrand (2193 substitutions across .py)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: >
+        Phase 1+ of the Pulse Fitness white-label is done. Please run BACKEND-ONLY smoke tests:
+        (1) Master Admin login with admin@pulsefitness.com / MasterAdmin123! (POST /api/auth/login)
+        returns a valid token; (2) backend /api/health = 200; (3) 2-3 representative authenticated
+        reads (e.g. master-admin or CRM/memberships list endpoints) return 2xx (not 500) to confirm
+        the global text rebrand didn't break serialization/logic. Do NOT test integrations that need
+        external keys (Stripe live / email sending) — key rotation is a later phase. Credentials are
+        in /app/memory/test_credentials.md.
+    - agent: "testing"
+      message: >
+        ✅ Backend smoke test COMPLETE - All tests PASSED (6/6, 100% success rate). 
+        
+        Results:
+        1. ✅ GET /api/health → 200 OK
+        2. ✅ POST /api/auth/login (admin@pulsefitness.com) → 200 with valid token, is_master_admin=true
+        3. ✅ GET /api/auth/me → 200 (authenticated read)
+        4. ✅ GET /api/master-admin/organizations → 200 (3 organizations found)
+        5. ✅ GET /api/organization → 200 (org name: "Pulse Fitness AI Admin")
+        6. ✅ GET /api/memberships/members → 200 (0 members, clean DB)
+        
+        No 500 errors detected. The white-label rebrand (GymAxis → Pulse Fitness, 2193 substitutions)
+        did NOT break JSON serialization or route logic. Master admin authentication working correctly
+        after database reset. Backend is healthy and ready for use.

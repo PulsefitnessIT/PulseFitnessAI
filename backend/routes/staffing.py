@@ -1,4 +1,4 @@
-"""GymAxis Staffing — workforce intelligence backend.
+"""Pulse Fitness Staffing — workforce intelligence backend.
 
 Covers all 12 canonical staffing modules (Smart Rota, Profiles & Skills,
 Availability & Leave, Shift Marketplace, Performance, Payroll, Live
@@ -564,7 +564,7 @@ async def issue_staff_credentials(
             org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
             site_url = (
                 os.environ.get("APP_PUBLIC_URL")
-                or "https://gymaxisai.com"
+                or "https://www.pulsefitness.ai"
             ).rstrip("/")
             org_name = org.get("name") or "your team"
             subject = f"Your {org_name} staff portal login"

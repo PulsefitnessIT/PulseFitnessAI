@@ -343,7 +343,7 @@ async def reply_to_enquiry(
     if not doc:
         raise HTTPException(status_code=404, detail="Enquiry not found")
 
-    sender_name = (user.get("name") or user.get("email") or "GymAxis Sales").split("@")[0].title()
+    sender_name = (user.get("name") or user.get("email") or "Pulse Fitness Sales").split("@")[0].title()
     html = _reply_html(payload.body, doc.get("message") or "", sender_name)
     ok = await send_email(doc["email"], payload.subject, html)
     if not ok:

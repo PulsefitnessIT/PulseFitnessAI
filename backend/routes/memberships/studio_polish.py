@@ -298,7 +298,7 @@ async def broadcast_class(
                         "https://api.resend.com/emails",
                         headers={"Authorization": f"Bearer {resend_key}"},
                         json={
-                            "from": os.environ.get("RESEND_FROM", "GymAxis <hello@service.gymaxisai.com>"),
+                            "from": os.environ.get("RESEND_FROM", "Pulse Fitness <hello@service.www.pulsefitness.ai>"),
                             "to": email,
                             "subject": subject,
                             "html": body_html,

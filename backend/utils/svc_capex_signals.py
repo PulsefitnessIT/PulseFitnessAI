@@ -1,5 +1,5 @@
 """
-GymAxis CAPEX ↔ Service Ops signal layer — Iter 216h154 (Feb 2026).
+Pulse Fitness CAPEX ↔ Service Ops signal layer — Iter 216h154 (Feb 2026).
 
 Aggregates the last 12 months of `svc_cases` and `svc_quotes` per
 equipment asset so the CAPEX board report can recommend repair-vs-

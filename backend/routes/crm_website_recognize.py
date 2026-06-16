@@ -53,7 +53,7 @@ CACHE_COLLECTION = "crm_website_cache"
 CACHE_TTL_HOURS = 24
 MAX_HTML_BYTES = 400_000          # ~400KB cap per page
 HTTP_TIMEOUT_SECONDS = 8.0
-USER_AGENT = "GymAxisAI/1.0 (+https://gymaxisai.com; CRM company recogniser)"
+USER_AGENT = "PulseFitnessAI/1.0 (+https://www.pulsefitness.ai; CRM company recogniser)"
 
 
 def _now() -> datetime:

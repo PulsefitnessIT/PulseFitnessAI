@@ -1,7 +1,7 @@
 /**
  * EngineerInvoices — list + filter + drill-in.
  *
- * Iter 216h130. Light-mode GymAxis brand.
+ * Iter 216h130. Light-mode Pulse Fitness brand.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
@@ -80,7 +80,7 @@ export default function EngineerInvoices() {
               <ArrowLeft size={16} />
             </button>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">GymAxis</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness</p>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-extrabold text-slate-900">Invoices</h1>
                 <OutboxStatusPill />

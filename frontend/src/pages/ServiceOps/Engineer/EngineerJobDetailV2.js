@@ -1,7 +1,7 @@
 /**
  * EngineerJobDetailV2 — Phase 3 light-mode job workflow.
  *
- * Iter 216h133. Light-mode GymAxis aesthetic. Tabs: Time · Travel ·
+ * Iter 216h133. Light-mode Pulse Fitness aesthetic. Tabs: Time · Travel ·
  * Photos · Parts · Complete. Surfaces all existing engineer.py
  * primitives plus new Phase 3 endpoints (mileage, ad-hoc parts,
  * generate-invoice-draft).

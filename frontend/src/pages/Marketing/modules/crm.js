@@ -11,7 +11,7 @@ export default {
 
   heroLine1: 'Turn leads',
   heroLine2: 'into members.',
-  heroSubtitle: 'CRM is the relationship engine of GymAxis. Every enquiry, tour, free trial, paying member and lapsed cancellation in one timeline — with AI deciding who to call next.',
+  heroSubtitle: 'CRM is the relationship engine of Pulse Fitness. Every enquiry, tour, free trial, paying member and lapsed cancellation in one timeline — with AI deciding who to call next.',
   heroVisualHeadline: 'Pipeline today',
   heroVisualLines: [
     { label: 'New leads', value: '14' },
@@ -80,7 +80,7 @@ export default {
     { title: 'Churn early-warning', body: 'Flags members whose attendance pattern matches historical cancellations 14–28 days before they ask to leave.' },
   ],
 
-  integrationsHeadline: 'CRM is wired into the rest of GymAxis.',
+  integrationsHeadline: 'CRM is wired into the rest of Pulse Fitness.',
   integrations: [
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Bookings, freezes, family invoices feed the contact timeline automatically.' },
     { icon: Megaphone, name: 'Marketing',   color: '#D946EF', to: '/platform/marketing',   body: 'Pipeline segments are valid audiences. Send a campaign to "Tour booked, no follow-up" in one click.' },

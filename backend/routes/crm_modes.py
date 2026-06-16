@@ -137,7 +137,7 @@ async def create_business_crm_checkout(
                 "price_data": {
                     "currency": "gbp",
                     "product_data": {
-                        "name": "GymAxis Business CRM",
+                        "name": "Pulse Fitness Business CRM",
                         "description": "B2B sales pipeline, contracts and supplier ops.",
                     },
                     "unit_amount": 4900,

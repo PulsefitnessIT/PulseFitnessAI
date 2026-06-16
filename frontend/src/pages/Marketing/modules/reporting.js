@@ -11,7 +11,7 @@ export default {
 
   heroLine1: 'See the whole',
   heroLine2: 'business.',
-  heroSubtitle: 'Reporting is the analytics, audit and compliance layer of GymAxis. Cohort retention, LTV, capex pipeline, wage ratio, NPS, and a tamper-evident audit log built for SOC 2 evidence and operator transparency.',
+  heroSubtitle: 'Reporting is the analytics, audit and compliance layer of Pulse Fitness. Cohort retention, LTV, capex pipeline, wage ratio, NPS, and a tamper-evident audit log built for SOC 2 evidence and operator transparency.',
   heroVisualHeadline: 'Business at a glance',
   heroVisualLines: [
     { label: 'MRR', value: '£148k' },
@@ -80,7 +80,7 @@ export default {
     { title: 'Question-to-chart', body: 'Ask "show me yoga retention by instructor since January" — get a chart, not a Jira ticket.' },
   ],
 
-  integrationsHeadline: 'Reporting is wired into the rest of GymAxis.',
+  integrationsHeadline: 'Reporting is wired into the rest of Pulse Fitness.',
   integrations: [
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class fills, retention, no-shows and Auto-Bill recovery flow in live.' },
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Lead-source ROI, conversion funnels, NPS by segment.' },

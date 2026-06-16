@@ -1,5 +1,5 @@
 /**
- * GymAxis AI — Module "Learn More" detail pages.
+ * Pulse Fitness AI — Module "Learn More" detail pages.
  *
  * Matches the dark Swiss high-contrast aesthetic of the homepage. One
  * component, content selected by URL slug. Accessible via /learn/:slug.
@@ -131,7 +131,7 @@ const MODULE_CONTENT = {
  { title: 'Documented REST API', body: 'Every resource — companies, contracts, faults, assets, members — has typed endpoints. Per-org API keys. Rate-limited, audit-logged, fail-closed.' },
  { title: 'Webhook fan-out', body: 'Subscribe to ten canonical event types. Every webhook is signed, retried with exponential backoff, and observable from the Integration Hub.' },
  { title: 'Integration Hub event bus', body: 'Ten canonical event types. Every integration reads from one bus — add a new system without re-plumbing the rest.' },
- { title: 'Resend (transactional email)', body: 'Fault cards, supplier welcomes, engineer callouts, branded per-customer (Pulse Fitness vs GymAxis AI). Verified sending domain.' },
+ { title: 'Resend (transactional email)', body: 'Fault cards, supplier welcomes, engineer callouts, branded per-customer (Pulse Fitness vs Pulse Fitness AI). Verified sending domain.' },
  { title: 'Stripe', body: 'Trial-to-paid conversion with metadata. Checkout session metadata flips the org to paid on webhook.' },
  { title: 'ERP-ready exports', body: 'Contract headers, line items, PO references and engineer notes export to CSV in a finance-friendly schema. Drop straight into your accounting suite.' },
  ],
@@ -693,7 +693,7 @@ function CTASection({ current, all }) {
  One platform. Every module. No bolt-ons.
  </h2>
  <p className="mt-4 text-white/70 max-w-2xl mx-auto text-base sm:text-lg">
- Every GymAxis module shares one data model, one audit trail, one security posture. Want to see the full picture?
+ Every Pulse Fitness module shares one data model, one audit trail, one security posture. Want to see the full picture?
  </p>
  <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
  <Link
@@ -776,7 +776,7 @@ export default function LearnMorePage() {
  <nav className="sticky top-0 z-40 bg-[var(--color-surface-darker)]/80 backdrop-blur-lg border-b border-white/10">
  <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
  <Link to="/" className="text-white font-extrabold text-lg tracking-tight" data-testid="learn-logo-home">
- GymAxis<span className="text-[var(--color-brand-cyan)]">.AI</span>
+ Pulse Fitness<span className="text-[var(--color-brand-cyan)]">.AI</span>
  </Link>
  <div className="flex items-center gap-2">
  <button

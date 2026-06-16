@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Scheduling & Allocation.
+Pulse Fitness Service Operations — Scheduling & Allocation.
 
 Iter 215dq (Phase 3).
 
@@ -35,13 +35,13 @@ __integration_fields__ = {
     "diary.cases":                 "sicon: ServiceCall[] (read-through from svc_cases)",
     "diary.unassigned":            "sicon: ServiceCall[] (read-through; unassigned filter)",
     # Manual + auto assign — write-path on svc_cases (mirrored to Sicon)
-    "assign.case_id":              "sicon: ServiceCallID · GymAxis → Sicon",
-    "assign.engineer_id":          "sicon: AppointmentResourceID · sage: Employee.Reference · GymAxis → both",
-    "assign.engineer_name":        "sicon: AppointmentResourceName · GymAxis → Sicon",
-    "assign.scheduled_at":         "sicon: AppointmentStartDate · GymAxis → Sicon",
-    "assign.estimated_minutes":    "sicon: AppointmentDurationMinutes · GymAxis → Sicon",
+    "assign.case_id":              "sicon: ServiceCallID · Pulse Fitness → Sicon",
+    "assign.engineer_id":          "sicon: AppointmentResourceID · sage: Employee.Reference · Pulse Fitness → both",
+    "assign.engineer_name":        "sicon: AppointmentResourceName · Pulse Fitness → Sicon",
+    "assign.scheduled_at":         "sicon: AppointmentStartDate · Pulse Fitness → Sicon",
+    "assign.estimated_minutes":    "sicon: AppointmentDurationMinutes · Pulse Fitness → Sicon",
     # Auto-assign scoring breakdown — operator UX only (informs Sicon push)
-    "score.engineer_id":           "sicon: AppointmentResourceID (winning candidate) · GymAxis → Sicon (when commit=true)",
+    "score.engineer_id":           "sicon: AppointmentResourceID (winning candidate) · Pulse Fitness → Sicon (when commit=true)",
     "score.value":                 "gymaxis_only: heuristic score (0-100)",
     "score.breakdown.drive_minutes":   "gymaxis_only: scheduler heuristic input",
     "score.breakdown.skill_mismatch":  "gymaxis_only: scheduler heuristic input",
@@ -49,7 +49,7 @@ __integration_fields__ = {
     "score.breakdown.sla_breach_risk": "gymaxis_only: scheduler heuristic input",
     "score.breakdown.overtime_minutes": "gymaxis_only: scheduler heuristic input",
     # AI tie-break attribution — operator UX
-    "ai_tiebreak.chosen_engineer_id": "sicon: AppointmentResourceID (chosen) · GymAxis → Sicon (when commit=true)",
+    "ai_tiebreak.chosen_engineer_id": "sicon: AppointmentResourceID (chosen) · Pulse Fitness → Sicon (when commit=true)",
     "ai_tiebreak.reasoning":          "gymaxis_only: operator UX",
     "ai_tiebreak.latency_ms":         "gymaxis_only: AI observability",
 }

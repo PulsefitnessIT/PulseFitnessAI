@@ -2,7 +2,7 @@
  * SetupChecklist — first-login progress tracker.
  *
  * Floats a small "Setup progress" pill in the bottom-left of every
- * authenticated page (sibling of the Ask GymAxis assistant). Clicking
+ * authenticated page (sibling of the Ask Pulse Fitness assistant). Clicking
  * expands a checklist drawer with live progress (queried from
  * `/api/help/setup-checklist` on mount + when walkthroughs finish).
  *

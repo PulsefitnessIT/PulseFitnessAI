@@ -1,4 +1,4 @@
-"""GymAxis Marketing Suite routes — package aggregator (Pass 2 split).
+"""Pulse Fitness Marketing Suite routes — package aggregator (Pass 2 split).
 
 Each section of the legacy 1874-line `routes/marketing.py` is now a
 focused submodule. This `__init__.py` is the single public entry-point:

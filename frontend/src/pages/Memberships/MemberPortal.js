@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships — Member-facing portal (/members).
+ * Pulse Fitness Memberships — Member-facing portal (/members).
  *
  * Separate identity from the operator app: uses its own JWT stored under
  * localStorage key `member_token`. The API mints tokens with `kind=member`
@@ -13,7 +13,7 @@
  *   • Pass      — rotating 30-second TOTP QR for kiosk check-in
  *   • Profile   — details + sign out
  *
- * Design language mirrors the operator console: dark GymAxis surface,
+ * Design language mirrors the operator console: dark Pulse Fitness surface,
  * cyan (var(--color-brand-cyan)) accent, generous whitespace.
  *
  * Iter 216h173 — Tabs are now lazy chunks (React.lazy + Suspense) so the
@@ -525,7 +525,7 @@ function ReferralCampaignBanner({ headers, slug, onCta }) {
 
 function AuthGate({ onAuthed, branding, slug }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const gymName = branding?.name || 'GymAxis';
+  const gymName = branding?.name || 'Pulse Fitness';
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
   const hero = branding?.hero_image_url || null;
   const apiOrigin = API.replace(/\/api\/?$/, '');
@@ -547,7 +547,7 @@ function AuthGate({ onAuthed, branding, slug }) {
         ) : (
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}>
             <Sparkles size={12} style={{ color: accent }} />
-            <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: accent }}>{slug ? gymName : 'GymAxis Member'}</span>
+            <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: accent }}>{slug ? gymName : 'Pulse Fitness Member'}</span>
           </div>
         )}
         <h1 className="text-4xl font-extrabold tracking-tight text-center text-balance max-w-md mx-auto" style={{ letterSpacing: '-0.03em' }} data-testid="member-auth-welcome">
@@ -807,7 +807,7 @@ function RegisterSelect({ placeholder, value, onChange, options, testid }) {
 /* ─────────────────── Chrome ─────────────────── */
 
 function TopBar({ member, branding, onSignOut }) {
-  const gymLabel = branding?.name || 'GymAxis';
+  const gymLabel = branding?.name || 'Pulse Fitness';
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
   return (
     <header className="sticky top-0 z-30 bg-[var(--color-surface-darker)]/90 backdrop-blur border-b border-white/10 px-5 py-3 flex items-center justify-between">

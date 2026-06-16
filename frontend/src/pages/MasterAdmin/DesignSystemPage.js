@@ -1,7 +1,7 @@
 /**
  * /admin/design-system — living component gallery for master admins.
  *
- * Purpose: act as the single source of visual truth for the GymAxis design
+ * Purpose: act as the single source of visual truth for the Pulse Fitness design
  * system. Any time a design question surfaces ("which variant is this
  * button?", "what's the sub-tab active colour?", "is this the right spacing?")
  * this page answers it in one glance. Also a guard-rail against drift: when
@@ -46,7 +46,7 @@ const PALETTE = [
 ];
 
 export default function DesignSystemPage() {
-  // Iter 215bh — top-level brand switcher (GymAxis vs Pulse Fitness).
+  // Iter 215bh — top-level brand switcher (Pulse Fitness vs Pulse Fitness).
   const [brand, setBrand] = useState('gymaxis');
   const [subTab, setSubTab] = useState('overview');
   const SUBTABS = useMemo(() => [
@@ -74,7 +74,7 @@ export default function DesignSystemPage() {
       {/* Brand switcher */}
       <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 mb-6" data-testid="ds-brand-switcher">
         {[
-          { id: 'gymaxis',  label: 'GymAxis' },
+          { id: 'gymaxis',  label: 'Pulse Fitness' },
           { id: 'pulse',    label: 'Pulse Fitness' },
         ].map((b) => (
           <button
@@ -206,12 +206,12 @@ export default function DesignSystemPage() {
       )}
 
       {subTab === 'brand' && (
-        <Section title="Brand strategy — Two products, one engine" subtitle="Strategy B (locked Apr 30, 2026): GymAxis is the marketing parent; Pulse Fitness is the operator-facing brand inside the product.">
+        <Section title="Brand strategy — Two products, one engine" subtitle="Strategy B (locked Apr 30, 2026): Pulse Fitness is the marketing parent; Pulse Fitness is the operator-facing brand inside the product.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`${cardClass()} p-5`}>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={16} style={{ color: BRANDS.GYMAXIS.accent }} />
-                <h3 className={TOKEN_TYPE.h3}>GymAxis — Marketing & HQ</h3>
+                <h3 className={TOKEN_TYPE.h3}>Pulse Fitness — Marketing & HQ</h3>
               </div>
               <p className={`${TOKEN_TYPE.body} mb-3`} style={{ color: 'var(--theme-text-muted)' }}>
                 Public homepage, login, pricing, features. Master Admin (HQ console) and the MOD service portal also use this brand.
@@ -241,7 +241,7 @@ export default function DesignSystemPage() {
               <div className="text-sm">
                 <div className="font-semibold mb-1">Don't mix.</div>
                 <div style={{ color: 'var(--theme-text-muted)' }}>
-                  Using GymAxis branding inside an authenticated operator portal (or vice-versa) tells customers the platform is unfinished. Resolve via <code className="font-mono text-xs">useBrand(user, surface)</code> in <code className="font-mono text-xs">/theme/useBrand.js</code>.
+                  Using Pulse Fitness branding inside an authenticated operator portal (or vice-versa) tells customers the platform is unfinished. Resolve via <code className="font-mono text-xs">useBrand(user, surface)</code> in <code className="font-mono text-xs">/theme/useBrand.js</code>.
                 </div>
               </div>
             </div>

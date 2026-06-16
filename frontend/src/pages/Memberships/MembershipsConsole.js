@@ -1,9 +1,9 @@
 /**
- * GymAxis Memberships — Operator console.
+ * Pulse Fitness Memberships — Operator console.
  *
  * Tabbed SPA page: Dashboard · Members · Timetable · Plans. Reuses the
  * operator JWT already in localStorage (set by the standard Pulse/Gym
- * login). Dark GymAxis aesthetic — cyan accent, slate surfaces.
+ * login). Dark Pulse Fitness aesthetic — cyan accent, slate surfaces.
  *
  * Phase 1a scope: list + create + key actions. Deeper flows (sell plan,
  * refund, comms) land in Phase 1b.
@@ -205,10 +205,10 @@ function MembershipsConsoleInner() {
 
   // Iter 215ba — brand-aware Memberships console. Pulse-account customers
   // (account_type pulse_pro / lite) keep the legacy "Pulse Fitness" heading +
-  // solid cyan active tab. GymAxis customers + master admins see the new
-  // GymAxis brand: gradient wordmark heading + brand-gradient active tab.
+  // solid cyan active tab. Pulse Fitness customers + master admins see the new
+  // Pulse Fitness brand: gradient wordmark heading + brand-gradient active tab.
   const isPulseBrandedMbr = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
-  const brandLabel = isPulseBrandedMbr ? 'Pulse Fitness' : 'GymAxis';
+  const brandLabel = isPulseBrandedMbr ? 'Pulse Fitness' : 'Pulse Fitness';
 
   return (
     <div

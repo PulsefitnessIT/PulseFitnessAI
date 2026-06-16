@@ -1,5 +1,5 @@
 /**
- * GymAxis Module Switcher
+ * Pulse Fitness Module Switcher
  *
  * A compact pill-shaped tab bar surfaced on every module's top bar so
  * operators with multi-module access can jump between:
@@ -31,10 +31,10 @@ const MODULES = [
 // on which brand context the user is currently in:
 //
 //   • `/pulse`     — Pulse Fitness Pro self-service dashboard (cyan brand).
-//   • `/dashboard` — GymAxis operator / master-admin dashboard (blue brand).
+//   • `/dashboard` — Pulse Fitness operator / master-admin dashboard (blue brand).
 //
-// Previously the switcher always routed to `/pulse`, which dumped GymAxis-
-// branded users (master admin, GymAxis operators) onto a Pulse Fitness screen
+// Previously the switcher always routed to `/pulse`, which dumped Pulse Fitness-
+// branded users (master admin, Pulse Fitness operators) onto a Pulse Fitness screen
 // when they clicked Operations. This helper picks the right path.
 function resolveOperationsPath(user, pathname) {
   // Explicit Pulse tenancy wins — they belong on `/pulse`.
@@ -44,11 +44,11 @@ function resolveOperationsPath(user, pathname) {
   if (pathname && pathname.startsWith('/pulse')) return '/pulse';
   // Master admins hitting `/dashboard` get auto-redirected to `/master-admin`
   // unless the `?as=operator` flag is set. Preserve that flag so Operations
-  // shows the GymAxis operator preview (the 9-tab surface) instead of the
+  // shows the Pulse Fitness operator preview (the 9-tab surface) instead of the
   // Master Admin console, mirroring how the Pulse module works for them.
   const isMaster = user?.is_master_admin === true || user?.role === 'master_admin' || user?.role === 'master';
   if (isMaster) return '/dashboard?as=operator';
-  // Everything else (GymAxis `full` orgs, MOD) → GymAxis portal.
+  // Everything else (Pulse Fitness `full` orgs, MOD) → Pulse Fitness portal.
   return '/dashboard';
 }
 
@@ -74,7 +74,7 @@ function hasAccess(user, accessKey) {
  // No explicit flag — fall back to historical defaults.
  if (isMod) return false;
  if (accessKey === 'crm') {
-   // CRM not in module_access dict → only GymAxis-internal `full` orgs get
+   // CRM not in module_access dict → only Pulse Fitness-internal `full` orgs get
    // it by default. Pulse customers must have it explicitly toggled on.
    return at === 'full';
  }
@@ -91,7 +91,7 @@ export default function ModuleSwitcher({ user, current }) {
  const wrapRef = React.useRef(null);
  const [scrollable, setScrollable] = React.useState(false);
  // Iter 215d5 — rewrite module paths per brand context so Operations
- // takes GymAxis users to `/dashboard` and Pulse users to `/pulse`.
+ // takes Pulse Fitness users to `/dashboard` and Pulse users to `/pulse`.
  const operationsPath = resolveOperationsPath(user, location.pathname);
  const available = MODULES
    .filter((m) => hasAccess(user, m.accessKey))

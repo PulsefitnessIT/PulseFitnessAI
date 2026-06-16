@@ -542,12 +542,12 @@ export default function CRMApp() {
   // ── Brand resolver ──────────────────────────────────────────────────
   // Pulse Pro customers (Tottenham etc.) and Pulse Fitness internal staff
   // get the Pulse-blue branding throughout CRM, including the sidebar
-  // header. End-customer accounts NEVER see "GymAxis" branding.
-  // Iter 215ax (Phase 3) — for GymAxis-branded CRM users, the active-tab
+  // header. End-customer accounts NEVER see "Pulse Fitness" branding.
+  // Iter 215ax (Phase 3) — for Pulse Fitness-branded CRM users, the active-tab
   // accent is the brand gradient (navy → purple); Pulse-branded users
   // keep the legacy cyan to preserve their visual identity.
   // Iter 216h192 — Pulse-branded orgs (account_type === 'pulse_pro' or
-  // 'lite') were showing "GymAxis Pro" in the CRM header because the
+  // 'lite') were showing "Pulse Fitness Pro" in the CRM header because the
   // legacy resolver only checked `crm_brand`. Now align with the rest
   // of the platform: any Pulse account_type forces Pulse branding.
   // Note: platformUser is derived from mainAuth.user || user (defined later
@@ -624,7 +624,7 @@ export default function CRMApp() {
   // (which clears `mainAuth.user`), the CRM module must follow suit.
   // Without this, the platform JWT is gone but the local CRM token
   // sticks around — the page keeps rendering CRM content with the
-  // GymAxis fallback brand because `platformUser` falls back to the
+  // Pulse Fitness fallback brand because `platformUser` falls back to the
   // CRM-only user record.
   const mainUserId = mainAuth?.user?.id ?? null;
   const wasLoggedInRef = useRef(false);
@@ -891,7 +891,7 @@ export default function CRMApp() {
         )}
         {showShell && <ProductTour variant="crm" />}
         {/* Iter 216h274 — wrap the tips banner with the same pt-24 the
-            "GymAxis Pro" header below uses. Without it the banner
+            "Pulse Fitness Pro" header below uses. Without it the banner
             sits behind the fixed 81px navbar and the user can't
             scroll up to dismiss it. */}
         {showShell && (
@@ -900,7 +900,7 @@ export default function CRMApp() {
           </div>
         )}
 
-        {/* Pulse / GymAxis branded module header — byte-for-byte parity
+        {/* Pulse / Pulse Fitness branded module header — byte-for-byte parity
             with Marketing / Memberships so the user gets the same
             typography (text-3xl..4xl + pulse-font-heading) and the
             "Welcome back, …" line sits ABOVE the module switcher.

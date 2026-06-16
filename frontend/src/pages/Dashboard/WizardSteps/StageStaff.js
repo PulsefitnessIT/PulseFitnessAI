@@ -11,7 +11,7 @@ export const STAFF_ROLES = [
 
 const StageStaff = ({ invites, addRow, removeRow, updateRow, onSave, onSkip, saving, alreadyDone }) => (
   <div className="space-y-5" data-testid="stage-staff">
-    <StageIntro title="Invite your team" blurb="Add your managers and floor staff — they'll receive an email to join your GymAxis Operations Portal."
+    <StageIntro title="Invite your team" blurb="Add your managers and floor staff — they'll receive an email to join your Pulse Fitness Operations Portal."
       badge="Stage 3 / 4" alreadyDone={alreadyDone} />
     <div className="space-y-3">
       {invites.map((s, i) => (

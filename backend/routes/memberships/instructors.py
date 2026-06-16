@@ -710,7 +710,7 @@ async def invite_instructor_login(instructor_id: str, user: dict = Depends(get_c
     frontend = (
         _os.environ.get("FRONTEND_URL")
         or _os.environ.get("REACT_APP_BACKEND_URL")
-        or "https://gymaxisai.com"
+        or "https://www.pulsefitness.ai"
     ).rstrip("/")
     html = (
         f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto'>"
@@ -948,7 +948,7 @@ def _render_instructor_og(org: dict, inst: dict) -> bytes:
             headline = headline[:43] + "…"
         d.text((450, 400), headline, fill=primary, font=font_headline)
 
-    d.text((450, 560), "Book a class · powered by GymAxis", fill=(255, 255, 255, 160), font=font_footer)
+    d.text((450, 560), "Book a class · powered by Pulse Fitness", fill=(255, 255, 255, 160), font=font_footer)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
@@ -990,7 +990,7 @@ async def instructor_og_image(slug: str, instructor_slug: str):
         content=data, media_type="image/png",
         headers={
             "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=600",
-            "X-GymAxis-OG-Cache": source,
+            "X-Pulse Fitness-OG-Cache": source,
         },
     )
 

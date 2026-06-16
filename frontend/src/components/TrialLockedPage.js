@@ -21,7 +21,7 @@ export default function TrialLockedPage() {
   const isOwner = user?.role === 'owner';
   const isPulse = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
   const isProvider = user?.account_type === 'service_provider';
-  const brand = isPulse ? 'Pulse Fitness' : 'GymAxis';
+  const brand = isPulse ? 'Pulse Fitness' : 'Pulse Fitness';
 
   const upgrade = () => {
     if (!isOwner) {

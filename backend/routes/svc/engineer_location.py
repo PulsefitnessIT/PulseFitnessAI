@@ -1,4 +1,4 @@
-"""GymAxis Service Operations — Engineer location pings (Iter 216h91).
+"""Pulse Fitness Service Operations — Engineer location pings (Iter 216h91).
 
 Powers the "Live tracking" view on the customer-facing tracking page.
 Engineer mobile app POSTs `navigator.geolocation` updates every ~60 s

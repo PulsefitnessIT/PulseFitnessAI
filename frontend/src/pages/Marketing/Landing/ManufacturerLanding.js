@@ -1,7 +1,7 @@
 /**
  * ManufacturerLanding — programmatic /maintenance/:slug landing page.
  * Renders a manufacturer's real product range from the catalogue plus
- * GymAxis service value props. Targets "[brand] equipment maintenance
+ * Pulse Fitness service value props. Targets "[brand] equipment maintenance
  * software". Article-grade content (real product grid) avoids thin pages.
  */
 import { useEffect, useState } from 'react';
@@ -18,7 +18,7 @@ import { openTrial } from '../TrialSignupModal';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://gymaxisai.com';
+const SITE = 'https://www.pulsefitness.ai';
 
 const VALUE_PROPS = [
   { title: 'Asset register for every machine', body: 'Tag and track every unit with its full service history, warranty position and lifecycle status.' },
@@ -44,16 +44,16 @@ export default function ManufacturerLanding() {
   const name = data?.name || '';
   const canonical = `${SITE}/maintenance/${slug}`;
   const faqs = data ? [
-    { q: `Does GymAxis work with ${name} equipment?`, a: `Yes. GymAxis maintains equipment from every major manufacturer, including ${name}. Add your ${name} machines to the asset register — manually or by bulk import — and the built-in manufacturer catalogue enriches them with the right model and image.` },
+    { q: `Does Pulse Fitness work with ${name} equipment?`, a: `Yes. Pulse Fitness maintains equipment from every major manufacturer, including ${name}. Add your ${name} machines to the asset register — manually or by bulk import — and the built-in manufacturer catalogue enriches them with the right model and image.` },
     { q: `Can I track service history for each ${name} machine?`, a: `Every ${name} asset carries a complete lifecycle history: purchase, warranty, every fault, every planned visit and every part fitted — all on one record.` },
     { q: `How does it handle ${name} warranty vs chargeable repairs?`, a: `Each asset knows its cover, so warranty and chargeable work are separated automatically at the point of repair — no missed warranty claims.` },
     { q: 'Can field engineers service it on site?', a: 'Yes — engineers work jobs on an offline-first mobile app, recording parts, photos, signatures and GPS proof of work that sync when back online.' },
   ] : [];
 
   useSeo({
-    title: data ? `${name} Equipment Maintenance & Service Software | GymAxis AI` : 'Equipment maintenance | GymAxis',
+    title: data ? `${name} Equipment Maintenance & Service Software | Pulse Fitness AI` : 'Equipment maintenance | Pulse Fitness',
     description: data
-      ? `Maintain your ${name} equipment with GymAxis: asset register, fault logging, planned maintenance, parts and compliance evidence — across one site or your whole estate.`
+      ? `Maintain your ${name} equipment with Pulse Fitness: asset register, fault logging, planned maintenance, parts and compliance evidence — across one site or your whole estate.`
       : undefined,
     canonical,
     image: `${SITE}/brand/og-cover.jpg`,
@@ -63,7 +63,7 @@ export default function ManufacturerLanding() {
         {
           '@type': 'Service',
           name: `${name} Equipment Maintenance Software`,
-          provider: { '@type': 'Organization', name: 'GymAxis AI', url: SITE },
+          provider: { '@type': 'Organization', name: 'Pulse Fitness AI', url: SITE },
           areaServed: 'GB',
           description: `Maintenance, asset management and service management software for ${name} gym equipment.`,
         },
@@ -102,7 +102,7 @@ export default function ManufacturerLanding() {
       <section className="gx-grid-bg" data-testid={`manufacturer-hero-${slug}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <Link to="/maintenance" className="hover:text-slate-700">Maintenance</Link>
             <ChevronRight size={11} />
@@ -115,7 +115,7 @@ export default function ManufacturerLanding() {
             {name} equipment maintenance &amp; service software.
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-3xl">
-            Keep your {name} machines on the floor and compliant. GymAxis gives you an asset register, AI-triaged fault logging, planned maintenance, parts control and proof-of-work — purpose-built for the gyms and leisure operators who run {name} kit.
+            Keep your {name} machines on the floor and compliant. Pulse Fitness gives you an asset register, AI-triaged fault logging, planned maintenance, parts control and proof-of-work — purpose-built for the gyms and leisure operators who run {name} kit.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold" data-testid={`manufacturer-trial-${slug}`}>
@@ -153,7 +153,7 @@ export default function ManufacturerLanding() {
         <section className="bg-slate-50 py-16 lg:py-20 dark:bg-zinc-900">
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-black tracking-tight">{name} equipment we maintain</h2>
-            <p className="mt-3 text-slate-600 max-w-2xl">A sample of the {name} range tracked in the GymAxis manufacturer catalogue. Add yours to the asset register in minutes.</p>
+            <p className="mt-3 text-slate-600 max-w-2xl">A sample of the {name} range tracked in the Pulse Fitness manufacturer catalogue. Add yours to the asset register in minutes.</p>
             <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="manufacturer-products">
               {data.products.map((p) => (
                 <div key={p.url || p.title} className="rounded-2xl bg-white border border-slate-200 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">

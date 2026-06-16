@@ -106,7 +106,7 @@ export default function EmbedTimetable() {
       )}
 
       <footer className="mt-8 pt-4 border-t border-zinc-200 text-[10px] text-zinc-400 text-center dark:border-zinc-800">
-        Powered by <a href="https://gymaxis.app" target="_blank" rel="noopener" className="hover:underline">GymAxis</a>
+        Powered by <a href="https://gymaxis.app" target="_blank" rel="noopener" className="hover:underline">Pulse Fitness</a>
       </footer>
     </div>
   );

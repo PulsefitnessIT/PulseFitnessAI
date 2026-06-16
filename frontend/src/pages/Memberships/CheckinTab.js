@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships — Front-Desk Check-in console (Phase 4).
+ * Pulse Fitness Memberships — Front-Desk Check-in console (Phase 4).
  *
  * One-tap mark-attended/no-show roster, plus member search to add a
  * walk-in or look up details. Also exposes:

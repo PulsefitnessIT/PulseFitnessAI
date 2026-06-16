@@ -5,7 +5,7 @@ Pulse customer's equipment hits a CAPEX 'monitor' / 'at_risk' /
 'replace_soon' / 'replace_now' band. These opportunities are
 *strictly invisible* to the customer and only readable by:
 
-  • GymAxis Master Admin (admin@gymaxisai.com)
+  • Pulse Fitness Master Admin (admin@pulsefitness.ai)
   • Pulse Master Admin (delegated via `is_pulse_admin=true`)
 
 Customers (Third Space, MOD HQ, MOD sub-orgs) never see this view.
@@ -209,7 +209,7 @@ async def sweep_capex_opportunities() -> dict:
 
 
 def _require_pulse_sales_reader(user: dict) -> None:
-    """Allow GymAxis MA + Pulse MA only."""
+    """Allow Pulse Fitness MA + Pulse MA only."""
     require_master_admin(user)
 
 

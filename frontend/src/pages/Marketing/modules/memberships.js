@@ -11,7 +11,7 @@ export default {
 
   heroLine1: 'Classes, plans,',
   heroLine2: 'walk-ins.',
-  heroSubtitle: 'Memberships is the booking, billing and member-experience layer of GymAxis. Built equally well for boutique studios, dance schools and multi-site chains — six selling models, family billing, and Auto-Bill that quietly pays itself.',
+  heroSubtitle: 'Memberships is the booking, billing and member-experience layer of Pulse Fitness. Built equally well for boutique studios, dance schools and multi-site chains — six selling models, family billing, and Auto-Bill that quietly pays itself.',
   heroVisualHeadline: 'Today\'s timetable',
   heroVisualLines: [
     { label: 'Classes today', value: '14' },
@@ -80,7 +80,7 @@ export default {
     { title: 'Win-back drafts', body: 'Auto-drafts a personalised win-back email for every cancellation, ready for one-click send.' },
   ],
 
-  integrationsHeadline: 'Memberships is wired into the rest of GymAxis.',
+  integrationsHeadline: 'Memberships is wired into the rest of Pulse Fitness.',
   integrations: [
     { icon: Users,     name: 'CRM',       color: '#6366F1', to: '/platform/crm',       body: 'Every booking, freeze and family invoice lands on the contact timeline automatically.' },
     { icon: Megaphone, name: 'Marketing', color: '#D946EF', to: '/platform/marketing', body: 'Member segments ("no class in 14d") are one-click campaign audiences.' },

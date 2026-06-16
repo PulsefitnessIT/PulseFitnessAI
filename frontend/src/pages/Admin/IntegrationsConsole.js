@@ -246,7 +246,7 @@ function MappingTab() {
           <div className="svc-section-title">Module integration matrix</div>
         </div>
         <div className="svc-section-body">
-          <p className="text-[11.5px] svc-muted mb-3">Which GymAxis modules are wired to which external system. Source: <code>/app/memory/INTEGRATION_FIELD_MAPPING.md</code> § 0.</p>
+          <p className="text-[11.5px] svc-muted mb-3">Which Pulse Fitness modules are wired to which external system. Source: <code>/app/memory/INTEGRATION_FIELD_MAPPING.md</code> § 0.</p>
           <div className="svc-table-wrap">
             <table className="svc-table">
               <thead>
@@ -417,7 +417,7 @@ export default function IntegrationsConsole() {
           disabled={!!busy}
           className="svc-btn svc-btn-secondary svc-btn-sm"
           data-testid="sicon-poll-inbound"
-          title="Pull cases scheduled/amended in Sicon into GymAxis — assigned engineers receive them in the Engineer App"
+          title="Pull cases scheduled/amended in Sicon into Pulse Fitness — assigned engineers receive them in the Engineer App"
         >
           <Play size={11} /> {busy === 'sicon-poll' ? '…' : 'Poll inbound'}
         </button>

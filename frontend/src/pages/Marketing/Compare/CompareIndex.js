@@ -17,7 +17,7 @@ const ENTRIES = [
 export default function CompareIndex() {
   React.useEffect(() => {
     const prev = document.title;
-    document.title = 'GymAxis alternatives — compare side-by-side';
+    document.title = 'Pulse Fitness alternatives — compare side-by-side';
     return () => { document.title = prev; };
   }, []);
   return (
@@ -28,7 +28,7 @@ export default function CompareIndex() {
             <Sparkles size={12} /> Side-by-side comparisons
           </span>
           <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl tracking-tighter font-black leading-[1.05] max-w-4xl">
-            How GymAxis stacks up against the<br /><span className="gx-gradient-text">tools you already know.</span>
+            How Pulse Fitness stacks up against the<br /><span className="gx-gradient-text">tools you already know.</span>
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 max-w-3xl">
             Honest, feature-by-feature comparisons. We highlight where we win, where we don't, and which gym profile each tool is best suited to.
@@ -45,7 +45,7 @@ export default function CompareIndex() {
               className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-md hover:-translate-y-0.5 transition group dark:bg-zinc-900 dark:border-zinc-800"
             >
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">vs {e.name}</p>
-              <h2 className="mt-2 text-2xl font-black tracking-tight">GymAxis vs {e.name}</h2>
+              <h2 className="mt-2 text-2xl font-black tracking-tight">Pulse Fitness vs {e.name}</h2>
               <p className="mt-3 text-sm text-slate-600 leading-relaxed">{e.blurb}</p>
               <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-slate-800 group-hover:text-slate-600">
                 Read comparison <ArrowRight size={14} />

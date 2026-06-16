@@ -26,12 +26,12 @@ from utils.notification_prefs_helper import can_send_lifecycle_email
 
 logger = logging.getLogger(__name__)
 
-LOGIN_URL = "https://gymaxisai.com/login"
-DEMO_URL = "https://gymaxisai.com/contact"
-PRICING_URL = "https://gymaxisai.com/pricing"
+LOGIN_URL = "https://www.pulsefitness.ai/login"
+DEMO_URL = "https://www.pulsefitness.ai/contact"
+PRICING_URL = "https://www.pulsefitness.ai/pricing"
 # Trial-ending CTA destination — login-gated paid checkout page (iter 221).
 # Deliberately NOT the public /pricing page, which re-offers a free trial.
-CHOOSE_PLAN_URL = "https://gymaxisai.com/choose-plan"
+CHOOSE_PLAN_URL = "https://www.pulsefitness.ai/choose-plan"
 
 
 def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
@@ -41,7 +41,7 @@ def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
   <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
     <tr>
       <td style="padding:24px 28px;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;opacity:0.85;">GymAxis AI</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;opacity:0.85;">Pulse Fitness AI</div>
         <h1 style="margin:6px 0 0 0;font-size:22px;line-height:1.3;font-weight:800;">{title}</h1>
       </td>
     </tr>
@@ -55,7 +55,7 @@ def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
     </tr>
     <tr>
       <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
-        <p style="margin:0;">Sent by GymAxis AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://gymaxisai.com/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
+        <p style="margin:0;">Sent by Pulse Fitness AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://www.pulsefitness.ai/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
         <p style="margin:6px 0 0 0;font-size:11px;color:#94a3b8;">You can manage email preferences inside your account.</p>
       </td>
     </tr>
@@ -66,7 +66,7 @@ def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
 def _welcome(name: str) -> tuple[str, str]:
     body = f"""
         <p>Hi {name or 'there'},</p>
-        <p>Welcome to GymAxis AI — your free 3-day trial is live, with every module unlocked. No credit card required.</p>
+        <p>Welcome to Pulse Fitness AI — your free 3-day trial is live, with every module unlocked. No credit card required.</p>
         <p><strong>What you can do in your first session:</strong></p>
         <ul style="padding-left:18px;">
             <li>Add your first member or upload a CSV</li>
@@ -76,13 +76,13 @@ def _welcome(name: str) -> tuple[str, str]:
         </ul>
         <p>Need help finding your way around? Hit "Take the Tour" inside the dashboard, or reply to this email.</p>
     """
-    return ("Welcome to GymAxis AI · Your trial is live", _shell("Welcome aboard", body, "Open my dashboard", LOGIN_URL))
+    return ("Welcome to Pulse Fitness AI · Your trial is live", _shell("Welcome aboard", body, "Open my dashboard", LOGIN_URL))
 
 
 def _day2_check(name: str) -> tuple[str, str]:
     body = f"""
         <p>Hi {name or 'there'},</p>
-        <p>You're a day into your GymAxis trial — how's it going?</p>
+        <p>You're a day into your Pulse Fitness trial — how's it going?</p>
         <p>Operators who add at least one member and one plan in the first 48 hours are <strong>3x more likely</strong> to keep using the platform after their trial. Two quick wins:</p>
         <ol style="padding-left:18px;">
             <li><strong>Members tab</strong> → "Add member" or "Bulk import CSV"</li>
@@ -111,7 +111,7 @@ def _expiry_warn(name: str, hours_left: int) -> tuple[str, str]:
     body = f"""
         <p>Hi {name or 'there'},</p>
         <p>Heads up — your free trial ends in <strong>about {hours_left} hour{'s' if hours_left != 1 else ''}</strong>.</p>
-        <p>To keep your data and continue using GymAxis without interruption, choose a plan now. The bundle starts at £150/mo, or pick a single module from £29/mo.</p>
+        <p>To keep your data and continue using Pulse Fitness without interruption, choose a plan now. The bundle starts at £150/mo, or pick a single module from £29/mo.</p>
         <p>Need more time? Reply to this email — we'll happily extend your trial.</p>
     """
     return (f"Your trial ends in {hours_left}h", _shell("Don't lose your setup", body, "Choose your plan", CHOOSE_PLAN_URL))
@@ -120,7 +120,7 @@ def _expiry_warn(name: str, hours_left: int) -> tuple[str, str]:
 def _winback(name: str) -> tuple[str, str]:
     body = f"""
         <p>Hi {name or 'there'},</p>
-        <p>It's been a week since you cancelled GymAxis — we'd love to know what we could have done better.</p>
+        <p>It's been a week since you cancelled Pulse Fitness — we'd love to know what we could have done better.</p>
         <p>If you'd like a second look, here's <strong>20% off your first 3 months</strong> when you reactivate. Just reply with the word "reactivate" and we'll set it up for you.</p>
         <p>Either way, your data is still safe with us for the next 30 days.</p>
     """

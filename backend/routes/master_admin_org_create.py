@@ -204,14 +204,14 @@ async def send_primary_contact_credentials(org_id: str, user: dict = Depends(get
     # is misconfigured. send_email is best-effort and audited internally.
     from utils.email import send_email
 
-    org_name  = org.get("name", "your GymAxis account")
+    org_name  = org.get("name", "your Pulse Fitness account")
     contact   = org.get("primary_contact_name") or email.split("@")[0]
-    subject   = f"Welcome to {org_name} on GymAxis"
+    subject   = f"Welcome to {org_name} on Pulse Fitness"
 
     # Plain HTML — no inline images, no tracking pixels, deliverability-friendly.
     html = f"""
     <div style="font-family:Inter,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
-      <h1 style="font-size:20px;font-weight:800;letter-spacing:-0.4px;margin:0 0 8px">Welcome to GymAxis, {contact}.</h1>
+      <h1 style="font-size:20px;font-weight:800;letter-spacing:-0.4px;margin:0 0 8px">Welcome to Pulse Fitness, {contact}.</h1>
       <p style="font-size:14px;line-height:1.55;color:#475569;margin:0 0 20px">
         Your account for <strong>{org_name}</strong> is ready. Use the credentials below to sign in for the first time.
       </p>
@@ -225,9 +225,9 @@ async def send_primary_contact_credentials(org_id: str, user: dict = Depends(get
         Please change your password the first time you sign in — go to your profile menu and select
         <em>Change password</em>. The temporary password above will stop working once you do.
       </p>
-      <a href="https://gymaxisai.com/login" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px">Sign in to GymAxis</a>
+      <a href="https://www.pulsefitness.ai/login" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px">Sign in to Pulse Fitness</a>
       <p style="font-size:11px;color:#94a3b8;margin-top:32px">
-        If you weren't expecting this email, please contact us at security@gymaxisai.com.
+        If you weren't expecting this email, please contact us at security@pulsefitness.ai.
       </p>
     </div>
     """

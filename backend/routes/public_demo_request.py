@@ -1,6 +1,6 @@
 """Public Demo Request — Iter 220ak / Phase A.3.
 
-Captures inbound demo requests from the GymAxis public marketing site
+Captures inbound demo requests from the Pulse Fitness public marketing site
 (``/demo-request`` landing page) directly into the master-admin CRM
 pipeline. This is the lower edge of the inbound funnel that the SEO
 Autopilot (Iter 220ad-aj) feeds into.
@@ -58,7 +58,7 @@ router = APIRouter(prefix="/public", tags=["public-demo-request"])
 _DEMO_RATE_MAX = int(os.environ.get("DEMO_REQUEST_RATE_MAX", "5"))
 _DEMO_RATE_WINDOW_S = int(os.environ.get("DEMO_REQUEST_RATE_WINDOW_S", "3600"))
 _DEMO_NOTIFY_INBOX = (
-    os.environ.get("DEMO_REQUEST_NOTIFY_EMAIL", "sales@gymaxisai.com")
+    os.environ.get("DEMO_REQUEST_NOTIFY_EMAIL", "sales@pulsefitness.ai")
     .strip()
 )
 
@@ -136,7 +136,7 @@ async def _notify_sales_inbox(*, name: str, email: str, company: str,
         f"<p><strong>Email:</strong> <a href=\"mailto:{email}\">{email}</a></p>"
         f"<p><strong>Message:</strong><br>{(message or '—').replace(chr(10), '<br>')}</p>"
         f"<hr><p>Deal id: <code>{deal_id}</code> · "
-        f"<a href=\"https://gymaxisai.com/master-admin\">Open in Master Admin</a></p>"
+        f"<a href=\"https://www.pulsefitness.ai/master-admin\">Open in Master Admin</a></p>"
     )
     try:
         await send_email(to=_DEMO_NOTIFY_INBOX, subject=subject, html=html)

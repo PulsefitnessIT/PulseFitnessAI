@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 4.
+"""Pulse Fitness Memberships — Phase 4.
 
 Smart Waitlist / Fill System + Front-Desk Check-in console + Kiosk mode.
 

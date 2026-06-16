@@ -4,7 +4,7 @@
  * Mirror of `LiveEngineerAppPreview` for gym-owner prospects on the
  * homepage. Three tap-through screens showing exactly what an end
  * customer (the gym manager who logged the fault) sees while a
- * GymAxis-powered job runs against their equipment:
+ * Pulse Fitness-powered job runs against their equipment:
  *
  *   1. Tracker · Live ETA   — engineer photo + name + rating, map dot
  *                              animating along the route, ETA countdown

@@ -360,7 +360,7 @@ const ACCOUNT_TYPE_STYLES = {
  lite: 'bg-sky-50 text-sky-700 border-sky-200 font-medium',
  partner_engineer: 'bg-amber-50 text-amber-700 border-amber-200 font-medium',
 };
-const ACCOUNT_TYPE_LABELS = { full: 'GymAxis', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite', partner_engineer: 'Independent Engineer' };
+const ACCOUNT_TYPE_LABELS = { full: 'Pulse Fitness', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite', partner_engineer: 'Independent Engineer' };
 
 const _FEATURE_LIST = [
  { key: 'ai_audits', label: 'AI Audits', group: 'portal' },
@@ -375,7 +375,7 @@ const _FEATURE_LIST = [
  { key: 'crm_ai_tools', label: 'AI Tools', group: 'crm' },
  { key: 'crm_workflows', label: 'Workflows', group: 'crm' },
  { key: 'crm_documents', label: 'Documents', group: 'crm' },
- // GymAxis Enterprise — off by default for Pulse accounts, on by default for GymAxis
+ // Pulse Fitness Enterprise — off by default for Pulse accounts, on by default for Pulse Fitness
  { key: 'kpi_engine', label: 'KPI / Performance Engine', group: 'enterprise' },
  { key: 'sicon_integration', label: 'Sicon Integration', group: 'enterprise' },
  { key: 'sage_integration', label: 'Sage 200 Integration', group: 'enterprise' },
@@ -686,7 +686,7 @@ useEffect(() => {
  </SelectTrigger>
  <SelectContent className="bg-white border-slate-200">
  <SelectItem value="all">All Platforms</SelectItem>
- <SelectItem value="full">GymAxis</SelectItem>
+ <SelectItem value="full">Pulse Fitness</SelectItem>
  <SelectItem value="pulse_pro">Pulse Pro</SelectItem>
  <SelectItem value="lite">Pulse Lite</SelectItem>
  <SelectItem value="partner_engineer">Independent Engineer</SelectItem>
@@ -1105,7 +1105,7 @@ useEffect(() => {
  <Archive size={11} className="mr-0.5" /> {u.archived ? 'Unarchive' : 'Archive'}
  </Button>
  )}
- {onHardDeleteUser && u.archived && !u.is_master_admin && (u.email || '').toLowerCase() !== 'admin@gymaxisai.com' && (
+ {onHardDeleteUser && u.archived && !u.is_master_admin && (u.email || '').toLowerCase() !== 'admin@pulsefitness.ai' && (
  <Button
  size="sm" variant="ghost"
  className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50"
@@ -1384,7 +1384,7 @@ useEffect(() => {
  <div>
  <Label className="text-zinc-500 text-[10px] uppercase tracking-wider">Subscription tier</Label>
  {/* Iter 216d — context-aware tier list. Pulse Pro orgs get Pulse
-     tiers, MOD orgs get MOD tiers, GymAxis customers keep the
+     tiers, MOD orgs get MOD tiers, Pulse Fitness customers keep the
      Starter/Growth/Enterprise lineup. */}
  {(() => {
    const isPulse = org.account_type === 'pulse_pro' || org.account_type === 'lite';
@@ -1577,7 +1577,7 @@ useEffect(() => {
      : 'gymaxis'
    }
    onValueChange={v => {
-     // Iter 215eh / 216h109 — Platform is the brand. Pulse / GymAxis / MOD.
+     // Iter 215eh / 216h109 — Platform is the brand. Pulse / Pulse Fitness / MOD.
      if (v === 'pulse') {
        setOrgForm({ ...orgForm, account_type: 'lite', subscription_tier: 'lite', is_mod: false, mod_force: '' });
      } else if (v === 'mod') {
@@ -1589,7 +1589,7 @@ useEffect(() => {
  >
  <SelectTrigger className="mt-1" data-testid="org-form-account-type"><SelectValue /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
- <SelectItem value="gymaxis">GymAxis</SelectItem>
+ <SelectItem value="gymaxis">Pulse Fitness</SelectItem>
  <SelectItem value="pulse">Pulse Fitness</SelectItem>
  <SelectItem value="mod">MOD (Ministry of Defence)</SelectItem>
  </SelectContent>
@@ -2154,7 +2154,7 @@ useEffect(() => {
  </p>
  <p className="mt-1">
  Platform footer shown: <strong className="text-zinc-900">
- {['pulse_pro', 'lite'].includes(emailPreviewOrg.account_type) ? 'Pulse Fitness' : 'GymAxis AI'}
+ {['pulse_pro', 'lite'].includes(emailPreviewOrg.account_type) ? 'Pulse Fitness' : 'Pulse Fitness AI'}
  </strong>
  </p>
  </div>

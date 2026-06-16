@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Compliance Pack (Iter 220de).
+Pulse Fitness Service Operations — Compliance Pack (Iter 220de).
 
 Three field-engineering compliance gates shipped together because
 they share patterns and a single engineer-side surface

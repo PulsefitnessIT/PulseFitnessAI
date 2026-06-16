@@ -1,4 +1,4 @@
-"""Unified GymAxis AI Assistant — single endpoint, mode-aware grounded chat.
+"""Unified Pulse Fitness AI Assistant — single endpoint, mode-aware grounded chat.
 
 The same floating orb appears on /marketing, /pulse, and /memberships. Behind
 the scenes each route picks a `mode` and we build a tailored system prompt +
@@ -321,9 +321,9 @@ def _build_system_prompt(mode: str, context_block: str) -> str:
     cfg = MODE_REGISTRY[mode]
     other_modes = ", ".join(k.title() for k in MODE_REGISTRY if k != mode)
     return (
-        f"You are GymAxis {cfg['label']} Copilot — an AI assistant embedded in "
+        f"You are Pulse Fitness {cfg['label']} Copilot — an AI assistant embedded in "
         f"the {cfg['label']} module of a platform built for fitness operators "
-        f"(Pulse Pro and GymAxis). You give concise, actionable answers grounded "
+        f"(Pulse Pro and Pulse Fitness). You give concise, actionable answers grounded "
         f"in the user's real, live data (provided below).\n\n"
         f"## SCOPE GUARDRAIL — CRITICAL\n"
         f"You ONLY answer questions related to topics within this platform:\n"

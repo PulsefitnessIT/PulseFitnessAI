@@ -214,7 +214,7 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  data-testid="gamified-onboarding-dialog"
  >
  <VisuallyHidden>
- <DialogTitle>GymAxis Onboarding Wizard</DialogTitle>
+ <DialogTitle>Pulse Fitness Onboarding Wizard</DialogTitle>
  <DialogDescription>Four-stage guided setup: Suppliers, Equipment, Team, and Go-Live.</DialogDescription>
  </VisuallyHidden>
  {/* Hero header */}
@@ -234,7 +234,7 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  </div>
  <div className="flex-1">
  <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
- Welcome to GymAxis, {gymName} <span className="inline-block animate-waving-hand">👋</span>
+ Welcome to Pulse Fitness, {gymName} <span className="inline-block animate-waving-hand">👋</span>
  </h2>
  <p className="text-[var(--color-text-muted)] text-sm mt-1">
  Let&apos;s get your gym fully set up in just a few quick steps — takes about 5 minutes.

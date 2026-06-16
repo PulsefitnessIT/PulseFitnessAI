@@ -1,15 +1,15 @@
-"""GymAxis Embeddable Widget — Iter 220aa.
+"""Pulse Fitness Embeddable Widget — Iter 220aa.
 
 Lets Partner Engineers AND Gym Companies drop a "Log a Fault" / "Get a
 Quote" iframe on their own website. Submissions land straight in the
-owner's GymAxis inbox (engineer → ``svc_job_requests``;
+owner's Pulse Fitness inbox (engineer → ``svc_job_requests``;
 company → ``crm2_contacts`` lead).
 
 Why this matters:
-  * Engineers/companies pay GymAxis a tier-fee → giving them more
+  * Engineers/companies pay Pulse Fitness a tier-fee → giving them more
     inbound lead channels makes the platform sticky.
   * Every embed is a free brand impression on the customer's website.
-  * The customer never sees a GymAxis login — pure embedded form.
+  * The customer never sees a Pulse Fitness login — pure embedded form.
 
 Public routes (NO auth — token-gated):
   GET  /api/widget/embed/{token}         · config for the iframe

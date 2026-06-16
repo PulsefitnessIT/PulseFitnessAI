@@ -1,5 +1,5 @@
 """
-GymAxis Service Ops ↔ CRM sync — Iter 216h152 (Feb 2026).
+Pulse Fitness Service Ops ↔ CRM sync — Iter 216h152 (Feb 2026).
 
 Emits CRM2 activity rows when service cases close or invoices finalise,
 so the CRM company timeline and forecast can see service revenue

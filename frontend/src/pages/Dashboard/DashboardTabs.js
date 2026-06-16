@@ -7,9 +7,9 @@ import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUserPref } from '@/utils/userPrefs';
 
 /**
- * GymAxis Dashboard tab bar — aligned with Pulse Fitness Pro (iter 215d2).
+ * Pulse Fitness Dashboard tab bar — aligned with Pulse Fitness Pro (iter 215d2).
  *
- * The tab ids keep the legacy GymAxis values (`overview`, `issues`,
+ * The tab ids keep the legacy Pulse Fitness values (`overview`, `issues`,
  * `maintenance`, `gym-design`) so existing <TabsContent> routing in
  * DashboardPage.js still matches. The labels, order, and icons are
  * identical to the Pulse Pro owner/manager bar in LiteDashboardPage.js
@@ -20,7 +20,7 @@ import { useUserPref } from '@/utils/userPrefs';
  *     Start · Dashboard · Equipment · Faults · Check Sheets · Staffing ·
  *     Reports · Suppliers · Gym Layout
  *
- *   GymAxis /dashboard (this component) — identical order + labels.
+ *   Pulse Fitness /dashboard (this component) — identical order + labels.
  */
 const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole }) => {
   const pillBarRef = useRef(null);

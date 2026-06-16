@@ -1,7 +1,7 @@
 /**
  * EngineerQuotes — list + filter + drill-in.
  *
- * Iter 216h129. Light-mode GymAxis brand.
+ * Iter 216h129. Light-mode Pulse Fitness brand.
  *
  * Backend: /api/svc/engineer/quotes
  */
@@ -89,7 +89,7 @@ export default function EngineerQuotes() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">GymAxis</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness</p>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-extrabold text-slate-900">Quotes</h1>
                 <OutboxStatusPill />

@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils"
  * The default variant uses `--color-brand-cyan` which the global brand-attr
  * sync (App.js) overrides per route:
  *   • data-brand="pulse"   → #19CDFF (Pulse cyan, legacy)
- *   • data-brand="gymaxis" → #2563EB (GymAxis blue, premium SaaS)
+ *   • data-brand="gymaxis" → #2563EB (Pulse Fitness blue, premium SaaS)
  * That single CSS variable swap is what stops Pulse cyan leaking into the
- * GymAxis portal. Never reintroduce the hardcoded #19CDFF hex here.
+ * Pulse Fitness portal. Never reintroduce the hardcoded #19CDFF hex here.
  */
 const buttonVariants = cva(
  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",

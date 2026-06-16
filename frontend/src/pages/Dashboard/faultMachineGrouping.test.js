@@ -65,7 +65,7 @@ describe('iter 216d2 — fault machine grouping', () => {
     expect(filterSerialsByGroup(bobsEstate, '')).toEqual(bobsEstate);
   });
 
-  // Iter 216d2 — DRY guard. Both portals (Lite + GymAxis) read this
+  // Iter 216d2 — DRY guard. Both portals (Lite + Pulse Fitness) read this
   // helper. If anyone special-cases the grouping in only one of them
   // again, this test catches the asymmetry.
   test('handles equipment with empty name by falling back to equipment_type', () => {

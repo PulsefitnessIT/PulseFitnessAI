@@ -56,7 +56,7 @@ export default function WitnessStatementPage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-2 mb-6 text-slate-700">
           <Shield className="text-blue-600" size={18} />
-          <span className="font-extrabold tracking-tight">GymAxis · Witness statement</span>
+          <span className="font-extrabold tracking-tight">Pulse Fitness · Witness statement</span>
         </div>
         <Card className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
           {state.loading ? (

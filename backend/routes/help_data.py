@@ -1,4 +1,4 @@
-"""GymAxis Help Centre — seed guide corpus.
+"""Pulse Fitness Help Centre — seed guide corpus.
 
 Every guide is a self-contained, structured object following the brand's
 mandatory help format: title → description → steps → UI notes → tips →
@@ -22,7 +22,7 @@ from typing import Literal, TypedDict
 
 # Canonical category IDs — frontend renders these in this order.
 CATEGORIES: list[dict] = [
-    {"id": "getting-started", "label": "Getting Started",      "blurb": "Your first 15 minutes on GymAxis."},
+    {"id": "getting-started", "label": "Getting Started",      "blurb": "Your first 15 minutes on Pulse Fitness."},
     {"id": "release-notes",    "label": "Release Notes",         "blurb": "What changed, what shipped, what's next."},
     {"id": "crm",              "label": "CRM",                   "blurb": "Contacts, companies, pipeline, deals."},
     {"id": "service",          "label": "Service & Faults",      "blurb": "Log, triage and resolve equipment issues."},
@@ -67,7 +67,7 @@ GUIDES: list[Guide] = [
         "id": "gs-first-login",
         "category": "getting-started",
         "module": "operations",
-        "title": "Your first 15 minutes on GymAxis",
+        "title": "Your first 15 minutes on Pulse Fitness",
         "description": "The exact order to set up your site, invite staff, and log your first fault.",
         "read_minutes": 3,
         "roles": ["owner", "manager", "master_admin"],
@@ -77,7 +77,7 @@ GUIDES: list[Guide] = [
             {"title": "Open the 'Start' tab in any module",      "body": "Every module now ships with a guided Start tab — it walks you through the next useful action based on what's configured already.", "ui_hint": "Look for the sparkle icon on the left of the tab bar."},
             {"title": "Import your equipment",                   "body": "Operations → Start → 'Add your equipment'. Drop in a CSV or add machines one by one.", "ui_hint": "Serials, suppliers and warranty expiry can all be pasted from your current spreadsheet."},
             {"title": "Invite your team",                         "body": "Admin → Users → 'Invite'. Pick a role (Owner, Manager, Staff, Gym Floor) and they get a magic-link email."},
-            {"title": "Log your first fault",                    "body": "Operations → Faults → 'Log a fault'. Snap a photo, pick a severity, and GymAxis routes it to the right supplier automatically."},
+            {"title": "Log your first fault",                    "body": "Operations → Faults → 'Log a fault'. Snap a photo, pick a severity, and Pulse Fitness routes it to the right supplier automatically."},
             {"title": "Set up weekly reports",                   "body": "Reports → Weekly Digest. Choose recipients — the first digest lands next Monday 7 am."},
         ],
         "tips": [
@@ -95,7 +95,7 @@ GUIDES: list[Guide] = [
         "id": "gs-modules-overview",
         "category": "getting-started",
         "module": "operations",
-        "title": "The four GymAxis modules explained",
+        "title": "The four Pulse Fitness modules explained",
         "description": "Operations, Memberships, CRM and Marketing — what each is for, who uses it, when to switch.",
         "read_minutes": 2,
         "roles": [],
@@ -129,7 +129,7 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-27",
         "steps": [
             {"title": "CRM → Contacts → New contact",    "body": "Top-right '+ New' button. Name + email are the only required fields."},
-            {"title": "Link to a company (optional)",    "body": "Start typing the company name in the 'Company' field — GymAxis auto-suggests matches. Pick one or click '+ Create new'."},
+            {"title": "Link to a company (optional)",    "body": "Start typing the company name in the 'Company' field — Pulse Fitness auto-suggests matches. Pick one or click '+ Create new'."},
             {"title": "Save",                             "body": "The contact is created and a welcome activity is logged in their timeline. No email sent unless you choose to."},
         ],
         "tips": [
@@ -161,7 +161,7 @@ GUIDES: list[Guide] = [
         "steps": [
             {"title": "CRM → Pipeline → '+ New deal'",   "body": "Pick the contact + company, add deal value and expected close date."},
             {"title": "Drag the card across stages",     "body": "Lead → Qualified → Proposal → Won/Lost. The activity feed on the right auto-logs every move."},
-            {"title": "Generate a quote in Proposal",    "body": "Open the deal → 'Create quote'. GymAxis pulls pricing from your CPQ library. Versions are tracked automatically."},
+            {"title": "Generate a quote in Proposal",    "body": "Open the deal → 'Create quote'. Pulse Fitness pulls pricing from your CPQ library. Versions are tracked automatically."},
             {"title": "Send the quote",                   "body": "'Send for signature' emails the PDF and tracks opens. E-signature comes back into the deal."},
         ],
         "tips": [
@@ -187,7 +187,7 @@ GUIDES: list[Guide] = [
             {"title": "CRM → Companies → '+ New'",       "body": "Company name, HQ postcode and industry are enough to start."},
             {"title": "Add your contacts",                 "body": "Open the company record → Contacts tab → '+ Add contact' to link existing or new contacts to the company."},
             {"title": "Add sites",                         "body": "Use the 'Sites' tab on the company record to add each gym location. Each site can have its own primary contact."},
-            {"title": "Attach a contract",                "body": "'Contracts' tab → '+ New contract'. Pick the pricing model (per-site, group rate, multi-year) — GymAxis calculates renewal value on the fly."},
+            {"title": "Attach a contract",                "body": "'Contracts' tab → '+ New contract'. Pick the pricing model (per-site, group rate, multi-year) — Pulse Fitness calculates renewal value on the fly."},
         ],
         "tips": [
             "Tagging companies by 'Franchise' vs 'Independent' makes pipeline forecasting cleaner.",
@@ -209,7 +209,7 @@ GUIDES: list[Guide] = [
         "steps": [
             {"title": "Open the company",                "body": "CRM → Companies → pick the company → Contracts tab."},
             {"title": "Add contract details",             "body": "Term length, start/end date, SLA tier, billing frequency and total contract value."},
-            {"title": "Assign approvers",                  "body": "Pick the people who sign internally. GymAxis routes renewals to them automatically 90 days before the end date."},
+            {"title": "Assign approvers",                  "body": "Pick the people who sign internally. Pulse Fitness routes renewals to them automatically 90 days before the end date."},
             {"title": "Upload signed PDF",                 "body": "Drop the file into the Documents tab. OCR indexes it so you can search clauses later."},
         ],
         "tips": [
@@ -234,17 +234,17 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-27",
         "steps": [
             {"title": "Operations → Faults → 'Log a fault'",  "body": "Or scan the QR code on the machine directly from your phone."},
-            {"title": "Pick the equipment",                    "body": "Start typing the serial or equipment name. GymAxis auto-fills type, supplier and warranty."},
+            {"title": "Pick the equipment",                    "body": "Start typing the serial or equipment name. Pulse Fitness auto-fills type, supplier and warranty."},
             {"title": "Choose severity",                        "body": "Operational Minor / Fault Present / Limited Use / Out of Order / Safety Critical. Severity determines who gets the alert."},
             {"title": "Add a photo",                            "body": "Optional but strongly recommended — AI triages the issue from the photo and suggests likely causes."},
-            {"title": "Submit",                                  "body": "GymAxis emails the supplier, logs a tracking note on Sicon (if connected), and adds the fault to Reports."},
+            {"title": "Submit",                                  "body": "Pulse Fitness emails the supplier, logs a tracking note on Sicon (if connected), and adds the fault to Reports."},
         ],
         "tips": [
             "Scanning the QR on the machine skips the equipment picker.",
             "Safety Critical faults also notify owners by SMS.",
         ],
         "mistakes": [
-            "Don't log faults for the same issue twice — GymAxis flags duplicates, but check before submitting.",
+            "Don't log faults for the same issue twice — Pulse Fitness flags duplicates, but check before submitting.",
             "Avoid skipping the photo — it's the biggest predictor of same-day supplier acceptance.",
         ],
         "related": ["service-triage-ai", "service-supplier-portal"],
@@ -262,13 +262,13 @@ GUIDES: list[Guide] = [
         "category": "service",
         "module": "operations",
         "title": "Let the AI triage a fault for you",
-        "description": "Understand how GymAxis recommends severity and likely root cause.",
+        "description": "Understand how Pulse Fitness recommends severity and likely root cause.",
         "read_minutes": 2,
         "roles": ["owner", "manager", "staff"],
         "updated_at": "2026-04-27",
         "steps": [
             {"title": "Open a logged fault with a photo",   "body": "Operations → Faults → pick a fault. The 'AI triage' card appears in the side panel."},
-            {"title": "Read the recommendation",            "body": "GymAxis explains the likely fault (e.g. 'Display flicker — probable PSU'), severity, and suggested next step."},
+            {"title": "Read the recommendation",            "body": "Pulse Fitness explains the likely fault (e.g. 'Display flicker — probable PSU'), severity, and suggested next step."},
             {"title": "Accept or override",                  "body": "Click 'Apply triage' to update severity + supplier routing, or edit manually — either way your decision trains the model."},
         ],
         "tips": [
@@ -326,7 +326,7 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-27",
         "steps": [
             {"title": "Memberships → Plans → '+ New plan'", "body": "Plan name (e.g. 'Peak Monthly'), billing cycle, price."},
-            {"title": "Class packs (optional)",              "body": "Include 4/8/unlimited class entries per cycle — GymAxis auto-decrements as members book."},
+            {"title": "Class packs (optional)",              "body": "Include 4/8/unlimited class entries per cycle — Pulse Fitness auto-decrements as members book."},
             {"title": "Stripe-ready",                         "body": "Stripe price IDs are auto-created on save. No manual Stripe config needed."},
         ],
         "tips": [
@@ -347,7 +347,7 @@ GUIDES: list[Guide] = [
         "roles": ["owner", "manager", "staff"],
         "updated_at": "2026-04-27",
         "steps": [
-            {"title": "Memberships → Timetable → click a slot", "body": "Pick the start date/time — GymAxis opens the class editor."},
+            {"title": "Memberships → Timetable → click a slot", "body": "Pick the start date/time — Pulse Fitness opens the class editor."},
             {"title": "Fill the details",                       "body": "Class name, instructor, room, capacity, recurrence."},
             {"title": "Publish",                                  "body": "Members see it on their app immediately. Booking opens per your booking rules."},
         ],
@@ -408,7 +408,7 @@ GUIDES: list[Guide] = [
         "steps": [
             {"title": "Marketing → Creative Studio → AI Director", "body": "The recommended default — big prompt box at the top."},
             {"title": "Describe your campaign in plain English",   "body": "'Announce our new Monday 6am HIIT class to regular morning members.' That's all."},
-            {"title": "Review strategy + variants",                 "body": "GymAxis returns email + SMS + Instagram + Push copy, plus a brand-locked poster image."},
+            {"title": "Review strategy + variants",                 "body": "Pulse Fitness returns email + SMS + Instagram + Push copy, plus a brand-locked poster image."},
             {"title": "Push to Wizard to launch",                   "body": "'Send to Campaign Wizard' pre-fills everything — you just pick a send time."},
         ],
         "tips": [
@@ -501,7 +501,7 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-27",
         "steps": [
             {"title": "Reports → Weekly Digest",            "body": "Toggle 'Email me' on."},
-            {"title": "Choose who else receives it",        "body": "Add any email — recipients don't need a GymAxis login."},
+            {"title": "Choose who else receives it",        "body": "Add any email — recipients don't need a Pulse Fitness login."},
             {"title": "Customise sections",                  "body": "Faults, financial summary, CAPEX alerts, membership churn — turn each section on/off."},
         ],
         "tips": [
@@ -577,7 +577,7 @@ GUIDES: list[Guide] = [
             {"title": "Manager",      "body": "Everything except billing + user role changes."},
             {"title": "Staff",        "body": "Day-to-day operations. Log faults, manage members, run campaigns (if permitted)."},
             {"title": "Gym Floor",    "body": "Kiosk mode — log faults and run check-sheets only. No admin surface."},
-            {"title": "Master Admin", "body": "Internal GymAxis staff only. Cross-organisation view."},
+            {"title": "Master Admin", "body": "Internal Pulse Fitness staff only. Cross-organisation view."},
         ],
         "tips": [
             "One Owner per site is plenty — every extra Owner is a security risk.",
@@ -623,8 +623,8 @@ GUIDES: list[Guide] = [
         "steps": [
             {"title": "Memberships → Settings → Payments", "body": "Click 'Connect Stripe'."},
             {"title": "Sign in to Stripe",                  "body": "Use your existing Stripe account or create a new one. Takes ~2 minutes for a new account."},
-            {"title": "Authorise GymAxis",                  "body": "Read-only + charge + refund permissions. You can revoke at any time from Stripe directly."},
-            {"title": "Go live",                             "body": "Your plans become purchasable instantly. GymAxis handles webhooks, dunning, and failed card retries."},
+            {"title": "Authorise Pulse Fitness",                  "body": "Read-only + charge + refund permissions. You can revoke at any time from Stripe directly."},
+            {"title": "Go live",                             "body": "Your plans become purchasable instantly. Pulse Fitness handles webhooks, dunning, and failed card retries."},
         ],
         "tips": [
             "Start in Test mode if you want to preview flows without real charges.",
@@ -665,7 +665,7 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-27",
         "steps": [
             {"title": "Integrations → Sicon → Connect",    "body": "Paste your Sicon R260200c API key."},
-            {"title": "Map sites and engineers",             "body": "Link each GymAxis site + engineer to its Sicon counterpart."},
+            {"title": "Map sites and engineers",             "body": "Link each Pulse Fitness site + engineer to its Sicon counterpart."},
             {"title": "Enable event hooks",                   "body": "Faults, AI triage, supplier replies and engineer visits auto-post as tracking notes in Sicon."},
         ],
         "tips": [],
@@ -721,7 +721,7 @@ GUIDES: list[Guide] = [
         "category": "ai",
         "module": "operations",
         "title": "AI fault triage explained",
-        "description": "How GymAxis predicts severity, root cause, and supplier routing from a photo.",
+        "description": "How Pulse Fitness predicts severity, root cause, and supplier routing from a photo.",
         "read_minutes": 2,
         "roles": ["owner", "manager", "staff"],
         "updated_at": "2026-04-27",
@@ -911,7 +911,7 @@ GUIDES: list[Guide] = [
             {"title": "Download PDF",                              "body": "Top-right button. Branded multi-page PDF — perfect attachment for RFPs, pen-test scopes, customer security questionnaires."},
         ],
         "tips": [
-            "Visible to BOTH GymAxis and Pulse Fitness master admins — same backbone, both brands.",
+            "Visible to BOTH Pulse Fitness and Pulse Fitness master admins — same backbone, both brands.",
             "The PDF is generated live from the codebase, not a static document. It can never drift from reality.",
         ],
         "mistakes": [
@@ -923,7 +923,7 @@ GUIDES: list[Guide] = [
         "id": "admin-domain-cutover",
         "category": "admin",
         "module": "admin",
-        "title": "Domain cutover — gymaxisai.com + pulsefitness.ai",
+        "title": "Domain cutover — www.pulsefitness.ai + pulsefitness.ai",
         "description": "Step-by-step playbook for moving from preview to your custom production domains.",
         "read_minutes": 5,
         "roles": ["master_admin"],
@@ -942,7 +942,7 @@ GUIDES: list[Guide] = [
             "Both domains can run in parallel during the cutover — DNS lets you split traffic by hostname.",
         ],
         "mistakes": [
-            "Don't forget CORS_ORIGINS — without it, Pulse customers calling the GymAxis API get a 403.",
+            "Don't forget CORS_ORIGINS — without it, Pulse customers calling the Pulse Fitness API get a 403.",
             "Don't run the data migration twice — wait, it IS idempotent. Run it as many times as you want.",
         ],
         "related": ["admin-security-checks"],
@@ -980,13 +980,13 @@ GUIDES: list[Guide] = [
         "id": "crm-bulk-import",
         "category": "crm", "module": "crm",
         "title": "Bulk-import contacts from CSV",
-        "description": "Drop in a CSV (max 50k rows) and map columns to GymAxis fields. De-dupes on email.",
+        "description": "Drop in a CSV (max 50k rows) and map columns to Pulse Fitness fields. De-dupes on email.",
         "read_minutes": 3,
         "roles": ["owner", "manager"],
         "updated_at": "2026-04-29",
         "steps": [
             {"title": "CRM → Contacts → Import",                 "body": "Top-right 'Import' button. Drag-drop your CSV."},
-            {"title": "Map columns",                              "body": "GymAxis suggests mappings; tweak any that look wrong. Required: email."},
+            {"title": "Map columns",                              "body": "Pulse Fitness suggests mappings; tweak any that look wrong. Required: email."},
             {"title": "Review duplicates",                        "body": "Existing contacts (matched on email) are flagged — choose 'skip' or 'update'."},
             {"title": "Run the import",                           "body": "Goes through in the background; you'll get a summary email when it's done."},
         ],
@@ -1054,7 +1054,7 @@ GUIDES: list[Guide] = [
         "id": "service-resolve-fault",
         "category": "service", "module": "operations",
         "title": "Resolve a fault — and what auto-resolves",
-        "description": "Mark a fault complete, attach a service report, or let GymAxis auto-close on supplier confirmation.",
+        "description": "Mark a fault complete, attach a service report, or let Pulse Fitness auto-close on supplier confirmation.",
         "read_minutes": 2,
         "roles": ["owner", "manager", "staff"],
         "popular": True,
@@ -1083,7 +1083,7 @@ GUIDES: list[Guide] = [
             {"title": "Link to manufacturer brands",              "body": "On the supplier detail page, link the brands they cover. New faults on those brands auto-route to them."},
             {"title": "Disable a supplier",                        "body": "If they go bust or you switch — pause them. Existing open cases finish; no new ones are routed to them."},
         ],
-        "tips": ["The Supplier portal is white-labeled — they see your brand, not GymAxis."],
+        "tips": ["The Supplier portal is white-labeled — they see your brand, not Pulse Fitness."],
         "mistakes": ["Don't delete a supplier with a long case history — disable instead, so the audit trail survives."],
         "related": ["service-log-fault"],
     },
@@ -1099,7 +1099,7 @@ GUIDES: list[Guide] = [
             {"title": "Operations → Equipment → open a machine", "body": "Detail drawer has a 'Photos' tab."},
             {"title": "Drop in up to 6 photos",                   "body": "5MB each, JPEG/PNG/WebP. The first photo becomes the cover image everywhere."},
             {"title": "Spec sheets (PDF)",                         "body": "Same panel — drop in user manuals, electrical specs, parts diagrams."},
-            {"title": "Catalogue fallback",                        "body": "If you don't upload anything, GymAxis falls back to the manufacturer image catalogue (matched by brand + model)."},
+            {"title": "Catalogue fallback",                        "body": "If you don't upload anything, Pulse Fitness falls back to the manufacturer image catalogue (matched by brand + model)."},
         ],
         "tips": ["Photograph the serial-plate too — saves a trip when a supplier asks for it."],
         "mistakes": ["Don't upload photos with members' faces — privacy. Frame the equipment only."],
@@ -1128,13 +1128,13 @@ GUIDES: list[Guide] = [
         "id": "service-warranty-tracking",
         "category": "service", "module": "operations",
         "title": "Track warranties and warranty expiry alerts",
-        "description": "GymAxis nags you 30 days before warranty expiry so you can make a final claim.",
+        "description": "Pulse Fitness nags you 30 days before warranty expiry so you can make a final claim.",
         "read_minutes": 2,
         "roles": ["owner", "manager"],
         "updated_at": "2026-04-29",
         "steps": [
             {"title": "Equipment detail → Warranty tab",         "body": "Set start date, length (months), and supplier."},
-            {"title": "30-day expiry email",                      "body": "GymAxis emails the owner 30 days before expiry. The fault-log dialog shows a warranty banner if the asset is still covered."},
+            {"title": "30-day expiry email",                      "body": "Pulse Fitness emails the owner 30 days before expiry. The fault-log dialog shows a warranty banner if the asset is still covered."},
             {"title": "Bulk-set warranties",                      "body": "From the Equipment list, select multiple → Bulk → 'Set warranty' — useful after a fleet purchase."},
         ],
         "tips": ["Check the supplier's terms — some warranties only cover parts, not labour."],
@@ -1151,7 +1151,7 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-29",
         "steps": [
             {"title": "Master Admin → Finance → CAPEX",          "body": "Set thresholds per equipment category (cardio, strength, free weights)."},
-            {"title": "Auto-scoring on each fault",               "body": "Quote received → if quote ≥ threshold AND machine age ≥ X years, GymAxis flags 'Consider replacing'."},
+            {"title": "Auto-scoring on each fault",               "body": "Quote received → if quote ≥ threshold AND machine age ≥ X years, Pulse Fitness flags 'Consider replacing'."},
             {"title": "CAPEX dashboard",                           "body": "Operations → Reports → CAPEX. Lists candidates by score; one-click 'Get replacement quote'."},
             {"title": "Approval workflow",                         "body": "Optional: route flagged cases to the owner for approval before the supplier proceeds."},
         ],
@@ -1202,12 +1202,12 @@ GUIDES: list[Guide] = [
         "id": "mbr-payment-recovery",
         "category": "memberships", "module": "memberships",
         "title": "Payment recovery — automated dunning",
-        "description": "Failed Stripe charges? GymAxis retries on day 1, 3, 7 and emails the member with a self-serve update link.",
+        "description": "Failed Stripe charges? Pulse Fitness retries on day 1, 3, 7 and emails the member with a self-serve update link.",
         "read_minutes": 2,
         "roles": ["owner", "manager"],
         "updated_at": "2026-04-30",
         "steps": [
-            {"title": "Failed payment detected",                  "body": "Stripe webhook fires → GymAxis logs the failure → member's 'Payment status' badge turns amber."},
+            {"title": "Failed payment detected",                  "body": "Stripe webhook fires → Pulse Fitness logs the failure → member's 'Payment status' badge turns amber."},
             {"title": "Day 1 — soft email",                       "body": "Friendly reminder with one-click update link."},
             {"title": "Day 3 — firmer email + retry",             "body": "Stripe retries the card; if still failing, email asks them to update payment method."},
             {"title": "Day 7 — final notice",                      "body": "Suspends access. Member retains the plan for 30 more days for self-recovery; cancels otherwise."},
@@ -1300,7 +1300,7 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-04-29",
         "steps": [
             {"title": "Marketing → Campaigns → New",             "body": "Compose your campaign as normal."},
-            {"title": "Toggle 'A/B test subject'",                "body": "Section appears: enter the second variant. GymAxis defaults to a 4-hour decision window."},
+            {"title": "Toggle 'A/B test subject'",                "body": "Section appears: enter the second variant. Pulse Fitness defaults to a 4-hour decision window."},
             {"title": "Pick the winning metric",                  "body": "Open rate (default) or click rate. Open rate works for short campaigns; click rate is more reliable but slower."},
             {"title": "Schedule + go",                             "body": "Variants send to 10% each at the start time. Winner sends to remaining 80% after the decision window."},
         ],
@@ -1379,7 +1379,7 @@ GUIDES: list[Guide] = [
             {"title": "Import into Sage Payroll / Xero",          "body": "Both tools accept the standard column layout — no remapping needed."},
         ],
         "tips": ["Run a draft a week before payday and email staff their estimate — catches disputes early."],
-        "mistakes": ["Don't fix a dispute by editing the CSV — fix it in GymAxis (corrects future runs too) and re-export."],
+        "mistakes": ["Don't fix a dispute by editing the CSV — fix it in Pulse Fitness (corrects future runs too) and re-export."],
         "related": ["staffing-overview"],
     },
     {
@@ -1498,13 +1498,13 @@ GUIDES: list[Guide] = [
         "id": "int-meta-socials",
         "category": "integrations", "module": "marketing",
         "title": "Connect Meta (Instagram + Facebook) for social posting",
-        "description": "Schedule and post from GymAxis to your Meta-owned channels.",
+        "description": "Schedule and post from Pulse Fitness to your Meta-owned channels.",
         "read_minutes": 3,
         "roles": ["owner", "manager"],
         "updated_at": "2026-04-29",
         "steps": [
             {"title": "Marketing → Channels → Meta → 'Connect'", "body": "OAuth flow with Facebook Business — pick the page + IG account."},
-            {"title": "Permissions",                              "body": "GymAxis requests the minimum scopes: pages_manage_posts, instagram_content_publish, pages_read_engagement."},
+            {"title": "Permissions",                              "body": "Pulse Fitness requests the minimum scopes: pages_manage_posts, instagram_content_publish, pages_read_engagement."},
             {"title": "Schedule from the AI Director",            "body": "Marketing → AI Director → generate post + image → 'Schedule on Meta' — single click, multi-channel."},
             {"title": "Comment + DM aggregation (later)",         "body": "Roadmap: pull comments + DMs into a unified inbox. Not yet shipped."},
         ],
@@ -1516,13 +1516,13 @@ GUIDES: list[Guide] = [
         "id": "int-orbit4",
         "category": "integrations", "module": "admin",
         "title": "Orbit 4 — sync member access and scanners",
-        "description": "Two-way sync between GymAxis members and Orbit 4 access control.",
+        "description": "Two-way sync between Pulse Fitness members and Orbit 4 access control.",
         "read_minutes": 3,
         "roles": ["owner", "master_admin"],
         "updated_at": "2026-04-29",
         "steps": [
             {"title": "Master Admin → Orbit 4",                   "body": "Click 'Connect' — paste your Orbit 4 site key + API token."},
-            {"title": "Map sites + access groups",                "body": "Each GymAxis site maps to one Orbit 4 site; member plans map to access groups."},
+            {"title": "Map sites + access groups",                "body": "Each Pulse Fitness site maps to one Orbit 4 site; member plans map to access groups."},
             {"title": "Sync test",                                  "body": "'Run dry-run sync' shows what would change. Review then 'Apply'."},
             {"title": "Real-time updates",                          "body": "After connection, plan changes (freeze, cancel, upgrade) reflect in Orbit 4 within ~30 seconds."},
         ],
@@ -1617,7 +1617,7 @@ GUIDES: list[Guide] = [
             {"title": "Master Admin → Finance → Financial Ops",  "body": "Top tabs: Reserves · Cost centres · Auto top-up."},
             {"title": "Set a reserve target",                       "body": "e.g. '90 days OPEX'. Dashboard shows current vs target."},
             {"title": "Allocate transactions to cost centres",   "body": "Bulk-tag from invoices. Used in the P&L report."},
-            {"title": "Auto-top-up",                                "body": "When a reserve drops below threshold, GymAxis nudges you (email) or auto-transfers (configurable) from a linked account."},
+            {"title": "Auto-top-up",                                "body": "When a reserve drops below threshold, Pulse Fitness nudges you (email) or auto-transfers (configurable) from a linked account."},
         ],
         "tips": ["Pair with weekly digest — KPIs land in your inbox without opening the dashboard."],
         "mistakes": ["Don't set the auto-top-up too aggressive — surprise transfers wreck cash flow."],
@@ -1806,7 +1806,7 @@ GUIDES: list[Guide] = [
     {
         "id": "rn-v1-0",
         "category": "release-notes", "module": "operations",
-        "title": "GymAxis V1.0 — The end-to-end gym OS",
+        "title": "Pulse Fitness V1.0 — The end-to-end gym OS",
         "description": "First public release. Eight modules, six staffing phases, AI rota builder, Sage payroll, and brand-aware Pulse Fitness Pro shell.",
         "read_minutes": 5,
         "roles": [],
@@ -1815,7 +1815,7 @@ GUIDES: list[Guide] = [
         "steps": [
             {
                 "title": "Headline",
-                "body": "GymAxis V1.0 is a single platform that replaces RotaCloud + Connecteam + a CRM + a CMMS + a maintenance portal + a marketing tool. Built for UK gym operators, multi-site groups and franchise HQs.",
+                "body": "Pulse Fitness V1.0 is a single platform that replaces RotaCloud + Connecteam + a CRM + a CMMS + a maintenance portal + a marketing tool. Built for UK gym operators, multi-site groups and franchise HQs.",
             },
             {
                 "title": "Operations module",
@@ -1870,8 +1870,8 @@ GUIDES: list[Guide] = [
     {
         "id": "rn-v1-1",
         "category": "release-notes", "module": "operations",
-        "title": "GymAxis V1.1 — CRM Phase 3, module-tailored trials, mobile audit",
-        "description": "Drag-drop territory tree, AI next-best-action, cross-module timeline, module-aware first wins, comprehensive mobile fixes, and production live on gymaxisai.com.",
+        "title": "Pulse Fitness V1.1 — CRM Phase 3, module-tailored trials, mobile audit",
+        "description": "Drag-drop territory tree, AI next-best-action, cross-module timeline, module-aware first wins, comprehensive mobile fixes, and production live on www.pulsefitness.ai.",
         "read_minutes": 6,
         "roles": [],
         "popular": True,
@@ -1879,7 +1879,7 @@ GUIDES: list[Guide] = [
         "steps": [
             {
                 "title": "Headline",
-                "body": "V1.1 turns GymAxis into a true enterprise-grade relational CRM platform, with strict data typing, picklists, quote margins, Miller Heiman stakeholder mapping, and cross-module relationship visibility. It also ships a comprehensive mobile audit and goes fully live on https://gymaxisai.com.",
+                "body": "V1.1 turns Pulse Fitness into a true enterprise-grade relational CRM platform, with strict data typing, picklists, quote margins, Miller Heiman stakeholder mapping, and cross-module relationship visibility. It also ships a comprehensive mobile audit and goes fully live on https://www.pulsefitness.ai.",
             },
             {
                 "title": "CRM Phase 3 — Territory tree (drag & drop)",
@@ -1909,7 +1909,7 @@ GUIDES: list[Guide] = [
             },
             {
                 "title": "Add Equipment direct CTA",
-                "body": "The full GymAxis dashboard's Equipment Hub now has a direct 'Add Equipment' button for single-machine additions. Previously the only path was the multi-machine AI Invoice Import — useful for bulk, overkill for a single new piece of kit.",
+                "body": "The full Pulse Fitness dashboard's Equipment Hub now has a direct 'Add Equipment' button for single-machine additions. Previously the only path was the multi-machine AI Invoice Import — useful for bulk, overkill for a single new piece of kit.",
                 "ui_hint": "Dashboard → Equipment tab → top-right.",
             },
             {
@@ -1918,7 +1918,7 @@ GUIDES: list[Guide] = [
             },
             {
                 "title": "Production live",
-                "body": "GymAxis is now serving customer traffic at https://gymaxisai.com. The preview environment at maintenance-hub-357.preview.emergentagent.com remains available for staging.",
+                "body": "Pulse Fitness is now serving customer traffic at https://www.pulsefitness.ai. The preview environment at maintenance-hub-357.preview.emergentagent.com remains available for staging.",
             },
             {
                 "title": "GitHub Actions Quality Gates green",
@@ -1978,9 +1978,9 @@ GUIDES: list[Guide] = [
         "updated_at": "2026-02-19",
         "steps": [
             {"title": "Open any company in CRM", "body": "From CRM → Companies, click into a company. The Next-Best-Action card lives in the top-right of the company detail page."},
-            {"title": "Read the recommended move", "body": "GymAxis weighs Miller Heiman stakeholder coverage, deal stage, recency of last activity, and similar-company patterns to pick ONE action."},
+            {"title": "Read the recommended move", "body": "Pulse Fitness weighs Miller Heiman stakeholder coverage, deal stage, recency of last activity, and similar-company patterns to pick ONE action."},
             {"title": "Why this action?", "body": "Click 'Why?' for a plain-English reason — useful for handovers and account reviews."},
-            {"title": "Mark complete or skip", "body": "If you've done the action elsewhere, mark complete to log it in the timeline. If it's irrelevant, skip — GymAxis learns and improves the suggestion."},
+            {"title": "Mark complete or skip", "body": "If you've done the action elsewhere, mark complete to log it in the timeline. If it's irrelevant, skip — Pulse Fitness learns and improves the suggestion."},
         ],
         "tips": [
             "The recommendation refreshes every time a new activity lands on the company timeline, so it's always live.",

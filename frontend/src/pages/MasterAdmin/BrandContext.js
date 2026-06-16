@@ -3,7 +3,7 @@
  * IA redesign, per /app/design_guidelines.json).
  *
  * Single React context that holds the operator's "I'm currently
- * looking at..." choice: All / Pulse Fitness / GymAxis. The value is
+ * looking at..." choice: All / Pulse Fitness / Pulse Fitness. The value is
  * persisted to localStorage so the choice survives reloads.
  *
  * Components READ from this context to filter data; they MUST NOT
@@ -17,7 +17,7 @@ const STORAGE_KEY = 'master_admin_brand_filter';
 export const BRAND_OPTIONS = [
   { id: 'all', label: 'All Brands', short: 'All', accent: '#0A0A0A' },
   { id: 'pulse', label: 'Pulse Fitness', short: 'Pulse', accent: '#0055FF' },
-  { id: 'gymaxis', label: 'GymAxis', short: 'GymAxis', accent: '#10B981' },
+  { id: 'gymaxis', label: 'Pulse Fitness', short: 'Pulse Fitness', accent: '#10B981' },
 ];
 
 const BrandContext = createContext({

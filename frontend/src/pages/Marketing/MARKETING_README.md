@@ -1,4 +1,4 @@
-# GymAxis Marketing Site (iter 215an–215aq)
+# Pulse Fitness Marketing Site (iter 215an–215aq)
 
 Brand & design tokens — see `/app/design_guidelines.json`.
 

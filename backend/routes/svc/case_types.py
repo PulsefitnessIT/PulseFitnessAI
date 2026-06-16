@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Configurable Case Types.
+Pulse Fitness Service Operations — Configurable Case Types.
 
 Iter 220ec (Phase 2) — Lets each organisation manage its own case-type
 taxonomy (Repair / PPM / Installation / …) instead of a hard-coded enum.

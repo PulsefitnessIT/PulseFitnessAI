@@ -1,6 +1,6 @@
 """SEO Autopilot — Iter 220ad / Phase 2.
 
-Soro-style ($200/mo) toolkit, built inside GymAxis so the master admin
+Soro-style ($200/mo) toolkit, built inside Pulse Fitness so the master admin
 can promote the product without paying the agency tax. Four moving
 parts:
 
@@ -66,25 +66,25 @@ DEFAULT_TONE = (
     "the gym."
 )
 DEFAULT_BRAND_BLURB = (
-    "GymAxis is an operations + CRM platform for gyms and fitness "
+    "Pulse Fitness is an operations + CRM platform for gyms and fitness "
     "operators — service-desk, equipment downtime tracking, member "
     "lifecycle CRM, and a Partner Engineer network of vetted "
     "field engineers. The canonical brand URL is "
-    "https://gymaxisai.com — NEVER use any other domain (in particular "
+    "https://www.pulsefitness.ai — NEVER use any other domain (in particular "
     "do not invent 'gymaxis.io', 'gym-axis.com', 'gymaxis.co.uk' or "
-    "similar). The marketing site lives at https://gymaxisai.com, "
-    "the app at https://app.gymaxisai.com, and the demo-request "
-    "landing page at https://gymaxisai.com/demo-request."
+    "similar). The marketing site lives at https://www.pulsefitness.ai, "
+    "the app at https://www.pulsefitness.ai, and the demo-request "
+    "landing page at https://www.pulsefitness.ai/demo-request."
 )
-GYMAXIS_DOMAIN = "gymaxisai.com"
-GYMAXIS_BASE_URL = "https://gymaxisai.com"
+GYMAXIS_DOMAIN = "www.pulsefitness.ai"
+GYMAXIS_BASE_URL = "https://www.pulsefitness.ai"
 TARGET_WORDS = 1500
 
 
 # Iter 220aq — domain-scrub safety net. Even with strong prompt
 # constraints the LLM occasionally hallucinates "gymaxis.io" /
 # "gym-axis.com" / "gymaxis.co.uk". Rewrite any such mention to the
-# canonical ``gymaxisai.com``. Operates on Markdown + plain text;
+# canonical ``www.pulsefitness.ai``. Operates on Markdown + plain text;
 # preserves the path / fragment portion of the URL where present.
 _BAD_DOMAINS = (
     "gymaxis.io",
@@ -137,7 +137,7 @@ def _norm_title(text: str | None) -> str:
 
 def _require_master_admin(user: dict) -> None:
     if not user.get("is_master_admin"):
-        raise HTTPException(403, "SEO Autopilot is for the GymAxis master admin only.")
+        raise HTTPException(403, "SEO Autopilot is for the Pulse Fitness master admin only.")
 
 
 def _scrub(doc: dict | None) -> dict | None:
@@ -452,7 +452,7 @@ async def _generate_article_payload(
     recent_block = (recent_context + "\n") if recent_context else ""
 
     prompt = (
-        f"Write a long-form blog article for the GymAxis blog. "
+        f"Write a long-form blog article for the Pulse Fitness blog. "
         f"{DEFAULT_BRAND_BLURB}\n\n"
         f"Tone: {DEFAULT_TONE}\n\n"
         f"Primary keyword: {primary_keyword}\n"
@@ -467,10 +467,10 @@ async def _generate_article_payload(
         "    AND do not reuse the openers of the recent articles above.\n"
         "  • At least one numbered list and one bullet list.\n"
         "  • Close with a single 1-line CTA inviting the reader to book a "
-        f"GymAxis demo at {GYMAXIS_BASE_URL}/demo-request.\n"
-        "  • Never use any domain other than gymaxisai.com — in "
+        f"Pulse Fitness demo at {GYMAXIS_BASE_URL}/demo-request.\n"
+        "  • Never use any domain other than www.pulsefitness.ai — in "
         "particular do NOT write gymaxis.io, gymaxis.com, or any other "
-        "variation. The only valid URLs are under gymaxisai.com.\n"
+        "variation. The only valid URLs are under www.pulsefitness.ai.\n"
         "  • End with 4 FAQ Q&A pairs — concise, scannable, optimised for "
         "ChatGPT / Perplexity citation.\n\n"
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
@@ -515,7 +515,7 @@ async def _generate_article_payload(
 
     # Iter 220aq — domain-scrub safety net. The LLM occasionally invents
     # ``gymaxis.io`` / ``gym-axis.com`` even when the prompt forbids it.
-    # Rewrite any such mention to the canonical ``gymaxisai.com``.
+    # Rewrite any such mention to the canonical ``www.pulsefitness.ai``.
     title = _scrub_brand_domain(title)
     excerpt = _scrub_brand_domain(excerpt)
     body_md = _scrub_brand_domain(body_md)
@@ -595,10 +595,10 @@ async def _spin_distributions(article: dict, channels: list[str]) -> dict:
     excerpt = article.get("excerpt") or ""
     body_excerpt = (article.get("body_md") or "")[:6000]
     primary = article.get("primary_keyword") or ""
-    blog_url = f"https://gymaxisai.com/blog/{article.get('slug')}"
+    blog_url = f"https://www.pulsefitness.ai/blog/{article.get('slug')}"
 
     prompt = (
-        f"You are spinning a published GymAxis blog article into channel-"
+        f"You are spinning a published Pulse Fitness blog article into channel-"
         f"native social posts to drive readers back to it. "
         f"{DEFAULT_BRAND_BLURB}\n\n"
         f"Tone: {DEFAULT_TONE}\n\n"
@@ -789,7 +789,7 @@ async def publish_share(
     if not dist:
         raise HTTPException(400, "Spin posts first — no distribution found.")
 
-    blog_url = f"https://gymaxisai.com/blog/{article.get('slug')}"
+    blog_url = f"https://www.pulsefitness.ai/blog/{article.get('slug')}"
 
     if payload.channel == "linkedin":
         posts = (dist.get("content") or {}).get("linkedin") or []
@@ -1673,7 +1673,7 @@ async def _stamp_autopilot_run(date_str: str, result: dict) -> None:
 
 async def _autopilot_run_as_master_admin() -> dict:
     """Server-side wrapper that bypasses the HTTP auth dep + finds the
-    GymAxis master admin to use as `created_by` on generated articles."""
+    Pulse Fitness master admin to use as `created_by` on generated articles."""
     user = await db.users.find_one(
         {"is_master_admin": True},
         {"_id": 0, "id": 1, "email": 1, "is_master_admin": 1},

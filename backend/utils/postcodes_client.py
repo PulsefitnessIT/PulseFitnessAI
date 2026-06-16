@@ -89,7 +89,7 @@ def _cache_set(cache: dict, key: str, value: Any, ttl: int) -> None:
 
 
 def normalise_lookup(result: dict | None) -> dict | None:
-    """Pluck the GymAxis-relevant fields out of a postcodes.io lookup
+    """Pluck the Pulse Fitness-relevant fields out of a postcodes.io lookup
     response and rename them to match our address-shape conventions."""
     if not result:
         return None
@@ -113,7 +113,7 @@ def normalise_lookup(result: dict | None) -> dict | None:
 
 
 async def lookup(postcode: str) -> dict | None:
-    """Validate + look up a UK postcode. Returns the GymAxis-shaped dict
+    """Validate + look up a UK postcode. Returns the Pulse Fitness-shaped dict
     or `None` when the postcode is invalid / not found."""
     norm = normalise_postcode(postcode)
     if not norm:

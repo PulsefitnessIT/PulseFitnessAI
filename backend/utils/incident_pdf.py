@@ -86,7 +86,7 @@ def _styles():
     }
 
 
-def _header_factory(title: str, subtitle: str, brand: str = "GymAxis"):
+def _header_factory(title: str, subtitle: str, brand: str = "Pulse Fitness"):
     """Return a (canvas, doc) callback that paints the branded header
     band + footer on every page."""
     from utils.pdf_footer import draw_pdf_footer
@@ -214,7 +214,7 @@ def accident_report_pdf(incident: dict, org_name: str = "", actions: list | None
     doc = _build_doc(
         buf,
         title=f"Accident Report · {incident.get('reference', '')}",
-        subtitle=f"{org_name or 'GymAxis'} · {incident.get('kind', 'incident').replace('_',' ').title()}",
+        subtitle=f"{org_name or 'Pulse Fitness'} · {incident.get('kind', 'incident').replace('_',' ').title()}",
     )
     st = _styles()
     flow: list = []
@@ -305,7 +305,7 @@ def accident_report_pdf(incident: dict, org_name: str = "", actions: list | None
 def witness_statement_pdf(incident: dict, witness: dict, org_name: str = "") -> bytes:
     buf = BytesIO()
     doc = _build_doc(buf, title=f"Witness Statement · {incident.get('reference','')}",
-                     subtitle=f"{org_name or 'GymAxis'} · {witness.get('name','')}")
+                     subtitle=f"{org_name or 'Pulse Fitness'} · {witness.get('name','')}")
     st = _styles()
     flow: list = []
     flow.append(Paragraph("WITNESS", st["section"]))
@@ -337,7 +337,7 @@ def witness_statement_pdf(incident: dict, witness: dict, org_name: str = "") -> 
 def investigation_report_pdf(incident: dict, actions: list | None = None, org_name: str = "") -> bytes:
     buf = BytesIO()
     doc = _build_doc(buf, title=f"Investigation Report · {incident.get('reference','')}",
-                     subtitle=f"{org_name or 'GymAxis'}")
+                     subtitle=f"{org_name or 'Pulse Fitness'}")
     st = _styles()
     inv = incident.get("investigation") or {}
     flow: list = []
@@ -375,7 +375,7 @@ def riddor_report_pdf(incident: dict, org_name: str = "") -> bytes:
     rid = incident.get("riddor") or {}
     doc = _build_doc(buf,
                      title=f"RIDDOR Report · {incident.get('reference','')}",
-                     subtitle=f"{rid.get('form') or 'F2508'} · {org_name or 'GymAxis'}")
+                     subtitle=f"{rid.get('form') or 'F2508'} · {org_name or 'Pulse Fitness'}")
     st = _styles()
     flow: list = []
     flow.append(_pill(rid.get("status", "not_assessed").replace("_", " "),

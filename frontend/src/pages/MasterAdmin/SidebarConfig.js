@@ -103,8 +103,8 @@ export const SIDEBAR_ITEMS = [
     id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
     subTabs: [
       // Iter 220ag — Growth Hub (aggregation of trials, SEO, outbound,
-      // CRM pipeline + sales insights — GymAxis self-promotion lens).
-      // Iter 222 — GymAxis-branded self-promo tooling; hidden for Pulse admins.
+      // CRM pipeline + sales insights — Pulse Fitness self-promotion lens).
+      // Iter 222 — Pulse Fitness-branded self-promo tooling; hidden for Pulse admins.
       { id: 'marketing-studio', label: 'Growth Hub',   icon: Rocket, gymaxisOnly: true },
       // Iter 220ad — SEO Autopilot (keyword research → article → publish)
       { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles, gymaxisOnly: true },
@@ -136,8 +136,8 @@ export const SIDEBAR_ITEMS = [
   //    recurring referral commission). Operator feedback:
   //    "Move Partner Engineers into the main sidebar — it's too hidden
   //    away when this could be a main source of revenue."
-  //    Iter 222 — GymAxis-only: a delegated Pulse Master Admin does not
-  //    manage the GymAxis partner-engineer network, so it's hidden for them.
+  //    Iter 222 — Pulse Fitness-only: a delegated Pulse Master Admin does not
+  //    manage the Pulse Fitness partner-engineer network, so it's hidden for them.
   {
     id: 'partners', label: 'Partner Engineers', icon: BadgeCheck, group: 'main', gymaxisOnly: true,
     subTabs: [
@@ -174,7 +174,7 @@ export const SIDEBAR_ITEMS = [
       // Iter 220ao — GDPR Art. 17 Data Subject Erasure Requests
       { id: 'gdpr-erasure',       label: 'Data Subject Erasure', icon: ShieldOff },
       // Iter 222 — Ask Support Desk / Support tools / DB viewer /
-      // Maintenance jobs are GymAxis-platform-internal (master-admin
+      // Maintenance jobs are Pulse Fitness-platform-internal (master-admin
       // only on the backend). Hidden for delegated Pulse admins so they
       // don't hit "Master admin access required" errors.
       { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles, gymaxisOnly: true },
@@ -293,7 +293,7 @@ export const sectionTitles = {
   'canned-replies': 'Canned replies',
   analytics: 'Global analytics',
   'marketing-suite': 'Marketing suite',
-  'marketing-studio': 'GymAxis Growth Hub',
+  'marketing-studio': 'Pulse Fitness Growth Hub',
   'social-autopilot': 'Social Media Autopilot',
   orbit4: 'Orbit 4',
   'sicon-integration': 'Sicon Service',
@@ -347,7 +347,7 @@ export const sectionDescriptions = {
   payments: 'Revenue tracking and subscription management',
   analytics: 'Cross-gym analytics and trends',
   'marketing-suite': 'Marketing Suite — plans, subscriptions, platform-wide KPIs',
-  'marketing-studio': 'GymAxis Growth Hub — funnel view across trials, SEO, outbound, CRM pipeline and sales insights.',
+  'marketing-studio': 'Pulse Fitness Growth Hub — funnel view across trials, SEO, outbound, CRM pipeline and sales insights.',
   'social-autopilot': 'Daily auto-drafts for Instagram, TikTok and LinkedIn — channel-aware tone, brand-coloured imagery, copy & download.',
   onboarding: 'Onboard a new customer organisation, send shareable packets, or bulk-load CSV rosters',
   trials: 'Track active trials, extend deadlines, convert to paid',
@@ -366,7 +366,7 @@ export const sectionDescriptions = {
   'financial-ops': 'Revenue reserves, cost centres, and auto-top-up',
   'refunds': 'Issue and track Stripe refunds',
   'design-system': 'Living reference gallery — every button, tab pill, and input in one place',
-  'theme-settings': 'GymAxis vs Pulse Fitness design-token isolation audit + per-tenant brand overrides.',
+  'theme-settings': 'Pulse Fitness vs Pulse Fitness design-token isolation audit + per-tenant brand overrides.',
   'custom-domains': 'Point a tenant\'s own domain (e.g. join.acmegym.com) at a specific member-facing surface — sign-up, branded app, brag page or public timetable.',
   'db-viewer': 'Read-only Mongo collection browser — search, paginate, and export.',
   'pulse-data': 'Read-only, Pulse-scoped view of your organisations, people, equipment, faults, members and posts.',
@@ -374,7 +374,7 @@ export const sectionDescriptions = {
   'all-sites': 'Every physical site across every organisation. Filter by brand, org, or site type. Click any row to drill into the parent organisation&apos;s Sites drawer.',
   'integration-health': 'Live status of every third-party service.',
   'integrations-hub': 'All third-party connections in one screen — Stripe Connect, Sicon, Orbit 4 and Sage 200. Click any card to manage.',
-  organizations: 'Customer organisations — Pulse Fitness, GymAxis. Click any row for a full drawer.',
+  organizations: 'Customer organisations — Pulse Fitness, Pulse Fitness. Click any row for a full drawer.',
   backfills: 'One-off maintenance jobs — preview, then commit. Powers data clean-up.',
   partners: 'Approve incoming partner engineer applications, manage active partners, and queue commission payouts — a core revenue stream.',
   finance: 'Pricing, billing, payments, Stripe and CAPEX in one place.',

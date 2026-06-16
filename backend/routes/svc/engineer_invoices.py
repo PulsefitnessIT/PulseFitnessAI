@@ -777,7 +777,7 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
     <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;padding:24px;">
       <div style="background:linear-gradient(135deg,{primary} 0%,{accent} 100%);
                   padding:24px;border-radius:12px;color:white;margin-bottom:24px;">
-        <p style="margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;">GymAxis · Invoice</p>
+        <p style="margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;">Pulse Fitness · Invoice</p>
         <h1 style="margin:6px 0 0;font-size:24px;font-weight:700;">{ino}</h1>
       </div>
       <p style="font-size:16px;line-height:1.6;">Hi {customer},</p>
@@ -800,7 +800,7 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
       </p>
       <p style="font-size:14px;margin-top:24px;">Thanks,<br/><strong>{engineer}</strong></p>
       <p style="font-size:11px;color:#94a3b8;margin-top:30px;">
-        Powered by GymAxis · Field Service for Fitness Equipment
+        Powered by Pulse Fitness · Field Service for Fitness Equipment
       </p>
     </div>
     """

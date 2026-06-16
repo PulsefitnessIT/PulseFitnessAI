@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Intake API.
+Pulse Fitness Service Operations — Intake API.
 
 Iter 215dn (Phase 1) · annotations backfilled iter 215eb.
 
@@ -10,34 +10,34 @@ Three intake channels share a single normaliser. Each call lands in
 
 # Integration field manifest — see SVC_FIELD_MAPPING.md § 2.
 __integration_fields__ = {
-    "intake.title":                 "sicon: ServiceCallTitle · GymAxis → Sicon",
-    "intake.description":           "sicon: ServiceCallDescription · GymAxis → Sicon",
-    "intake.priority":              "sicon: PriorityID (PRIORITY_CROSSWALK) · GymAxis → Sicon",
-    "intake.cover_type":            "sicon: CoverTypeID · sage: NominalCode (COVER_NOMINAL) · GymAxis → both",
-    "intake.case_type":             "sicon: JobTypeID (repair|ppm|install) · GymAxis → Sicon",
-    "intake.site_id":               "sicon: SubLocationID · sage: SLDeliveryAddressID · GymAxis → both",
-    "intake.site_name":             "sicon: SubLocationName · GymAxis → Sicon",
-    "intake.site_postcode":         "sicon: SubLocationPostcode · GymAxis → Sicon",
-    "intake.asset_id":              "sicon: EquipmentID · GymAxis → Sicon",
-    "intake.asset_name":            "sicon: EquipmentDescription · GymAxis → Sicon",
-    "intake.equipment_ids":         "sicon: CoveredEquipmentIDs[] · GymAxis → Sicon",
-    "intake.equipment_serials":     "sicon: SerialNumbers[] · GymAxis → Sicon",
-    "intake.fault_code":            "sicon: FaultCode · GymAxis → Sicon",
-    "intake.customer_name":         "sicon: CustomerContactName · sage: SLCustomerAccount.Name · GymAxis → both",
-    "intake.customer_phone":        "sicon: CustomerContactPhone · GymAxis → Sicon",
-    "intake.customer_email":        "sicon: CustomerContactEmail · GymAxis → Sicon",
+    "intake.title":                 "sicon: ServiceCallTitle · Pulse Fitness → Sicon",
+    "intake.description":           "sicon: ServiceCallDescription · Pulse Fitness → Sicon",
+    "intake.priority":              "sicon: PriorityID (PRIORITY_CROSSWALK) · Pulse Fitness → Sicon",
+    "intake.cover_type":            "sicon: CoverTypeID · sage: NominalCode (COVER_NOMINAL) · Pulse Fitness → both",
+    "intake.case_type":             "sicon: JobTypeID (repair|ppm|install) · Pulse Fitness → Sicon",
+    "intake.site_id":               "sicon: SubLocationID · sage: SLDeliveryAddressID · Pulse Fitness → both",
+    "intake.site_name":             "sicon: SubLocationName · Pulse Fitness → Sicon",
+    "intake.site_postcode":         "sicon: SubLocationPostcode · Pulse Fitness → Sicon",
+    "intake.asset_id":              "sicon: EquipmentID · Pulse Fitness → Sicon",
+    "intake.asset_name":            "sicon: EquipmentDescription · Pulse Fitness → Sicon",
+    "intake.equipment_ids":         "sicon: CoveredEquipmentIDs[] · Pulse Fitness → Sicon",
+    "intake.equipment_serials":     "sicon: SerialNumbers[] · Pulse Fitness → Sicon",
+    "intake.fault_code":            "sicon: FaultCode · Pulse Fitness → Sicon",
+    "intake.customer_name":         "sicon: CustomerContactName · sage: SLCustomerAccount.Name · Pulse Fitness → both",
+    "intake.customer_phone":        "sicon: CustomerContactPhone · Pulse Fitness → Sicon",
+    "intake.customer_email":        "sicon: CustomerContactEmail · Pulse Fitness → Sicon",
     "intake.contact_id":            "gymaxis_only: gym_floor_staff.id back-reference",
-    "intake.contract_id":           "sicon: ServiceContractID · sage: SLContract.ID · GymAxis → both",
-    "intake.quote_required":        "sage: SLQuote.Required (drives chargeable quote workflow) · GymAxis → Sage",
-    "intake.customer_po_number":    "sage: SLInvoice.SecondReference / CustomerPONumber · GymAxis → Sage",
-    "intake.sage_quote_outbox":     "sage: SLQuote draft persisted on svc_sage_quote_outbox · GymAxis → Sage (drained by sage_outbox_worker)",
-    "intake.allocated_parts":       "sicon: AllocatedParts[] (per-line StockMovement) · GymAxis → Sicon",
-    "intake.attachments":           "sicon: AttachmentURLs[] · GymAxis → Sicon",
-    "intake.source":                "sicon: ServiceCallSource (phone|email|web|portal) · GymAxis → Sicon",
+    "intake.contract_id":           "sicon: ServiceContractID · sage: SLContract.ID · Pulse Fitness → both",
+    "intake.quote_required":        "sage: SLQuote.Required (drives chargeable quote workflow) · Pulse Fitness → Sage",
+    "intake.customer_po_number":    "sage: SLInvoice.SecondReference / CustomerPONumber · Pulse Fitness → Sage",
+    "intake.sage_quote_outbox":     "sage: SLQuote draft persisted on svc_sage_quote_outbox · Pulse Fitness → Sage (drained by sage_outbox_worker)",
+    "intake.allocated_parts":       "sicon: AllocatedParts[] (per-line StockMovement) · Pulse Fitness → Sicon",
+    "intake.attachments":           "sicon: AttachmentURLs[] · Pulse Fitness → Sicon",
+    "intake.source":                "sicon: ServiceCallSource (phone|email|web|portal) · Pulse Fitness → Sicon",
     "intake.source_meta":           "gymaxis_only: bridge metadata (issue_id when ops-portal mirrored)",
     "intake.organization_id":       "gymaxis_only: tenant scoping",
-    "intake.logged_by_id":          "sicon: CreatedBySageUserID · GymAxis → Sicon",
-    "intake.logged_by_name":        "sicon: CreatedByUserName · GymAxis → Sicon",
+    "intake.logged_by_id":          "sicon: CreatedBySageUserID · Pulse Fitness → Sicon",
+    "intake.logged_by_name":        "sicon: CreatedByUserName · Pulse Fitness → Sicon",
 }
 
 from datetime import datetime, timezone

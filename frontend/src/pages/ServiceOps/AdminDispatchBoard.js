@@ -293,7 +293,7 @@ export default function AdminDispatchBoard() {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
-                GymAxis · Service Ops
+                Pulse Fitness · Service Ops
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <Calendar size={20} /> Dispatch Board

@@ -1,4 +1,4 @@
-"""GymAxis Memberships routes — package aggregator (Pass 2 split).
+"""Pulse Fitness Memberships routes — package aggregator (Pass 2 split).
 
 Each section of the legacy 1813-line `routes/memberships.py` is now a
 focused submodule. This `__init__.py` is the single public entry-point:

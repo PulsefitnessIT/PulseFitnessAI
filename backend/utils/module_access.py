@@ -1,10 +1,10 @@
 """Module access entitlements.
 
-A "module" is one of the top-level GymAxis products: `operations`,
+A "module" is one of the top-level Pulse Fitness products: `operations`,
 `memberships`, `marketing`, or `crm`.
 
 Resolution layers (top wins):
-  1. GymAxis master admin → all modules ON.
+  1. Pulse Fitness master admin → all modules ON.
   2. MOD users (mod_site/mod_branch/mod_org) → none of the gym modules apply.
   3. Org-level matrix (`organization.modules.<key>.enabled`) — toggled by
      Master Admin in `FeatureControlPanel`.
@@ -38,11 +38,11 @@ def _is_platform_admin(user: Optional[dict]) -> bool:
     """True for elevated platform-wide admins who must never be locked out
     of a module by org-entitlement or per-staff override gates.
 
-    Covers the GymAxis operator master admin (``is_master_admin``) AND Pulse
+    Covers the Pulse Fitness operator master admin (``is_master_admin``) AND Pulse
     Master Admins (role ``pulse_master_admin`` / ``is_pulse_admin``). The
     People role editor explicitly markets the Pulse Master Admin role as
     "platform-wide Master Admin access", yet the user record keeps
-    ``is_master_admin=False`` (that flag is reserved for the GymAxis owner).
+    ``is_master_admin=False`` (that flag is reserved for the Pulse Fitness owner).
     Without recognising the Pulse role here, a Pulse Master Admin gets gated
     like ordinary staff — which surfaced as the recurring "CRM is not enabled
     for your account" lock-out at the CRM cross-login.
@@ -64,7 +64,7 @@ def _account_type_defaults(account_type: str) -> dict[str, bool]:
     if account_type in ("pulse_pro", "full"):
         # Pulse Pro INCLUDES operations + the user can bolt on the rest.
         # Defaults stay False for bolt-ons until the operator opts in
-        # (free trial or paid). `full` is GymAxis-side and grants all.
+        # (free trial or paid). `full` is Pulse Fitness-side and grants all.
         if account_type == "full":
             return {"operations": True, "memberships": True, "marketing": True, "crm": True}
         return {"operations": True, "memberships": False, "marketing": False, "crm": False}

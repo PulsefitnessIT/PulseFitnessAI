@@ -114,7 +114,7 @@ const DocumentQA = ({ compact = false }) => {
  );
  }
 
- // Floating mode deprecated — the "Ask GymAxis / Ask Pulse Fitness" orb now
+ // Floating mode deprecated — the "Ask Pulse Fitness / Ask Pulse Fitness" orb now
  // handles document Q&A via the same LLM plus context pipeline. Returning null
  // keeps legacy call-sites from crashing while removing the duplicate lilac FAB.
  return null;

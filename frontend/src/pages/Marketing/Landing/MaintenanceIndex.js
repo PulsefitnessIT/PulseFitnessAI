@@ -13,7 +13,7 @@ import MarketingShell from '../MarketingShell';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://gymaxisai.com';
+const SITE = 'https://www.pulsefitness.ai';
 
 export default function MaintenanceIndex() {
   const [manufacturers, setManufacturers] = useState([]);
@@ -25,7 +25,7 @@ export default function MaintenanceIndex() {
   }, []);
 
   useSeo({
-    title: 'Gym Equipment Maintenance by Manufacturer | GymAxis AI',
+    title: 'Gym Equipment Maintenance by Manufacturer | Pulse Fitness AI',
     description:
       'Maintenance and service software for every major gym equipment manufacturer — asset register, fault logging, planned maintenance, parts and compliance. Find your brand.',
     canonical: `${SITE}/maintenance`,
@@ -43,7 +43,7 @@ export default function MaintenanceIndex() {
       <section className="gx-grid-bg" data-testid="maintenance-index">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-12 lg:pt-20">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <span className="text-slate-700 font-semibold">Maintenance</span>
           </nav>
@@ -54,7 +54,7 @@ export default function MaintenanceIndex() {
             Maintenance software for <span className="gx-gradient-text">every brand</span> on your floor.
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-3xl">
-            Whatever you run — cardio, strength, indoor cycling or functional — GymAxis keeps it serviced, compliant and on the floor. Pick a manufacturer for a brand-specific guide, or browse{' '}
+            Whatever you run — cardio, strength, indoor cycling or functional — Pulse Fitness keeps it serviced, compliant and on the floor. Pick a manufacturer for a brand-specific guide, or browse{' '}
             <Link to="/equipment" className="font-semibold gx-gradient-text">by equipment type</Link>.
           </p>
         </div>

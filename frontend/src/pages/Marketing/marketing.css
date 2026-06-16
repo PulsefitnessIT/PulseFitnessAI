@@ -1,4 +1,4 @@
-/* GymAxis marketing site — design tokens (iter 215an–215aq).
+/* Pulse Fitness marketing site — design tokens (iter 215an–215aq).
    Loaded only by the marketing pages so it doesn't pollute the rest
    of the app. Mirrors /app/design_guidelines.json. */
 
@@ -53,7 +53,7 @@
 }
 
 /* ── Iter 215be — pricing-page site slider ──
-   Custom range input styled with the GymAxis brand gradient — used on
+   Custom range input styled with the Pulse Fitness brand gradient — used on
    /pricing for the multi-site slider. WebKit + Firefox track + thumb.
 
    Iter 216h192 — make the FILLED portion of the track react to the

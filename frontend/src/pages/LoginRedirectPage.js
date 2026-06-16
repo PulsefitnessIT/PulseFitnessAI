@@ -5,7 +5,7 @@ import { moduleHomePath } from '@/utils/moduleHome';
 
 /**
  * /login route guard — sends authenticated users to their home portal,
- * otherwise renders the dedicated GymAxis sign-in page.
+ * otherwise renders the dedicated Pulse Fitness sign-in page.
  *
  * Iter 216h68 — also honour `?next=/path` so the SessionResumedBanner
  * (and any other deep-link sender) can bounce an *already* logged-in

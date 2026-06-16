@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Per-machine work reports.
+Pulse Fitness Service Operations — Per-machine work reports.
 
 Iter 220d — Engineers running PPM / service-visit jobs often touch
 many machines on a single site visit. The legacy single-summary model

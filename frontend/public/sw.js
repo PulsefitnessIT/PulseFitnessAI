@@ -1,5 +1,5 @@
 /**
- * GymAxis service worker — iter 215d9.
+ * Pulse Fitness service worker — iter 215d9.
  *
  * Adds selective network-first-with-cache-fallback strategy for a
  * whitelist of read-only GET endpoints. When the device is offline
@@ -21,7 +21,7 @@ const STATIC_ASSETS = [
   '/manifest-servicedesk.json',
   '/pulse-photos/carshalton-igym.webp',
   '/pulse-photos/strength-accessories.webp',
-  '/brand/gymaxis-mark-tight.webp',
+  '/brand/pulse-mark.svg',
 ];
 
 // Paths that must NEVER be served from cache — public token-based URLs
@@ -227,10 +227,10 @@ async function networkFirstWithCache(request) {
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (_e) {
-    try { data = { title: 'GymAxis', body: event.data ? event.data.text() : '' }; }
-    catch (_e2) { data = { title: 'GymAxis', body: '' }; }
+    try { data = { title: 'Pulse Fitness', body: event.data ? event.data.text() : '' }; }
+    catch (_e2) { data = { title: 'Pulse Fitness', body: '' }; }
   }
-  const title = data.title || 'GymAxis';
+  const title = data.title || 'Pulse Fitness';
   const body  = data.body  || '';
   const options = {
     body,

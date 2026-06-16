@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 2 family / sub-profiles.
+"""Pulse Fitness Memberships — Phase 2 family / sub-profiles.
 
 A parent member can manage one or more sub-profiles (kids, partners,
 dependents). For v1 they share the parent's billing & memberships —

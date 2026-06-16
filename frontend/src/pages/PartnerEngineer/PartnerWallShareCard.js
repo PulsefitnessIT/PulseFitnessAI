@@ -9,7 +9,7 @@
  *   • QR code (downloadable as PNG, perfect for printed business cards
  *     and physical supplier-card flyers)
  *   • One-tap LinkedIn share (intent URL — pre-fills the headline
- *     "37 ★ reviews on GymAxis — averaging 4.8/5. Book me here:")
+ *     "37 ★ reviews on Pulse Fitness — averaging 4.8/5. Book me here:")
  *   • Average + review-count badge
  *
  * Goal: turn the wall into a viral acquisition channel for the

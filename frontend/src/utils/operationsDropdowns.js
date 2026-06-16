@@ -77,7 +77,7 @@ export const RESOLUTION_TYPE_OPTIONS = [
   { value: 'self_fix',         label: 'Self-fix (in-house)' },
   { value: 'supplier_warranty', label: 'Supplier under warranty' },
   { value: 'supplier_paid',    label: 'Supplier (paid call-out)' },
-  { value: 'engineer',         label: 'GymAxis engineer' },
+  { value: 'engineer',         label: 'Pulse Fitness engineer' },
   { value: 'parts_only',       label: 'Parts only' },
   { value: 'replaced',         label: 'Replaced unit' },
 ];

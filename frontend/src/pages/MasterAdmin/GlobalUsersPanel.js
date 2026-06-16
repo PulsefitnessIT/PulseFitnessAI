@@ -199,7 +199,7 @@ const GlobalUsersPanel = ({
             </thead>
             <tbody>
               {filtered.map((u) => {
-                const protectedRow = u.is_master_admin || (u.email || '').toLowerCase() === 'admin@gymaxisai.com';
+                const protectedRow = u.is_master_admin || (u.email || '').toLowerCase() === 'admin@pulsefitness.ai';
                 return (
                   <tr key={u.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors" data-testid={`global-user-row-${u.id}`}>
                     <td className="p-3">

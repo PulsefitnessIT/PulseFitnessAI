@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Promo codes / discount engine.
+"""Pulse Fitness Memberships — Promo codes / discount engine.
 
 Operator-managed promo codes that members can paste at Stripe Checkout to
 discount a plan, pack, course, drop-in or bundle. Built on top of Stripe's

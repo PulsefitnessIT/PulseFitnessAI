@@ -2,7 +2,7 @@
  * Iter 220ea·5 — Engineer App SpeedDial.
  *
  * Replaces three independently-positioned FABs (voice mic,
- * AskGymAxis sparkle, FeedbackWidget thumbs) with a single
+ * AskPulseFitness sparkle, FeedbackWidget thumbs) with a single
  * thumb-friendly launcher in the bottom-right corner. Tap it once
  * to reveal the three actions as a vertical arc; tap an action to
  * dispatch the corresponding global event the existing modal
@@ -10,7 +10,7 @@
  *
  * Why events and not props?
  *   Each of the three target modals lives in its own self-managed
- *   component (`VoiceToJobButton`, `AskGymAxis`, `FeedbackWidget`).
+ *   component (`VoiceToJobButton`, `AskPulseFitness`, `FeedbackWidget`).
  *   Hoisting their open state into a context just to trigger from
  *   here would force a refactor across three feature flows. A
  *   tiny `gx:open-{voice|ask|feedback}` window-event contract
@@ -38,7 +38,7 @@ const ACTIONS = [
   },
   {
     id: 'ask',
-    label: 'Ask GymAxis',
+    label: 'Ask Pulse Fitness',
     icon: Sparkles,
     bg: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
     testid: 'engineer-speed-dial-ask',

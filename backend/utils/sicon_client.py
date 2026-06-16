@@ -255,7 +255,7 @@ FAULT_TYPE_TO_CASE_TYPE = {
 }
 
 
-# ── Mappers: GymAxis → Sicon ──────────────────────────────────────
+# ── Mappers: Pulse Fitness → Sicon ──────────────────────────────────────
 
 def _extract_triage_fields(issue: Dict, fallback_severity: str) -> tuple[str, str, str]:
     """Extract AI triage summary, severity, and parts list from an issue."""
@@ -349,7 +349,7 @@ def _build_extended_analysis_fields(issue: Dict, equipment: Optional[Dict] = Non
 
 
 def _build_sub_location(issue: Dict, site: Optional[Dict] = None) -> Optional[Dict]:
-    """Build a Sicon SubLocation object from a GymAxis site doc.
+    """Build a Sicon SubLocation object from a Pulse Fitness site doc.
 
     Falls back to issue.sicon_sub_location_id if no site was joined."""
     if site and site.get("sicon_sub_location_id"):
@@ -383,7 +383,7 @@ def map_gymaxis_to_sicon_case(issue: Dict, config: Dict, org_name: str = "",
                               equipment: Optional[Dict] = None,
                               site: Optional[Dict] = None,
                               crm_links: Optional[Dict] = None) -> Dict:
-    """Build a Sicon Service Case payload from a GymAxis issue.
+    """Build a Sicon Service Case payload from a Pulse Fitness issue.
 
     Phase A extends the original spec §3.1 mapping with:
     - AnalysisFields 9-20 (equipment lineage, provenance, CSAT)
@@ -450,7 +450,7 @@ def map_gymaxis_to_sicon_case(issue: Dict, config: Dict, org_name: str = "",
     return case_data
 
 
-def build_tracking_note_payload(note_text: str, created_by: str = "GymAxis AI",
+def build_tracking_note_payload(note_text: str, created_by: str = "Pulse Fitness AI",
                                  visible_to_customer: bool = True,
                                  visible_to_engineer: bool = True,
                                  status_id: int = 0,
@@ -482,7 +482,7 @@ def build_tracking_note_payload(note_text: str, created_by: str = "GymAxis AI",
 
 
 def _contract_spare_fields(contract: Dict) -> Dict:
-    """Serialise GymAxis metadata into Sicon Contract spare slots.
+    """Serialise Pulse Fitness metadata into Sicon Contract spare slots.
 
     Iter 216h7 — full coverage of Sicon's three spare-slot banks per contract
     header (each bank has 7 slots, type-strict on Sicon side):
@@ -545,7 +545,7 @@ def _contract_spare_fields(contract: Dict) -> Dict:
 
 
 def map_gymaxis_contract_to_sicon(contract: Dict, sage_customer_id: int = 0) -> Dict:
-    """Map a GymAxis CRM contract to a Sicon Contract header (Contracts.R260200c §Contract)."""
+    """Map a Pulse Fitness CRM contract to a Sicon Contract header (Contracts.R260200c §Contract)."""
     payload = {
         "ContractID": contract.get("sicon_contract_id", 0) or 0,
         "ContractNumber": contract.get("contract_number", ""),
@@ -559,7 +559,7 @@ def map_gymaxis_contract_to_sicon(contract: Dict, sage_customer_id: int = 0) -> 
 
 
 def _contract_line_analysis_codes(line: Dict) -> Dict:
-    """Pack SLA + GymAxis custom metadata into Sicon's analysis-code slots.
+    """Pack SLA + Pulse Fitness custom metadata into Sicon's analysis-code slots.
 
     Uses CLAnalysisCode1-15 by convention (out of 150 available). Reserved:
     - CL1  = SLA tier (Gold / Platinum / Silver)
@@ -567,8 +567,8 @@ def _contract_line_analysis_codes(line: Dict) -> Dict:
     - CL3  = Resolution-hours target
     - CL4  = OOS credit terms
     - CL5  = Safety-critical flag
-    - CL6  = GymAxis internal asset_id (for joins)
-    - CL7  = GymAxis site_id
+    - CL6  = Pulse Fitness internal asset_id (for joins)
+    - CL7  = Pulse Fitness site_id
     - CL8  = PPM frequency override (if different from VisitFrequency)
     - CL9  = Tender pack reference
     - CL10 = Renewal notice days
@@ -576,7 +576,7 @@ def _contract_line_analysis_codes(line: Dict) -> Dict:
     Iter 216h7 — extended with five finance/governance signals so the
     Sicon side can drive automation (penalty calc, escalation, etc.):
     - CL11 = SLA penalty band ("0/5/10/25%" or absolute credit code)
-    - CL12 = KPI breach flag ("OK"|"WARN"|"BREACH") set by GymAxis SLA worker
+    - CL12 = KPI breach flag ("OK"|"WARN"|"BREACH") set by Pulse Fitness SLA worker
     - CL13 = Finance approver email (last contract amend authoriser)
     - CL14 = Billing cycle override (e.g. "annual"|"semi-annual"|"quarterly")
     - CL15 = Holdback % (retention against final invoice, finance use)
@@ -677,7 +677,7 @@ def _contract_line_supplier(line: Dict) -> Dict:
 
 
 def map_gymaxis_contract_line_to_sicon(line: Dict, sicon_contract_id: int) -> Dict:
-    """Map a GymAxis CRM contract line to a Sicon ContractLine payload."""
+    """Map a Pulse Fitness CRM contract line to a Sicon ContractLine payload."""
     payload: Dict = {
         "SiconContractID": str(sicon_contract_id or line.get("sicon_contract_id", "") or ""),
         "SiconContractLineID": int(line.get("sicon_contract_line_id") or 0),
@@ -763,7 +763,7 @@ def build_time_booking_payload(employee_ids: List[int], start_date: str, end_dat
     }
 
 
-# ── Mappers: GymAxis stock → Sicon CoreWebAPI ─────────────────────
+# ── Mappers: Pulse Fitness stock → Sicon CoreWebAPI ─────────────────────
 # Our parts system (svc_parts catalogue, svc_van_stock / svc_warehouse_stock,
 # svc_part_movements) maps onto Sage stock through the CoreWebAPI surface.
 # See INTEGRATION_FIELD_MAPPING.md §33.13 for the full table + open questions.
@@ -840,10 +840,10 @@ def build_stock_adjustment_payload(part_sku: str, qty_delta, warehouse_name: str
     }
 
 
-# ── Mappers: Sicon → GymAxis ──────────────────────────────────────
+# ── Mappers: Sicon → Pulse Fitness ──────────────────────────────────────
 
 def map_sicon_case_to_gymaxis(sicon_case: Dict) -> Dict:
-    """Extract GymAxis-relevant fields from a Sicon case response (extended)."""
+    """Extract Pulse Fitness-relevant fields from a Sicon case response (extended)."""
     entity = sicon_case.get("entity", sicon_case) if isinstance(sicon_case, dict) else {}
     sub_loc = entity.get("SubLocation") or {}
     return {
@@ -887,7 +887,7 @@ def map_sicon_case_to_gymaxis(sicon_case: Dict) -> Dict:
 
 
 def map_sicon_appointment_to_gymaxis(appointment: Dict) -> Dict:
-    """Extract GymAxis-relevant fields from a Sicon appointment (spec §3.2)."""
+    """Extract Pulse Fitness-relevant fields from a Sicon appointment (spec §3.2)."""
     entity = appointment.get("entity", appointment) if isinstance(appointment, dict) else {}
     return {
         "sicon_appointment_id": entity.get("SiconAppointmentID"),
@@ -939,7 +939,7 @@ def map_sicon_tracking_note_to_gymaxis(note: Dict) -> Dict:
 
 
 def map_sicon_resource_to_engineer(entity: Dict) -> Dict:
-    """Phase C — map a Sicon AppointmentResource to a GymAxis-side engineer doc.
+    """Phase C — map a Sicon AppointmentResource to a Pulse Fitness-side engineer doc.
 
     Used by the nightly directory refresh. Filters leavers out upstream."""
     return {

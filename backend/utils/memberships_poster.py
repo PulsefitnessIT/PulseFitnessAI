@@ -165,7 +165,7 @@ def render_poster_png(
         radius=pill_h // 2, outline=brand, width=3,
     )
     draw.text((pill_x + 30, y + 12), url_display, font=f_url, fill=brand)
-    _draw_centered(draw, "Powered by GymAxis", H - max(40, H // 30), f_fine, (120, 128, 140), W)
+    _draw_centered(draw, "Powered by Pulse Fitness", H - max(40, H // 30), f_fine, (120, 128, 140), W)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
@@ -221,7 +221,7 @@ def render_og_png(
 
     # Tagline
     draw.text((60, 420), tagline, font=f_tagline, fill=muted)
-    draw.text((60, H - 52), "Powered by GymAxis", font=f_foot, fill=(120, 128, 140))
+    draw.text((60, H - 52), "Powered by Pulse Fitness", font=f_foot, fill=(120, 128, 140))
 
     # Right-side stat chips
     chip_w, chip_h = 380, 130

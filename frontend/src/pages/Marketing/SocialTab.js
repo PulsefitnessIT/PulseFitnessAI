@@ -32,8 +32,8 @@ const SocialTab = ({ API, headers }) => {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-3" data-testid="social-not-configured">
           <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={18} />
           <div className="text-xs text-zinc-700 dark:text-zinc-300">
-            <p className="font-semibold">Meta App not yet configured by GymAxis</p>
-            <p className="mt-1">The platform admin needs to register the GymAxis Meta App and set <code className="font-mono">META_APP_ID</code> + <code className="font-mono">META_APP_SECRET</code> in the backend environment. Until then, you can still draft posts in the Creative Studio and copy/paste them.</p>
+            <p className="font-semibold">Meta App not yet configured by Pulse Fitness</p>
+            <p className="mt-1">The platform admin needs to register the Pulse Fitness Meta App and set <code className="font-mono">META_APP_ID</code> + <code className="font-mono">META_APP_SECRET</code> in the backend environment. Until then, you can still draft posts in the Creative Studio and copy/paste them.</p>
             <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">Missing env vars: {(status.missing_env_vars || []).join(', ') || 'none'}</p>
           </div>
         </div>
@@ -42,7 +42,7 @@ const SocialTab = ({ API, headers }) => {
       {status.platform_configured && (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Connect your accounts</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mb-4">We'll redirect you to Facebook to authorise GymAxis. You'll pick which Page (and linked Instagram Business account) to connect.</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mb-4">We'll redirect you to Facebook to authorise Pulse Fitness. You'll pick which Page (and linked Instagram Business account) to connect.</p>
           <button
             onClick={connect}
             disabled={busy}
@@ -75,7 +75,7 @@ const SocialTab = ({ API, headers }) => {
       )}
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 text-[11px] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
-        <strong>How it works:</strong> GymAxis registers a single Meta Business app at the platform level (one OAuth app for the whole SaaS). Each gym connects their own Facebook Page + Instagram Business account through that app. Tokens are encrypted with the platform Fernet key — your account credentials never reach our servers.
+        <strong>How it works:</strong> Pulse Fitness registers a single Meta Business app at the platform level (one OAuth app for the whole SaaS). Each gym connects their own Facebook Page + Instagram Business account through that app. Tokens are encrypted with the platform Fernet key — your account credentials never reach our servers.
       </div>
     </div>
   );

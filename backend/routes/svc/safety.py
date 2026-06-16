@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Pre-job Health & Safety / RAMS sign-off.
+Pulse Fitness Service Operations — Pre-job Health & Safety / RAMS sign-off.
 
 Iter 216h89 — Field-engineering compliance gate.
 

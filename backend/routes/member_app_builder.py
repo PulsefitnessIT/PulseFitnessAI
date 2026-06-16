@@ -493,7 +493,7 @@ def _branding_dict(org_doc: dict) -> dict:
     return {
         # Iter 220ed — the member app shows the GYM's brand name (the
         # operator running the member portal), which can differ from the
-        # GymAxis account's legal org name. Prefer the explicit
+        # Pulse Fitness account's legal org name. Prefer the explicit
         # member-app display name, fall back to the org name.
         "name": org_doc.get("member_app_display_name") or org_doc.get("name") or None,
         "display_name": org_doc.get("member_app_display_name") or None,
@@ -529,7 +529,7 @@ async def save_branding(
     org_id, _ = await _resolve_org(user)
     updates: dict[str, Any] = {}
     # Iter 220ed — the member-app display name (what members see on the
-    # login / welcome screen), independent of the GymAxis org name.
+    # login / welcome screen), independent of the Pulse Fitness org name.
     if "display_name" in payload:
         dn = (payload.get("display_name") or "").strip()[:80]
         updates["member_app_display_name"] = dn or None

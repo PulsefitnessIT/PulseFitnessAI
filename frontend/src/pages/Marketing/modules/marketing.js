@@ -11,7 +11,7 @@ export default {
 
   heroLine1: 'Campaigns that',
   heroLine2: 'actually convert.',
-  heroSubtitle: 'Marketing is the AI-powered growth engine of GymAxis. Email, SMS, social, win-back, referral, and Instagram-ready class previews — written, designed and scheduled by AI in minutes.',
+  heroSubtitle: 'Marketing is the AI-powered growth engine of Pulse Fitness. Email, SMS, social, win-back, referral, and Instagram-ready class previews — written, designed and scheduled by AI in minutes.',
   heroVisualHeadline: 'Campaign performance · 30d',
   heroVisualLines: [
     { label: 'Sent', value: '8 412' },
@@ -80,7 +80,7 @@ export default {
     { title: 'Send-time intelligence', body: 'Picks the best send time per segment, based on historical engagement.' },
   ],
 
-  integrationsHeadline: 'Marketing is wired into the rest of GymAxis.',
+  integrationsHeadline: 'Marketing is wired into the rest of Pulse Fitness.',
   integrations: [
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'CRM segments are your live audiences. No CSV exports, no list rot.' },
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class data + capacity + bookings power the auto-generated campaign creative.' },

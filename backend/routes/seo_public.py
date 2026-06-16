@@ -44,7 +44,7 @@ router = APIRouter(prefix="/api/seo", tags=["seo-public"])
 
 
 def _site() -> str:
-    return (os.environ.get("SEO_SITE_URL") or "https://gymaxisai.com").rstrip("/")
+    return (os.environ.get("SEO_SITE_URL") or "https://www.pulsefitness.ai").rstrip("/")
 
 
 # Static, indexable marketing pages (mirror robots.txt Allow list) with a
@@ -101,7 +101,7 @@ EQUIPMENT_TYPES: list[dict] = [
         "plural": "treadmills",
         "term": "treadmill servicing & repair",
         "match": r"treadmill|\brunner\b|running machine",
-        "intro": "Treadmills are the hardest-worked machines on any gym floor — and the most expensive to leave broken. GymAxis keeps every treadmill serviced, compliant and earning.",
+        "intro": "Treadmills are the hardest-worked machines on any gym floor — and the most expensive to leave broken. Pulse Fitness keeps every treadmill serviced, compliant and earning.",
         "faults": [
             "Belt slipping, fraying or off-centre tracking",
             "Worn or dry running deck causing motor strain",
@@ -123,7 +123,7 @@ EQUIPMENT_TYPES: list[dict] = [
         "plural": "exercise bikes",
         "term": "exercise bike servicing & repair",
         "match": r"\bbike\b|indoor cycle|\bcycle\b|cycling|\bspin\b|spinning|recumbent|upright|airbike|air[\s-]?bike|assault|\batom\b|nucleus|proton",
-        "intro": "From studio spin bikes to air bikes and recumbents, GymAxis keeps every exercise bike smooth, quiet and safe — with parts and service history on one record.",
+        "intro": "From studio spin bikes to air bikes and recumbents, Pulse Fitness keeps every exercise bike smooth, quiet and safe — with parts and service history on one record.",
         "faults": [
             "Crank and bottom-bracket bearing play",
             "Brake pad wear (friction) or magnetic resistance drift",
@@ -145,7 +145,7 @@ EQUIPMENT_TYPES: list[dict] = [
         "plural": "rowing machines",
         "term": "rowing machine servicing & repair",
         "match": r"\brower\b|rowing|\berg\b|ski[\s-]?erg|trakrow",
-        "intro": "Keep every rower and ski-erg pulling true. GymAxis tracks chain, damper and monitor health so a worn handle never takes a machine off the floor.",
+        "intro": "Keep every rower and ski-erg pulling true. Pulse Fitness tracks chain, damper and monitor health so a worn handle never takes a machine off the floor.",
         "faults": [
             "Chain or handle strap wear",
             "Shock-cord stretch and slow recoil",
@@ -167,7 +167,7 @@ EQUIPMENT_TYPES: list[dict] = [
         "plural": "cross trainers",
         "term": "cross trainer & elliptical servicing",
         "match": r"elliptical|cross[\s-]?trainer|crosstrainer|\bglider\b",
-        "intro": "Ellipticals and cross trainers hide their wear in the bearings and drive. GymAxis schedules the right PPM so they stay silent and smooth.",
+        "intro": "Ellipticals and cross trainers hide their wear in the bearings and drive. Pulse Fitness schedules the right PPM so they stay silent and smooth.",
         "faults": [
             "Pedal-arm and link bearing play",
             "Drive belt wear and slippage",
@@ -189,7 +189,7 @@ EQUIPMENT_TYPES: list[dict] = [
         "plural": "stair climbers & steppers",
         "term": "stair climber & stepper servicing",
         "match": r"stepper|step machine|\bstair\b|climber|jacobs ladder|step[\s-]?mill|stepmill",
-        "intro": "Steppers and stair climbers take constant load through their drive and steps. GymAxis keeps the maintenance planned and the evidence logged.",
+        "intro": "Steppers and stair climbers take constant load through their drive and steps. Pulse Fitness keeps the maintenance planned and the evidence logged.",
         "faults": [
             "Step chain or belt wear",
             "Drive bearing noise",
@@ -215,7 +215,7 @@ EQUIPMENT_TYPES: list[dict] = [
                   r"|smith|functional|multi[\s-]?gym|adductor|abductor|\bdelt\b|\bcalf\b"
                   r"|\bglute\b|hack[\s-]?squat|\bdip\b|\bchin\b|converging|iso[\s-]?lateral"
                   r"|plate[\s-]?loaded|selectoriz|pin[\s-]?loaded"),
-        "intro": "Selectorised and plate-loaded strength kit fails quietly — a frayed cable or worn pulley is a safety risk. GymAxis makes inspection and repair routine.",
+        "intro": "Selectorised and plate-loaded strength kit fails quietly — a frayed cable or worn pulley is a safety risk. Pulse Fitness makes inspection and repair routine.",
         "faults": [
             "Cable fraying and end-fitting wear",
             "Pulley and bearing wear",
@@ -753,9 +753,9 @@ def _json_ld(article: dict, url: str) -> str:
             "image": [image],
             "datePublished": article.get("published_at") or article.get("created_at"),
             "dateModified": article.get("updated_at") or article.get("published_at"),
-            "author": {"@type": "Organization", "name": "GymAxis AI", "url": site},
+            "author": {"@type": "Organization", "name": "Pulse Fitness AI", "url": site},
             "publisher": {
-                "@type": "Organization", "name": "GymAxis AI",
+                "@type": "Organization", "name": "Pulse Fitness AI",
                 "logo": {"@type": "ImageObject",
                          "url": f"{site}/brand/gymaxis-logo.svg"},
             },
@@ -795,7 +795,7 @@ def _render_blog_html(article: dict) -> str:
     site = _site()
     slug = article.get("slug")
     canonical = f"{site}/blog/{slug}"
-    title = html.escape(article.get("title") or "GymAxis AI Blog")
+    title = html.escape(article.get("title") or "Pulse Fitness AI Blog")
     desc = html.escape((article.get("meta_description") or article.get("excerpt") or "")[:300])
     image = html.escape(_safe_image(article))
     has_real_image = (article.get("hero_image_url") or "").strip().startswith("http")
@@ -808,13 +808,13 @@ def _render_blog_html(article: dict) -> str:
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>{title} | GymAxis AI</title>
+<title>{title} | Pulse Fitness AI</title>
 <meta name="description" content="{desc}" />
 <meta name="keywords" content="{tags}" />
 <meta name="robots" content="index, follow, max-image-preview:large" />
 <link rel="canonical" href="{canonical}" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="GymAxis AI" />
+<meta property="og:site_name" content="Pulse Fitness AI" />
 <meta property="og:title" content="{title}" />
 <meta property="og:description" content="{desc}" />
 <meta property="og:url" content="{canonical}" />
@@ -839,7 +839,7 @@ def _render_blog_html(article: dict) -> str:
 {f'<img src="{image}" alt="{title}" />' if has_real_image else ''}
 {body_html}
 </article>
-<p><a href="{canonical}">Read this article on GymAxis AI &rarr;</a></p>
+<p><a href="{canonical}">Read this article on Pulse Fitness AI &rarr;</a></p>
 </main>
 </body>
 </html>

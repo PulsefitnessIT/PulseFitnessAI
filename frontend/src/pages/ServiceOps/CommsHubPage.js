@@ -263,7 +263,7 @@ function previewBody(key, html) {
     total: '624.00',
     lines_text: 'BELT-95TI    qty   1 @ £  300.00  Treadmill belt 95Ti',
     notes: 'Please ship next-day.',
-    org_name: 'GymAxis Demo',
+    org_name: 'Pulse Fitness Demo',
   };
   return (html || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, name) => sample[name] ?? `{{${name}}}`);
 }

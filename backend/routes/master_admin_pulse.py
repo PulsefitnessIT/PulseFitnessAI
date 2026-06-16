@@ -4,8 +4,8 @@ Master Admin · Pulse Fitness sub-router.
 Iter 216h180 — Extracted from `routes/master_admin.py` as phase 4 of
 the 4,283 LoC → 5-6 focused routers decomposition.
 
-Owns the Pulse-specific surface (Pulse is the in-house GymAxis brand
-that owns + operates ~200 sites and uses GymAxis for itself):
+Owns the Pulse-specific surface (Pulse is the in-house Pulse Fitness brand
+that owns + operates ~200 sites and uses Pulse Fitness for itself):
 
     GET    /master-admin/pulse-stats          — fleet-wide rollup across all Pulse sites
     GET    /master-admin/pulse-equipment-kits — standard equipment kit catalogue

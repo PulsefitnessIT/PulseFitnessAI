@@ -197,7 +197,7 @@ export default function PublicQuoteAcceptPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-[#1d4ed8] via-[#6366f1] to-[#8b5cf6] text-white">
         <div className="max-w-3xl mx-auto px-5 py-8">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">GymAxis · Quotation</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Pulse Fitness · Quotation</p>
           <h1 className="text-3xl font-extrabold mt-1" data-testid="public-quote-number">{quote.quote_number}</h1>
           <p className="text-sm opacity-90 mt-2">
             From <strong>{quote.engineer_name}</strong>
@@ -332,7 +332,7 @@ export default function PublicQuoteAcceptPage() {
               </button>
             </div>
             <p className="text-[10px] text-slate-400 mt-3 flex items-center gap-1.5">
-              <ShieldCheck size={11} /> Secured by GymAxis. Submitted at {new Date().toLocaleString('en-GB')}.
+              <ShieldCheck size={11} /> Secured by Pulse Fitness. Submitted at {new Date().toLocaleString('en-GB')}.
             </p>
           </Card>
         ) : (

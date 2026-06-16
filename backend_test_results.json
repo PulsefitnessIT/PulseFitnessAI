@@ -1,68 +1,66 @@
 {
-  "timestamp": "2026-04-03T19:49:02.043404",
-  "total_tests": 12,
-  "passed_tests": 12,
+  "test_type": "smoke_test_white_label_rebrand",
+  "timestamp": "2026-06-16T16:35:02.275289",
+  "total_tests": 6,
+  "passed_tests": 6,
+  "failed_tests": 0,
   "success_rate": 100.0,
   "results": [
     {
-      "test": "Backend Health Check",
+      "test": "Health Endpoint",
       "success": true,
-      "details": "Status: 200"
+      "details": "Status: 200, Response: {'status': 'ok'}",
+      "timestamp": "2026-06-16T16:35:01.430013",
+      "response_data": {
+        "status": "ok"
+      }
     },
     {
-      "test": "User Registration",
+      "test": "Master Admin Login",
       "success": true,
-      "details": "User ID: d112664a-d4d8-440b-a53e-2f95edd2d694"
+      "details": "Token received, User ID: 1fedcc01-1f53-408a-bc48-017375348536, Email: admin@pulsefitness.com, Is Master Admin: True",
+      "timestamp": "2026-06-16T16:35:01.758958",
+      "response_data": {
+        "user_id": "1fedcc01-1f53-408a-bc48-017375348536",
+        "is_master_admin": true
+      }
     },
     {
-      "test": "Get User Profile",
+      "test": "Auth Me Endpoint",
       "success": true,
-      "details": "Status: 200, User: test_194812@gymfixai.com"
+      "details": "Status: 200, User: admin@pulsefitness.com, Role: owner",
+      "timestamp": "2026-06-16T16:35:01.867633",
+      "response_data": {
+        "email": "admin@pulsefitness.com",
+        "role": "owner"
+      }
     },
     {
-      "test": "AI Chat Diagnosis",
+      "test": "Master Admin Organizations Endpoint",
       "success": true,
-      "details": "Response length: 3786"
+      "details": "Status: 200, Organizations count: 3",
+      "timestamp": "2026-06-16T16:35:02.027125",
+      "response_data": {
+        "org_count": 3
+      }
     },
     {
-      "test": "AI Audit Generation",
+      "test": "Organization Endpoint",
       "success": true,
-      "details": "Report length: 7845"
+      "details": "Status: 200, Organization: Pulse Fitness AI Admin",
+      "timestamp": "2026-06-16T16:35:02.171048",
+      "response_data": {
+        "org_name": "Pulse Fitness AI Admin"
+      }
     },
     {
-      "test": "Get Audit History",
+      "test": "Memberships Members Endpoint",
       "success": true,
-      "details": "Status: 200, Audits count: 1"
-    },
-    {
-      "test": "Create Issue",
-      "success": true,
-      "details": "Issue ID: 0f10ad97-b8a5-44f9-9cd8-91abaa662fce"
-    },
-    {
-      "test": "Get Issues",
-      "success": true,
-      "details": "Status: 200, Issues count: 1"
-    },
-    {
-      "test": "Update Issue Status",
-      "success": true,
-      "details": "Status: 200, Status updated to in_progress"
-    },
-    {
-      "test": "Get Maintenance Tasks",
-      "success": true,
-      "details": "Status: 200, Tasks count: 5"
-    },
-    {
-      "test": "Create Service Request",
-      "success": true,
-      "details": "Request ID: 29f78c08-377d-4723-86c2-a521e97d206a"
-    },
-    {
-      "test": "Payment Checkout",
-      "success": "cs_test_a14AyQ6o9csMbkFDIF7vcygguZgYyGdRvjpDdKKVRtNVkEAC0X5XrELBu2",
-      "details": "Session ID: cs_test_a14AyQ6o9csMbkFDIF7vcygguZgYyGdRvjpDdKKVRtNVkEAC0X5XrELBu2"
+      "details": "Status: 200, Members count: 0",
+      "timestamp": "2026-06-16T16:35:02.274382",
+      "response_data": {
+        "member_count": 0
+      }
     }
   ]
 }

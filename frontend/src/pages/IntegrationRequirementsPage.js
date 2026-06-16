@@ -28,7 +28,7 @@ const IntegrationRequirementsPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Orbit 4 → Sicon Service Bridge</h1>
           <p className="text-base text-gray-500 mt-2">What we need from Pulse Fitness to make this happen</p>
           <div className="flex items-center justify-center gap-4 mt-4 text-sm text-gray-400">
-            <span>Prepared by: GymAxis AI</span>
+            <span>Prepared by: Pulse Fitness AI</span>
             <span>|</span>
             <span>April 2026</span>
           </div>
@@ -48,7 +48,7 @@ const IntegrationRequirementsPage = () => {
               </div>
               <div className="text-gray-400 text-xl sm:rotate-0 rotate-90">→</div>
               <div className="text-center p-3 bg-gray-900 text-white rounded-lg flex-1 w-full">
-                <p className="font-semibold">GymAxis AI</p>
+                <p className="font-semibold">Pulse Fitness AI</p>
                 <p className="text-gray-300 text-xs mt-1">Automatic bridge</p>
               </div>
               <div className="text-gray-400 text-xl sm:rotate-0 rotate-90">→</div>
@@ -172,7 +172,7 @@ const IntegrationRequirementsPage = () => {
         <div className="mb-10">
           <h2 className="text-xl font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">What Does Orbit 4 See?</h2>
           <div className="bg-violet-50 border border-violet-200 rounded-lg p-5">
-            <p className="text-sm text-violet-800 font-semibold mb-2">Pulse Fitness — not GymAxis AI.</p>
+            <p className="text-sm text-violet-800 font-semibold mb-2">Pulse Fitness — not Pulse Fitness AI.</p>
             <p className="text-sm text-violet-700 mb-3">
               The integration is fully white-labelled. Everything Orbit 4 sees identifies as Pulse Fitness:
             </p>
@@ -190,7 +190,7 @@ const IntegrationRequirementsPage = () => {
                 <span>Webhook acknowledgements reference "Pulse Fitness"</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="font-semibold text-violet-800 flex-shrink-0">GymAxis AI:</span>
+                <span className="font-semibold text-violet-800 flex-shrink-0">Pulse Fitness AI:</span>
                 <span>Is never mentioned, referenced, or visible to Orbit 4 or their customers</span>
               </li>
             </ul>
@@ -253,12 +253,12 @@ const IntegrationRequirementsPage = () => {
         {/* Contact */}
         <div className="mt-12 pt-8 border-t-2 border-gray-900 text-center">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">Questions?</h3>
-          <p className="text-sm text-gray-500">Contact GymAxis AI — we're happy to walk through any of these steps.</p>
+          <p className="text-sm text-gray-500">Contact Pulse Fitness AI — we're happy to walk through any of these steps.</p>
           <p className="text-sm text-gray-400 mt-4">[Your Name] · [Your Email] · [Your Phone]</p>
         </div>
 
         <p className="mt-8 text-xs text-gray-400 text-center italic">
-          This document is provided to support the GymAxis AI × Pulse Fitness partnership proposal.
+          This document is provided to support the Pulse Fitness AI × Pulse Fitness partnership proposal.
         </p>
       </div>
     </div>

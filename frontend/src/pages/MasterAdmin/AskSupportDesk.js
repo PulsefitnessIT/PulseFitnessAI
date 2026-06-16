@@ -348,7 +348,7 @@ export default function AskSupportDesk() {
  <span>Pulse Lite / Pulse Pro → <span className="font-mono">service.dept@pulsefitness.com</span></span>
  </div>
  <div className="flex items-start gap-2"><MessageSquare size={12} className="mt-0.5 text-[var(--color-brand-blue)]" />
- <span>GymAxis customers → same inbox (configurable via env)</span>
+ <span>Pulse Fitness customers → same inbox (configurable via env)</span>
  </div>
  </div>
  </Card>

@@ -1,7 +1,7 @@
 /**
  * Public Demo Request landing page — Iter 220ak / Phase A.3.
  *
- * Captures inbound demo requests from the GymAxis public marketing
+ * Captures inbound demo requests from the Pulse Fitness public marketing
  * site. POST to /api/public/demo-request which:
  *   1. drops the visitor into the master-admin CRM as a Lead deal +
  *      contact + activity row,
@@ -69,7 +69,7 @@ export default function DemoRequestPage() {
   const [success, setSuccess] = useState(null);
 
   useEffect(() => {
-    document.title = 'Book a demo · GymAxis';
+    document.title = 'Book a demo · Pulse Fitness';
   }, []);
 
   const submit = async (e) => {
@@ -99,7 +99,7 @@ export default function DemoRequestPage() {
           </div>
           <h1 className="text-2xl font-extrabold mt-5 tracking-tight">Thanks — we&apos;re on it.</h1>
           <p className="text-sm text-zinc-600 mt-2">
-            Your demo request is logged. A member of the GymAxis team will reach out within
+            Your demo request is logged. A member of the Pulse Fitness team will reach out within
             one working day to book a 20-minute walkthrough tailored to your sites.
           </p>
           <p className="text-[11px] text-zinc-400 mt-5 tabular-nums">Receipt: {success.receipt_id}</p>
@@ -108,7 +108,7 @@ export default function DemoRequestPage() {
             className="mt-6 inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold border border-zinc-200 hover:border-fuchsia-400"
             data-testid="demo-request-success-home"
           >
-            Back to GymAxis
+            Back to Pulse Fitness
           </Link>
         </div>
       </div>
@@ -122,10 +122,10 @@ export default function DemoRequestPage() {
           {/* Left — social proof */}
           <div data-testid="demo-request-hero">
             <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-fuchsia-700">
-              GymAxis · Book a demo
+              Pulse Fitness · Book a demo
             </p>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mt-3 leading-[1.05]">
-              See how GymAxis<br/>kills equipment downtime.
+              See how Pulse Fitness<br/>kills equipment downtime.
             </h1>
             <p className="text-base sm:text-lg text-zinc-600 mt-5 max-w-md">
               A 20-minute walkthrough with your sites and equipment shadow-loaded.
@@ -209,7 +209,7 @@ export default function DemoRequestPage() {
                 </label>
               </div>
               <label className="grid gap-1.5">
-                <span className="text-xs font-bold text-zinc-700">What are you hoping GymAxis solves? (optional)</span>
+                <span className="text-xs font-bold text-zinc-700">What are you hoping Pulse Fitness solves? (optional)</span>
                 <textarea
                   maxLength={2000} rows={3}
                   value={form.message}

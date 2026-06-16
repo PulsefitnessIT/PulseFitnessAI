@@ -15,7 +15,7 @@
  * The drawer chrome matches the design-polished modal spec from iter 215bj:
  * sticky tabbed header, X close top-right, single body scroll only, white
  * surfaces on light theme. Pulse routes never load this component (it's
- * mounted only inside MembershipsConsole which is GymAxis-only).
+ * mounted only inside MembershipsConsole which is Pulse Fitness-only).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';

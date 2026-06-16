@@ -57,7 +57,7 @@ def _resolve_po_email_context(po: dict, user: dict, org: dict | None) -> dict:
     """Resolve branding, recipient, and test mode for PO email."""
     branding = (org or {}).get('branding', {}) or {}
     brand_color = branding.get('primary_color', '#0055FF')
-    company_name = branding.get('company_name') or (org.get('name', 'GymAxis AI') if org else 'GymAxis AI')
+    company_name = branding.get('company_name') or (org.get('name', 'Pulse Fitness AI') if org else 'Pulse Fitness AI')
 
     sender = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
     test_mode = 'resend.dev' in sender
@@ -105,7 +105,7 @@ def _build_po_email_html(po: dict, ctx: dict) -> str:
         </div>
         {f"<p style='margin-top:16px;'><strong>Notes:</strong> {po['notes']}</p>" if po.get('notes') else ''}
     </div>
-    <div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">Powered by {company_name} via GymAxis AI</div>
+    <div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">Powered by {company_name} via Pulse Fitness AI</div>
     </div>"""
 
 
@@ -156,7 +156,7 @@ async def get_po_pdf_view(po_id: str, token: str = None, user: dict = Depends(ge
         raise HTTPException(status_code=404, detail="PO not found")
     org = await db.organizations.find_one({"id": user.get('organization_id')}, {"_id": 0}) if user.get('organization_id') else None
     items_html, subtotal = _build_po_items_html(po.get('items', []))
-    return Response(content=_render_po_html(po, (org or {}).get('name', 'GymAxis AI'), (org or {}).get('logo_url'), items_html, subtotal), media_type="text/html")
+    return Response(content=_render_po_html(po, (org or {}).get('name', 'Pulse Fitness AI'), (org or {}).get('logo_url'), items_html, subtotal), media_type="text/html")
 
 
 # --- Default PO Prices Settings ---
@@ -282,7 +282,7 @@ def _render_contact_html(issue: dict, message: str, company_name: str, brand_col
     <table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;width:140px;">Equipment</td><td style="padding:10px;font-weight:bold;">{issue.get('machine_type','N/A')}</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;">Serial</td><td style="padding:10px;font-weight:bold;">{issue.get('serial_number','N/A')}</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;">Severity</td><td style="padding:10px;">{issue.get('severity','N/A').upper()}</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;">Issue</td><td style="padding:10px;">{issue.get('issue_description','N/A')[:200]}</td></tr></table>
     <div style="background:#f0f7ff;padding:16px;border-radius:8px;margin:16px 0;"><h4 style="margin:0 0 8px;">Message:</h4><p style="margin:0;color:#333;">{message}</p></div>
     <p style="color:#666;font-size:13px;">Please reply to this email.</p></div>
-    <div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">Powered by {company_name} via GymAxis AI</div></div>"""
+    <div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">Powered by {company_name} via Pulse Fitness AI</div></div>"""
 
 
 async def _resolve_site_name(data: dict, user: dict, org: dict | None) -> str:

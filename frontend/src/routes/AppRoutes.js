@@ -217,7 +217,7 @@ const HelpCentrePage = lazy(() => import('@/pages/HelpCentrePage'));
 /**
  * Iter 215bs — `/dashboard` resolver. Role-based routing with a
  * `?as=operator` escape hatch so master admins can preview the
- * GymAxis operator portal without seeding a fake user.
+ * Pulse Fitness operator portal without seeding a fake user.
  */
 function DashboardRoute({ user }) {
   if (!user) return <Navigate to="/" />;
@@ -278,7 +278,7 @@ function DashboardRoute({ user }) {
  *   /m/* (public member surfaces — they're token-gated anyway)
  *
  * Anything else (Memberships, Marketing, CRM, Staffing, Layout,
- * Pulse Pro main dashboard, Partner-Engineer, the GymAxis operator
+ * Pulse Pro main dashboard, Partner-Engineer, the Pulse Fitness operator
  * dashboard) is for non-MOD operators only.
  */
 function MODForbidden({ children }) {

@@ -2,8 +2,8 @@
 
 Three small but launch-critical surfaces grouped here:
   • Email sender branding: per-org "friendly From" + reply-to so a
-    customer can read "National Dance Studio <noreply@gymaxisai.com>"
-    instead of generic "GymAxis".
+    customer can read "National Dance Studio <noreply@pulsefitness.ai>"
+    instead of generic "Pulse Fitness".
   • Sample-data toggle for new orgs — one click to seed a tiny demo
     membership / class set so operators can play before importing.
   • In-product feedback intake — feeds the existing Sales Insights
@@ -66,9 +66,9 @@ async def get_email_sender(user: dict = Depends(get_current_user)):
 
 
 def _build_preview(org: dict) -> str:
-    fn = (org.get("email_sender_friendly_name") or org.get("name") or "GymAxis").strip()
+    fn = (org.get("email_sender_friendly_name") or org.get("name") or "Pulse Fitness").strip()
     safe = fn.replace('"', '').replace('<', '').replace('>', '')
-    return f"{safe} <noreply@gymaxisai.com>"
+    return f"{safe} <noreply@pulsefitness.ai>"
 
 
 @router.post("/launch/email-sender")

@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Sicon Service sync stubs.
+Pulse Fitness Service Operations — Sicon Service sync stubs.
 
 Iter 215dp.
 
@@ -13,7 +13,7 @@ the outbox and call the real Sicon API.
 
 The mapping rules are authoritative in `/app/memory/SVC_FIELD_MAPPING.md`.
 Keep the `_to_sicon_*` functions in lockstep with that file — every
-new GymAxis field added to a Pydantic model in `models/svc/*` must
+new Pulse Fitness field added to a Pydantic model in `models/svc/*` must
 appear here OR be explicitly tagged `gymaxis_only` in the mapping doc.
 """
 from datetime import datetime, timezone
@@ -74,7 +74,7 @@ COVER_NOMINAL: dict[str, str] = {
 def _to_sicon_call(case: dict) -> dict:
     """Translate a `svc_cases` doc to a Sicon `ServiceCall` payload.
 
-    Direction: GymAxis → Sicon. Read-back fields (AssignedToSageUser*,
+    Direction: Pulse Fitness → Sicon. Read-back fields (AssignedToSageUser*,
     closed_at when Sicon owns) are intentionally omitted on outbound.
     """
     return {

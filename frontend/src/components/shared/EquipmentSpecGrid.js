@@ -2,13 +2,13 @@
  * EquipmentSpecGrid — shared atomic component for equipment spec/stat
  * tile layouts. Used by:
  *   • Pulse Fitness EquipmentDetailContent
- *   • GymAxis EquipmentInfoTab Overview tab
+ *   • Pulse Fitness EquipmentInfoTab Overview tab
  *   • Future: Faults Detail Panel, Audit Reviewer, Service Desk drawer
  *
  * Iter 216o — extracted to avoid the same 6-tile grid being copied
  * across portals with subtle drift. Theme-aware (every value uses
  * `var(--theme-*)` tokens) so the same component renders correctly in
- * GymAxis blue and Pulse cyan without any prop other than `accent`.
+ * Pulse Fitness blue and Pulse cyan without any prop other than `accent`.
  *
  * Props:
  *   tiles: Array<{ label: string, value: string|node, mono?: boolean,

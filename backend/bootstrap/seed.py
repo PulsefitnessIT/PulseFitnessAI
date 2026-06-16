@@ -42,7 +42,7 @@ async def seed_master_admin() -> None:
     from utils.auth import hash_password
     from utils.security import clear_failed_logins
 
-    master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
+    master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")
     master_pwd = os.environ.get("MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
     reset_on_boot = os.environ.get("MASTER_ADMIN_RESET_ON_BOOT", "1") != "0"
     existing = await db.users.find_one({"email": master_email})
@@ -50,7 +50,7 @@ async def seed_master_admin() -> None:
         admin_id = str(uuid.uuid4())
         org_id = str(uuid.uuid4())
         await db.organizations.insert_one({
-            "id": org_id, "name": "GymAxis AI Admin",
+            "id": org_id, "name": "Pulse Fitness AI Admin",
             "subscription_tier": "premium",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
@@ -97,7 +97,7 @@ async def seed_master_admin() -> None:
         if not org_doc:
             await db.organizations.insert_one({
                 "id": org_id,
-                "name": "GymAxis AI Admin",
+                "name": "Pulse Fitness AI Admin",
                 "account_type": "full",
                 "subscription_tier": "premium",
                 "modules": {
@@ -173,7 +173,7 @@ async def seed_services() -> None:
             logger.info("MOD demo tree seeded")
         except Exception as e:  # pragma: no cover
             logger.warning("MOD demo seed failed: %s", e)
-    # GymAxis Memberships — indexes always; demo seed only when ENABLE_DEMO_SEED=1
+    # Pulse Fitness Memberships — indexes always; demo seed only when ENABLE_DEMO_SEED=1
     try:
         from routes.memberships import ensure_memberships_indexes
         await ensure_memberships_indexes()

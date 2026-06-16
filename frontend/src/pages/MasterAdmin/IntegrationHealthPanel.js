@@ -3,7 +3,7 @@
  *
  * Iter 215l. Live diagnostic dashboard for third-party integrations
  * (DB / Stripe / Resend / Storage / Emergent LLM). Designed so the
- * GymAxis HQ team can answer "is X up?" in under 5 seconds without
+ * Pulse Fitness HQ team can answer "is X up?" in under 5 seconds without
  * SSHing into the backend pod.
  *
  * Endpoints used:

@@ -32,7 +32,7 @@ const REASON_CONFIG = {
   suspended: {
     icon: AlertTriangle, color: '#dc2626',
     title: 'Engineer App access suspended',
-    sub:   'Your Partner Engineer access has been suspended. Contact GymAxis support to discuss next steps.',
+    sub:   'Your Partner Engineer access has been suspended. Contact Pulse Fitness support to discuss next steps.',
     cta:   null,
   },
   needs_subscription: {

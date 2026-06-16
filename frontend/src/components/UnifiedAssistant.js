@@ -1,5 +1,5 @@
 /**
- * GymAxis Unified AI Assistant
+ * Pulse Fitness Unified AI Assistant
  *
  * A single floating-orb component that adapts its capabilities based on the
  * current route:
@@ -14,7 +14,7 @@
  *
  * Mounted globally in App.js. Hides itself on:
  * - unauthenticated routes
- * - public landing pages (the legacy AskGymAxis covers those)
+ * - public landing pages (the legacy AskPulseFitness covers those)
  * - Master Admin / CRM where a different copilot makes sense
  *
  * Action bubbles ("Open Campaigns →", "View Equipment Fleet") run via the

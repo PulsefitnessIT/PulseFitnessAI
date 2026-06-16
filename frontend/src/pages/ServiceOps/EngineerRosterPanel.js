@@ -128,7 +128,7 @@ export default function EngineerRosterPanel({ onChange }) {
                 data-testid="engineer-roster-email"
               />
             </div>
-            <p className="text-[10px] svc-muted mt-1">They must already have a GymAxis account — if not, ask them to register first.</p>
+            <p className="text-[10px] svc-muted mt-1">They must already have a Pulse Fitness account — if not, ask them to register first.</p>
           </label>
 
           <label className="block">

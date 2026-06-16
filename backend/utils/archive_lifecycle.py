@@ -164,7 +164,7 @@ async def _send_pre_delete_warning(org: Dict[str, Any]) -> bool:
     subject = f"[Action required] {org.get('name', 'Your gym')} will be permanently deleted in {days_left} day(s)"
     html = f"""
       <div style="font-family: -apple-system, Segoe UI, sans-serif; max-width: 560px; margin: 0 auto;">
-        <h2 style="color: #0055FF;">Your GymAxis workspace is scheduled for permanent deletion</h2>
+        <h2 style="color: #0055FF;">Your Pulse Fitness workspace is scheduled for permanent deletion</h2>
         <p>Hi team,</p>
         <p>Your gym <strong>{org.get('name', '')}</strong> was archived on
            <strong>{org.get('archived_at', 'a previous date')[:10]}</strong>.</p>
@@ -172,12 +172,12 @@ async def _send_pre_delete_warning(org: Dict[str, Any]) -> bool:
            after {RETENTION_DAYS} days (GDPR right-to-erasure).
            <strong>{org.get('name', 'Your gym')}</strong> is now scheduled for permanent
            deletion in <strong>{days_left} day(s)</strong>.</p>
-        <p><strong>If you want to keep your data</strong>, ask your GymAxis administrator
+        <p><strong>If you want to keep your data</strong>, ask your Pulse Fitness administrator
            to restore the workspace from the Archive page before the deadline.</p>
         <p>Once deleted, <em>all equipment, fault history, users, and documents</em> will be
            permanently and irrecoverably removed.</p>
         <p style="margin-top: 32px; color: #71717a; font-size: 12px;">
-          This is an automated compliance notification from GymAxis AI.
+          This is an automated compliance notification from Pulse Fitness AI.
         </p>
       </div>
     """

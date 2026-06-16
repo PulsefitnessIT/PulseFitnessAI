@@ -189,7 +189,7 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
  {/* Step 1: Logo Upload */}
  {step === 1 && (
  <div className="space-y-6" data-testid="onboarding-step-1">
- <p className="text-[var(--color-text-muted)]">Upload your gym logo. It will appear alongside the GymAxis AI logo throughout the platform.</p>
+ <p className="text-[var(--color-text-muted)]">Upload your gym logo. It will appear alongside the Pulse Fitness AI logo throughout the platform.</p>
  <div className="flex flex-col items-center gap-4 p-8 border-2 border-dashed border-white/20 rounded-lg">
  {logoPreview ? (
  <img src={logoPreview} alt="Logo preview" className="h-24 object-contain rounded" data-testid="logo-preview" />

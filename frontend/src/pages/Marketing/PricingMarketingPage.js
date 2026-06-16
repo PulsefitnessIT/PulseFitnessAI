@@ -1,8 +1,8 @@
 /**
- * GymAxis Pricing — Iter 215be (May 1, 2026)
+ * Pulse Fitness Pricing — Iter 215be (May 1, 2026)
  *
  * New flexible pricing model:
- *   • Bundle: GymAxis Pro £150/mo (all 4 modules + AI + integrations + 1 site)
+ *   • Bundle: Pulse Fitness Pro £150/mo (all 4 modules + AI + integrations + 1 site)
  *   • Add additional sites at +£50/mo each (live site-slider).
  *   • Or pick individual modules:
  *       - Memberships £29/mo
@@ -28,7 +28,7 @@ import { useSeo } from '@/utils/seo';
 
 const BUNDLE = {
   id: 'gymaxis_pro',
-  name: 'GymAxis Pro',
+  name: 'Pulse Fitness Pro',
   tagline: 'The full operating system. All modules. All AI. All integrations.',
   base: 150,
   perSite: 50,
@@ -322,30 +322,30 @@ function ModuleCard({ mod }) {
 const FAQ = [
   { q: 'Is there a free trial?', a: 'Yes — every plan includes a 3-day free trial with all modules unlocked. No credit card required. Bring your data, kick the tires, cancel any time.' },
   { q: 'Can I add or remove sites later?', a: 'Yes. Add a site any time and your subscription updates automatically with prorated billing. Remove a site at the end of the billing period — no penalties, no lock-ins.' },
-  { q: 'Can I start with just one module and add more?', a: 'Absolutely. Start with the module that solves your biggest pain. When you outgrow it, upgrade to GymAxis Pro and unlock everything else for £150/mo — usually cheaper than two individual modules.' },
-  { q: 'How does multi-site billing work?', a: 'GymAxis Pro is £150/mo and includes one site. Every additional site is £50/mo, billed on the same invoice. So 3 sites is £250/mo, 5 sites is £350/mo. Sites can have separate branding, staff, and reports.' },
+  { q: 'Can I start with just one module and add more?', a: 'Absolutely. Start with the module that solves your biggest pain. When you outgrow it, upgrade to Pulse Fitness Pro and unlock everything else for £150/mo — usually cheaper than two individual modules.' },
+  { q: 'How does multi-site billing work?', a: 'Pulse Fitness Pro is £150/mo and includes one site. Every additional site is £50/mo, billed on the same invoice. So 3 sites is £250/mo, 5 sites is £350/mo. Sites can have separate branding, staff, and reports.' },
   { q: 'What happens after my 3-day trial?', a: 'You\'ll be invited to add a card to keep your modules. If you don\'t convert, your account moves to read-only — your data is preserved for 30 days so you never lose it.' },
   { q: 'Do you offer Enterprise pricing?', a: 'Yes. For chains, franchises, or 10+ sites with advanced needs (SSO, dedicated CSM, custom DPA, ERP sync) — talk to our team.' },
 ];
 
-export default function GymAxisPricingPage() {
+export default function PulseFitnessPricingPage() {
   const [siteCount, setSiteCount] = useState(1);
   const [billingCycle, setBillingCycle] = useState('monthly');
 
   useSeo({
-    title: 'Pricing — GymAxis AI · From £29/mo',
-    description: 'Pick a single module from £29/mo or unlock everything with GymAxis Pro at £150/mo. 3-day free trial, all modules unlocked, no credit card.',
-    canonical: 'https://gymaxisai.com/pricing',
-    image: 'https://gymaxisai.com/brand/og-cover.jpg',
+    title: 'Pricing — Pulse Fitness AI · From £29/mo',
+    description: 'Pick a single module from £29/mo or unlock everything with Pulse Fitness Pro at £150/mo. 3-day free trial, all modules unlocked, no credit card.',
+    canonical: 'https://www.pulsefitness.ai/pricing',
+    image: 'https://www.pulsefitness.ai/brand/og-cover.jpg',
     structuredData: {
       '@context': 'https://schema.org',
       '@type': 'Product',
-      name: 'GymAxis AI',
+      name: 'Pulse Fitness AI',
       description: 'All-in-one operations platform for fitness operators.',
-      image: ['https://gymaxisai.com/brand/og-cover.jpg'],
-      brand: { '@type': 'Brand', name: 'GymAxis AI' },
+      image: ['https://www.pulsefitness.ai/brand/og-cover.jpg'],
+      brand: { '@type': 'Brand', name: 'Pulse Fitness AI' },
       offers: [
-        { '@type': 'Offer', name: 'GymAxis Pro', price: '150.00', priceCurrency: 'GBP', priceSpecification: { '@type': 'UnitPriceSpecification', price: '150.00', priceCurrency: 'GBP', referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' } } },
+        { '@type': 'Offer', name: 'Pulse Fitness Pro', price: '150.00', priceCurrency: 'GBP', priceSpecification: { '@type': 'UnitPriceSpecification', price: '150.00', priceCurrency: 'GBP', referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' } } },
         { '@type': 'Offer', name: 'Memberships', price: '29.00', priceCurrency: 'GBP' },
         { '@type': 'Offer', name: 'CRM',         price: '49.00', priceCurrency: 'GBP' },
         { '@type': 'Offer', name: 'Marketing',   price: '49.00', priceCurrency: 'GBP' },
@@ -370,7 +370,7 @@ export default function GymAxisPricingPage() {
                 <span className="gx-gradient-text">Scale at your pace.</span>
               </h1>
               <p className="mt-5 text-base sm:text-lg text-slate-600 max-w-xl mx-auto">
-                Pick a single module, or unlock the full platform with GymAxis Pro. Every plan grows with you — add modules and sites in a click.
+                Pick a single module, or unlock the full platform with Pulse Fitness Pro. Every plan grows with you — add modules and sites in a click.
               </p>
             </div>
 
@@ -386,7 +386,7 @@ export default function GymAxisPricingPage() {
             <div className="text-center max-w-2xl mx-auto">
               <h2 className="text-3xl sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-zinc-100">Or just pick what you need</h2>
               <p className="mt-3 text-base text-slate-600">
-                Start with the module that solves your biggest pain. Upgrade to GymAxis Pro any time — together they'd be £{moduleTotal}/mo, the bundle is £{BUNDLE.base}.
+                Start with the module that solves your biggest pain. Upgrade to Pulse Fitness Pro any time — together they'd be £{moduleTotal}/mo, the bundle is £{BUNDLE.base}.
               </p>
             </div>
             <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5" data-testid="gx-pricing-modules-grid">

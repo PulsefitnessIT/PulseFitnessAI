@@ -14,12 +14,12 @@ export const SOLUTIONS = [
     slug: 'gym-maintenance-software',
     eyebrow: 'Maintenance',
     keyword: 'gym equipment maintenance software',
-    metaTitle: 'Gym Equipment Maintenance Software | GymAxis AI',
+    metaTitle: 'Gym Equipment Maintenance Software | Pulse Fitness AI',
     metaDescription:
-      'Track faults, dispatch engineers, allocate parts and prove compliance with GymAxis — purpose-built gym equipment maintenance software for multi-site operators.',
+      'Track faults, dispatch engineers, allocate parts and prove compliance with Pulse Fitness — purpose-built gym equipment maintenance software for multi-site operators.',
     h1: 'Gym equipment maintenance software that keeps every machine on the floor.',
     intro:
-      'Downtime kills member experience and revenue. GymAxis gives operators one place to log faults, triage them with AI, dispatch field engineers, allocate the right parts and evidence every repair — across one site or fifty.',
+      'Downtime kills member experience and revenue. Pulse Fitness gives operators one place to log faults, triage them with AI, dispatch field engineers, allocate the right parts and evidence every repair — across one site or fifty.',
     audience: 'For operations managers, facilities teams and service engineers.',
     pains: [
       { title: 'Faults reported in five different places', body: 'WhatsApp, spreadsheets, a clipboard at reception, an email to the supplier. Nothing is tracked and nothing is owned.' },
@@ -36,10 +36,10 @@ export const SOLUTIONS = [
       { title: 'Compliance-ready history', body: 'Every machine carries a full, time-stamped service and inspection trail you can export on demand.' },
     ],
     faqs: [
-      { q: 'Can it handle multiple sites?', a: 'Yes — GymAxis is multi-site by default with site-scoped roles, per-site dashboards and a portfolio view across the whole estate.' },
+      { q: 'Can it handle multiple sites?', a: 'Yes — Pulse Fitness is multi-site by default with site-scoped roles, per-site dashboards and a portfolio view across the whole estate.' },
       { q: 'Do engineers need a signal to work?', a: 'No. The engineer app is offline-first; jobs, photos and parts usage queue locally and sync automatically when connectivity returns.' },
       { q: 'Can I tell warranty from chargeable repairs?', a: 'Yes. Every part allocation is classified against the asset\'s contract cover, so chargeable work is flagged for billing automatically.' },
-      { q: 'Does it integrate with our finance system?', a: 'GymAxis drafts Sage 200 quotes/invoices for chargeable work and maps van-stock movements to Sage stock (Sicon WebAPI) where available.' },
+      { q: 'Does it integrate with our finance system?', a: 'Pulse Fitness drafts Sage 200 quotes/invoices for chargeable work and maps van-stock movements to Sage stock (Sicon WebAPI) where available.' },
       { q: 'How fast can we go live?', a: 'Most operators import their asset register and start logging faults within days. A free 3-day trial unlocks every module.' },
     ],
     relatedSolutions: ['ppm-software-for-gym-equipment', 'gym-equipment-asset-management', 'fitness-equipment-service-management'],
@@ -49,12 +49,12 @@ export const SOLUTIONS = [
     slug: 'ppm-software-for-gym-equipment',
     eyebrow: 'Planned maintenance',
     keyword: 'PPM software for gym equipment',
-    metaTitle: 'PPM Software for Gym Equipment | Planned Preventive Maintenance — GymAxis',
+    metaTitle: 'PPM Software for Gym Equipment | Planned Preventive Maintenance — Pulse Fitness',
     metaDescription:
-      'Automate planned preventive maintenance for treadmills, bikes and strength kit. GymAxis schedules PPM per asset and contract, auto-queues the next visit and proves compliance.',
+      'Automate planned preventive maintenance for treadmills, bikes and strength kit. Pulse Fitness schedules PPM per asset and contract, auto-queues the next visit and proves compliance.',
     h1: 'PPM software that makes planned maintenance run itself.',
     intro:
-      'Reactive-only maintenance is expensive and risky. GymAxis turns planned preventive maintenance into a self-driving cadence: schedule visits per asset or contract, and the next PPM is created automatically the moment the engineer closes the current one.',
+      'Reactive-only maintenance is expensive and risky. Pulse Fitness turns planned preventive maintenance into a self-driving cadence: schedule visits per asset or contract, and the next PPM is created automatically the moment the engineer closes the current one.',
     audience: 'For facilities and service managers running scheduled maintenance.',
     pains: [
       { title: 'PPM lives in a spreadsheet', body: 'Schedules drift, visits get missed, and nobody notices until something breaks.' },
@@ -81,12 +81,12 @@ export const SOLUTIONS = [
     slug: 'gym-equipment-asset-management',
     eyebrow: 'Asset register',
     keyword: 'gym equipment asset management',
-    metaTitle: 'Gym Equipment Asset Management Software | GymAxis AI',
+    metaTitle: 'Gym Equipment Asset Management Software | Pulse Fitness AI',
     metaDescription:
-      'A live, QR-tagged register of every machine across every site — with service history, warranty, depreciation and replacement planning. GymAxis asset management for gyms.',
+      'A live, QR-tagged register of every machine across every site — with service history, warranty, depreciation and replacement planning. Pulse Fitness asset management for gyms.',
     h1: 'Know every machine you own — and exactly what it costs you.',
     intro:
-      'You can\'t maintain, budget for or replace what you can\'t see. GymAxis keeps a single live register of every asset across the estate, each with its full service history, warranty position and lifecycle status.',
+      'You can\'t maintain, budget for or replace what you can\'t see. Pulse Fitness keeps a single live register of every asset across the estate, each with its full service history, warranty position and lifecycle status.',
     audience: 'For operations leaders, finance and asset owners.',
     pains: [
       { title: 'No single source of truth', body: 'Asset lists live in different spreadsheets per site and are out of date the day they\'re made.' },
@@ -113,12 +113,12 @@ export const SOLUTIONS = [
     slug: 'gym-crm-software',
     eyebrow: 'CRM',
     keyword: 'gym CRM software',
-    metaTitle: 'Gym CRM Software | Sales, Contracts & Service in One — GymAxis',
+    metaTitle: 'Gym CRM Software | Sales, Contracts & Service in One — Pulse Fitness',
     metaDescription:
-      'Gym CRM software that joins sales to service: track leads and contracts, then auto-onboard won deals into operations. GymAxis CRM for multi-site fitness operators.',
+      'Gym CRM software that joins sales to service: track leads and contracts, then auto-onboard won deals into operations. Pulse Fitness CRM for multi-site fitness operators.',
     h1: 'A gym CRM that doesn\'t stop at the sale.',
     intro:
-      'Most gym CRMs end the moment a deal is won. GymAxis carries the customer straight through to delivery — a signed contract automatically seeds the maintenance schedule, the asset cover and the first service visit.',
+      'Most gym CRMs end the moment a deal is won. Pulse Fitness carries the customer straight through to delivery — a signed contract automatically seeds the maintenance schedule, the asset cover and the first service visit.',
     audience: 'For sales, account management and operations leaders.',
     pains: [
       { title: 'Sales and service are siloed', body: 'The CRM and the operations system don\'t talk, so won deals get re-keyed by hand.' },
@@ -145,12 +145,12 @@ export const SOLUTIONS = [
     slug: 'leisure-centre-management-software',
     eyebrow: 'Leisure & multi-site',
     keyword: 'leisure centre management software',
-    metaTitle: 'Leisure Centre Management Software | GymAxis AI',
+    metaTitle: 'Leisure Centre Management Software | Pulse Fitness AI',
     metaDescription:
-      'Run multi-site leisure centres from one platform: assets, maintenance, contracts, compliance and finance hand-off. GymAxis leisure centre management software.',
+      'Run multi-site leisure centres from one platform: assets, maintenance, contracts, compliance and finance hand-off. Pulse Fitness leisure centre management software.',
     h1: 'One platform to run leisure centres at scale.',
     intro:
-      'Leisure operators and trusts juggle dozens of sites, hundreds of assets and strict compliance. GymAxis brings asset management, maintenance, contracts, compliance evidence and finance hand-off into a single, site-scoped platform.',
+      'Leisure operators and trusts juggle dozens of sites, hundreds of assets and strict compliance. Pulse Fitness brings asset management, maintenance, contracts, compliance evidence and finance hand-off into a single, site-scoped platform.',
     audience: 'For leisure trusts, operators and multi-site facilities teams.',
     pains: [
       { title: 'Estate-wide blind spots', body: 'No portfolio view of downtime, compliance or maintenance spend across sites.' },
@@ -177,12 +177,12 @@ export const SOLUTIONS = [
     slug: 'fitness-equipment-service-management',
     eyebrow: 'Service desk',
     keyword: 'fitness equipment service management software',
-    metaTitle: 'Fitness Equipment Service Management Software | GymAxis AI',
+    metaTitle: 'Fitness Equipment Service Management Software | Pulse Fitness AI',
     metaDescription:
-      'A complete service desk for fitness equipment: cases, AI triage, engineer dispatch, parts and SLAs — with a finance hand-off. GymAxis service management software.',
+      'A complete service desk for fitness equipment: cases, AI triage, engineer dispatch, parts and SLAs — with a finance hand-off. Pulse Fitness service management software.',
     h1: 'A service desk built for fitness equipment, not generic tickets.',
     intro:
-      'Generic helpdesks don\'t understand machines, parts or engineers. GymAxis is a service desk designed for fitness equipment — from member-reported fault to dispatched engineer to billed repair, with SLAs enforced throughout.',
+      'Generic helpdesks don\'t understand machines, parts or engineers. Pulse Fitness is a service desk designed for fitness equipment — from member-reported fault to dispatched engineer to billed repair, with SLAs enforced throughout.',
     audience: 'For service desks, dispatchers and field engineering teams.',
     pains: [
       { title: 'Generic tickets, no context', body: 'A standard helpdesk has no concept of an asset, a part or an engineer\'s van stock.' },

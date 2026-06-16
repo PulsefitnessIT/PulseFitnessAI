@@ -3,7 +3,7 @@
 Iter 215eu (Feb 2026) — bulk-purge test artefacts from the master-admin
 DB. Identifies orgs whose name matches well-known test-suite patterns
 (`TEST_*`, `Test Org`, `AddrTest`, `Address Test Co`, duplicate
-`GymAxis AI`) and either ARCHIVES them then HARD-DELETES, or skips with
+`Pulse Fitness AI`) and either ARCHIVES them then HARD-DELETES, or skips with
 a clear log line.
 
 Protected (never touched):
@@ -23,7 +23,7 @@ import httpx
 
 API_BASE = (os.environ.get("REACT_APP_BACKEND_URL")
             or "https://fitness-ai-migrate.preview.emergentagent.com").rstrip("/") + "/api"
-ADMIN_EMAIL = os.environ.get("PURGE_ADMIN_EMAIL", "admin@gymaxisai.com")
+ADMIN_EMAIL = os.environ.get("PURGE_ADMIN_EMAIL", "admin@pulsefitness.ai")
 # Iter 216bo — read the dev master-admin password from env so the script
 # can run unattended without a literal ending up in repository forks.
 # Falls back to the documented dev password (see /app/memory/test_credentials.md)
@@ -66,7 +66,7 @@ async def main():
             if acct in PROTECTED_ACCOUNT_TYPES or name in PROTECTED_NAMES:
                 keep.append(o)
                 continue
-            if any(p.search(name) for p in TEST_PATTERNS) or name == "GymAxis AI":
+            if any(p.search(name) for p in TEST_PATTERNS) or name == "Pulse Fitness AI":
                 to_delete.append(o)
                 continue
             keep.append(o)

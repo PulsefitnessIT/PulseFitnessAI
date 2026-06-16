@@ -2,7 +2,7 @@
 
 Replaces the unreliable generative-AI image path that hallucinated fake
 dashboards, wrong logos and blank gradients. Every card here is rendered
-with Pillow from real brand tokens + the real GymAxis logo + (optionally)
+with Pillow from real brand tokens + the real Pulse Fitness logo + (optionally)
 a REAL product screenshot — so nothing is ever invented.
 
 Five layouts, all channel-aware (1:1 / 9:16 / 1.91:1):
@@ -126,7 +126,7 @@ def _gradient_bg(w: int, h: int, c1: str, c2: str):
 
 
 def _dark_bg(w: int, h: int, c1: str, c2: str):
-    """Deep-navy canvas (matches the GymAxis app dark theme) with two
+    """Deep-navy canvas (matches the Pulse Fitness app dark theme) with two
     soft brand-coloured glows. Premium, never a flat block."""
     from PIL import Image, ImageDraw, ImageFilter  # type: ignore
     base = Image.new("RGBA", (w, h), (10, 14, 31, 255))  # #0A0E1F

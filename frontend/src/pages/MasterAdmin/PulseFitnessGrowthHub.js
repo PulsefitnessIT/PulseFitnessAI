@@ -1,10 +1,10 @@
 /**
- * GymAxisGrowthHub — Master Admin → Growth → Marketing Studio
+ * PulseFitnessGrowthHub — Master Admin → Growth → Marketing Studio
  * (Iter 220ag/220ah, replaces GrowthStudio.js).
  *
  * The previous implementation embedded the operator-facing
  * `MarketingSuite` ("Fill empty classes", "Re-engage inactive members"
- * etc.) which was the wrong context for marketing GymAxis as a B2B
+ * etc.) which was the wrong context for marketing Pulse Fitness as a B2B
  * SaaS. This Hub is a pure aggregation surface: it reads one
  * server-rolled-up payload (`GET /api/master-admin/growth/overview`)
  * and surfaces deep-links into every existing module so we **never
@@ -13,7 +13,7 @@
  * admin views.
  *
  * Layout:
- *   1. Hero — explains "this is GymAxis self-promotion".
+ *   1. Hero — explains "this is Pulse Fitness self-promotion".
  *   2. KPI tiles row — at-a-glance numbers per funnel stage.
  *   3. Funnel cards — one per module group, each with the right
  *      "Open …" button that jumps the user to the existing module.
@@ -45,7 +45,7 @@ const TEMPLATE_AUDIENCE_HINTS = {
   'lost-revival': 'CRM deals stage = lost in last 12 months',
 };
 const TEMPLATE_TONE_HINTS = {
-  'cold-to-demo': 'B2B SaaS · GymAxis brand voice',
+  'cold-to-demo': 'B2B SaaS · Pulse Fitness brand voice',
   'demo-booked': 'Personal, partnership-first',
   'trial-conversion': 'Helpful, urgency only on day 13',
   'lost-revival': 'Low-pressure, news-led',
@@ -234,7 +234,7 @@ function FunnelCard({ icon: Icon, accent, title, lede, stats, ctaLabel, deepLink
   );
 }
 
-export default function GymAxisGrowthHub({ onJumpSection }) {
+export default function PulseFitnessGrowthHub({ onJumpSection }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -344,14 +344,14 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
   if (!data) {
     return (
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-10 flex items-center justify-center gap-2 text-zinc-500" data-testid="growth-hub-loading">
-        <Loader2 size={16} className="animate-spin" /> Loading GymAxis growth overview…
+        <Loader2 size={16} className="animate-spin" /> Loading Pulse Fitness growth overview…
       </div>
     );
   }
 
   return (
     <div className="space-y-5" data-testid="gymaxis-growth-hub">
-      {/* Hero — explains this is GymAxis self-promo. */}
+      {/* Hero — explains this is Pulse Fitness self-promo. */}
       <header
         className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
         data-testid="growth-hub-hero"
@@ -365,10 +365,10 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
               Growth · Master Admin
             </p>
             <h2 className="text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight mt-0.5 leading-tight">
-              GymAxis Growth Hub
+              Pulse Fitness Growth Hub
             </h2>
             <p className="hidden sm:block text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
-              How we&apos;re marketing GymAxis to fitness operators. Pulls live
+              How we&apos;re marketing Pulse Fitness to fitness operators. Pulls live
               numbers from Trials, SEO Autopilot, Outbound Emails, CRM Pipeline
               and Sales Insights — no module is rebuilt here, every tile deep-links
               into the existing tool.

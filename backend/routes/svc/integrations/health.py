@@ -1,5 +1,5 @@
 """
-GymAxis · Integrations Admin — health & outbox status.
+Pulse Fitness · Integrations Admin — health & outbox status.
 
 Iter 215dy (Workstream D of revised Phase 8).
 
@@ -50,7 +50,7 @@ SICON_INBOX = "svc_sicon_inbox"
 
 
 def _require_admin(user: dict[str, Any]) -> None:
-    """Integrations plumbing is cross-tenant — GymAxis master admins and
+    """Integrations plumbing is cross-tenant — Pulse Fitness master admins and
     Pulse Master Admins only.
 
     Iter 251 security hardening: the previous guard also accepted the

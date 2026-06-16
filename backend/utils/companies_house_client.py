@@ -14,7 +14,7 @@ Why a util module instead of inlining in routes/companies_house.py?
     the HTTP work into a util lets both auth contexts share the cache
     and the API budget.
   • Tests don't have to spin up FastAPI to verify behaviour.
-  • Field normalisation (CH `address_line_1` → GymAxis `address_line1`)
+  • Field normalisation (CH `address_line_1` → Pulse Fitness `address_line1`)
     lives in one place — no risk of the two callers drifting.
 """
 from __future__ import annotations
@@ -83,7 +83,7 @@ def _cache_set(cache: dict, key: str, value: Any, ttl: int) -> None:
 
 
 def normalise_address(addr: dict | None) -> dict:
-    """Map CH `registered_office_address` shape onto the GymAxis
+    """Map CH `registered_office_address` shape onto the Pulse Fitness
     structured-address shape so callers can drop the result straight
     into our AddressFields component without any per-call mapping."""
     if not addr:
@@ -185,7 +185,7 @@ async def _ch_get(path: str, params: dict | None = None) -> dict:
 
 async def search(q: str, limit: int = 8) -> list[dict]:
     """Search Companies House by name / number / postcode prefix.
-    Returns a list of GymAxis-shaped dicts (see `normalise_search_item`).
+    Returns a list of Pulse Fitness-shaped dicts (see `normalise_search_item`).
     Returns [] on enabled-but-too-short queries (<2 chars)."""
     qs = (q or "").strip()
     if not is_enabled() or len(qs) < 2:
@@ -203,7 +203,7 @@ async def search(q: str, limit: int = 8) -> list[dict]:
 
 
 async def profile(company_number: str) -> dict:
-    """Fetch the full company profile and return a GymAxis-shaped dict
+    """Fetch the full company profile and return a Pulse Fitness-shaped dict
     with the structured registered-office address pre-normalised."""
     cn = (company_number or "").strip().upper()
     if not cn:

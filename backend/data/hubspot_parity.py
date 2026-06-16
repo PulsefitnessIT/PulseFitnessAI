@@ -386,9 +386,9 @@ FEATURE_MATRIX: list[dict] = [
     },
     {
         "id": "ana-kpi-lenses", "category": "Marketing — Analytics", "feature": "Role-based analytics lenses",
-        "hubspot_tier": "None (GymAxis unique)", "our_status": "shipped",
+        "hubspot_tier": "None (Pulse Fitness unique)", "our_status": "shipped",
         "our_implementation": "Manager/Regional/Director 3-role lenses (Iter ~195)",
-        "gap_notes": "Novel to GymAxis — not a HubSpot feature.",
+        "gap_notes": "Novel to Pulse Fitness — not a HubSpot feature.",
         "priority": "none",
     },
 
@@ -397,7 +397,7 @@ FEATURE_MATRIX: list[dict] = [
         "id": "cms-blog", "category": "Marketing — Content", "feature": "Blog CMS",
         "hubspot_tier": "Starter", "our_status": "missing",
         "our_implementation": "—",
-        "gap_notes": "No blog module. GymAxis marketing team would need to use WordPress/Webflow.",
+        "gap_notes": "No blog module. Pulse Fitness marketing team would need to use WordPress/Webflow.",
         "priority": "P2",
     },
     {
@@ -486,54 +486,54 @@ FEATURE_MATRIX: list[dict] = [
         "priority": "none",
     },
 
-    # ──────── FITNESS-VERTICAL DIFFERENTIATORS (GymAxis unique) ────────
+    # ──────── FITNESS-VERTICAL DIFFERENTIATORS (Pulse Fitness unique) ────────
     {
         "id": "gym-equipment-fleet", "category": "Fitness-Vertical", "feature": "Equipment fleet + fault triage",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "Full equipment CRUD + AI Fault Triage (Iter 223)",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
     {
         "id": "gym-memberships", "category": "Fitness-Vertical", "feature": "Memberships + class bookings",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "memberships.py + instructor / member portals",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
     {
         "id": "gym-gym-floor", "category": "Fitness-Vertical", "feature": "Gym Floor shared-credential staff login",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "gym_floor.py + handover diary + fault logging",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
     {
         "id": "gym-dunning", "category": "Fitness-Vertical", "feature": "Automated dunning + collections dashboard",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "invoice_dunning.py + collections_dashboard.py (Iter 213-214)",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
     {
         "id": "gym-sicon", "category": "Fitness-Vertical", "feature": "Sicon Service integration + field mapping UI",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "sicon_mapping.py + SiconMappingPanel.js (Iter 221)",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
     {
         "id": "gym-spec-sheets", "category": "Fitness-Vertical", "feature": "Manufacturer spec-sheet library + auto-match",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "spec_sheets.py + admin library",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
     {
         "id": "gym-image-catalogue", "category": "Fitness-Vertical", "feature": "Equipment image catalogue (manufacturer sitemap ingest)",
         "hubspot_tier": "None", "our_status": "shipped",
         "our_implementation": "manufacturer_catalogue.py + CataloguePanel (Iter 226)",
-        "gap_notes": "Novel to GymAxis.",
+        "gap_notes": "Novel to Pulse Fitness.",
         "priority": "none",
     },
 ]

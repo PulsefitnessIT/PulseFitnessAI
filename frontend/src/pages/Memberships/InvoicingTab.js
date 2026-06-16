@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships — Monthly class invoicing.
+ * Pulse Fitness Memberships — Monthly class invoicing.
  *
  * Two use-cases in one tab:
  *   1. Pick a month → preview what each member would be invoiced for

@@ -177,7 +177,7 @@ async def crm_login(data: dict):
     # were auto-created by the cross-login flow have a random uuid hex
     # stored as their crm password (they don't know it). When such a
     # user lands on /crm without a main session and types their actual
-    # GymAxis password, the standalone /crm/auth/login rejected them.
+    # Pulse Fitness password, the standalone /crm/auth/login rejected them.
     #
     # Fall back: if the user record is flagged ``cross_login_provisioned``
     # (or simply no crm_users row exists), validate the password against
@@ -225,9 +225,9 @@ async def crm_login(data: dict):
 
     # Iter 215ax — resolve crm_brand + is_pulse_internal so the frontend
     # can preserve Pulse-customer branding (cyan/black) instead of falling
-    # back to GymAxis (navy → purple gradient). Pulse-branded users
+    # back to Pulse Fitness (navy → purple gradient). Pulse-branded users
     # (account_type pulse_pro/lite OR org name = "Pulse Fitness") see
-    # Pulse branding; everyone else sees GymAxis.
+    # Pulse branding; everyone else sees Pulse Fitness.
     is_admin_user = _is_master_admin_user(user)
     crm_brand, is_pulse_internal, features, modules = await _resolve_crm_brand_flags(user, is_admin_user)
 
@@ -276,7 +276,7 @@ async def crm_me(user=Depends(get_crm_user)):
     # remount (page refresh, new tab) re-hydrates the user with the
     # correct crm_brand. Without this, the CRMApp component would lose
     # its branding signal on /me-driven boots and Pulse customers would
-    # briefly see GymAxis chrome.
+    # briefly see Pulse Fitness chrome.
     is_admin_user = _is_master_admin_user(user)
     crm_brand, is_pulse_internal, features, modules = await _resolve_crm_brand_flags(user, is_admin_user)
     return {
@@ -297,7 +297,7 @@ async def crm_me_post(user=Depends(get_crm_user)):
     return await crm_me(user)
 
 
-# ── Cross-login — exchange a main GymAxis JWT for a CRM-domain token ─────
+# ── Cross-login — exchange a main Pulse Fitness JWT for a CRM-domain token ─────
 #
 # The CRM console lives under /crm with its own JWT (payload flag `crm: True`)
 # backed by a separate `crm_users` collection. When an operator clicks the CRM
@@ -336,7 +336,7 @@ async def crm_cross_login(
     from utils.security_plus import is_jwt_revoked
     from utils.auth import _cookie_token_candidates
 
-    master_email = (_os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com") or "").lower()
+    master_email = (_os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai") or "").lower()
 
     def _is_priv(u: dict) -> bool:
         if not u:
@@ -553,7 +553,7 @@ async def crm_cross_login(
 
 def _is_master_admin_user(user: dict) -> bool:
     import os
-    master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
+    master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")
     return user.get("email") == master_email or bool(user.get("is_master_admin"))
 
 
@@ -640,7 +640,7 @@ async def seed_crm_admin():
     Iter 216h273 — gated by `CRM_SEED_DEMO_ORGS` env flag (defaults
     to ON to preserve existing dev-env behaviour). Set to "0" on
     previews where the customer has scoped down to a specific keep
-    list — otherwise this seeder re-creates "GymAxis AI" + "Pulse
+    list — otherwise this seeder re-creates "Pulse Fitness AI" + "Pulse
     Fitness" CRM orgs on every boot, blowing the scoped wipe.
     """
     import os
@@ -654,24 +654,24 @@ async def seed_crm_admin():
         # Minimal seed: ensure the master admin has a CRM user record
         # bound to their existing master home org.
         master_user = await db.users.find_one(
-            {"email": os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")},
+            {"email": os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")},
             {"_id": 0, "organization_id": 1},
         )
         master_org_id = (master_user or {}).get("organization_id")
         if master_org_id:
             await _seed_crm_user(
-                os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com"),
+                os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai"),
                 os.environ.get("MASTER_ADMIN_PASSWORD", ""),
                 "Master Admin", organization_id=master_org_id,
             )
         return
 
-    # 1. Create GymAxis Admin CRM org
-    admin_crm_org = await db.organizations.find_one({"name": "GymAxis AI", "portal_type": "crm"}, {"_id": 0, "id": 1})
+    # 1. Create Pulse Fitness Admin CRM org
+    admin_crm_org = await db.organizations.find_one({"name": "Pulse Fitness AI", "portal_type": "crm"}, {"_id": 0, "id": 1})
     if not admin_crm_org:
         admin_crm_org_id = str(uuid.uuid4())
         await db.organizations.insert_one({
-            "id": admin_crm_org_id, "name": "GymAxis AI",
+            "id": admin_crm_org_id, "name": "Pulse Fitness AI",
             "portal_type": "crm", "subscription_tier": "enterprise",
             "status": "active", "created_at": datetime.now(timezone.utc).isoformat(),
         })
@@ -680,12 +680,12 @@ async def seed_crm_admin():
 
     # 2. Seed admin CRM users (passwords always reset on deploy)
     await _seed_crm_user(
-        os.environ.get("CRM_ADMIN_EMAIL", "crm@gymaxisai.com"),
+        os.environ.get("CRM_ADMIN_EMAIL", "crm@pulsefitness.ai"),
         os.environ.get("CRM_ADMIN_PASSWORD", ""),
         "CRM Admin", organization_id=admin_crm_org_id,
     )
     await _seed_crm_user(
-        os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com"),
+        os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai"),
         os.environ.get("MASTER_ADMIN_PASSWORD", ""),
         "Master Admin", organization_id=admin_crm_org_id,
     )
@@ -731,7 +731,7 @@ async def setup_2fa(user=Depends(get_crm_user)):
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(
         name=user.get("email", ""),
-        issuer_name="GymAxis CRM"
+        issuer_name="Pulse Fitness CRM"
     )
 
     # Generate QR code as base64

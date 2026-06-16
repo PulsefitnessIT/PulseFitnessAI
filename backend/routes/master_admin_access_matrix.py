@@ -30,7 +30,7 @@ PERSONAS = [
      "user": {"role": "manager"}},
     {"key": "owner", "label": "Owner",
      "user": {"role": "owner"}},
-    {"key": "desk_gymaxis", "label": "Desk agent · GymAxis",
+    {"key": "desk_gymaxis", "label": "Desk agent · Pulse Fitness",
      "user": {"role": "service_desk", "is_service_desk": True,
               "service_desk_brand": "gymaxis", "_jwt_mfa_verified": True}},
     {"key": "desk_pulse", "label": "Desk agent · Pulse",
@@ -39,7 +39,7 @@ PERSONAS = [
     {"key": "pulse_master_admin", "label": "Pulse Master Admin",
      "user": {"role": "pulse_master_admin", "is_pulse_admin": True,
               "_jwt_mfa_verified": True}},
-    {"key": "master_admin", "label": "GymAxis Master Admin",
+    {"key": "master_admin", "label": "Pulse Fitness Master Admin",
      "user": {"role": "owner", "is_master_admin": True,
               "_jwt_mfa_verified": True}},
 ]
@@ -59,7 +59,7 @@ _COUNT_QUERIES = {
     "master_admin": {"is_master_admin": True},
 }
 
-# Iter 246b — Pulse-scoped view: personas/gates that are GymAxis-internal
+# Iter 246b — Pulse-scoped view: personas/gates that are Pulse Fitness-internal
 # are hidden from Pulse Master Admins, and org-role headcounts only count
 # users inside Pulse-visible organisations.
 _GYMAXIS_ONLY_PERSONAS = {"desk_gymaxis", "master_admin"}
@@ -94,7 +94,7 @@ def _gates() -> list[dict]:
          "source": "routes/master_admin.require_master_admin",
          "fn": require_master_admin},
         {"key": "gymaxis_platform_controls",
-         "label": "GymAxis-only platform controls",
+         "label": "Pulse Fitness-only platform controls",
          "source": "routes/master_admin.require_gymaxis_master_only",
          "fn": require_gymaxis_master_only},
     ]
@@ -118,7 +118,7 @@ async def access_matrix(user: dict = Depends(get_current_user)) -> dict:
     require_master_admin(user)
 
     # Iter 246b — Pulse Master Admins see only Pulse roles & organisations:
-    # GymAxis-internal personas/gates are dropped and org-role counts are
+    # Pulse Fitness-internal personas/gates are dropped and org-role counts are
     # restricted to Pulse-visible orgs (same scope as the Service Desk).
     from utils.service_desk_auth import desk_scope_org_ids
     scope = await desk_scope_org_ids(user)

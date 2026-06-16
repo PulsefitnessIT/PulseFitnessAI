@@ -12,7 +12,7 @@ const PrivacyPolicyPage = () => (
       <div className="prose prose-zinc max-w-none space-y-6 text-sm leading-relaxed text-zinc-700">
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-3">1. Who We Are</h2>
-          <p>GymAxis AI ("we", "our", "us") operates the GymAxis AI platform and the Pulse Fitness Self-Service Portal. We are the data controller for the personal data processed through our services.</p>
+          <p>Pulse Fitness AI ("we", "our", "us") operates the Pulse Fitness AI platform and the Pulse Fitness Self-Service Portal. We are the data controller for the personal data processed through our services.</p>
         </section>
 
         <section>
@@ -71,7 +71,7 @@ const PrivacyPolicyPage = () => (
             <li><strong>Restriction:</strong> Request we limit processing of your data</li>
             <li><strong>Object:</strong> Object to processing based on legitimate interest</li>
           </ul>
-          <p className="mt-2">To exercise these rights, use the self-service options in your account settings or contact us at privacy@gymaxisai.com.</p>
+          <p className="mt-2">To exercise these rights, use the self-service options in your account settings or contact us at privacy@pulsefitness.ai.</p>
         </section>
 
         <section>
@@ -105,7 +105,7 @@ const PrivacyPolicyPage = () => (
 
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-3">10. Contact</h2>
-          <p>For privacy-related enquiries, contact our Data Protection Officer at <strong>privacy@gymaxisai.com</strong>.</p>
+          <p>For privacy-related enquiries, contact our Data Protection Officer at <strong>privacy@pulsefitness.ai</strong>.</p>
         </section>
       </div>
     </div>

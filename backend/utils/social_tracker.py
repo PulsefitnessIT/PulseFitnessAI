@@ -104,8 +104,8 @@ def parse_engagement_from_html(html: str) -> dict:
     # 2) Caption snippet — strip the metric prefix.
     if og_desc:
         # Common shapes:
-        #   "1,234 likes, 56 comments - GymAxis (@gymaxis) on Instagram: "Caption"
-        #   "12K Likes, 234 Comments. TikTok video from GymAxis (@gymaxis): "Caption""
+        #   "1,234 likes, 56 comments - Pulse Fitness (@gymaxis) on Instagram: "Caption"
+        #   "12K Likes, 234 Comments. TikTok video from Pulse Fitness (@gymaxis): "Caption""
         # We pull the FIRST quoted chunk if present, else everything
         # after the last colon, else the whole desc.
         m = re.search(r'"([^"]{4,})"', og_desc)

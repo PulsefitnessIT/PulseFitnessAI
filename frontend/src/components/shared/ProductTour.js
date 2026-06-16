@@ -72,11 +72,11 @@ const tourStyles = {
   },
 };
 
-// ============ GymAxis AI Tour Steps (variant="gymaxis" only — NOT shown to Pulse users) ============
+// ============ Pulse Fitness AI Tour Steps (variant="gymaxis" only — NOT shown to Pulse users) ============
 const gymAxisSteps = [
   {
     target: '[data-testid="dashboard-header"]',
-    title: 'Welcome to GymAxis AI',
+    title: 'Welcome to Pulse Fitness AI',
     content: 'Your central command centre for gym equipment management. This dashboard gives you a real-time overview of every asset across your facility.',
     disableBeacon: true,
     skipBeacon: true,
@@ -500,7 +500,7 @@ const ProductTour = forwardRef(({ variant = 'gymaxis' }, ref) => {
 
 ProductTour.displayName = 'ProductTour';
 
-export const resetGymAxisTour = () => {
+export const resetPulseFitnessTour = () => {
   localStorage.removeItem(TOUR_KEY_GYMAXIS);
 };
 

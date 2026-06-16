@@ -513,14 +513,14 @@ async def _resolve_email_context(issue, user: dict) -> dict:
 def _resolve_org_branding(org: dict | None) -> dict:
     """Extract brand/platform fields from an org doc (or safe defaults)."""
     org = org or {}
-    org_name = org.get('name', 'GymAxis AI')
+    org_name = org.get('name', 'Pulse Fitness AI')
     branding = org.get('branding') or {}
     account_type = org.get('account_type')
     is_pulse = account_type in ("pulse_pro", "lite")
     return {
         "primary_color": branding.get('primary_color', '#0055FF'),
         "company_name": branding.get('company_name', org_name),
-        "platform_name": "Pulse Fitness" if is_pulse else "GymAxis AI",
+        "platform_name": "Pulse Fitness" if is_pulse else "Pulse Fitness AI",
         "is_pulse": is_pulse,
     }
 
@@ -661,8 +661,8 @@ async def handle_engineer_escalation(issue, issue_doc: dict, user: dict) -> None
         try:
             from routes.supplier_portal import create_supplier_case
             org = await db.organizations.find_one({"id": user.get('organization_id')}, {"_id": 0})
-            org_name = org.get('name', 'GymAxis AI') if org else 'GymAxis AI'
-            base_url = os.environ.get('FRONTEND_URL', '') or 'https://gymaxisai.com'
+            org_name = org.get('name', 'Pulse Fitness AI') if org else 'Pulse Fitness AI'
+            base_url = os.environ.get('FRONTEND_URL', '') or 'https://www.pulsefitness.ai'
 
             case_result = await create_supplier_case(
                 issue_id=issue_doc['id'], supplier_name=issue.supplier,

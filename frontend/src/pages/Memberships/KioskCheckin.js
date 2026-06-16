@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships — Public Kiosk Check-in (Phase 4).
+ * Pulse Fitness Memberships — Public Kiosk Check-in (Phase 4).
  *
  * Tablet-friendly fullscreen UI at /checkin/kiosk?token=...
  *
@@ -44,7 +44,7 @@ export default function KioskCheckin() {
         setClasses(r.data.classes || []);
       })
       .catch((e) => {
-        setError(e.response?.data?.detail || 'Could not connect to GymAxis');
+        setError(e.response?.data?.detail || 'Could not connect to Pulse Fitness');
         setStep('error');
       });
   }, [token]);
@@ -246,7 +246,7 @@ function Shell({ studio, children, onBack }) {
           )}
           <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-cyan-400">{studio}</p>
         </div>
-        <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-white/40">Kiosk · GymAxis</p>
+        <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-white/40">Kiosk · Pulse Fitness</p>
       </div>
       <div className="flex-1 grid place-items-center p-6">
         {children}

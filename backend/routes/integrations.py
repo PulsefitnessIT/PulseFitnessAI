@@ -396,7 +396,7 @@ async def process_ticket_closed(ticket_data: dict, config: dict):
 
 def _orbit4_org_from_metadata(metadata: Any) -> Optional[str]:
     """Webhooks coming back from Orbit4 carry our own integration_id in metadata
-    so we can resolve the originating GymAxis organisation in O(1)."""
+    so we can resolve the originating Pulse Fitness organisation in O(1)."""
     if not metadata:
         return None
     if isinstance(metadata, str):

@@ -1,5 +1,5 @@
 """
-Ask GymAxis — server-side context builder.
+Ask Pulse Fitness — server-side context builder.
 
 Given a user + page + entity_id, returns:
 - `slice` — redacted projection fed to the LLM (no raw Mongo docs, no cross-tenant refs)
@@ -147,8 +147,8 @@ async def _org_summary_slice(org_id: str) -> dict:
         "org_name": (org or {}).get("name", ""),
         "account_type": account_type,
         "plan_tier": _plan_tier(account_type),  # "pro" | "lite" | "standard"
-        "platform_name": "Pulse Fitness" if is_pulse else "GymAxis",
-        "assistant_name": "Pulse Fitness" if is_pulse else "GymAxis",
+        "platform_name": "Pulse Fitness" if is_pulse else "Pulse Fitness",
+        "assistant_name": "Pulse Fitness" if is_pulse else "Pulse Fitness",
         "is_pulse": is_pulse,
         "equipment_count": equipment_count,
         "open_faults_count": open_faults,
@@ -177,7 +177,7 @@ async def build_support_context(
     """
     org_id = user.get("organization_id")
     if not org_id:
-        org_summary = {"org_name": "", "account_type": "", "platform_name": "GymAxis",
+        org_summary = {"org_name": "", "account_type": "", "platform_name": "Pulse Fitness",
                        "equipment_count": 0, "open_faults_count": 0}
         return _empty_context(user, org_summary)
 
@@ -205,7 +205,7 @@ async def build_support_context(
         "pill": _build_pill(slice_data),
         "allowed_entity_ids": list(set(allowed_ids)),
         "suggested_intents": _build_suggested_intents(slice_data),
-        "assistant_name": org_summary.get("assistant_name", "GymAxis"),
+        "assistant_name": org_summary.get("assistant_name", "Pulse Fitness"),
         "plan_tier": org_summary.get("plan_tier", "standard"),
     }
 
@@ -213,10 +213,10 @@ async def build_support_context(
 def _empty_context(user: dict, org_summary: dict) -> dict:
     return {
         "slice": {"org": org_summary},
-        "pill": org_summary.get("org_name", "GymAxis"),
+        "pill": org_summary.get("org_name", "Pulse Fitness"),
         "allowed_entity_ids": [],
         "suggested_intents": _default_intents(),
-        "assistant_name": org_summary.get("assistant_name", "GymAxis"),
+        "assistant_name": org_summary.get("assistant_name", "Pulse Fitness"),
         "plan_tier": org_summary.get("plan_tier", "standard"),
     }
 
@@ -251,7 +251,7 @@ def _build_pill(slice_data: dict) -> str:
         if eq.get("fault_count_60d", 0) > 0:
             pieces.append(f"{eq['fault_count_60d']} faults / 60d")
         return " · ".join(pieces)
-    return org.get("org_name", "GymAxis")
+    return org.get("org_name", "Pulse Fitness")
 
 
 def _build_suggested_intents(slice_data: dict) -> list[dict]:

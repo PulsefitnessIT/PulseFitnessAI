@@ -1,9 +1,9 @@
 /**
  * Service Desk → Supplier Health (Iter 216h52)
  *
- * GymAxis-facing roll-up: every supplier across every customer org,
+ * Pulse Fitness-facing roll-up: every supplier across every customer org,
  * ranked by performance signals (open issues, SLA breaches, response
- * time). The pitch is: GymAxis can chase under-performing suppliers
+ * time). The pitch is: Pulse Fitness can chase under-performing suppliers
  * on behalf of customers, and use the aggregated data as leverage
  * during renewal negotiations.
  *

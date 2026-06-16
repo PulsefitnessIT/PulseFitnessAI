@@ -1,5 +1,5 @@
 /**
- * GymAxis Engineer App — offline writes (iter 216h143 · Phase 4 / Slice 3).
+ * Pulse Fitness Engineer App — offline writes (iter 216h143 · Phase 4 / Slice 3).
  *
  * Engineer-specific IndexedDB queue for the field-service writes:
  *   time entries, mileage, photos, signatures, parts-used, etc.

@@ -74,8 +74,8 @@ _HOSTNAME_RX = re.compile(
 # Platform-owned hosts that must never be registered as a custom
 # tenant domain (would shadow the SaaS itself).
 PLATFORM_HOSTS = {
-    "gymaxisai.com",
-    "www.gymaxisai.com",
+    "www.pulsefitness.ai",
+    "www.pulsefitness.ai",
     "pulsefitness.ai",
     "www.pulsefitness.ai",
     "preview.emergentagent.com",
@@ -101,7 +101,7 @@ def _validate_hostname(raw: str) -> str:
         )
     # Block obvious platform shadows. Sub-domains of platform hosts are
     # explicitly disallowed too — a customer cannot register
-    # `evil.gymaxisai.com` as their custom funnel.
+    # `evil.www.pulsefitness.ai` as their custom funnel.
     for blocked in PLATFORM_HOSTS:
         if host == blocked or host.endswith("." + blocked):
             raise HTTPException(
@@ -144,7 +144,7 @@ def _public_view(d: dict) -> dict:
         "dns_record": {
             "cname": {
                 "host": d.get("hostname"),
-                "value": "platform.gymaxisai.com",
+                "value": "platform.www.pulsefitness.ai",
             },
             "txt": {
                 "host": f"_gymaxis-verify.{d.get('hostname')}",
@@ -315,7 +315,7 @@ async def verify_custom_domain(
     token = domain["dns_token"]
 
     # Optional force-verify for master admin (always allowed for the
-    # GymAxis platform admin — pulse-only admins still need real DNS).
+    # Pulse Fitness platform admin — pulse-only admins still need real DNS).
     from routes.master_admin import is_pulse_only
 
     force = False
@@ -359,7 +359,7 @@ async def force_verify_custom_domain(
     user: dict = Depends(get_current_user),
 ):
     """Force-verify a custom domain WITHOUT performing the DNS lookup.
-    Restricted to the GymAxis platform master admin (Pulse-delegated
+    Restricted to the Pulse Fitness platform master admin (Pulse-delegated
     admins cannot bypass DNS). Used for demo/staging hosts that won't
     have public DNS."""
     from routes.master_admin import require_gymaxis_master_only

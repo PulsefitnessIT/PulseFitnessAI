@@ -31,7 +31,7 @@ INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow"
 
 
 def _site_base() -> str:
-    return (os.environ.get("SEO_SITE_URL") or "https://gymaxisai.com").rstrip("/")
+    return (os.environ.get("SEO_SITE_URL") or "https://www.pulsefitness.ai").rstrip("/")
 
 
 def _host() -> str:

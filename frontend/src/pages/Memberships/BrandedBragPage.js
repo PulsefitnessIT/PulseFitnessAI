@@ -94,7 +94,7 @@ export default function BrandedBragPage() {
             Download QR poster
           </a>
           <div className="mt-4 text-center">
-            <div className="text-[10px] text-white/30 tracking-[0.2em] uppercase">Powered by GymAxis</div>
+            <div className="text-[10px] text-white/30 tracking-[0.2em] uppercase">Powered by Pulse Fitness</div>
           </div>
         </div>
       </div>

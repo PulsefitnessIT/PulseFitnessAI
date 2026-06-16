@@ -30,4 +30,4 @@ Disallow: /checkin/
 Disallow: /gym-floor
 Disallow: /api/
 
-Sitemap: https://gymaxisai.com/api/seo/sitemap.xml
+Sitemap: https://www.pulsefitness.ai/api/seo/sitemap.xml

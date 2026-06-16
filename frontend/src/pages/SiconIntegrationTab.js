@@ -133,7 +133,7 @@ const SiconIntegrationTab = () => {
  </div>
  <div>
  <h2 className="text-xl font-bold text-white">Sicon Service Integration</h2>
- <p className="text-[var(--color-text-muted)] text-sm">Connect GymAxis AI to Pulse Fitness Sicon Service (Sage 200)</p>
+ <p className="text-[var(--color-text-muted)] text-sm">Connect Pulse Fitness AI to Pulse Fitness Sicon Service (Sage 200)</p>
  </div>
  </div>
  </div>
@@ -221,7 +221,7 @@ const SiconIntegrationTab = () => {
  <div className="flex items-center justify-between p-4 bg-[var(--color-ink-alt)] border border-white/10 rounded-lg">
  <div>
  <p className="text-white font-medium">Enable Integration</p>
- <p className="text-[var(--color-text-muted)] text-xs">When enabled, GymAxis AI will sync data with Sicon Service</p>
+ <p className="text-[var(--color-text-muted)] text-xs">When enabled, Pulse Fitness AI will sync data with Sicon Service</p>
  </div>
  <Switch
  checked={form.enabled}
@@ -246,7 +246,7 @@ const SiconIntegrationTab = () => {
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6 space-y-5">
  <div>
  <h3 className="text-white font-semibold mb-1">Sicon Field Mapping</h3>
- <p className="text-[var(--color-text-muted)] text-sm">Map GymAxis fields to Sicon Service IDs. Get these values from your Sicon admin.</p>
+ <p className="text-[var(--color-text-muted)] text-sm">Map Pulse Fitness fields to Sicon Service IDs. Get these values from your Sicon admin.</p>
  </div>
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -285,7 +285,7 @@ const SiconIntegrationTab = () => {
  {/* Priority Mapping */}
  <div className="border-t border-white/10 pt-4">
  <h4 className="text-white font-medium mb-3">Priority Mapping</h4>
- <p className="text-[var(--color-text-muted)] text-xs mb-3">Map GymAxis severity levels to Sicon Priority IDs</p>
+ <p className="text-[var(--color-text-muted)] text-xs mb-3">Map Pulse Fitness severity levels to Sicon Priority IDs</p>
  <div className="grid grid-cols-3 gap-3">
  {['low', 'medium', 'critical'].map(sev => (
  <div key={sev}>
@@ -340,14 +340,14 @@ const SiconIntegrationTab = () => {
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6 space-y-5">
  <div>
  <h3 className="text-white font-semibold mb-1">Automatic Sync</h3>
- <p className="text-[var(--color-text-muted)] text-sm">Configure how GymAxis AI syncs with Sicon Service</p>
+ <p className="text-[var(--color-text-muted)] text-sm">Configure how Pulse Fitness AI syncs with Sicon Service</p>
  </div>
 
  <div className="space-y-4">
  <div className="flex items-center justify-between p-4 bg-[var(--color-ink-alt)] border border-white/10 rounded-lg">
  <div>
  <p className="text-white font-medium">Auto-sync new faults to Sicon</p>
- <p className="text-[var(--color-text-muted)] text-xs">When a fault is logged in GymAxis (engineer escalation), automatically create a case in Sicon</p>
+ <p className="text-[var(--color-text-muted)] text-xs">When a fault is logged in Pulse Fitness (engineer escalation), automatically create a case in Sicon</p>
  </div>
  <Switch checked={form.auto_sync_faults} onCheckedChange={v => setForm({ ...form, auto_sync_faults: v })} data-testid="sicon-auto-sync-faults" />
  </div>
@@ -355,7 +355,7 @@ const SiconIntegrationTab = () => {
  <div className="flex items-center justify-between p-4 bg-[var(--color-ink-alt)] border border-white/10 rounded-lg">
  <div>
  <p className="text-white font-medium">Auto-sync status updates</p>
- <p className="text-[var(--color-text-muted)] text-xs">When a status changes in GymAxis, push a tracking note to the Sicon case</p>
+ <p className="text-[var(--color-text-muted)] text-xs">When a status changes in Pulse Fitness, push a tracking note to the Sicon case</p>
  </div>
  <Switch checked={form.auto_sync_status} onCheckedChange={v => setForm({ ...form, auto_sync_status: v })} data-testid="sicon-auto-sync-status" />
  </div>
@@ -367,7 +367,7 @@ const SiconIntegrationTab = () => {
  <div className="space-y-2">
  {[
  { from: 'Log a Fault (Engineer)', to: 'Sicon Service Case', icon: Zap },
- { from: 'GymAxis Severity', to: 'Sicon Priority ID', icon: ArrowRight },
+ { from: 'Pulse Fitness Severity', to: 'Sicon Priority ID', icon: ArrowRight },
  { from: 'Equipment (Serial No)', to: 'Sicon Equipment IDs', icon: ArrowRight },
  { from: 'Resolution Notes', to: 'Sicon Tracking Notes', icon: ArrowRight },
  { from: 'AI Triage Summary', to: 'Case Description', icon: ArrowRight },

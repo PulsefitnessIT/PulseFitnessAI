@@ -15,7 +15,7 @@ autopilot, but channel-aware:
 50% feature-promotion posts, 50% industry-insight posts. Topics come
 from three streams blended just like SEO discovery:
 
-1. **Feature pillars** — the canonical GymAxis features (each one
+1. **Feature pillars** — the canonical Pulse Fitness features (each one
    gets fair rotation, 14-day cooldown per channel).
 2. **Industry pillars** — the same fitness-industry themes the SEO
    autopilot uses (downtime, retention, PPM, RIDDOR…).
@@ -29,7 +29,7 @@ caption" / "Download image", and posts manually.
 Image strategy alternates per post:
 * `A` (Nano Banana) — AI-generated brand-coloured graphic.
 * `B` (Branded card template) — deterministic SVG card baked into a
-  PNG: brand-gradient background, headline text, GymAxis logo mark.
+  PNG: brand-gradient background, headline text, Pulse Fitness logo mark.
 """
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ FEATURE_PILLARS: list[dict] = [
     {"id": "ppm_scheduler", "label": "PPM Scheduler with Compliance Audit",
      "hook": "PPM that auto-stamps the regulator-ready evidence."},
     {"id": "sicon_integration", "label": "Sage 200 + Sicon Service Sync",
-     "hook": "Stop double-keying jobs. Sage 200 and Sicon talk to GymAxis natively."},
+     "hook": "Stop double-keying jobs. Sage 200 and Sicon talk to Pulse Fitness natively."},
     {"id": "membership_intelligence", "label": "Membership Intelligence & Churn AI",
      "hook": "Churn-risk scoring 7 days before the cancellation hits."},
     {"id": "gym_floor_handover", "label": "Gym Floor Handover Diary",
@@ -170,8 +170,8 @@ def feature_pillar_by_id(pid: str) -> Optional[dict]:
 
 
 BRAND = {
-    "name": "GymAxis",
-    "domain": "gymaxisai.com",
+    "name": "Pulse Fitness",
+    "domain": "www.pulsefitness.ai",
     "tagline": "AI-native operations for UK fitness operators.",
     # Brand palette pulled from /app/frontend/src/index.css :root tokens.
     "color_primary": "#d946ef",   # fuchsia
@@ -235,8 +235,8 @@ def _screenshot_path_for(feature_id: Optional[str]) -> Optional[str]:
 
 
 # Curated, NEVER-fabricated stats. Product facts are literally true of
-# GymAxis; industry items are clearly tagged "Industry estimate" on the
-# card so they're never mistaken for GymAxis customer results.
+# Pulse Fitness; industry items are clearly tagged "Industry estimate" on the
+# card so they're never mistaken for Pulse Fitness customer results.
 PRODUCT_STATS = [
     {"value": "6-in-1", "label": "CRM, service desk, PPM, memberships, finance & marketing"},
     {"value": "13", "label": "operational modules — one login, one source of truth"},
@@ -316,9 +316,9 @@ def _layout_guidance(layout: str, channel_id: str, stat: Optional[dict]) -> str:
     if layout == "stat" and stat:
         framing = (
             "This is a widely-cited INDUSTRY estimate — frame it as an "
-            "industry reality, never as a GymAxis customer result."
+            "industry reality, never as a Pulse Fitness customer result."
             if stat.get("kind") == "industry"
-            else "This is a true GymAxis product fact."
+            else "This is a true Pulse Fitness product fact."
         )
         return (
             f"\nThe image is a NUMBERS card showing: "
@@ -329,7 +329,7 @@ def _layout_guidance(layout: str, channel_id: str, stat: Optional[dict]) -> str:
         return f"\nThe image is a humour card (setup → payoff). {humour}\n"
     if layout == "screenshot":
         return (
-            "\nThe image is a REAL screenshot of the GymAxis product, framed "
+            "\nThe image is a REAL screenshot of the Pulse Fitness product, framed "
             "in a browser window. Write the caption to point at what the "
             "screen shows.\n"
         )
@@ -435,7 +435,7 @@ def build_prompt(channel: dict, topic: dict, layout: Optional[str] = None,
     )
     if topic["kind"] == "feature":
         focus = (
-            f"This post is a FEATURE-PROMOTION post for GymAxis.\n"
+            f"This post is a FEATURE-PROMOTION post for Pulse Fitness.\n"
             f"FEATURE YOU ARE WRITING ABOUT — do not change it:\n"
             f"  • Name (use this EXACT feature): {topic['label']}\n"
             f"  • What it is: {topic['hook']}\n"
@@ -449,10 +449,10 @@ def build_prompt(channel: dict, topic: dict, layout: Optional[str] = None,
         )
     else:
         focus = (
-            f"This post is an INDUSTRY-INSIGHT post (do NOT pitch GymAxis "
+            f"This post is an INDUSTRY-INSIGHT post (do NOT pitch Pulse Fitness "
             f"hard). Cover '{topic['label']}'. Lead with this angle: "
             f"\"{topic['hook']}\". Add one sharp, practical takeaway in a "
-            f"single line. Mention GymAxis only as a one-word signature at "
+            f"single line. Mention Pulse Fitness only as a one-word signature at "
             f"the end if at all — never a URL.\n\n"
         )
     if layout:
@@ -515,7 +515,7 @@ LAUNCH_ARCHETYPES: list[dict] = [
             "ugly truth (e.g. 'Most multi-site operators still chase "
             "engineers by WhatsApp'). Then pivot — 'We built {feature} "
             "for exactly this.' One sentence on what changes for the "
-            "ops manager. Close with: 'GymAxis is launching this "
+            "ops manager. Close with: 'Pulse Fitness is launching this "
             "month. Comment LAUNCH to get on the early-access list.'"
         ),
         "card_headline_hint": "The problem we just solved",
@@ -525,7 +525,7 @@ LAUNCH_ARCHETYPES: list[dict] = [
         "instruction": (
             "This is a 'BUILT BY OPS PEOPLE FOR OPS PEOPLE' launch "
             "post. Lead with: 'Most fitness SaaS is built by tech "
-            "people. GymAxis isn't.' One paragraph on how we shadowed "
+            "people. Pulse Fitness isn't.' One paragraph on how we shadowed "
             "real ops managers / engineers / GMs to design {feature}. "
             "End with: 'Launching in [month]. Want in? Comment LAUNCH.'"
         ),
@@ -571,13 +571,13 @@ def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
       the operator's launch narrative).
     * The chosen feature from the topic.
     """
-    feature_name = topic.get("label", "GymAxis")
+    feature_name = topic.get("label", "Pulse Fitness")
     keywords = ", ".join(campaign.get("keywords", []) or [])
     archetype_instruction = archetype["instruction"].format(feature=feature_name)
     intro = (
         f"You are a senior social-media editor for {BRAND['name']}. "
         f"{BRAND['tagline']}\n\n"
-        f"GymAxis is in its LAUNCH WEEK — the platform is BRAND NEW. "
+        f"Pulse Fitness is in its LAUNCH WEEK — the platform is BRAND NEW. "
         f"DO NOT write as if it has existing customers, case studies, "
         f"or established usage. DO NOT invent metrics like '4 hours "
         f"saved per week' or 'cut dispatch by 30%' — we have no track "
@@ -661,7 +661,7 @@ def should_use_launch_tone(blend_ratio: float, post_count: int) -> bool:
 
 def _branded_card_svg(headline: str, channel: dict, *, subtitle: str = "") -> str:
     """Deterministic SVG card for variant B — brand gradient + bold
-    headline + GymAxis mark in the bottom-right. Renders to PNG via
+    headline + Pulse Fitness mark in the bottom-right. Renders to PNG via
     Pillow further down."""
     w, h = _card_dimensions(channel["image_aspect"], channel["image_size_px"])
     safe_head = (headline or "").replace("<", "&lt;").replace(">", "&gt;")[:80]
@@ -1033,12 +1033,12 @@ def clean_card_headline(raw: str, *, fallback: str = "") -> str:
     starts_teaser = any(s.lower().startswith(p) for p in teaser_phrases)
     if not s or first in bad_starters or (had_ellipsis and starts_teaser):
         return (fallback or "").strip()[:80]
-    # Title-case (preserve brand-style acronyms like PPM, RIDDOR, GymAxis).
+    # Title-case (preserve brand-style acronyms like PPM, RIDDOR, Pulse Fitness).
     def _smart_case(w: str) -> str:
         if w.isupper() and len(w) <= 6:
             return w  # likely an acronym
         if w.lower() == "gymaxis":
-            return "GymAxis"
+            return "Pulse Fitness"
         # Acronym with plural / suffix (PPMs, KPIs, MDs) — preserve
         # if the leading run of uppercase letters is 2+.
         upper_prefix = 0
@@ -1068,7 +1068,7 @@ async def render_nano_banana_image(*, prompt: str, channel: dict) -> Optional[di
     aspect = channel["image_aspect"]
     enriched = (
         f"{prompt}\n\nStyle: high-end, brand-aware, professional. Use a "
-        f"gradient based on these GymAxis brand colours: "
+        f"gradient based on these Pulse Fitness brand colours: "
         f"{BRAND['color_primary']} (fuchsia) → {BRAND['color_accent']} "
         f"(blue). Do NOT include any text, logos, or watermarks — the "
         f"caller will overlay them. Aspect ratio: {aspect}. Sleek, "
@@ -1363,7 +1363,7 @@ def build_compose_prompt(channel: dict, user_prompt: str,
                          headline: Optional[str] = None,
                          layout: Optional[str] = None) -> str:
     stats_block = (
-        "Product facts (true of GymAxis — stat_kind 'product'):\n"
+        "Product facts (true of Pulse Fitness — stat_kind 'product'):\n"
         + "\n".join(f"- {s['value']} | {s['label']}" for s in PRODUCT_STATS)
         + "\nIndustry estimates (stat_kind 'industry'):\n"
         + "\n".join(f"- {s['value']} | {s['label']}" for s in INDUSTRY_STATS)
@@ -1392,7 +1392,7 @@ def build_compose_prompt(channel: dict, user_prompt: str,
         "request, OR pick the most relevant item from this approved list and "
         "copy its value + label verbatim:\n"
         f"{stats_block}\n"
-        "Industry items must be framed as an estimate, never as a GymAxis "
+        "Industry items must be framed as an estimate, never as a Pulse Fitness "
         "customer result.\n\n"
         "Return STRICT JSON only (no prose, no fences):\n"
         "{\n"
@@ -1575,18 +1575,18 @@ def _build_sora_prompt(post: dict) -> str:
     We deliberately keep the description ABSTRACT and BRAND-AWARE — no
     text overlays (Sora 2 is poor at text), no specific people, no
     customer names. We focus on operator scenes, kit, and atmosphere
-    that match the GymAxis brand."""
-    headline = post.get("card_headline") or post.get("topic_label") or "GymAxis"
+    that match the Pulse Fitness brand."""
+    headline = post.get("card_headline") or post.get("topic_label") or "Pulse Fitness"
     script = (post.get("video_script") or "")[:400]
     brief = (post.get("image_brief") or "")[:200]
     return (
-        f"Cinematic 9:16 vertical short for GymAxis, "
+        f"Cinematic 9:16 vertical short for Pulse Fitness, "
         f"a UK B2B fitness SaaS brand. Subject: {headline}. "
         f"{brief}\n\n"
         f"Visual treatment: editorial, modern UK commercial gym setting "
         f"(treadmills, free weights, members in motion), warm late-"
         f"afternoon natural light, occasional motion blur, slow "
-        f"hand-held camera. Use the GymAxis brand palette accents "
+        f"hand-held camera. Use the Pulse Fitness brand palette accents "
         f"(fuchsia {BRAND['color_primary']} and blue {BRAND['color_accent']}) "
         f"in lighting and equipment highlights — gels, screens, "
         f"reflections, NOT in any visible logos or text.\n\n"

@@ -273,7 +273,7 @@ async def _load_reminder_context(user: dict) -> dict:
         await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0})
         if user.get("organization_id") else None
     )
-    org_name = org.get("name", "GymAxis AI") if org else "GymAxis AI"
+    org_name = org.get("name", "Pulse Fitness AI") if org else "Pulse Fitness AI"
     branding = (org or {}).get("branding", {}) or {}
     test_mode = "resend.dev" in (os.environ.get("SENDER_EMAIL", "") or "")
     return {
@@ -375,7 +375,7 @@ def _render_admin_email(
         f'<li>Review equipment condition and repair history before renewing</li>'
         f'<li>Consider extended warranties or service contracts for high-value equipment</li></ul></div>'
         f'<div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">'
-        f'Powered by {company_name} via GymAxis AI</div></div>'
+        f'Powered by {company_name} via Pulse Fitness AI</div></div>'
     )
 
 
@@ -420,7 +420,7 @@ def _render_supplier_email(
         f'<p>Please direct any queries to <strong>{admin_name}</strong> at <a href="mailto:{admin_email}">{admin_email}</a>.</p>'
         f'<p>Kind regards,<br/>{admin_name}<br/>{company_name}</p></div>'
         f'<div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">'
-        f'Powered by {company_name} via GymAxis AI</div></div>'
+        f'Powered by {company_name} via Pulse Fitness AI</div></div>'
     )
 
 

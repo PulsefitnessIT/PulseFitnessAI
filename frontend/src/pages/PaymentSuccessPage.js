@@ -36,7 +36,7 @@ const PaymentSuccessPage = () => {
   }, [sessionId]);
 
   const isPaid = payment?.payment_status === 'paid';
-  const packageName = payment?.package_name || 'GymAxis';
+  const packageName = payment?.package_name || 'Pulse Fitness';
   const amount = payment?.amount || '';
 
   if (loading) {

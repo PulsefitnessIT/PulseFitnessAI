@@ -241,7 +241,7 @@ def _build_sales_pdf() -> bytes:
 
     # Footer block
     flow.append(_footer_line(
-        "Pulse Fitness · operations &amp; memberships platform — built with GymAxis AI · "
+        "Pulse Fitness · operations &amp; memberships platform — built with Pulse Fitness AI · "
         f"generated {datetime.now(timezone.utc).strftime('%-d %b %Y')}",
         ParagraphStyle, Paragraph, colors,
     ))
@@ -384,9 +384,9 @@ def _build_trust_pdf() -> bytes:
     flow.append(Spacer(1, 12))
 
     flow.append(_footer_line(
-        "Pulse Fitness · trust posture — GymAxis AI · "
+        "Pulse Fitness · trust posture — Pulse Fitness AI · "
         f"generated {datetime.now(timezone.utc).strftime('%-d %b %Y')} · "
-        "for procurement / DPO contact: <b>security@gymaxisai.com</b>",
+        "for procurement / DPO contact: <b>security@pulsefitness.ai</b>",
         ParagraphStyle, Paragraph, colors,
     ))
 
@@ -555,7 +555,7 @@ def _render_share_email_html(
     </p>
   </div>
   <div style="background:#f5f5f5;padding:16px 30px;text-align:center;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from Pulse Fitness · powered by GymAxis AI</p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from Pulse Fitness · powered by Pulse Fitness AI</p>
   </div>
 </div>"""
 

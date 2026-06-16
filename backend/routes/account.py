@@ -357,7 +357,7 @@ def _extract_brand_palette(img: Image.Image, n: int = 5) -> list[str]:
                 out.append(hex_color)
             if len(out) >= n:
                 break
-        return out or ["#19CDFF"]  # GymAxis default fallback
+        return out or ["#19CDFF"]  # Pulse Fitness default fallback
     except Exception as exc:
         logger.warning(f"[account] palette extraction failed: {exc}")
         return []
@@ -1119,7 +1119,7 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
 # ── Invoice PDF (hybrid: Stripe-hosted → fallback reportlab) ──────
 
 def _generate_invoice_pdf(payment: dict, org: dict) -> bytes:
-    """Generate a simple branded GymAxis invoice PDF in-memory."""
+    """Generate a simple branded Pulse Fitness invoice PDF in-memory."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
@@ -1136,7 +1136,7 @@ def _generate_invoice_pdf(payment: dict, org: dict) -> bytes:
     muted = ParagraphStyle("muted", parent=body, textColor=colors.HexColor("#52525B"), fontSize=9)
 
     story = [
-        Paragraph("GymAxis", h1),
+        Paragraph("Pulse Fitness", h1),
         Paragraph("Invoice", styles["Heading2"]),
         Spacer(1, 6 * mm),
     ]
@@ -1191,8 +1191,8 @@ def _generate_invoice_pdf(payment: dict, org: dict) -> bytes:
     story.append(items_table)
     story.append(Spacer(1, 12 * mm))
     story.append(Paragraph(
-        "Thank you for choosing GymAxis. If you have any questions about this invoice, "
-        "reply to this email or contact billing@gymaxisai.com.", muted,
+        "Thank you for choosing Pulse Fitness. If you have any questions about this invoice, "
+        "reply to this email or contact billing@pulsefitness.ai.", muted,
     ))
 
     doc.build(story)

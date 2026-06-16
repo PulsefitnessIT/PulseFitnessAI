@@ -141,7 +141,7 @@ const PulseUpgradePage = ({ onDismiss }) => {
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Button
             className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-6 h-11"
-            onClick={() => window.location.href = 'mailto:support@gymaxisai.com?subject=Pulse%20Pro%20Upgrade%20Request'}
+            onClick={() => window.location.href = 'mailto:support@pulsefitness.ai?subject=Pulse%20Pro%20Upgrade%20Request'}
             data-testid="upgrade-contact-btn"
           >
             Request Upgrade <ArrowRight size={16} className="ml-2" />

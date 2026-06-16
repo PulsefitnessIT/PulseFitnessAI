@@ -1,5 +1,5 @@
 """
-Ask GymAxis / Pulse Fitness — Human-escalation pipeline (P1-D).
+Ask Pulse Fitness / Pulse Fitness — Human-escalation pipeline (P1-D).
 
 Flow:
 - User clicks "Contact human support" in the Ask sheet.
@@ -9,7 +9,7 @@ Flow:
     2. Create a `support_cases` row (status=open)
     3. Resend an email to the correct human inbox:
          * Pulse Lite / Pulse Pro   → SUPPORT_ESCALATION_EMAIL_PULSE
-         * Everyone else (GymAxis)  → SUPPORT_ESCALATION_EMAIL_GYMAXIS
+         * Everyone else (Pulse Fitness)  → SUPPORT_ESCALATION_EMAIL_GYMAXIS
     4. Write an audit row so SOC 2 has a breadcrumb
 - User also rates every assistant turn via POST /api/support/feedback
   (👍 / 👎 + optional comment). CSAT feeds the Master Admin rollup.
@@ -166,7 +166,7 @@ async def _send_escalation_email(recipient: str, subject: str, html: str, reply_
         return False
     resend.api_key = RESEND_API_KEY
     payload = {
-        "from": f"Ask Support <{SENDER_EMAIL or 'faults@service.gymaxisai.com'}>",
+        "from": f"Ask Support <{SENDER_EMAIL or 'faults@service.www.pulsefitness.ai'}>",
         "to": [recipient],
         "subject": subject,
         "html": html,
@@ -217,7 +217,7 @@ async def escalate_to_human(req: EscalateReq, user: dict = Depends(get_current_u
     """Create a support case + email the human ops inbox."""
     org = await _load_org(user.get("organization_id"))
     account_type = org.get("account_type") or ""
-    platform_name = "Pulse Fitness" if _is_pulse(account_type) else "GymAxis"
+    platform_name = "Pulse Fitness" if _is_pulse(account_type) else "Pulse Fitness"
     recipient = _pick_recipient(account_type)
     turns = await _last_turns(req.session_id)
     reason = (req.reason or req.last_message or "").strip()

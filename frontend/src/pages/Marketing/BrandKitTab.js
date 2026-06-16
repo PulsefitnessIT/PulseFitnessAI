@@ -84,7 +84,7 @@ export default function BrandKitTab({ API, headers }) {
         const dataUrl = reader.result;
         const patch = { primary_logo_data_url: dataUrl };
         // Auto-apply extracted palette only when the operator hasn't
-        // already set custom colours (i.e. they're still the GymAxis
+        // already set custom colours (i.e. they're still the Pulse Fitness
         // defaults). This avoids stomping on a brand they've curated.
         const defaults = ['#19CDFF', '#5B8CFF', '#66CCFF', '#0055FF', '#000000', '#ffffff', '#FFFFFF'];
         const primaryIsDefault = !kit?.primary_color || defaults.includes((kit.primary_color || '').toUpperCase()) || defaults.includes((kit.primary_color || '').toLowerCase());

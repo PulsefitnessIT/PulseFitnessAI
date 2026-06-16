@@ -1,5 +1,5 @@
-Contact: mailto:security@gymaxisai.com
+Contact: mailto:security@pulsefitness.ai
 Expires: 2027-01-01T00:00:00.000Z
 Preferred-Languages: en
-Policy: https://gymaxisai.com/trust
-Canonical: https://gymaxisai.com/.well-known/security.txt
+Policy: https://www.pulsefitness.ai/trust
+Canonical: https://www.pulsefitness.ai/.well-known/security.txt

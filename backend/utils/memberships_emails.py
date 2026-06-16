@@ -1,4 +1,4 @@
-"""Member-facing transactional emails for GymAxis Memberships.
+"""Member-facing transactional emails for Pulse Fitness Memberships.
 
 Three flows — booking confirmation, waitlist → booked promotion, and
 operator-initiated class cancellation. All are fire-and-forget from the
@@ -27,7 +27,7 @@ def _format_when(iso_str: str) -> str:
         return iso_str
 
 
-def _shell(eyebrow: str, title: str, body_html: str, footer: str = "GymAxis Memberships") -> str:
+def _shell(eyebrow: str, title: str, body_html: str, footer: str = "Pulse Fitness Memberships") -> str:
     return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:{_BRAND_BG};color:#fff;border-radius:16px;overflow:hidden;">
   <div style="padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.25);">
     <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">{eyebrow}</div>

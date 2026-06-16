@@ -197,7 +197,7 @@ async def create_company(data: dict, user=Depends(get_crm_user)):
         "notes": data.get("notes", ""),
         # Iter 216h240 — integration round-trip fields. Captured at
         # create-time so spreadsheet migrations from Sage / Sicon can
-        # bind the GymAxis row to its upstream natural keys without a
+        # bind the Pulse Fitness row to its upstream natural keys without a
         # second-pass sync. Empty defaults keep the field shape stable
         # for orgs that haven't connected Sage / Sicon yet.
         # See INTEGRATION_FIELD_MAPPING.md §19 + §29.

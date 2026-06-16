@@ -193,7 +193,7 @@ const AdminPulse = ({ pulseData, onRefresh, organizations, onSelectOrg, onUpgrad
                       <SelectContent className="bg-white border-zinc-200">
                         <SelectItem value="lite">Lite</SelectItem>
                         <SelectItem value="pulse_pro">Pro</SelectItem>
-                        <SelectItem value="full">Full (GymAxis)</SelectItem>
+                        <SelectItem value="full">Full (Pulse Fitness)</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>

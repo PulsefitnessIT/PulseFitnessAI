@@ -1,7 +1,7 @@
 
 export const meta = {
   slug: 'cut-equipment-downtime',
-  title: 'How GymAxis cuts equipment downtime by 40%',
+  title: 'How Pulse Fitness cuts equipment downtime by 40%',
   excerpt: 'The three operational habits that separate gyms with an average 18-hour fix time from the ones stuck at 72 hours. Hint: none of them require more engineers.',
   publishedAt: '2026-02-14',
   readingMinutes: 7,
@@ -16,7 +16,7 @@ export const body = (
       Across 42 multi-site UK gym estates we tracked over a rolling year,
       the average time from &ldquo;member reports treadmill belt frayed&rdquo;
       to &ldquo;machine back on floor&rdquo; sat at 71 hours. After rolling
-      out GymAxis Service Desk + engineer mobile, the median dropped to
+      out Pulse Fitness Service Desk + engineer mobile, the median dropped to
       18 hours. That&rsquo;s not magic — it&rsquo;s three operational
       habits that software can finally enforce.
     </p>
@@ -25,7 +25,7 @@ export const body = (
     <p>
       Most fault reports die in inboxes. Floor staff used to email the
       facilities team, who ticketed it next morning, who then dispatched
-      the engineer two days later. In GymAxis the
+      the engineer two days later. In Pulse Fitness the
       <em> same </em> fault gets logged on the member PWA by the staff
       member who saw it — site, equipment, serial number and photos all
       captured in under 20 seconds. AI triage returns a priority and a
@@ -64,7 +64,7 @@ export const body = (
       <strong> £420 </strong> in lost member-hours (£7/use × 60 uses).
       At 18 hours that drops to <strong>£105</strong>. Across 42 sites and
       ~12 faults per site per month, the saved revenue lands at ~£159k/year
-      — more than ten times the GymAxis subscription for that footprint.
+      — more than ten times the Pulse Fitness subscription for that footprint.
     </p>
 
     <p>

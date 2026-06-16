@@ -91,7 +91,7 @@ async def send_weekly_digest(user: dict = Depends(get_current_user)):
     </div>
     </div>"""
 
-    sent = await send_email(user['email'], f"GymAxis AI - Weekly Digest ({digest['period']})", html)
+    sent = await send_email(user['email'], f"Pulse Fitness AI - Weekly Digest ({digest['period']})", html)
     return {"sent": sent, "digest": digest, "message": "Digest sent" if sent else "Email not configured - preview available above"}
 
 

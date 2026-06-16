@@ -33,10 +33,10 @@ const PartnershipProposalPage = () => {
         {/* Title Block */}
         <div className="text-center mb-12 pb-8 border-b-2 border-gray-900">
           <p className="text-sm uppercase tracking-[0.3em] text-gray-400 mb-4">Partnership Proposal</p>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">GymAxis AI <span className="text-gray-400 font-light mx-3">×</span> Pulse Fitness</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Pulse Fitness AI <span className="text-gray-400 font-light mx-3">×</span> Pulse Fitness</h1>
           <p className="text-lg text-gray-500 mt-3">Self-Service Portal — Commercial Partnership</p>
           <div className="flex items-center justify-center gap-6 mt-6 text-sm text-gray-400">
-            <span>Prepared by: GymAxis AI</span>
+            <span>Prepared by: Pulse Fitness AI</span>
             <span>|</span>
             <span>April 2026</span>
             <span>|</span>
@@ -46,12 +46,12 @@ const PartnershipProposalPage = () => {
 
         {/* 1. Executive Summary */}
         <Section num="1" title="Executive Summary">
-          <p>GymAxis AI has developed a white-label <strong>Self-Service Maintenance Portal</strong> purpose-built for gym equipment management. This proposal outlines a commercial partnership with Pulse Fitness to deploy the portal across Pulse Fitness's customer base in two tiers:</p>
+          <p>Pulse Fitness AI has developed a white-label <strong>Self-Service Maintenance Portal</strong> purpose-built for gym equipment management. This proposal outlines a commercial partnership with Pulse Fitness to deploy the portal across Pulse Fitness's customer base in two tiers:</p>
           <ul className="list-disc pl-6 mt-3 space-y-1">
             <li><strong>Pulse Self-Service (Lite)</strong> — Bundled free with Pulse Fitness equipment</li>
             <li><strong>Pulse Self-Service Pro</strong> — Premium subscription sold jointly</li>
           </ul>
-          <p className="mt-3">GymAxis AI retains full ownership of the GymAxis AI platform and all underlying intellectual property. Pulse Fitness receives an exclusive licence to distribute the Self-Service Portal under the Pulse Fitness brand.</p>
+          <p className="mt-3">Pulse Fitness AI retains full ownership of the Pulse Fitness AI platform and all underlying intellectual property. Pulse Fitness receives an exclusive licence to distribute the Self-Service Portal under the Pulse Fitness brand.</p>
         </Section>
 
         {/* 2. Product Tiers */}
@@ -96,22 +96,22 @@ const PartnershipProposalPage = () => {
             </tbody>
           </table>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 mb-6">
-            <strong>Example:</strong> 500 Pulse Fitness gym clients × £4/month = <strong className="text-gray-900">£24,000/year</strong> to GymAxis AI. Pulse Fitness benefits from increased customer retention, reduced support calls, and a competitive differentiator — at no cost to their end customer.
+            <strong>Example:</strong> 500 Pulse Fitness gym clients × £4/month = <strong className="text-gray-900">£24,000/year</strong> to Pulse Fitness AI. Pulse Fitness benefits from increased customer retention, reduced support calls, and a competitive differentiator — at no cost to their end customer.
           </div>
 
           <h4 className="font-semibold text-gray-900 mb-3">3.2 Pro Portal — Revenue Share</h4>
-          <p className="mb-3">Pro subscriptions are sold jointly. GymAxis AI receives a recurring commission on all Pro revenue.</p>
+          <p className="mb-3">Pro subscriptions are sold jointly. Pulse Fitness AI receives a recurring commission on all Pro revenue.</p>
           <table className="w-full text-sm border-collapse mb-4">
             <tbody>
               <Row label="Suggested end-customer price" value="£49 – £99 per gym site / month" />
-              <Row label="GymAxis AI commission" value="25% of gross monthly revenue" />
+              <Row label="Pulse Fitness AI commission" value="25% of gross monthly revenue" />
               <Row label="Billing & collection" value="Managed by Pulse Fitness" />
               <Row label="Commission payment" value="Monthly, within 30 days of collection" />
               <Row label="Minimum term per subscriber" value="3-month initial commitment" />
             </tbody>
           </table>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 mb-6">
-            <strong>Example:</strong> 100 gyms upgrade to Pro at £79/month = £94,800/year gross. GymAxis AI commission (25%) = <strong className="text-gray-900">£23,700/year</strong>. Combined with Lite licence = <strong className="text-gray-900">£47,700/year total</strong>.
+            <strong>Example:</strong> 100 gyms upgrade to Pro at £79/month = £94,800/year gross. Pulse Fitness AI commission (25%) = <strong className="text-gray-900">£23,700/year</strong>. Combined with Lite licence = <strong className="text-gray-900">£47,700/year total</strong>.
           </div>
 
           <h4 className="font-semibold text-gray-900 mb-3">3.3 Scaling Projections</h4>
@@ -121,7 +121,7 @@ const PartnershipProposalPage = () => {
                 <th className="text-left py-2 font-semibold text-gray-900">Year</th>
                 <th className="text-left py-2 font-semibold text-gray-900">Lite Sites</th>
                 <th className="text-left py-2 font-semibold text-gray-900">Pro Sites</th>
-                <th className="text-right py-2 font-semibold text-gray-900">GymAxis AI Annual Revenue</th>
+                <th className="text-right py-2 font-semibold text-gray-900">Pulse Fitness AI Annual Revenue</th>
               </tr>
             </thead>
             <tbody>
@@ -152,17 +152,17 @@ const PartnershipProposalPage = () => {
         <Section num="4" title="Intellectual Property & Ownership">
           <table className="w-full text-sm border-collapse mb-4">
             <tbody>
-              <Row label="GymAxis AI platform (full product)" value="100% GymAxis AI" />
-              <Row label="Self-Service Portal codebase" value="100% GymAxis AI" />
+              <Row label="Pulse Fitness AI platform (full product)" value="100% Pulse Fitness AI" />
+              <Row label="Self-Service Portal codebase" value="100% Pulse Fitness AI" />
               <Row label="Pulse Fitness brand assets (logo, name)" value="100% Pulse Fitness" />
               <Row label="Customer data (gym operators)" value="Owned by end customer" />
-              <Row label="AI models & training data" value="100% GymAxis AI" />
+              <Row label="AI models & training data" value="100% Pulse Fitness AI" />
             </tbody>
           </table>
           <ul className="list-disc pl-6 space-y-2 text-sm text-gray-600">
-            <li>GymAxis AI grants Pulse Fitness a <strong>non-exclusive, non-transferable licence</strong> to distribute the Self-Service Portal under the Pulse Fitness brand.</li>
+            <li>Pulse Fitness AI grants Pulse Fitness a <strong>non-exclusive, non-transferable licence</strong> to distribute the Self-Service Portal under the Pulse Fitness brand.</li>
             <li>Pulse Fitness <strong>may not</strong> sublicense, reverse-engineer, or independently fork the portal.</li>
-            <li>GymAxis AI retains the right to sell the same portal technology to other equipment manufacturers under different branding.</li>
+            <li>Pulse Fitness AI retains the right to sell the same portal technology to other equipment manufacturers under different branding.</li>
           </ul>
         </Section>
 
@@ -170,7 +170,7 @@ const PartnershipProposalPage = () => {
         <Section num="5" title="Development & Investment">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">GymAxis AI Responsibilities</h4>
+              <h4 className="font-semibold text-gray-900 mb-2">Pulse Fitness AI Responsibilities</h4>
               <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
                 <li>Ongoing platform maintenance and bug fixes</li>
                 <li>Infrastructure and hosting management</li>
@@ -213,13 +213,13 @@ const PartnershipProposalPage = () => {
 
         {/* 7. Integration Services */}
         <Section num="7" title="Integration Services — Orbit 4 to Sicon Bridge">
-          <p className="mb-4">As an additional capability, GymAxis AI will provide a <strong>middleware integration layer</strong> that automatically bridges Orbit 4 (used by gym operators to log faults) with Sicon Service (Pulse Fitness's internal service management system).</p>
+          <p className="mb-4">As an additional capability, Pulse Fitness AI will provide a <strong>middleware integration layer</strong> that automatically bridges Orbit 4 (used by gym operators to log faults) with Sicon Service (Pulse Fitness's internal service management system).</p>
 
           <h4 className="font-semibold text-gray-900 mb-3">The Problem</h4>
           <p className="mb-4">Today, when a gym operator logs a fault in Orbit 4, Pulse Fitness staff must manually read the fault details in Orbit 4 and re-enter them into Sicon Service to create a service case. This is time-consuming, error-prone, and introduces delays in response times.</p>
 
           <h4 className="font-semibold text-gray-900 mb-3">The Solution</h4>
-          <p className="mb-4">GymAxis AI will sit between Orbit 4 and Sicon as an invisible middleware layer. When a fault is logged in Orbit 4, it is <strong>automatically</strong> forwarded to Sicon Service — no manual intervention required.</p>
+          <p className="mb-4">Pulse Fitness AI will sit between Orbit 4 and Sicon as an invisible middleware layer. When a fault is logged in Orbit 4, it is <strong>automatically</strong> forwarded to Sicon Service — no manual intervention required.</p>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 mb-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
@@ -230,7 +230,7 @@ const PartnershipProposalPage = () => {
               </div>
               <div className="text-gray-400 text-2xl">→</div>
               <div className="text-center p-3 bg-gray-900 text-white rounded-lg flex-1">
-                <p className="font-semibold">GymAxis AI</p>
+                <p className="font-semibold">Pulse Fitness AI</p>
                 <p className="text-gray-300 text-xs mt-1">Receives, transforms & forwards</p>
                 <p className="text-gray-400 text-xs">(Invisible middleware)</p>
               </div>
@@ -246,9 +246,9 @@ const PartnershipProposalPage = () => {
           <h4 className="font-semibold text-gray-900 mb-3">How It Works</h4>
           <ol className="list-decimal pl-6 space-y-2 mb-4">
             <li>Gym staff logs a fault in Orbit 4 — <strong>exactly as they do today</strong></li>
-            <li>Orbit 4 fires a webhook (<code className="text-xs bg-gray-100 px-1 rounded">ticket.created</code>) to the GymAxis AI server</li>
-            <li>GymAxis AI receives the fault data (asset, description, serial number, priority)</li>
-            <li>GymAxis AI transforms and maps the data to Sicon Service's required format</li>
+            <li>Orbit 4 fires a webhook (<code className="text-xs bg-gray-100 px-1 rounded">ticket.created</code>) to the Pulse Fitness AI server</li>
+            <li>Pulse Fitness AI receives the fault data (asset, description, serial number, priority)</li>
+            <li>Pulse Fitness AI transforms and maps the data to Sicon Service's required format</li>
             <li>A service case is <strong>automatically created</strong> in Sicon — no staff action needed</li>
             <li>When Sicon resolves the case, the status is pushed back to Orbit 4</li>
           </ol>
@@ -306,7 +306,7 @@ const PartnershipProposalPage = () => {
         {/* Contact */}
         <div className="mt-12 pt-8 border-t-2 border-gray-900 text-center">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">Contact</h3>
-          <p className="text-sm text-gray-500">GymAxis AI</p>
+          <p className="text-sm text-gray-500">Pulse Fitness AI</p>
           <p className="text-sm text-gray-400 mt-4">[Your Name] · [Your Email] · [Your Phone]</p>
         </div>
 

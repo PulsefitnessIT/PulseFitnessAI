@@ -19,7 +19,7 @@ import useSeo from '../../../utils/seo';
 import { getSolution } from './solutionsData';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://gymaxisai.com';
+const SITE = 'https://www.pulsefitness.ai';
 
 export default function SolutionLanding() {
   const { slug } = useParams();
@@ -44,9 +44,9 @@ export default function SolutionLanding() {
       '@graph': [
         {
           '@type': 'Product',
-          name: 'GymAxis AI',
+          name: 'Pulse Fitness AI',
           description: sol.metaDescription,
-          brand: { '@type': 'Brand', name: 'GymAxis' },
+          brand: { '@type': 'Brand', name: 'Pulse Fitness' },
         },
         {
           '@type': 'FAQPage',
@@ -74,7 +74,7 @@ export default function SolutionLanding() {
       <section className="gx-grid-bg" data-testid={`solution-hero-${slug}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <Link to="/solutions" className="hover:text-slate-700">Solutions</Link>
             <ChevronRight size={11} />
@@ -121,7 +121,7 @@ export default function SolutionLanding() {
       <section className="bg-slate-50 py-16 lg:py-20 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">
-            What you get with <span className="gx-gradient-text">GymAxis</span>
+            What you get with <span className="gx-gradient-text">Pulse Fitness</span>
           </h2>
           <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {sol.features.map((f) => (
@@ -142,7 +142,7 @@ export default function SolutionLanding() {
         <section className="bg-white py-14 lg:py-16 dark:bg-zinc-900">
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
             <h2 className="text-2xl md:text-3xl font-black tracking-tight">Maintain every brand on your floor</h2>
-            <p className="mt-3 text-slate-600 max-w-2xl">GymAxis works with equipment from every major manufacturer. See brand-specific service guides:</p>
+            <p className="mt-3 text-slate-600 max-w-2xl">Pulse Fitness works with equipment from every major manufacturer. See brand-specific service guides:</p>
             <div className="mt-6 flex flex-wrap gap-2.5" data-testid="solution-manufacturer-links">
               {manufacturers.map((m) => (
                 <Link key={m.slug} to={`/maintenance/${m.slug}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:border-zinc-800">

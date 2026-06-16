@@ -72,7 +72,7 @@ const FEATURE_LIST = [
 ];
 
 const GROUP_META = {
- enterprise: { label: 'GymAxis Enterprise (Premium Add-ons)', order: 0 },
+ enterprise: { label: 'Pulse Fitness Enterprise (Premium Add-ons)', order: 0 },
  portal: { label: 'Operations Portal', order: 1 },
  memberships: { label: 'Memberships', order: 2 },
  marketing: { label: 'Marketing Suite', order: 3 },
@@ -81,7 +81,7 @@ const GROUP_META = {
  crm: { label: 'CRM Modules', order: 6 },
 };
 
-const ACCOUNT_TYPE_LABELS = { full: 'GymAxis', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite' };
+const ACCOUNT_TYPE_LABELS = { full: 'Pulse Fitness', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite' };
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });

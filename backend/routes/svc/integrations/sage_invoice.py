@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Sage 200 invoice sync stub.
+Pulse Fitness Service Operations — Sage 200 invoice sync stub.
 
 Iter 215dp.
 
@@ -9,7 +9,7 @@ case transitions to `closed` AND `cover_type=chargeable`. A worker
 (TODO) drains the outbox and posts to Sage 200's invoice API.
 
 Field mapping:
-    GymAxis case → Sage `SLInvoice`:
+    Pulse Fitness case → Sage `SLInvoice`:
       SLCustomerAccountID  ← (CRM) `Company.sage_customer_id`
       InvoiceDate          ← case.closed_at (date part)
       Reference            ← case.reference

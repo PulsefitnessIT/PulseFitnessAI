@@ -1,9 +1,9 @@
-"""GymAxis Memberships — Operator onboarding + Member-app branding + Ads.
+"""Pulse Fitness Memberships — Operator onboarding + Member-app branding + Ads.
 
 Scope:
   • Setup wizard: /memberships/setup/*  (org-level state machine)
   • Record payment: operator-initiated manual payment logging (replaces
-    the old Stripe-collect-from-member flow — GymAxis does NOT
+    the old Stripe-collect-from-member flow — Pulse Fitness does NOT
     intermediate gym→member money).
   • Public white-label app: /m/{slug}  (member portal served with the
     gym's branding via GET /m/{slug}/branding).

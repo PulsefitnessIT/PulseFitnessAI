@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, AlertTriangle, Zap, X } from 'lucide-react';
 import { useAuth } from '@/App';
 
-// GymAxis default trial length (days). Used to render the % progress bar
+// Pulse Fitness default trial length (days). Used to render the % progress bar
 // when the org doesn't return `trial_duration_days`.
 const DEFAULT_TRIAL_DAYS = 3;
 

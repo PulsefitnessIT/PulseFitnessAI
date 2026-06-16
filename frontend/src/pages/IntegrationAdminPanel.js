@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 // ── Field-mapping reference data (Sicon spec §3.1, §3.2, §3.3) ──────
-// Direction: 'outbound' (GymAxis → Sicon), 'inbound' (Sicon → GymAxis)
+// Direction: 'outbound' (Pulse Fitness → Sicon), 'inbound' (Sicon → Pulse Fitness)
 // Status: 'mapped' (auto), 'lookup' (resolved on first sync), 'pending'
 //
 // Source of truth: /app/memory/SICON_INTEGRATION_SPEC.md
@@ -368,7 +368,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
               <div>
                 <h4 className="text-sm font-semibold text-blue-900">White-Label Identity</h4>
                 <p className="text-xs text-blue-700 mt-1">
-                  Orbit 4 sees this integration as <strong>"{config?.branding?.display_name || 'Pulse Fitness'}"</strong> — not GymAxis AI.
+                  Orbit 4 sees this integration as <strong>"{config?.branding?.display_name || 'Pulse Fitness'}"</strong> — not Pulse Fitness AI.
                   All API calls, webhook responses, and User-Agent headers identify as {config?.branding?.display_name || 'Pulse Fitness'}.
                   {!config?.branding?.production_webhook_domain && ' Configure a production domain in Branding to fully white-label the webhook URL.'}
                 </p>
@@ -382,7 +382,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
             <div className="flex items-center justify-between gap-2">
               <FlowBox label="Orbit 4" sub="Fault logged" icon={ArrowDownToLine} active={integrationId === 'orbit4' && config?.enabled} />
               <ArrowRight size={20} className="text-zinc-300 flex-shrink-0" />
-              <FlowBox label="GymAxis AI" sub="Middleware" icon={Zap} active={true} highlight />
+              <FlowBox label="Pulse Fitness AI" sub="Middleware" icon={Zap} active={true} highlight />
               <ArrowRight size={20} className="text-zinc-300 flex-shrink-0" />
               <FlowBox label="Sicon Service" sub="Case created" icon={ArrowUpFromLine} active={integrationId === 'sicon' && config?.enabled} />
             </div>
@@ -661,7 +661,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                   <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Inbound Webhook Secret</Label>
                   <Input type="password" value={editConfig.sync?.webhook_secret || ''}
                     onChange={e => setEditConfig({...editConfig, sync: {...(editConfig.sync || {}), webhook_secret: e.target.value}})}
-                    placeholder="HMAC secret for Sicon → GymAxis pushes" className="mt-1" data-testid="sicon-webhook-secret" />
+                    placeholder="HMAC secret for Sicon → Pulse Fitness pushes" className="mt-1" data-testid="sicon-webhook-secret" />
                 </div>
                 <div>
                   <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Inbound Webhook URL</Label>
@@ -688,7 +688,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
           <Card className="p-5 border-zinc-200 dark:border-zinc-800 space-y-4" data-testid="branding-config">
             <div>
               <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2"><Shield size={16} className="text-blue-600" /> White-Label Branding</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mt-1">Controls what third-party services see. Orbit 4 and Sicon will identify this integration as the name below — not GymAxis AI.</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mt-1">Controls what third-party services see. Orbit 4 and Sicon will identify this integration as the name below — not Pulse Fitness AI.</p>
             </div>
             <div>
               <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Display Name</Label>
@@ -729,18 +729,18 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
         <div className="space-y-4">
           <Card className="p-5 border-zinc-200 dark:border-zinc-800">
             <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
-              {integrationId === 'orbit4' ? 'Orbit 4 → Sicon Field Mapping' : 'GymAxis Issue → Sicon Service Case'}
+              {integrationId === 'orbit4' ? 'Orbit 4 → Sicon Field Mapping' : 'Pulse Fitness Issue → Sicon Service Case'}
             </h4>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mb-4">
               {integrationId === 'sicon'
-                ? <>Source: <code className="font-mono">/app/memory/SICON_INTEGRATION_SPEC.md §3.1</code>. Direction shows the source of truth: <strong>OUT</strong> = GymAxis writes to Sicon, <strong>IN</strong> = Sicon owns and pushes back.</>
+                ? <>Source: <code className="font-mono">/app/memory/SICON_INTEGRATION_SPEC.md §3.1</code>. Direction shows the source of truth: <strong>OUT</strong> = Pulse Fitness writes to Sicon, <strong>IN</strong> = Sicon owns and pushes back.</>
                 : 'How fields from Orbit 4 tickets map to Sicon service cases. These will be confirmed with Pulse Fitness.'}
             </p>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
-                    <th className="text-left py-2.5 px-4 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 font-medium">{integrationId === 'sicon' ? 'GymAxis Field' : 'Orbit 4 Field'}</th>
+                    <th className="text-left py-2.5 px-4 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 font-medium">{integrationId === 'sicon' ? 'Pulse Fitness Field' : 'Orbit 4 Field'}</th>
                     <th className="text-center py-2.5 px-2 text-zinc-400 dark:text-zinc-500 w-12"></th>
                     <th className="text-left py-2.5 px-4 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 font-medium">Sicon Field</th>
                     {integrationId === 'sicon' && (

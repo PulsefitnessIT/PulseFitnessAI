@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Service Desk Dashboard API.
+Pulse Fitness Service Operations — Service Desk Dashboard API.
 
 Iter 215dn (Phase 1).
 
@@ -11,7 +11,7 @@ pipelines so it's fast even at scale.
 __integration_fields__ = {
     # All endpoints in this module are read-only aggregates over
     # `svc_cases` + `svc_case_events`. No new collections, no writes.
-    # The aggregated outputs are GymAxis-internal dashboard data — every
+    # The aggregated outputs are Pulse Fitness-internal dashboard data — every
     # underlying field (priority, status, sla_*, customer_*, etc.) is
     # already mapped to Sicon/Sage in routes/svc/cases.py.
     "summary.kpi.open_count":      "gymaxis_only: dashboard KPI",

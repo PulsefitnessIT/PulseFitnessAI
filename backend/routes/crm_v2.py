@@ -34,8 +34,8 @@ def _of(user: dict) -> dict:
 
 # Platform-org names that must NEVER bleed into tenant-facing PDFs.
 # When the logged-in user's organization happens to be the platform
-# itself ("GymAxis AI"), tender PDFs would otherwise read "A pitch
-# from GymAxis AI for X" — instead, fall back to the CRM tenant brand
+# itself ("Pulse Fitness AI"), tender PDFs would otherwise read "A pitch
+# from Pulse Fitness AI for X" — instead, fall back to the CRM tenant brand
 # (currently always Pulse Fitness).
 _PLATFORM_ORG_NAMES = {"gymaxis ai", "gymaxis", "gymaxis ltd", "gymaxis limited"}
 
@@ -3192,7 +3192,7 @@ _PULSE_BID_LIBRARY_SEEDS = [
     {"title": "Mobilisation Plan Template", "category": "mobilisation", "tags": ["delivery", "implementation"], "win_score": 85,
      "content": "Standard 90-day mobilisation: Week 1-2 contract sign-off + RAMS + site surveys. Week 3-6 equipment manufactured, delivered, installed (max 2 sites/week). Week 7-10 commissioning, staff training (CPD-accredited), member orientation with on-site coach for the first opening weekend. Week 11-12 service handover, BAU reporting templates configured in the client portal, first quarterly review scheduled."},
     {"title": "Service Desk SLA & Response Times", "category": "service", "tags": ["sla", "support"], "win_score": 89,
-     "content": "Pulse Fitness Service Desk operates 7am-7pm Mon-Sat with a 24/7 emergency line for safety-critical incidents. Standard SLAs (calendar hours): P1 critical 4h on-site, P2 high 24h, P3 medium 72h, P4 routine 5 working days. Average first-call resolution: 41%. Performance is reported monthly via the GymAxis Service Desk client portal with raw data exportable to CSV."},
+     "content": "Pulse Fitness Service Desk operates 7am-7pm Mon-Sat with a 24/7 emergency line for safety-critical incidents. Standard SLAs (calendar hours): P1 critical 4h on-site, P2 high 24h, P3 medium 72h, P4 routine 5 working days. Average first-call resolution: 41%. Performance is reported monthly via the Pulse Fitness Service Desk client portal with raw data exportable to CSV."},
     {"title": "Sustainability & Circular Economy", "category": "sustainability", "tags": ["esg", "carbon"], "win_score": 87,
      "content": "Pulse Fitness offers a take-back & refurbishment programme: redundant equipment is collected free of charge at end-of-life and either refurbished for the resale market or stripped to component level for recycling. Less than 3% of equipment by mass goes to landfill. The programme has prevented 412 tonnes of steel from secondary smelting since 2019 — equivalent to ~620 tCO2e of avoided emissions."},
     {"title": "Social Value Commitments", "category": "social_value", "tags": ["toms", "community"], "win_score": 86,

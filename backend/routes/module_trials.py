@@ -53,7 +53,7 @@ async def _resolve_org(user: dict) -> dict:
         if user.get("is_master_admin"):
             return {
                 "id": user.get("organization_id") or "master-admin",
-                "name": "GymAxis AI Admin",
+                "name": "Pulse Fitness AI Admin",
                 "account_type": "full",
                 "subscription_tier": "premium",
                 "modules": {

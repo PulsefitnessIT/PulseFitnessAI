@@ -130,7 +130,7 @@ export default function BillingSection({ billing, _onClose }) {
         <div data-testid="account-billing-modules">
           <h3 className="account-section-title">Add a module</h3>
           <p className="account-section-sub">
-            Pay only for what you need — or upgrade to the {pricing.bundle?.name || 'GymAxis Pro'} bundle for everything at £{pricing.bundle?.monthly}/mo.
+            Pay only for what you need — or upgrade to the {pricing.bundle?.name || 'Pulse Fitness Pro'} bundle for everything at £{pricing.bundle?.monthly}/mo.
           </p>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {pricing.modules.map((m) => {

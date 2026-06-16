@@ -116,7 +116,7 @@ def run_startup_audit(*, abort_on_critical_in_prod: bool = True) -> list[dict]:
     has_critical = any(f["severity"] == "critical" for f in findings)
     if abort_on_critical_in_prod and _is_prod() and has_critical:
         sys.stderr.write(
-            "\n\n=== GymAxis startup aborted: critical security misconfiguration ===\n"
+            "\n\n=== Pulse Fitness startup aborted: critical security misconfiguration ===\n"
         )
         for f in findings:
             sys.stderr.write(_format_line(f) + "\n")

@@ -173,13 +173,13 @@ def _trend_pill_html(delta: Optional[float]) -> str:
 def _linkedin_share_url(report: dict) -> str:
     """Pre-fill a LinkedIn `sharing/share-offsite` URL with a humblebrag-
     style quote about the engineer's month."""
-    base = (PUBLIC_BASE_URL or "https://gymaxisai.com").rstrip("/")
-    # Land on the public engineer card eventually — for now, the GymAxis
+    base = (PUBLIC_BASE_URL or "https://www.pulsefitness.ai").rstrip("/")
+    # Land on the public engineer card eventually — for now, the Pulse Fitness
     # homepage is fine as a fallback target.
     text = (
         f"⭐ {report['avg']:.1f} avg from {report['count']} customer "
         f"review{'' if report['count'] == 1 else 's'} this month. "
-        f"Proud of the work via @GymAxis — building a healthier fitness "
+        f"Proud of the work via @Pulse Fitness — building a healthier fitness "
         f"industry one machine at a time."
     )
     params = {
@@ -252,7 +252,7 @@ def render_monthly_report_html(*, engineer: dict, report: dict, ratings_url: str
         </a>
       </div>
       <p style="margin:24px 0 6px;color:#64748b;font-size:11px;line-height:1.5;">
-        You're getting this because you're a GymAxis Partner Engineer with at least
+        You're getting this because you're a Pulse Fitness Partner Engineer with at least
         one customer rating last month. Reports fire once on the 1st of each month —
         no daily noise.
       </p>

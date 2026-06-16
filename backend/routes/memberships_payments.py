@@ -1,4 +1,4 @@
-"""Stripe payments for GymAxis Memberships.
+"""Stripe payments for Pulse Fitness Memberships.
 
 Two flows:
   • Recurring plans → mode='subscription' Checkout Session with a Stripe
@@ -568,7 +568,7 @@ async def _send_payment_failed_email(member: dict, plan: dict) -> None:
     <p style="color:#9ca3af;font-size:13px;">Your membership is marked <strong style="color:#F59E0B;">past due</strong> — please update your card to keep access. Reply to this email or pop into reception and we'll sort it in a minute.</p>
   </div>
   <div style="background:#05070A;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">GymAxis Memberships · Billing</p>
+    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness Memberships · Billing</p>
   </div>
 </div>"""
     await send_email(member["email"], f"Payment failed · {plan.get('name') or 'membership'}", html, category="billing")

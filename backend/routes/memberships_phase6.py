@@ -1,4 +1,4 @@
-"""GymAxis Memberships — Phase 6: CRM Integration.
+"""Pulse Fitness Memberships — Phase 6: CRM Integration.
 
 Closes the loop between Memberships and Marketing/CRM by detecting
 member behaviour signals and auto-firing the right outbound message.

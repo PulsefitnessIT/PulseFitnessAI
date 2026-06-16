@@ -2,7 +2,7 @@
  * Service Desk — UNIFIED (Iter 216h53)
  *
  * Single home for everything service-related. Merges what used to be
- * "Service Desk" (GymAxis internal: customers, equipment, supplier health)
+ * "Service Desk" (Pulse Fitness internal: customers, equipment, supplier health)
  * with "Service Ops" (case board, scheduler, parts, billing, engineers).
  *
  * Lee's 8-tab spec:
@@ -234,7 +234,7 @@ export default function ServiceDeskPage() {
         <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center overflow-hidden gx-grad-ring shadow-sm">
-              <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
+              <img src="/brand/pulse-mark.svg" alt="Pulse Fitness" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900 tracking-tight">Service Desk</div>

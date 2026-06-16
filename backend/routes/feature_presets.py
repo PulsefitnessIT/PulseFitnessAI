@@ -67,8 +67,8 @@ FEATURE_PRESETS: dict = {
         },
     },
     "gymaxis_full": {
-        "label": "GymAxis — Full Platform",
-        "description": "Everything unlocked. Reserved for GymAxis-branded accounts.",
+        "label": "Pulse Fitness — Full Platform",
+        "description": "Everything unlocked. Reserved for Pulse Fitness-branded accounts.",
         "features": {
             "ai_audits": True, "qr_scanning": True, "multi_site": True,
             "ppm_engine": True, "api_access": True, "white_label": True,

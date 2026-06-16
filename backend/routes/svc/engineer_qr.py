@@ -14,7 +14,7 @@ collection which the Engineer App never reads — engineers work from
   Authenticated (engineer):
     * GET /api/svc/engineer/equipment/{id}/qr-card?size=  — branded QR
       label PNG with the engineer's *company name* (their own branding,
-      not GymAxis). The QR encodes the public report URL `/r/{id}`.
+      not Pulse Fitness). The QR encodes the public report URL `/r/{id}`.
     * GET /api/svc/engineer/equipment/{id}/qr-label       — JSON metadata
       (scan_url, brand_name, machine info) for the in-app preview.
 

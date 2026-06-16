@@ -1,5 +1,5 @@
 /**
- * GymAxis Memberships → CRM Loop (Phase 6).
+ * Pulse Fitness Memberships → CRM Loop (Phase 6).
  *
  * Closes the loop between Memberships behaviour and Marketing/CRM
  * outbound. Operator sees:

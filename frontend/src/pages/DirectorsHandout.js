@@ -42,7 +42,7 @@ const DirectorsHandout = () => (
           <span>|</span>
           <span>April 2026</span>
           <span>|</span>
-          <span>Powered by GymAxis AI</span>
+          <span>Powered by Pulse Fitness AI</span>
         </div>
       </div>
 
@@ -371,7 +371,7 @@ const DirectorsHandout = () => (
         </p>
         <div className="mt-8 text-xs text-zinc-400">
           <p>Prepared for the Pulse Fitness Board of Directors</p>
-          <p className="mt-1">Powered by GymAxis AI &middot; April 2026</p>
+          <p className="mt-1">Powered by Pulse Fitness AI &middot; April 2026</p>
         </div>
       </section>
 

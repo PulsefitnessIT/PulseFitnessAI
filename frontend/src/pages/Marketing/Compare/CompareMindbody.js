@@ -6,9 +6,9 @@ const competitor = {
   founded: 2001, hq: 'San Luis Obispo, CA', focus: 'Class booking + payments',
 };
 const hero = {
-  headline: 'GymAxis vs Mindbody — built for operators, not just bookings.',
+  headline: 'Pulse Fitness vs Mindbody — built for operators, not just bookings.',
   subheadline:
-    'Mindbody is the default for studio class booking. GymAxis is the default when your business is also asset-heavy — treadmills break, contracts renew, engineers visit. We added the operations + service-desk layer Mindbody never had.',
+    'Mindbody is the default for studio class booking. Pulse Fitness is the default when your business is also asset-heavy — treadmills break, contracts renew, engineers visit. We added the operations + service-desk layer Mindbody never had.',
 };
 const matrix = [
   { feature: 'Class booking + payments',           gymaxis: true,  competitor: true },
@@ -22,7 +22,7 @@ const matrix = [
   { feature: 'Marketing + CRM Lite included',      gymaxis: true,  competitor: 'Add-on subscription' },
   { feature: 'Self-serve trial (no sales call)',   gymaxis: '3-day, all modules', competitor: 'Sales-led demo first' },
 ];
-const winsForGymAxis = [
+const winsForPulseFitness = [
   { title: 'Asset-aware from day one', body: 'Every fault, contract, quote and invoice is tied to a specific machine + serial. Mindbody treats equipment as a footnote.' },
   { title: 'Service desk + engineer mobile', body: 'Operators triage, schedule and complete jobs on a single platform — including offline-capable engineer PWA. Mindbody has nothing in this lane.' },
   { title: 'AI triage that actually maps to parts', body: 'Claude Sonnet returns priority + fault code + likely-parts grounded in your real catalogue, not a generic taxonomy.' },
@@ -45,7 +45,7 @@ export default function CompareMindbody() {
       competitor={competitor}
       hero={hero}
       matrix={matrix}
-      winsForGymAxis={winsForGymAxis}
+      winsForPulseFitness={winsForPulseFitness}
       whenCompetitorWins={whenCompetitorWins}
       faqs={faqs}
     />

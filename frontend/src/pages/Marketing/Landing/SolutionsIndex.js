@@ -10,11 +10,11 @@ import MarketingShell from '../MarketingShell';
 import useSeo from '../../../utils/seo';
 import { SOLUTIONS } from './solutionsData';
 
-const SITE = 'https://gymaxisai.com';
+const SITE = 'https://www.pulsefitness.ai';
 
 export default function SolutionsIndex() {
   useSeo({
-    title: 'Solutions for Gyms & Leisure Operators | GymAxis AI',
+    title: 'Solutions for Gyms & Leisure Operators | Pulse Fitness AI',
     description:
       'Software solutions for gym and leisure operators: equipment maintenance, planned maintenance (PPM), asset management, CRM and service management — all in one platform.',
     canonical: `${SITE}/solutions`,
@@ -22,7 +22,7 @@ export default function SolutionsIndex() {
     structuredData: {
       '@context': 'https://schema.org',
       '@type': 'CollectionPage',
-      name: 'GymAxis Solutions',
+      name: 'Pulse Fitness Solutions',
       url: `${SITE}/solutions`,
     },
   });
@@ -32,7 +32,7 @@ export default function SolutionsIndex() {
       <section className="gx-grid-bg" data-testid="solutions-index">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-12 lg:pt-20">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <span className="text-slate-700 font-semibold">Solutions</span>
           </nav>
@@ -43,7 +43,7 @@ export default function SolutionsIndex() {
             One platform, <span className="gx-gradient-text">every operations job</span>.
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-3xl">
-            From equipment maintenance to CRM, GymAxis replaces the patchwork of tools gyms and leisure operators juggle. Pick the job you need solved.
+            From equipment maintenance to CRM, Pulse Fitness replaces the patchwork of tools gyms and leisure operators juggle. Pick the job you need solved.
           </p>
         </div>
       </section>

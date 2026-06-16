@@ -67,7 +67,7 @@ function Hero() {
             Built for operators<br /><span className="gx-gradient-text">who can&apos;t afford a breach.</span>
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-2xl">
-            GymAxis runs your members&apos; payment data, your staff personal information, and your operational decisions. Here is how we protect them.
+            Pulse Fitness runs your members&apos; payment data, your staff personal information, and your operational decisions. Here is how we protect them.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href="/.well-known/security.txt" target="_blank" rel="noreferrer" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold">
@@ -237,8 +237,8 @@ function Disclosure() {
             </p>
           </div>
           <div className="space-y-3">
-            <a href="mailto:security@gymaxisai.com" className="gx-cta w-full inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-3 text-sm font-bold">
-              <Mail size={14} />security@gymaxisai.com
+            <a href="mailto:security@pulsefitness.ai" className="gx-cta w-full inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-3 text-sm font-bold">
+              <Mail size={14} />security@pulsefitness.ai
             </a>
             <a href="/.well-known/security.txt" target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-white dark:bg-zinc-900">
               security.txt

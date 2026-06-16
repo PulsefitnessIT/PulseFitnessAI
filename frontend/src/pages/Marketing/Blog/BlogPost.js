@@ -82,7 +82,7 @@ export default function BlogPost() {
     title: dbPost.title,
     excerpt: dbPost.excerpt,
     publishedAt: dbPost.published_at,
-    author: 'GymAxis',
+    author: 'Pulse Fitness',
     readingMinutes: dbPost.read_time_min || 7,
     tags: dbPost.tags || [],
     body: (
@@ -120,7 +120,7 @@ export default function BlogPost() {
     if (!post) return undefined;
     const prev = document.title;
     const prevMeta = document.querySelector('meta[name="description"]')?.getAttribute('content');
-    document.title = `${post.title} — GymAxis Blog`;
+    document.title = `${post.title} — Pulse Fitness Blog`;
     let m = document.querySelector('meta[name="description"]');
     if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'description'); document.head.appendChild(m); }
     m.setAttribute('content', post.meta_description || post.excerpt);
@@ -148,8 +148,8 @@ export default function BlogPost() {
     description: post.excerpt,
     datePublished: post.publishedAt,
     author: { '@type': 'Person', name: post.author },
-    publisher: { '@type': 'Organization', name: 'GymAxis', logo: { '@type': 'ImageObject', url: 'https://gymaxisai.com/brand/logo.svg' } },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://gymaxisai.com/blog/${post.slug}` },
+    publisher: { '@type': 'Organization', name: 'Pulse Fitness', logo: { '@type': 'ImageObject', url: 'https://www.pulsefitness.ai/brand/logo.svg' } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.pulsefitness.ai/blog/${post.slug}` },
   };
 
   // FAQPage JSON-LD — what gets us cited in ChatGPT / Perplexity / AI overviews.

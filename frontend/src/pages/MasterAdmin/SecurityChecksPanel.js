@@ -8,7 +8,7 @@
  *  2. The most recent live audit events from `security_audit_log` —
  *     what the on-call operator wants.
  *
- * Visible to both GymAxis and Pulse Fitness master admins (the backend
+ * Visible to both Pulse Fitness and Pulse Fitness master admins (the backend
  * checks `platform_role == "master_admin"` regardless of brand).
  */
 import { useEffect, useState, useMemo } from 'react';

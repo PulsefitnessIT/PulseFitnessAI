@@ -69,13 +69,13 @@ CRAWL_TIMEOUT = 12.0
 # X-Robot header so good-faith server admins can still see it's us.
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 GymAxisBrandDiscovery/1.0"
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 PulseFitnessBrandDiscovery/1.0"
 )
 EXTRA_HEADERS = {
     "User-Agent": USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "en-GB,en;q=0.9",
-    "X-GymAxis-Crawler": "brand-discovery/1.0 (+https://gymaxisai.com)",
+    "X-Pulse Fitness-Crawler": "brand-discovery/1.0 (+https://www.pulsefitness.ai)",
 }
 HEX_RE = re.compile(r"#(?:[0-9a-fA-F]{3}){1,2}\b")
 GOOGLE_FONTS_RE = re.compile(r"family=([A-Za-z0-9+:,_-]+)")

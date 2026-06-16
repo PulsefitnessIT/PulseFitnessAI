@@ -45,7 +45,7 @@ const ReportsTab = () => {
     <div className="space-y-6" data-testid="reports-tab">
       <PageHeader
         title="Resolution Reports"
-        subtitle="Track how issues are resolved — GymAxis AI self-fixes vs engineer callouts"
+        subtitle="Track how issues are resolved — Pulse Fitness AI self-fixes vs engineer callouts"
         icon={BarChart3}
         testId="reports-header"
       />
@@ -53,7 +53,7 @@ const ReportsTab = () => {
       {/* Hero Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiTile icon={BarChart3}     label="Total Issues"        value={stats.total_issues}                                                  tone="brand"   testId="stat-total" />
-        <KpiTile icon={Bot}           label="Fixed by GymAxis AI" value={stats.self_fixes}                                                    tone="success" testId="stat-ai-fixes" />
+        <KpiTile icon={Bot}           label="Fixed by Pulse Fitness AI" value={stats.self_fixes}                                                    tone="success" testId="stat-ai-fixes" />
         <KpiTile icon={Wrench}        label="Engineer Callouts"   value={stats.engineer_callouts}                                             tone="warning" testId="stat-engineer" />
         <KpiTile icon={PoundSterling} label="Est. Savings"        value={`£${stats.estimated_savings.toLocaleString()}`}                     tone="success" trend={`@ £${stats.avg_callout_cost}/callout`} testId="stat-savings" />
       </div>
@@ -85,7 +85,7 @@ const ReportsTab = () => {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                  <span className="text-white text-sm">Fixed by GymAxis AI</span>
+                  <span className="text-white text-sm">Fixed by Pulse Fitness AI</span>
                 </div>
                 <span className="text-green-400 font-bold">{stats.self_fixes}</span>
               </div>
@@ -202,7 +202,7 @@ const ReportsTab = () => {
           </div>
           <div>
             <h3 className="text-xl font-bold text-white">
-              GymAxis AI has saved you an estimated {"\u00A3"}{stats.estimated_savings.toLocaleString()}
+              Pulse Fitness AI has saved you an estimated {"\u00A3"}{stats.estimated_savings.toLocaleString()}
             </h3>
             <p className="text-[var(--color-text-muted)] mt-1">
               {stats.self_fixes} issues resolved through AI-guided self-repair at {"\u00A3"}{stats.avg_callout_cost} per avoided engineer callout. 

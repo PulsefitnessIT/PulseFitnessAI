@@ -1,5 +1,5 @@
 """
-GymAxis Service Operations — Smart scheduling suggestions.
+Pulse Fitness Service Operations — Smart scheduling suggestions.
 
 Iter 220g — When an engineer creates a new job and types the site
 postcode, surface dates when they already have jobs booked near here

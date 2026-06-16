@@ -13,7 +13,7 @@ const StageLive = ({ status, onFinish, onLogFault }) => {
       </div>
       <h3 className="text-2xl font-semibold mb-1">Your gym is now live 🎉</h3>
       <p className="text-[var(--color-text-muted)] text-sm max-w-md mx-auto mb-6">
-        You&apos;re fully onboarded. Time to see GymAxis in action — log your first fault and watch the AI triage engine work.
+        You&apos;re fully onboarded. Time to see Pulse Fitness in action — log your first fault and watch the AI triage engine work.
       </p>
 
       <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mb-6">

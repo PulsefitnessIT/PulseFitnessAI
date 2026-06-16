@@ -12,7 +12,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Menu, X, ArrowRight } from 'lucide-react';
 
-import { GymAxisLockup } from './GymAxisMark';
+import { PulseFitnessLockup } from './PulseFitnessMark';
 import TrialSignupModal, { openTrial } from './TrialSignupModal';
 import ProductPreviewModal from './ProductPreviewModal';
 import StickyCtaBar from './StickyCtaBar';
@@ -84,7 +84,7 @@ export function MarketingNav() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center font-black tracking-tight text-lg shrink-0" data-testid="gx-nav-logo">
-          <GymAxisLockup className="h-8 md:h-9 w-auto" />
+          <PulseFitnessLockup className="h-8 md:h-9 w-auto" />
         </Link>
 
         <nav className="hidden xl:flex items-center gap-5 text-sm font-medium text-slate-600 min-w-0">
@@ -189,7 +189,7 @@ export function MarketingFooter() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-14 grid gap-10 lg:grid-cols-5 sm:grid-cols-2" data-testid="gx-footer-grid">
         <div>
           <Link to="/" className="flex items-center font-black text-lg">
-            <GymAxisLockup className="h-12 w-auto" />
+            <PulseFitnessLockup className="h-12 w-auto" />
           </Link>
           <p className="mt-3 text-sm text-slate-500 leading-relaxed">{t('mkt.foot_tagline', 'The all-in-one operations platform for gyms, studios, and fitness businesses.')}</p>
         </div>
@@ -225,8 +225,8 @@ export function MarketingFooter() {
             <li><Link to="/compare/clubready" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-compare-clubready">ClubReady alternative</Link></li>
             <li><Link to="/whats-new" className="hover:text-slate-900 dark:text-zinc-100">{t('mkt.foot_whats_new', "What's new")}</Link></li>
             <li><Link to="/status" className="hover:text-slate-900 dark:text-zinc-100">{t('mkt.foot_status', 'Status')}</Link></li>
-            <li><a href="/downloads/GymAxisAI-Operators-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-operators">{t('mkt.foot_deck_operators', 'Operators Sales Presentation')}</a></li>
-            <li><a href="/downloads/GymAxisAI-Suppliers-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-suppliers">{t('mkt.foot_deck_suppliers', 'Suppliers Sales Presentation')}</a></li>
+            <li><a href="/downloads/PulseFitnessAI-Operators-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-operators">{t('mkt.foot_deck_operators', 'Operators Sales Presentation')}</a></li>
+            <li><a href="/downloads/PulseFitnessAI-Suppliers-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-suppliers">{t('mkt.foot_deck_suppliers', 'Suppliers Sales Presentation')}</a></li>
             <li><Link to="/partners/engineers" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-engineers">{t('mkt.foot_engineers', 'For engineers')}</Link></li>
             <li><Link to="/service-provider/signup" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-suppliers">{t('mkt.foot_suppliers', 'For service suppliers')}</Link></li>
           </ul>
@@ -239,7 +239,7 @@ export function MarketingFooter() {
       </div>
       <div className="border-t border-slate-100 dark:border-zinc-800">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 text-xs text-slate-400 flex flex-wrap justify-between gap-4 items-center">
-          <span>© {new Date().getFullYear()} GymAxis AI. {t('mkt.foot_rights', 'All rights reserved.')}</span>
+          <span>© {new Date().getFullYear()} Pulse Fitness AI. {t('mkt.foot_rights', 'All rights reserved.')}</span>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="gx-footer-legal">
             <Link to="/privacy" className="hover:text-slate-700" data-testid="gx-footer-privacy">{t('mkt.foot_privacy', 'Privacy')}</Link>
             <Link to="/terms" className="hover:text-slate-700" data-testid="gx-footer-terms">{t('mkt.foot_terms', 'Terms')}</Link>

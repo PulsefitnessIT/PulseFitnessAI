@@ -275,7 +275,7 @@ def _render_class_og(org: dict, occ: dict, tpl: dict) -> bytes:
     d.rounded_rectangle([px, py, px + cta_w + 60, py + 70], radius=35, fill=primary)
     d.text((px + 30, py + 14), cta, fill=(10, 12, 16), font=font_cta)
 
-    d.text((W - 260, 572), "Powered by GymAxis", fill=(255, 255, 255, 140), font=font_small)
+    d.text((W - 260, 572), "Powered by Pulse Fitness", fill=(255, 255, 255, 140), font=font_small)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
@@ -335,7 +335,7 @@ async def class_og_image(slug: str, occ_id: str):
         media_type="image/png",
         headers={
             "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=600",
-            "X-GymAxis-OG-Cache": source,
+            "X-Pulse Fitness-OG-Cache": source,
         },
     )
 

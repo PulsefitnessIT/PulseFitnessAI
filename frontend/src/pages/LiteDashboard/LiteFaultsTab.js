@@ -123,7 +123,7 @@ const LiteFaultsTab = ({
       />
 
       {/* Reactive / PPM toggle — uses canonical .subtab-bar/pill,
-          identical to GymAxis FaultsTab. */}
+          identical to Pulse Fitness FaultsTab. */}
       <div className="subtab-bar mb-2" role="tablist">
         <button type="button"
           className={`subtab-pill ${faultView === 'reactive' ? 'is-active' : ''}`}

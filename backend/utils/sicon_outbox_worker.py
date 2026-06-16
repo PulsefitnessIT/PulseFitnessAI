@@ -87,7 +87,7 @@ async def _send_to_sicon(client: SiconClient, kind: str, payload: dict) -> dict:
         return await client.amend_case(payload)
     if kind == "tracking_note":
         case_ref = payload.get("ServiceCallReference") or ""
-        # We need the numeric Sicon case id, not the GymAxis reference.
+        # We need the numeric Sicon case id, not the Pulse Fitness reference.
         # The amend_case response on the case push records this — we look it up.
         sicon_case_id = await _resolve_sicon_case_id(client, case_ref)
         return await client.create_tracking_note(sicon_case_id, payload)
@@ -128,7 +128,7 @@ def _structured_note_body(kind: str, payload: dict) -> str:
 
 
 async def _resolve_sicon_case_id(client: SiconClient, case_reference: str) -> int:
-    """GymAxis stores the GymAxis-generated reference; Sicon expects its own
+    """Pulse Fitness stores the Pulse Fitness-generated reference; Sicon expects its own
     numeric case id. We resolve via lookup.
     """
     if not case_reference:

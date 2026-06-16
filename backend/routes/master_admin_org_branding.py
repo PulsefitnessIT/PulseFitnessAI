@@ -66,7 +66,7 @@ def _build_preview_comment_email(branding: dict, site_name: str, machine: str, s
     intro = f"{site_name} has posted a new comment on the fault report for <strong>{machine}</strong>."
     html = build_html(case, comment, intro, branding, issue, ref)
     subject = f"[PREVIEW][{ref}] Sample message from {site_name} — {machine}"
-    from_line = f"{site_name} <faults@service.gymaxisai.com>"
+    from_line = f"{site_name} <faults@service.www.pulsefitness.ai>"
     return html, subject, from_line
 
 
@@ -78,7 +78,7 @@ def _build_preview_engineer_email(branding: dict, site_name: str,
     from routes.issue_helpers import _build_engineer_email_html
 
     platform = branding["platform_name"]
-    from_line = f"{site_name} <faults@service.gymaxisai.com>"
+    from_line = f"{site_name} <faults@service.www.pulsefitness.ai>"
     subject = f"[PREVIEW][JOB-PRVW0001] Engineer Required — {machine} ({serial}) — {site_name}"
 
     class _PreviewIssue:  # minimal duck-type for the email builder
@@ -116,7 +116,7 @@ async def send_test_branded_email(
     user: dict = Depends(get_current_user),
 ):
     """Send a dummy email of the selected `kind` to `body.to` (default: admin's own)
-    using the target org's platform branding (Pulse Fitness vs GymAxis AI). Lets
+    using the target org's platform branding (Pulse Fitness vs Pulse Fitness AI). Lets
     master admins validate every outbound template end-to-end without logging a
     real fault. Supported kinds: `comment`, `engineer_callout`, `supplier_welcome`.
     """
@@ -156,7 +156,7 @@ async def send_test_branded_email(
         }
         html = _build_supplier_welcome_html(sample_supplier, site_name, branding)
         subject = f"[PREVIEW] Welcome to {branding['platform_name']} — how faults will reach you from {site_name}"
-        from_line = f"{site_name} <faults@service.gymaxisai.com>"
+        from_line = f"{site_name} <faults@service.www.pulsefitness.ai>"
     elif kind == "engineer_callout":
         html, subject, from_line = _build_preview_engineer_email(
             branding, site_name, machine, serial,

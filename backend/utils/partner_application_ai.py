@@ -28,7 +28,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 SYSTEM_MSG = (
-    "You are a triage analyst for GymAxis's Partner Engineer network. "
+    "You are a triage analyst for Pulse Fitness's Partner Engineer network. "
     "Given a pending application + the current partner roster, give a "
     "concise British-English recommendation. You are advisory only — "
     "the human reviewer makes the final call. Be honest about red flags; "

@@ -196,7 +196,7 @@ export default function PartnerDashboard() {
         <div className="max-w-md text-center space-y-4">
           <h1 className="text-2xl font-black">Become a Partner Engineer</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Earn commission on every gym you refer to GymAxis and take jobs through the Engineer App.
+            Earn commission on every gym you refer to Pulse Fitness and take jobs through the Engineer App.
           </p>
           <Link to="/partners/engineers/apply"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold"
@@ -265,7 +265,7 @@ export default function PartnerDashboard() {
                 <>Your application was not approved. {partner.rejected_reason ? <span className="block mt-1 italic">"{partner.rejected_reason}"</span> : null}{' '}
                 <Link to="/partners/engineers/apply" className="underline font-bold">Update your details and resubmit.</Link></>
               )}
-              {partner.status === 'suspended' && 'Your partner access is suspended. Contact GymAxis support to discuss next steps.'}
+              {partner.status === 'suspended' && 'Your partner access is suspended. Contact Pulse Fitness support to discuss next steps.'}
             </div>
           </div>
         )}

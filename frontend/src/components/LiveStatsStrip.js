@@ -2,7 +2,7 @@
  * Live-counter strip — animates numbers from 0 → target on viewport entry.
  *
  * Subtle motion that says "this platform is live and growing" without
- * being gimmicky. Used below the GymAxis hero. Numbers can be hard-coded
+ * being gimmicky. Used below the Pulse Fitness hero. Numbers can be hard-coded
  * (proof) or live-fetched in a future iteration.
  */
 import { useEffect, useRef, useState } from 'react';

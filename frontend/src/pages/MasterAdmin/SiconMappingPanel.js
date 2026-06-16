@@ -1,9 +1,9 @@
 /**
  * Master Admin → Sicon → Field mapping reference table.
  *
- * Read-only view of every GymAxis ↔ Sicon field pair, grouped by
+ * Read-only view of every Pulse Fitness ↔ Sicon field pair, grouped by
  * entity (Case / Contract / Engineer / Customer). Used so admins can
- * audit which GymAxis field flows into which Sicon column for every
+ * audit which Pulse Fitness field flows into which Sicon column for every
  * sync without having to dig in the codebase.
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -61,7 +61,7 @@ export default function SiconMappingPanel() {
           <div className="text-[11px] uppercase tracking-wider text-zinc-400">Sicon integration</div>
           <h2 className="text-xl font-bold text-zinc-900">Field mapping</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            All <strong>{data.total}</strong> field pairs flowing between GymAxis and Sicon.
+            All <strong>{data.total}</strong> field pairs flowing between Pulse Fitness and Sicon.
             Direction: <span className="text-sky-600 font-semibold">→</span> push only,
             <span className="text-amber-600 font-semibold mx-1">←</span> pull only,
             <span className="text-emerald-600 font-semibold ml-1">↔</span> two-way.
@@ -98,7 +98,7 @@ export default function SiconMappingPanel() {
           <thead className="bg-zinc-50 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
             <tr>
               <th className="px-3 py-2 text-left">Entity</th>
-              <th className="px-3 py-2 text-left">GymAxis field</th>
+              <th className="px-3 py-2 text-left">Pulse Fitness field</th>
               <th className="px-3 py-2 text-center">Dir</th>
               <th className="px-3 py-2 text-left">Sicon field</th>
               <th className="px-3 py-2 text-left">Type</th>

@@ -23,7 +23,7 @@ export function CampaignsSection() {
   const [busy, setBusy] = useState('');
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
-    name: 'GymAxis Launch Week',
+    name: 'Pulse Fitness Launch Week',
     type: 'launch',
     keywords: 'early access, ops-first, feature reveal, built by ops',
     blend_ratio: 0.7,

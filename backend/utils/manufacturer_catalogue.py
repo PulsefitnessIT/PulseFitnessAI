@@ -47,7 +47,7 @@ from utils.equipment_image_lookup import (
 logger = logging.getLogger(__name__)
 
 # Domains that ship the strongest sitemaps and are highest-priority for
-# Pulse Fitness / GymAxis customers. Ingestion can be expanded to all
+# Pulse Fitness / Pulse Fitness customers. Ingestion can be expanded to all
 # `MANUFACTURER_DOMAINS` later — kept tight to start so the first run is
 # bounded.
 PRIORITY_DOMAINS = (

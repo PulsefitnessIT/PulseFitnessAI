@@ -188,7 +188,7 @@ export default function EngineerReviewsWall() {
           className="text-[12px] text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 mb-6"
           data-testid="reviews-wall-back-link"
         >
-          <ShieldCheck size={11} /> GymAxis · Partner Engineer reviews
+          <ShieldCheck size={11} /> Pulse Fitness · Partner Engineer reviews
         </Link>
 
         {/* Hero card */}
@@ -306,7 +306,7 @@ export default function EngineerReviewsWall() {
 
         {/* Footer note */}
         <p className="text-[11px] text-zinc-400 mt-10 text-center">
-          GymAxis Partner Engineer Network · Reviews are moderated and tied
+          Pulse Fitness Partner Engineer Network · Reviews are moderated and tied
           to verified jobs.
         </p>
       </div>

@@ -4,7 +4,7 @@ Controls access to account-type-restricted features (KPI, PPM, Sicon, Sage, etc.
 and org-level feature toggles set from Master Admin.
 
 Default behaviour:
-    - GymAxis ('full') accounts         → every feature enabled by default
+    - Pulse Fitness ('full') accounts         → every feature enabled by default
     - Pulse Pro ('pulse_pro') accounts  → PRO_DEFAULT_FEATURES enabled by default
                                            (KPI Engine, AI Audits, Multi-site etc.);
                                            GYMAXIS_ONLY_FEATURES disabled unless
@@ -20,14 +20,14 @@ from utils.auth import get_current_user
 from utils.database import db
 
 
-# Keys that REQUIRE a GymAxis ('full') account — off by default on every Pulse tier.
+# Keys that REQUIRE a Pulse Fitness ('full') account — off by default on every Pulse tier.
 # These are enterprise integrations that don't fit the Pulse customer journey.
 GYMAXIS_ONLY_FEATURES = {
     "sicon_integration",
     "sage_integration",
 }
 
-# Keys auto-enabled for BOTH GymAxis ('full') AND Pulse Pro ('pulse_pro').
+# Keys auto-enabled for BOTH Pulse Fitness ('full') AND Pulse Pro ('pulse_pro').
 # Pulse Lite ('lite') users get these OFF by default — upgrading to Pro unlocks them.
 PRO_DEFAULT_FEATURES = {
     "kpi_engine",

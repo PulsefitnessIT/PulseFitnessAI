@@ -3,7 +3,7 @@
  *
  * Background
  * ----------
- * Pre-iter-216d2 the GymAxis Dashboard's `Log a Fault` form grouped the
+ * Pre-iter-216d2 the Pulse Fitness Dashboard's `Log a Fault` form grouped the
  * Machine Type dropdown by `equipment_type`, so a row imported with
  * `equipment_type="cardio"` and `name="Treadmill"` showed up as
  * "cardio (1)" — meaningless to operators (Lee's Feb-2026 prod report).

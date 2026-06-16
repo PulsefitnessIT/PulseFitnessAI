@@ -5,7 +5,7 @@
  *   - competitor: { name, slug, tagline, founded?, hq?, focus? }
  *   - hero: { headline, subheadline }
  *   - matrix: [{ feature, gymaxis, competitor, notes? }]
- *   - winsForGymAxis: [{ title, body }]
+ *   - winsForPulseFitness: [{ title, body }]
  *   - whenCompetitorWins: [{ title, body }]
  *   - faqs: [{ q, a }]
  *
@@ -24,14 +24,14 @@ import { openTrial } from '../TrialSignupModal';
 import MigrationGuarantee from '../MigrationGuarantee';
 
 export default function CompareLayout({
-  competitor, hero, matrix, winsForGymAxis, whenCompetitorWins, faqs,
+  competitor, hero, matrix, winsForPulseFitness, whenCompetitorWins, faqs,
 }) {
   // Set page title + meta description for SEO. We do this imperatively
   // because the marketing site is a single SPA without react-helmet.
   React.useEffect(() => {
     const prevTitle = document.title;
     const prevDesc = document.querySelector('meta[name="description"]')?.getAttribute('content');
-    document.title = `GymAxis vs ${competitor.name} — feature-by-feature comparison`;
+    document.title = `Pulse Fitness vs ${competitor.name} — feature-by-feature comparison`;
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -40,7 +40,7 @@ export default function CompareLayout({
     }
     meta.setAttribute(
       'content',
-      `${competitor.name} alternative — see how GymAxis AI stacks up on operations, service desk, contracts, memberships and reporting.`,
+      `${competitor.name} alternative — see how Pulse Fitness AI stacks up on operations, service desk, contracts, memberships and reporting.`,
     );
     return () => {
       document.title = prevTitle;
@@ -51,13 +51,13 @@ export default function CompareLayout({
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: 'GymAxis AI',
+    name: 'Pulse Fitness AI',
     description: hero.subheadline,
-    brand: { '@type': 'Brand', name: 'GymAxis' },
+    brand: { '@type': 'Brand', name: 'Pulse Fitness' },
     review: {
       '@type': 'Review',
       reviewRating: { '@type': 'Rating', ratingValue: '4.9', bestRating: '5' },
-      author: { '@type': 'Organization', name: 'GymAxis Customer' },
+      author: { '@type': 'Organization', name: 'Pulse Fitness Customer' },
     },
   };
   const faqJsonLd = {
@@ -88,7 +88,7 @@ export default function CompareLayout({
       <section className="gx-grid-bg" data-testid={`compare-hero-${competitor.slug}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
           <nav className="text-xs text-slate-500 mb-5 flex items-center gap-1.5" aria-label="Breadcrumb">
-            <Link to="/" className="hover:text-slate-700">GymAxis</Link>
+            <Link to="/" className="hover:text-slate-700">Pulse Fitness</Link>
             <ChevronRight size={11} />
             <Link to="/compare" className="hover:text-slate-700">Compare</Link>
             <ChevronRight size={11} />
@@ -127,7 +127,7 @@ export default function CompareLayout({
       <section className="bg-white py-16 lg:py-20 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">
-            Feature-by-feature: <span className="gx-gradient-text">GymAxis vs {competitor.name}</span>
+            Feature-by-feature: <span className="gx-gradient-text">Pulse Fitness vs {competitor.name}</span>
           </h2>
           <p className="mt-3 text-slate-600 max-w-2xl">
             What you actually get day-to-day on the operator console, the engineer mobile, and the back-office finance hand-off.
@@ -137,7 +137,7 @@ export default function CompareLayout({
               <thead className="bg-slate-50 dark:bg-zinc-900">
                 <tr>
                   <th className="px-5 py-4 font-bold tracking-tight text-slate-700">Capability</th>
-                  <th className="px-5 py-4 font-bold tracking-tight text-slate-700">GymAxis AI</th>
+                  <th className="px-5 py-4 font-bold tracking-tight text-slate-700">Pulse Fitness AI</th>
                   <th className="px-5 py-4 font-bold tracking-tight text-slate-700">{competitor.name}</th>
                 </tr>
               </thead>
@@ -155,12 +155,12 @@ export default function CompareLayout({
         </div>
       </section>
 
-      {/* Why GymAxis */}
+      {/* Why Pulse Fitness */}
       <section className="bg-slate-50 py-16 lg:py-20 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-black tracking-tight">Where GymAxis pulls ahead</h2>
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight">Where Pulse Fitness pulls ahead</h2>
           <div className="mt-8 grid md:grid-cols-2 gap-5">
-            {winsForGymAxis.map((w) => (
+            {winsForPulseFitness.map((w) => (
               <div key={w.title} className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-md transition dark:bg-zinc-900 dark:border-zinc-800">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
                   <CheckCircle2 size={20} />
@@ -181,7 +181,7 @@ export default function CompareLayout({
               When {competitor.name} might be the better pick
             </h2>
             <p className="mt-3 text-slate-600 max-w-2xl">
-              Honest assessment — we'd rather you find the right tool than churn out of GymAxis in three months.
+              Honest assessment — we'd rather you find the right tool than churn out of Pulse Fitness in three months.
             </p>
             <div className="mt-8 grid md:grid-cols-2 gap-5">
               {whenCompetitorWins.map((w) => (
@@ -227,7 +227,7 @@ export default function CompareLayout({
             See it in your gym in 3 days. No card.
           </h2>
           <p className="mt-3 text-white/85 text-lg max-w-2xl mx-auto">
-            Start a free trial with all modules unlocked. If GymAxis isn't a clear win over {competitor.name}, we'll help you migrate back — no hard sell.
+            Start a free trial with all modules unlocked. If Pulse Fitness isn't a clear win over {competitor.name}, we'll help you migrate back — no hard sell.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100 dark:bg-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">

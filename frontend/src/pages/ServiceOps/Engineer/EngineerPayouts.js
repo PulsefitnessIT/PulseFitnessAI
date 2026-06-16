@@ -1,7 +1,7 @@
 /**
  * EngineerPayouts — Stripe Connect onboarding & status panel for engineers.
  *
- * Iter 216h132. Light-mode GymAxis brand. The engineer connects their
+ * Iter 216h132. Light-mode Pulse Fitness brand. The engineer connects their
  * own Stripe account here so invoice card payments settle directly
  * into their balance — the platform never touches the funds.
  *
@@ -89,7 +89,7 @@ export default function EngineerPayouts() {
       let msg = (typeof detail === 'string')
         ? detail : (detail?.message || 'Stripe onboarding failed — try again');
       if (code === 'stripe_connect_not_enabled') {
-        msg = 'Stripe Connect is not yet enabled on the GymAxis platform. ' +
+        msg = 'Stripe Connect is not yet enabled on the Pulse Fitness platform. ' +
               'We have notified our team — please try again shortly.';
       }
       notify.error(msg);
@@ -168,7 +168,7 @@ export default function EngineerPayouts() {
               <ul className="space-y-2 text-sm text-slate-600">
                 <ExplainerRow icon={ShieldCheck} text="You connect your own Stripe account (Express). KYC takes ~3 minutes." />
                 <ExplainerRow icon={CreditCard}  text="A 'Pay now by card' link is added to every invoice you send." />
-                <ExplainerRow icon={Banknote}    text="Payments settle into YOUR Stripe balance — GymAxis never touches the funds." />
+                <ExplainerRow icon={Banknote}    text="Payments settle into YOUR Stripe balance — Pulse Fitness never touches the funds." />
                 <ExplainerRow icon={CheckCircle2} text="No application fee. Stripe's standard processing rates apply." />
               </ul>
             </div>

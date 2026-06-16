@@ -1,7 +1,7 @@
 /**
  * EngineerQuoteBuilder — create / edit / send a quote.
  *
- * Iter 216h129. Light-mode GymAxis brand.
+ * Iter 216h129. Light-mode Pulse Fitness brand.
  *
  * Routes: /svc/engineer/quotes/new        (create)
  *         /svc/engineer/quotes/:id        (view/edit)
@@ -397,7 +397,7 @@ export default function EngineerQuoteBuilder() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">GymAxis Quote</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness Quote</p>
               <h1 className="text-xl font-extrabold text-slate-900 truncate">
                 {isNew ? 'New quote' : form.quote_number}
               </h1>

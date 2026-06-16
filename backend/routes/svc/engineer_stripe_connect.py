@@ -185,7 +185,7 @@ async def create_onboarding_link(user=Depends(get_current_user)):
                 },
                 business_type="individual",
                 business_profile={
-                    "name": partner.get("trading_name") or partner.get("full_name") or "GymAxis Engineer Partner",
+                    "name": partner.get("trading_name") or partner.get("full_name") or "Pulse Fitness Engineer Partner",
                     "product_description": "Fitness equipment service & maintenance",
                     "mcc": "7623",  # A/C, refrigeration repair (closest available)
                     "url": (_origin() or "https://gymaxis.com"),

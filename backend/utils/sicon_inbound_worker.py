@@ -2,9 +2,9 @@
 Sicon inbound worker (Iter 248).
 
 Closes the loop the outbox worker opened: the service team schedules /
-amends cases **in Sicon**, and this worker pulls them into GymAxis
+amends cases **in Sicon**, and this worker pulls them into Pulse Fitness
 `svc_cases` so the assigned engineer receives the job in the Engineer
-App. Together with `utils/sicon_outbox_worker.py` (GymAxis → Sicon)
+App. Together with `utils/sicon_outbox_worker.py` (Pulse Fitness → Sicon)
 this gives the full bi-directional cycle:
 
     Sicon Service Desk ──poll──▶ svc_cases ──▶ Engineer App

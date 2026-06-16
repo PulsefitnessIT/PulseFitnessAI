@@ -191,7 +191,7 @@ def _is_blank_row(row: dict) -> bool:
 async def _resolve_target_org(user: dict, organization_id: Optional[str]) -> str:
     """If the admin specified `organization_id`, validate it's a Pulse-visible
     customer. Otherwise default to the admin's own organization (only valid
-    for the GymAxis Master Admin who isn't tenant-scoped — Pulse admins must
+    for the Pulse Fitness Master Admin who isn't tenant-scoped — Pulse admins must
     pick a target).
 
     Iter 216h111 — Master admins can also target MOD orgs (mod_site /

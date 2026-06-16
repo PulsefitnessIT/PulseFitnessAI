@@ -9,10 +9,10 @@ doesn't recognise that hostname.
 
 Resolution order (first hit wins)
     1. Per-brand env override:
-       - GymAxis orgs  → ``BRAND_URL_GYMAXIS``
+       - Pulse Fitness orgs  → ``BRAND_URL_GYMAXIS``
        - Pulse orgs    → ``BRAND_URL_PULSE``
     2. Production defaults (post-DNS cutover):
-       - GymAxis orgs  → ``https://gymaxisai.com``
+       - Pulse Fitness orgs  → ``https://www.pulsefitness.ai``
        - Pulse orgs    → ``https://pulsefitness.ai``
     3. Last-resort fallback: ``FRONTEND_URL``. Used during preview /
        staging where DNS isn't live yet.
@@ -26,7 +26,7 @@ What is "account_type"?
     The ``organizations`` collection stores ``account_type`` (one of
     ``"gymaxis"``, ``"pulse"``, ``"lite"``, ``"enterprise"``). Anything
     starting with ``pulse`` routes to the Pulse domain; everything else
-    goes to GymAxis.
+    goes to Pulse Fitness.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ import os
 from typing import Optional
 
 
-_DEFAULT_GYMAXIS = "https://gymaxisai.com"
+_DEFAULT_GYMAXIS = "https://www.pulsefitness.ai"
 _DEFAULT_PULSE = "https://pulsefitness.ai"
 
 
@@ -49,7 +49,7 @@ def app_url_for(account_type: Optional[str]) -> str:
     """Return the public app URL for an org's ``account_type``.
 
     Always returns a host *without* a trailing slash, e.g.
-    ``https://app.gymaxisai.com``. Callers append their own path.
+    ``https://www.pulsefitness.ai``. Callers append their own path.
     """
     url = (
         os.environ.get("BRAND_URL_PULSE") or _DEFAULT_PULSE

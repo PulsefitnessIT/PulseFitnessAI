@@ -1,4 +1,4 @@
-"""GymAxis Service Operations — PPM-due notification sweeper (Iter 220dm).
+"""Pulse Fitness Service Operations — PPM-due notification sweeper (Iter 220dm).
 
 `ppm_due` was declared in ``PUSH_NOTIFICATION_KINDS`` but nothing
 actually fired it. This module closes the loop by adding a sweep

@@ -17,7 +17,7 @@ export default function PWAInstallPrompt() {
   const isPulse = auth?.user?.account_type === 'pulse_pro' || auth?.user?.account_type === 'lite';
   // Iter 275 — on the Service Desk surface, brand the install banner as the
   // Service Desk (orange) so it matches the dedicated /service-desk manifest.
-  const brand = onServiceDesk ? 'Service Desk' : (isPulse ? 'Pulse Fitness' : 'GymAxis');
+  const brand = onServiceDesk ? 'Service Desk' : (isPulse ? 'Pulse Fitness' : 'Pulse Fitness');
   // Iter 215bw — per-brand PWA chrome.
   const brandLetter = onServiceDesk ? 'S' : (isPulse ? 'P' : 'G');
   const brandColour = onServiceDesk ? '#f97316' : (isPulse ? 'var(--pulse-primary)' : 'var(--color-info-ios)');

@@ -1,4 +1,4 @@
-"""GymAxis Help Centre — API surface.
+"""Pulse Fitness Help Centre — API surface.
 
 Endpoints
 ---------
@@ -14,7 +14,7 @@ Design notes
 - Role-based visibility is applied in `help_data.visible_to_role`.
 - The AI assistant is grounded: Claude only answers from the guide corpus
   (user picked option (a) — "Guide-grounded only, won't hallucinate
-  outside GymAxis").
+  outside Pulse Fitness").
 - All endpoints require an authenticated user (no public crawling).
 """
 from __future__ import annotations
@@ -88,10 +88,10 @@ def _user_brand(user: dict) -> dict:
     """Return brand metadata for the current user.
 
     Pulse Fitness operators (account_type=pulse_pro|lite) must NEVER see
-    "GymAxis" branding — they're sold a single product called Pulse
+    "Pulse Fitness" branding — they're sold a single product called Pulse
     Fitness, and confusing the two brands is a contractual issue.
 
-    Master admins and standard SaaS customers see the GymAxis branding.
+    Master admins and standard SaaS customers see the Pulse Fitness branding.
     """
     account_type = (user.get("account_type") or "").lower()
     is_pulse = account_type in ("pulse_pro", "lite")
@@ -103,13 +103,13 @@ def _user_brand(user: dict) -> dict:
         }
     return {
         "id": "gymaxis",
-        "name": "GymAxis",
-        "assistant_name": "Ask GymAxis",
+        "name": "Pulse Fitness",
+        "assistant_name": "Ask Pulse Fitness",
     }
 
 
 def _whitelabel(text: str | None, brand: dict) -> str | None:
-    """Replace any incidental 'GymAxis' mentions in user-facing copy
+    """Replace any incidental 'Pulse Fitness' mentions in user-facing copy
     with the user's brand name. Cheap, deterministic, idempotent.
 
     Used at the API boundary so we never have to maintain a separate
@@ -120,7 +120,7 @@ def _whitelabel(text: str | None, brand: dict) -> str | None:
     if brand.get("id") == "gymaxis":
         return text
     out = text
-    for needle in ("GymAxis AI", "GymAxis", "gymaxis"):
+    for needle in ("Pulse Fitness AI", "Pulse Fitness", "gymaxis"):
         out = out.replace(needle, brand["name"])
     return out
 
@@ -323,7 +323,7 @@ async def help_ask(body: dict = Body(...), request: Request = None, user: dict =
         {"answer": "...", "guide_ids": ["int-stripe-connect", ...], "model": "..."}
 
     The prompt explicitly tells Claude to refuse out-of-scope questions so
-    the assistant won't hallucinate features outside GymAxis. Rate-limited
+    the assistant won't hallucinate features outside Pulse Fitness. Rate-limited
     per-user to protect the LLM budget (20/min).
     """
     from utils.security_plus import rate_limit_async
@@ -375,7 +375,7 @@ async def help_ask(body: dict = Body(...), request: Request = None, user: dict =
         "this exact format: `SOURCES: [id1, id2, ...]`. Max 3 sources.\n"
         "3. Write plain text, no markdown lists longer than 3 items.\n"
         "4. Don't repeat the user's question back to them.\n"
-        f"5. NEVER mention 'GymAxis' or any other brand name except "
+        f"5. NEVER mention 'Pulse Fitness' or any other brand name except "
         f"`{brand['name']}` — the user only knows this product as "
         f"{brand['name']}.\n\n"
         f"USER CONTEXT: role={role}, current_module={current_module or 'none'}\n\n"

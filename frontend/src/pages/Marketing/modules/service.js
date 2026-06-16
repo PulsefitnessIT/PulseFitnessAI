@@ -11,7 +11,7 @@ export default {
 
   heroLine1: 'Run a safer,',
   heroLine2: 'smoother gym floor.',
-  heroSubtitle: 'Operations is the asset-aware, risk-aware floor management layer of GymAxis. Track every machine from purchase to retirement, triage faults in seconds, run risk assessments on a schedule, and never lose another £20k treadmill to "we forgot to log a ticket".',
+  heroSubtitle: 'Operations is the asset-aware, risk-aware floor management layer of Pulse Fitness. Track every machine from purchase to retirement, triage faults in seconds, run risk assessments on a schedule, and never lose another £20k treadmill to "we forgot to log a ticket".',
   heroVisualHeadline: 'Live floor health',
   heroVisualLines: [
     { label: 'Open faults', value: '4' },
@@ -23,7 +23,7 @@ export default {
   problemHeadline: 'A clipboard, a WhatsApp group, and a £100k blind spot.',
   problemBody: 'Most gyms have no asset register, no cost log, no warranty visibility, and no audit trail when an inspector asks for the latest risk assessment. Faults sit in a WhatsApp group, parts are ordered from memory, capex runs on gut feel, and members ride the same broken bike for three weeks before a manager notices.',
   solutionHeadline: 'One asset register. One fault flow. One source of truth.',
-  solutionBody: 'GymAxis Operations makes every piece of equipment a first-class object — QR scan, fault history, supplier link, warranty expiry, scheduled risk assessments, lifecycle cost, and predictive replacement timing. Your engineers, suppliers, finance team and HSE auditors all see the same screen.',
+  solutionBody: 'Pulse Fitness Operations makes every piece of equipment a first-class object — QR scan, fault history, supplier link, warranty expiry, scheduled risk assessments, lifecycle cost, and predictive replacement timing. Your engineers, suppliers, finance team and HSE auditors all see the same screen.',
 
   featuresHeadline: 'Everything Operations can do.',
   features: [
@@ -98,7 +98,7 @@ export default {
     { title: 'Supplier response scoring', body: 'Auto-ranks suppliers by responsiveness, fix-rate and price — surface the laggards before contract renewal.' },
   ],
 
-  integrationsHeadline: 'Operations is wired into the rest of GymAxis.',
+  integrationsHeadline: 'Operations is wired into the rest of Pulse Fitness.',
   integrations: [
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Faults on a member\'s favourite machine trigger a personal apology email + retention nudge.' },
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Critical fault on a class machine? Memberships auto-relocates the affected booking.' },

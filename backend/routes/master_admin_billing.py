@@ -654,7 +654,7 @@ def _render_invoice_pdf(inv: dict, org: dict) -> bytes:
         return f"{sym}{minor / 100:,.2f}"
 
     brand = inv.get("brand", "gymaxis")
-    brand_name = "GymAxis AI" if brand == "gymaxis" else "Pulse Fitness"
+    brand_name = "Pulse Fitness AI" if brand == "gymaxis" else "Pulse Fitness"
 
     flow = []
     flow.append(Paragraph(f"<b>{brand_name}</b>", h1))

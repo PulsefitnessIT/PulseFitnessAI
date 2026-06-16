@@ -24,7 +24,7 @@ export default function MarketingChat() {
   const [messages, setMessages] = useState(() => [
     {
       role: 'assistant',
-      text: 'Hi — I\'m the GymAxis sales assistant. Ask me anything about pricing, modules, integrations, or migration. I\'ll give you a straight answer.',
+      text: 'Hi — I\'m the Pulse Fitness sales assistant. Ask me anything about pricing, modules, integrations, or migration. I\'ll give you a straight answer.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -83,7 +83,7 @@ export default function MarketingChat() {
               <Sparkles size={15} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">GymAxis Sales AI</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Pulse Fitness Sales AI</p>
               <p className="text-[11px] text-slate-500">Honest answers · grounded on the live product</p>
             </div>
           </div>

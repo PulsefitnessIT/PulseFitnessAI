@@ -4,7 +4,7 @@
  * Public-facing changelog at /whats-new. Each item declares which
  * brand surface it belongs to (`gymaxis`, `pulse`, or `all`); the
  * renderer filters by the brand the visitor is currently on so we
- * don't leak Pulse Fitness mentions onto GymAxis (or vice versa).
+ * don't leak Pulse Fitness mentions onto Pulse Fitness (or vice versa).
  *
  * To add a release: append to the top of `RELEASES` and tag each
  * item with the smallest brand scope that fits.
@@ -78,7 +78,7 @@ const WhatsNewPage = () => {
   const isPulse = typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/pulse');
   const accent = isPulse ? 'var(--pulse-primary)' : 'var(--color-brand-blue)';
   const homeHref = isPulse ? '/pulse' : '/';
-  const brandName = isPulse ? 'Pulse Fitness' : 'GymAxis';
+  const brandName = isPulse ? 'Pulse Fitness' : 'Pulse Fitness';
   const brandKey = isPulse ? 'pulse' : 'gymaxis';
 
   // Filter: keep items tagged 'all' or matching the current brand.

@@ -2,7 +2,7 @@
 
 One source of truth for all H&S incidents across every tenant profile
 (gym, leisure centre, council, university, MOD, hotel, school, studio,
-service engineer). Built on top of the existing GymAxis primitives
+service engineer). Built on top of the existing Pulse Fitness primitives
 (``users``, ``organizations``, ``equipment``, ``svc_engineers``,
 ``issues``) — never duplicates them.
 
@@ -244,7 +244,7 @@ async def _notify_escalation(incident: dict) -> None:
             f"<strong>RIDDOR:</strong> {riddor.replace('_', ' ').title()}</p>"
             f"<p style=\"white-space:pre-wrap;\">{(incident.get('description') or '')[:1200]}</p>"
             '<p style="margin-top:18px;font-size:13px;color:#475569;">'
-            "Open the incident in GymAxis to investigate. "
+            "Open the incident in Pulse Fitness to investigate. "
             "Escalation rules fired automatically based on severity / RIDDOR status."
             "</p></div>"
         )

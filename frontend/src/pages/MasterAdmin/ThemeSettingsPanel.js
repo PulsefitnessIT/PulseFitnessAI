@@ -2,7 +2,7 @@
  * Theme Settings Panel — Master Admin → Settings & Compliance (Iter 216h95).
  *
  * Two-pane layout:
- *   • Left  — Isolation audit. Two columns of design tokens (GymAxis +
+ *   • Left  — Isolation audit. Two columns of design tokens (Pulse Fitness +
  *             Pulse) side-by-side with a green status pill confirming
  *             namespace separation.
  *   • Right — Per-tenant overrides. Pick an organisation from a dropdown
@@ -62,7 +62,7 @@ const BRAND_PRESETS = {
     border:        '#E4E4E7',
   },
   gymaxis: {
-    label: 'GymAxis',
+    label: 'Pulse Fitness',
     primary:       '#2563EB',
     primary_hover: '#1D4ED8',
     accent:        '#9D4CDD',
@@ -312,7 +312,7 @@ function Header({ audit, onRefresh, loading, isPulseAdmin }) {
             <h2 className="text-lg font-semibold text-zinc-900">Theme settings{isPulseAdmin ? '' : ' & isolation audit'}</h2>
             <p className="text-xs text-zinc-500">{isPulseAdmin
               ? 'Your Pulse Fitness design tokens plus per-tenant brand overrides.'
-              : 'GymAxis (marketing/admin) vs Pulse Fitness (operator) design tokens — separated by CSS namespace and verified here.'}</p>
+              : 'Pulse Fitness (marketing/admin) vs Pulse Fitness (operator) design tokens — separated by CSS namespace and verified here.'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

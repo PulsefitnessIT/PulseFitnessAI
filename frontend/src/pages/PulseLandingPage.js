@@ -1411,7 +1411,7 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
 
 // ── Tailored to your gym ────────────────────────────────────
 //
-// Mirrors the GymAxis "Tailored" section but in Pulse's light theme.
+// Mirrors the Pulse Fitness "Tailored" section but in Pulse's light theme.
 // Operators picking Pulse Pro want the same reassurance: their gym
 // chain doesn't slot into a one-size-fits-all SaaS, and that's fine —
 // every important behaviour can be configured at the org level.
@@ -1581,7 +1581,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
         if (accountType === 'mod_branch' || accountType === 'mod_org') {
           navigate('/dashboard', { replace: true });
         }
-        // Pulse Master Admins (provisioned by GymAxis) go straight to the
+        // Pulse Master Admins (provisioned by Pulse Fitness) go straight to the
         // Master Admin console — same UI, data scoped to Pulse.
         if (res.data.user?.is_pulse_admin || res.data.user?.is_master_admin) {
           onOpenChange(false);

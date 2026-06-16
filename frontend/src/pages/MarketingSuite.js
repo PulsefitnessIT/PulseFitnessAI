@@ -1,5 +1,5 @@
 /**
- * GymAxis Marketing Suite — Phase 1 single-page app.
+ * Pulse Fitness Marketing Suite — Phase 1 single-page app.
  *
  * Layout pattern is intentionally identical to LiteDashboardPage (Operations)
  * and MembershipsConsole (Memberships) so the user experiences a seamless
@@ -171,7 +171,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
   const isLocked = (feature) => feature && entitlement && !entitlement.features?.[feature];
   const planName = entitlement?.plan?.name || 'Loading…';
   // Iter 216h192 — Lee's Feb 2026 fix: a paid platform plan (Pulse Pro,
-  // GymAxis Full, Lite) bundles Marketing. Don't tease "Free trial" at
+  // Pulse Fitness Full, Lite) bundles Marketing. Don't tease "Free trial" at
   // those users — it implies billing will start, which is misleading.
   // We still honour the actual marketing-subscription status so true
   // self-service trials keep showing the pill.
@@ -203,11 +203,11 @@ const MarketingSuite = ({ embedded = false } = {}) => {
 
   // Iter 215bc — Phase 5 brand-aware Marketing Suite. Pulse-account
   // customers (account_type pulse_pro / lite) keep the legacy
-  // "Pulse Fitness" heading + solid cyan active tabs. GymAxis customers
-  // see the new GymAxis brand: gradient wordmark + brand-gradient
+  // "Pulse Fitness" heading + solid cyan active tabs. Pulse Fitness customers
+  // see the new Pulse Fitness brand: gradient wordmark + brand-gradient
   // active tab pills + theme-gymaxis class in light mode.
   const isPulseBrandedMkt = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
-  const brandLabel = isPulseBrandedMkt ? 'Pulse Fitness' : 'GymAxis';
+  const brandLabel = isPulseBrandedMkt ? 'Pulse Fitness' : 'Pulse Fitness';
 
   return (
     <div
@@ -385,7 +385,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
 export default function MarketingSuiteGated({ embedded = false } = {}) {
   const { user } = useAuth();
   // Iter 220ac — master admin gets the suite ungated so the Growth →
-  // Marketing Studio surface inside Master Admin can promote GymAxis
+  // Marketing Studio surface inside Master Admin can promote Pulse Fitness
   // itself without buying a marketing seat.
   if (user?.is_master_admin || embedded) {
     return <MarketingSuite embedded={embedded} />;

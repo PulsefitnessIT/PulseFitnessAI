@@ -3,7 +3,7 @@
 Hybrid pipeline (Iter 220ea·30):
   1. Nano Banana (gemini-3.1-flash-image-preview) renders a moody, on-brand
      background photo per post — NO text baked in (image models garble copy).
-  2. Pillow composites crisp, guaranteed-legible GymAxis brand text on top:
+  2. Pillow composites crisp, guaranteed-legible Pulse Fitness brand text on top:
      real wordmark, white headline, brand blue→purple accent + footer CTA.
 
 Output: /app/frontend/public/marketing/engineer_recruit/post_0N.png (1080x1920,
@@ -47,7 +47,7 @@ POSTS: list[dict] = [
         "kicker": "GYMAXIS ENGINEER NETWORK",
         "headline": "WE NEED\nYOU!",
         "accent": "Fitness equipment engineers",
-        "sub": "We're opening 10 tester spaces to put the GymAxis Engineer App "
+        "sub": "We're opening 10 tester spaces to put the Pulse Fitness Engineer App "
                "through its paces. Real jobs. A serious mobile toolkit. Your business.",
         "cta": "10 spaces · 10-day free trial",
     },

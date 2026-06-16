@@ -117,7 +117,7 @@ function ProblemSolution({ m }) {
           <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">{m.problemBody}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: m.color }}>How GymAxis solves it</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: m.color }}>How Pulse Fitness solves it</p>
           <h2 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">{m.solutionHeadline}</h2>
           <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">{m.solutionBody}</p>
         </div>

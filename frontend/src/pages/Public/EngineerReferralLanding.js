@@ -50,7 +50,7 @@ export default function EngineerReferralLanding() {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col" data-testid="eref-landing-page">
       <header className="px-6 py-4 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
         <Link to="/" className="text-sm font-bold tracking-tight inline-flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
-          <ShieldCheck size={14} className="text-blue-700" /> GymAxis Partner Network
+          <ShieldCheck size={14} className="text-blue-700" /> Pulse Fitness Partner Network
         </Link>
         <Link to="/partners/engineers" className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
           About the network
@@ -60,7 +60,7 @@ export default function EngineerReferralLanding() {
         <div className="max-w-2xl w-full text-center">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 text-blue-900 text-[11px] font-bold mb-5"
                data-testid="eref-recommended-pill">
-            <Sparkles size={11} /> Personally recommended by an active GymAxis engineer
+            <Sparkles size={11} /> Personally recommended by an active Pulse Fitness engineer
           </div>
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">
             <span data-testid="eref-engineer-first-name">{data.first_name}</span>
@@ -97,7 +97,7 @@ export default function EngineerReferralLanding() {
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-xl mx-auto" data-testid="eref-perks">
             <Perk icon={Wrench} title="Inbound jobs" body="Gyms route work to local engineers — you set your radius and skills." />
             <Perk icon={Sparkles} title="Plan drops as you grow" body="Refer 5 gyms or engineers → £15/mo. 10 → free. Same ladder either way." />
-            <Perk icon={ShieldCheck} title="Backed by GymAxis" body="DBS, RTW, insurance all verified by the platform — gyms trust the badge." />
+            <Perk icon={ShieldCheck} title="Backed by Pulse Fitness" body="DBS, RTW, insurance all verified by the platform — gyms trust the badge." />
           </div>
 
           {data.service_area && (

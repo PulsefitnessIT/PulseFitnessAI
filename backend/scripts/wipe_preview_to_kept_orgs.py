@@ -1,7 +1,7 @@
 """Iter 216h273 — One-shot preview wipe (user-scoped keep list).
 
 Keeps ONLY:
-  • GymAxis AI Admin    (9fa701ef-…3179d) + master admin user
+  • Pulse Fitness AI Admin    (9fa701ef-…3179d) + master admin user
   • Third Space         (c695638c-…4205)
   • British Army HQ     (2be58411-…2997)
   • Catterick Garrison  (6c355051-…06fc, mod_branch)
@@ -28,12 +28,12 @@ from pymongo import MongoClient
 
 
 KEEP_ORG_IDS = {
-    "9fa701ef-5cc2-4db6-8795-bbfd2c85179d",  # GymAxis AI Admin
+    "9fa701ef-5cc2-4db6-8795-bbfd2c85179d",  # Pulse Fitness AI Admin
     "c695638c-5f60-424d-bdd0-2273e6c24205",  # Third Space
 }
 
 # Users that must survive irrespective of org membership.
-KEEP_USER_EMAILS = {"admin@gymaxisai.com"}
+KEEP_USER_EMAILS = {"admin@pulsefitness.ai"}
 
 # Global reference data — never touch.
 GLOBAL_PRESERVE = {

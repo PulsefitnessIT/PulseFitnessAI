@@ -24,7 +24,7 @@ async def call_llm(prompt: str, max_tokens: int = 1500) -> str:
             api_key = os.environ.get("EMERGENT_MODEL_API_KEY", "")
 
         session_id = str(uuid.uuid4())
-        system_message = "You are an expert sales and CRM AI assistant for GymAxis AI CRM. Provide actionable, concise, professional responses."
+        system_message = "You are an expert sales and CRM AI assistant for Pulse Fitness AI CRM. Provide actionable, concise, professional responses."
 
         chat = LlmChat(
             api_key=api_key,
@@ -190,7 +190,7 @@ Purpose: {purpose}
 {contact_info}
 Additional Context: {context or 'None provided'}
 
-Sender: {user['full_name']} from GymAxis AI
+Sender: {user['full_name']} from Pulse Fitness AI
 
 Return a JSON object with:
 - "subject": email subject line

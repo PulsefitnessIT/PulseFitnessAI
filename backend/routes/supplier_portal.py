@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "support@service.gymaxisai.com")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "support@service.www.pulsefitness.ai")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", os.environ.get("REACT_APP_BACKEND_URL", ""))
 
 try:
@@ -26,7 +26,7 @@ except ImportError:
     resend = None
 
 
-# ── Platform branding (Pulse Fitness vs GymAxis AI) ──────────────
+# ── Platform branding (Pulse Fitness vs Pulse Fitness AI) ──────────────
 
 def _is_pulse_account_type(account_type: str | None) -> bool:
     return account_type in ("pulse_pro", "lite")
@@ -36,7 +36,7 @@ async def _resolve_platform_branding(organization_id: str | None) -> dict:
     """Return platform-level branding based on the org's account_type.
 
     For Pulse customers (pulse_pro / lite) all outbound comms should appear to
-    originate from 'Pulse Fitness' rather than 'GymAxis AI'.
+    originate from 'Pulse Fitness' rather than 'Pulse Fitness AI'.
     """
     org = None
     if organization_id:
@@ -53,9 +53,9 @@ async def _resolve_platform_branding(organization_id: str | None) -> dict:
             "is_pulse": True,
         }
     return {
-        "platform_name": "GymAxis AI",
-        "platform_footer": "Sent via GymAxis AI — Equipment Management Platform",
-        "via_label": "via GymAxis AI",
+        "platform_name": "Pulse Fitness AI",
+        "platform_footer": "Sent via Pulse Fitness AI — Equipment Management Platform",
+        "via_label": "via Pulse Fitness AI",
         "is_pulse": False,
     }
 
@@ -268,7 +268,7 @@ async def send_supplier_welcome_email(
 
     subject = f"Welcome to {branding['platform_name']} — how faults will reach you from {org_name}"
     payload = {
-        "from": f"{org_name} <faults@service.gymaxisai.com>",
+        "from": f"{org_name} <faults@service.www.pulsefitness.ai>",
         "to": [email],
         "subject": subject,
         "html": html,
@@ -475,7 +475,7 @@ async def send_supplier_reassignment_email(
         f"to you by {org_name} — via {branding['platform_name']}"
     )
     payload = {
-        "from": f"{org_name} <faults@service.gymaxisai.com>",
+        "from": f"{org_name} <faults@service.www.pulsefitness.ai>",
         "to": [email],
         "subject": subject,
         "html": html,
@@ -986,8 +986,8 @@ async def export_case_summary(token: str):
         media_type="text/plain; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
-            "X-GymAxis-Job": job_ref,
-            "X-GymAxis-Site": site.get("gym_name", ""),
+            "X-Pulse Fitness-Job": job_ref,
+            "X-Pulse Fitness-Site": site.get("gym_name", ""),
         },
     )
 
@@ -1115,14 +1115,14 @@ async def get_supplier_case(token: str, request: Request):
     site = await _resolve_site_details(issue.get("organization_id"))
     job_ref = _short_case_ref(case, issue)
 
-    # White-label: Pulse customers never see "GymAxis AI"
+    # White-label: Pulse customers never see "Pulse Fitness AI"
     org = await db.organizations.find_one(
         {"id": issue.get("organization_id")},
         {"_id": 0, "account_type": 1, "name": 1, "brand_color": 1, "branding": 1, "logo_url": 1},
     ) or {}
     account_type = org.get("account_type") or ""
     is_pulse = account_type in ("pulse_pro", "lite")
-    platform_name = "Pulse Fitness" if is_pulse else "GymAxis AI"
+    platform_name = "Pulse Fitness" if is_pulse else "Pulse Fitness AI"
     platform_tagline = "Service Portal" if is_pulse else "Service Case"
     # Brand colour priority: explicit brand_color → branding.primary_color → default
     branding = org.get("branding") or {}
@@ -1303,13 +1303,13 @@ def _build_comment_email_params(case: dict, comment: dict, to_supplier: bool, ma
     if to_supplier:
         return {
             "to_email": case.get("supplier_email", ""),
-            "from_line": f"{org_name} <faults@service.gymaxisai.com>",
+            "from_line": f"{org_name} <faults@service.www.pulsefitness.ai>",
             "subject": f"New message from {org_name} — {machine}",
             "intro": f"{org_name} has posted a new comment on the fault report for <strong>{machine}</strong>.",
         }
     return {
         "to_email": case.get("site_contact_email", ""),
-        "from_line": f"{supplier_name} {branding['via_label']} <faults@service.gymaxisai.com>",
+        "from_line": f"{supplier_name} {branding['via_label']} <faults@service.www.pulsefitness.ai>",
         "subject": f"Supplier update from {supplier_name} — {machine}",
         "intro": f"{supplier_name} has posted a new comment on the fault report for <strong>{machine}</strong>.",
     }
@@ -1382,7 +1382,7 @@ def _build_comment_email_html(case: dict, comment: dict, intro: str, branding: d
     """Build HTML body for a comment notification email."""
     from utils.brand_urls import app_url_for
     org_name = case.get("organization_name", "Site")
-    # Use the brand-correct domain (gymaxisai.com / pulsefitness.ai) so
+    # Use the brand-correct domain (www.pulsefitness.ai / pulsefitness.ai) so
     # suppliers never see preview.emergentagent.com in real emails.
     base_url = app_url_for(case.get("organization_account_type"))
     case_url = f"{base_url}/supplier/case/{case.get('token', '')}"

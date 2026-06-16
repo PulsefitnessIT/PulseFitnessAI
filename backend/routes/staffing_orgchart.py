@@ -1,4 +1,4 @@
-"""GymAxis Staffing — Org Chart Builder (Phase 1).
+"""Pulse Fitness Staffing — Org Chart Builder (Phase 1).
 
 A focused, visual organisation-chart builder that lives at
 Operations → Staffing → Org Chart. It LINKS to existing

@@ -71,7 +71,7 @@ export default function ChoosePlanPage() {
       <header className="border-b border-zinc-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <span className="font-extrabold tracking-tight text-zinc-900 text-lg">
-            GymAxis<span className="text-blue-600">.AI</span>
+            Pulse Fitness<span className="text-blue-600">.AI</span>
           </span>
           <button
             type="button"
@@ -250,7 +250,7 @@ export default function ChoosePlanPage() {
                 </div>
               </div>
               <a
-                href="mailto:support@gymaxisai.com?subject=Help%20choosing%20a%20GymAxis%20plan"
+                href="mailto:support@pulsefitness.ai?subject=Help%20choosing%20a%20PulseFitness%20plan"
                 className="flex-shrink-0 h-10 px-5 rounded-lg border border-zinc-300 text-zinc-800 font-medium text-sm flex items-center justify-center hover:bg-zinc-50 transition-colors"
                 data-testid="choose-plan-talk-to-us"
               >

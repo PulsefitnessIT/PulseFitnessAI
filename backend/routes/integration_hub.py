@@ -1,5 +1,5 @@
 """
-GymAxis AI — Integration Hub (Event Bus)
+Pulse Fitness AI — Integration Hub (Event Bus)
 ==========================================
 Central event routing layer that connects CRM, Service Portal, Finance, and AI systems.
 All cross-system events flow through here for logging, routing, retry, and monitoring.

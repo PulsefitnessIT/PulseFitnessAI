@@ -231,7 +231,7 @@ async def enrich_from_website(company_id: str, user=Depends(get_crm_user)) -> di
 
     try:
         import httpx
-        with httpx.Client(follow_redirects=True, timeout=10.0, headers={"User-Agent": "GymAxisAI/1.0 (+https://gymaxisai.com)"}) as client:
+        with httpx.Client(follow_redirects=True, timeout=10.0, headers={"User-Agent": "PulseFitnessAI/1.0 (+https://www.pulsefitness.ai)"}) as client:
             resp = client.get(base)
             resp.raise_for_status()
             html = resp.text[:200_000]

@@ -86,7 +86,7 @@ async def log_desk_action(
 # Desk users provisioned with `service_desk_brand == "pulse"` and Pulse
 # Master Admins see only Pulse-visible customer organisations on the
 # cross-org Service Desk surfaces (summary, customers, equipment,
-# supplier health, impersonation). GymAxis master admins and
+# supplier health, impersonation). Pulse Fitness master admins and
 # gymaxis-brand agents stay platform-wide.
 
 # Account types that identify a Pulse-serviced customer org. Superset of

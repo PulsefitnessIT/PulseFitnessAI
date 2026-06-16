@@ -1081,7 +1081,7 @@ def _render_invoice_pdf(
     c.setFillColor(grey)
     c.setFont("Helvetica", 8)
     c.drawString(20 * mm, 15 * mm, f"Thank you for choosing {org_name}.")
-    c.drawRightString(width - 20 * mm, 15 * mm, "Powered by GymAxis")
+    c.drawRightString(width - 20 * mm, 15 * mm, "Powered by Pulse Fitness")
     c.showPage()
     c.save()
     return buf.getvalue()
