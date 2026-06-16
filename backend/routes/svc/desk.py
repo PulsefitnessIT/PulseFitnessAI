@@ -49,8 +49,11 @@ async def desk_summary(user=Depends(get_current_user)):
     now = datetime.now(timezone.utc).isoformat()
 
     open_count = await db.svc_cases.count_documents({**of, "status": {"$in": list(OPEN_STATES)}})
+    # Iter 290e — "unassigned" must match the /svc/cases?assigned=unassigned
+    # drill-down (and the desk performance tile): no engineer means the field
+    # is empty OR null/missing, not just "".
     unassigned_count = await db.svc_cases.count_documents({
-        **of, "status": {"$in": list(OPEN_STATES)}, "assigned_engineer_id": "",
+        **of, "status": {"$in": list(OPEN_STATES)}, "assigned_engineer_id": {"$in": [None, ""]},
     })
     sla_at_risk = await db.svc_cases.count_documents({
         **of, "status": {"$in": list(OPEN_STATES)},
@@ -96,7 +99,7 @@ async def desk_summary(user=Depends(get_current_user)):
     # AI couldn't find a great match, often skill-mismatch driven).
     skill_gap_count = await db.svc_cases.count_documents({
         **of, "status": {"$in": list(OPEN_STATES)},
-        "assigned_engineer_id": "",
+        "assigned_engineer_id": {"$in": [None, ""]},
         "recommended_engineer_score": {"$lte": 50, "$gt": 0},
     })
 

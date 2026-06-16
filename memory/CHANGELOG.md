@@ -480,3 +480,8 @@ End-user E2E audit (testing agent + manual verification):
   - **Return to Fix** tile → new `rtf=1` filter on `GET /svc/cases` (open jobs flagged `return_to_fix` or parked for parts; composes with `search` via `$and`/`$or`). Wired through OpsCases (`filters.rtf`, params, quick-clear chip "Return to Fix").
   - Provider **Total Cases** → opens Cases with `status=''` (all) instead of open-only; **Open Cases** → `status='open'`.
 - Verified: RTF filter matches a seeded RTF case end-to-end (then cleaned up), rtf+search composes (200), SLA drill still works; live screenshot shows 0 non-interactive cards + "RETURN TO FIX" chip on drill. Tests: `test_iter290d_cases_rtf_filter.py` (2) + `test_iter290_desk_performance.py` (2) pass, added to `make regression`. ruff clean.
+
+## Jun 15, 2026 — Iter 290e: Unassigned count alignment
+
+- Fixed the desk-summary KPI ("Unassigned") which counted only `assigned_engineer_id == ""`, missing null/missing-field cases (372 vs the dashboard's 649). Aligned `/svc/desk/summary` (unassigned + skill_gap) to the canonical `{$in:[None,""]}` used by the dashboard tile and the `/svc/cases?assigned=unassigned` drill filter.
+- All three surfaces now report the same number (verified live: 649 = 649 = 649). Regression `test_iter290e_unassigned_alignment.py` (added to `make regression`) asserts they stay in sync.

@@ -364,6 +364,7 @@ regression:
           tests/test_iter289_orgchart_public_hardening.py \
           tests/test_iter290_desk_performance.py \
           tests/test_iter290d_cases_rtf_filter.py \
+          tests/test_iter290e_unassigned_alignment.py \
           -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
