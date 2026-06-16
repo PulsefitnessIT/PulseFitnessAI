@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import {
   ClipboardList, RotateCcw, AlertTriangle, Timer, UserX, HardHat,
-  Clock, Trophy, Gauge, Loader2,
+  Clock, Trophy, Gauge, Loader2, TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
 import { authConfig } from './authConfig';
 
@@ -19,11 +19,14 @@ const ACCENT = {
 const initials = (name) => (name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
 /** Circular First-Time-Fix gauge. Colour shifts green→amber→red by rate. */
-function FtfRing({ rate }) {
+function FtfRing({ rate, trend }) {
   const R = 54;
   const C = 2 * Math.PI * R;
   const pct = Math.max(0, Math.min(100, rate));
   const stroke = pct >= 80 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
+  const hasTrend = typeof trend === 'number' && trend !== 0;
+  const TrendIcon = !hasTrend ? Minus : trend > 0 ? TrendingUp : TrendingDown;
+  const trendColour = !hasTrend ? 'text-white/50' : trend > 0 ? 'text-emerald-400' : 'text-red-400';
   return (
     <div className="relative w-[132px] h-[132px] flex-shrink-0" data-testid="desk-ftf-ring">
       <svg width="132" height="132" viewBox="0 0 132 132" className="-rotate-90">
@@ -37,6 +40,10 @@ function FtfRing({ rate }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
         <div className="text-3xl font-bold leading-none tracking-tight" data-testid="desk-ftf-rate">{rate}%</div>
         <div className="text-[10px] uppercase tracking-[0.14em] text-white/70 mt-1">First-time fix</div>
+        <div className={`flex items-center gap-0.5 mt-1.5 text-[11px] font-semibold ${trendColour}`} data-testid="desk-ftf-trend">
+          <TrendIcon className="w-3 h-3" />
+          {hasTrend ? `${trend > 0 ? '+' : ''}${trend} pts` : 'flat'}
+        </div>
       </div>
     </div>
   );
@@ -110,7 +117,7 @@ export default function DeskPerformance({ API, onNavigate }) {
           style={{ background: 'radial-gradient(circle, var(--gx-brand-from,#f97316), transparent 70%)' }}
         />
         <div className="relative flex flex-col sm:flex-row sm:items-center gap-6">
-          <FtfRing rate={d.ftf_rate} />
+          <FtfRing rate={d.ftf_rate} trend={d.ftf_trend} />
           <div className="flex-1">
             <div className="text-white/90 text-sm font-medium">
               {d.ftf_count} of {d.total_closed_30d} jobs fixed first time
@@ -171,7 +178,11 @@ export default function DeskPerformance({ API, onNavigate }) {
                 data-testid={`desk-leaderboard-row-${i}`}
               >
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${rankColour[i] || 'bg-zinc-100 text-zinc-500'}`}>{i + 1}</div>
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{initials(r.name)}</div>
+                {r.photo_url ? (
+                  <img src={r.photo_url} alt={r.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-200" loading="lazy" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{initials(r.name)}</div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate group-hover:text-[var(--gx-brand-from,#ea580c)] transition-colors">{r.name}</span>

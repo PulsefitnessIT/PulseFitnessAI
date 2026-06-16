@@ -461,3 +461,9 @@ End-user E2E audit (testing agent + manual verification):
 - Added a polished **Team Performance** section (`DeskPerformance.js`): FTF (First-Time-Fix) gauge ring + hero throughput (RTF open / avg resolution / closed 7d), six KPI tiles (Open Cases, Return to Fix, SLA Breached, SLA At-Risk, Unassigned, Active Engineers — each deep-links to Cases/Engineers), and an Engineer Leaderboard (jobs closed + FTF% with progress bars).
 - New backend `GET /api/service-desk/performance` (`service_desk.py`) scoped to the desk's org. KPI definitions reuse the app's canonical logic: RTF = open jobs with `return_to_fix` set or in `paused_parts/awaiting_parts`; FTF = closed/invoiced cases that never hit `paused_parts` (matches `svc/reports/ftfr`). 30-day window for FTF/avg-resolution/leaderboard.
 - Verified live (desk agent: FTF 100% of 16, 449 SLA breached, leaderboard populated) + regression `tests/test_iter290_desk_performance.py` (2 tests, in `make regression`). Frontend compiles, 0 page errors.
+
+## Jun 15, 2026 — Iter 290b: Desk performance polish (engineer join + FTF trend)
+
+- Engineer Leaderboard now joins `svc_engineers` for the canonical `full_name` (no more blank/"Engineer") and the linked user's `avatar_url` for a profile photo (`<img>`, falls back to gradient initials). Avatar endpoint `/api/account/avatar/{id}` is public so the `<img>` loads without an auth header.
+- FTF gauge gained a **trend arrow**: `GET /service-desk/performance` now also computes the previous 30-day window (`ftf_rate_prev`, `ftf_trend` in points); the ring shows ↑/↓ "+N pts" (green/red) or "flat" when there's no prior data.
+- Verified live (leaderboard → "Master Admin" + photo, trend "flat" with no prior window) + regression `test_iter290_desk_performance.py` updated for the new fields (2 passed). ruff clean.

@@ -66,6 +66,28 @@ async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
 
 # ── Team performance KPIs ────────────────────────────────────────
 
+async def _closed_with_paused(of: dict, start_iso: str, end_iso: str):
+    """Closed/invoiced cases in [start, end] + the subset that ever entered
+    ``paused_parts`` (the non-first-time-fix jobs). Shared by the current and
+    previous FTF windows."""
+    docs = await db.svc_cases.find(
+        {**of, "status": {"$in": ["closed", "invoiced"]},
+         "closed_at": {"$gte": start_iso, "$lte": end_iso}},
+        {"_id": 0, "id": 1, "created_at": 1, "closed_at": 1,
+         "assigned_engineer_id": 1, "assigned_engineer_name": 1},
+    ).to_list(5000)
+    ids = [d["id"] for d in docs]
+    paused: set[str] = set()
+    if ids:
+        async for d in db.svc_case_events.aggregate([
+            {"$match": {**of, "case_id": {"$in": ids},
+                        "type": "state_change", "to_state": "paused_parts"}},
+            {"$group": {"_id": "$case_id"}},
+        ]):
+            paused.add(d["_id"])
+    return docs, paused
+
+
 @router.get("/performance")
 async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
     """Team-performance KPIs for the Service Desk landing page.
@@ -86,6 +108,7 @@ async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
     now_iso = now.isoformat()
     since_7d = (now - timedelta(days=7)).isoformat()
     since_30d = (now - timedelta(days=30)).isoformat()
+    since_60d = (now - timedelta(days=60)).isoformat()
     risk_iso = (now + timedelta(hours=24)).isoformat()
     open_q = {**of, "status": {"$in": list(OPEN_STATES)}}
 
@@ -106,25 +129,16 @@ async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
     closed_7d = await db.svc_cases.count_documents(
         {**of, "status": {"$in": ["closed", "invoiced"]}, "closed_at": {"$gte": since_7d}})
 
-    # FTF rate + avg resolution (last 30 days)
-    closed_30 = await db.svc_cases.find(
-        {**of, "status": {"$in": ["closed", "invoiced"]},
-         "closed_at": {"$gte": since_30d, "$lte": now_iso}},
-        {"_id": 0, "id": 1, "created_at": 1, "closed_at": 1,
-         "assigned_engineer_id": 1, "assigned_engineer_name": 1},
-    ).to_list(5000)
-    closed_ids = [c["id"] for c in closed_30]
-    paused_ids: set[str] = set()
-    if closed_ids:
-        async for d in db.svc_case_events.aggregate([
-            {"$match": {**of, "case_id": {"$in": closed_ids},
-                        "type": "state_change", "to_state": "paused_parts"}},
-            {"$group": {"_id": "$case_id"}},
-        ]):
-            paused_ids.add(d["_id"])
-    total_closed_30 = len(closed_ids)
+    # FTF rate + avg resolution (last 30 days) — and the previous 30 days
+    # (days 30–60 ago) for a trend arrow.
+    closed_30, paused_ids = await _closed_with_paused(of, since_30d, now_iso)
+    prev_docs, prev_paused = await _closed_with_paused(of, since_60d, since_30d)
+    total_closed_30 = len(closed_30)
     ftf_count = total_closed_30 - len(paused_ids)
     ftf_rate = round(100 * ftf_count / total_closed_30) if total_closed_30 else 0
+    prev_total = len(prev_docs)
+    ftf_rate_prev = round(100 * (prev_total - len(prev_paused)) / prev_total) if prev_total else 0
+    ftf_trend = ftf_rate - ftf_rate_prev if prev_total else 0
 
     durations: list[float] = []
     for c in closed_30:
@@ -146,15 +160,37 @@ async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
             continue
         row = board.setdefault(eid, {
             "engineer_id": eid,
-            "name": c.get("assigned_engineer_name") or "Engineer",
+            "name": c.get("assigned_engineer_name") or "",
             "closed": 0, "ftf": 0,
         })
         row["closed"] += 1
         if c["id"] not in paused_ids:
             row["ftf"] += 1
     leaderboard = sorted(board.values(), key=lambda r: r["closed"], reverse=True)[:5]
+
+    # Enrich with the canonical engineer name + profile photo (join
+    # svc_engineers for the name, the linked user for the avatar) so the
+    # board never shows a blank/"Engineer" placeholder.
+    eng_ids = [r["engineer_id"] for r in leaderboard]
+    if eng_ids:
+        engs = await db.svc_engineers.find(
+            {"id": {"$in": eng_ids}}, {"_id": 0, "id": 1, "full_name": 1, "user_id": 1},
+        ).to_list(100)
+        eng_map = {e["id"]: e for e in engs}
+        # avatars live on the user record (by user_id, falling back to the
+        # engineer id which equals the user id for seeded engineers).
+        user_keys = {(eng_map.get(eid, {}).get("user_id") or eid) for eid in eng_ids}
+        users = await db.users.find(
+            {"id": {"$in": list(user_keys)}}, {"_id": 0, "id": 1, "avatar_url": 1},
+        ).to_list(100)
+        avatar_map = {u["id"]: u.get("avatar_url") for u in users}
+        for r in leaderboard:
+            e = eng_map.get(r["engineer_id"], {})
+            r["name"] = e.get("full_name") or r["name"] or "Engineer"
+            r["photo_url"] = avatar_map.get(e.get("user_id") or r["engineer_id"])
     for r in leaderboard:
         r["ftf_rate"] = round(100 * r["ftf"] / r["closed"]) if r["closed"] else 0
+        r.setdefault("photo_url", None)
 
     return {
         "open_cases": open_cases,
@@ -164,6 +200,8 @@ async def desk_performance(user: dict = Depends(require_service_desk)) -> dict:
         "sla_at_risk": sla_at_risk,
         "closed_7d": closed_7d,
         "ftf_rate": ftf_rate,
+        "ftf_rate_prev": ftf_rate_prev,
+        "ftf_trend": ftf_trend,
         "ftf_count": ftf_count,
         "total_closed_30d": total_closed_30,
         "avg_resolution_hours": avg_resolution_hours,

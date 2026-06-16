@@ -45,11 +45,14 @@ def test_performance_shape_and_types():
     for k in int_keys:
         assert isinstance(d.get(k), int), f"{k} should be int, got {d.get(k)!r}"
     assert 0 <= d["ftf_rate"] <= 100
+    assert 0 <= d["ftf_rate_prev"] <= 100
+    assert isinstance(d["ftf_trend"], int)
     assert isinstance(d["avg_resolution_hours"], (int, float))
     assert isinstance(d["leaderboard"], list)
     # FTF can never exceed the jobs actually closed in the window
     assert d["ftf_count"] <= d["total_closed_30d"]
     for row in d["leaderboard"]:
-        assert {"engineer_id", "name", "closed", "ftf", "ftf_rate"} <= set(row)
+        assert {"engineer_id", "name", "closed", "ftf", "ftf_rate", "photo_url"} <= set(row)
         assert 0 <= row["ftf_rate"] <= 100
         assert row["ftf"] <= row["closed"]
+        assert row["name"], "leaderboard rows must carry a resolved engineer name"
