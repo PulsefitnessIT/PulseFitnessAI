@@ -124,6 +124,15 @@ def clear_failed_logins(email: str) -> None:
     _locked_accounts.pop(email_lower, None)
 
 
+def clear_login_rate_limits() -> None:
+    """Flush every per-IP login rate-limit bucket. Used by the Master Admin
+    "unlock" action so a manually-unlocked user isn't immediately blocked
+    again by the IP rate limiter from their earlier burst of attempts."""
+    for key in list(_rate_store.keys()):
+        if key.startswith("login:") or key.startswith("ip:"):
+            _rate_store.pop(key, None)
+
+
 def get_failed_login_count(email: str) -> int:
     """Return the number of failed login attempts currently in the window."""
     return len(_failed_logins.get(email.lower(), []))

@@ -80,6 +80,14 @@ const useMasterAdminActions = ({ API, headers, loadData, loadSectionData }) => {
     } catch (err) { notifyApiError(notify, err, 'Failed to archive user'); }
   }, [API, headers, loadData]);
 
+  const unlockUser = useCallback(async (userId) => {
+    try {
+      const res = await axios.post(`${API}/master-admin/users/${userId}/unlock`, {}, { headers });
+      notify.success(`Login unlocked${res.data?.email ? ` for ${res.data.email}` : ''}`);
+      loadData();
+    } catch (err) { notifyApiError(notify, err, 'Failed to unlock login'); }
+  }, [API, headers, loadData]);
+
   const hardDeleteUser = useCallback(async (userId, confirmEmail) => {
     try {
       const res = await axios.delete(`${API}/master-admin/users/${userId}`, {
@@ -223,7 +231,7 @@ const useMasterAdminActions = ({ API, headers, loadData, loadSectionData }) => {
   return {
     updateOrgStatus, updateOrgTier, updateOrgFeatures,
     toggleTestFlag, updateAccountType,
-    disableUser, archiveUser, hardDeleteUser, editUser, resetPassword, impersonateUser,
+    disableUser, archiveUser, unlockUser, hardDeleteUser, editUser, resetPassword, impersonateUser,
     createOrganization, addUserToOrganization, issueInviteLink, sendEmailPreview,
   };
 };

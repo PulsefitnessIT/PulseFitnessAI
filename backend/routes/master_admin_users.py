@@ -920,6 +920,32 @@ async def archive_user(user_id: str, body: dict = Body(...), user: dict = Depend
     return {"success": True}
 
 
+@router.post("/master-admin/users/{user_id}/unlock")
+async def unlock_user(user_id: str, user: dict = Depends(get_current_user)):
+    """Manually clear a login lockout / rate-limit for a user so they can sign
+    in immediately (instead of waiting for the 15-minute auto-unlock)."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+    from utils.security import clear_failed_logins, clear_login_rate_limits
+
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "email": 1})
+    if not target:
+        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0, "email": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    email = (target.get("email") or "").strip()
+    if email:
+        clear_failed_logins(email)        # in-memory account lockout + counter
+    clear_login_rate_limits()             # in-memory per-IP login rate limits
+    # Clear any persisted lockout flags on the user doc(s).
+    unset = {"$unset": {"lockout_until": "", "failed_login_attempts": "", "locked_until": ""}}
+    await db.users.update_one({"id": user_id}, unset)
+    await db.crm_users.update_one({"id": user_id}, unset)
+    await log_activity("user_unlock", f"Unlocked login for {email or user_id}", user["email"], "user", user_id)
+    return {"success": True, "email": email}
+
+
 # ───────────── hard-delete with cascade ─────────────
 
 _DELETE_CASCADE_SPECS = [

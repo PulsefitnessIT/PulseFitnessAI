@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
  Building2, Search, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive, Edit2, Mail,
- CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, UserCog, BarChart3, MoreHorizontal, Undo2, KeyRound,
+ CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, UserCog, BarChart3, MoreHorizontal, Undo2, KeyRound, LockOpen,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -393,7 +393,7 @@ const AdminOrganizations = ({
  accountTypeFilter, onAccountTypeFilterChange,
  onUpdateTier, onUpdateStatus, _onUpdateAccountType,
  onToggleTest, _onSetFeatures, onSelectOrg, selectedOrg,
- users = [], _onImpersonate, onResetPassword, onDisableUser,
+ users = [], _onImpersonate, onResetPassword, onDisableUser, onUnlockUser,
  onUpdateFeatures, onCreateOrg, onAddUserToOrg, portalFilter, onArchiveUser, onHardDeleteUser,
  onEditUser, onSendEmailPreview, accountTypesIn, onReloadOrgs,
 }) => {
@@ -1094,6 +1094,11 @@ useEffect(() => {
  </Button>
  {onResetPassword && (
  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-zinc-500 hover:text-zinc-800" onClick={() => onResetPassword(u.id)} data-testid={`reset-pw-${u.id}`}>Reset PW</Button>
+ )}
+ {onUnlockUser && (
+ <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-zinc-500 hover:text-emerald-700" onClick={() => onUnlockUser(u.id)} title="Clear login lockout / rate-limit so the user can sign in now" data-testid={`unlock-user-${u.id}`}>
+ <LockOpen size={11} className="mr-0.5" /> Unlock
+ </Button>
  )}
  {onDisableUser && (
  <Button size="sm" variant="ghost" className={`h-7 px-2 text-[11px] ${u.disabled ? 'text-emerald-600' : 'text-red-500'}`} onClick={() => onDisableUser(u.id, !u.disabled)}>

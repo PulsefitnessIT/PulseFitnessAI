@@ -357,6 +357,7 @@ const MasterAdminPage = ({ _onBack }) => {
     onImpersonate: (userId) => actions.impersonateUser(userId, setImpersonateDialog),
     onResetPassword: actions.resetPassword,
     onDisableUser: actions.disableUser,
+    onUnlockUser: actions.unlockUser,
     onUpdateFeatures: actions.updateOrgFeatures,
     onCreateOrg: actions.createOrganization,
     onAddUserToOrg: actions.addUserToOrganization,
@@ -485,6 +486,7 @@ const MasterAdminPage = ({ _onBack }) => {
               onImpersonate: (userId) => actions.impersonateUser(userId, setImpersonateDialog),
               onResetPassword: actions.resetPassword,
               onDisableUser: actions.disableUser,
+              onUnlockUser: actions.unlockUser,
               onArchiveUser: actions.archiveUser,
               onHardDeleteUser: actions.hardDeleteUser,
             }}
