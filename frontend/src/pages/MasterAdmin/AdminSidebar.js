@@ -195,7 +195,7 @@ const AdminSidebar = ({
  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
  data-testid="portal-switch-gymaxis"
  >
- <Layers size={16} className="text-violet-500" /> Pulse Fitness Portal
+ <Layers size={16} className="text-violet-500" /> Global Dashboard
  </button>
  )}
  <button
