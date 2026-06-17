@@ -76,7 +76,7 @@ const MILESTONES = (t) => [
   { year: t('pulse.ms_2013_y', '2013'), title: t('pulse.ms_2013_t', 'A connected future'), body: t('pulse.ms_2013_b', 'New HQ and warehouse. 18.5″ Android consoles with EGYM connectivity set the stage for the digital gym floor.') },
   { year: t('pulse.ms_2019_y', '2019'), title: t('pulse.ms_2019_t', 'The TRAKK ecosystem arrives'), body: t('pulse.ms_2019_b', 'Cardio, strength and user data linked through touchscreen consoles and app-based connectivity — a new standard for digital fitness.') },
   { year: t('pulse.ms_2023_y', '2023'), title: t('pulse.ms_2023_t', 'Smarter, faster, more connected'), body: t('pulse.ms_2023_b', 'OnDemand content and Cirrus V4 software ship; the distribution network now spans 30+ countries.') },
-  { year: t('pulse.ms_today_y', 'Today'), title: t('pulse.ms_today_t', '45 years of innovation'), body: t('pulse.ms_today_b', 'Next-generation connected equipment, the TRAKK Web & Mobile apps — and this self-service portal for the teams who run it all.') },
+  { year: t('pulse.ms_today_y', 'Today'), title: t('pulse.ms_today_t', '45 years of innovation'), body: t('pulse.ms_today_b', 'The culmination of 45 years of British engineering — one connected platform where gym teams log faults, track every asset and manage service in real time. The same pioneering heritage that has equipped 30,000+ facilities across 31 countries, now working for the people who run them.') },
 ];
 
 export function HeritageTimeline() {

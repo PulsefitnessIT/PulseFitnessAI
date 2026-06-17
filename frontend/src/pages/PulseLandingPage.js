@@ -110,22 +110,22 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200" data-testid="pulse-header">
+    <header className="sticky top-0 z-50 bg-black border-b border-white/10" data-testid="pulse-header">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <img
-            src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+            src="/brand/pulse-logo-reverse.svg"
             alt="Pulse Fitness"
-            className="h-9 rounded-md object-cover"
-            style={{ aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+            className="h-8 w-auto object-contain select-none"
+            draggable={false}
           />
         </div>
-        <nav className="hidden md:flex items-center gap-8 text-sm text-[var(--color-text-slate)]">
+        <nav className="hidden md:flex items-center gap-8 text-sm text-white/80" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif", letterSpacing: '0.04em' }}>
           {NAV_LINKS.map((l) => (
             l.to ? (
-              <RouterLink key={l.to} to={l.to} className="hover:text-[var(--color-surface-dark-panel-alt)] transition-colors" data-testid={l.testid}>{l.label}</RouterLink>
+              <RouterLink key={l.to} to={l.to} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</RouterLink>
             ) : (
-              <a key={l.href} href={l.href} className="hover:text-[var(--color-surface-dark-panel-alt)] transition-colors" data-testid={l.testid}>{l.label}</a>
+              <a key={l.href} href={l.href} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</a>
             )
           ))}
         </nav>
@@ -134,20 +134,20 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             onClick={toggleTheme}
             // Iter 215dk — mobile readability: 36→40px tap target (was below
             // the 44px Apple/Google minimum on phones).
-            className="w-10 h-10 rounded-xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 transition-colors"
+            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/10 transition-colors"
             data-testid="pulse-theme-toggle"
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={15} className="text-amber-500" /> : <Moon size={15} className="text-slate-600" />}
+            {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-white/80" />}
           </button>
           <div className="relative">
             <button
               onClick={() => setLangOpen(o => !o)}
-              className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-slate-200 hover:bg-slate-50 transition-colors"
+              className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-white/20 hover:bg-white/10 transition-colors"
               data-testid="pulse-lang-toggle"
             >
-              <Globe size={14} className="text-slate-600" />
-              <span className="text-xs font-semibold text-slate-700 uppercase">{i18n.language?.substring(0, 2)}</span>
+              <Globe size={14} className="text-white/80" />
+              <span className="text-xs font-semibold text-white uppercase">{i18n.language?.substring(0, 2)}</span>
             </button>
             {langOpen && (
               <div className="absolute right-0 top-full mt-2 w-40 rounded-xl shadow-xl overflow-hidden bg-white border border-slate-200" data-testid="pulse-lang-dropdown">
@@ -182,10 +182,10 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
-            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 transition-colors"
+            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/10 transition-colors"
             data-testid="pulse-mobile-menu-btn"
           >
-            <Menu size={16} className="text-slate-700" />
+            <Menu size={16} className="text-white/80" />
           </button>
         </div>
       </div>
@@ -263,8 +263,8 @@ function KineticWord() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -28, opacity: 0 }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-        className="inline-block text-[var(--pulse-primary)] italic"
-        style={{ fontFamily: "'Maax Rounded', 'Proxima Nova', sans-serif" }}
+        className="inline-block text-[var(--pulse-primary)]"
+        style={{ fontFamily: "'Proxima Nova', sans-serif", fontWeight: 800 }}
       >
         {words[index]}
       </motion.span>
@@ -297,7 +297,6 @@ function Hero({ onSignIn }) {
             variants={FADE_UP}
             className="eyebrow inline-flex items-center gap-2 bg-[rgb(var(--rgb-pulse-primary)/0.12)] border border-[rgb(var(--rgb-pulse-primary)/0.35)] rounded-full px-4 py-1.5 text-[11px] font-bold text-white uppercase mb-8 backdrop-blur-sm"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--pulse-primary)] animate-pulse" />
             {t('pulse.hero_badge', 'Pulse Fitness Self-Service Portal')}
           </motion.div>
 
@@ -315,7 +314,7 @@ function Hero({ onSignIn }) {
             <KineticWord />
             <br />
             {t('pulse.hero_your_gym', 'your gym.')}<br />
-            <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.7)' }}>{t('pulse.hero_one_place', 'In one place.')}</span>
+            <span style={{ fontWeight: 800, color: 'rgba(255,255,255,0.7)' }}>{t('pulse.hero_one_place', 'In one place.')}</span>
           </motion.h1>
 
           <motion.p
