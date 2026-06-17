@@ -120,7 +120,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             draggable={false}
           />
         </div>
-        <nav className="hidden md:flex items-center gap-8 text-sm text-white/80" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif", letterSpacing: '0.04em' }}>
+        <nav className="hidden md:flex items-center gap-7 text-[13px] font-semibold uppercase text-white/85" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif", letterSpacing: '0.08em' }}>
           {NAV_LINKS.map((l) => (
             l.to ? (
               <RouterLink key={l.to} to={l.to} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</RouterLink>
@@ -171,7 +171,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             // off-brand. Switched to the Pulse cyan primary so the CTA
             // matches the rest of the Pulse Fitness palette.
             // Iter 215dk — bumped 36→40px tap target for mobile.
-            className="h-10 px-4 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity"
+            className="h-10 px-4 rounded-xl font-semibold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
             style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink, #0f172a)' }}
             data-testid="pulse-header-login-btn"
           >
@@ -1733,16 +1733,18 @@ export default function PulseLandingPage({ onLogin }) {
         <PulseHeader onSignIn={openLogin} theme={theme} toggleTheme={toggleTheme} i18n={i18n} />
         <Hero onSignIn={openLogin} />
         <TrustedBy />
-        <HeritageTimeline />
-        <StatsBento />
+        {/* ── Portal-focused content first ── */}
         <WhatYouCanDo />
         <AIFeatures />
         <HowItWorks />
         <MobileExperience />
         <GymFloorShowcase />
-        <Sustainability />
         <CustomerBenefits />
         <TailoredPulse />
+        {/* ── Company / heritage detail further down ── */}
+        <StatsBento />
+        <HeritageTimeline />
+        <Sustainability />
         <Support />
         <FinalCTA onSignIn={openLogin} />
         <PulseFooter />

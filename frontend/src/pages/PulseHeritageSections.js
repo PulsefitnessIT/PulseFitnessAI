@@ -33,13 +33,13 @@ function Reveal({ children, className = '', testId }) {
 
 // ── Trusted By ─────────────────────────────────────────────────
 const PARTNERS = [
-  { name: 'THIRD SPACE' },
-  { name: 'IMPERIAL COLLEGE LONDON' },
+  { name: 'THIRD SPACE', logo: '/brand/operators/third-space.png' },
+  { name: 'IMPERIAL COLLEGE LONDON', logo: '/brand/operators/imperial.png' },
   { name: 'LEISURE UNITED', logo: '/brand/operators/leisure-united.png' },
   { name: 'BRAYWICK LEISURE', logo: '/brand/operators/braywick.png' },
-  { name: 'BALANCE HEALTH' },
+  { name: 'BALANCE HEALTH', logo: '/brand/operators/balance-health.png' },
   { name: 'SPORT ABERDEEN', logo: '/brand/operators/sport-aberdeen.png' },
-  { name: 'CHESHIRE EAST' },
+  { name: 'CHESHIRE EAST', logo: '/brand/operators/cheshire-east.png' },
 ];
 
 export function TrustedBy() {
@@ -51,7 +51,7 @@ export function TrustedBy() {
           <motion.p variants={FADE_UP} className="text-center text-[11px] uppercase tracking-[0.25em] font-bold text-[#6E7476] mb-8">
             {t('pulse.tb_caption', 'Trusted by operators worldwide — 30,000+ facilities partnered across 31 countries')}
           </motion.p>
-          <motion.div variants={FADE_UP} className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+          <motion.div variants={FADE_UP} className="flex flex-wrap items-center justify-center gap-x-12 gap-y-7">
             {PARTNERS.map((p) => {
               const testId = `trusted-partner-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
               return p.logo ? (
@@ -59,7 +59,7 @@ export function TrustedBy() {
                   key={p.name}
                   src={p.logo}
                   alt={p.name}
-                  className="h-10 w-auto max-w-[170px] object-contain select-none"
+                  className="h-9 sm:h-10 w-auto object-contain select-none [filter:brightness(0)] opacity-60 hover:opacity-100 transition-opacity"
                   loading="lazy"
                   draggable={false}
                   data-testid={testId}
