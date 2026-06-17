@@ -5,6 +5,7 @@ import uuid
 import asyncio
 import secrets
 import logging
+import re
 
 from utils.database import db
 from utils.auth import get_current_user, optional_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
@@ -391,10 +392,16 @@ async def _lookup_user_by_identifier(identifier: str) -> dict | None:
 
     Classic email (contains ``@``) → ``users.email``.
     MOD-style site / kiosk username (no ``@``) → ``users.username``.
+
+    Matching is CASE-INSENSITIVE: historic accounts were stored with the
+    email/username as-typed (mixed case), but the login input is lowercased
+    here — an exact (case-sensitive) Mongo match would then miss them and
+    report "unknown user". An anchored case-insensitive regex fixes that.
     """
+    pattern = {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}
     if "@" in identifier:
-        return await db.users.find_one({"email": identifier}, {"_id": 0})
-    return await db.users.find_one({"username": identifier}, {"_id": 0})
+        return await db.users.find_one({"email": pattern}, {"_id": 0})
+    return await db.users.find_one({"username": pattern}, {"_id": 0})
 
 
 def _enforce_account_status(user: dict) -> None:
