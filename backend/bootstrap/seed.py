@@ -67,17 +67,23 @@ async def seed_master_admin() -> None:
         logger.info(f"Master admin seeded: {master_email}")
         return
 
-    set_doc = {"is_master_admin": True, "active": True}
+    # Always clear states that could permanently lock the master admin out
+    # (stuck "must change password", expired temp password, lockout). The
+    # password VALUE is only re-synced when reset_on_boot is enabled.
+    set_doc = {
+        "is_master_admin": True,
+        "active": True,
+        "must_change_password": False,
+        "temp_password_expires_at": None,
+    }
     if reset_on_boot:
         set_doc.update({
             "password": hash_password(master_pwd),
-            "must_change_password": False,
-            "temp_password_expires_at": None,
             "password_changed_at": datetime.now(timezone.utc).isoformat(),
         })
     await db.users.update_one(
         {"email": master_email},
-        {"$set": set_doc, "$unset": {"lockout_until": ""}},
+        {"$set": set_doc, "$unset": {"lockout_until": "", "failed_login_attempts": ""}},
     )
     # Also drop any in-memory rate-limit lockout against this email so a
     # fresh deploy after a brute-force test doesn't lock the admin out.
