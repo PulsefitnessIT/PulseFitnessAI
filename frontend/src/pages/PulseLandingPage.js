@@ -134,19 +134,19 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             onClick={toggleTheme}
             // Iter 215dk — mobile readability: 36→40px tap target (was below
             // the 44px Apple/Google minimum on phones).
-            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/10 transition-colors"
+            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/30 hover:bg-white/10 transition-colors"
             data-testid="pulse-theme-toggle"
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-white/80" />}
+            {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-white" />}
           </button>
           <div className="relative">
             <button
               onClick={() => setLangOpen(o => !o)}
-              className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-white/20 hover:bg-white/10 transition-colors"
+              className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-white/30 hover:bg-white/10 transition-colors"
               data-testid="pulse-lang-toggle"
             >
-              <Globe size={14} className="text-white/80" />
+              <Globe size={14} className="text-white" />
               <span className="text-xs font-semibold text-white uppercase">{i18n.language?.substring(0, 2)}</span>
             </button>
             {langOpen && (

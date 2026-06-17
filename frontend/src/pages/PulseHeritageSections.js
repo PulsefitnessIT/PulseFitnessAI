@@ -33,13 +33,13 @@ function Reveal({ children, className = '', testId }) {
 
 // ── Trusted By ─────────────────────────────────────────────────
 const PARTNERS = [
-  'THIRD SPACE',
-  'IMPERIAL COLLEGE LONDON',
-  'LEISURE UNITED',
-  'BRAYWICK LEISURE',
-  'BALANCE HEALTH',
-  'SPORT ABERDEEN',
-  'CHESHIRE EAST',
+  { name: 'THIRD SPACE' },
+  { name: 'IMPERIAL COLLEGE LONDON' },
+  { name: 'LEISURE UNITED', logo: '/brand/operators/leisure-united.png' },
+  { name: 'BRAYWICK LEISURE', logo: '/brand/operators/braywick.png' },
+  { name: 'BALANCE HEALTH' },
+  { name: 'SPORT ABERDEEN', logo: '/brand/operators/sport-aberdeen.png' },
+  { name: 'CHESHIRE EAST' },
 ];
 
 export function TrustedBy() {
@@ -48,19 +48,32 @@ export function TrustedBy() {
     <section className="py-10 sm:py-12 bg-white border-b border-[var(--color-border-light)]" data-testid="pulse-trusted-by">
       <div className="max-w-7xl mx-auto px-6">
         <Reveal>
-          <motion.p variants={FADE_UP} className="text-center text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-text-slate)] mb-7">
+          <motion.p variants={FADE_UP} className="text-center text-[11px] uppercase tracking-[0.25em] font-bold text-[#6E7476] mb-8">
             {t('pulse.tb_caption', 'Trusted by operators worldwide — 30,000+ facilities partnered across 31 countries')}
           </motion.p>
-          <motion.div variants={FADE_UP} className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-            {PARTNERS.map((name) => (
-              <span
-                key={name}
-                className="text-xs sm:text-sm font-black tracking-[0.18em] text-[var(--pulse-grey-light,#A2ACAB)] whitespace-nowrap select-none"
-                data-testid={`trusted-partner-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-              >
-                {name}
-              </span>
-            ))}
+          <motion.div variants={FADE_UP} className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+            {PARTNERS.map((p) => {
+              const testId = `trusted-partner-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+              return p.logo ? (
+                <img
+                  key={p.name}
+                  src={p.logo}
+                  alt={p.name}
+                  className="h-10 w-auto max-w-[170px] object-contain select-none"
+                  loading="lazy"
+                  draggable={false}
+                  data-testid={testId}
+                />
+              ) : (
+                <span
+                  key={p.name}
+                  className="text-xs sm:text-sm font-black tracking-[0.18em] text-[#393E41] whitespace-nowrap select-none"
+                  data-testid={testId}
+                >
+                  {p.name}
+                </span>
+              );
+            })}
           </motion.div>
         </Reveal>
       </div>
