@@ -109,6 +109,32 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
     { href: '/#support',      label: t('pulse.nav_support', 'Support'),      testid: 'nav-support' },
   ];
 
+  const navigate = useNavigate();
+  const goToSection = (e, href, closeMenu) => {
+    if (!href || !href.includes('#')) return;
+    e.preventDefault();
+    if (closeMenu) closeMenu();
+    const id = href.split('#').pop();
+    if (window.location.pathname === '/') {
+      // Already on the landing page → smooth-scroll, no reload/reset.
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        window.history.replaceState(null, '', '/#' + id);
+      }
+    } else {
+      // On another route (e.g. /pulse-pricing) → go to landing, then scroll.
+      navigate('/#' + id);
+      let tries = 0;
+      const tick = () => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        else if (tries++ < 25) setTimeout(tick, 100);
+      };
+      setTimeout(tick, 120);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-black border-b border-white/10" data-testid="pulse-header">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -125,7 +151,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             l.to ? (
               <RouterLink key={l.to} to={l.to} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</RouterLink>
             ) : (
-              <a key={l.href} href={l.href} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</a>
+              <a key={l.href} href={l.href} onClick={(e) => goToSection(e, l.href)} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</a>
             )
           ))}
         </nav>
@@ -230,7 +256,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
                   <a
                     key={l.href}
                     href={l.href}
-                    onClick={() => setMobileOpen(false)}
+                    onClick={(e) => goToSection(e, l.href, () => setMobileOpen(false))}
                     className="px-4 py-3 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-[15px] font-semibold transition-colors"
                     data-testid={`pulse-mobile-${l.testid}`}
                   >
