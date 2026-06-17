@@ -25,7 +25,7 @@ import {
   ListChecks, MessageSquareHeart, Trophy, ChevronRight, Star, ClipboardList,
   AlertTriangle, Mail, User,
   Sliders, Layers, UserCog, Workflow, Link2,
-  Menu, X,
+  Menu, X, Linkedin, Instagram, Youtube,
 } from 'lucide-react';
 
 const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -134,20 +134,20 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             onClick={toggleTheme}
             // Iter 215dk — mobile readability: 36→40px tap target (was below
             // the 44px Apple/Google minimum on phones).
-            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/30 hover:bg-white/10 transition-colors"
+            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/40 hover:bg-white/10 transition-colors"
             data-testid="pulse-theme-toggle"
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-white" />}
+            {theme === 'dark' ? <Sun size={16} style={{ color: '#fbbf24' }} /> : <Moon size={16} style={{ color: '#ffffff' }} />}
           </button>
           <div className="relative">
             <button
               onClick={() => setLangOpen(o => !o)}
-              className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-white/30 hover:bg-white/10 transition-colors"
+              className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-white/40 hover:bg-white/10 transition-colors"
               data-testid="pulse-lang-toggle"
             >
-              <Globe size={14} className="text-white" />
-              <span className="text-xs font-semibold text-white uppercase">{i18n.language?.substring(0, 2)}</span>
+              <Globe size={15} style={{ color: '#ffffff' }} />
+              <span className="text-xs font-semibold uppercase" style={{ color: '#ffffff' }}>{i18n.language?.substring(0, 2)}</span>
             </button>
             {langOpen && (
               <div className="absolute right-0 top-full mt-2 w-40 rounded-xl shadow-xl overflow-hidden bg-white border border-slate-200" data-testid="pulse-lang-dropdown">
@@ -1518,30 +1518,81 @@ function FinalCTA({ onSignIn }) {
 
 // ── Footer ────────────────────────────────────────────────────
 export function PulseFooter() {
-  const { t } = useTranslation();
+  const PRODUCTS = [
+    ['Cardiovascular', 'https://pulsefitness.com/product-category/cardio-vascular/'],
+    ['Connectivity', 'https://pulsefitness.com/product-category/connectivity/'],
+    ['Strength', 'https://pulsefitness.com/product-category/commercial-strength-equipment-uk/'],
+    ['Free Weights', 'https://pulsefitness.com/product-category/free-weights/'],
+    ['Functional', 'https://pulsefitness.com/product-category/functional/'],
+    ['Studio/Circuit', 'https://pulsefitness.com/product-category/studio-circuit/'],
+    ['Home Gym', 'https://pulsefitness.com/product-category/home-gym/'],
+    ['Flooring', 'https://pulsefitness.com/product-category/flooring/'],
+    ['After Sales', 'https://pulsefitness.com/product-category/after-sales/'],
+    ['Retired Products', 'https://pulsefitness.com/product-category/retired-products/'],
+  ];
+  const COMPANY = [
+    ['Careers', 'https://pulsefitness.com/careers/'],
+    ['Case Studies', 'https://pulsefitness.com/case-studies/'],
+    ['Contact', 'https://pulsefitness.com/contact/'],
+    ['Feed', 'https://pulsefitness.com/feed/'],
+    ['In The Media', 'https://pulsefitness.com/in-the-media/'],
+    ['Pulse Resale', 'https://pulsefitness.com/pulse-resale/'],
+  ];
+  const LEGAL = [
+    ['Data Protection', 'https://pulsefitness.com/data-protection/'],
+    ['Privacy Policy', 'https://pulsefitness.com/privacy-policy/'],
+    ['Environmental', 'https://pulsefitness.com/environmental/'],
+    ['ISO Certification', 'https://pulsefitness.com/iso-certification/'],
+    ['REACH Regulation', 'https://pulsefitness.com/reach-regulation/'],
+    ['WEEE Statement', 'https://pulsefitness.com/weee-statement/'],
+    ['Shipping & Returns', 'https://pulsefitness.com/shipping-returns/'],
+    ['Terms & Conditions', 'https://pulsefitness.com/terms-conditions/'],
+    ["Klarna T&C's", 'https://pulsefitness.com/klarna-terms-conditions/'],
+    ["Clearpay T&C's", 'https://pulsefitness.com/clearpay-terms-conditions/'],
+    ['Pre-order/Back-order', 'https://pulsefitness.com/pre-order-back-order/'],
+    ['Corporate Social Responsibilities', 'https://pulsefitness.com/corporate-social-responsibilities/'],
+    ['Modern Slavery and Human Trafficking Policy', 'https://pulsefitness.com/modern-slavery-and-human-trafficking-policy/'],
+  ];
+  const linkCls = 'block text-sm text-[#6E7476] hover:text-[#19CDFF] transition-colors leading-relaxed';
+  const headCls = 'text-sm font-bold tracking-wide text-[#1B1C1D] mb-3 after:block after:w-7 after:h-0.5 after:bg-[#1B1C1D] after:mt-2';
+  const Col = ({ title, items }) => (
+    <div>
+      <h4 className={headCls}>{title}</h4>
+      <ul className="space-y-1.5 mt-4">
+        {items.map(([label, href]) => (
+          <li key={label}><a href={href} target="_blank" rel="noopener noreferrer" className={linkCls}>{label}</a></li>
+        ))}
+      </ul>
+    </div>
+  );
   return (
-    <footer className="bg-[var(--pulse-black,#212721)] border-t border-white/10 py-12" data-theme="dark" data-testid="pulse-footer">
+    <footer className="bg-[#f7f6f6] border-t border-[#E0E0E0] py-16" data-theme="light" data-testid="pulse-footer">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-          <div className="flex items-center gap-3">
-            <img
-              src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
-              alt="Pulse Fitness"
-              className="h-7 rounded-md object-cover"
-              style={{ aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
-            />
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>The Heart of Fitness</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-10">
+          {/* Brand + address */}
+          <div className="col-span-2 md:col-span-1">
+            <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-9 w-auto object-contain mb-6" draggable={false} />
+            <address className="not-italic text-sm text-[#6E7476] leading-relaxed">
+              Pulse Fitness<br />
+              Radnor Park<br />
+              Greenfield Road<br />
+              Congleton<br />
+              Cheshire<br />
+              CW12 4TW
+            </address>
           </div>
-          <div className="flex items-center gap-6 text-xs">
-            <a href="/privacy" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>{t('pulse.foot_privacy', 'Privacy')}</a>
-            <a href="/terms" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>{t('pulse.foot_terms', 'Terms')}</a>
-            <a href="/security" className="transition-colors hover:opacity-100" style={{ color: 'rgba(255,255,255,0.65)' }}>{t('pulse.foot_security', 'Security')}</a>
+          <Col title="PRODUCTS" items={PRODUCTS} />
+          <Col title="COMPANY" items={COMPANY} />
+          <Col title="LEGAL" items={LEGAL} />
+          {/* Social */}
+          <div className="col-span-2 md:col-span-1">
+            <div className="flex items-center gap-3">
+              <a href="https://www.linkedin.com/company/pulse-fitness/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Linkedin size={16} /></a>
+              <a href="https://www.instagram.com/pulsefitness/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Instagram size={16} /></a>
+              <a href="https://www.youtube.com/@pulsefitness" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Youtube size={16} /></a>
+            </div>
+            <p className="mt-8 text-sm text-[#6E7476]">© Pulse Fitness {new Date().getFullYear()}</p>
           </div>
-        </div>
-        <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-center md:justify-between gap-x-8 gap-y-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }} data-testid="pulse-footer-global">
-          <span>{t('pulse.foot_est', 'Established 1980 · 45 years of British engineering')}</span>
-          <span>{t('pulse.foot_leader', 'A global leader. Proudly British.')}</span>
-          <span>{t('pulse.foot_facilities', '30,000+ facilities partnered across 31 countries & six continents')}</span>
         </div>
       </div>
     </footer>
