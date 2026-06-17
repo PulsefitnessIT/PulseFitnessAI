@@ -320,16 +320,18 @@ function App() {
  // deploy: stale menu drawer with broken module list).
  useEffect(() => {
    if (!('serviceWorker' in navigator)) return undefined;
+   // Only reload when an EXISTING controller is replaced by a NEW service
+   // worker (a genuine post-deploy update). On the very first visit the page
+   // goes from no-controller -> controller (install + skipWaiting +
+   // clients.claim), which must NOT trigger a reload — that was the root of
+   // the "page reloads 7-8 times on login" loop. A one-shot flag guarantees
+   // we never reload more than once even if multiple events fire.
+   const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+   let reloaded = false;
    const handleControllerChange = () => {
-     // Guard in sessionStorage so the flag SURVIVES the reload — otherwise
-     // each reload resets a per-load guard and we loop (the "page reloads
-     // 7-8 times on login" bug). One reload per browser session is enough
-     // to pick up a freshly-activated SW after a deploy.
-     let alreadyReloaded = false;
-     try { alreadyReloaded = sessionStorage.getItem('sw_reload_done') === '1'; } catch { /* ignore */ }
-     if (alreadyReloaded) return;
-     try { sessionStorage.setItem('sw_reload_done', '1'); } catch { /* ignore */ }
-     // Tiny delay so any in-flight fetch resolves before reload.
+     if (!hadControllerAtLoad) return; // first install — never reload
+     if (reloaded) return;
+     reloaded = true;
      setTimeout(() => window.location.reload(), 200);
    };
    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
@@ -465,7 +467,9 @@ function App() {
  // 215z/215aa test reports as "session lost when switching
  // modules"). We retry ONCE after 800ms before giving up.
  const bootAuthMe = (attempt = 0, triedRefresh = false) => {
- axios.get(`${API}/auth/me`, storedToken ? { headers: { Authorization: `Bearer ${storedToken}` } } : {})
+ const _effToken = (() => { try { return localStorage.getItem('token'); } catch { return null; } })();
+ const _useHeader = _effToken && _effToken !== 'cookie';
+ axios.get(`${API}/auth/me`, _useHeader ? { headers: { Authorization: `Bearer ${_effToken}` } } : {})
  .then(res => {
  setUser(res.data);
  // Iter 227 — normalise the main session to the cookie sentinel
@@ -527,7 +531,18 @@ function App() {
  // fresh access token from `ga_refresh`; then re-run /auth/me once.
  if (!triedRefresh) {
  axios.post(`${API}/auth/refresh`, {})
-   .then(() => bootAuthMe(attempt, true))
+   .then(() => {
+    // After a successful cookie refresh, drop any stale real header token
+    // so the retry uses the freshly-rotated HttpOnly cookie instead of
+    // re-sending a dead JWT (which would shadow the cookie and force a
+    // spurious logout). Impersonation tabs keep their real token.
+    try {
+      if (localStorage.getItem('impersonation_active') !== '1') {
+        localStorage.setItem('token', 'cookie');
+      }
+    } catch { /* ignore */ }
+    bootAuthMe(attempt, true);
+  })
    .catch(() => {
      localStorage.removeItem('token');
      localStorage.removeItem('user_cache');

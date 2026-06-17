@@ -243,8 +243,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Deep branding audit: Master Admin Integrations page contains visible 'gymaxis_only' text"
-  stuck_tasks: []
+    - "Login flow end-to-end validation (user review request)"
+  stuck_tasks:
+    - "Login flow end-to-end validation (user review request)"
   test_all: false
   test_priority: "high_first"
 
@@ -391,7 +392,7 @@ frontend:
     implemented: true
     working: false
     file: "frontend/src/pages/PulseLandingPage.js, frontend/src/App.js"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
     needs_retesting: false
     status_history:
@@ -401,6 +402,12 @@ frontend:
         - working: false
           agent: "testing"
           comment: "❌ CRITICAL ISSUE FOUND: Excessive reload loop detected. Test results: (1) ✅ PASS - Default landing page correctly shows Pulse Fitness Self-Service Portal with hero 'Maintain your gym. In one place.', badge, and logo. Tab title: 'Pulse Fitness AI | Fitness Operations Platform'. (2) ✅ PASS - Login modal close (X) button is positioned INSIDE the modal card at top-right (x=1135, y=340.8), not escaping borders. Modal shows 'Welcome back / Sign in to your Pulse Fitness portal'. (3) ⚠️ PARTIAL - Login succeeds with admin@pulsefitness.com / MasterAdmin123! and lands on /master-admin. NO 'session expired' banner appears immediately after login. Session persists for ~10 seconds and navigation to /dashboard works. HOWEVER, session expires after a few minutes (401 Unauthorized in backend logs). (4) ❌ FAIL - RELOAD LOOP BUG: 7 full page navigations/reloads detected to the same URL (https://fitness-ai-migrate.preview.emergentagent.com/master-admin) during and after login. Expected: 1-2 navigations max. This is excessive and indicates a reload loop issue. (5) ❌ CANNOT VERIFY - Audit log not accessible. Session expired before reaching audit log section. Could not find 'Login from' events or Settings & Compliance → Audit log navigation. (6) ✅ PASS - Only CSP warnings for external scripts (PostHog, Emergent, Cloudflare) in console, no critical errors. No broken images. No visible 'GymAxis' text found. CRITICAL BUG: The 7-navigation reload loop is the primary issue that needs immediate attention."
+        - working: false
+          agent: "user"
+          comment: "User requested RE-TEST after fixes to service-worker reload loop and session handling. Focus on: (1) RELOAD LOOP - count full page navigations during/after login (expected 0-1, NOT 7-8), (2) SESSION PERSISTENCE - no 401 errors on /api/auth/me or /api/auth/refresh after 20-30s wait + navigation, (3) MASTER ADMIN AUDIT LOG - verify it shows login events with details (IP, actor email). Use FRESH browser context (no pre-existing cookies/localStorage)."
+        - working: false
+          agent: "testing"
+          comment: "RE-TEST RESULTS: ❌ RELOAD LOOP STILL FAILING (improved but not fixed). Detailed findings: (1) ❌ RELOAD LOOP: 3 full page navigations to /master-admin during/after login (improved from 7, but still exceeds the 0-1 requirement). All 3 navigations went to the same URL. (2) ✅ SESSION PERSISTENCE: PASS - No 'session expired' banner, all /api/auth/me and /api/auth/refresh calls returned 200 (no 401 errors), master-admin page accessible after 25s wait + navigation. Total 13 auth endpoint calls captured, all successful. Note: /dashboard redirects to /master-admin (expected behavior for master admin role). (3) ✅ AUDIT LOG: PASS - Found under Settings & Compliance → Audit log. Shows 12 login events with complete details: 'Login from 10.79.128.146', actor email 'admin@pulsefitness.com', timestamps, and IP addresses visible. Quick re-confirmations: ✅ Default landing shows Pulse Self-Service Portal, ✅ Login modal close button inside card, ✅ No GymAxis text. CRITICAL: The reload loop has IMPROVED (7→3 navigations) but still does NOT meet the 0-1 requirement. Session handling and audit log are now working correctly."
 
 agent_communication:
     - agent: "testing"
@@ -477,4 +484,60 @@ agent_communication:
            - Verify "Login from <ip>" events with actor email are displayed
         
         RELOAD/NAVIGATION COUNT: 7 (EXCESSIVE - should be 1-2 max)
+    
+    - agent: "testing"
+      message: >
+        RE-TEST RESULTS AFTER FIXES: ⚠️ PARTIAL SUCCESS - 2 of 3 items PASS, 1 item still FAILING
+        
+        SUMMARY:
+        ❌ ITEM 1 - Reload Loop: 3 navigations (improved from 7, but still exceeds 0-1 requirement)
+        ✅ ITEM 2 - Session Persistence: PASS (no 401 errors, session works correctly)
+        ✅ ITEM 3 - Audit Log: PASS (shows login events with complete details)
+        
+        DETAILED RESULTS:
+        
+        1. ❌ RELOAD LOOP - IMPROVED BUT STILL FAILING
+           - Full page navigations during/after login: 3 (down from 7)
+           - All 3 navigations to: https://fitness-ai-migrate.preview.emergentagent.com/master-admin
+           - Expected: 0-1 navigations
+           - Status: The reload loop has IMPROVED significantly (57% reduction) but still does NOT meet the 0-1 requirement
+           - Navigation URLs captured:
+             1. /master-admin
+             2. /master-admin
+             3. /master-admin
+        
+        2. ✅ SESSION PERSISTENCE - PASS
+           - No "session expired" banner after 25s wait: ✓
+           - Auth endpoint responses (13 total captured):
+             * /api/auth/me: 9 calls, all returned 200 ✓
+             * /api/auth/refresh: 4 calls, all returned 200 ✓
+             * Zero 401 Unauthorized errors ✓
+           - Master-admin page accessible after navigation: ✓
+           - Note: /dashboard redirects to /master-admin (expected behavior for master admin role)
+           - The previous session expiration issue (401 errors) is now FIXED
+        
+        3. ✅ AUDIT LOG - PASS
+           - Location: Settings & Compliance → Audit log
+           - URL: /master-admin?section=audit-log
+           - Content verified:
+             * Shows 12 login events ✓
+             * "Login from 10.79.128.146" text present ✓
+             * Actor email "admin@pulsefitness.com" visible ✓
+             * Timestamps and IP addresses displayed ✓
+           - The audit log is fully functional and accessible
+        
+        QUICK RE-CONFIRMATIONS:
+        ✅ Default landing page: Pulse Fitness Self-Service Portal (hero text, badge, logo)
+        ✅ Login modal close button: Inside card (visible and properly positioned)
+        ✅ No GymAxis text: Confirmed clean throughout
+        
+        ACTION ITEMS FOR MAIN AGENT:
+        1. 🔴 HIGH PRIORITY: Fix remaining reload loop issue
+           - Current: 3 full page navigations to /master-admin
+           - Target: 0-1 navigations
+           - The fix applied has reduced the issue by 57% (7→3) but more work is needed
+           - Investigate: service worker registration, React Router navigation logic, useEffect dependencies
+           - Possible causes: Multiple navigation.push() calls, redirect loops, or component re-mounting
+        
+        RELOAD COUNT: 3 (IMPROVED from 7, but still exceeds 0-1 target)
 
