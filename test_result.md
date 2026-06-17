@@ -392,7 +392,7 @@ frontend:
     implemented: true
     working: false
     file: "frontend/src/pages/PulseLandingPage.js, frontend/src/App.js"
-    stuck_count: 2
+    stuck_count: 3
     priority: "high"
     needs_retesting: false
     status_history:
@@ -408,6 +408,12 @@ frontend:
         - working: false
           agent: "testing"
           comment: "RE-TEST RESULTS: ❌ RELOAD LOOP STILL FAILING (improved but not fixed). Detailed findings: (1) ❌ RELOAD LOOP: 3 full page navigations to /master-admin during/after login (improved from 7, but still exceeds the 0-1 requirement). All 3 navigations went to the same URL. (2) ✅ SESSION PERSISTENCE: PASS - No 'session expired' banner, all /api/auth/me and /api/auth/refresh calls returned 200 (no 401 errors), master-admin page accessible after 25s wait + navigation. Total 13 auth endpoint calls captured, all successful. Note: /dashboard redirects to /master-admin (expected behavior for master admin role). (3) ✅ AUDIT LOG: PASS - Found under Settings & Compliance → Audit log. Shows 12 login events with complete details: 'Login from 10.79.128.146', actor email 'admin@pulsefitness.com', timestamps, and IP addresses visible. Quick re-confirmations: ✅ Default landing shows Pulse Self-Service Portal, ✅ Login modal close button inside card, ✅ No GymAxis text. CRITICAL: The reload loop has IMPROVED (7→3 navigations) but still does NOT meet the 0-1 requirement. Session handling and audit log are now working correctly."
+        - working: false
+          agent: "user"
+          comment: "User requested TARGETED RE-TEST of ONLY the reload-loop fix after service-worker forced-reload removal. Expected: 0-1 full page navigations (definitely not 3-8). Test with FRESH browser context using app's configured base URL (NOT localhost). Steps: (1) Go to homepage (/), (2) Click LOG IN, enter admin@pulsefitness.com / MasterAdmin123!, submit, (3) Count FULL PAGE navigations/reloads (main-frame framenavigated events) during login and for ~15 seconds afterward, (4) Confirm landing on /master-admin with page rendering and NO 'session expired' banner within 20 seconds."
+        - working: false
+          agent: "testing"
+          comment: "TARGETED RE-TEST RESULTS: ❌ RELOAD LOOP STILL NOT FIXED (3 navigations, requirement is 0-1). Detailed findings: (1) ❌ RELOAD LOOP: 3 full page navigations to /master-admin detected during/after login. Expected: 0-1 navigations. Status: FAIL - The reload loop persists at the same level as previous test (7→3→3). No improvement from the service-worker forced-reload removal. Navigation pattern: Nav #1 after login success → Nav #2 full reload → Nav #3 full reload. All 3 navigations to the same URL: https://fitness-ai-migrate.preview.emergentagent.com/master-admin. (2) ✅ LOGIN SUCCESS: Login API called and returned 200. Successfully authenticated with admin@pulsefitness.com / MasterAdmin123!. All 36 API calls returned 200 (no errors). (3) ✅ FINAL STATE: Landed on /master-admin page, page renders correctly, NO 'session expired' banner found. (4) ✅ SESSION: No 401 errors detected. CRITICAL: The service-worker forced-reload removal did NOT fix the reload loop. The issue persists with 3 full page navigations (same as previous test). The root cause is likely in React Router navigation logic, App.js routing, or component re-mounting logic that triggers multiple navigations to /master-admin after login."
 
 agent_communication:
     - agent: "testing"
@@ -540,4 +546,61 @@ agent_communication:
            - Possible causes: Multiple navigation.push() calls, redirect loops, or component re-mounting
         
         RELOAD COUNT: 3 (IMPROVED from 7, but still exceeds 0-1 target)
+    
+    - agent: "testing"
+      message: >
+        TARGETED RE-TEST RESULTS (Service-Worker Forced-Reload Removal): ❌ RELOAD LOOP STILL NOT FIXED
+        
+        SUMMARY:
+        ❌ Reload Loop: 3 full page navigations (SAME as previous test, NO improvement)
+        ✅ Login Success: API called, 200 response, all 36 API calls successful
+        ✅ Final State: Landed on /master-admin, page renders, no session expired banner
+        
+        CRITICAL FINDING:
+        The service-worker forced-reload removal did NOT fix the reload loop. The issue persists at exactly the same level (3 navigations). The root cause is NOT the service worker - it's likely in React Router navigation logic, App.js routing, or component re-mounting that triggers multiple navigations to /master-admin after login.
+        
+        DETAILED RESULTS:
+        
+        1. ❌ RELOAD LOOP - NO IMPROVEMENT (STILL 3 NAVIGATIONS)
+           - Full page navigations during/after login: 3
+           - Expected: 0-1 navigations
+           - Status: FAIL - Same as previous test (7→3→3). No improvement from service-worker fix.
+           - Navigation pattern observed:
+             * Navigation #1: After login success, navigate to /master-admin
+             * Navigation #2: Full page reload of /master-admin (duplicate API calls start)
+             * Navigation #3: Another full page reload of /master-admin (duplicate API calls again)
+           - All 3 navigations to same URL: https://fitness-ai-migrate.preview.emergentagent.com/master-admin
+           - Evidence: Dashboard API calls (stats, organizations, users, ai-usage, etc.) are made 3 times
+        
+        2. ✅ LOGIN SUCCESS
+           - Login API: POST /api/auth/login → 200 ✓
+           - Authentication successful with admin@pulsefitness.com / MasterAdmin123! ✓
+           - Total API calls: 36 (all returned 200, no errors) ✓
+           - API calls include: organization, sites, assistant/chat, master-admin/* endpoints
+        
+        3. ✅ FINAL STATE
+           - Current URL: https://fitness-ai-migrate.preview.emergentagent.com/master-admin ✓
+           - Page renders correctly (Dashboard Overview visible) ✓
+           - NO "session expired" banner found ✓
+           - Session valid (no 401 errors detected) ✓
+        
+        ROOT CAUSE ANALYSIS:
+        The reload loop is NOT caused by service-worker forced-reload. The issue is in the React application's navigation logic. Possible causes:
+        1. React Router: Multiple navigate() calls in PulseLandingPage.js handleSubmit (line 1588: navigate('/master-admin', { replace: true }))
+        2. App.js: useEffect dependencies or authentication flow triggering re-navigation
+        3. Component re-mounting: Master admin page component mounting/unmounting multiple times
+        4. Redirect loops: Some component redirecting back to /master-admin repeatedly
+        
+        NEXT STEPS FOR MAIN AGENT:
+        1. 🔴 CRITICAL: Investigate React Router navigation in PulseLandingPage.js and App.js
+           - Check if navigate('/master-admin') is being called multiple times
+           - Look for useEffect hooks that might trigger navigation
+           - Verify no redirect loops in master-admin page component
+        2. 🔴 CRITICAL: Add console.log or debugging to track navigation calls
+           - Log every navigate() call with stack trace
+           - Track component mounting/unmounting
+        3. Consider using React Router's useNavigate with { replace: true } consistently
+        4. Check if there's a window.location.reload() or similar hard reload anywhere
+        
+        RELOAD COUNT: 3 (NO CHANGE from previous test - service-worker fix did NOT resolve the issue)
 

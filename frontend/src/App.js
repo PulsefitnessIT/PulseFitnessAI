@@ -320,32 +320,22 @@ function App() {
  // deploy: stale menu drawer with broken module list).
  useEffect(() => {
    if (!('serviceWorker' in navigator)) return undefined;
-   // Only reload when an EXISTING controller is replaced by a NEW service
-   // worker (a genuine post-deploy update). On the very first visit the page
-   // goes from no-controller -> controller (install + skipWaiting +
-   // clients.claim), which must NOT trigger a reload — that was the root of
-   // the "page reloads 7-8 times on login" loop. A one-shot flag guarantees
-   // we never reload more than once even if multiple events fire.
-   const hadControllerAtLoad = !!navigator.serviceWorker.controller;
-   let reloaded = false;
-   const handleControllerChange = () => {
-     if (!hadControllerAtLoad) return; // first install — never reload
-     if (reloaded) return;
-     reloaded = true;
-     setTimeout(() => window.location.reload(), 200);
-   };
-   navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+   // NOTE: We intentionally do NOT force a window.location.reload() on the
+   // service-worker `controllerchange` event. That handler caused the
+   // "page reloads 7-8 times on login" loop (skipWaiting + clients.claim
+   // make the controller change on first install, and the dev server can
+   // re-evaluate sw.js on each update poll, retriggering it). A freshly
+   // deployed SW now simply takes control on the next natural navigation /
+   // manual refresh — no auto-reload, no loop.
    navigator.serviceWorker.register('/sw.js').then((reg) => {
-     // Poll for updates every 5 minutes — catches deploys that land
-     // while the user has the tab open without them having to refresh.
+     // Poll for updates every 5 minutes so a newer SW is installed in the
+     // background (it activates on the next navigation, without a reload).
      const interval = setInterval(() => {
        reg.update().catch(() => {});
      }, 5 * 60 * 1000);
      reg.__gymaxisInterval = interval;
    }).catch(() => {});
-   return () => {
-     navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-   };
+   return undefined;
  }, []);
 
  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
