@@ -320,7 +320,11 @@ export default function AppRoutes({ user, login }) {
       {/* ─── Default landing → Pulse Fitness experience (was GymAxis MarketingHome) ─── */}
       <Route path="/" element={
         user
-          ? (isIndependentEngineer(user) ? <Navigate to="/partner-engineer" replace /> : <LiteDashboardPage />)
+          ? (user.is_master_admin
+              ? <Navigate to="/master-admin" replace />
+              : isIndependentEngineer(user)
+                ? <Navigate to="/partner-engineer" replace />
+                : <LiteDashboardPage />)
           : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
       } />
       <Route path="/m/:slug/join" element={<JoinPage />} />
