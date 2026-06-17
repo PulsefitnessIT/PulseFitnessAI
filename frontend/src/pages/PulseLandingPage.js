@@ -102,24 +102,24 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
 
   const { t } = useTranslation();
   const NAV_LINKS = [
-    { href: '#capabilities', label: t('pulse.nav_what', 'What you can do'), testid: 'nav-capabilities' },
-    { href: '#ai',           label: t('pulse.nav_ai', 'AI'),                testid: 'nav-ai' },
-    { href: '#how',          label: t('pulse.nav_how', 'How it works'),     testid: 'nav-how' },
-    { to:   '/pulse-pricing',label: t('pulse.nav_plans', 'Plans'),          testid: 'nav-plans' },
-    { href: '#support',      label: t('pulse.nav_support', 'Support'),      testid: 'nav-support' },
+    { href: '/#capabilities', label: t('pulse.nav_what', 'What you can do'), testid: 'nav-capabilities' },
+    { href: '/#ai',           label: t('pulse.nav_ai', 'AI'),                testid: 'nav-ai' },
+    { href: '/#how',          label: t('pulse.nav_how', 'How it works'),     testid: 'nav-how' },
+    { to:   '/pulse-pricing', label: t('pulse.nav_plans', 'Plans'),          testid: 'nav-plans' },
+    { href: '/#support',      label: t('pulse.nav_support', 'Support'),      testid: 'nav-support' },
   ];
 
   return (
     <header className="sticky top-0 z-50 bg-black border-b border-white/10" data-testid="pulse-header">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <RouterLink to="/" className="flex items-center gap-2" aria-label="Pulse Fitness home" data-testid="pulse-logo-home">
           <img
             src="/brand/pulse-logo-reverse.svg"
             alt="Pulse Fitness"
             className="h-8 w-auto object-contain select-none"
             draggable={false}
           />
-        </div>
+        </RouterLink>
         <nav className="hidden md:flex items-center gap-7 text-[13px] font-semibold uppercase text-white/85" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif", letterSpacing: '0.08em' }}>
           {NAV_LINKS.map((l) => (
             l.to ? (
@@ -1528,30 +1528,30 @@ export function PulseFooter() {
     ['Home Gym', 'https://pulsefitness.com/product-category/home-gym/'],
     ['Flooring', 'https://pulsefitness.com/product-category/flooring/'],
     ['After Sales', 'https://pulsefitness.com/product-category/after-sales/'],
-    ['Retired Products', 'https://pulsefitness.com/product-category/retired-products/'],
+    ['Retired Products', 'https://pulsefitness.com/retired-products/'],
   ];
   const COMPANY = [
     ['Careers', 'https://pulsefitness.com/careers/'],
     ['Case Studies', 'https://pulsefitness.com/case-studies/'],
     ['Contact', 'https://pulsefitness.com/contact/'],
-    ['Feed', 'https://pulsefitness.com/feed/'],
-    ['In The Media', 'https://pulsefitness.com/in-the-media/'],
-    ['Pulse Resale', 'https://pulsefitness.com/pulse-resale/'],
+    ['Feed', 'https://pulsefitness.com/pulse-feed/'],
+    ['In The Media', 'https://pulsefitness.com/press-release/'],
+    ['Pulse Resale', 'https://pulseresale.com/'],
   ];
   const LEGAL = [
-    ['Data Protection', 'https://pulsefitness.com/data-protection/'],
+    ['Data Protection', 'https://pulsefitness.com/wp-content/uploads/2026/03/Registration-Certificate-Z7612515-Pulse-Fitness.pdf'],
     ['Privacy Policy', 'https://pulsefitness.com/privacy-policy/'],
     ['Environmental', 'https://pulsefitness.com/environmental/'],
     ['ISO Certification', 'https://pulsefitness.com/iso-certification/'],
     ['REACH Regulation', 'https://pulsefitness.com/reach-regulation/'],
     ['WEEE Statement', 'https://pulsefitness.com/weee-statement/'],
-    ['Shipping & Returns', 'https://pulsefitness.com/shipping-returns/'],
-    ['Terms & Conditions', 'https://pulsefitness.com/terms-conditions/'],
-    ["Klarna T&C's", 'https://pulsefitness.com/klarna-terms-conditions/'],
-    ["Clearpay T&C's", 'https://pulsefitness.com/clearpay-terms-conditions/'],
-    ['Pre-order/Back-order', 'https://pulsefitness.com/pre-order-back-order/'],
+    ['Shipping & Returns', 'https://pulsefitness.com/website-shipping-returns/'],
+    ['Terms & Conditions', 'https://pulsefitness.com/terms-and-conditions/'],
+    ["Klarna T&C's", 'https://pulsefitness.com/klarna-tcs/'],
+    ["Clearpay T&C's", 'https://pulsefitness.com/clearpay-tcs/'],
+    ['Pre-order/Back-order', 'https://pulsefitness.com/pre-order-and-back-order-terms-and-conditions/'],
     ['Corporate Social Responsibilities', 'https://pulsefitness.com/corporate-social-responsibilities/'],
-    ['Modern Slavery and Human Trafficking Policy', 'https://pulsefitness.com/modern-slavery-and-human-trafficking-policy/'],
+    ['Modern Slavery and Human Trafficking Policy', 'https://pulsefitness.com/pulse-modern-slavery-and-human-trafficking-policy/'],
   ];
   const linkCls = 'block text-sm text-[#6E7476] hover:text-[#19CDFF] transition-colors leading-relaxed';
   const headCls = 'text-sm font-bold tracking-wide text-[#1B1C1D] mb-3 after:block after:w-7 after:h-0.5 after:bg-[#1B1C1D] after:mt-2';
@@ -1588,8 +1588,8 @@ export function PulseFooter() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-3">
               <a href="https://www.linkedin.com/company/pulse-fitness/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Linkedin size={16} /></a>
-              <a href="https://www.instagram.com/pulsefitness/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Instagram size={16} /></a>
-              <a href="https://www.youtube.com/@pulsefitness" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Youtube size={16} /></a>
+              <a href="https://www.instagram.com/pulsefitness_official" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Instagram size={16} /></a>
+              <a href="https://www.youtube.com/user/pulsefitnessuk" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="w-10 h-10 rounded-full border border-[#6E7476] flex items-center justify-center text-[#1B1C1D] hover:bg-[#1B1C1D] hover:text-white transition-colors"><Youtube size={16} /></a>
             </div>
             <p className="mt-8 text-sm text-[#6E7476]">© Pulse Fitness {new Date().getFullYear()}</p>
           </div>
