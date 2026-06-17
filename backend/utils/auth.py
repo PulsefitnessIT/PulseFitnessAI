@@ -32,7 +32,10 @@ def set_auth_cookie(response: Response, token: str, *, max_age_hours: int = 24) 
         max_age=max_age_hours * 3600,
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",  # "strict" breaks OAuth redirects; "lax" still blocks CSRF POST
+        # SameSite=None (with Secure) is required so the cookie is sent on
+        # cross-site subrequests — e.g. when the app is embedded in the
+        # Emergent App Preview iframe. Falls back to Lax in non-secure dev.
+        samesite="none" if _COOKIE_SECURE else "lax",
         path="/",
     )
 

@@ -320,10 +320,15 @@ function App() {
  // deploy: stale menu drawer with broken module list).
  useEffect(() => {
    if (!('serviceWorker' in navigator)) return undefined;
-   let didReload = false;
    const handleControllerChange = () => {
-     if (didReload) return;
-     didReload = true;
+     // Guard in sessionStorage so the flag SURVIVES the reload — otherwise
+     // each reload resets a per-load guard and we loop (the "page reloads
+     // 7-8 times on login" bug). One reload per browser session is enough
+     // to pick up a freshly-activated SW after a deploy.
+     let alreadyReloaded = false;
+     try { alreadyReloaded = sessionStorage.getItem('sw_reload_done') === '1'; } catch { /* ignore */ }
+     if (alreadyReloaded) return;
+     try { sessionStorage.setItem('sw_reload_done', '1'); } catch { /* ignore */ }
      // Tiny delay so any in-flight fetch resolves before reload.
      setTimeout(() => window.location.reload(), 200);
    };

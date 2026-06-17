@@ -136,6 +136,41 @@ async def _gather(
                 ) if ev.get(k)},
             })
 
+    # ── audit_logs (the collection logins/security events are ACTUALLY
+    #    written to today; `login_events` above is legacy/never populated).
+    #    Normalised into the same shape so the panel shows real activity. ──
+    if kinds is None or any(k in kinds for k in (
+        "login", "login_failed", "logout", "mfa_verify", "mfa_failed", "password_reset"
+    )):
+        aq: dict = {"timestamp": {"$gte": since_iso}}
+        if actor_email:
+            aq["user_email"] = actor_email
+        if kinds is not None:
+            aq["action"] = {"$in": list(kinds & {
+                "login", "login_failed", "logout", "mfa_verify", "mfa_failed", "password_reset",
+            })}
+        cursor = db.audit_logs.find(aq, {"_id": 0}).sort("timestamp", -1).limit(limit)
+        async for ev in cursor:
+            action = ev.get("action") or "login"
+            out.append({
+                "timestamp": ev.get("timestamp"),
+                "kind": action,
+                "severity": _severity_for(action),
+                "organization_id": ev.get("organization_id"),
+                "actor_email": ev.get("user_email"),
+                "actor_type": "operator",
+                "summary": (
+                    f"{action.replace('_', ' ').title()}"
+                    + (f" from {ev['ip_address']}" if ev.get("ip_address") else "")
+                ),
+                "details": {k: v for k, v in {
+                    "ip": ev.get("ip_address"),
+                    "info": ev.get("details"),
+                    "resource": ev.get("resource_type"),
+                }.items() if v},
+            })
+
+
     # ── wallet_ledger (topups + debits + refunds) ───────────────────
     if kinds is None or any(k in kinds for k in (
         "wallet_topup", "wallet_debit", "wallet_refund",

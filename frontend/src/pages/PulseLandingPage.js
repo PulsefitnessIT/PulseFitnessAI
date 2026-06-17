@@ -1614,7 +1614,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) clear(); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white border-slate-200" data-testid="pulse-login-dialog">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white border-slate-200 [&>button]:!mt-3 [&>button]:!mr-3" data-testid="pulse-login-dialog">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-2xl font-bold text-[var(--color-surface-dark-panel-alt)]">{t('pulse.lm_title', 'Welcome back')}</DialogTitle>
           <DialogDescription className="text-[var(--color-text-slate)]">{t('pulse.lm_sub', 'Sign in to your Pulse Fitness portal')}</DialogDescription>

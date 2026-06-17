@@ -1,0 +1,106 @@
+{
+  "test_type": "backend_fixes_verification",
+  "timestamp": "2026-06-17T09:26:12.512825",
+  "total_tests": 16,
+  "passed_tests": 16,
+  "failed_tests": 0,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "test": "Login Response Status",
+      "success": true,
+      "details": "Status: 200 OK",
+      "timestamp": "2026-06-17T09:26:11.923345"
+    },
+    {
+      "test": "Token in Response Body",
+      "success": true,
+      "details": "Token received, User: admin@pulsefitness.com, is_master_admin: True",
+      "timestamp": "2026-06-17T09:26:11.923379"
+    },
+    {
+      "test": "ga_session Cookie Present",
+      "success": true,
+      "details": "ga_session cookie found",
+      "timestamp": "2026-06-17T09:26:11.923390"
+    },
+    {
+      "test": "SameSite=None Attribute",
+      "success": true,
+      "details": "\u2713 SameSite=None present (allows cross-site cookie in iframe)",
+      "timestamp": "2026-06-17T09:26:11.923395"
+    },
+    {
+      "test": "Secure Attribute",
+      "success": true,
+      "details": "\u2713 Secure attribute present (required with SameSite=None)",
+      "timestamp": "2026-06-17T09:26:11.923400"
+    },
+    {
+      "test": "Authenticated Call with Cookie",
+      "success": true,
+      "details": "\u2713 GET /api/auth/me succeeded using cookie. User: admin@pulsefitness.com",
+      "timestamp": "2026-06-17T09:26:12.008772"
+    },
+    {
+      "test": "Audit Log Endpoint Status",
+      "success": true,
+      "details": "Status: 200 OK",
+      "timestamp": "2026-06-17T09:26:12.140685"
+    },
+    {
+      "test": "Audit Log Has Events",
+      "success": true,
+      "details": "\u2713 7 event(s) returned",
+      "timestamp": "2026-06-17T09:26:12.140729"
+    },
+    {
+      "test": "Login Event Present",
+      "success": true,
+      "details": "\u2713 Login event(s) found",
+      "timestamp": "2026-06-17T09:26:12.140735"
+    },
+    {
+      "test": "Event Has actor_email",
+      "success": true,
+      "details": "\u2713 actor_email present: admin@pulsefitness.com",
+      "timestamp": "2026-06-17T09:26:12.140781"
+    },
+    {
+      "test": "Event Has timestamp",
+      "success": true,
+      "details": "\u2713 timestamp present: 2026-06-17T09:26:11.905009+00:00",
+      "timestamp": "2026-06-17T09:26:12.140786"
+    },
+    {
+      "test": "Event Has summary",
+      "success": true,
+      "details": "\u2713 summary present: Login from 10.79.128.145",
+      "timestamp": "2026-06-17T09:26:12.140791"
+    },
+    {
+      "test": "Event Has details Object",
+      "success": true,
+      "details": "\u2713 details object present with IP: 10.79.128.145",
+      "timestamp": "2026-06-17T09:26:12.140796"
+    },
+    {
+      "test": "MASTER_ADMIN_RESET_ON_BOOT=0",
+      "success": true,
+      "details": "\u2713 MASTER_ADMIN_RESET_ON_BOOT is set to 0 (password will persist)",
+      "timestamp": "2026-06-17T09:26:12.141624"
+    },
+    {
+      "test": "Master Admin Login Still Works",
+      "success": true,
+      "details": "\u2713 Login successful with admin@pulsefitness.com / MasterAdmin123!",
+      "timestamp": "2026-06-17T09:26:12.511928"
+    },
+    {
+      "test": "User is Master Admin",
+      "success": true,
+      "details": "\u2713 is_master_admin=True, email=admin@pulsefitness.com",
+      "timestamp": "2026-06-17T09:26:12.511939"
+    }
+  ]
+}

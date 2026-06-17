@@ -103,7 +103,7 @@ async def issue_refresh_token(
             value=token,
             httponly=True,
             secure=_COOKIE_SECURE,
-            samesite="lax",
+            samesite="none" if _COOKIE_SECURE else "lax",
             max_age=REFRESH_TOKEN_TTL_DAYS * 86400,
             path=REFRESH_COOKIE_PATH,
         )

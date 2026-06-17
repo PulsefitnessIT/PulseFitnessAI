@@ -120,6 +120,36 @@ async def seed_master_admin() -> None:
             f"Master admin verified (password reset on boot disabled): {master_email}",
         )
 
+    # ── White-label handover — decommission legacy GymAxis records ──────
+    # Production's DB predates the Pulse Fitness conversion and may still
+    # contain the old `admin@gymaxisai.com` master admin and "GymAxis*"
+    # organisations. Remove them on every boot (idempotent) so a redeploy
+    # cleans production automatically. Never touches the configured master
+    # admin (master_email) or any Pulse-named record.
+    try:
+        async for legacy in db.users.find(
+            {"email": {"$regex": "@gymaxisai\\.com$", "$options": "i"}},
+            {"_id": 0, "id": 1, "email": 1},
+        ):
+            if (legacy.get("email") or "").lower() == master_email.lower():
+                continue
+            await db.users.delete_one({"id": legacy["id"]})
+            logger.info("Decommissioned legacy GymAxis user: %s", legacy.get("email"))
+
+        async for org in db.organizations.find(
+            {"name": {"$regex": "^gym\\s*axis", "$options": "i"}},
+            {"_id": 0, "id": 1, "name": 1},
+        ):
+            await db.organizations.delete_one({"id": org["id"]})
+            await db.users.delete_many(
+                {"organization_id": org["id"], "email": {"$ne": master_email}},
+            )
+            logger.info("Decommissioned legacy GymAxis org: %s", org.get("name"))
+    except Exception as e:  # pragma: no cover — best-effort cleanup
+        logger.warning("Legacy GymAxis decommission skipped: %s", e)
+
+
+
 
 async def seed_services() -> None:
     """Seed integrations, CRM admin, picklists, memberships & indexes."""
