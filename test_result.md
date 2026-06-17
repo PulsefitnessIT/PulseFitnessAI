@@ -385,3 +385,96 @@ agent_communication:
         
         All three fixes are working correctly. No external integrations (Stripe/email) were tested
         as requested. Backend is healthy and ready for production use.
+
+frontend:
+  - task: "Login flow end-to-end validation (user review request)"
+    implemented: true
+    working: false
+    file: "frontend/src/pages/PulseLandingPage.js, frontend/src/App.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "user"
+          comment: "User requested comprehensive validation of login flow and recent bug fixes: (1) Default landing page shows Pulse Fitness portal, (2) Login modal close button positioning, (3) Login flow + session persistence (no 'session expired' banner), (4) Reload loop count (should be 1-2 max), (5) Master Admin audit log shows login events with details, (6) No console errors or broken images."
+        - working: false
+          agent: "testing"
+          comment: "❌ CRITICAL ISSUE FOUND: Excessive reload loop detected. Test results: (1) ✅ PASS - Default landing page correctly shows Pulse Fitness Self-Service Portal with hero 'Maintain your gym. In one place.', badge, and logo. Tab title: 'Pulse Fitness AI | Fitness Operations Platform'. (2) ✅ PASS - Login modal close (X) button is positioned INSIDE the modal card at top-right (x=1135, y=340.8), not escaping borders. Modal shows 'Welcome back / Sign in to your Pulse Fitness portal'. (3) ⚠️ PARTIAL - Login succeeds with admin@pulsefitness.com / MasterAdmin123! and lands on /master-admin. NO 'session expired' banner appears immediately after login. Session persists for ~10 seconds and navigation to /dashboard works. HOWEVER, session expires after a few minutes (401 Unauthorized in backend logs). (4) ❌ FAIL - RELOAD LOOP BUG: 7 full page navigations/reloads detected to the same URL (https://fitness-ai-migrate.preview.emergentagent.com/master-admin) during and after login. Expected: 1-2 navigations max. This is excessive and indicates a reload loop issue. (5) ❌ CANNOT VERIFY - Audit log not accessible. Session expired before reaching audit log section. Could not find 'Login from' events or Settings & Compliance → Audit log navigation. (6) ✅ PASS - Only CSP warnings for external scripts (PostHog, Emergent, Cloudflare) in console, no critical errors. No broken images. No visible 'GymAxis' text found. CRITICAL BUG: The 7-navigation reload loop is the primary issue that needs immediate attention."
+
+agent_communication:
+    - agent: "testing"
+      message: >
+        ❌ CRITICAL BUG FOUND: Login flow has an excessive reload loop (7 navigations to /master-admin).
+        
+        DETAILED TEST RESULTS (Per-Item PASS/FAIL):
+        
+        1. DEFAULT LANDING PAGE: ✅ PASS
+           - Tab title: "Pulse Fitness AI | Fitness Operations Platform" ✓
+           - Hero headline: "Maintain your gym. In one place." ✓
+           - Badge: "PULSE FITNESS SELF-SERVICE PORTAL" visible ✓
+           - Pulse Fitness logo visible in header ✓
+           - Screenshot: 01_landing_page.png
+        
+        2. LOGIN MODAL CLOSE (X) BUTTON: ✅ PASS
+           - Close button visible and positioned INSIDE modal card ✓
+           - Modal position: x=736.0, y=327.8, width=448.0, height=424.5
+           - Close button position: x=1135.0, y=340.8, width=36.0, height=36.0
+           - Button is within modal bounds (not escaping/overlapping border) ✓
+           - Modal shows "Welcome back / Sign in to your Pulse Fitness portal" ✓
+           - Screenshot: 02_login_modal.png
+        
+        3. LOGIN FLOW + SESSION PERSISTENCE: ⚠️ PARTIAL PASS
+           - Login with admin@pulsefitness.com / MasterAdmin123! succeeds ✓
+           - Lands on authenticated /master-admin page ✓
+           - NO "Your session has expired" banner appears after login ✓
+           - Session persists for ~10 seconds + navigation to /dashboard works ✓
+           - HOWEVER: Session expires after a few minutes (backend logs show 401 Unauthorized for /api/auth/me and /api/auth/refresh)
+           - Screenshot: 03_authenticated_dashboard.png
+        
+        4. RELOAD LOOP: ❌ FAIL - CRITICAL BUG
+           - Navigation count: 7 full page reloads/navigations
+           - All 7 navigations to same URL: https://fitness-ai-migrate.preview.emergentagent.com/master-admin
+           - Expected: 1-2 navigations (login submit + redirect)
+           - This is EXCESSIVE and indicates a reload loop bug
+           - Navigation events:
+             1. Navigation #1 at /master-admin
+             2. Navigation #2 at /master-admin
+             3. Navigation #3 at /master-admin
+             4. Navigation #4 at /master-admin (after 10s wait + manual navigation)
+             5. Navigation #5 at /master-admin
+             6. Navigation #6 at /master-admin
+             7. Navigation #7 at /master-admin
+        
+        5. MASTER ADMIN AUDIT LOG: ❌ CANNOT VERIFY
+           - Could not access audit log section
+           - Session expired before reaching audit log
+           - No "Login from <ip>" events found
+           - Could not locate Settings & Compliance → Audit log navigation
+           - Backend logs show audit_logs collection exists and has data (from previous tests)
+           - Screenshot: 05_audit_log.png (shows session expired state)
+        
+        6. CONSOLE ERRORS / BROKEN IMAGES / GYMAXIS TEXT: ✅ PASS
+           - Console: 6 CSP warnings for external scripts (PostHog, Emergent, Cloudflare) - NOT critical ✓
+           - No other console errors ✓
+           - No broken images detected ✓
+           - No visible "GymAxis" text found on landing page ✓
+        
+        CRITICAL ACTION ITEMS FOR MAIN AGENT:
+        1. 🔴 HIGH PRIORITY: Fix the reload loop bug (7 navigations to /master-admin after login)
+           - Investigate App.js, AppRoutes.js, and authentication flow
+           - Check for infinite redirect loops or useEffect dependencies causing re-renders
+           - Look for navigation logic that might be triggering multiple times
+        
+        2. 🟡 MEDIUM PRIORITY: Investigate session expiration issue
+           - Session works initially but expires after a few minutes
+           - Backend logs show 401 Unauthorized for /api/auth/me and /api/auth/refresh
+           - Check cookie expiration settings and refresh token logic
+        
+        3. 🟡 MEDIUM PRIORITY: Verify audit log accessibility
+           - Once reload loop is fixed, re-test audit log navigation
+           - Ensure Settings & Compliance → Audit log is accessible from /master-admin
+           - Verify "Login from <ip>" events with actor email are displayed
+        
+        RELOAD/NAVIGATION COUNT: 7 (EXCESSIVE - should be 1-2 max)
+
