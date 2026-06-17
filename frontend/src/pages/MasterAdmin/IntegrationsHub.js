@@ -203,7 +203,7 @@ const MappingCoverageStrip = ({ coverage }) => {
             </span>
           </h3>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            % of Pydantic fields + manifest entries in <code className="text-zinc-700">routes/svc/*</code> annotated with a Sicon / Sage / <code>gymaxis_only</code> tag. Source-of-truth: <code className="text-zinc-700">INTEGRATION_FIELD_MAPPING.md</code>.
+            % of Pydantic fields + manifest entries in <code className="text-zinc-700">routes/svc/*</code> annotated with a Sicon / Sage / platform-only tag. Source-of-truth: <code className="text-zinc-700">INTEGRATION_FIELD_MAPPING.md</code>.
           </p>
         </div>
         <span className="text-[10px] text-zinc-400 italic flex-shrink-0">

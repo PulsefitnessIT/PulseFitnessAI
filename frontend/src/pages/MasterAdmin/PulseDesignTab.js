@@ -131,9 +131,9 @@ export default function PulseDesignTab() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm text-amber-900 leading-relaxed">
           <p className="font-bold mb-2">Pulse stays Pulse.</p>
           <ul className="space-y-1 list-disc pl-5">
-            <li>Never apply <code className="font-mono text-xs">.theme-gymaxis</code> to Pulse-branded routes (the global brand-attr sync does this for you).</li>
+            <li>Legacy theme classes are applied automatically by the global brand-attr sync — you never need to set them manually.</li>
             <li>The Pulse landing page injects scoped CSS via <code className="font-mono text-xs">PULSE_LANDING_CSS</code>; reuse it for any new Pulse marketing page.</li>
-            <li>No Pulse Fitness purple gradients on Pulse surfaces. The Pulse identity is white + cyan + ink.</li>
+            <li>No purple gradients on Pulse surfaces. The Pulse identity is white + cyan + ink.</li>
             <li>Logo: rounded badge, never on dark cyan backgrounds at &gt;60% opacity.</li>
           </ul>
         </div>

@@ -156,7 +156,7 @@ export default function IntegrationsSiconConnect() {
 
           <Field label="Username" icon={KeyRound} testid="sicon-username"
                   value={form.username} onChange={v => setForm(f => ({ ...f, username: v }))}
-                  placeholder="api-user@gymaxis"
+                  placeholder="api-user@pulsefitness"
                   hint={form.username === '••••••••' ? 'A username is saved — type a new one to replace.' : ''} />
 
           <Field label="Password" icon={EyeOff} testid="sicon-password" type="password"
