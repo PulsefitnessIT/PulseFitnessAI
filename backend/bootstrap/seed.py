@@ -45,7 +45,23 @@ async def seed_master_admin() -> None:
     master_email = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai")
     master_pwd = os.environ.get("MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
     reset_on_boot = os.environ.get("MASTER_ADMIN_RESET_ON_BOOT", "1") != "0"
-    existing = await db.users.find_one({"email": master_email})
+    # Resolve (and de-duplicate) the master-admin user. A manual email rename
+    # in the UI can collide with a seed-created account, leaving TWO users
+    # with the same email — login then matches an account whose password we
+    # never reset, so the operator appears "locked out with the right
+    # password". Keep ONE (prefer an existing master admin, then oldest) and
+    # remove the duplicates so login + the password reset target the same row.
+    dupes = await db.users.find({"email": master_email}).to_list(length=100)
+    existing = None
+    if dupes:
+        dupes.sort(key=lambda u: (0 if u.get("is_master_admin") else 1, u.get("created_at") or ""))
+        existing = dupes[0]
+        for extra in dupes[1:]:
+            await db.users.delete_one({"id": extra.get("id")})
+            logger.warning(
+                "Removed duplicate master-admin user (email=%s, id=%s)",
+                master_email, extra.get("id"),
+            )
     if not existing:
         admin_id = str(uuid.uuid4())
         org_id = str(uuid.uuid4())
