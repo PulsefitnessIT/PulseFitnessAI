@@ -898,6 +898,16 @@ const LiteDialogs = ({
                     <ChevronDown size={14} className="transition-transform [details[open]_&]:rotate-180" />
                   </summary>
                   <div className="px-3 pb-3 pt-1 space-y-2.5" data-testid="ai-triage-result">
+                    {triageResult.warranty_notice && (
+                      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3" data-testid="triage-warranty-notice">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Shield size={14} className="text-amber-400" />
+                          <span className="text-sm font-semibold text-amber-400">{triageResult.warranty_notice.title || 'Under manufacturer warranty'}</span>
+                        </div>
+                        <p className="text-xs text-[var(--theme-text)] leading-relaxed">{triageResult.warranty_notice.message}</p>
+                        <p className="text-[11px] text-amber-300/90 mt-1.5 font-medium">Contact the manufacturer / authorised service agent before any repair — the AI triage below is informational only.</p>
+                      </div>
+                    )}
                     {triageResult.priority && (
                       <div className="text-xs"><span className="text-[var(--color-text-muted)]">Priority:</span> <span className="text-[var(--theme-text)] font-medium ml-1">{triageResult.priority}</span></div>
                     )}

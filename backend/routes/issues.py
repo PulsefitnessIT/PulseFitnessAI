@@ -19,6 +19,25 @@ from routes.issue_helpers import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# When a machine is still under manufacturer warranty, DIY repairs can
+# invalidate the cover. The triage must lead with manual guidance + a
+# manufacturer referral BEFORE offering hands-on AI repair steps.
+WARRANTY_TRIAGE_ADDENDUM = (
+    "\n\nWARRANTY-PROTECTION PROTOCOL (this machine is still under the "
+    "manufacturer's warranty):\n"
+    "1. FIRST, surface any relevant recommendations from the manufacturer's "
+    "manuals / knowledge provided. If the manual covers this fault, quote it.\n"
+    "2. THEN strongly advise the operator to contact the manufacturer or an "
+    "authorised service agent before carrying out ANY physical repair, because "
+    "self-repair may invalidate the warranty. Make this the headline action.\n"
+    "3. ONLY AFTER that, provide the AI triage as informational guidance to help "
+    "the operator describe the fault to the manufacturer. Keep can_fix_onsite "
+    "false unless the step is a non-invasive check (e.g. confirming it's plugged "
+    "in, reading an error code) that cannot affect the warranty.\n"
+    "Begin your diagnosis text with a clear line: 'Under manufacturer warranty — "
+    "contact the manufacturer / authorised agent before repair.'"
+)
+
 try:
     import resend
 except ImportError:
@@ -49,10 +68,24 @@ async def coverage_lookup(
 @router.post("/issues/triage")
 async def triage_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     try:
+        # Auto-warranty check: if this machine is still under manufacturer
+        # warranty, the triage must lead with manual guidance + a manufacturer
+        # referral so the operator doesn't invalidate the cover with a DIY fix.
+        coverage = await _resolve_coverage_for_issue(
+            issue.serial_number, user.get("organization_id"),
+        )
+        in_warranty = bool(coverage.get("warranty_active"))
+        warranty_expiry = coverage.get("warranty_expiry")
+        warranty_expiry_display = (warranty_expiry or "").split("T")[0]
+
+        system_message = build_triage_system_message(issue.language)
+        if in_warranty:
+            system_message += WARRANTY_TRIAGE_ADDENDUM
+
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"triage_{datetime.now().timestamp()}",
-            system_message=build_triage_system_message(issue.language),
+            system_message=system_message,
         ).with_model("openai", "gpt-5.2")
 
         prompt = build_triage_prompt(issue)
@@ -60,6 +93,12 @@ async def triage_issue(issue: IssueCreate, user: dict = Depends(get_current_user
 
         knowledge_docs = await _fetch_relevant_knowledge(issue.machine_type, issue.supplier, user.get('organization_id'))
         prompt += format_knowledge_context(knowledge_docs)
+        if in_warranty:
+            prompt += (
+                "\n\nNOTE: This machine IS under manufacturer warranty"
+                + (f" (expires {warranty_expiry_display})." if warranty_expiry_display else ".")
+                + " Apply the WARRANTY-PROTECTION PROTOCOL from your instructions."
+            )
         prompt += "\n\nPerform triage and provide structured repair steps."
 
         raw_result = await call_ai_with_retry(chat, UserMessage(text=prompt))
@@ -71,15 +110,37 @@ async def triage_issue(issue: IssueCreate, user: dict = Depends(get_current_user
         if suggested_code and suggested_code not in VALID_FAULT_CODES:
             suggested_code = None
 
+        # Build a warranty notice the UI shows ABOVE the triage steps, and never
+        # let the AI push an on-site fix while the machine is under warranty.
+        warranty_notice = None
+        can_fix_onsite = parsed.get('can_fix_onsite', False)
+        if in_warranty:
+            can_fix_onsite = False
+            warranty_notice = {
+                "in_warranty": True,
+                "warranty_expiry": warranty_expiry,
+                "warranty_days_remaining": coverage.get("warranty_days_remaining"),
+                "title": "Under manufacturer warranty",
+                "message": (
+                    "This machine is under manufacturer warranty"
+                    + (f" until {warranty_expiry_display}" if warranty_expiry_display else "")
+                    + ". Check the manufacturer's manual first and contact the "
+                    "manufacturer or an authorised service agent before any repair — "
+                    "carrying out your own repair may invalidate the warranty."
+                ),
+            }
+
         return {
             "diagnosis": parsed.get('diagnosis', ''),
-            "can_fix_onsite": parsed.get('can_fix_onsite', False),
+            "can_fix_onsite": can_fix_onsite,
             "repair_steps": parsed.get('repair_steps', []),
             "tools_needed": parsed.get('tools_needed', []),
             "estimated_time": parsed.get('estimated_time', 'Unknown'),
             "engineer_reason": parsed.get('engineer_reason'),
             "severity_assessment": parsed.get('severity_assessment', issue.severity),
             "fault_code": suggested_code,
+            "warranty_active": in_warranty,
+            "warranty_notice": warranty_notice,
             "raw_triage": raw_result,
         }
     except Exception as e:
