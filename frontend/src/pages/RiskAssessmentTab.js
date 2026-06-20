@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
-import { Shield, Plus, Printer, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, Plus, Printer, Sparkles, ChevronDown, ChevronUp, Camera } from 'lucide-react';
 
 const RISK_COLORS = {
  low: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Low' },
@@ -35,8 +35,9 @@ const RiskAssessmentTab = () => {
  const [selectedRA, setSelectedRA] = useState(null);
  const [generating, setGenerating] = useState(false);
  const [saving, setSaving] = useState(false);
- const [_photoAnalyzing, _setPhotoAnalyzing] = useState(false);
- const [_photoUrl, _setPhotoUrl] = useState(null);
+ const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
+ const [photos, setPhotos] = useState([]);
+ const photoInputRef = useRef(null);
  const _printRef = useRef(null);
 
  const [form, setForm] = useState({
@@ -110,6 +111,43 @@ const RiskAssessmentTab = () => {
  notify.error('Failed to generate AI hazards');
  } finally {
  setGenerating(false);
+ }
+ };
+
+ const handlePhotoAnalyze = async (fileList) => {
+ const files = Array.from(fileList || []);
+ if (!files.length) return;
+ setPhotoAnalyzing(true);
+ const token = localStorage.getItem('token');
+ try {
+ const fd = new FormData();
+ files.forEach(f => fd.append('files', f));
+ const res = await axios.post(`${API}/risk-assessments/photo-analyze`, fd, {
+ headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+ });
+ const d = res.data || {};
+ const newHazards = (d.hazards || []).map(h => ({
+ ...h,
+ rrn: (h.plr || 1) * (h.psr || 1),
+ post_rrn: (h.post_plr || 1) * (h.post_psr || 1),
+ }));
+ const urls = d.photo_urls || (d.photo_url ? [d.photo_url] : []);
+ setPhotos(prev => [...prev, ...urls.map(u => ({ url: u }))]);
+ setForm(prev => ({
+ ...prev,
+ hazards: [...prev.hazards, ...newHazards],
+ photo_url: prev.photo_url || urls[0] || null,
+ notes: [
+ prev.notes,
+ d.equipment_identified ? `AI photo review — Equipment: ${d.equipment_identified}` : '',
+ d.environment_observations ? `Environment: ${d.environment_observations}` : '',
+ ].filter(Boolean).join('\n'),
+ }));
+ notify.success(`AI reviewed ${urls.length} photo${urls.length !== 1 ? 's' : ''} — added ${newHazards.length} hazard${newHazards.length !== 1 ? 's' : ''}`);
+ } catch (e) {
+ notify.error('Photo analysis failed');
+ } finally {
+ setPhotoAnalyzing(false);
  }
  };
 
@@ -266,7 +304,7 @@ const RiskAssessmentTab = () => {
  <p className="text-[var(--color-text-muted)]">Create, manage and print professional risk assessments for your facility</p>
  </div>
  <Button
- onClick={() => setShowCreateDialog(true)}
+ onClick={() => { setPhotos([]); setShowCreateDialog(true); }}
  className=""
  data-testid="new-risk-assessment-btn"
  >
@@ -378,6 +416,25 @@ const RiskAssessmentTab = () => {
  <Button size="sm" variant="outline" className="border-[var(--theme-border)] text-[var(--theme-text)]" onClick={addBlankHazard} data-testid="add-hazard-btn">
  <Plus size={14} className="mr-1" /> Add Hazard
  </Button>
+ <input
+ ref={photoInputRef}
+ type="file"
+ accept="image/*"
+ multiple
+ className="hidden"
+ data-testid="ra-photo-input"
+ onChange={(e) => { handlePhotoAnalyze(e.target.files); e.target.value = ''; }}
+ />
+ <Button size="sm" variant="outline" className="border-[var(--theme-border)] text-[var(--theme-text)]" onClick={() => photoInputRef.current?.click()} disabled={photoAnalyzing} data-testid="ra-photo-analyze-btn">
+ {photoAnalyzing ? (
+ <span className="flex items-center gap-2">
+ <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></span>
+ Reviewing…
+ </span>
+ ) : (
+ <><Camera size={14} className="mr-1" /> Analyse Photos (AI)</>
+ )}
+ </Button>
  <Button size="sm" className="" onClick={handleAIGenerate} disabled={generating || !form.title} data-testid="ai-generate-btn">
  {generating ? (
  <span className="flex items-center gap-2">
@@ -390,6 +447,17 @@ const RiskAssessmentTab = () => {
  </Button>
  </div>
  </div>
+
+ {photos.length > 0 && (
+ <div className="flex flex-wrap gap-2 mb-4" data-testid="ra-photo-thumbs">
+ {photos.map((p, i) => (
+ <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-[var(--theme-border)]">
+ <img src={p.url} alt={`RA photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+ </div>
+ ))}
+ <span className="self-center text-xs text-[var(--color-text-muted)]">{photos.length} photo{photos.length !== 1 ? 's' : ''} reviewed by AI</span>
+ </div>
+ )}
 
  {form.hazards.length === 0 && (
  <div className="text-center py-6 text-[var(--color-text-muted)]">
