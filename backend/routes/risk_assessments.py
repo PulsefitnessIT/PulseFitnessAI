@@ -43,6 +43,8 @@ async def create_risk_assessment(ra: RiskAssessmentCreate, user: dict = Depends(
         "hazards": hazards,
         "recommendations": ra.recommendations,
         "notes": ra.notes,
+        "photo_url": ra.photo_url,
+        "photo_urls": ra.photo_urls or ([ra.photo_url] if ra.photo_url else []),
         "status": "active",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()

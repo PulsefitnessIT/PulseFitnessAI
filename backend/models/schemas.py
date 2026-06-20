@@ -316,3 +316,6 @@ class RiskAssessmentCreate(BaseModel):
     hazards: List[Dict[str, Any]] = []
     recommendations: List[Dict[str, Any]] = []
     notes: Optional[str] = None
+    # Photos reviewed by the AI vision analysis, surfaced on the PDF report.
+    photo_url: Optional[str] = None
+    photo_urls: List[str] = []

@@ -479,7 +479,7 @@ async def public_equipment_info(equipment_id: str, request: Request):
 
 
 _QR_TRIAGE_SYSTEM_MSG = """You are an expert gym equipment technician performing triage on a fault report submitted via QR code scan.
-Analyse the fault description (and photo if provided) and return ONLY valid JSON:
+When a photo is provided, INSPECT IT CLOSELY for visible evidence (damage, wear, error codes on the display, loose/frayed cabling, fluid leaks, missing guards) and let what you actually see drive the diagnosis. Combine the photo with the fault description, then return ONLY valid JSON:
 {
   "severity_assessment": "low|medium|critical",
   "diagnosis": "Brief diagnosis of the likely fault",

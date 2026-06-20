@@ -186,11 +186,12 @@ const RiskAssessmentTab = () => {
  setSaving(true);
  const token = localStorage.getItem('token');
  try {
- const res = await axios.post(`${API}/risk-assessments`, form, {
+ const res = await axios.post(`${API}/risk-assessments`, { ...form, photo_urls: photos.map(p => p.url) }, {
  headers: { Authorization: `Bearer ${token}` }
  });
  setAssessments([res.data, ...assessments]);
  setShowCreateDialog(false);
+ setPhotos([]);
  setForm({
  title: '', site_name: '', assessor: user?.full_name || '',
  assessment_date: new Date().toISOString().split('T')[0],
@@ -269,6 +270,7 @@ const RiskAssessmentTab = () => {
  <tbody>${hazardRows}</tbody>
  </table>
  ${ra.notes ? `<div style="margin-top:20px;padding:15px;background:var(--color-neutral-75);border-radius:4px;"><strong>Notes:</strong><br>${ra.notes}</div>` : ''}
+ ${(ra.photo_urls && ra.photo_urls.length) ? `<div style="margin-top:20px;"><strong>Reviewed Photos (${ra.photo_urls.length}):</strong><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${ra.photo_urls.map(u => `<img src="${u}" style="width:170px;height:128px;object-fit:cover;border:1px solid #ddd;border-radius:4px;" />`).join('')}</div></div>` : (ra.photo_url ? `<div style="margin-top:20px;"><strong>Reviewed Photo:</strong><div style="margin-top:8px;"><img src="${ra.photo_url}" style="width:170px;height:128px;object-fit:cover;border:1px solid #ddd;border-radius:4px;" /></div></div>` : '')}
  <div style="margin-top:20px;padding:15px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;font-size:11px;color:#856404;">
  <strong>Disclaimer:</strong> This risk assessment is provided for example and guidance purposes only. Health and safety compliance remains the sole responsibility of the site owner, operator, and designated competent person(s). All assessments must be reviewed, validated, and signed off by an appropriately qualified assessor before implementation.
  </div>
