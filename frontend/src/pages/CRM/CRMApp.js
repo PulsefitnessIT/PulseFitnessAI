@@ -18,6 +18,7 @@ import CRMInbox from './CRMInbox';
 import CRMSettings from './CRMSettings';
 import CRMWorkflows from './CRMWorkflows';
 import CRMCPQ from './CRMCPQ';
+import CRMQuoteCompare from './CRMQuoteCompare';
 import CRMDocuments from './CRMDocuments';
 import CRMDemoTour from './CRMDemoTour';
 import CRMTenders from './CRMTenders';
@@ -34,7 +35,7 @@ import { LEAD_SOURCE_OPTIONS, CRM_TASK_TYPE_OPTIONS, CRM_TASK_PRIORITY_OPTIONS }
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
-import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3, GitCompareArrows } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CRMContext = createContext();
@@ -68,6 +69,7 @@ const NAV_ITEMS = [
   // ─── Sales flow ───
   { id: 'pipeline', labelKey: 'crm.pipeline', icon: GitBranch },
   { id: 'quotes', labelKey: 'crm.quotes', icon: FileText },
+  { id: 'quote-compare', labelKey: 'crm.quote_compare', icon: GitCompareArrows, hideFromBar: true },
   { id: 'forecast', labelKey: 'crm.forecast', icon: TrendingUp },
   // ─── Daily ops ───
   { id: 'inbox', labelKey: 'crm.activity_feed', icon: Activity },
@@ -846,6 +848,7 @@ export default function CRMApp() {
       case 'calendar': return <CRMCalendar />;
       case 'workflows': return <CRMWorkflows />;
       case 'quotes': return <CRMCPQ />;
+      case 'quote-compare': return <CRMQuoteCompare />;
       case 'contracts': return <CRMContracts />;
       case 'documents': return <CRMDocuments />;
       case 'tenders': return <CRMTenders />;

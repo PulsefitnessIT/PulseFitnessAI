@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, FileText, X, ArrowLeft,
+  Plus, FileText, X, ArrowLeft, GitCompareArrows,
   Building2, User, ChevronRight, History, Copy,
   Printer, Mail, AlertTriangle, Loader2, Package, Search, Layers,
 } from 'lucide-react';
@@ -754,6 +754,9 @@ export default function CRMCPQ() {
         <p className="text-xs mr-auto" style={{ color: c.textDim }}>
           {total} quote{total !== 1 ? 's' : ''} &middot; {fmt(totalValue)} total value
         </p>
+        <button type="button" onClick={() => crm.setActiveTab && crm.setActiveTab('quote-compare')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="compare-quotes-btn">
+          <GitCompareArrows size={14} /> Compare
+        </button>
         <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-quote-btn">
           <Plus size={14} /> New Quote
         </button>

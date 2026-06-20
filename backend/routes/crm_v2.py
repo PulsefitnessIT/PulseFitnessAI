@@ -1749,6 +1749,94 @@ async def list_quotes(
     return {"quotes": items, "total": total}
 
 
+@router.get("/quotes/compare")
+async def compare_quotes(company_id: str = "", user=Depends(get_crm_user)):
+    """Like-for-like comparison of a customer's quotes.
+
+    Returns one row per distinct item — matched on **manufacturer + model**
+    (resolved via each line's product) — with the net unit price quoted in
+    every quote, plus latest-vs-previous deltas, so a rep can see how a
+    customer's pricing has moved across quotes.
+    """
+    if not company_id:
+        raise HTTPException(400, "company_id is required")
+    quotes = await db.crm2_quotes.find(
+        {"company_id": company_id, **_of(user)}, {"_id": 0},
+    ).sort("created_at", 1).to_list(500)
+
+    pids = {ln.get("product_id") for q in quotes for ln in (q.get("lines") or []) if ln.get("product_id")}
+    prod_map: dict = {}
+    if pids:
+        async for p in db.crm_products.find(
+            {"id": {"$in": list(pids)}, **_of(user)},
+            {"_id": 0, "id": 1, "manufacturer": 1, "model": 1, "name": 1, "sku": 1},
+        ):
+            prod_map[p["id"]] = p
+
+    def _key_label(ln: dict):
+        p = prod_map.get(ln.get("product_id")) or {}
+        mfr = (p.get("manufacturer") or "").strip()
+        model = (p.get("model") or "").strip()
+        if mfr or model:
+            label = f"{mfr} {model}".strip()
+        else:  # fall back to the line description / product name / sku
+            label = (ln.get("description") or p.get("name") or ln.get("sku") or "Unspecified").strip()
+        return label.lower(), label, mfr, model, (ln.get("sku") or p.get("sku") or "")
+
+    quote_meta = []
+    items_map: dict = {}
+    for q in quotes:
+        quote_meta.append({
+            "quote_id": q["id"],
+            "quote_number": q.get("quote_number", ""),
+            "title": q.get("title", ""),
+            "status": q.get("status", ""),
+            "created_at": q.get("created_at", ""),
+            "currency": q.get("currency", "GBP"),
+            "total": q.get("total", 0),
+        })
+        for ln in (q.get("lines") or []):
+            key, label, mfr, model, sku = _key_label(ln)
+            unit = float(ln.get("unit_price", 0) or 0)
+            qty = float(ln.get("quantity", 0) or 0)
+            disc = float(ln.get("discount", 0) or 0)
+            net = round(unit * (1 - disc / 100), 2)
+            it = items_map.setdefault(key, {
+                "key": key, "label": label, "manufacturer": mfr, "model": model,
+                "sku": sku, "prices": {},
+            })
+            it["prices"][q["id"]] = {"unit_price": round(unit, 2), "net_price": net, "quantity": qty, "discount": disc}
+
+    rows = []
+    for it in items_map.values():
+        prices = it["prices"]
+        nets = [v["net_price"] for v in prices.values() if v["net_price"] > 0]
+        ordered_qids = [qm["quote_id"] for qm in quote_meta if qm["quote_id"] in prices]
+        latest_qid = ordered_qids[-1] if ordered_qids else None
+        prev_qid = ordered_qids[-2] if len(ordered_qids) > 1 else None
+        latest = prices.get(latest_qid, {}).get("net_price") if latest_qid else None
+        prev = prices.get(prev_qid, {}).get("net_price") if prev_qid else None
+        delta = round(latest - prev, 2) if (latest is not None and prev is not None) else None
+        delta_pct = round(delta / prev * 100, 1) if (delta is not None and prev) else None
+        rows.append({
+            "key": it["key"], "label": it["label"], "manufacturer": it["manufacturer"],
+            "model": it["model"], "sku": it["sku"],
+            "appears_in": len(prices), "prices": prices,
+            "min": min(nets) if nets else None, "max": max(nets) if nets else None,
+            "latest": latest, "previous": prev, "delta": delta, "delta_pct": delta_pct,
+        })
+    rows.sort(key=lambda r: (-r["appears_in"], r["label"].lower()))
+
+    company = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0, "name": 1})
+    return {
+        "company_id": company_id,
+        "company_name": (company or {}).get("name", ""),
+        "quotes": quote_meta,
+        "items": rows,
+        "compared_count": sum(1 for r in rows if r["appears_in"] > 1),
+    }
+
+
 @router.post("/quotes")
 async def create_quote(data: dict, user=Depends(get_crm_user)):
     from routes.crm_quote_sage import hydrate_quote_lines
