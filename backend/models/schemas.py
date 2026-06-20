@@ -228,6 +228,16 @@ class EquipmentCreate(BaseModel):
     serial_number: Optional[str] = None
     purchase_date: Optional[str] = None
     warranty_expiry: Optional[str] = None
+    # Cost / CAPEX fields. purchase_cost = what the customer paid; the
+    # separate replacement_cost = today's like-for-like replacement price
+    # used by the CAPEX engine (falls back to purchase_cost, then a
+    # type-default, when not supplied).
+    purchase_cost: Optional[float] = None
+    replacement_cost: Optional[float] = None
+    # Service / maintenance contract the machine sits under.
+    contract_number: Optional[str] = None
+    contract_start_date: Optional[str] = None
+    contract_end_date: Optional[str] = None
     length: Optional[float] = None
     width: Optional[float] = None
     height: Optional[float] = None
@@ -265,6 +275,11 @@ class EquipmentResponse(BaseModel):
     serial_number: Optional[str]
     purchase_date: Optional[str]
     warranty_expiry: Optional[str]
+    purchase_cost: Optional[float] = None
+    replacement_cost: Optional[float] = None
+    contract_number: Optional[str] = None
+    contract_start_date: Optional[str] = None
+    contract_end_date: Optional[str] = None
     length: Optional[float]
     width: Optional[float]
     height: Optional[float]

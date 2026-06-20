@@ -461,7 +461,10 @@ async def create_engineer_equipment(
 _ENGINEER_CSV_HEADERS = [
     "Name", "Type", "Manufacturer", "Model", "Serial Number",
     "Purchase Date (YYYY-MM-DD)", "Warranty Expiry (YYYY-MM-DD)",
-    "Length (m)", "Width (m)", "Height (m)", "Location", "Notes",
+    "Purchase Cost (GBP)", "Replacement Cost (GBP)",
+    "Length (m)", "Width (m)", "Height (m)", "Site", "Location",
+    "Contract Number", "Contract Start Date (YYYY-MM-DD)", "Contract End Date (YYYY-MM-DD)",
+    "Notes",
 ]
 
 _ENGINEER_CSV_FIELD_MAP = {
@@ -472,10 +475,16 @@ _ENGINEER_CSV_FIELD_MAP = {
     "serial": "Serial Number",
     "purchase_date": "Purchase Date (YYYY-MM-DD)",
     "warranty": "Warranty Expiry (YYYY-MM-DD)",
+    "purchase_cost": "Purchase Cost (GBP)",
+    "replacement_cost": "Replacement Cost (GBP)",
     "length": "Length (m)",
     "width": "Width (m)",
     "height": "Height (m)",
+    "site": "Site",
     "location": "Location",
+    "contract_number": "Contract Number",
+    "contract_start_date": "Contract Start Date (YYYY-MM-DD)",
+    "contract_end_date": "Contract End Date (YYYY-MM-DD)",
     "notes": "Notes",
 }
 
@@ -499,8 +508,9 @@ async def get_engineer_csv_template(user=Depends(get_current_user)):
     writer.writerow(_ENGINEER_CSV_HEADERS)
     writer.writerow([
         "Treadmill #1", "Treadmill", "Life Fitness", "Integrity DX",
-        "LF-12345", "2024-01-15", "2027-01-15", "2.1", "0.9", "1.6",
-        "Cardio Zone", "Captured during PM visit",
+        "LF-12345", "2024-01-15", "2027-01-15", "3450.00", "3800.00",
+        "2.1", "0.9", "1.6", "Main Gym", "Cardio Zone",
+        "CON-2024-0142", "2024-01-15", "2029-01-14", "Captured during PM visit",
     ])
     return Response(
         content=out.getvalue(),
@@ -551,9 +561,15 @@ def _parse_engineer_csv_row(row: dict, user: dict, *, customer: dict,
         "model": _opt("model"),
         "serial_number": _opt("serial"),
         "location": _opt("location"),
+        "site_name": _opt("site"),
         "status": "in_service",
         "purchase_date": _opt("purchase_date"),
         "warranty_expiry": _opt("warranty"),
+        "purchase_cost": _float("purchase_cost"),
+        "replacement_cost": _float("replacement_cost"),
+        "contract_number": _opt("contract_number"),
+        "contract_start_date": _opt("contract_start_date"),
+        "contract_end_date": _opt("contract_end_date"),
         "length": _float("length"),
         "width": _float("width"),
         "height": _float("height"),

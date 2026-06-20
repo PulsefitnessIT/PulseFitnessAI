@@ -65,7 +65,8 @@ _EQUIPMENT_HEADERS = [
     "supplier",
     "name", "equipment_type", "manufacturer", "model", "serial_number",
     "purchase_date", "warranty_expiry", "service_provider",
-    "unit_price",
+    "unit_price", "replacement_cost",
+    "contract_number", "contract_start", "contract_end",
     "length", "width", "height", "location", "notes",
     # Iter 216h111 — MOD Force tag. Accepts Army/RAF/Navy (case-insensitive;
     # also accepts "British Army", "Royal Air Force", "Royal Navy" and the
@@ -79,7 +80,8 @@ _EQUIPMENT_EXAMPLE = [
     "Pulse Fitness",
     "Treadmill — Cardio Bay 3", "Treadmill", "Life Fitness", "T7000", "LFT-2024-04958",
     "2024-01-15", "2027-01-15", "Pulse Fitness Service",
-    "3450.00",
+    "3450.00", "3800.00",
+    "CON-2024-0142", "2024-01-15", "2029-01-14",
     "2.20", "0.95", "1.55", "Cardio Mezzanine", "Brand new — first install",
     "",  # mod_force — leave blank for non-MOD customers
 ]
@@ -499,6 +501,8 @@ async def _do_bulk_import_equipment(
                 continue
             unit_price_raw = _normalize(row, "unit_price", "Unit Price", "price", "Price") or str(get_pick(row, "unit_price", "")).strip()
             unit_price = _parse_decimal(unit_price_raw)
+            replacement_cost_raw = _normalize(row, "replacement_cost", "Replacement Cost") or str(get_pick(row, "replacement_cost", "")).strip()
+            replacement_cost = _parse_decimal(replacement_cost_raw)
             # Iter 216h51 — resolve supplier so fault-emails route to
             # the right inbox. Falls back to the manufacturer column
             # when the supplier column is blank (common when the
@@ -552,6 +556,8 @@ async def _do_bulk_import_equipment(
                 "sla_start": contract_start_iso or None,
                 "sla_expiry": contract_end_iso or None,
                 "contract_number": str(get_pick(row, "contract_number", "")).strip() or None,
+                "contract_start_date": contract_start_iso or None,
+                "contract_end_date": contract_end_iso or None,
                 "service_provider": _normalize(row, "service_provider", "Service Provider") or str(get_pick(row, "service_provider", "")).strip(),
                 # Iter 216h51 — supplier resolved against suppliers col.
                 # Store the canonical supplier name on the equipment doc
@@ -568,11 +574,13 @@ async def _do_bulk_import_equipment(
                 "width": _parse_decimal(_normalize(row, "width", "Width") or str(get_pick(row, "width", "")).strip()),
                 "height": _parse_decimal(_normalize(row, "height", "Height") or str(get_pick(row, "height", "")).strip()),
                 # Iter 216h50 — unit_price stored on both purchase_price
-                # (ledger) and replacement_cost (capex feeder). Capex
-                # falls back to the equipment-type profile when this is
-                # None, so leaving the column blank is safe.
+                # (ledger) and purchase_cost (canonical). replacement_cost
+                # uses the dedicated column when supplied, else falls back
+                # to the purchase price; Capex uses the equipment-type
+                # profile when both are blank, so leaving them blank is safe.
                 "purchase_price": unit_price,
-                "replacement_cost": unit_price,
+                "purchase_cost": unit_price,
+                "replacement_cost": replacement_cost or unit_price,
                 "site_id": site_id,
                 "status": "active",
                 "manuals": [],

@@ -193,15 +193,20 @@ async def export_equipment_csv(user: dict = Depends(get_current_user)) -> Respon
     writer = csv.writer(output)
     writer.writerow([
         "Name", "Type", "Manufacturer", "Model", "Serial Number",
-        "Purchase Date", "Warranty Expiry", "Length (m)", "Width (m)", "Height (m)", "Notes",
+        "Purchase Date", "Warranty Expiry", "Purchase Cost", "Replacement Cost",
+        "Length (m)", "Width (m)", "Height (m)", "Location",
+        "Contract Number", "Contract Start Date", "Contract End Date", "Notes",
     ])
     for equip in equipment_list:
         writer.writerow([
             equip.get('name', ''), equip.get('equipment_type', ''),
             equip.get('manufacturer', ''), equip.get('model', ''),
             equip.get('serial_number', ''), equip.get('purchase_date', ''),
-            equip.get('warranty_expiry', ''), equip.get('length', ''),
-            equip.get('width', ''), equip.get('height', ''), equip.get('notes', '')
+            equip.get('warranty_expiry', ''), equip.get('purchase_cost', ''),
+            equip.get('replacement_cost', ''), equip.get('length', ''),
+            equip.get('width', ''), equip.get('height', ''), equip.get('location', ''),
+            equip.get('contract_number', ''), equip.get('contract_start_date', ''),
+            equip.get('contract_end_date', ''), equip.get('notes', ''),
         ])
     csv_content = output.getvalue()
     return Response(content=csv_content, media_type="text/csv",
@@ -215,7 +220,9 @@ async def get_equipment_csv_template() -> Response:
     writer.writerow([
         "Name", "Type", "Manufacturer", "Model", "Serial Number",
         "Purchase Date (YYYY-MM-DD)", "Warranty Expiry (YYYY-MM-DD)",
-        "Length (m)", "Width (m)", "Height (m)", "Notes",
+        "Purchase Cost", "Replacement Cost",
+        "Length (m)", "Width (m)", "Height (m)", "Location", "Notes",
+        "Contract Number", "Contract Start Date", "Contract End Date",
         # Iter 216h240 — integration round-trip columns. Title-case to
         # match this template's existing convention. Same physical data
         # as the snake_case variant at /equipment/csv-template.
@@ -224,7 +231,9 @@ async def get_equipment_csv_template() -> Response:
     ])
     writer.writerow([
         "Treadmill Pro 9000", "Treadmill", "Life Fitness", "95T Discover SE3",
-        "LF-TM-001", "2024-01-15", "2027-01-15", "2.1", "0.9", "1.6", "Main cardio area",
+        "LF-TM-001", "2024-01-15", "2027-01-15", "3450.00", "3800.00",
+        "2.1", "0.9", "1.6", "Main cardio area", "First install",
+        "CON-2024-0142", "2024-01-15", "2029-01-14",
         "GA-TM-001", "2023-11-01", "2034-01-15", "", "",
     ])
     csv_content = output.getvalue()
@@ -251,6 +260,12 @@ def _parse_csv_row(row: dict, field_map: dict, user: dict) -> dict:
         "serial_number": row.get(field_map.get('serial', 'serial_number'), '').strip() or None,
         "purchase_date": row.get(field_map.get('purchase_date', 'purchase_date'), '').strip() or None,
         "warranty_expiry": row.get(field_map.get('warranty', 'warranty_expiry'), '').strip() or None,
+        "purchase_cost": _safe_float(row.get(field_map.get('purchase_cost', 'purchase_cost'), '')),
+        "replacement_cost": _safe_float(row.get(field_map.get('replacement_cost', 'replacement_cost'), '')),
+        "location": row.get(field_map.get('location', 'location'), '').strip() or None,
+        "contract_number": row.get(field_map.get('contract_number', 'contract_number'), '').strip() or None,
+        "contract_start_date": row.get(field_map.get('contract_start', 'contract_start_date'), '').strip() or None,
+        "contract_end_date": row.get(field_map.get('contract_end', 'contract_end_date'), '').strip() or None,
         "length": _safe_float(row.get(field_map.get('length', 'length'), '')),
         "width": _safe_float(row.get(field_map.get('width', 'width'), '')),
         "height": _safe_float(row.get(field_map.get('height', 'height'), '')),
@@ -292,6 +307,10 @@ _CSV_FIELDS_TITLE = {
     'model': 'Model', 'serial': 'Serial Number', 'purchase_date': 'Purchase Date',
     'warranty': 'Warranty Expiry', 'length': 'Length (m)', 'width': 'Width (m)',
     'height': 'Height (m)', 'notes': 'Notes', 'service_provider': 'Service Provider',
+    'purchase_cost': 'Purchase Cost', 'replacement_cost': 'Replacement Cost',
+    'location': 'Location',
+    'contract_number': 'Contract Number',
+    'contract_start': 'Contract Start Date', 'contract_end': 'Contract End Date',
     # Iter 216h240 — integration round-trip columns. Optional in the CSV.
     'qr_code': 'QR Code',
     'manufacturing_date': 'Manufacturing Date',
@@ -304,6 +323,10 @@ _CSV_FIELDS_SNAKE = {
     'model': 'model', 'serial': 'serial_number', 'purchase_date': 'purchase_date',
     'warranty': 'warranty_expiry', 'length': 'length', 'width': 'width',
     'height': 'height', 'notes': 'notes', 'service_provider': 'service_provider',
+    'purchase_cost': 'purchase_cost', 'replacement_cost': 'replacement_cost',
+    'location': 'location',
+    'contract_number': 'contract_number',
+    'contract_start': 'contract_start_date', 'contract_end': 'contract_end_date',
     # Iter 216h240 — snake_case header set.
     'qr_code': 'qr_code',
     'manufacturing_date': 'manufacturing_date',
@@ -337,13 +360,17 @@ async def import_equipment_csv_dash(file: UploadFile = File(...), user: dict = D
 async def get_csv_template() -> Response:
     template = (
         "name,equipment_type,manufacturer,model,serial_number,"
-        "purchase_date,warranty_expiry,service_provider,length,width,height,notes,"
+        "purchase_date,warranty_expiry,purchase_cost,replacement_cost,"
+        "service_provider,length,width,height,location,notes,"
+        "contract_number,contract_start_date,contract_end_date,"
         # Iter 216h240 — integration round-trip columns appended at the
         # end so existing imports stay compatible. Operators can leave
         # them blank or populate them when migrating from Orbit 4 / Sicon.
         "qr_code,manufacturing_date,deprecation_date,orbit4_asset_id,sicon_equipment_id\n"
         "Treadmill 1,Treadmill,Life Fitness,T5-Go,SN123456,"
-        "2024-01-15,2027-01-15,Pulse Fitness,2.5,1.5,1.8,Main cardio area,"
+        "2024-01-15,2027-01-15,3450.00,3800.00,"
+        "Pulse Fitness,2.5,1.5,1.8,Main cardio area,First install,"
+        "CON-2024-0142,2024-01-15,2029-01-14,"
         "GA-TM-001,2023-11-01,2034-01-15,,\n"
     )
     return Response(content=template, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=equipment_template.csv"})

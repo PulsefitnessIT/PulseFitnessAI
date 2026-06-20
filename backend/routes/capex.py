@@ -139,7 +139,10 @@ def _determine_status(total_score: float, thresholds: dict) -> tuple[str, str, O
 def _compute_capex_score(equip: dict, stats: dict, thresholds: dict) -> dict:
     """Compute CAPEX replacement score (0-100) for a single equipment item."""
     profile = _get_profile(equip.get("equipment_type", ""))
-    replacement_cost = equip.get("replacement_cost") or profile["cost"]
+    # CAPEX basis: explicit replacement_cost → the actual purchase_cost →
+    # a sensible type default. This lets imported real figures drive the
+    # forecast instead of always using the generic defaults.
+    replacement_cost = equip.get("replacement_cost") or equip.get("purchase_cost") or profile["cost"]
     expected_lifespan = (equip.get("expected_lifespan_years") or profile["lifespan"]) * 365
     days_in_service = stats.get("days_in_service")
     total_faults = stats.get("total_issues", 0)
@@ -483,7 +486,7 @@ async def get_asset_service_signals(
     if not equip:
         raise HTTPException(404, "Asset not found")
     profile = _get_profile(equip.get("equipment_type", ""))
-    replacement_cost = equip.get("replacement_cost") or profile["cost"]
+    replacement_cost = equip.get("replacement_cost") or equip.get("purchase_cost") or profile["cost"]
     signals_map = await aggregate_service_signals(
         org_filter, asset_ids=[asset_id],
     )
