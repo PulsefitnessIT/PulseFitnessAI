@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "support@service.www.pulsefitness.ai")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "support@service.pulsefitness.ai")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", os.environ.get("REACT_APP_BACKEND_URL", ""))
 
 try:
@@ -268,7 +268,7 @@ async def send_supplier_welcome_email(
 
     subject = f"Welcome to {branding['platform_name']} — how faults will reach you from {org_name}"
     payload = {
-        "from": f"{org_name} <faults@service.www.pulsefitness.ai>",
+        "from": f"{org_name} <faults@service.pulsefitness.ai>",
         "to": [email],
         "subject": subject,
         "html": html,
@@ -475,7 +475,7 @@ async def send_supplier_reassignment_email(
         f"to you by {org_name} — via {branding['platform_name']}"
     )
     payload = {
-        "from": f"{org_name} <faults@service.www.pulsefitness.ai>",
+        "from": f"{org_name} <faults@service.pulsefitness.ai>",
         "to": [email],
         "subject": subject,
         "html": html,
@@ -1303,13 +1303,13 @@ def _build_comment_email_params(case: dict, comment: dict, to_supplier: bool, ma
     if to_supplier:
         return {
             "to_email": case.get("supplier_email", ""),
-            "from_line": f"{org_name} <faults@service.www.pulsefitness.ai>",
+            "from_line": f"{org_name} <faults@service.pulsefitness.ai>",
             "subject": f"New message from {org_name} — {machine}",
             "intro": f"{org_name} has posted a new comment on the fault report for <strong>{machine}</strong>.",
         }
     return {
         "to_email": case.get("site_contact_email", ""),
-        "from_line": f"{supplier_name} {branding['via_label']} <faults@service.www.pulsefitness.ai>",
+        "from_line": f"{supplier_name} {branding['via_label']} <faults@service.pulsefitness.ai>",
         "subject": f"Supplier update from {supplier_name} — {machine}",
         "intro": f"{supplier_name} has posted a new comment on the fault report for <strong>{machine}</strong>.",
     }

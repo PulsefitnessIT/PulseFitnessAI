@@ -642,7 +642,7 @@ async def announce_event(
         if not to or "@" not in to:
             continue
         try:
-            ok = await send_email(to=to, subject=body.subject, html=body.body_html)
+            ok = await send_email(to=to, subject=body.subject, html=body.body_html, category="memberships")
             if ok:
                 sent += 1
         except Exception:

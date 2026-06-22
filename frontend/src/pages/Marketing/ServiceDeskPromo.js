@@ -41,7 +41,7 @@ function DeskMockup() {
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-          <span className="ml-3 text-[10px] font-semibold text-slate-400 truncate">fitfix.www.pulsefitness.ai/service-desk</span>
+          <span className="ml-3 text-[10px] font-semibold text-slate-400 truncate">fitfix.pulsefitness.ai/service-desk</span>
         </div>
         <div className="grid grid-cols-[88px_1fr] sm:grid-cols-[120px_1fr]">
           {/* sidebar */}

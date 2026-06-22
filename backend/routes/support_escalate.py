@@ -166,7 +166,7 @@ async def _send_escalation_email(recipient: str, subject: str, html: str, reply_
         return False
     resend.api_key = RESEND_API_KEY
     payload = {
-        "from": f"Ask Support <{SENDER_EMAIL or 'faults@service.www.pulsefitness.ai'}>",
+        "from": f"Ask Support <{SENDER_EMAIL or 'faults@service.pulsefitness.ai'}>",
         "to": [recipient],
         "subject": subject,
         "html": html,

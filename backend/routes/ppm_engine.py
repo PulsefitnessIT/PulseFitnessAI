@@ -534,7 +534,7 @@ async def _dispatch_ppm_reminder_email(resend_mod, schedule: dict, task: dict,
     try:
         import asyncio
         await asyncio.to_thread(resend_mod.Emails.send, {
-            "from": f"{site_name} <faults@service.www.pulsefitness.ai>",
+            "from": f"{site_name} <faults@service.pulsefitness.ai>",
             "to": [supplier_email],
             "subject": f"{urgency}PPM Service Due {sched_date} — {equip_type} at {site_name}",
             "html": html,

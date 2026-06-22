@@ -101,7 +101,7 @@ def _validate_hostname(raw: str) -> str:
         )
     # Block obvious platform shadows. Sub-domains of platform hosts are
     # explicitly disallowed too — a customer cannot register
-    # `evil.www.pulsefitness.ai` as their custom funnel.
+    # `evil.pulsefitness.ai` as their custom funnel.
     for blocked in PLATFORM_HOSTS:
         if host == blocked or host.endswith("." + blocked):
             raise HTTPException(
@@ -144,7 +144,7 @@ def _public_view(d: dict) -> dict:
         "dns_record": {
             "cname": {
                 "host": d.get("hostname"),
-                "value": "platform.www.pulsefitness.ai",
+                "value": "platform.pulsefitness.ai",
             },
             "txt": {
                 "host": f"_gymaxis-verify.{d.get('hostname')}",

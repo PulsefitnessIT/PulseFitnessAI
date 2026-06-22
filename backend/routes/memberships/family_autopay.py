@@ -246,7 +246,7 @@ async def _send_autopay_success_email(
   </div>
 </div>"""
     try:
-        await send_email(email, f"Paid: {period_label} invoice · {org_name}", html, category="billing")
+        await send_email(email, f"Paid: {period_label} invoice · {org_name}", html, category="memberships")
     except Exception:
         logger.exception("[autopay] success email send failed to=%s", email)
 
@@ -329,7 +329,7 @@ async def _send_autopay_decline_email(
   </div>
 </div>"""
     try:
-        await send_email(email, f"{subj_prefix}: {period_label} invoice · {org_name}", html, category="billing")
+        await send_email(email, f"{subj_prefix}: {period_label} invoice · {org_name}", html, category="memberships")
     except Exception:
         logger.exception("[autopay] decline email send failed to=%s", email)
 

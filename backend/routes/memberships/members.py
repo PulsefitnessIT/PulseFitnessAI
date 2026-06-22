@@ -797,7 +797,7 @@ async def invite_member_portal(
         f"<p style='opacity:0.6;font-size:12px'>This link expires in {_INVITE_TTL_DAYS} days. If you weren't expecting this, you can safely ignore the email.</p>"
         f"</div></div>"
     )
-    sent = await send_email(m["email"], f"Your {brand_name} portal is ready", html)
+    sent = await send_email(m["email"], f"Your {brand_name} portal is ready", html, category="memberships")
 
     return {
         "ok": True,

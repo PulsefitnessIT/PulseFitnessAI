@@ -27,7 +27,7 @@ async def send_email(*args, **kwargs):
     """Partner/engineer account comms default to the `support` sending domain.
 
     Iter 220y — every email in this module is recruitment / trial / account
-    lifecycle, so route them all from support.www.pulsefitness.ai unless a caller
+    lifecycle, so route them all from support.pulsefitness.ai unless a caller
     overrides `category` explicitly.
     """
     kwargs.setdefault("category", "support")

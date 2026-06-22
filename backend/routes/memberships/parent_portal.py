@@ -416,6 +416,7 @@ async def public_trial_booking(body: TrialBookingIn):
                     f"<p>Phone: {body.phone or '—'} · Age: {body.attendee_age or '—'}</p>"
                     f"<p>Notes: {body.notes or '—'}</p>"
                 ),
+                category="bookings",
             )
         # Confirmation to the lead.
         if body.email:
@@ -429,6 +430,7 @@ async def public_trial_booking(body: TrialBookingIn):
                     f"<strong>{org.get('name')}</strong>.</p>"
                     f"<p>We can't wait to meet you!</p>"
                 ),
+                category="bookings",
             )
     except Exception:
         logger.warning("trial signup notify failed", exc_info=True)

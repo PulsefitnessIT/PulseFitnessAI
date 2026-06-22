@@ -351,7 +351,7 @@ async def _bulk_send_reminder(
             f"</div></div>"
         )
         try:
-            sent = await send_email(m["email"], subject, html)
+            sent = await send_email(m["email"], subject, html, category="memberships")
             results.append({"member_id": mid, "ok": True, "email_sent": bool(sent)})
             # Log event for activity timeline
             await db.memberships_member_events.insert_one({

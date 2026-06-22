@@ -213,11 +213,17 @@ _CATEGORY_SENDER_ENV = {
     "billing": "SENDER_EMAIL_BILLING",
     "support": "SENDER_EMAIL_SUPPORT",
     "service": "SENDER_EMAIL_SERVICE",
+    "memberships": "SENDER_EMAIL_MEMBERSHIPS",
+    "bookings": "SENDER_EMAIL_BOOKINGS",
 }
 _CATEGORY_SENDER_DEFAULT = {
-    "billing": "Pulse Fitness Billing <billing@billing.www.pulsefitness.ai>",
-    "support": "Pulse Fitness Support <support@support.www.pulsefitness.ai>",
-    "service": "Pulse Fitness Service <service@service.www.pulsefitness.ai>",
+    # VERIFIED Resend sending domains (work immediately):
+    "service": "Pulse Fitness Service <service@service.pulsefitness.ai>",
+    "memberships": "Pulse Fitness Memberships <noreply@memberships.pulsefitness.ai>",
+    "bookings": "Pulse Fitness Bookings <bookings@bookings.pulsefitness.ai>",
+    # PENDING domains (start sending once verified in Resend):
+    "support": "Pulse Fitness Support <support@support.pulsefitness.ai>",
+    "billing": "Pulse Fitness Billing <billing@pulsefitness.ai>",
 }
 
 
@@ -273,11 +279,17 @@ def _category_for_kind(kind: str | None) -> str | None:
     if not kind:
         return None
     k = kind.lower()
-    # Billing first so `engineer.invoice*` routes to billing, not service.
+    # Membership + booking emails go out on their own verified subdomains —
+    # checked first so member invoices/payments route to the memberships
+    # domain (not the generic billing domain).
+    if k.startswith(("membership", "member.", "member_")):
+        return "memberships"
+    if k.startswith(("booking", "class.", "session.", "reservation", "waitlist")):
+        return "bookings"
+    # Billing next so `engineer.invoice*` routes to billing, not service.
     if k.startswith((
         "billing", "invoice", "payment", "engineer.invoice",
-        "partner.commission", "membership.invoice", "membership.payment",
-        "autopay", "dunning", "receipt", "sales_pack",
+        "partner.commission", "autopay", "dunning", "receipt", "sales_pack",
     )):
         return "billing"
     if k.startswith(("service", "svc", "engineer.", "supplier.case", "job", "case.")):
