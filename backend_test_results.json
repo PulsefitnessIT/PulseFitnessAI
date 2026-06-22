@@ -1,65 +1,140 @@
 {
-  "test_type": "smoke_test_white_label_rebrand",
-  "timestamp": "2026-06-16T16:35:02.275289",
-  "total_tests": 6,
-  "passed_tests": 6,
-  "failed_tests": 0,
-  "success_rate": 100.0,
+  "test_type": "production_readiness_smoke_test",
+  "timestamp": "2026-06-22T14:28:27.769141",
+  "total_tests": 15,
+  "passed_tests": 12,
+  "failed_tests": 3,
+  "success_rate": 80.0,
   "results": [
     {
-      "test": "Health Endpoint",
+      "test": "1. AUTH & ACCESS: Health Endpoint",
       "success": true,
-      "details": "Status: 200, Response: {'status': 'ok'}",
-      "timestamp": "2026-06-16T16:35:01.430013",
+      "details": "Status: 200",
+      "timestamp": "2026-06-22T14:27:46.254664",
       "response_data": {
         "status": "ok"
       }
     },
     {
-      "test": "Master Admin Login",
+      "test": "1. AUTH & ACCESS: Master Admin Login",
       "success": true,
-      "details": "Token received, User ID: 1fedcc01-1f53-408a-bc48-017375348536, Email: admin@pulsefitness.com, Is Master Admin: True",
-      "timestamp": "2026-06-16T16:35:01.758958",
+      "details": "Token received, User ID: 1fedcc01-1f53-408a-bc48-017375348536, Is Master Admin: True",
+      "timestamp": "2026-06-22T14:27:46.671216",
       "response_data": {
         "user_id": "1fedcc01-1f53-408a-bc48-017375348536",
         "is_master_admin": true
       }
     },
     {
-      "test": "Auth Me Endpoint",
+      "test": "1. AUTH & ACCESS: Authenticated Read",
       "success": true,
-      "details": "Status: 200, User: admin@pulsefitness.com, Role: owner",
-      "timestamp": "2026-06-16T16:35:01.867633",
+      "details": "Status: 200, User: admin@pulsefitness.com",
+      "timestamp": "2026-06-22T14:27:46.829249",
       "response_data": {
-        "email": "admin@pulsefitness.com",
-        "role": "owner"
+        "email": "admin@pulsefitness.com"
       }
     },
     {
-      "test": "Master Admin Organizations Endpoint",
+      "test": "2. CUSTOMER ONBOARDING: Create Organization",
       "success": true,
-      "details": "Status: 200, Organizations count: 3",
-      "timestamp": "2026-06-16T16:35:02.027125",
+      "details": "Created org: Test Gym 20260622142746 (ID: 7282009d-0299-4466-b5aa-fe56737f381b)",
+      "timestamp": "2026-06-22T14:27:47.445414",
       "response_data": {
-        "org_count": 3
+        "org_id": "7282009d-0299-4466-b5aa-fe56737f381b",
+        "org_name": "Test Gym 20260622142746"
       }
     },
     {
-      "test": "Organization Endpoint",
+      "test": "2. CUSTOMER ONBOARDING: Create Site",
       "success": true,
-      "details": "Status: 200, Organization: Pulse Fitness AI Admin",
-      "timestamp": "2026-06-16T16:35:02.171048",
+      "details": "Created site: Test Site 142747 (ID: 2d571ca4-5980-4fde-b63a-dc8af0cfd757)",
+      "timestamp": "2026-06-22T14:27:47.591635",
       "response_data": {
-        "org_name": "Pulse Fitness AI Admin"
+        "site_id": "2d571ca4-5980-4fde-b63a-dc8af0cfd757",
+        "site_name": "Test Site 142747"
       }
     },
     {
-      "test": "Memberships Members Endpoint",
+      "test": "2. CUSTOMER ONBOARDING: Equipment Import (CSV)",
+      "success": true,
+      "details": "Equipment endpoint accessible (Status: 200). Note: Full CSV import requires invoice PDF upload.",
+      "timestamp": "2026-06-22T14:27:47.731818",
+      "response_data": {
+        "status": 200
+      }
+    },
+    {
+      "test": "3. OPERATIONS / SERVICE DESK: Create Issue",
+      "success": true,
+      "details": "Created issue ID: 41c1a6d5-1100-40b2-b117-460e1c1b93c2",
+      "timestamp": "2026-06-22T14:27:47.864258",
+      "response_data": {
+        "issue_id": "41c1a6d5-1100-40b2-b117-460e1c1b93c2"
+      }
+    },
+    {
+      "test": "3. OPERATIONS / SERVICE DESK: AI Triage",
+      "success": true,
+      "details": "AI triage returned structured diagnosis. Can fix onsite: True, Steps: 4",
+      "timestamp": "2026-06-22T14:28:02.586235",
+      "response_data": {
+        "diagnosis_length": 224,
+        "can_fix_onsite": true,
+        "repair_steps_count": 4
+      }
+    },
+    {
+      "test": "4. CRM: List Companies",
+      "success": false,
+      "details": "Status: 401",
+      "timestamp": "2026-06-22T14:28:02.717151"
+    },
+    {
+      "test": "4. CRM: Create Company",
+      "success": false,
+      "details": "Status: 401, Response: {\"detail\":\"Invalid CRM token\"}",
+      "timestamp": "2026-06-22T14:28:02.866050"
+    },
+    {
+      "test": "4. CRM: Create Contact",
+      "success": false,
+      "details": "No token or company_id available",
+      "timestamp": "2026-06-22T14:28:02.867073"
+    },
+    {
+      "test": "5. MEMBERSHIPS: List Members",
       "success": true,
       "details": "Status: 200, Members count: 0",
-      "timestamp": "2026-06-16T16:35:02.274382",
+      "timestamp": "2026-06-22T14:28:02.994365",
       "response_data": {
         "member_count": 0
+      }
+    },
+    {
+      "test": "6. RISK ASSESSMENTS: List Assessments",
+      "success": true,
+      "details": "Status: 200, Assessments count: 0",
+      "timestamp": "2026-06-22T14:28:03.116098",
+      "response_data": {
+        "assessment_count": 0
+      }
+    },
+    {
+      "test": "6. RISK ASSESSMENTS: AI Generate",
+      "success": true,
+      "details": "AI generated 6 hazards",
+      "timestamp": "2026-06-22T14:28:27.590093",
+      "response_data": {
+        "hazard_count": 6
+      }
+    },
+    {
+      "test": "7. CAPEX: Report Endpoint",
+      "success": true,
+      "details": "Status: 200, CAPEX data returned",
+      "timestamp": "2026-06-22T14:28:27.768085",
+      "response_data": {
+        "has_data": true
       }
     }
   ]
