@@ -327,7 +327,7 @@ def generate_pdf_pitch(full_name: str, referral_code: str, referral_url: str) ->
     # Bottom brand bar + tiny print
     c.setFillColorRGB(*[v / 255 for v in COLOR_INK_500])
     c.setFont("Helvetica", 8)
-    c.drawString(20 * mm, 14 * mm, "Pulse Fitness · www.pulsefitness.ai · Partner engineer referral")
+    c.drawString(20 * mm, 14 * mm, "Pulse Fitness · pulsefitness.ai · Partner engineer referral")
     c.setFillColorRGB(*[v / 255 for v in COLOR_BRAND_BLUE])
     c.rect(0, 0, page_w, 6 * mm, fill=1, stroke=0)
     c.showPage()

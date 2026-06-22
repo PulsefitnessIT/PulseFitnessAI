@@ -923,7 +923,7 @@ GUIDES: list[Guide] = [
         "id": "admin-domain-cutover",
         "category": "admin",
         "module": "admin",
-        "title": "Domain cutover — www.pulsefitness.ai + pulsefitness.ai",
+        "title": "Domain cutover — pulsefitness.ai + pulsefitness.ai",
         "description": "Step-by-step playbook for moving from preview to your custom production domains.",
         "read_minutes": 5,
         "roles": ["master_admin"],
@@ -1871,7 +1871,7 @@ GUIDES: list[Guide] = [
         "id": "rn-v1-1",
         "category": "release-notes", "module": "operations",
         "title": "Pulse Fitness V1.1 — CRM Phase 3, module-tailored trials, mobile audit",
-        "description": "Drag-drop territory tree, AI next-best-action, cross-module timeline, module-aware first wins, comprehensive mobile fixes, and production live on www.pulsefitness.ai.",
+        "description": "Drag-drop territory tree, AI next-best-action, cross-module timeline, module-aware first wins, comprehensive mobile fixes, and production live on pulsefitness.ai.",
         "read_minutes": 6,
         "roles": [],
         "popular": True,
@@ -1879,7 +1879,7 @@ GUIDES: list[Guide] = [
         "steps": [
             {
                 "title": "Headline",
-                "body": "V1.1 turns Pulse Fitness into a true enterprise-grade relational CRM platform, with strict data typing, picklists, quote margins, Miller Heiman stakeholder mapping, and cross-module relationship visibility. It also ships a comprehensive mobile audit and goes fully live on https://www.pulsefitness.ai.",
+                "body": "V1.1 turns Pulse Fitness into a true enterprise-grade relational CRM platform, with strict data typing, picklists, quote margins, Miller Heiman stakeholder mapping, and cross-module relationship visibility. It also ships a comprehensive mobile audit and goes fully live on https://pulsefitness.ai.",
             },
             {
                 "title": "CRM Phase 3 — Territory tree (drag & drop)",
@@ -1918,7 +1918,7 @@ GUIDES: list[Guide] = [
             },
             {
                 "title": "Production live",
-                "body": "Pulse Fitness is now serving customer traffic at https://www.pulsefitness.ai. The preview environment at maintenance-hub-357.preview.emergentagent.com remains available for staging.",
+                "body": "Pulse Fitness is now serving customer traffic at https://pulsefitness.ai. The preview environment at maintenance-hub-357.preview.emergentagent.com remains available for staging.",
             },
             {
                 "title": "GitHub Actions Quality Gates green",

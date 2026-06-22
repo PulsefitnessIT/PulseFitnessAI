@@ -44,7 +44,7 @@ router = APIRouter(prefix="/api/seo", tags=["seo-public"])
 
 
 def _site() -> str:
-    return (os.environ.get("SEO_SITE_URL") or "https://www.pulsefitness.ai").rstrip("/")
+    return (os.environ.get("SEO_SITE_URL") or "https://pulsefitness.ai").rstrip("/")
 
 
 # Static, indexable marketing pages (mirror robots.txt Allow list) with a

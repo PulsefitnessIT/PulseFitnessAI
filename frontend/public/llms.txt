@@ -68,8 +68,8 @@ spreadsheet + payroll) with one connected platform.
 
 ## Useful URLs
 
-- Homepage: https://www.pulsefitness.ai/
-- Pricing: https://www.pulsefitness.ai/pricing
+- Homepage: https://pulsefitness.ai/
+- Pricing: https://pulsefitness.ai/pricing
 - Module pages: /platform/service · /platform/crm · /platform/memberships ·
   /platform/marketing · /platform/staffing · /platform/reporting
 - Compare pages: /compare/mindbody · /compare/glofox · /compare/clubready

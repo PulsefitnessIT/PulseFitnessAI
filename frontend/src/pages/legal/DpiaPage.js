@@ -12,7 +12,7 @@ const DpiaPage = () => {
   useSeo({
     title: 'Data Protection Impact Assessment | Pulse Fitness AI',
     description: 'Summary DPIA for the Pulse Fitness AI platform — UK GDPR Art. 35 risk assessment of personal-data processing across CRM, memberships, marketing and operations modules.',
-    canonical: 'https://www.pulsefitness.ai/legal/dpia',
+    canonical: 'https://pulsefitness.ai/legal/dpia',
   });
 
   return (

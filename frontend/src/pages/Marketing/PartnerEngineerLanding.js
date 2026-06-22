@@ -152,7 +152,7 @@ export default function PartnerEngineerLanding() {
   useSeo({
     title: 'Engineer Partner Network — Pulse Fitness AI',
     description: 'Join 100+ independent fitness engineers on the Pulse Fitness Partner Network. £30/mo (drops to free at 10 referrals). Apply in 5 minutes.',
-    canonical: 'https://www.pulsefitness.ai/partners/engineers',
+    canonical: 'https://pulsefitness.ai/partners/engineers',
   });
   return (
     <MarketingShell>

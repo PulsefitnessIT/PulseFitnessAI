@@ -335,14 +335,14 @@ export default function PulseFitnessPricingPage() {
   useSeo({
     title: 'Pricing — Pulse Fitness AI · From £29/mo',
     description: 'Pick a single module from £29/mo or unlock everything with Pulse Fitness Pro at £150/mo. 3-day free trial, all modules unlocked, no credit card.',
-    canonical: 'https://www.pulsefitness.ai/pricing',
-    image: 'https://www.pulsefitness.ai/brand/og-cover.jpg',
+    canonical: 'https://pulsefitness.ai/pricing',
+    image: 'https://pulsefitness.ai/brand/og-cover.jpg',
     structuredData: {
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: 'Pulse Fitness AI',
       description: 'All-in-one operations platform for fitness operators.',
-      image: ['https://www.pulsefitness.ai/brand/og-cover.jpg'],
+      image: ['https://pulsefitness.ai/brand/og-cover.jpg'],
       brand: { '@type': 'Brand', name: 'Pulse Fitness AI' },
       offers: [
         { '@type': 'Offer', name: 'Pulse Fitness Pro', price: '150.00', priceCurrency: 'GBP', priceSpecification: { '@type': 'UnitPriceSpecification', price: '150.00', priceCurrency: 'GBP', referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' } } },

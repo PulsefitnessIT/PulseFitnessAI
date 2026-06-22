@@ -73,7 +73,7 @@ export default function PartnerApplyPublic() {
   useSeo({
     title: 'Apply — Partner Engineer Network · Pulse Fitness AI',
     description: 'Apply to join the Pulse Fitness Partner Engineer Network. Upload your CV and certifications — most decisions within 2 working days.',
-    canonical: 'https://www.pulsefitness.ai/partners/engineers/apply',
+    canonical: 'https://pulsefitness.ai/partners/engineers/apply',
   });
 
   // Iter 216h287 — Gap 9: capture engineer-of-engineer referral code

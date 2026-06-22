@@ -18,7 +18,7 @@ import { openTrial } from '../TrialSignupModal';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://www.pulsefitness.ai';
+const SITE = 'https://pulsefitness.ai';
 
 const VALUE_PROPS = [
   { title: 'Asset register for every machine', body: 'Tag and track every unit with its full service history, warranty position and lifecycle status.' },

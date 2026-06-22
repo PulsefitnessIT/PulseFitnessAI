@@ -75,7 +75,7 @@ EXTRA_HEADERS = {
     "User-Agent": USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "en-GB,en;q=0.9",
-    "X-Pulse Fitness-Crawler": "brand-discovery/1.0 (+https://www.pulsefitness.ai)",
+    "X-Pulse Fitness-Crawler": "brand-discovery/1.0 (+https://pulsefitness.ai)",
 }
 HEX_RE = re.compile(r"#(?:[0-9a-fA-F]{3}){1,2}\b")
 GOOGLE_FONTS_RE = re.compile(r"family=([A-Za-z0-9+:,_-]+)")

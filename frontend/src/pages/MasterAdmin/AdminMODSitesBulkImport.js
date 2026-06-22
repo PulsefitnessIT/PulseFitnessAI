@@ -455,7 +455,7 @@ export default function AdminMODSitesBulkImport() {
                 <p className="text-xs text-blue-900 mb-3">
                   Distribute the credentials yourself via your secure channel
                   (DEFCONN, MS Teams, etc.). Each base PTI logs in at
-                  <code className="bg-white px-1 mx-1 rounded">https://www.pulsefitness.ai/login</code>
+                  <code className="bg-white px-1 mx-1 rounded">https://pulsefitness.ai/login</code>
                   with their <code>site_code</code> + password.
                 </p>
                 <button

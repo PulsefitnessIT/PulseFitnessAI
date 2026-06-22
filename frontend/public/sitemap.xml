@@ -9,109 +9,109 @@
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-        <loc>https://www.pulsefitness.ai/</loc>
+        <loc>https://pulsefitness.ai/</loc>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/pricing</loc>
+        <loc>https://pulsefitness.ai/pricing</loc>
         <changefreq>monthly</changefreq>
         <priority>0.9</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/features</loc>
+        <loc>https://pulsefitness.ai/features</loc>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
         <lastmod>2026-02-10</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/about</loc>
+        <loc>https://pulsefitness.ai/about</loc>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
         <lastmod>2026-02-01</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/contact</loc>
+        <loc>https://pulsefitness.ai/contact</loc>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-01</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/security</loc>
+        <loc>https://pulsefitness.ai/security</loc>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/privacy</loc>
+        <loc>https://pulsefitness.ai/privacy</loc>
         <changefreq>yearly</changefreq>
         <priority>0.4</priority>
         <lastmod>2026-02-01</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/terms</loc>
+        <loc>https://pulsefitness.ai/terms</loc>
         <changefreq>yearly</changefreq>
         <priority>0.4</priority>
         <lastmod>2026-02-01</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/legal/dpa</loc>
+        <loc>https://pulsefitness.ai/legal/dpa</loc>
         <changefreq>yearly</changefreq>
         <priority>0.5</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/legal/dpia</loc>
+        <loc>https://pulsefitness.ai/legal/dpia</loc>
         <changefreq>yearly</changefreq>
         <priority>0.5</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/whats-new</loc>
+        <loc>https://pulsefitness.ai/whats-new</loc>
         <changefreq>weekly</changefreq>
         <priority>0.5</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/status</loc>
+        <loc>https://pulsefitness.ai/status</loc>
         <changefreq>daily</changefreq>
         <priority>0.4</priority>
         <lastmod>2026-02-15</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/platform/crm</loc>
+        <loc>https://pulsefitness.ai/platform/crm</loc>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
         <lastmod>2026-02-10</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/platform/memberships</loc>
+        <loc>https://pulsefitness.ai/platform/memberships</loc>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
         <lastmod>2026-02-10</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/platform/marketing</loc>
+        <loc>https://pulsefitness.ai/platform/marketing</loc>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
         <lastmod>2026-02-10</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/platform/service</loc>
+        <loc>https://pulsefitness.ai/platform/service</loc>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
         <lastmod>2026-02-10</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/platform/staffing</loc>
+        <loc>https://pulsefitness.ai/platform/staffing</loc>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-10</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/platform/reporting</loc>
+        <loc>https://pulsefitness.ai/platform/reporting</loc>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-10</lastmod>
@@ -119,25 +119,25 @@
 
     <!-- Comparison SEO pages (iter 215ee · Feb 2026) -->
     <url>
-        <loc>https://www.pulsefitness.ai/compare</loc>
+        <loc>https://pulsefitness.ai/compare</loc>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-18</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/compare/mindbody</loc>
+        <loc>https://pulsefitness.ai/compare/mindbody</loc>
         <changefreq>monthly</changefreq>
         <priority>0.75</priority>
         <lastmod>2026-02-18</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/compare/glofox</loc>
+        <loc>https://pulsefitness.ai/compare/glofox</loc>
         <changefreq>monthly</changefreq>
         <priority>0.75</priority>
         <lastmod>2026-02-18</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/compare/clubready</loc>
+        <loc>https://pulsefitness.ai/compare/clubready</loc>
         <changefreq>monthly</changefreq>
         <priority>0.75</priority>
         <lastmod>2026-02-18</lastmod>
@@ -145,25 +145,25 @@
 
     <!-- Blog (iter 215ee · Feb 2026) -->
     <url>
-        <loc>https://www.pulsefitness.ai/blog</loc>
+        <loc>https://pulsefitness.ai/blog</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
         <lastmod>2026-02-18</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/blog/cut-equipment-downtime</loc>
+        <loc>https://pulsefitness.ai/blog/cut-equipment-downtime</loc>
         <changefreq>yearly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-14</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/blog/gym-manager-metrics</loc>
+        <loc>https://pulsefitness.ai/blog/gym-manager-metrics</loc>
         <changefreq>yearly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
-        <loc>https://www.pulsefitness.ai/blog/service-desk-sla-explained</loc>
+        <loc>https://pulsefitness.ai/blog/service-desk-sla-explained</loc>
         <changefreq>yearly</changefreq>
         <priority>0.7</priority>
         <lastmod>2026-02-01</lastmod>

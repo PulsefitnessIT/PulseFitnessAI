@@ -710,7 +710,7 @@ async def invite_instructor_login(instructor_id: str, user: dict = Depends(get_c
     frontend = (
         _os.environ.get("FRONTEND_URL")
         or _os.environ.get("REACT_APP_BACKEND_URL")
-        or "https://www.pulsefitness.ai"
+        or "https://pulsefitness.ai"
     ).rstrip("/")
     html = (
         f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto'>"

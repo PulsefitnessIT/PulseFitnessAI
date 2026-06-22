@@ -19,7 +19,7 @@ import useSeo from '../../../utils/seo';
 import { getSolution } from './solutionsData';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://www.pulsefitness.ai';
+const SITE = 'https://pulsefitness.ai';
 
 export default function SolutionLanding() {
   const { slug } = useParams();

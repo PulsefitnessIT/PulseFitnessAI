@@ -74,10 +74,10 @@ _HOSTNAME_RX = re.compile(
 # Platform-owned hosts that must never be registered as a custom
 # tenant domain (would shadow the SaaS itself).
 PLATFORM_HOSTS = {
-    "www.pulsefitness.ai",
-    "www.pulsefitness.ai",
     "pulsefitness.ai",
-    "www.pulsefitness.ai",
+    "pulsefitness.ai",
+    "pulsefitness.ai",
+    "pulsefitness.ai",
     "preview.emergentagent.com",
     "emergentagent.com",
     "localhost",

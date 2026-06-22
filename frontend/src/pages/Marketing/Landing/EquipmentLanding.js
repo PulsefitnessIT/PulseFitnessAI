@@ -23,7 +23,7 @@ import { openTrial } from '../TrialSignupModal';
 import useSeo from '../../../utils/seo';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const SITE = 'https://www.pulsefitness.ai';
+const SITE = 'https://pulsefitness.ai';
 const brandSlug = (b) => (b || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 export default function EquipmentLanding() {

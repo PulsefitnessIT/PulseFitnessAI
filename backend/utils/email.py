@@ -207,7 +207,7 @@ except ImportError:
 # The platform owns four verified Resend domains. Each outbound email is
 # sent from the domain that matches its purpose (better deliverability +
 # clear brand separation). Each is env-overridable; defaults use the
-# verified www.pulsefitness.ai sending subdomains. `support`/default fall back
+# verified pulsefitness.ai sending subdomains. `support`/default fall back
 # to the configured root SENDER_EMAIL.
 _CATEGORY_SENDER_ENV = {
     "billing": "SENDER_EMAIL_BILLING",

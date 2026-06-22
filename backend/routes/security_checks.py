@@ -217,7 +217,7 @@ BUILD_CHECKS: list[dict[str, Any]] = [
         "date": "2026-04-28",
         "category": "code",
         "title": "Brand-aware customer-email URLs",
-        "description": "utils/brand_urls.app_url_for(account_type) routes Pulse Fitness orgs to https://www.pulsefitness.ai and Pulse Fitness orgs to https://pulsefitness.ai. Customer-facing emails (supplier portal, password reset, onboarding) never expose preview.emergentagent.com.",
+        "description": "utils/brand_urls.app_url_for(account_type) routes Pulse Fitness orgs to https://pulsefitness.ai and Pulse Fitness orgs to https://pulsefitness.ai. Customer-facing emails (supplier portal, password reset, onboarding) never expose preview.emergentagent.com.",
         "evidence": ["backend/utils/brand_urls.py", "backend/routes/supplier_portal.py", "iteration_205"],
         "status": "passed",
     },

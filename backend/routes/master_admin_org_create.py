@@ -225,7 +225,7 @@ async def send_primary_contact_credentials(org_id: str, user: dict = Depends(get
         Please change your password the first time you sign in — go to your profile menu and select
         <em>Change password</em>. The temporary password above will stop working once you do.
       </p>
-      <a href="https://www.pulsefitness.ai/login" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px">Sign in to Pulse Fitness</a>
+      <a href="https://pulsefitness.ai/login" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px">Sign in to Pulse Fitness</a>
       <p style="font-size:11px;color:#94a3b8;margin-top:32px">
         If you weren't expecting this email, please contact us at security@pulsefitness.ai.
       </p>

@@ -148,8 +148,8 @@ export default function BlogPost() {
     description: post.excerpt,
     datePublished: post.publishedAt,
     author: { '@type': 'Person', name: post.author },
-    publisher: { '@type': 'Organization', name: 'Pulse Fitness', logo: { '@type': 'ImageObject', url: 'https://www.pulsefitness.ai/brand/logo.svg' } },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.pulsefitness.ai/blog/${post.slug}` },
+    publisher: { '@type': 'Organization', name: 'Pulse Fitness', logo: { '@type': 'ImageObject', url: 'https://pulsefitness.ai/brand/logo.svg' } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://pulsefitness.ai/blog/${post.slug}` },
   };
 
   // FAQPage JSON-LD — what gets us cited in ChatGPT / Perplexity / AI overviews.

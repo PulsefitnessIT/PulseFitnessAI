@@ -662,7 +662,7 @@ async def handle_engineer_escalation(issue, issue_doc: dict, user: dict) -> None
             from routes.supplier_portal import create_supplier_case
             org = await db.organizations.find_one({"id": user.get('organization_id')}, {"_id": 0})
             org_name = org.get('name', 'Pulse Fitness AI') if org else 'Pulse Fitness AI'
-            base_url = os.environ.get('FRONTEND_URL', '') or 'https://www.pulsefitness.ai'
+            base_url = os.environ.get('FRONTEND_URL', '') or 'https://pulsefitness.ai'
 
             case_result = await create_supplier_case(
                 issue_id=issue_doc['id'], supplier_name=issue.supplier,

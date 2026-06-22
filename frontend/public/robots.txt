@@ -30,4 +30,4 @@ Disallow: /checkin/
 Disallow: /gym-floor
 Disallow: /api/
 
-Sitemap: https://www.pulsefitness.ai/api/seo/sitemap.xml
+Sitemap: https://pulsefitness.ai/api/seo/sitemap.xml

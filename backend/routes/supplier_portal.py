@@ -1382,7 +1382,7 @@ def _build_comment_email_html(case: dict, comment: dict, intro: str, branding: d
     """Build HTML body for a comment notification email."""
     from utils.brand_urls import app_url_for
     org_name = case.get("organization_name", "Site")
-    # Use the brand-correct domain (www.pulsefitness.ai / pulsefitness.ai) so
+    # Use the brand-correct domain (pulsefitness.ai / pulsefitness.ai) so
     # suppliers never see preview.emergentagent.com in real emails.
     base_url = app_url_for(case.get("organization_account_type"))
     case_url = f"{base_url}/supplier/case/{case.get('token', '')}"

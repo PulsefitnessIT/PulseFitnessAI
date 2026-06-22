@@ -15,7 +15,7 @@ const SlaPage = () => {
   useSeo({
     title: 'Service Level Agreement | Pulse Fitness AI',
     description: 'Uptime targets, service credits, support response times, backup commitments and incident communications for Pulse Fitness AI customers.',
-    canonical: 'https://www.pulsefitness.ai/sla',
+    canonical: 'https://pulsefitness.ai/sla',
   });
 
   return (

@@ -173,7 +173,7 @@ def _trend_pill_html(delta: Optional[float]) -> str:
 def _linkedin_share_url(report: dict) -> str:
     """Pre-fill a LinkedIn `sharing/share-offsite` URL with a humblebrag-
     style quote about the engineer's month."""
-    base = (PUBLIC_BASE_URL or "https://www.pulsefitness.ai").rstrip("/")
+    base = (PUBLIC_BASE_URL or "https://pulsefitness.ai").rstrip("/")
     # Land on the public engineer card eventually — for now, the Pulse Fitness
     # homepage is fine as a fallback target.
     text = (

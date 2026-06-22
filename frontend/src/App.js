@@ -194,8 +194,8 @@ function App() {
 
  useEffect(() => {
    const PLATFORM_HOSTS = [
-     'www.pulsefitness.ai', 'www.pulsefitness.ai',
      'pulsefitness.ai', 'www.pulsefitness.ai',
+     'fitness-ai-migrate.emergent.host',
      'localhost', '127.0.0.1',
    ];
    const isPlatformHost = (hn) => {

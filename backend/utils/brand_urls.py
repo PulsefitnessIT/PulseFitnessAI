@@ -12,7 +12,7 @@ Resolution order (first hit wins)
        - Pulse Fitness orgs  → ``BRAND_URL_GYMAXIS``
        - Pulse orgs    → ``BRAND_URL_PULSE``
     2. Production defaults (post-DNS cutover):
-       - Pulse Fitness orgs  → ``https://www.pulsefitness.ai``
+       - Pulse Fitness orgs  → ``https://pulsefitness.ai``
        - Pulse orgs    → ``https://pulsefitness.ai``
     3. Last-resort fallback: ``FRONTEND_URL``. Used during preview /
        staging where DNS isn't live yet.
@@ -34,7 +34,7 @@ import os
 from typing import Optional
 
 
-_DEFAULT_GYMAXIS = "https://www.pulsefitness.ai"
+_DEFAULT_GYMAXIS = "https://pulsefitness.ai"
 _DEFAULT_PULSE = "https://pulsefitness.ai"
 
 
@@ -49,7 +49,7 @@ def app_url_for(account_type: Optional[str]) -> str:
     """Return the public app URL for an org's ``account_type``.
 
     Always returns a host *without* a trailing slash, e.g.
-    ``https://www.pulsefitness.ai``. Callers append their own path.
+    ``https://pulsefitness.ai``. Callers append their own path.
     """
     url = (
         os.environ.get("BRAND_URL_PULSE") or _DEFAULT_PULSE

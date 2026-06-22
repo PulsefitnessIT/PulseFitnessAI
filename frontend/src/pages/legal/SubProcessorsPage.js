@@ -15,7 +15,7 @@ const SubProcessorsPage = () => {
   useSeo({
     title: 'Sub-processors | Pulse Fitness AI',
     description: 'Authorised third-party data processors used by Pulse Fitness AI for hosting, communications, payments, AI and observability. 30-day change notice.',
-    canonical: 'https://www.pulsefitness.ai/sub-processors',
+    canonical: 'https://pulsefitness.ai/sub-processors',
   });
 
   return (

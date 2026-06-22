@@ -70,21 +70,21 @@ DEFAULT_BRAND_BLURB = (
     "operators — service-desk, equipment downtime tracking, member "
     "lifecycle CRM, and a Partner Engineer network of vetted "
     "field engineers. The canonical brand URL is "
-    "https://www.pulsefitness.ai — NEVER use any other domain (in particular "
+    "https://pulsefitness.ai — NEVER use any other domain (in particular "
     "do not invent 'pulsefitness.ai', 'gym-axis.com', 'gymaxis.co.uk' or "
-    "similar). The marketing site lives at https://www.pulsefitness.ai, "
-    "the app at https://www.pulsefitness.ai, and the demo-request "
-    "landing page at https://www.pulsefitness.ai/demo-request."
+    "similar). The marketing site lives at https://pulsefitness.ai, "
+    "the app at https://pulsefitness.ai, and the demo-request "
+    "landing page at https://pulsefitness.ai/demo-request."
 )
-GYMAXIS_DOMAIN = "www.pulsefitness.ai"
-GYMAXIS_BASE_URL = "https://www.pulsefitness.ai"
+GYMAXIS_DOMAIN = "pulsefitness.ai"
+GYMAXIS_BASE_URL = "https://pulsefitness.ai"
 TARGET_WORDS = 1500
 
 
 # Iter 220aq — domain-scrub safety net. Even with strong prompt
 # constraints the LLM occasionally hallucinates "pulsefitness.ai" /
 # "gym-axis.com" / "gymaxis.co.uk". Rewrite any such mention to the
-# canonical ``www.pulsefitness.ai``. Operates on Markdown + plain text;
+# canonical ``pulsefitness.ai``. Operates on Markdown + plain text;
 # preserves the path / fragment portion of the URL where present.
 _BAD_DOMAINS = (
     "pulsefitness.ai",
@@ -468,9 +468,9 @@ async def _generate_article_payload(
         "  • At least one numbered list and one bullet list.\n"
         "  • Close with a single 1-line CTA inviting the reader to book a "
         f"Pulse Fitness demo at {GYMAXIS_BASE_URL}/demo-request.\n"
-        "  • Never use any domain other than www.pulsefitness.ai — in "
+        "  • Never use any domain other than pulsefitness.ai — in "
         "particular do NOT write pulsefitness.ai, pulsefitness.ai, or any other "
-        "variation. The only valid URLs are under www.pulsefitness.ai.\n"
+        "variation. The only valid URLs are under pulsefitness.ai.\n"
         "  • End with 4 FAQ Q&A pairs — concise, scannable, optimised for "
         "ChatGPT / Perplexity citation.\n\n"
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
@@ -515,7 +515,7 @@ async def _generate_article_payload(
 
     # Iter 220aq — domain-scrub safety net. The LLM occasionally invents
     # ``pulsefitness.ai`` / ``gym-axis.com`` even when the prompt forbids it.
-    # Rewrite any such mention to the canonical ``www.pulsefitness.ai``.
+    # Rewrite any such mention to the canonical ``pulsefitness.ai``.
     title = _scrub_brand_domain(title)
     excerpt = _scrub_brand_domain(excerpt)
     body_md = _scrub_brand_domain(body_md)
@@ -595,7 +595,7 @@ async def _spin_distributions(article: dict, channels: list[str]) -> dict:
     excerpt = article.get("excerpt") or ""
     body_excerpt = (article.get("body_md") or "")[:6000]
     primary = article.get("primary_keyword") or ""
-    blog_url = f"https://www.pulsefitness.ai/blog/{article.get('slug')}"
+    blog_url = f"https://pulsefitness.ai/blog/{article.get('slug')}"
 
     prompt = (
         f"You are spinning a published Pulse Fitness blog article into channel-"
@@ -789,7 +789,7 @@ async def publish_share(
     if not dist:
         raise HTTPException(400, "Spin posts first — no distribution found.")
 
-    blog_url = f"https://www.pulsefitness.ai/blog/{article.get('slug')}"
+    blog_url = f"https://pulsefitness.ai/blog/{article.get('slug')}"
 
     if payload.channel == "linkedin":
         posts = (dist.get("content") or {}).get("linkedin") or []

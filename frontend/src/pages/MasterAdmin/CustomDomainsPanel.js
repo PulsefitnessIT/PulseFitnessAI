@@ -321,7 +321,7 @@ const CustomDomainsPanel = () => {
               data-testid="cd-new-hostname"
               required
             />
-            <p className="text-[11px] text-slate-500 mt-1">Lowercase FQDN. Subdomains of platform-owned hosts (www.pulsefitness.ai / pulsefitness.ai) are blocked.</p>
+            <p className="text-[11px] text-slate-500 mt-1">Lowercase FQDN. Subdomains of platform-owned hosts (pulsefitness.ai / pulsefitness.ai) are blocked.</p>
           </div>
           <div className="md:col-span-4">
             <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Primary route</label>

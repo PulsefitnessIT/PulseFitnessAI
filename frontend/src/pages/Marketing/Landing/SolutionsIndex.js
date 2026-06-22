@@ -10,7 +10,7 @@ import MarketingShell from '../MarketingShell';
 import useSeo from '../../../utils/seo';
 import { SOLUTIONS } from './solutionsData';
 
-const SITE = 'https://www.pulsefitness.ai';
+const SITE = 'https://pulsefitness.ai';
 
 export default function SolutionsIndex() {
   useSeo({

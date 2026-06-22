@@ -419,12 +419,12 @@ async def body_size_guard(request: Request,
 # customers out of their own app. The env var still wins when present,
 # which is how staging / preview overrides happen.
 _BRAND_DEFAULT_ORIGINS = [
-    "https://www.pulsefitness.ai",
-    "https://www.pulsefitness.ai",
-    "https://www.pulsefitness.ai",
+    "https://pulsefitness.ai",
+    "https://pulsefitness.ai",
+    "https://pulsefitness.ai",
     "https://app.pulsefitness.ai",
     "https://pulsefitness.ai",
-    "https://www.pulsefitness.ai",
+    "https://pulsefitness.ai",
 ]
 
 

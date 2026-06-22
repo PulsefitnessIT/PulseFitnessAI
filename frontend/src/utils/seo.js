@@ -7,8 +7,8 @@
  *   useSeo({
  *     title: 'Pricing | Pulse Fitness AI',
  *     description: '£150/mo for one site. Add modules à la carte. 3-day trial.',
- *     canonical: 'https://www.pulsefitness.ai/pricing',
- *     image: 'https://www.pulsefitness.ai/og/pricing.jpg',
+ *     canonical: 'https://pulsefitness.ai/pricing',
+ *     image: 'https://pulsefitness.ai/og/pricing.jpg',
  *     type: 'website',
  *     structuredData: { '@context': 'https://schema.org', '@type': 'Product', ... }
  *   });
@@ -94,8 +94,8 @@ export const orgJsonLd = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Pulse Fitness AI',
-  url: 'https://www.pulsefitness.ai',
-  logo: 'https://www.pulsefitness.ai/brand/pulse-mark.svg',
+  url: 'https://pulsefitness.ai',
+  logo: 'https://pulsefitness.ai/brand/pulse-mark.svg',
   description: 'All-in-one platform for fitness operators: CRM, memberships, marketing, and gym operations.',
   sameAs: ['https://www.instagram.com/pulsefitnessai'],
   contactPoint: {
@@ -114,7 +114,7 @@ export const softwareJsonLd = () => ({
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description: 'Multi-tenant fitness operations platform for gyms, leisure centres, and studios.',
-  image: ['https://www.pulsefitness.ai/brand/og-cover.jpg'],
+  image: ['https://pulsefitness.ai/brand/og-cover.jpg'],
   offers: {
     '@type': 'AggregateOffer',
     lowPrice: '29.00',

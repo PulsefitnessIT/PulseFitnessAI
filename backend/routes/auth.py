@@ -753,7 +753,7 @@ async def forgot_password(body: dict, request: Request) -> dict:
     })
 
     # Iter 216h192 — password-reset links must use the brand-aware app URL
-    # so production emails point at www.pulsefitness.ai / pulsefitness.ai instead
+    # so production emails point at pulsefitness.ai / pulsefitness.ai instead
     # of the preview deployment (which was the cause of "Invalid Reset Link"
     # in production: clicking the preview-domain link hit a different DB
     # than the one that issued the token).

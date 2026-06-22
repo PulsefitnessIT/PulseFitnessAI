@@ -15,7 +15,7 @@ const DpaPage = () => {
   useSeo({
     title: 'Data Processing Agreement | Pulse Fitness AI',
     description: 'Standard UK GDPR-compliant Data Processing Agreement between Pulse Fitness AI Ltd and our customers (data controllers).',
-    canonical: 'https://www.pulsefitness.ai/legal/dpa',
+    canonical: 'https://pulsefitness.ai/legal/dpa',
   });
 
   return (

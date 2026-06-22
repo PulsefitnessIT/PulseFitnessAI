@@ -1,5 +1,5 @@
 Contact: mailto:security@pulsefitness.ai
 Expires: 2027-01-01T00:00:00.000Z
 Preferred-Languages: en
-Policy: https://www.pulsefitness.ai/trust
-Canonical: https://www.pulsefitness.ai/.well-known/security.txt
+Policy: https://pulsefitness.ai/trust
+Canonical: https://pulsefitness.ai/.well-known/security.txt

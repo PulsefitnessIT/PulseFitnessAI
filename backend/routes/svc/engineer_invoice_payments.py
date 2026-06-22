@@ -139,8 +139,8 @@ async def _ensure_payment_link(invoice: dict) -> dict:
     # Public shortcode used by the success page
     shortcode = invoice.get("public_shortcode") or _new_short()
     origin = _origin()
-    success_url = f"{origin}/i/{shortcode}/paid" if origin else "https://www.pulsefitness.ai/payment-success"
-    cancel_url = f"{origin}/i/{shortcode}/cancelled" if origin else "https://www.pulsefitness.ai/payment-cancelled"
+    success_url = f"{origin}/i/{shortcode}/paid" if origin else "https://pulsefitness.ai/payment-success"
+    cancel_url = f"{origin}/i/{shortcode}/cancelled" if origin else "https://pulsefitness.ai/payment-cancelled"
     customer_email = (invoice.get("customer_email") or "").strip() or None
 
     metadata = {

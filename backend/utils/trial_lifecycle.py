@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 # Trial-ending CTA destination — login-gated paid checkout page (iter 221).
 # Deliberately the in-app /choose-plan page (no free-trial re-offer), not the
 # public marketing pricing page.
-CHOOSE_PLAN_URL = "https://www.pulsefitness.ai/choose-plan"
+CHOOSE_PLAN_URL = "https://pulsefitness.ai/choose-plan"
 # Iter 259 — Service Providers convert on their dedicated Stripe page.
-PROVIDER_UPGRADE_URL = "https://www.pulsefitness.ai/service-desk/upgrade"
+PROVIDER_UPGRADE_URL = "https://pulsefitness.ai/service-desk/upgrade"
 
 # Trial status transitions
 STATUS_ACTIVE = "active"

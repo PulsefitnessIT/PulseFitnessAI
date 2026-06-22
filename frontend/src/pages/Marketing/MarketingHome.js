@@ -120,7 +120,7 @@ export default function MarketingHome() {
   useSeo({
     title: 'Pulse Fitness AI | Gym Management Software for Gyms, Studios & Engineers',
     description: 'Connected gym management software for gyms, studios, fitness operators and equipment engineers — CRM, memberships, operations, asset management, service desk, staffing, marketing and reporting in one platform. 3-day free trial, all modules unlocked.',
-    canonical: 'https://www.pulsefitness.ai/',
+    canonical: 'https://pulsefitness.ai/',
   });
   return (
     <MarketingShell>

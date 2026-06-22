@@ -26,12 +26,12 @@ from utils.notification_prefs_helper import can_send_lifecycle_email
 
 logger = logging.getLogger(__name__)
 
-LOGIN_URL = "https://www.pulsefitness.ai/login"
-DEMO_URL = "https://www.pulsefitness.ai/contact"
-PRICING_URL = "https://www.pulsefitness.ai/pricing"
+LOGIN_URL = "https://pulsefitness.ai/login"
+DEMO_URL = "https://pulsefitness.ai/contact"
+PRICING_URL = "https://pulsefitness.ai/pricing"
 # Trial-ending CTA destination — login-gated paid checkout page (iter 221).
 # Deliberately NOT the public /pricing page, which re-offers a free trial.
-CHOOSE_PLAN_URL = "https://www.pulsefitness.ai/choose-plan"
+CHOOSE_PLAN_URL = "https://pulsefitness.ai/choose-plan"
 
 
 def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
@@ -55,7 +55,7 @@ def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
     </tr>
     <tr>
       <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
-        <p style="margin:0;">Sent by Pulse Fitness AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://www.pulsefitness.ai/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
+        <p style="margin:0;">Sent by Pulse Fitness AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://pulsefitness.ai/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
         <p style="margin:6px 0 0 0;font-size:11px;color:#94a3b8;">You can manage email preferences inside your account.</p>
       </td>
     </tr>

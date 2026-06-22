@@ -171,7 +171,7 @@ def feature_pillar_by_id(pid: str) -> Optional[dict]:
 
 BRAND = {
     "name": "Pulse Fitness",
-    "domain": "www.pulsefitness.ai",
+    "domain": "pulsefitness.ai",
     "tagline": "AI-native operations for UK fitness operators.",
     # Brand palette pulled from /app/frontend/src/index.css :root tokens.
     "color_primary": "#d946ef",   # fuchsia
