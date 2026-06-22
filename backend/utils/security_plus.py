@@ -420,11 +420,8 @@ async def body_size_guard(request: Request,
 # which is how staging / preview overrides happen.
 _BRAND_DEFAULT_ORIGINS = [
     "https://pulsefitness.ai",
-    "https://pulsefitness.ai",
-    "https://pulsefitness.ai",
-    "https://app.pulsefitness.ai",
-    "https://pulsefitness.ai",
-    "https://pulsefitness.ai",
+    "https://www.pulsefitness.ai",
+    "https://fitness-ai-migrate.emergent.host",
 ]
 
 
