@@ -65,9 +65,19 @@
      Tailwind arbitrary variants: `bg-[var(--color-brand-cyan)]`. */
   --color-brand-cyan:        #19CDFF;
   --color-brand-cyan-hover:  #66CCFF;
-  --color-brand-blue:        #0055FF;
-  --color-brand-blue-hover:  #0044CC;
-  --color-brand-blue-dark:   #003DA5;
+  /* Pulse has no blue/navy in its palette — the legacy "brand-blue" tokens
+     now resolve to the deep-cyan family so any CTA/gradient that referenced
+     them renders on-brand (cyan) with readable white text. */
+  --color-brand-blue:        #0E7490;
+  --color-brand-blue-hover:  #155E75;
+  --color-brand-blue-dark:   #164E63;
+  /* Brand gradient tokens (used by global .gx-grad-text / .gx-btn-primary).
+     Defined here at :root so the Pulse portal renders a CYAN gradient instead
+     of the legacy blue→purple fallback. The .theme-gymaxis scope still
+     overrides these to the old palette if that (now-unused) theme mounts. */
+  --gx-brand-from: #19CDFF;
+  --gx-brand-mid:  #0FB5E0;
+  --gx-brand-to:   #0E7490;
 
   --color-ink:               #0A0C10;
   --color-ink-alt:           #0A0A0A;
@@ -1294,7 +1304,7 @@ html[data-brand="gymaxis"] {
   --card-foreground:      222 47% 11%;
   --popover:              0 0% 100%;
   --popover-foreground:   222 47% 11%;
-  --primary:              221 83% 53%;        /* Pulse Fitness navy */
+  --primary:              192 91% 36%;        /* Pulse deep-cyan (white text OK) */
   --primary-foreground:   0 0% 100%;
   --secondary:            210 40% 96%;        /* slate-100 */
   --secondary-foreground: 222 47% 11%;
@@ -1306,9 +1316,9 @@ html[data-brand="gymaxis"] {
   --destructive-foreground: 0 0% 100%;
   --border:               214 32% 91%;        /* slate-200 */
   --input:                214 32% 91%;
-  --ring:                 221 83% 53%;
-  --chart-1: 221 83% 53%;
-  --chart-2: 271 56% 58%;
+  --ring:                 192 91% 36%;
+  --chart-1: 192 98% 55%;
+  --chart-2: 192 80% 40%;
   --chart-3: 142 71% 45%;
   --chart-4: 38 92% 50%;
   --chart-5: 0 84% 60%;
@@ -1321,7 +1331,7 @@ html[data-brand="gymaxis"] {
   --card-foreground:      210 40% 98%;
   --popover:              222 47% 9%;
   --popover-foreground:   210 40% 98%;
-  --primary:              221 83% 60%;
+  --primary:              192 91% 44%;
   --primary-foreground:   0 0% 100%;
   --secondary:            217 19% 18%;
   --secondary-foreground: 210 40% 98%;
@@ -1331,7 +1341,7 @@ html[data-brand="gymaxis"] {
   --accent-foreground:    210 40% 98%;
   --border:               217 19% 18%;
   --input:                217 19% 18%;
-  --ring:                 221 83% 60%;
+  --ring:                 192 91% 44%;
 }
 
 /* ============================================================
@@ -1358,10 +1368,12 @@ html[data-brand="gymaxis"] {
    Tokens + selectors below opt elements into Satoshi inside the scope. */
 
 .theme-gymaxis {
-  /* ── Pulse Fitness design tokens (mirror /app/frontend/src/pages/Marketing/marketing.css) ── */
-  --gx-brand-from: #2563EB;     /* navy-blue */
-  --gx-brand-to:   #9D4CDD;     /* premium purple */
-  --gx-brand-mid:  #5B5BF5;     /* gradient midpoint */
+  /* ── Pulse Fitness palette — this legacy "premium theme" scope is applied
+     to master-admin / full-account surfaces, so its brand tokens now resolve
+     to Pulse CYAN (not the old navy→purple) for a consistent Pulse identity. ── */
+  --gx-brand-from: #19CDFF;     /* Pulse cyan */
+  --gx-brand-to:   #0E7490;     /* deep cyan */
+  --gx-brand-mid:  #0FB5E0;     /* cyan midpoint */
   --gx-bg:         #F8FAFC;     /* slate-50 — page bg in light mode */
   --gx-bg-paper:   #FFFFFF;     /* card / panel surfaces */
   --gx-bg-soft:    #F1F5F9;     /* hover / input backdrops */
@@ -1375,8 +1387,8 @@ html[data-brand="gymaxis"] {
   --gx-shadow-md: 0 8px 24px -8px rgba(15, 23, 42, .08), 0 2px 6px -2px rgba(15, 23, 42, .05);
   --gx-shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, .12);
   --gx-shadow-glow:
-    0 0 60px -15px rgba(37, 99, 235, .25),
-    0 0 80px -25px rgba(157, 76, 221, .20);
+    0 0 60px -15px rgba(25, 205, 255, .28),
+    0 0 80px -25px rgba(14, 116, 144, .20);
 }
 
 /* Typography — Inter for body, Satoshi for h1–h4. Scoped tightly so this
@@ -1387,13 +1399,13 @@ html[data-brand="gymaxis"] {
 .theme-gymaxis textarea,
 .theme-gymaxis select,
 .theme-gymaxis button {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Proxima Nova', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 .theme-gymaxis h1,
 .theme-gymaxis h2,
 .theme-gymaxis h3,
 .theme-gymaxis h4 {
-  font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
+  font-family: 'Proxima Nova', 'Inter', system-ui, sans-serif;
   letter-spacing: -0.015em;
 }
 
@@ -1407,7 +1419,7 @@ html[data-brand="gymaxis"] {
    tokens are inherited from the nearest .theme-gymaxis ancestor or fall
    back to the explicit hex values below. */
 .gx-grad-text {
-  background-image: linear-gradient(90deg, var(--gx-brand-from, #2563EB) 0%, var(--gx-brand-mid, #5B5BF5) 50%, var(--gx-brand-to, #9D4CDD) 100%);
+  background-image: linear-gradient(90deg, var(--gx-brand-from, #19CDFF) 0%, var(--gx-brand-mid, #0FB5E0) 50%, var(--gx-brand-to, #0E7490) 100%);
   -webkit-background-clip: text;
           background-clip: text;
   -webkit-text-fill-color: transparent;

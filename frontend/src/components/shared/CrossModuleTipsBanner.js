@@ -84,22 +84,22 @@ const CrossModuleTipsBanner = ({ mode }) => {
   return (
     <>
       <div
-        className="rounded-xl border border-fuchsia-200 dark:border-fuchsia-800/60 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-fuchsia-950/30 dark:via-zinc-900 dark:to-blue-950/30 p-4 mb-5 flex items-start gap-3"
+        className="rounded-xl border border-cyan-200 dark:border-cyan-800/60 bg-gradient-to-r from-cyan-50 via-white to-cyan-50 dark:from-cyan-950/30 dark:via-zinc-900 dark:to-cyan-950/30 p-4 mb-5 flex items-start gap-3"
         data-testid={`cross-module-tip-${tip.id}`}
       >
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fuchsia-500 to-blue-500 flex items-center justify-center text-white shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white shrink-0">
           <Icon size={16} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-fuchsia-600 dark:text-fuchsia-300">Tip</span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">Tip</span>
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tip.headline}</p>
           </div>
           <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-0.5">{tip.body}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <button
               onClick={() => setDialogTip(tip)}
-              className="text-xs font-semibold text-fuchsia-700 dark:text-fuchsia-300 hover:underline inline-flex items-center gap-1"
+              className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:underline inline-flex items-center gap-1"
               data-testid={`cross-module-tip-cta-${tip.id}`}
             >
               {tip.cta} <ChevronRight size={12} />
@@ -132,7 +132,7 @@ const CrossModuleTipsBanner = ({ mode }) => {
             className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-md w-full p-6"
           >
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-fuchsia-500 to-blue-500 flex items-center justify-center text-white shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white shrink-0">
                 {React.createElement(ICONS[dialogTip.icon] || Sparkles, { size: 18 })}
               </div>
               <div className="flex-1">
@@ -159,7 +159,7 @@ const CrossModuleTipsBanner = ({ mode }) => {
               <button
                 onClick={() => requestEnable(dialogTip)}
                 disabled={requesting}
-                className="px-3 py-2 rounded-md bg-gradient-to-r from-fuchsia-600 to-blue-600 text-white text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="px-3 py-2 rounded-md bg-gradient-to-r from-cyan-600 to-cyan-700 text-white text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
                 data-testid="cross-module-tip-request-btn"
               >
                 {requesting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} Request enable
