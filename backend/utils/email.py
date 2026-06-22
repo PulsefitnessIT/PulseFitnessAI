@@ -221,9 +221,8 @@ _CATEGORY_SENDER_DEFAULT = {
     "service": "Pulse Fitness Service <service@service.pulsefitness.ai>",
     "memberships": "Pulse Fitness Memberships <noreply@memberships.pulsefitness.ai>",
     "bookings": "Pulse Fitness Bookings <bookings@bookings.pulsefitness.ai>",
-    # PENDING domains (start sending once verified in Resend):
     "support": "Pulse Fitness Support <support@support.pulsefitness.ai>",
-    "billing": "Pulse Fitness Billing <billing@pulsefitness.ai>",
+    "billing": "Pulse Fitness Billing <billing@billing.pulsefitness.ai>",
 }
 
 
