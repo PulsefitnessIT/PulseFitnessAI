@@ -223,6 +223,13 @@ const MasterAdminPage = ({ _onBack }) => {
       window.location.href = '/pulse';
     }
   };
+  const handleOrgSwitch = async (orgId) => {
+    const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true });
+    const impToken = res.data?.token;
+    if (!impToken) throw new Error('no token');
+    localStorage.setItem('impersonation_return', '/master-admin');
+    window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
+  };
   // Iter 215bs — One-click "as operator" preview into the Pulse Fitness dashboard
   // so master admins can sanity-check the operator UX without seeding a
   // fake user. The `?as=operator` flag bypasses the master-admin redirect
@@ -598,6 +605,8 @@ const MasterAdminPage = ({ _onBack }) => {
         onLogout={handleLogout}
         onPulseSwitch={handlePulseSwitch}
         onPulseFitnessSwitch={handlePulseFitnessSwitch}
+        onOrgSwitch={handleOrgSwitch}
+        organizations={organizations}
         isPulseAdmin={isPulseAdmin}
       />
 

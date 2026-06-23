@@ -1212,27 +1212,21 @@ async def impersonate_user(user_id: str, request: Request, user: dict = Depends(
     return {"token": token, "user": target}
 
 
-@router.post("/master-admin/pulse-portal-login")
-async def pulse_portal_login(request: Request, user: dict = Depends(get_current_user)):
-    """Log a Pulse master admin straight into the Pulse Fitness (LTD) operating
-    portal as that org's owner. Idempotently provisions an impersonation-only
-    owner in the org (get_current_user requires a real user row), then issues
-    the same short-lived, audited impersonation JWT used elsewhere."""
-    require_master_admin(user)
-    org = await db.organizations.find_one({"name": "Pulse Fitness"}, {"_id": 0})
-    if not org:
-        raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
+async def _issue_org_portal_token(org: dict, actor: dict, request: Request) -> str:
+    """Provision (idempotently) an impersonation-only owner in `org` and mint a
+    short-lived, audited impersonation JWT for it. Shared by the dedicated
+    Pulse Fitness button and the generic any-org portal switch."""
     org_id = org["id"]
-
     target = await db.users.find_one(
         {"organization_id": org_id, "role": "owner"}, {"_id": 0, "password": 0, "password_hash": 0})
     if not target:
         import uuid
+        slug = (org.get("name") or "org").lower().replace(" ", "-")[:32]
         target = {
             "id": str(uuid.uuid4()),
-            "email": "portal@pulsefitness.ltd",
-            "full_name": "Pulse Fitness",
-            "name": "Pulse Fitness",
+            "email": f"portal+{org_id[:8]}@{slug}.portal",
+            "full_name": org.get("name") or "Portal Owner",
+            "name": org.get("name") or "Portal Owner",
             "organization_id": org_id,
             "role": "owner",
             "account_type": org.get("account_type") or "pulse_pro",
@@ -1253,18 +1247,41 @@ async def pulse_portal_login(request: Request, user: dict = Depends(get_current_
         "email": target["email"],
         "organization_id": org_id,
         "role": target.get("role", "owner"),
-        "impersonated_by": user["email"],
+        "impersonated_by": actor["email"],
         "jti": jti,
         "exp": exp,
     }, _JWT_SECRET, algorithm=_JWT_ALGO)
 
-    await log_activity("portal_switch", "Switched into Pulse Fitness portal", user["email"], "organization", org_id)
+    await log_activity("portal_switch", f"Switched into {org.get('name')} portal", actor["email"], "organization", org_id)
     from utils.audit_log import record_impersonation_event
     await record_impersonation_event(
-        actor=user, target_user_id=target["id"],
+        actor=actor, target_user_id=target["id"],
         target_email=target.get("email"),
         target_organization_id=org_id,
         token_jti=jti, expires_at=exp, request=request,
-        reason="pulse_portal_switch",
+        reason="org_portal_switch",
     )
-    return {"token": token}
+    return token
+
+
+@router.post("/master-admin/pulse-portal-login")
+async def pulse_portal_login(request: Request, user: dict = Depends(get_current_user)):
+    """Log a Pulse master admin straight into the Pulse Fitness (LTD) portal."""
+    require_master_admin(user)
+    org = await db.organizations.find_one({"name": "Pulse Fitness"}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
+    token = await _issue_org_portal_token(org, user, request)
+    return {"token": token, "organization_id": org["id"], "organization_name": org.get("name")}
+
+
+@router.post("/master-admin/org-portal-login/{org_id}")
+async def org_portal_login(org_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Log a Pulse master admin into ANY organisation's operator portal as its
+    owner (one-click client portal switch from the admin console)."""
+    require_master_admin(user)
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+    token = await _issue_org_portal_token(org, user, request)
+    return {"token": token, "organization_id": org["id"], "organization_name": org.get("name")}
