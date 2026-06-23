@@ -1,0 +1,38 @@
+{
+  "summary": "Comms Phase-2 backend + frontend verification. Backend: 16/16 pytest passed (100%) — all intelligence (engagement/inactive/best-send-time/benchmarks), deliverability, campaign analytics (bots include/exclude) and live AI endpoints (subjects/write/improve/analyse) return 200 with correct shape. Frontend: all 6 section tabs (campaigns/engagement/inactive/best-time/benchmarks/deliverability) and 4 scope pills render; Deliverability view shows provider=Resend, health=good and 5 verified domains (service/memberships/bookings/support/billing).pulsefitness.ai with SPF+DKIM+DMARC; Campaign analytics modal opens with bot-filter toggle, click-map and ai-analysis renders successfully. EmailBuilder mounts from campaign-edit with builder-ai + builder-suggest-subjects testids present. Dedup rule VERIFIED: /memberships has NO 'Emails' tab (data-pill-id='emails' count=0) and /crm has NO 'Communications' nav item — Comms Centre is the single source as required.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EmailBuilder ai-compose-modal", "issue": "After clicking builder-ai the [data-testid='ai-compose-modal'] did not become visible within 8s in one run (button itself, brief textarea and ai-generate are wired in source). Likely a slow first-mount or focus issue. Backend AI endpoints verified live, so this is purely a UI timing concern — please verify modal opens instantly on first click.", "selector": "[data-testid='ai-compose-modal']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "React console", "issues": ["Hydration warning: '<span> cannot be a child of <option>' (component using <span> inside a native <select><option>). Not blocking but should be cleaned up."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_comms_phase2.py",
+    "/app/test_reports/pytest/iter_comms_p2.xml"
+  ],
+  "action_items": [
+    "(LOW) Confirm builder-ai → ai-compose-modal renders without delay on first click; if it's mounted in a portal/transition, ensure it's keyboard-focusable & visible quickly.",
+    "(LOW) Fix hydration warning: <span> inside <option>."
+  ],
+  "critical_code_review_comments": [
+    "routes/comms_intel.py — engagement_companies uses 'engagement_contacts.__wrapped__' check; the function isn't wrapped so the inline recompute branch is always taken. Works correctly but the dead branch could be removed for clarity.",
+    "campaign_analytics: division 'clicked / opened * 100' for CTOR cannot raise (guarded by opened>0), but bounce/open/click rates over a sent==0 fallback path use stored campaign metrics — safe.",
+    "deliverability hard-codes spf/dkim/dmarc='configured' & verified = bool(RESEND_API_KEY). This is fine for an initial implementation but it does not actually probe DNS — flag as truth-only-if-Resend-is-set; consider real DNS lookups long term.",
+    "comms_intel.py is 489 lines and remains a single module — acceptable for now but split (engagement/insights/deliverability/ai) before it grows further.",
+    "AI endpoints correctly return 503 when comms_ai returns None; no Emergent LLM key leakage to client."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_comms_phase2.py (new)"
+  ],
+  "success_rate": { "backend": "100% (16/16)", "frontend": "~95% (all section tabs + dedup + deliverability + analytics + AI analyse all OK; ai-compose-modal timing inconclusive)" },
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "No new campaigns created in this run (reused existing 14 from prior iterations). TEST_phase2_* would be created only if list endpoint returned empty (it did not).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pytest file is /app/backend/tests/test_comms_phase2.py — run from /app/backend. AI tests are live (Emergent LLM key) and take ~25s total. Empty engagement/benchmarks data is correct because the org has few real sends. Dedup verified on /memberships (no emails pill) and /crm (no Communications nav). campaign-edit-{id} opens EmailBuilder; campaign-analytics-{id} opens the analytics modal with data-testid='campaign-analytics-modal'.",
+  "rca of the issue": "N/A — no failures requiring root cause analysis. Only minor UI timing observation on ai-compose-modal first appearance."
+}

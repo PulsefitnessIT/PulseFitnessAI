@@ -90,6 +90,11 @@ function hasAccess(user, accessKey) {
  return false;
 }
 
+// Exposed so module shells can hide their embedded Comms views when the
+// Comms Centre is available (user has both Marketing + CRM) — single source.
+export function hasModuleAccess(user, accessKey) { return hasAccess(user, accessKey); }
+export function hasCommsCentre(user) { return hasAccess(user, 'comms'); }
+
 export default function ModuleSwitcher({ user, current }) {
  const location = useLocation();
  const navigate = useNavigate();

@@ -1,16 +1,15 @@
 /**
  * Pulse Fitness AI — Comms Centre.
  *
- * The central, merged campaign module. Layout mirrors the other modules
- * (Operations / Memberships / CRM / Marketing) byte-for-byte — unified
- * header + ModuleSwitcher + canonical PillTabBar — so switching modules
- * feels seamless. The pill tabs are CONTEXT VIEWS (All / Marketing /
- * Member emails / CRM & B2B) that filter the SAME shared campaign
- * records (no duplication).
+ * The central, merged campaign + intelligence module. Layout mirrors the
+ * other modules (unified header + ModuleSwitcher + canonical PillTabBar).
+ * Section tabs: Campaigns / Engagement / Inactive / Best Send Time /
+ * Benchmarks / Deliverability. A module-scope control (All / Marketing /
+ * Members / CRM) filters the shared records — no duplication.
  */
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Megaphone, Mail, Users, Briefcase } from 'lucide-react';
+import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users } from 'lucide-react';
 
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -18,12 +17,22 @@ import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
 import PillTabBar from '@/components/shared/PillTabBar';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import CampaignsPanel from './CampaignsPanel';
+import { EngagementView, InactiveView, BestTimeView, BenchmarksView, DeliverabilityView } from './Intelligence';
 
-const VIEWS = [
-  { id: 'all', label: 'All campaigns', icon: Megaphone, module: 'all' },
-  { id: 'marketing', label: 'Marketing', icon: Mail, module: 'marketing' },
-  { id: 'memberships', label: 'Member emails', icon: Users, module: 'memberships' },
-  { id: 'crm', label: 'CRM & B2B', icon: Briefcase, module: 'crm' },
+const SECTIONS = [
+  { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
+  { id: 'engagement', label: 'Engagement', icon: TrendingUp },
+  { id: 'inactive', label: 'Inactive', icon: Users },
+  { id: 'best-time', label: 'Best Send Time', icon: Clock },
+  { id: 'benchmarks', label: 'Benchmarks', icon: Award },
+  { id: 'deliverability', label: 'Deliverability', icon: ShieldCheck },
+];
+
+const SCOPES = [
+  { id: 'all', label: 'All' },
+  { id: 'marketing', label: 'Marketing' },
+  { id: 'memberships', label: 'Members' },
+  { id: 'crm', label: 'CRM & B2B' },
 ];
 
 export default function CommsCentre() {
@@ -34,20 +43,24 @@ export default function CommsCentre() {
   const token = useMemo(() => localStorage.getItem('token'), []);
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
-  const initialView = (() => {
-    const sp = new URLSearchParams(location.search);
-    const v = sp.get('view');
-    return VIEWS.some((x) => x.id === v) ? v : 'all';
-  })();
-  const [view, setView] = useState(initialView);
-  const moduleParam = VIEWS.find((v) => v.id === view)?.module || 'all';
+  const sp = new URLSearchParams(location.search);
+  const [section, setSection] = useState(SECTIONS.some((s) => s.id === sp.get('view')) ? sp.get('view') : 'campaigns');
+  const [scope, setScope] = useState('all');
 
-  // Brand parity with MarketingSuite: Pulse-account customers keep solid
-  // cyan active pills; everyone else gets the brand gradient pill + the
-  // theme-gymaxis token set in light mode.
   const isPulseBranded = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
 
   if (!user) { navigate('/'); return null; }
+
+  const renderSection = () => {
+    switch (section) {
+      case 'engagement': return <EngagementView API={API} headers={headers} module={scope} />;
+      case 'inactive': return <InactiveView API={API} headers={headers} module={scope} />;
+      case 'best-time': return <BestTimeView API={API} headers={headers} module={scope} />;
+      case 'benchmarks': return <BenchmarksView API={API} headers={headers} module={scope} />;
+      case 'deliverability': return <DeliverabilityView API={API} headers={headers} />;
+      default: return <CampaignsPanel key={scope} API={API} headers={headers} module={scope} testIdPrefix="comms" />;
+    }
+  };
 
   return (
     <div
@@ -58,7 +71,6 @@ export default function CommsCentre() {
       <Navbar user={user} logout={logout} theme={theme} toggleTheme={toggleTheme} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 md:pb-8 module-fade-in">
-        {/* Unified header — parity with Operations / Memberships / CRM / Marketing. */}
         <div className="mb-6" data-testid="comms-app-header">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
@@ -69,7 +81,7 @@ export default function CommsCentre() {
                 )}
               </h1>
               <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>
-                One connected campaign system across Marketing, Memberships and CRM.
+                One connected campaign &amp; intelligence system across Marketing, Memberships and CRM.
               </p>
             </div>
             <div className="text-sm pulse-font-body shrink-0 mt-1.5" style={{ color: 'var(--theme-text-muted)' }} data-testid="module-today-date">
@@ -81,10 +93,10 @@ export default function CommsCentre() {
 
         <CrossModuleTipsBanner mode="marketing" />
 
-        {/* Context views — canonical PillTabBar, branded pills (matches modules). */}
-        <PillTabBar className="hidden md:block mb-6" activeId={view} testId="comms-tabs-desktop" ariaLabel="Comms views">
-          {VIEWS.map(({ id, label, icon: Icon }) => {
-            const isActive = view === id;
+        {/* Section tabs */}
+        <PillTabBar className="hidden md:block mb-4" activeId={section} testId="comms-sections-desktop" ariaLabel="Comms sections">
+          {SECTIONS.map(({ id, label, icon: Icon }) => {
+            const isActive = section === id;
             const activeStyle = isPulseBranded
               ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
               : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF', boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)' };
@@ -92,10 +104,10 @@ export default function CommsCentre() {
               <button
                 key={id}
                 data-pill-id={id}
-                onClick={() => { setView(id); navigate(`/comms?view=${id}`, { replace: true }); }}
+                onClick={() => { setSection(id); navigate(`/comms?view=${id}`, { replace: true }); }}
                 className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap"
                 style={isActive ? activeStyle : { color: 'var(--theme-text-muted)', background: 'transparent' }}
-                data-testid={`comms-view-${id}`}
+                data-testid={`comms-section-${id}`}
               >
                 <Icon size={14} /> {label}
               </button>
@@ -103,28 +115,32 @@ export default function CommsCentre() {
           })}
         </PillTabBar>
 
-        {/* Mobile scrollable pills */}
-        <div className="md:hidden mb-5 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {VIEWS.map(({ id, label }) => {
-            const isActive = view === id;
-            const activeStyleMobile = isPulseBranded
-              ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-              : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF' };
+        {/* Mobile section pills */}
+        <div className="md:hidden mb-4 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {SECTIONS.map(({ id, label }) => {
+            const isActive = section === id;
             return (
-              <button
-                key={id}
-                onClick={() => { setView(id); navigate(`/comms?view=${id}`, { replace: true }); }}
-                className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors"
-                style={isActive ? activeStyleMobile : { color: 'var(--theme-text-muted)', background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}
-                data-testid={`comms-pill-${id}`}
-              >
-                {label}
-              </button>
+              <button key={id} onClick={() => { setSection(id); navigate(`/comms?view=${id}`, { replace: true }); }}
+                className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap"
+                style={isActive ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { color: 'var(--theme-text-muted)', background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}
+                data-testid={`comms-section-pill-${id}`}>{label}</button>
             );
           })}
         </div>
 
-        <CampaignsPanel key={moduleParam} API={API} headers={headers} module={moduleParam} testIdPrefix="comms" />
+        {/* Module scope (hidden for deliverability which is org-wide) */}
+        {section !== 'deliverability' && (
+          <div className="mb-5 inline-flex items-center gap-1 p-1 rounded-full" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }} data-testid="comms-scope">
+            {SCOPES.map((s) => (
+              <button key={s.id} onClick={() => setScope(s.id)}
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={scope === s.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { color: 'var(--theme-text-muted)' }}
+                data-testid={`comms-scope-${s.id}`}>{s.label}</button>
+            ))}
+          </div>
+        )}
+
+        {renderSection()}
       </main>
     </div>
   );

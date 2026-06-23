@@ -9,9 +9,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
-  Megaphone, Send, Copy, Archive, Pencil, Plus, Eye, MousePointerClick, X,
+  Megaphone, Send, Copy, Archive, Pencil, Plus, Eye, MousePointerClick, X, BarChart3,
 } from 'lucide-react';
 import EmailBuilder from './EmailBuilder';
+import CampaignAnalytics from './CampaignAnalytics';
 
 const STATUS_STYLE = {
   draft: 'bg-slate-500/15 text-slate-500',
@@ -59,6 +60,7 @@ export default function CampaignsPanel({ API, headers, module = 'all', testIdPre
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -169,6 +171,7 @@ export default function CampaignsPanel({ API, headers, module = 'all', testIdPre
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => setEditing(c)} title="Edit" className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--theme-text-muted)' }} data-testid={`campaign-edit-${c.id}`}><Pencil size={15} /></button>
+                      <button onClick={() => setAnalytics(c)} title="Analytics" className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--theme-text-muted)' }} data-testid={`campaign-analytics-${c.id}`}><BarChart3 size={15} /></button>
                       <button onClick={() => duplicate(c)} title="Duplicate" className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--theme-text-muted)' }} data-testid={`campaign-dup-${c.id}`}><Copy size={15} /></button>
                       <button onClick={() => archive(c)} title="Archive" className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--theme-text-muted)' }} data-testid={`campaign-archive-${c.id}`}><Archive size={15} /></button>
                     </div>
@@ -194,6 +197,10 @@ export default function CampaignsPanel({ API, headers, module = 'all', testIdPre
           onClose={() => { setEditing(null); load(); }}
           onSaved={(c) => setEditing(c)}
         />
+      )}
+
+      {analytics && (
+        <CampaignAnalytics campaign={analytics} API={apiRoot} headers={headers} onClose={() => setAnalytics(null)} />
       )}
     </div>
   );

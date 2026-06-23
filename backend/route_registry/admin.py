@@ -24,6 +24,7 @@ from routes.master_admin_bulk_import import router as master_admin_bulk_import_r
 from routes.equipment_image_admin import router as equipment_image_admin_router
 from routes.marketing import router as marketing_router
 from routes.comms import router as comms_router
+from routes.comms_intel import router as comms_intel_router
 from routes.marketing_director import router as marketing_director_router
 from routes.assistant import router as assistant_router
 from routes.data_wipe import router as data_wipe_router
@@ -112,6 +113,7 @@ def register_admin(api_router: APIRouter) -> None:
         equipment_image_admin_router,
         marketing_router,
         comms_router,
+        comms_intel_router,
         marketing_director_router,
         assistant_router,
         data_wipe_router,

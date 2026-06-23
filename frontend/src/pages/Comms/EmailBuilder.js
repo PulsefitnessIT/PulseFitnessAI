@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import {
   Type, Heading1, Image as ImageIcon, MousePointerClick, Minus, MoveVertical,
   Share2, Video, Code, LayoutPanelTop, Sparkles, Monitor, Smartphone, Moon,
-  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2,
+  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2,
 } from 'lucide-react';
 
 const CYAN = '#19CDFF';
@@ -122,9 +122,62 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState('');
   const [showTest, setShowTest] = useState(false);
+  const [showAI, setShowAI] = useState(false);
+  const [aiBrief, setAiBrief] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [subjIdeas, setSubjIdeas] = useState([]);
+  const [subjBusy, setSubjBusy] = useState(false);
   const dragIndex = useRef(null);
 
   const sel = blocks.find((b) => b.id === selId) || null;
+
+  const aiGenerate = async () => {
+    if (!aiBrief.trim()) { toast.error('Describe what the email is about'); return; }
+    setAiBusy(true);
+    try {
+      const r = await axios.post(`${API}/api/comms/ai/write`, {
+        brief: aiBrief, campaign_type: campaign?.campaign_type, tone: 'friendly professional',
+      }, { headers });
+      const newBlocks = (r.data.blocks || []).map((b) => ({ id: uid(), type: b.type, props: b.props || {} }));
+      if (newBlocks.length) {
+        setBlocks([
+          { id: uid(), type: 'logo', props: { ...DEFAULTS.logo } },
+          ...newBlocks,
+          { id: uid(), type: 'footer', props: { ...DEFAULTS.footer } },
+        ]);
+      }
+      if (r.data.subject) setSubject(r.data.subject);
+      toast.success('Draft generated — tweak it as you like');
+      setShowAI(false);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'AI is unavailable right now');
+    } finally { setAiBusy(false); }
+  };
+
+  const aiSuggestSubjects = async () => {
+    setSubjBusy(true);
+    try {
+      const r = await axios.post(`${API}/api/comms/ai/subjects`, {
+        topic: aiBrief || subject || campaign?.name, audience: campaign?.related_module, tone: 'engaging', n: 5,
+      }, { headers });
+      setSubjIdeas(r.data.subjects || []);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'AI is unavailable right now');
+    } finally { setSubjBusy(false); }
+  };
+
+  const aiImproveSelected = async () => {
+    if (!sel || !['text', 'heading'].includes(sel.type)) return;
+    setAiBusy(true);
+    try {
+      const r = await axios.post(`${API}/api/comms/ai/improve`, {
+        text: sel.props?.text || '', goal: 'clarity and engagement',
+      }, { headers });
+      if (r.data.text) { updateProps({ text: r.data.text }); toast.success('Improved'); }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'AI is unavailable right now');
+    } finally { setAiBusy(false); }
+  };
 
   const addBlock = (type, atIndex = null) => {
     const nb = { id: uid(), type, props: { ...(DEFAULTS[type] || {}) } };
@@ -238,6 +291,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
             {errors ? <AlertTriangle size={13} className="text-rose-500" /> : <CheckCircle2 size={13} className="text-emerald-500" />}
             <span className={errors ? 'text-rose-600' : 'text-slate-600'}>{errors} err · {warns} warn</span>
           </div>
+          <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="builder-ai"><Wand2 size={14} />AI</button>
           <button onClick={() => setShowTest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-test"><Send size={14} />Test</button>
           <button onClick={save} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-[#03212b] disabled:opacity-50" style={{ background: CYAN }} data-testid="builder-save"><Save size={14} />{saving ? 'Saving…' : 'Save'}</button>
         </div>
@@ -259,8 +313,20 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Subject line…"
             data-testid="builder-subject"
-            className="w-full max-w-[600px] mx-auto block mb-4 px-4 py-3 rounded-xl border border-slate-200 font-semibold text-slate-900 focus:border-[#19CDFF] focus:outline-none"
+            className="w-full max-w-[600px] mx-auto block mb-2 px-4 py-3 rounded-xl border border-slate-200 font-semibold text-slate-900 focus:border-[#19CDFF] focus:outline-none"
           />
+          <div className="max-w-[600px] mx-auto mb-4">
+            <button onClick={aiSuggestSubjects} disabled={subjBusy} className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 hover:text-violet-700 disabled:opacity-50" data-testid="builder-suggest-subjects">
+              {subjBusy ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />} Suggest subject lines
+            </button>
+            {subjIdeas.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1.5" data-testid="subject-ideas">
+                {subjIdeas.map((s, i) => (
+                  <button key={i} onClick={() => { setSubject(s); setSubjIdeas([]); }} className="text-left text-sm px-3 py-2 rounded-lg bg-violet-50 text-slate-700 hover:bg-violet-100">{s}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <div
             className={`mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-all ${device === 'mobile' ? 'max-w-[380px]' : 'max-w-[600px]'}`}
             onDragOver={(e) => e.preventDefault()}
@@ -297,9 +363,28 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
         {/* Properties */}
         <aside className="w-72 bg-white border-l border-slate-200 p-4 overflow-y-auto hidden lg:block shrink-0" data-testid="builder-props">
           {!sel && <p className="text-sm text-slate-400">Select a block to edit it.</p>}
+          {sel && ['text', 'heading'].includes(sel.type) && (
+            <button onClick={aiImproveSelected} disabled={aiBusy} className="w-full mb-3 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="props-ai-improve">
+              {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} Improve with AI
+            </button>
+          )}
           {sel && <BlockProps block={sel} update={updateProps} />}
         </aside>
       </div>
+
+      {showAI && (
+        <div className="fixed inset-0 z-[210] bg-black/40 flex items-center justify-center p-4" onClick={() => setShowAI(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} data-testid="ai-compose-modal">
+            <h3 className="flex items-center gap-2 font-bold text-lg text-slate-900 mb-1 pulse-font-heading"><Wand2 size={18} className="text-violet-600" />Write with AI</h3>
+            <p className="text-sm text-slate-500 mb-4">Describe your email and we'll draft a branded starting point.</p>
+            <textarea value={aiBrief} onChange={(e) => setAiBrief(e.target.value)} rows={4} placeholder="e.g. Invite lapsed members to a free comeback week with a personal training taster" className="w-full px-4 py-3 rounded-xl border border-slate-200 mb-4 focus:border-[#19CDFF] focus:outline-none" data-testid="ai-brief" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowAI(false)} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button onClick={aiGenerate} disabled={aiBusy} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white disabled:opacity-50" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="ai-generate">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}Generate</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTest && (
         <div className="fixed inset-0 z-[210] bg-black/40 flex items-center justify-center p-4" onClick={() => setShowTest(false)}>

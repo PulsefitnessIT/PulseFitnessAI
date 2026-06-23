@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, u
 import { useAuth } from '@/App';
 import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 import Navbar from '@/components/shared/Navbar';
-import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
+import ModuleSwitcher, { hasModuleAccess } from '@/components/shared/ModuleSwitcher';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useLocalization } from '@/utils/localization';
@@ -614,6 +614,7 @@ export default function CRMApp() {
       .filter(it => !it.hideFromBar)
       .filter(it => featureOn(it.featureFlag))
       .filter(it => !(isMembersMode && MEMBERS_HIDDEN_TABS.has(it.id)))
+      .filter(it => !(it.id === 'communications' && hasModuleAccess(mainAuth?.user, 'marketing') && hasModuleAccess(mainAuth?.user, 'crm')))
       .filter(it => !(hideStart && it.id === 'start'));
   }, [user?.is_pulse_internal, user?.is_master_admin, user?.features, user?.modules, user?.role, hideStart, activeMode]);
 

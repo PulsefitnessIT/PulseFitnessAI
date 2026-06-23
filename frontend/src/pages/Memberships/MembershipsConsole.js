@@ -36,7 +36,7 @@ import MembersBulkBar from '@/components/memberships/MembersBulkBar';
 import PullToRefresh from '@/components/shared/PullToRefresh';
 import Navbar from '@/components/shared/Navbar';
 import MobileBottomNav from '@/components/shared/MobileBottomNav';
-import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
+import ModuleSwitcher, { hasModuleAccess } from '@/components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import HelpHint from '@/components/HelpHint';
@@ -128,8 +128,8 @@ function MembershipsConsoleInner() {
   // promo + comms → analytics → tools. Grouped with separators to
   // make scanning the bar quicker. (Deep-link IDs unchanged so
   // existing email CTAs / checklist links still work.)
+  const showEmbeddedEmails = !(hasModuleAccess(user, 'marketing') && hasModuleAccess(user, 'crm'));
   const TABS = useMemo(() => [
-    // — Onboarding & landing
     { id: 'start',     label: 'Start', icon: Sparkles },
     { id: 'dashboard', label: t('memberships_console.tab_dashboard'), icon: LayoutDashboard },
     // — Daily ops
@@ -148,14 +148,14 @@ function MembershipsConsoleInner() {
     { id: 'events', label: 'Events', icon: Theater },
     // — Marketing
     { id: 'promotions', label: 'Promotions', icon: Tag },
-    { id: 'emails', label: 'Emails', icon: Mail },
+    ...(showEmbeddedEmails ? [{ id: 'emails', label: 'Emails', icon: Mail }] : []),
     { id: 'ads',       label: t('memberships_console.tab_ads'),       icon: Megaphone },
     // — Intelligence & analytics (Studio Brain + AI Insights are sub-tabs inside Analytics)
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
     // — Cross-platform tools
     { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
     { id: 'booking-rules', label: 'Booking rules', icon: Settings },
-  ], [t]);
+  ], [t, showEmbeddedEmails]);
 
   // Filter the tab list when Studio Mode is on — keeps UI focused on
   // the essentials for 1-3 person teams.
