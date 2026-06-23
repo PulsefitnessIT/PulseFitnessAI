@@ -212,6 +212,12 @@ function CreateModal({ API, headers, meta, defaultModule, onClose, onCreated }) 
   const [type, setType] = useState(types[0]?.id || 'regular');
   const [goal, setGoal] = useState('');
   const [busy, setBusy] = useState(false);
+  const [segments, setSegments] = useState([]);
+  const [segmentId, setSegmentId] = useState('');
+
+  useEffect(() => {
+    axios.get(`${API}/api/comms/segments`, { headers }).then((r) => setSegments(r.data.segments || [])).catch(() => {});
+  }, [API, headers]);
 
   const grouped = useMemo(() => {
     const g = {};
@@ -223,7 +229,7 @@ function CreateModal({ API, headers, meta, defaultModule, onClose, onCreated }) 
     if (!name.trim()) { toast.error('Give your campaign a name'); return; }
     setBusy(true);
     try {
-      const r = await axios.post(`${API}/api/comms/campaigns`, { name, campaign_type: type, conversion_goal: goal }, { headers });
+      const r = await axios.post(`${API}/api/comms/campaigns`, { name, campaign_type: type, conversion_goal: goal, segment_id: segmentId || undefined }, { headers });
       toast.success('Campaign created');
       onCreated(r.data.campaign);
     } catch (e) {
@@ -248,6 +254,11 @@ function CreateModal({ API, headers, meta, defaultModule, onClose, onCreated }) 
               {items.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             </optgroup>
           ))}
+        </select>
+        <label className="block text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Audience segment (optional)</label>
+        <select value={segmentId} onChange={(e) => setSegmentId(e.target.value)} className="w-full px-4 py-3 rounded-xl border mb-4" style={inputStyle} data-testid="create-segment">
+          <option value="">No segment yet — choose later</option>
+          {segments.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.member_count})</option>)}
         </select>
         <label className="block text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Conversion goal (optional)</label>
         <input value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. renewals, bookings, quote approvals" className="w-full px-4 py-3 rounded-xl border mb-5 focus:outline-none" style={inputStyle} data-testid="create-goal" />

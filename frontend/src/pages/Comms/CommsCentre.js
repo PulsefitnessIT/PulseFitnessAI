@@ -9,7 +9,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users } from 'lucide-react';
+import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users, Filter } from 'lucide-react';
 
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -18,9 +18,11 @@ import PillTabBar from '@/components/shared/PillTabBar';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import CampaignsPanel from './CampaignsPanel';
 import { EngagementView, InactiveView, BestTimeView, BenchmarksView, DeliverabilityView } from './Intelligence';
+import { SegmentsView } from './Segments';
 
 const SECTIONS = [
   { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
+  { id: 'segments', label: 'Segments', icon: Filter },
   { id: 'engagement', label: 'Engagement', icon: TrendingUp },
   { id: 'inactive', label: 'Inactive', icon: Users },
   { id: 'best-time', label: 'Best Send Time', icon: Clock },
@@ -53,6 +55,7 @@ export default function CommsCentre() {
 
   const renderSection = () => {
     switch (section) {
+      case 'segments': return <SegmentsView API={API} headers={headers} />;
       case 'engagement': return <EngagementView API={API} headers={headers} module={scope} />;
       case 'inactive': return <InactiveView API={API} headers={headers} module={scope} />;
       case 'best-time': return <BestTimeView API={API} headers={headers} module={scope} />;
@@ -128,8 +131,8 @@ export default function CommsCentre() {
           })}
         </div>
 
-        {/* Module scope (hidden for deliverability which is org-wide) */}
-        {section !== 'deliverability' && (
+        {/* Module scope (hidden for deliverability + segments which are source/org-wide) */}
+        {!['deliverability', 'segments'].includes(section) && (
           <div className="mb-5 inline-flex items-center gap-1 p-1 rounded-full" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }} data-testid="comms-scope">
             {SCOPES.map((s) => (
               <button key={s.id} onClick={() => setScope(s.id)}

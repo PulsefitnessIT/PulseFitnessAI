@@ -406,6 +406,7 @@ async def create_comms_campaign(body: dict = Body(...), user: dict = Depends(get
         "audience_id": body.get("audience_id"),
         "audience_inline": body.get("audience_inline"),
         "dynamic_list_id": body.get("dynamic_list_id"),
+        "segment_id": body.get("segment_id"),
         "content": content,
         "variants": [],
         "ab_test": {"enabled": False},
@@ -432,7 +433,7 @@ async def get_comms_campaign(campaign_id: str, user: dict = Depends(get_current_
 
 _EDITABLE = {
     "name", "campaign_type", "related_module", "channel", "conversion_goal",
-    "audience_id", "audience_inline", "dynamic_list_id", "schedule",
+    "audience_id", "audience_inline", "dynamic_list_id", "segment_id", "schedule",
     "tracking", "tags", "content",
 }
 
