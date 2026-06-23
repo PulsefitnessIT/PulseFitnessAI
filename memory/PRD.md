@@ -1,3 +1,14 @@
+## Comms Centre — Layout parity + contextual embeds (Jun 23, 2026) ✅
+
+Phase 1 follow-up, completed & tested (frontend 100%, backend unchanged/24-24):
+- **Redesigned Comms Centre** to match every other module's shell: unified header (`Comms Centre · {company}` + welcome + today's date), `ModuleSwitcher` row, `CrossModuleTipsBanner`, canonical branded `PillTabBar` context views, and theme-token cards/tables (no more bespoke white/slate styling). Extracted reusable themed `CampaignsPanel` (`frontend/src/pages/Comms/CampaignsPanel.js`).
+- **Deep-embedded contextual views into existing shells** (same shared `/api/comms` records, no duplication):
+  - Memberships → new **Emails** tab → `CampaignsPanel module="memberships"` (shows only membership campaigns).
+  - CRM → new **Communications** nav item → `CampaignsPanel module="crm"` (shows only CRM/B2B campaigns).
+- **Fixed** double-`/api` prefix bug: `CampaignsPanel` now normalises the API base, so it works whether the caller passes a bare backend URL (Comms/CRM) or `useAuth().API` (Memberships, includes `/api`).
+- Verified shared-record integrity: a Memberships campaign appears in Comms Centre All + Member-emails but not CRM; a CRM campaign appears in All + CRM&B2B but not Memberships.
+
+
 ## Comms Centre — Unified Campaign System · PHASE 1 ✅ (Jun 23, 2026)
 
 **Goal (multi-phase):** Turn Pulse Fitness AI's email/campaign/marketing system into a best-in-class, MERGED platform (Mailchimp/Campaign Monitor calibre) — one shared Campaign Engine across Marketing/Memberships/CRM, contextual views (no duplicate records), a new top-level "Comms Centre", a drag-and-drop email builder, and full Pulse Fitness AI branding. ~60 feature areas phased across 4 phases.
