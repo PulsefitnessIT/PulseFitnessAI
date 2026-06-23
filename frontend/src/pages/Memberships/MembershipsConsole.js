@@ -16,7 +16,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, Theater, Loader2, Wallet,
+  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, Theater, Loader2, Wallet, Mail,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -63,6 +63,7 @@ const SellPackAtDeskModal = lazy(() => import('@/pages/Memberships/modals/SellPa
 const StudioBuilderTab = lazy(() => import('@/pages/Memberships/StudioBuilderTab'));
 const FamilyBillingTab = lazy(() => import('@/pages/Memberships/FamilyBillingTab'));
 const EventsTab = lazy(() => import('@/pages/Memberships/EventsTab'));
+const CampaignsPanel = lazy(() => import('@/pages/Comms/CampaignsPanel'));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-16 text-zinc-400" data-testid="memberships-tab-loading">
@@ -147,6 +148,7 @@ function MembershipsConsoleInner() {
     { id: 'events', label: 'Events', icon: Theater },
     // — Marketing
     { id: 'promotions', label: 'Promotions', icon: Tag },
+    { id: 'emails', label: 'Emails', icon: Mail },
     { id: 'ads',       label: t('memberships_console.tab_ads'),       icon: Megaphone },
     // — Intelligence & analytics (Studio Brain + AI Insights are sub-tabs inside Analytics)
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
@@ -330,6 +332,7 @@ function MembershipsConsoleInner() {
         {tab === 'events' && <EventsTab key={`ev-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'instructors' && <InstructorsTab key={`ins-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'promotions' && <PromotionsTab key={`pro-${reloadKey}`} API={API} headers={headers} />}
+        {tab === 'emails' && <CampaignsPanel key="mbr-emails" API={API} headers={headers} module="memberships" testIdPrefix="memberships-emails" />}
         {tab === 'checkin'    && <CheckinTab    key={`chk-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'invoicing'  && <InvoicingTab  key={`inv-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'desk-sales' && <DeskSalesReportTab key={`ds-${reloadKey}`} API={API} headers={headers} />}

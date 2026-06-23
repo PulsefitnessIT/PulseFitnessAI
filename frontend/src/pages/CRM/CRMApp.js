@@ -35,7 +35,8 @@ import { LEAD_SOURCE_OPTIONS, CRM_TASK_TYPE_OPTIONS, CRM_TASK_PRIORITY_OPTIONS }
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
-import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3, GitCompareArrows } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3, GitCompareArrows, Mail } from 'lucide-react';
+import CampaignsPanel from '@/pages/Comms/CampaignsPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CRMContext = createContext();
@@ -73,6 +74,7 @@ const NAV_ITEMS = [
   { id: 'forecast', labelKey: 'crm.forecast', icon: TrendingUp },
   // ─── Daily ops ───
   { id: 'inbox', labelKey: 'crm.activity_feed', icon: Activity },
+  { id: 'communications', labelKey: 'crm.communications', label: 'Communications', icon: Mail },
   { id: 'calendar', labelKey: 'crm.calendar', icon: CalendarDays },
   // ─── Admin / setup ───
   { id: 'workflows', labelKey: 'crm.workflows', icon: Zap },
@@ -619,7 +621,7 @@ export default function CRMApp() {
   // couple of tabs to gym-native terms; Corporate keeps the i18n labels).
   const tabLabel = useCallback((item) => {
     if (activeMode === 'leisure' && MEMBERS_TAB_LABELS[item.id]) return MEMBERS_TAB_LABELS[item.id];
-    return t(item.labelKey);
+    return t(item.labelKey, item.label);
   }, [activeMode, t]);
 
   // ── Sync logout: when the user signs out from the platform Navbar
@@ -845,6 +847,14 @@ export default function CRMApp() {
       case 'companies': return <CRMCompanies />;
       case 'pipeline': return <CRMPipeline />;
       case 'inbox': return <CRMInbox />;
+      case 'communications': return (
+        <CampaignsPanel
+          API={process.env.REACT_APP_BACKEND_URL}
+          headers={{ Authorization: `Bearer ${localStorage.getItem('token')}` }}
+          module="crm"
+          testIdPrefix="crm-comms"
+        />
+      );
       case 'calendar': return <CRMCalendar />;
       case 'workflows': return <CRMWorkflows />;
       case 'quotes': return <CRMCPQ />;
