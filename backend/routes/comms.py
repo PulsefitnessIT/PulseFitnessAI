@@ -27,6 +27,7 @@ from fastapi.responses import RedirectResponse
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.email import PUBLIC_BASE_URL
 from utils.module_guard import require_module
 
 from routes.marketing.helpers import _new_id, _now_iso, _org_id, logger
@@ -244,6 +245,36 @@ def render_blocks_to_html(blocks: list[dict]) -> str:
     )
 
 
+def _variant_content(camp: dict, variant_id: str | None) -> dict:
+    """Resolve {subject, blocks, body_html} for an A/B variant id, falling
+    back to the campaign's base content when no/unknown variant."""
+    base = camp.get("content") or {}
+    if variant_id:
+        for v in (camp.get("variants") or []):
+            if v.get("id") == variant_id:
+                return {
+                    "subject": v.get("subject") or base.get("subject"),
+                    "blocks": v.get("blocks") or [],
+                    "body_html": v.get("body_html") or "",
+                }
+    return {
+        "subject": base.get("subject"),
+        "blocks": base.get("blocks") or [],
+        "body_html": base.get("body_html") or "",
+    }
+
+
+def _render_variants(variants: list[dict]) -> list[dict]:
+    """Render each variant's blocks → body_html (mirrors base content)."""
+    out = []
+    for v in (variants or []):
+        vv = dict(v)
+        if vv.get("blocks"):
+            vv["body_html"] = render_blocks_to_html(vv["blocks"])
+        out.append(vv)
+    return out
+
+
 def _apply_samples(html_str: str) -> str:
     out = html_str
     for tag, sample in _TAG_SAMPLES.items():
@@ -440,7 +471,7 @@ async def get_comms_campaign(campaign_id: str, user: dict = Depends(get_current_
 _EDITABLE = {
     "name", "campaign_type", "related_module", "channel", "conversion_goal",
     "audience_id", "audience_inline", "dynamic_list_id", "segment_id", "schedule",
-    "tracking", "tags", "content",
+    "tracking", "tags", "content", "variants", "ab_test",
 }
 
 
@@ -463,6 +494,8 @@ async def update_comms_campaign(
         if content.get("blocks") is not None:
             content["body_html"] = render_blocks_to_html(content["blocks"])
         updates["content"] = content
+    if "variants" in updates:
+        updates["variants"] = _render_variants(updates["variants"] or [])
     await db.marketing_campaigns.update_one(
         {"id": campaign_id, "organization_id": org_id}, {"$set": updates},
     )
@@ -844,3 +877,77 @@ async def public_unsubscribe(token: str):
     )
     brand = await _public_org_brand(org_id)
     return {"ok": True, "email": email, **brand}
+
+
+# ───────────────────────── Hosted archive (view-in-browser) + Forward-to-friend ─────────────────────────
+# Render a previously-sent message as a hosted web page, and let a recipient
+# forward it to a friend. Both are reachable from the {{view_in_browser_link}}
+# / {{forward_to_friend_link}} merge tags. Unauthenticated — addressed by the
+# message id (an unguessable UUID) which links the campaign + recipient.
+
+async def _render_message(message_id: str) -> dict | None:
+    msg = await db.marketing_messages.find_one({"id": message_id}, {"_id": 0})
+    if not msg:
+        return None
+    camp = await db.marketing_campaigns.find_one({"id": msg.get("campaign_id")}, {"_id": 0})
+    if not camp:
+        return None
+    org_id = camp.get("organization_id")
+    # Resolve the variant this recipient received (A/B), else base content.
+    content = _variant_content(camp, msg.get("variant_id"))
+    blocks = content.get("blocks") or []
+    raw = render_blocks_to_html(blocks) if blocks else (content.get("body_html") or "")
+    subject = content.get("subject") or camp.get("name") or "Pulse Fitness AI"
+    from utils.comms_dispatch import _personalise
+    base = (PUBLIC_BASE_URL or "https://pulsefitness.ai").rstrip("/")
+    token = _make_comms_token(org_id, msg.get("contact_email", ""))
+    r = msg.get("_recip") or {}
+    links = {
+        "{{view_in_browser_link}}": "#",
+        "{{forward_to_friend_link}}": f"{base}/c/forward/{message_id}",
+        "{{unsubscribe_link}}": f"{base}/unsubscribe/{token}",
+        "{{preferences_link}}": f"{base}/preferences/{token}",
+    }
+    return {
+        "subject": _personalise(subject, r),
+        "html": _personalise(raw, r, links),
+        "org_id": org_id,
+    }
+
+
+@router.get("/public/view/{message_id}")
+async def public_view_in_browser(message_id: str):
+    data = await _render_message(message_id)
+    if not data:
+        raise HTTPException(404, "This email is no longer available.")
+    from utils.email import wrap_branded
+    html = await wrap_branded(data["html"], data["org_id"])
+    return {"subject": data["subject"], "html": html}
+
+
+@router.post("/public/forward/{message_id}")
+async def public_forward_to_friend(message_id: str, body: dict = Body(...)):
+    to = (body.get("to") or "").strip()
+    if not to or "@" not in to:
+        raise HTTPException(400, "A valid email address is required.")
+    data = await _render_message(message_id)
+    if not data:
+        raise HTTPException(404, "This email is no longer available.")
+    note = (body.get("note") or "").strip()[:500]
+    html = data["html"]
+    if note:
+        html = (
+            f'<div style="margin:0 16px 12px;padding:14px 16px;background:#f0f7ff;'
+            f'border-left:3px solid {_CYAN};border-radius:8px;font-family:Arial,sans-serif;'
+            f'font-size:14px;color:#374151;">{_esc(note)}</div>' + html
+        )
+    from utils.email import send_email
+    ok = await send_email(
+        to=to, subject=f"Fwd: {data['subject']}", html=html,
+        organization_id=data["org_id"], category="support", kind="adhoc",
+    )
+    await db.marketing_messages.update_one(
+        {"id": message_id},
+        {"$push": {"events": {"type": "forward", "at": _now_iso(), "to": to.lower()}}},
+    )
+    return {"ok": bool(ok)}

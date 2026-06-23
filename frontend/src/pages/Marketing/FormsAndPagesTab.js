@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ExternalLink, Settings, Send, Globe, FileText } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Settings, Send, Globe, FileText, BarChart3, Star } from 'lucide-react';
 import FormBuilderDialog from './FormBuilderDialog';
 import PageBuilderDialog from './PageBuilderDialog';
 import FormSubmissionsDrawer from './FormSubmissionsDrawer';
@@ -25,6 +25,7 @@ const FormsAndPagesTab = ({ API, headers }) => {
   const [editingForm, setEditingForm] = useState(null); // form obj or 'new'
   const [editingPage, setEditingPage] = useState(null);
   const [submissionsForm, setSubmissionsForm] = useState(null);
+  const [resultsForm, setResultsForm] = useState(null);
 
   const refresh = async () => {
     try {
@@ -119,7 +120,10 @@ const FormsAndPagesTab = ({ API, headers }) => {
             {forms.map((f) => (
               <tr key={f.id} className="border-b border-zinc-100 dark:border-zinc-800" data-testid={`form-row-${f.id}`}>
                 <td className="py-2">
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium">{f.name}</p>
+                  <p className="text-zinc-900 dark:text-zinc-100 font-medium flex items-center gap-2">
+                    {f.name}
+                    {f.kind === 'survey' && <Badge className="bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-[10px]">Survey</Badge>}
+                  </p>
                   <p className="text-zinc-500 dark:text-zinc-400 text-xs">{f.fields?.length || 0} fields</p>
                 </td>
                 <td className="py-2 text-right">
@@ -145,6 +149,11 @@ const FormsAndPagesTab = ({ API, headers }) => {
                 </td>
                 <td className="py-2 text-right">
                   <div className="inline-flex gap-1">
+                    {f.kind === 'survey' && (
+                      <Button size="sm" variant="ghost" onClick={() => setResultsForm(f)} className="h-7 px-2 text-violet-600" data-testid={`form-results-${f.id}`} title="View survey results">
+                        <BarChart3 size={12} />
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => setEditingForm(f)} className="h-7 px-2 text-zinc-600 dark:text-zinc-400" data-testid={`form-edit-${f.id}`}>
                       <Settings size={12} />
                     </Button>
@@ -267,8 +276,70 @@ const FormsAndPagesTab = ({ API, headers }) => {
           onClose={() => setSubmissionsForm(null)}
         />
       )}
+      {resultsForm && (
+        <SurveyResultsDialog API={API} headers={headers} form={resultsForm} onClose={() => setResultsForm(null)} />
+      )}
     </div>
   );
 };
+
+function SurveyResultsDialog({ API, headers, form, onClose }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    axios.get(`${API}/api/marketing/forms/${form.id}/results`, { headers })
+      .then((r) => setData(r.data))
+      .catch(() => toast.error('Could not load results'));
+  }, [API, headers, form.id]);
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 w-full max-w-2xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="survey-results-dialog">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2"><BarChart3 size={18} className="text-violet-600" />{form.name} — results</h3>
+          <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+        </div>
+        {!data ? (
+          <p className="text-sm text-zinc-400 py-8 text-center">Loading…</p>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-500 mb-4" data-testid="survey-total">{data.total_submissions} response{data.total_submissions === 1 ? '' : 's'}</p>
+            <div className="space-y-5">
+              {data.results.map((r) => (
+                <div key={r.id} className="border border-zinc-100 dark:border-zinc-800 rounded-xl p-4" data-testid={`survey-result-${r.id}`}>
+                  <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 mb-2">{r.label} <span className="text-zinc-400 font-normal">· {r.responses} answered</span></p>
+                  {r.breakdown && (
+                    <div className="space-y-1.5">
+                      {r.breakdown.map((b) => {
+                        const pct = r.responses ? Math.round((b.count / r.responses) * 100) : 0;
+                        return (
+                          <div key={b.value}>
+                            <div className="flex justify-between text-xs text-zinc-600 dark:text-zinc-300 mb-0.5"><span>{b.value}</span><span>{b.count} ({pct}%)</span></div>
+                            <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800"><div className="h-2 rounded-full bg-violet-500" style={{ width: `${pct}%` }} /></div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {r.field_type === 'rating' && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="flex items-center gap-1 font-bold text-amber-500"><Star size={15} fill="currentColor" />{r.average}</span>
+                      <span className="text-zinc-400 text-xs">average</span>
+                    </div>
+                  )}
+                  {r.samples && (
+                    <ul className="text-xs text-zinc-600 dark:text-zinc-300 space-y-1 list-disc pl-4">
+                      {r.samples.length === 0 && <li className="list-none text-zinc-400">No answers yet.</li>}
+                      {r.samples.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default FormsAndPagesTab;

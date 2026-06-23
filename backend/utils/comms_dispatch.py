@@ -148,24 +148,56 @@ async def activate_campaign(camp: dict) -> int:
     base_utc = _parse(sched.get("send_at")) or _now()
     if base_utc < _now():
         base_utc = _now()
+
+    ab = camp.get("ab_test") or {}
+    variants = camp.get("variants") or []
+    ab_enabled = bool(ab.get("enabled")) and len(variants) >= 2
+    test_idx_set: set[int] = set()
+    variant_for: dict[int, str] = {}
+    if ab_enabled:
+        import random as _random
+        order = list(range(len(recips)))
+        _random.shuffle(order)
+        pct = max(1, min(100, int(ab.get("test_percentage") or 20)))
+        n_test = max(len(variants), int(len(recips) * pct / 100))
+        n_test = min(n_test, len(recips))
+        for rank, idx in enumerate(order):
+            if rank < n_test:
+                test_idx_set.add(idx)
+                variant_for[idx] = variants[rank % len(variants)].get("id")
+
     rows = []
     for i, r in enumerate(recips):
+        is_test = (not ab_enabled) or (i in test_idx_set)
         rows.append({
             "id": _new_id(), "organization_id": org_id,
             "campaign_id": camp["id"], "contact_email": r["email"].lower(),
             "contact_name": (f"{r.get('first_name','')} {r.get('last_name','')}").strip(),
             "_recip": {k: r.get(k) for k in ("first_name", "last_name", "company_id")},
-            "status": "queued", "scheduled_for": _scheduled_for(i, base_utc, sched, r).isoformat(),
+            "variant_id": variant_for.get(i) if ab_enabled else None,
+            "ab_role": ("test" if (ab_enabled and i in test_idx_set) else
+                        ("winner_pending" if ab_enabled else "all")),
+            "status": ("holdback" if (ab_enabled and i not in test_idx_set) else "queued"),
+            "scheduled_for": _scheduled_for(i, base_utc, sched, r).isoformat(),
             "sent_at": None, "opened_at": None, "clicked_at": None, "events": [], "created_at": _now().isoformat(),
         })
-    # idempotent: clear any prior queue for this campaign first
-    await db.marketing_messages.delete_many({"campaign_id": camp["id"], "status": "queued"})
+    # idempotent: clear any prior un-sent queue for this campaign first
+    await db.marketing_messages.delete_many({"campaign_id": camp["id"], "status": {"$in": ["queued", "holdback"]}})
     if rows:
         await db.marketing_messages.insert_many(rows)
+    set_fields = {"status": "sending", "schedule.activated_at": _now().isoformat(),
+                  "schedule.total": len(rows), "metrics.queued": len(rows)}
+    if ab_enabled:
+        decision_hours = float((camp.get("ab_test") or {}).get("decision_hours") or 4)
+        decision_at = (max(base_utc, _now()) + timedelta(hours=decision_hours)).isoformat()
+        set_fields["ab_test.status"] = "testing"
+        set_fields["ab_test.decision_at"] = decision_at
+        set_fields["ab_test.test_total"] = len(test_idx_set)
+        set_fields["ab_test.holdback_total"] = len(rows) - len(test_idx_set)
+        set_fields["ab_test.winner_variant_id"] = None
     await db.marketing_campaigns.update_one(
         {"id": camp["id"]},
-        {"$set": {"status": "sending", "schedule.activated_at": _now().isoformat(),
-                  "schedule.total": len(rows), "metrics.queued": len(rows)}},
+        {"$set": set_fields},
     )
     logger.info("[comms-dispatch] campaign %s activated — %d recipients", camp["id"], len(rows))
     return len(rows)
@@ -197,20 +229,22 @@ async def _send_due_batch(camp: dict) -> int:
     ).sort("scheduled_for", 1).limit(_MAX_PER_CYCLE).to_list(length=_MAX_PER_CYCLE)
     if not due:
         return 0
-    content = camp.get("content") or {}
-    blocks = content.get("blocks") or []
-    raw_html = render_blocks_to_html(blocks) if blocks else (content.get("body_html") or "")
-    raw_subject = content.get("subject") or camp.get("name") or "Pulse Fitness AI"
     category = _MODULE_EMAIL_CATEGORY.get(camp.get("related_module"), "support")
-    from routes.comms import _make_comms_token
+    from routes.comms import _make_comms_token, _variant_content
     link_base = (PUBLIC_BASE_URL or "https://pulsefitness.ai").rstrip("/")
     sent = bounced = 0
     for m in due:
         r = m.get("_recip") or {}
+        vc = _variant_content(camp, m.get("variant_id"))
+        v_blocks = vc.get("blocks") or []
+        raw_html = render_blocks_to_html(v_blocks) if v_blocks else (vc.get("body_html") or "")
+        raw_subject = vc.get("subject") or camp.get("name") or "Pulse Fitness AI"
         token = _make_comms_token(org_id, m["contact_email"])
         links = {
             "{{unsubscribe_link}}": f"{link_base}/unsubscribe/{token}",
             "{{preferences_link}}": f"{link_base}/preferences/{token}",
+            "{{view_in_browser_link}}": f"{link_base}/c/view/{m['id']}",
+            "{{forward_to_friend_link}}": f"{link_base}/c/forward/{m['id']}",
         }
         html = _inject_tracking(_personalise(raw_html, r, links), m["id"])
         subject = _personalise(raw_subject, r)
@@ -232,6 +266,44 @@ async def _send_due_batch(camp: dict) -> int:
     return len(due)
 
 
+async def _decide_ab_winner(camp: dict) -> None:
+    """Once the test window closes, pick the winning variant by the chosen
+    metric and release the held-back majority with the winner's content."""
+    ab = camp.get("ab_test") or {}
+    if not ab.get("enabled") or ab.get("winner_variant_id"):
+        return
+    decision_at = _parse(ab.get("decision_at"))
+    if decision_at and _now() < decision_at:
+        return
+    # don't decide until the test cohort has actually been sent
+    pending_test = await db.marketing_messages.count_documents(
+        {"campaign_id": camp["id"], "ab_role": "test", "status": "queued"})
+    if pending_test:
+        return
+    metric = "clicked_at" if (ab.get("winner_metric") == "clicks") else "opened_at"
+    variants = camp.get("variants") or []
+    best_id, best_score = (variants[0].get("id") if variants else None), -1
+    for v in variants:
+        vid = v.get("id")
+        score = await db.marketing_messages.count_documents(
+            {"campaign_id": camp["id"], "ab_role": "test", "variant_id": vid,
+             metric: {"$nin": [None, ""]}})
+        if score > best_score:
+            best_id, best_score = vid, score
+    # release holdback with the winning variant
+    await db.marketing_messages.update_many(
+        {"campaign_id": camp["id"], "status": "holdback"},
+        {"$set": {"status": "queued", "variant_id": best_id, "ab_role": "winner",
+                  "scheduled_for": _now().isoformat()}},
+    )
+    await db.marketing_campaigns.update_one(
+        {"id": camp["id"]},
+        {"$set": {"ab_test.winner_variant_id": best_id, "ab_test.status": "winner_sent",
+                  "ab_test.winner_decided_at": _now().isoformat()}},
+    )
+    logger.info("[comms-dispatch] A/B winner for %s = %s (score=%d)", camp["id"], best_id, best_score)
+
+
 async def _cycle():
     now_iso = _now().isoformat()
     # activate scheduled campaigns that are due
@@ -245,9 +317,12 @@ async def _cycle():
     # drain sending campaigns
     async for camp in db.marketing_campaigns.find({"status": "sending"}, {"_id": 0}):
         try:
+            # A/B: decide the winner + release the holdback once the test closes
+            if (camp.get("ab_test") or {}).get("enabled"):
+                await _decide_ab_winner(camp)
             await _send_due_batch(camp)
             remaining = await db.marketing_messages.count_documents(
-                {"campaign_id": camp["id"], "status": "queued"})
+                {"campaign_id": camp["id"], "status": {"$in": ["queued", "holdback"]}})
             if remaining == 0:
                 await db.marketing_campaigns.update_one(
                     {"id": camp["id"]},

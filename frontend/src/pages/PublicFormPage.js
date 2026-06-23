@@ -118,6 +118,21 @@ const PublicFormPage = () => {
                   <option value="">— Select —</option>
                   {(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+              ) : f.field_type === 'radio' ? (
+                <div className="mt-1 space-y-1.5" data-testid={`public-form-field-${f.id}`}>
+                  {(f.options || []).map((o) => (
+                    <label key={o} className="flex items-center gap-2 text-sm text-zinc-700">
+                      <input type="radio" name={f.id} value={o} checked={values[f.id] === o} onChange={(e) => setVal(f.id, e.target.value)} required={f.required} />
+                      {o}
+                    </label>
+                  ))}
+                </div>
+              ) : f.field_type === 'rating' ? (
+                <div className="mt-1 flex items-center gap-1.5" data-testid={`public-form-field-${f.id}`}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button type="button" key={n} onClick={() => setVal(f.id, n)} className={`w-9 h-9 rounded-lg border text-sm font-bold ${Number(values[f.id]) >= n ? 'bg-cyan-500 border-cyan-500 text-white' : 'bg-white border-zinc-200 text-zinc-500'}`}>{n}</button>
+                  ))}
+                </div>
               ) : f.field_type === 'checkbox' ? (
                 <label className="flex items-center gap-2 mt-1 text-sm text-zinc-700">
                   <input

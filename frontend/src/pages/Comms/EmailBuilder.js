@@ -14,11 +14,19 @@ import { toast } from 'sonner';
 import {
   Type, Heading1, Image as ImageIcon, MousePointerClick, Minus, MoveVertical,
   Share2, Video, Code, LayoutPanelTop, Sparkles, Monitor, Smartphone, Moon,
-  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2, Rocket, Clock, Users,
+  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2, Rocket, Clock, Users, FlaskConical, Plus,
 } from 'lucide-react';
 
 const CYAN = '#19CDFF';
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+const makeDefaultBlocks = (name) => ([
+  { id: uid(), type: 'logo', props: { ...DEFAULTS_LOGO } },
+  { id: uid(), type: 'heading', props: { text: name || 'Your heading', size: 24, align: 'left', color: '#0B1220' } },
+  { id: uid(), type: 'text', props: { text: 'Write something your members or clients will care about. Use merge tags like {{first_name}} to personalise.', align: 'left' } },
+  { id: uid(), type: 'footer', props: { text: 'You are receiving this email from Pulse Fitness AI because you opted in.' } },
+]);
+const DEFAULTS_LOGO = { align: 'center', src: '/brand/pulse-mark.svg' };
 
 const PALETTE = [
   { type: 'logo', label: 'Logo', icon: ImageIcon },
@@ -107,16 +115,49 @@ function PaletteItem({ item, onAdd }) {
 }
 
 export default function EmailBuilder({ campaign, API, headers, onClose, onSaved }) {
-  const [subject, setSubject] = useState(campaign?.content?.subject || '');
-  const [blocks, setBlocks] = useState(() => {
+  // Variants model (A/B). variants[0] is the base/control = campaign.content.
+  const [variants, setVariants] = useState(() => {
+    const v = campaign?.variants;
+    if (Array.isArray(v) && v.length) {
+      return v.map((x, i) => ({
+        id: x.id || uid(), label: x.label || String.fromCharCode(65 + i),
+        subject: x.subject || '', blocks: (Array.isArray(x.blocks) && x.blocks.length) ? x.blocks : makeDefaultBlocks(campaign?.name),
+      }));
+    }
     const b = campaign?.content?.blocks;
-    return Array.isArray(b) && b.length ? b : [
-      { id: uid(), type: 'logo', props: { ...DEFAULTS.logo } },
-      { id: uid(), type: 'heading', props: { ...DEFAULTS.heading, text: campaign?.name || 'Your heading' } },
-      { id: uid(), type: 'text', props: { ...DEFAULTS.text } },
-      { id: uid(), type: 'footer', props: { ...DEFAULTS.footer } },
-    ];
+    return [{
+      id: uid(), label: 'A', subject: campaign?.content?.subject || '',
+      blocks: (Array.isArray(b) && b.length) ? b : makeDefaultBlocks(campaign?.name),
+    }];
   });
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [ab, setAb] = useState(() => ({
+    enabled: false, test_percentage: 20, winner_metric: 'opens', decision_hours: 4,
+    ...(campaign?.ab_test || {}),
+  }));
+  const [showAB, setShowAB] = useState(false);
+
+  const active = variants[activeIdx] || variants[0];
+  const subject = active.subject;
+  const blocks = active.blocks;
+  const setSubject = (val) => setVariants((prev) => prev.map((v, i) => (i === activeIdx ? { ...v, subject: typeof val === 'function' ? val(v.subject) : val } : v)));
+  const setBlocks = (val) => setVariants((prev) => prev.map((v, i) => (i === activeIdx ? { ...v, blocks: typeof val === 'function' ? val(v.blocks) : val } : v)));
+
+  const addVariant = () => {
+    if (variants.length >= 4) { toast.error('Up to 4 variants'); return; }
+    const base = variants[0];
+    setVariants((prev) => [...prev, {
+      id: uid(), label: String.fromCharCode(65 + prev.length),
+      subject: base.subject, blocks: JSON.parse(JSON.stringify(base.blocks)),
+    }]);
+    setActiveIdx(variants.length);
+  };
+  const removeVariant = (idx) => {
+    if (idx === 0 || variants.length <= 1) return;
+    setVariants((prev) => prev.filter((_, i) => i !== idx).map((v, i) => ({ ...v, label: String.fromCharCode(65 + i) })));
+    setActiveIdx(0);
+  };
+
   const [selId, setSelId] = useState(null);
   const [device, setDevice] = useState('desktop');
   const [dark, setDark] = useState(false);
@@ -247,9 +288,12 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
   const save = async () => {
     setSaving(true);
     try {
-      const r = await axios.put(`${API}/api/comms/campaigns/${campaign.id}`, {
-        content: { subject, blocks },
-      }, { headers });
+      const payload = {
+        content: { subject: variants[0].subject, blocks: variants[0].blocks },
+        variants: ab.enabled ? variants.map((v) => ({ id: v.id, label: v.label, subject: v.subject, blocks: v.blocks })) : [],
+        ab_test: ab,
+      };
+      const r = await axios.put(`${API}/api/comms/campaigns/${campaign.id}`, payload, { headers });
       toast.success('Campaign saved');
       onSaved && onSaved(r.data.campaign);
       return r.data.campaign;
@@ -294,6 +338,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
             <span className={errors ? 'text-rose-600' : 'text-slate-600'}>{errors} err · {warns} warn</span>
           </div>
           <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="builder-ai"><Wand2 size={14} />AI</button>
+          <button onClick={() => setShowAB(true)} className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-sm font-semibold ${ab.enabled ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`} data-testid="builder-ab"><FlaskConical size={14} />A/B{ab.enabled ? ` · ${variants.length}` : ''}</button>
           <button onClick={() => setShowTest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-test"><Send size={14} />Test</button>
           <button onClick={async () => { await save(); setShowSend(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-schedule"><Rocket size={14} />Send</button>
           <button onClick={save} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-[#03212b] disabled:opacity-50" style={{ background: CYAN }} data-testid="builder-save"><Save size={14} />{saving ? 'Saving…' : 'Save'}</button>
@@ -311,6 +356,17 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
 
         {/* Canvas */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-8">
+          {ab.enabled && (
+            <div className="max-w-[600px] mx-auto mb-3 flex items-center gap-1.5" data-testid="variant-tabs">
+              {variants.map((v, i) => (
+                <div key={v.id} className={`group flex items-center rounded-full ${activeIdx === i ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                  <button onClick={() => setActiveIdx(i)} className="pl-3 pr-2 py-1.5 text-xs font-bold" data-testid={`variant-tab-${v.label}`}>Variant {v.label}{i === 0 ? ' (control)' : ''}</button>
+                  {i > 0 && <button onClick={() => removeVariant(i)} className="pr-2 opacity-60 hover:opacity-100" data-testid={`variant-remove-${v.label}`}><X size={12} /></button>}
+                </div>
+              ))}
+              {variants.length < 4 && <button onClick={addVariant} className="px-2.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1" data-testid="variant-add"><Plus size={12} />Variant</button>}
+            </div>
+          )}
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
@@ -404,6 +460,43 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
       )}
       {showSend && (
         <SendModal campaign={campaign} API={API} headers={headers} onClose={() => setShowSend(false)} onDone={onClose} />
+      )}
+      {showAB && (
+        <div className="fixed inset-0 z-[210] bg-black/40 flex items-center justify-center p-4" onClick={() => setShowAB(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="ab-modal">
+            <h3 className="flex items-center gap-2 font-bold text-lg text-slate-900 mb-1 pulse-font-heading"><FlaskConical size={18} className="text-violet-600" />A/B test</h3>
+            <p className="text-sm text-slate-500 mb-4">Send variants to a small test group, then auto-send the winner to everyone else.</p>
+            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+              <input type="checkbox" checked={ab.enabled} onChange={(e) => { const en = e.target.checked; setAb((a) => ({ ...a, enabled: en })); if (en && variants.length < 2) addVariant(); }} className="w-4 h-4 accent-violet-600" data-testid="ab-enable" />
+              <span className="text-sm font-semibold text-slate-700">Enable A/B testing</span>
+            </label>
+            {ab.enabled && (
+              <div className="space-y-3" data-testid="ab-settings">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Test group size: {ab.test_percentage}%</label>
+                  <input type="range" min="5" max="50" value={ab.test_percentage} onChange={(e) => setAb((a) => ({ ...a, test_percentage: Number(e.target.value) }))} className="w-full accent-violet-600" data-testid="ab-percentage" />
+                  <p className="text-xs text-slate-400">{ab.test_percentage}% split across {variants.length} variants; the winning {100 - ab.test_percentage}% gets the best performer.</p>
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Pick winner by</label>
+                  <select value={ab.winner_metric} onChange={(e) => setAb((a) => ({ ...a, winner_metric: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" data-testid="ab-metric">
+                    <option value="opens">Most opens</option>
+                    <option value="clicks">Most clicks</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Decide after (hours)</label>
+                  <input type="number" min="1" max="72" value={ab.decision_hours} onChange={(e) => setAb((a) => ({ ...a, decision_hours: Number(e.target.value) || 4 }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" data-testid="ab-hours" />
+                </div>
+                <p className="text-xs text-slate-500 bg-violet-50 rounded-lg p-2.5">Edit each variant's subject + content using the <strong>Variant</strong> tabs above the canvas. Variant A is the control.</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowAB(false)} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button onClick={() => { setShowAB(false); save(); }} className="px-4 py-2 rounded-full text-sm font-bold text-white" style={{ background: '#7C3AED' }} data-testid="ab-save">Save A/B settings</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   ), document.body);

@@ -54,6 +54,7 @@ router = APIRouter()
 
 VALID_FIELD_TYPES = {
     "text", "email", "phone", "textarea", "select", "checkbox", "number",
+    "radio", "rating",
 }
 
 
@@ -70,6 +71,7 @@ class FormField(BaseModel):
 class FormSchema(BaseModel):
     name: str
     description: str = ""
+    kind: str = "form"  # "form" | "survey"
     fields: list[FormField] = []
     submit_button_label: str = "Submit"
     success_message: str = "Thanks — we've received your details."
@@ -216,6 +218,49 @@ async def list_submissions(
     cursor = db.form_submissions.find({"form_id": form_id}, {"_id": 0}).sort("submitted_at", -1).skip(skip).limit(page_size)
     rows = await cursor.to_list(page_size)
     return {"submissions": rows, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/forms/{form_id}/results")
+async def survey_results(form_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Aggregated answer breakdown for a form/survey — counts per option for
+    choice fields (select/radio/checkbox), averages for rating fields, and
+    recent free-text answers for text fields."""
+    form = await db.marketing_forms.find_one(
+        {"id": form_id, "organization_id": user.get("organization_id")}, {"_id": 0},
+    )
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+    subs = await db.form_submissions.find({"form_id": form_id}, {"_id": 0}).to_list(length=5000)
+    total = len(subs)
+    results = []
+    for fld in form.get("fields", []):
+        fid, ftype = fld.get("id"), fld.get("field_type")
+        answers = [s.get("data", {}).get(fid) for s in subs]
+        answers = [a for a in answers if a not in (None, "")]
+        entry = {"id": fid, "label": fld.get("label"), "field_type": ftype, "responses": len(answers)}
+        if ftype in ("select", "radio", "checkbox"):
+            counts = {}
+            for a in answers:
+                key = str(a)
+                counts[key] = counts.get(key, 0) + 1
+            entry["breakdown"] = [{"value": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: -x[1])]
+        elif ftype == "rating":
+            nums = []
+            for a in answers:
+                try:
+                    nums.append(float(a))
+                except (TypeError, ValueError):
+                    pass
+            entry["average"] = round(sum(nums) / len(nums), 2) if nums else 0
+            dist = {}
+            for n in nums:
+                dist[int(n)] = dist.get(int(n), 0) + 1
+            entry["distribution"] = [{"value": k, "count": dist[k]} for k in sorted(dist)]
+        else:
+            entry["samples"] = [str(a) for a in answers[-10:]]
+        results.append(entry)
+    return {"form_id": form_id, "name": form.get("name"), "kind": form.get("kind", "form"),
+            "total_submissions": total, "results": results}
 
 
 # ────────────────────────────────────────────────────────────────────

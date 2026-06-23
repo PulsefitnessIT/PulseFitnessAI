@@ -15,6 +15,8 @@ const FIELD_TYPES = [
   { value: 'phone', label: 'Phone' },
   { value: 'textarea', label: 'Multi-line text' },
   { value: 'select', label: 'Dropdown' },
+  { value: 'radio', label: 'Multiple choice' },
+  { value: 'rating', label: 'Rating (1–5)' },
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'number', label: 'Number' },
 ];
@@ -43,6 +45,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [kind, setKind] = useState('form');
   const [fields, setFields] = useState([]);
   const [submitButtonLabel, setSubmitButtonLabel] = useState('Submit');
   const [successMessage, setSuccessMessage] = useState("Thanks — we've received your details.");
@@ -73,6 +76,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
     if (form) {
       setName(form.name || '');
       setDescription(form.description || '');
+      setKind(form.kind || 'form');
       setFields(form.fields?.length ? form.fields : [blankField()]);
       setSubmitButtonLabel(form.submit_button_label || 'Submit');
       setSuccessMessage(form.success_message || '');
@@ -131,9 +135,10 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
       const payload = {
         name: name.trim(),
         description: description.trim(),
+        kind,
         fields: fields.map((f) => ({
           ...f,
-          options: f.field_type === 'select'
+          options: (f.field_type === 'select' || f.field_type === 'radio')
             ? (typeof f.options === 'string' ? f.options.split(',').map((s) => s.trim()).filter(Boolean) : f.options || [])
             : [],
           crm_property: f.crm_property || null,
@@ -183,6 +188,14 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
             <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Description (shown above the form)</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1" data-testid="form-builder-description" />
           </div>
+          <div>
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Type</Label>
+            <div className="mt-1 inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden" data-testid="form-builder-kind">
+              {[['form', 'Lead form'], ['survey', 'Survey']].map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setKind(v)} className={`px-4 py-1.5 text-sm font-semibold ${kind === v ? 'bg-[var(--color-brand-blue)] text-white' : 'bg-white dark:bg-zinc-900 text-zinc-600'}`} data-testid={`form-kind-${v}`}>{l}</button>
+              ))}
+            </div>
+          </div>
 
           {/* Fields */}
           <div>
@@ -226,7 +239,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
                         <Label className="text-zinc-600 text-xs">Placeholder</Label>
                         <Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} className="mt-1 text-sm" />
                       </div>
-                      {f.field_type === 'select' && (
+                      {(f.field_type === 'select' || f.field_type === 'radio') && (
                         <div className="md:col-span-2">
                           <Label className="text-zinc-600 text-xs">Options (comma-separated)</Label>
                           <Input

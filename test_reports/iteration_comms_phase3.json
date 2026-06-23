@@ -1,0 +1,44 @@
+{
+  "summary": "Phase-3 Pulse Comms tests (preferences/AB/archive+forward/surveys/journeys + UI Flows + A/B builder). 13/13 backend tests pass. Frontend Flows tab opens editor and saves; A/B builder modal, variant tabs, per-variant subject editing, and save all work end-to-end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EmailBuilder toolbar",
+        "issue": "Top-right action toolbar (builder-ab, builder-html, builder-test, builder-schedule, builder-save) is partially clipped behind the 'Campaign created' / 'Campaign saved' success toast at 1920x1080. Real users on smaller screens may have similar overlap; Playwright force=True click on builder-ab failed (modal didn't open) and only a JS .click() bypass worked. Recommend either ensuring toolbar buttons stay above z-index of toast or shifting toast away from the right corner.",
+        "selector": "[data-testid=\"builder-ab\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_comms_phase3_p3.py",
+    "/app/test_reports/pytest/phase3_p3_results.xml"
+  ],
+  "action_items": [
+    "Investigate toolbar/toast overlap in EmailBuilder — toast likely sits above the right-side toolbar at standard desktop viewport, hindering clicks on builder-ab/builder-save while toast is visible. Either raise toolbar z-index or move toast to bottom-right."
+  ],
+  "critical_code_review_comments": [
+    "routes/comms.py public/forward returns 200 with ok=true/false — sandbox Resend returns ok=false but endpoint contract is correct.",
+    "Variant body_html is rendered server-side at PUT-time and persists alongside variants — confirmed in test (Hello A appears in variant A body_html, Hello B in variant B).",
+    "Marketing journeys CRUD upsert by id is idempotent — verified both create and update via POST with same id."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_comms_phase3_p3.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13)",
+    "frontend": "100% on tested flows (Flows editor save, A/B modal/variants/save) — but toolbar overlap is a workaround"
+  },
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Test data prefixed with TEST_ (campaigns, journeys, forms, marketing_messages, comms_optouts) — auto-cleaned by pytest session fixture using pymongo.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_comms_phase3_p3.py is the regression suite for Phase-3. Run with `set -a; source /app/backend/.env; set +a; cd /app/backend && python -m pytest tests/test_comms_phase3_p3.py -v`. NB: clicks on EmailBuilder right-toolbar (builder-ab, builder-save) need either toast dismissal first or a JS-click bypass while a toast is visible.",
+  "rca of the issue": "N/A — all features work. Minor UI ergonomic issue: success toast (top-right) overlaps the EmailBuilder right-toolbar buttons; a Playwright force-click on builder-ab did not trigger setShowAB(true) until I dispatched .click() via page.evaluate. Real users experience a momentary unclickable state until the toast dismisses (~3s)."
+}

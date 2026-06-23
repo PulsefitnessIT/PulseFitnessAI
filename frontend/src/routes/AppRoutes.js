@@ -104,6 +104,8 @@ const MarketingSuite = lazy(() => import('@/pages/MarketingSuite'));
 const CommsCentre = lazy(() => import('@/pages/Comms/CommsCentre'));
 const PublicPreferencesPage = lazy(() => import('@/pages/Comms/PublicPreferencesPage'));
 const PublicUnsubscribePage = lazy(() => import('@/pages/Comms/PublicUnsubscribePage'));
+const PublicEmailViewPage = lazy(() => import('@/pages/Comms/PublicEmailViewPage'));
+const PublicForwardPage = lazy(() => import('@/pages/Comms/PublicForwardPage'));
 const ServiceDeskPage = lazy(() => import('@/pages/ServiceDeskPage'));
 const _ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
 const _ServiceOpsScheduler = lazy(() => import('@/pages/ServiceOps/ServiceScheduler'));
@@ -339,6 +341,8 @@ export default function AppRoutes({ user, login }) {
       {/* Public email preference centre + one-click unsubscribe (no auth) */}
       <Route path="/preferences/:token" element={<PublicPreferencesPage />} />
       <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
+      <Route path="/c/view/:id" element={<PublicEmailViewPage />} />
+      <Route path="/c/forward/:id" element={<PublicForwardPage />} />
       {/* Iter 216h88 — public Engineer Partner marketing landing */}
       <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />
       {/* Iter 216h286 — Gap 8: public review submission page.
