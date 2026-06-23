@@ -1,3 +1,12 @@
+## Comms Phase 2 — Batch/timezone dispatch + AI-suggested segments (Jun 23, 2026) ✅
+
+Tested: backend 7/7 pytest (100%), frontend Playwright green, full send loop verified (immediate → sending → sent via worker).
+- **Batch + timezone SEND DISPATCH worker** (`utils/comms_dispatch.py`, registered in `server.py`, 30s loop, `COMMS_DISPATCH_INTERVAL_SEC`): activation resolves the campaign audience (segment_id or audience_inline) into one queued `marketing_messages` row per recipient, each stamped with a `scheduled_for` that bakes in the **batch offset** (size + interval pacing) and the **timezone strategy** (fixed tz, or each recipient's local hour via zoneinfo). The loop drains due rows in capped cycles (50/cycle), personalises merge tags per recipient, sends via Resend, bumps metrics, and flips the campaign to `sent` when the queue empties.
+- **Send/schedule API** (`routes/comms.py`): `POST /campaigns/{id}/schedule` (strategy immediate|scheduled, send_at, batch_size, batch_interval_minutes, timezone_mode, tz, local_hour — validates content + audience), `pause-send`, `resume-send`, `GET .../dispatch` (progress).
+- **Send UI** in the EmailBuilder: "Send" button → modal with segment picker, Send-now/Schedule, recipient-local timezone + hour, batch size/interval.
+- **AI-suggested segments** (potential improvement): `POST /api/comms/segments/ai-suggest` (`comms_ai.suggest_segment`) turns plain English into a rule tree, **validated against the field catalogue**, with a live preview count; UI "AI suggest" button → pre-fills the SegmentEditor for review & save. (AI never auto-creates/sends — user confirms.)
+
+
 ## Comms Phase 2 — Audience segmentation builder (Jun 23, 2026) ✅
 
 Tested: backend 9/9 pytest (100%), frontend Playwright 100%.
