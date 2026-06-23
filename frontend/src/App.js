@@ -770,7 +770,7 @@ function App() {
  <span className="font-semibold">⚠ Impersonation Session Active</span>
  <span className="opacity-90">You are viewing as {user?.email}. Every action is logged.</span>
  <button
- onClick={() => { localStorage.removeItem('impersonation_active'); localStorage.removeItem('token'); window.location.href = '/service-desk'; }}
+ onClick={() => { const ret = localStorage.getItem('impersonation_return') || '/service-desk'; localStorage.removeItem('impersonation_return'); localStorage.removeItem('impersonation_active'); localStorage.removeItem('token'); window.location.href = ret; }}
  className="underline hover:opacity-90"
  data-testid="impersonation-end-btn"
  >End session</button>

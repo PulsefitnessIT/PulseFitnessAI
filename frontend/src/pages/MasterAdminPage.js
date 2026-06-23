@@ -212,7 +212,17 @@ const MasterAdminPage = ({ _onBack }) => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  const handlePulseSwitch = () => { window.location.href = '/pulse'; };
+  const handlePulseSwitch = async () => {
+    try {
+      const res = await axios.post(`${API}/master-admin/pulse-portal-login`, {}, { headers, withCredentials: true });
+      const impToken = res.data?.token;
+      if (!impToken) throw new Error('no token');
+      localStorage.setItem('impersonation_return', '/master-admin');
+      window.location.href = '/pulse?impersonation_token=' + encodeURIComponent(impToken);
+    } catch (e) {
+      window.location.href = '/pulse';
+    }
+  };
   // Iter 215bs — One-click "as operator" preview into the Pulse Fitness dashboard
   // so master admins can sanity-check the operator UX without seeding a
   // fake user. The `?as=operator` flag bypasses the master-admin redirect

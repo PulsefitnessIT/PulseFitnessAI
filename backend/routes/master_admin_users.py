@@ -1210,3 +1210,61 @@ async def impersonate_user(user_id: str, request: Request, user: dict = Depends(
         reason="master_admin_impersonate",
     )
     return {"token": token, "user": target}
+
+
+@router.post("/master-admin/pulse-portal-login")
+async def pulse_portal_login(request: Request, user: dict = Depends(get_current_user)):
+    """Log a Pulse master admin straight into the Pulse Fitness (LTD) operating
+    portal as that org's owner. Idempotently provisions an impersonation-only
+    owner in the org (get_current_user requires a real user row), then issues
+    the same short-lived, audited impersonation JWT used elsewhere."""
+    require_master_admin(user)
+    org = await db.organizations.find_one({"name": "Pulse Fitness"}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
+    org_id = org["id"]
+
+    target = await db.users.find_one(
+        {"organization_id": org_id, "role": "owner"}, {"_id": 0, "password": 0, "password_hash": 0})
+    if not target:
+        import uuid
+        target = {
+            "id": str(uuid.uuid4()),
+            "email": "portal@pulsefitness.ltd",
+            "full_name": "Pulse Fitness",
+            "name": "Pulse Fitness",
+            "organization_id": org_id,
+            "role": "owner",
+            "account_type": org.get("account_type") or "pulse_pro",
+            "is_master_admin": False,
+            "auto_provisioned": True,
+            "no_password_login": True,  # impersonation-only; cannot sign in with a password
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(dict(target))
+
+    import jwt
+    from utils.database import JWT_SECRET as _JWT_SECRET, JWT_ALGORITHM as _JWT_ALGO
+    from utils.security_plus import new_jti
+    jti = new_jti()
+    exp = datetime.now(timezone.utc) + timedelta(hours=2)
+    token = jwt.encode({
+        "user_id": target["id"],
+        "email": target["email"],
+        "organization_id": org_id,
+        "role": target.get("role", "owner"),
+        "impersonated_by": user["email"],
+        "jti": jti,
+        "exp": exp,
+    }, _JWT_SECRET, algorithm=_JWT_ALGO)
+
+    await log_activity("portal_switch", "Switched into Pulse Fitness portal", user["email"], "organization", org_id)
+    from utils.audit_log import record_impersonation_event
+    await record_impersonation_event(
+        actor=user, target_user_id=target["id"],
+        target_email=target.get("email"),
+        target_organization_id=org_id,
+        token_jti=jti, expires_at=exp, request=request,
+        reason="pulse_portal_switch",
+    )
+    return {"token": token}
