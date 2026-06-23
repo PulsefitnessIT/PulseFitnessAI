@@ -322,7 +322,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
   return createPortal((
     <div className="fixed inset-0 z-[1000] bg-slate-100 flex flex-col" data-testid="email-builder">
       {/* Toolbar */}
-      <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 gap-3 shrink-0">
+      <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 gap-3 shrink-0 relative" style={{ zIndex: 1000000000 }}>
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" data-testid="builder-close"><X size={18} /></button>
           <span className="font-bold text-slate-900 truncate pulse-font-heading">{campaign?.name}</span>
