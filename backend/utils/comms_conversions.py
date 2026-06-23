@@ -55,6 +55,10 @@ async def record_conversion(
                 {"id": campaign_id},
                 {"$inc": {"metrics.converted": 1, "metrics.revenue_gbp": float(value_gbp or 0)}},
             )
+        from routes.comms_growth import fire_comms_webhook
+        await fire_comms_webhook(org_id, "conversion.recorded",
+                                 {"email": email, "type": ctype, "value_gbp": float(value_gbp or 0),
+                                  "campaign_id": campaign_id})
         return True
     except Exception as exc:  # pragma: no cover — never break the caller
         logger.info("[comms-conv] record failed (%s/%s): %s", ctype, email, exc)

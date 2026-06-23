@@ -26,6 +26,11 @@ from routes.marketing import router as marketing_router
 from routes.comms import router as comms_router
 from routes.comms_intel import router as comms_intel_router
 from routes.comms_segments import router as comms_segments_router
+from routes.comms_growth import (
+    router as comms_growth_router,
+    public_router as comms_public_api_router,
+    webhook_router as comms_webhook_inbound_router,
+)
 from routes.marketing_director import router as marketing_director_router
 from routes.assistant import router as assistant_router
 from routes.data_wipe import router as data_wipe_router
@@ -116,6 +121,9 @@ def register_admin(api_router: APIRouter) -> None:
         comms_router,
         comms_intel_router,
         comms_segments_router,
+        comms_growth_router,
+        comms_public_api_router,
+        comms_webhook_inbound_router,
         marketing_director_router,
         assistant_router,
         data_wipe_router,

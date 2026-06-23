@@ -698,7 +698,7 @@ _PIXEL = (
 
 @router.get("/t/o/{message_id}")
 async def comms_track_open(message_id: str):
-    msg = await db.marketing_messages.find_one({"id": message_id}, {"_id": 0, "opened_at": 1, "campaign_id": 1})
+    msg = await db.marketing_messages.find_one({"id": message_id}, {"_id": 0, "opened_at": 1, "campaign_id": 1, "organization_id": 1, "contact_email": 1})
     if msg:
         first = not msg.get("opened_at")
         await db.marketing_messages.update_one(
@@ -708,6 +708,9 @@ async def comms_track_open(message_id: str):
         if first:
             await db.marketing_campaigns.update_one(
                 {"id": msg.get("campaign_id")}, {"$inc": {"metrics.opened": 1}})
+            from routes.comms_growth import fire_comms_webhook
+            await fire_comms_webhook(msg.get("organization_id"), "email.opened",
+                                     {"email": msg.get("contact_email"), "campaign_id": msg.get("campaign_id")})
     return Response(content=_PIXEL, media_type="image/png", headers={"Cache-Control": "no-cache, no-store"})
 
 
@@ -720,10 +723,11 @@ async def comms_track_click(message_id: str, u: str = ""):
     if not url.startswith(("http://", "https://")):
         url = "https://pulsefitness.ai"
     msg = await db.marketing_messages.find_one(
-        {"id": message_id}, {"_id": 0, "opened_at": 1, "clicked_at": 1, "campaign_id": 1})
+        {"id": message_id}, {"_id": 0, "opened_at": 1, "clicked_at": 1, "campaign_id": 1, "organization_id": 1, "contact_email": 1})
     if msg:
         inc: dict = {}
-        if not msg.get("clicked_at"):
+        first_click = not msg.get("clicked_at")
+        if first_click:
             inc["metrics.clicked"] = 1
         if not msg.get("opened_at"):
             inc["metrics.opened"] = 1  # a click implies an open
@@ -734,6 +738,10 @@ async def comms_track_click(message_id: str, u: str = ""):
         )
         if inc:
             await db.marketing_campaigns.update_one({"id": msg.get("campaign_id")}, {"$inc": inc})
+        if first_click:
+            from routes.comms_growth import fire_comms_webhook
+            await fire_comms_webhook(msg.get("organization_id"), "email.clicked",
+                                     {"email": msg.get("contact_email"), "campaign_id": msg.get("campaign_id"), "url": url})
     return RedirectResponse(url, status_code=302)
 
 
@@ -876,6 +884,8 @@ async def public_unsubscribe(token: str):
         upsert=True,
     )
     brand = await _public_org_brand(org_id)
+    from routes.comms_growth import fire_comms_webhook
+    await fire_comms_webhook(org_id, "email.unsubscribed", {"email": email})
     return {"ok": True, "email": email, **brand}
 
 

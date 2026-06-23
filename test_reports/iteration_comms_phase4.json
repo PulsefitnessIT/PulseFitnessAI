@@ -1,0 +1,28 @@
+{
+  "summary": "Phase 4 (ESP import + webhooks + public API + Resend inbound) — comprehensive regression. 21/21 backend pytests pass on /app/backend/tests/test_comms_phase4.py. Frontend UI flows (Import tab + Developer tab: webhooks, api-keys, docs) all verified end-to-end through the UI with the live API: CSV upload → mapping panel → commit → summary showing Created/Updated/Suppressed/Skipped; webhook add → list row → test ping → delete; api-key generate (fresh pfa_ revealed once) → masked list → revoke; API docs render. All TEST_ data cleaned up from mongo (crm_contacts, comms_optouts, comms_webhooks, comms_webhook_deliveries, api_keys).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Comms Centre", "issues": ["Cookie consent banner overlays the bottom of the Import view on first visit — covers the Import-commit button; user must dismiss it to commit. Minor UX nit; not blocking once dismissed."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_comms_phase4.py", "/app/test_reports/pytest/phase4_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "comms_growth.py /webhooks PUT accepts http:// URLs (`startswith('http')`), but POST only accepts http(s) prefixes — minor inconsistency, both should require https for safety (low priority).",
+    "Resend inbound webhook silently returns 200 for unknown event types — acceptable for replay safety but consider logging unrecognised types for observability.",
+    "Public POST /v1/comms/send does not enforce sender/from-address — anyone with an API key can send arbitrary HTML via the org's configured sender. Recommend rate-limiting api_keys (no last_used / per-key counter is tracked despite the schema field existing).",
+    "api_keys.last_used field exists in schema but is never updated when verify_api_key matches — easy improvement for audit visibility.",
+    "Import commit reads the entire CSV into memory and processes synchronously — fine for ESP exports of a few thousand rows; consider chunking for very large files."
+  ],
+  "updated_files": ["/app/backend/tests/test_comms_phase4.py (new)"],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% of asserted flows"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (Master Admin)",
+  "seed_data_creation": "All test data created during the run was purged at teardown — verified counts: 2 contacts, 1 optout, 1 api key deleted post-frontend run; backend cleanup test reported success.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 4 regression file lives at /app/backend/tests/test_comms_phase4.py and is idempotent (cleans up via mongo regex by name/url/email prefixes test_phase4_/TEST_/phase4). Safe to re-run anytime. Frontend selectors used: comms-section-migrate, comms-migrate, migrate-file-input, migrate-mapping, migrate-map-email, migrate-commit, migrate-summary, comms-section-developer, comms-developer, dev-tab-webhooks, webhook-add-btn/url/save/row-*/test-*/delete-*, dev-tab-keys, apikey-name/create/fresh/revoke-*, dev-tab-docs, api-docs. All present and functional.",
+  "rca of the issue": "No defects identified for Phase 4. One transient frontend test failure during automation (summary not visible) was caused by the cookie consent banner overlaying the commit button and required dismissal — a minor UX nit, not a defect in Phase 4 code."
+}

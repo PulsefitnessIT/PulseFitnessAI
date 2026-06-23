@@ -328,6 +328,12 @@ async def _cycle():
                     {"id": camp["id"]},
                     {"$set": {"status": "sent", "sent_at": _now().isoformat()}})
                 logger.info("[comms-dispatch] campaign %s fully sent", camp["id"])
+                try:
+                    from routes.comms_growth import fire_comms_webhook
+                    await fire_comms_webhook(camp.get("organization_id"), "campaign.sent",
+                                             {"campaign_id": camp["id"], "name": camp.get("name")})
+                except Exception:
+                    pass
         except Exception as exc:
             logger.error("[comms-dispatch] drain failed %s: %s", camp.get("id"), exc)
 

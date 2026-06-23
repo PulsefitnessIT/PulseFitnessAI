@@ -9,7 +9,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users, Filter, Workflow } from 'lucide-react';
+import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users, Filter, Workflow, Upload, Webhook } from 'lucide-react';
 
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -20,6 +20,8 @@ import CampaignsPanel from './CampaignsPanel';
 import { EngagementView, InactiveView, BestTimeView, BenchmarksView, DeliverabilityView } from './Intelligence';
 import { SegmentsView } from './Segments';
 import { FlowsView } from './Flows';
+import { MigrateView } from './Migrate';
+import { DeveloperView } from './Developer';
 
 const SECTIONS = [
   { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
@@ -30,6 +32,8 @@ const SECTIONS = [
   { id: 'best-time', label: 'Best Send Time', icon: Clock },
   { id: 'benchmarks', label: 'Benchmarks', icon: Award },
   { id: 'deliverability', label: 'Deliverability', icon: ShieldCheck },
+  { id: 'migrate', label: 'Import', icon: Upload },
+  { id: 'developer', label: 'API & Webhooks', icon: Webhook },
 ];
 
 const SCOPES = [
@@ -58,6 +62,8 @@ export default function CommsCentre() {
   const renderSection = () => {
     switch (section) {
       case 'flows': return <FlowsView API={API} headers={headers} />;
+      case 'migrate': return <MigrateView API={API} headers={headers} />;
+      case 'developer': return <DeveloperView API={API} headers={headers} />;
       case 'segments': return <SegmentsView API={API} headers={headers} />;
       case 'engagement': return <EngagementView API={API} headers={headers} module={scope} />;
       case 'inactive': return <InactiveView API={API} headers={headers} module={scope} />;
@@ -135,7 +141,7 @@ export default function CommsCentre() {
         </div>
 
         {/* Module scope (hidden for deliverability + segments which are source/org-wide) */}
-        {!['deliverability', 'segments', 'flows'].includes(section) && (
+        {!['deliverability', 'segments', 'flows', 'migrate', 'developer'].includes(section) && (
           <div className="mb-5 inline-flex items-center gap-1 p-1 rounded-full" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }} data-testid="comms-scope">
             {SCOPES.map((s) => (
               <button key={s.id} onClick={() => setScope(s.id)}
