@@ -1,3 +1,27 @@
+## Comms Centre — Unified Campaign System · PHASE 1 ✅ (Jun 23, 2026)
+
+**Goal (multi-phase):** Turn Pulse Fitness AI's email/campaign/marketing system into a best-in-class, MERGED platform (Mailchimp/Campaign Monitor calibre) — one shared Campaign Engine across Marketing/Memberships/CRM, contextual views (no duplicate records), a new top-level "Comms Centre", a drag-and-drop email builder, and full Pulse Fitness AI branding. ~60 feature areas phased across 4 phases.
+
+**User choices (confirmed):** Phase 1 first → custom drag-drop builder (1a) · Emergent LLM key for AI (3a, not yet used in P1) · Resend stays the sender (4a) · Comms Centre top-level when org has BOTH CRM+Marketing (5a). Respond in English.
+
+**PHASE 1 — DONE & tested (backend 24/24 pytest; frontend Playwright + screenshots green):**
+- **Shared Campaign Engine** `backend/routes/comms.py` (router `/api/comms`, registered ungated in `route_registry/admin.py`). Operates on the EXISTING `marketing_campaigns` collection so legacy `/api/marketing/campaigns` and new `/api/comms/*` read the SAME records (one source of truth, no duplication). Access gated by `require_module(("marketing","memberships","crm"))` (master admin passes).
+  - Unified fields added (back-compat defaults): `campaign_type` (27 types), `related_module` (auto-derived: marketing/memberships/crm), `owner`, `conversion_goal`, richer `status` (10), `approval`, `tags`, `tracking.utm_source=pulsefitnessai`.
+  - Endpoints: `GET /meta`, `GET /dashboard?module=`, `GET/POST /campaigns` (+ filters module/type/status/q), `GET/PUT/DELETE /campaigns/{id}`, `/duplicate`, `/status` (enforced transition map + approval workflow), `/preview` (merge-tag sample substitution), `/test-send` (branded Resend send by module category).
+  - Block renderer `render_blocks_to_html` (logo/heading/text/image/button/divider/spacer/social/video/html/footer) + `_quality_checks` (missing subject, broken merge tags, missing unsubscribe, missing alt text, empty body).
+- **Comms Centre UI** `frontend/src/pages/Comms/CommsCentre.js` at `/comms` — module switcher pill (shown when marketing AND crm; `ModuleSwitcher.js`), 4 context view pills (All / Marketing / Member emails / CRM & B2B = filters into shared records), dashboard stat cards, search + status filter, campaign table (edit/duplicate/archive), create modal (grouped type select + conversion goal).
+- **Drag-and-drop email builder** `frontend/src/pages/Comms/EmailBuilder.js` — palette drag→canvas + reorder, per-block property editors, merge-tag inserter, subject, desktop/mobile/dark preview, live quality badge, Save (PUT), Test-send modal.
+- **Branding sweep:** removed `gymaxis_marketing` utm_source defaults (campaigns.py, templates.py, starter_pack.py) → `pulsefitnessai`. `ModuleAccessGate` now accepts an array `module` (OR semantics).
+
+**PHASE 1 follow-up (deferred):** deep-embed the contextual views directly into the existing Memberships → Emails and CRM → Communications module shells (currently the contextual views live as tabs inside Comms Centre + deep-linkable via `/comms?view=`).
+
+**Phases 2–4 backlog (P0/P1):** P2 = segmentation upgrade, contact/company engagement scoring, inactive detection, best-send-time, batch + timezone sending, click maps, benchmarking, bot filtering, conversion insights, Deliverability Centre (SPF/DKIM/DMARC), AI writing/analysis (Emergent LLM key). P3 = flow-builder upgrade (nodes/triggers/post-send actions), resend-to-unopened, A/B + multivariate UI, landing pages/forms/surveys, preference centre + unsubscribe mgmt, hosted campaign archive pages, forward-to-friend, GA/Meta Pixel/UTM, approvals/collaboration, reports/exports, transactional separation, SMS-ready. P4 = external ESP migration/import + native-vs-external provider settings + webhook/API.
+
+**Earlier deferred (still open):** Stripe billing/subscriptions/quote-invoice payments (P0, user "next week"); Sicon/Sage ERP (P0, "next week"); final deep brand-colour sweep of authenticated modules (P1).
+
+---
+
+
 ## White-label conversion — GymAxis AI → Pulse Fitness AI ✅ (Jun 16, 2026)
 
 **Goal:** Convert the transferred GymAxis platform into a fully Pulse Fitness AI branded product. No GymAxis branding visible to Pulse users; clean DB; pulsefitness.ai domain; integration key rotation deferred (Phase 5, awaiting user keys).
