@@ -28851,3 +28851,17 @@ NOTE: preview DB had no duplicates (single-process). The 4 prod duplicates will 
 4. **Surveys** — `marketing_forms.py`: `FormSchema.kind` ('form'|'survey'), `rating`+`radio` field types, `GET /forms/{id}/results` aggregation (breakdown for choice, average/distribution for rating, samples for text). FormBuilderDialog kind toggle + new types; FormsAndPagesTab survey badge + results dialog; PublicFormPage renders rating buttons + radio.
 **Routes added** in AppRoutes.js: /c/view/:id, /c/forward/:id (public, no auth).
 **Next**: Phase 4 — ESP migration/import + webhook/API structure. Stripe billing (P0), Sicon/Sage ERP (P0). A/B results panel in CampaignAnalytics (winner + per-variant rates) would be a nice follow-up.
+
+---
+## Comms Centre Phase 4 — ESP migration + webhooks/API (Jun 23, 2026)
+**User**: Build BOTH (A) ESP migration/import + (B) webhook/API structure. CSV-only, no external connectors (Pulse does everything itself). Plus inbound Resend webhook (delivery/bounce → metrics + auto-suppress hard bounces).
+**Built (tested — backend 21/21 pytests, frontend 100%)**:
+- **New backend** `routes/comms_growth.py` (3 routers registered in route_registry/admin.py):
+  - **ESP import**: POST `/api/comms/import/preview` (CSV → columns+samples+auto-mapping for email/first/last/company/status) and `/api/comms/import/commit` (creates/updates crm_contacts, seeds comms_optouts for unsubscribed/cleaned rows). Summary: created/updated/suppressed/skipped.
+  - **Webhooks**: CRUD `/api/comms/webhooks` (+ /test, /deliveries). HMAC-signed (`X-Signature: sha256=`, `whsec_` secret). `fire_comms_webhook(org,event,data)` fire-and-forget. Events: campaign.sent, email.opened/clicked/unsubscribed/bounced, conversion.recorded — wired into comms.py track open/click + unsubscribe, comms_dispatch _cycle, comms_conversions.
+  - **API keys**: CRUD `/api/comms/api-keys` (pfa_ keys, shown once, masked in list, revoke). Reuses `verify_api_key`/`db.api_keys`.
+  - **Public REST API** `/api/v1/comms` (X-API-Key): contacts upsert/list, suppression unsubscribe/resubscribe, send transactional (respects suppression). 401 without key.
+  - **Inbound Resend webhook** `/api/webhooks/resend`: delivered→metrics.delivered; bounced/complained→metrics.bounced + auto-suppress into comms_optouts (when prior message resolves org). Signature verified if RESEND_WEBHOOK_SECRET set.
+- **New frontend** Comms Centre tabs: `Migrate.js` (Import — upload→map→commit→summary) + `Developer.js` (API & Webhooks — webhooks/api-keys/api-reference sub-tabs). Added to CommsCentre.js.
+**Phases 1–4 of Comms Centre now COMPLETE.**
+**Next**: Stripe membership billing (P0), Sicon/Sage ERP (P0), proactive weekly "Comms brief" (P2), A/B results panel in CampaignAnalytics.
