@@ -12,7 +12,7 @@ import json
 from datetime import datetime
 
 class BackendFixesTester:
-    def __init__(self, base_url="https://fitness-ai-migrate.preview.emergentagent.com"):
+    def __init__(self, base_url="https://pulse-staging-10.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.token = None

@@ -16,7 +16,7 @@ BASE_URL = _test_backend_url()
 
 PROVIDER = ("sp.fe.1781277405@example.com", "Str0ngPass!23")
 MASTER_ADMIN = ("admin@gymaxisai.com", "MasterAdmin123!")
-ORIGIN = "https://fitness-ai-migrate.preview.emergentagent.com"
+ORIGIN = "https://pulse-staging-10.preview.emergentagent.com"
 
 
 def _login(email, password):

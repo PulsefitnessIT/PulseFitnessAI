@@ -19,7 +19,7 @@ import pymongo
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://fitness-ai-migrate.preview.emergentagent.com").rstrip("/")
+       or "https://pulse-staging-10.preview.emergentagent.com").rstrip("/")
 DB_NAME = os.environ.get("DB_NAME") or "test_database"
 
 

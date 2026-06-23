@@ -11,7 +11,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://fitness-ai-migrate.preview.emergentagent.com").rstrip("/")
+       or "https://pulse-staging-10.preview.emergentagent.com").rstrip("/")
 
 
 def test_homepage_returns_200_for_marketing_route():

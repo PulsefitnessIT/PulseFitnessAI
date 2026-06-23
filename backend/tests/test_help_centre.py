@@ -12,7 +12,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fitness-ai-migrate.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pulse-staging-10.preview.emergentagent.com')
 
 # Test credentials
 MASTER_ADMIN = {"email": "admin@gymaxisai.com", "password": "MasterAdmin123!"}

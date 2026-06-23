@@ -20,7 +20,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from utils.auth import create_token
 from routes.crm_core import _humanize_role
 
-API = (os.environ.get("REACT_APP_BACKEND_URL") or "https://fitness-ai-migrate.preview.emergentagent.com").rstrip("/")
+API = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-staging-10.preview.emergentagent.com").rstrip("/")
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 
