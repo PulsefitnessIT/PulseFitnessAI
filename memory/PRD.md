@@ -1,3 +1,22 @@
+## Comms Phase 2 — Intelligence, AI & dedup (Jun 23, 2026) ✅
+
+Tested: backend 16/16 pytest (100%); frontend flows verified (sections, deliverability, analytics, AI builder generation, dedup). Live AI confirmed.
+
+**Delivered:**
+- **Engagement scoring** (contacts + companies) from real `marketing_messages` events — score 0-100 + band (highly_engaged→inactive). `GET /api/comms/engagement/contacts|companies`.
+- **Inactive detection** `GET /api/comms/insights/inactive?days=` (no-opens window).
+- **Best send time** `GET /api/comms/insights/best-send-time` (opens heat-map + recommendation; safe starter when low data).
+- **Benchmarking** `GET /api/comms/insights/benchmarks` (org averages + per-campaign open/click/unsub).
+- **Campaign analytics** `GET /api/comms/campaigns/{id}/analytics?bots=include|exclude` — rates, **click map**, **bot filtering**, conversions object; **AI analyse** `POST .../ai-analyse`.
+- **Deliverability Centre** `GET /api/comms/deliverability` — Resend, health, 5 verified pulsefitness.ai sending domains (SPF/DKIM/DMARC), bounce/unsub rates, suppression count, warnings.
+- **AI assistant** (`utils/comms_ai.py`, Emergent LLM key, openai gpt-5.2): `POST /api/comms/ai/subjects|write|improve` + per-campaign analyse. Wired into the builder: **Write with AI** (compose modal → generates subject + blocks), **Suggest subject lines**, **Improve with AI** (per text/heading block). Never sends/approves/mutates consent.
+- **Comms Centre IA**: section tabs (Campaigns / Engagement / Inactive / Best Send Time / Benchmarks / Deliverability) + module-scope control (All/Marketing/Members/CRM).
+- **Dedup rule**: when org has BOTH Marketing+CRM, the embedded Memberships→Emails tab and CRM→Communications nav are HIDDEN — Comms Centre is the single source (`hasModuleAccess` exported from ModuleSwitcher).
+- **Bug fixed**: EmailBuilder overlay was trapped in an animated stacking context (global navbar painted over its toolbar) — now rendered via React portal to `document.body` (z-1000).
+
+**Remaining Phase-2 items (deferred, not yet built):** advanced audience SEGMENTATION builder (saved/dynamic segments UI); **batch + timezone sending** (schedule accepts config but no dispatch worker/UI yet — no background scheduler in env); full **conversion tracking pipeline** (analytics surfaces a conversions object but events aren't yet captured from bookings/payments/quotes). A shared **click tracker** for the comms engine (open pixel exists on the marketing send path; comms click events sparse).
+
+
 ## Comms Centre — Layout parity + contextual embeds (Jun 23, 2026) ✅
 
 Phase 1 follow-up, completed & tested (frontend 100%, backend unchanged/24-24):

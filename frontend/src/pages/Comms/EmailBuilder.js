@@ -8,6 +8,7 @@
  * shape the shared Comms engine renders server-side.
  */
 import React, { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
@@ -273,8 +274,8 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
   const errors = quality.filter((q) => q.level === 'error').length;
   const warns = quality.filter((q) => q.level === 'warn').length;
 
-  return (
-    <div className="fixed inset-0 z-[200] bg-slate-100 flex flex-col" data-testid="email-builder">
+  return createPortal((
+    <div className="fixed inset-0 z-[1000] bg-slate-100 flex flex-col" data-testid="email-builder">
       {/* Toolbar */}
       <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -400,7 +401,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
         </div>
       )}
     </div>
-  );
+  ), document.body);
 }
 
 function Field({ label, children }) {
