@@ -254,6 +254,13 @@ async def member_book(body: dict = Body(...), background: BackgroundTasks = None
         inc["waitlist_count"] = waitlist_inserted
     if inc:
         await db.class_occurrences.update_one({"id": occ_id}, {"$inc": inc})
+    if booked_inserted:
+        try:
+            from utils.comms_conversions import record_conversion
+            await record_conversion(member["organization_id"], member.get("email"), "class_booking",
+                                    source="member_portal", meta={"occurrence_id": occ_id})
+        except Exception:
+            pass
     # Single credit debit (only the booked ones consume credits)
     debit = credits_per_attendee * booked_inserted if not is_unlimited else 0
     if debit and mm:

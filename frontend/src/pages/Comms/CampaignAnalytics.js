@@ -68,6 +68,21 @@ export default function CampaignAnalytics({ campaign, API, headers, onClose }) {
                 <Metric label="Bounce rate" value={data.rates.bounce_rate} suffix="%" />
               </div>
 
+              {data.conversions && (
+                <div className="grid grid-cols-3 gap-3 mb-4" data-testid="analytics-conversions">
+                  <Metric label="Conversions" value={data.conversions.count} />
+                  <Metric label="Conv. rate" value={data.conversions.conversion_rate} suffix="%" />
+                  <Metric label="Revenue" value={`£${data.conversions.revenue_gbp}`} />
+                </div>
+              )}
+              {data.conversions && Object.keys(data.conversions.by_type || {}).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {Object.entries(data.conversions.by_type).map(([t, n]) => (
+                    <span key={t} className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'var(--theme-bg)', ...txt }}>{t.replace(/_/g, ' ')}: {n}</span>
+                  ))}
+                </div>
+              )}
+
               <div className="mb-4">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide mb-2" style={muted}><MousePointerClick size={13} />Click map</p>
                 {data.click_map.length === 0 ? <p className="text-sm" style={muted}>No link clicks recorded yet.</p> : (

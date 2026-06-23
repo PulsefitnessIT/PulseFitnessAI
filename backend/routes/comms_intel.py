@@ -372,7 +372,18 @@ async def campaign_analytics(
         clicked = int(cm.get("clicked", 0)); bounced = int(cm.get("bounced", 0))
 
     rate = lambda n: round(n / sent * 100, 1) if sent else 0.0
-    conv = camp.get("conversions") or {}
+    convs = await db.comms_conversions.find(
+        {"organization_id": org_id, "campaign_id": campaign_id}, {"_id": 0},
+    ).to_list(length=10000)
+    by_type: dict = {}
+    revenue = 0.0
+    for c in convs:
+        by_type[c.get("type", "other")] = by_type.get(c.get("type", "other"), 0) + 1
+        revenue += float(c.get("value_gbp", 0) or 0)
+    conversions = {
+        "count": len(convs), "by_type": by_type, "revenue_gbp": round(revenue, 2),
+        "conversion_rate": round(len(convs) / sent * 100, 1) if sent else 0.0,
+    }
     return {
         "campaign_id": campaign_id, "name": camp.get("name"),
         "bot_filtering": bots, "bot_opens": bot_opens,
@@ -383,7 +394,7 @@ async def campaign_analytics(
             [{"url": u, "clicks": c} for u, c in click_map.items()],
             key=lambda x: x["clicks"], reverse=True,
         ),
-        "conversions": conv,
+        "conversions": conversions,
     }
 
 

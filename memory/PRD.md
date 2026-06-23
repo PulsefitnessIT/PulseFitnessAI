@@ -1,3 +1,11 @@
+## Comms — Open/click tracking + conversion pipeline (Jun 23, 2026) ✅
+
+Verified end-to-end (curl + UI): open pixel → opened+1; click → clicked+1, redirect, click-map populated; conversion logged → attributed → analytics shows count/rate/£revenue/by-type.
+- **Open/click tracker on the new send path**: the dispatcher now injects a tracking pixel + rewrites every link through the tracker per recipient (message ids are clean uuids). Unauthenticated endpoints `GET /api/comms/t/o/{message_id}` (1×1 PNG → records open, increments `metrics.opened` once) and `GET /api/comms/t/c/{message_id}?u=<b64url>` (records click + URL, increments `metrics.clicked`, 302-redirects to the original link). Click URLs feed the campaign analytics **click map**.
+- **Conversion pipeline** (`utils/comms_conversions.py`): `record_conversion(org, email, type, value_gbp, …)` attributes an outcome to the most recent campaign that reached that email within a 30-day window (clicked > opened > sent), stored in `comms_conversions`, and rolls `metrics.converted` + `metrics.revenue_gbp` onto the campaign. Authenticated `POST /api/comms/conversions` for integrations. Campaign analytics now computes real conversions (count, by_type, revenue, conversion_rate) and the analytics modal surfaces them + the click map.
+- **Real hooks wired** (fire-and-forget, never break the flow): CRM quote sign/accept (`crm_v2.sign_quote` → `quote_accepted` + value) and member class booking (`bookings.py` → `class_booking`).
+
+
 ## Comms Phase 2 — Batch/timezone dispatch + AI-suggested segments (Jun 23, 2026) ✅
 
 Tested: backend 7/7 pytest (100%), frontend Playwright green, full send loop verified (immediate → sending → sent via worker).

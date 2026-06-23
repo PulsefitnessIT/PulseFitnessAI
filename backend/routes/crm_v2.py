@@ -3853,6 +3853,15 @@ async def sign_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
             "updated_at": _now(),
         }}
     )
+    try:
+        from utils.comms_conversions import record_conversion
+        org_id = q.get("organization_id")
+        c_email = q.get("contact_email") or q.get("email")
+        await record_conversion(org_id, c_email, "quote_accepted",
+                                value_gbp=float(q.get("total") or q.get("total_value") or 0),
+                                source="crm_quote", meta={"quote_id": quote_id})
+    except Exception:
+        pass
     return {"success": True, "status": "accepted", "signer": signer_name}
 
 

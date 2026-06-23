@@ -11,14 +11,16 @@ time all fall out of one simple "send when due" query.
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import re
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 from utils.database import db
-from utils.email import send_email
+from utils.email import send_email, PUBLIC_BASE_URL
 from routes.comms import render_blocks_to_html, _MODULE_EMAIL_CATEGORY
+from routes.marketing.helpers import _new_id
 
 logger = logging.getLogger("comms_dispatch")
 
@@ -129,12 +131,12 @@ async def activate_campaign(camp: dict) -> int:
     rows = []
     for i, r in enumerate(recips):
         rows.append({
-            "id": f"{camp['id']}:{r['email']}", "organization_id": org_id,
+            "id": _new_id(), "organization_id": org_id,
             "campaign_id": camp["id"], "contact_email": r["email"].lower(),
             "contact_name": (f"{r.get('first_name','')} {r.get('last_name','')}").strip(),
             "_recip": {k: r.get(k) for k in ("first_name", "last_name", "company_id")},
             "status": "queued", "scheduled_for": _scheduled_for(i, base_utc, sched, r).isoformat(),
-            "sent_at": None, "opened_at": None, "events": [], "created_at": _now().isoformat(),
+            "sent_at": None, "opened_at": None, "clicked_at": None, "events": [], "created_at": _now().isoformat(),
         })
     # idempotent: clear any prior queue for this campaign first
     await db.marketing_messages.delete_many({"campaign_id": camp["id"], "status": "queued"})
@@ -147,6 +149,24 @@ async def activate_campaign(camp: dict) -> int:
     )
     logger.info("[comms-dispatch] campaign %s activated — %d recipients", camp["id"], len(rows))
     return len(rows)
+
+
+def _inject_tracking(html: str, message_id: str) -> str:
+    """Rewrite links through the click tracker and append an open pixel."""
+    base = (PUBLIC_BASE_URL or "").rstrip("/")
+    if not base:
+        return html
+
+    def _rewrite(m):
+        url = m.group(2)
+        if url.startswith(("#", "mailto:", "tel:", "{{")):
+            return m.group(0)
+        enc = base64.urlsafe_b64encode(url.encode()).decode()
+        return f'{m.group(1)}="{base}/api/comms/t/c/{message_id}?u={enc}"'
+
+    out = re.sub(r'(href)="([^"]+)"', _rewrite, html or "")
+    pixel = f'<img src="{base}/api/comms/t/o/{message_id}" width="1" height="1" alt="" style="display:none">'
+    return out + pixel
 
 
 async def _send_due_batch(camp: dict) -> int:
@@ -165,7 +185,7 @@ async def _send_due_batch(camp: dict) -> int:
     sent = bounced = 0
     for m in due:
         r = m.get("_recip") or {}
-        html = _personalise(raw_html, r)
+        html = _inject_tracking(_personalise(raw_html, r), m["id"])
         subject = _personalise(raw_subject, r)
         ok = False
         try:

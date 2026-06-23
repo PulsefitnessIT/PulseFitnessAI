@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import html as _htmllib
 import re
+import base64
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from fastapi.responses import RedirectResponse
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -646,3 +648,66 @@ async def dispatch_progress(campaign_id: str, user: dict = Depends(get_current_u
         "sent": int(metrics.get("sent", 0)), "bounced": int(metrics.get("bounced", 0)),
         "schedule": camp.get("schedule") or {},
     }
+
+
+# ───────────────────────── Open / click tracking (unauthenticated) ─────────────────────────
+
+_PIXEL = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+    b"\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cb\x00\x01\x00\x00\x05"
+    b"\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+@router.get("/t/o/{message_id}")
+async def comms_track_open(message_id: str):
+    msg = await db.marketing_messages.find_one({"id": message_id}, {"_id": 0, "opened_at": 1, "campaign_id": 1})
+    if msg:
+        first = not msg.get("opened_at")
+        await db.marketing_messages.update_one(
+            {"id": message_id},
+            {"$set": {"opened_at": _now_iso()}, "$push": {"events": {"type": "open", "at": _now_iso()}}},
+        )
+        if first:
+            await db.marketing_campaigns.update_one(
+                {"id": msg.get("campaign_id")}, {"$inc": {"metrics.opened": 1}})
+    return Response(content=_PIXEL, media_type="image/png", headers={"Cache-Control": "no-cache, no-store"})
+
+
+@router.get("/t/c/{message_id}")
+async def comms_track_click(message_id: str, u: str = ""):
+    try:
+        url = base64.urlsafe_b64decode(u.encode()).decode() if u else "https://pulsefitness.ai"
+    except Exception:
+        url = "https://pulsefitness.ai"
+    if not url.startswith(("http://", "https://")):
+        url = "https://pulsefitness.ai"
+    msg = await db.marketing_messages.find_one(
+        {"id": message_id}, {"_id": 0, "opened_at": 1, "clicked_at": 1, "campaign_id": 1})
+    if msg:
+        inc: dict = {}
+        if not msg.get("clicked_at"):
+            inc["metrics.clicked"] = 1
+        if not msg.get("opened_at"):
+            inc["metrics.opened"] = 1  # a click implies an open
+        await db.marketing_messages.update_one(
+            {"id": message_id},
+            {"$set": {"clicked_at": _now_iso(), "opened_at": msg.get("opened_at") or _now_iso()},
+             "$push": {"events": {"type": "click", "at": _now_iso(), "url": url}}},
+        )
+        if inc:
+            await db.marketing_campaigns.update_one({"id": msg.get("campaign_id")}, {"$inc": inc})
+    return RedirectResponse(url, status_code=302)
+
+
+@router.post("/conversions", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def log_conversion(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Record a conversion and attribute it to a recent comms campaign."""
+    org_id = await _org_id(user)
+    from utils.comms_conversions import record_conversion
+    ok = await record_conversion(
+        org_id, body.get("email", ""), body.get("type", "conversion"),
+        value_gbp=float(body.get("value_gbp", 0) or 0), source=body.get("source", "manual"),
+        meta=body.get("meta"),
+    )
+    return {"ok": ok}
