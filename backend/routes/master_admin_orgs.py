@@ -341,6 +341,24 @@ async def update_org_subscription(org_id: str, body: dict = Body(...), user: dic
     elif tier not in _GYMAXIS_TIERS:
         raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}")
 
+    # Lite = free Operations only. Downgrading to Lite auto-disables every
+    # bolt-on module (CRM / Memberships / Marketing / Staffing / Reporting);
+    # they become re-enableable only on Pro. (Comms lives inside the bolt-ons.)
+    if updates.get("account_type") == "lite":
+        org_doc = await db.organizations.find_one({"id": org_id}, {"_id": 0, "modules": 1})
+        mods = (org_doc or {}).get("modules") or {}
+        new_mods = {}
+        for k, v in mods.items():
+            if isinstance(v, dict):
+                new_mods[k] = {**v, "enabled": (k == "operations")}
+            else:
+                new_mods[k] = v
+        ops = new_mods.get("operations")
+        new_mods["operations"] = {**(ops if isinstance(ops, dict) else {}), "enabled": True, "tier": "lite"}
+        updates["modules"] = new_mods
+        updates["enabled_modules"] = ["operations"]
+        updates["portal_type"] = "service_portal"
+
     result = await db.organizations.update_one({"id": org_id}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Organisation not found")
@@ -361,9 +379,11 @@ async def update_org_subscription(org_id: str, body: dict = Body(...), user: dic
 async def update_org_features(org_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)):
     require_master_admin(user)
     await assert_org_in_pulse_scope(user, org_id)
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "modules": 1})
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "modules": 1, "account_type": 1})
     old_features = (org or {}).get("features") or {}
     old_modules = (org or {}).get("modules") or {}
+    is_lite = (org or {}).get("account_type") == "lite"
+    _BOLT_ON_MODULES = {"crm", "memberships", "marketing", "staffing", "reporting"}
 
     set_doc: dict = {}
     unset_doc: dict = {"features_preset": ""}
@@ -389,6 +409,9 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             tier = cfg.get("tier") if cfg.get("tier") in {"lite", "pro", "enterprise"} else (old_modules.get(m_key) or {}).get("tier", "pro")
             existing = old_modules.get(m_key) or {}
             enabled = bool(cfg.get("enabled", existing.get("enabled", False)))
+            # Lite orgs cannot enable bolt-on modules — Pro only.
+            if is_lite and m_key in _BOLT_ON_MODULES:
+                enabled = False
             entry = {"enabled": enabled, "tier": tier}
             # Preserve any legacy/extension keys (e.g. business_enabled)
             for k, v in existing.items():
@@ -404,6 +427,8 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
                     entry["leisure_enabled"] = bool(cfg["leisure_enabled"])
                 if entry.get("business_enabled") or entry.get("leisure_enabled"):
                     entry["enabled"] = True
+            if is_lite and m_key in _BOLT_ON_MODULES:
+                entry["enabled"] = False
             merged[m_key] = entry
             if old_modules.get(m_key) != entry:
                 changes[f"module:{m_key}"] = {"from": old_modules.get(m_key), "to": entry}

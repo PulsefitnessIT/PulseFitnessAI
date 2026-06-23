@@ -54,9 +54,10 @@ const modulesFromPortalType = (pt) => {
 };
 
 /** Six-checkbox module picker. Always keeps at least one module selected. */
-const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules' }) => {
+const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules', isLite = false }) => {
   const selected = Array.isArray(value) && value.length ? value : modulesFromPortalType(value);
   const toggle = (id) => {
+    if (isLite && id !== 'operations') return; // bolt-ons are Pro-only
     const next = selected.includes(id) ? selected.filter((m) => m !== id) : [...selected, id];
     onChange(next.length ? next : [id]); // never let the set go empty
   };
@@ -64,14 +65,19 @@ const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules' }) => {
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1" data-testid={testIdPrefix}>
       {MODULE_OPTIONS.map((m) => {
         const Icon = m.icon;
-        const on = selected.includes(m.id);
+        const locked = isLite && m.id !== 'operations';
+        const on = selected.includes(m.id) && !locked;
         return (
           <button
             type="button"
             key={m.id}
             onClick={() => toggle(m.id)}
+            disabled={locked}
+            title={locked ? 'Available on Pro — upgrade this org to enable' : undefined}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
-              on
+              locked
+                ? 'bg-zinc-50 border-zinc-200 text-zinc-400 cursor-not-allowed'
+                : on
                 ? 'bg-white border-zinc-900 text-zinc-900 shadow-sm ring-1 ring-zinc-900'
                 : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300'
             }`}
@@ -86,8 +92,9 @@ const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules' }) => {
             >
               {on && <CheckCircle2 size={12} className="text-white" strokeWidth={3} />}
             </span>
-            <Icon size={14} style={{ color: m.color }} />
+            <Icon size={14} style={{ color: locked ? '#a1a1aa' : m.color }} />
             <span>{m.label}</span>
+            {locked && <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">PRO</span>}
           </button>
         );
       })}
@@ -1581,6 +1588,7 @@ useEffect(() => {
                 value={orgForm.enabled_modules || modulesFromPortalType(orgForm.portal_type || 'service_portal')}
                 onChange={(mods) => setOrgForm({ ...orgForm, enabled_modules: mods })}
                 testIdPrefix="org-form-modules"
+                isLite={orgForm.account_type === 'lite' || orgForm.subscription_tier === 'lite'}
               />
               <p className="text-[10px] text-zinc-400 mt-1.5">Pick every module the new organisation should have access to.</p>
  </div>
@@ -1595,7 +1603,7 @@ useEffect(() => {
    onValueChange={v => {
      // Iter 215eh / 216h109 — Platform is the brand. Pulse / Pulse Fitness / MOD.
      if (v === 'pulse') {
-       setOrgForm({ ...orgForm, account_type: 'lite', subscription_tier: 'lite', is_mod: false, mod_force: '' });
+       setOrgForm({ ...orgForm, account_type: 'lite', subscription_tier: 'lite', enabled_modules: ['operations'], is_mod: false, mod_force: '' });
      } else if (v === 'mod') {
        setOrgForm({ ...orgForm, account_type: 'mod_site', subscription_tier: 'mod_site', is_mod: true, mod_force: orgForm.mod_force || 'army' });
      } else {
