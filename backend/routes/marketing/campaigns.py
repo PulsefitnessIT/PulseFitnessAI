@@ -215,7 +215,7 @@ async def create_campaign(body: dict = Body(...), user: dict = Depends(get_curre
         "winner_decided_at": None,
         "pending_recipients": [],
         "schedule": body.get("schedule") or {},
-        "tracking": body.get("tracking") or {"utm_source": "gymaxis_marketing"},
+        "tracking": body.get("tracking") or {"utm_source": "pulsefitnessai"},
         "metrics": {"sent": 0, "delivered": 0, "opened": 0, "clicked": 0, "bounced": 0,
                     "converted": 0, "revenue_gbp": 0},
         "metrics_by_variant": {v["id"]: {"sent": 0, "opened": 0, "clicked": 0, "bounced": 0} for v in variants},

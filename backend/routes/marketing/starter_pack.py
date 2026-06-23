@@ -307,7 +307,7 @@ async def create_campaign_from_email(
         "winner_decided_at": None,
         "pending_recipients": [],
         "schedule": {},
-        "tracking": {"utm_source": "gymaxis_marketing", "utm_campaign": f"starter-pack-{email_id}"},
+        "tracking": {"utm_source": "pulsefitnessai", "utm_campaign": f"starter-pack-{email_id}"},
         "metrics": {"sent": 0, "delivered": 0, "opened": 0, "clicked": 0, "bounced": 0,
                     "converted": 0, "revenue_gbp": 0},
         "metrics_by_variant": {"default": {"sent": 0, "opened": 0, "clicked": 0, "bounced": 0}},

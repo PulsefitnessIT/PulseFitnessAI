@@ -101,6 +101,7 @@ const DesignSystemPage = lazy(() => import('@/pages/MasterAdmin/DesignSystemPage
 const AdminPartsRequests = lazy(() => import('@/pages/MasterAdmin/AdminPartsRequests'));
 const AdminMODSitesBulkImport = lazy(() => import('@/pages/MasterAdmin/AdminMODSitesBulkImport'));
 const MarketingSuite = lazy(() => import('@/pages/MarketingSuite'));
+const CommsCentre = lazy(() => import('@/pages/Comms/CommsCentre'));
 const ServiceDeskPage = lazy(() => import('@/pages/ServiceDeskPage'));
 const _ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
 const _ServiceOpsScheduler = lazy(() => import('@/pages/ServiceOps/ServiceScheduler'));
@@ -455,6 +456,7 @@ export default function AppRoutes({ user, login }) {
 
       {/* ─── Modules (Iter 216h110 — MOD users are firewalled out) ─── */}
       <Route path="/marketing" element={user ? <MODForbidden><ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
+      <Route path="/comms" element={user ? <MODForbidden><ModuleAccessGate module={["marketing", "memberships", "crm"]}><CommsCentre /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/crm" element={<MODForbidden><CrmRouteElement user={user} /></MODForbidden>} />
       <Route path="/crm/setup" element={user ? <MODForbidden><ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/memberships" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />

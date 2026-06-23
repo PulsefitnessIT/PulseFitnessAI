@@ -15,7 +15,7 @@
 import React from 'react';
 import axios from 'axios';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Calendar, Briefcase, Rocket } from 'lucide-react';
+import { Activity, Calendar, Briefcase, Rocket, MessagesSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -25,6 +25,9 @@ const MODULES = [
  { id: 'memberships', path: '/memberships', label: 'Memberships', icon: Calendar, accessKey: 'memberships' },
  { id: 'crm', path: '/crm', label: 'CRM', icon: Briefcase, accessKey: 'crm' },
  { id: 'marketing', path: '/marketing', label: 'Marketing', icon: Rocket, accessKey: 'marketing' },
+ // Comms Centre — the merged campaign system. Surfaced when the operator
+ // has BOTH Marketing and CRM so members + B2B comms can be run together.
+ { id: 'comms', path: '/comms', label: 'Comms Centre', icon: MessagesSquare, accessKey: 'comms' },
 ];
 
 // Iter 215d5 — Operations module resolves to two different surfaces depending
@@ -56,6 +59,9 @@ function hasAccess(user, accessKey) {
  if (!user) return false;
  const isMaster = user.is_master_admin === true || user.role === 'master_admin' || user.role === 'master';
  if (isMaster) return true;
+ // Comms Centre is a derived surface: visible only when the operator has
+ // BOTH Marketing and CRM (members + B2B comms run together).
+ if (accessKey === 'comms') return hasAccess(user, 'marketing') && hasAccess(user, 'crm');
  const at = user.account_type;
  const isMod = at === 'mod_site' || at === 'mod_branch' || at === 'mod_org';
 

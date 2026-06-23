@@ -75,6 +75,9 @@ export default function ModuleAccessGate({ module, children }) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = React.useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   const [state, setState] = useState({ loading: true });
+  // Iter — accept either a single module key or a list (OR semantics).
+  const moduleKeys = Array.isArray(module) ? module : [module];
+  const primaryModule = moduleKeys[0];
 
   const load = useCallback(async () => {
     try {
@@ -95,23 +98,23 @@ export default function ModuleAccessGate({ module, children }) {
 
   if (state.loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" data-testid={`module-gate-${module}-loading`}>
+      <div className="min-h-screen flex items-center justify-center" data-testid={`module-gate-${primaryModule}-loading`}>
         <Loader2 size={32} className="animate-spin text-[var(--color-brand-blue)]" />
       </div>
     );
   }
   if (state.error) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-600 dark:text-zinc-300 text-sm" data-testid={`module-gate-${module}-error`}>
+      <div className="min-h-screen flex items-center justify-center text-zinc-600 dark:text-zinc-300 text-sm" data-testid={`module-gate-${primaryModule}-error`}>
         {state.error}
       </div>
     );
   }
-  if (state.module_access?.[module]) {
+  if (moduleKeys.some((k) => state.module_access?.[k])) {
     return children;
   }
 
-  return <UpgradeScreen module={module} state={state} onChange={load} headers={headers} />;
+  return <UpgradeScreen module={primaryModule} state={state} onChange={load} headers={headers} />;
 }
 
 
