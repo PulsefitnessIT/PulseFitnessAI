@@ -1,3 +1,11 @@
+## Comms Phase 2 — Audience segmentation builder (Jun 23, 2026) ✅
+
+Tested: backend 9/9 pytest (100%), frontend Playwright 100%.
+- **Unified saved/dynamic segment builder** across sources (CRM/marketing `crm_contacts` + gym `members`) reusing the shared rule engine (`_build_filter`) — no second rules language. Backend `routes/comms_segments.py` (`/api/comms/segments`): `GET /fields` (sources, per-source field catalogue, operators, date sentinels), `POST /preview` (live count + sample, no save), full CRUD, `GET /{id}/members`. Stored in `comms_segments`. Dynamic segments re-evaluate count on read; saved = snapshot.
+- **Builder UI** (`frontend/src/pages/Comms/Segments.js`): new "Segments" section in Comms Centre; editor with name, audience source, type, match all/any, field/operator/value condition rows (select/text/number/date-sentinel/tag inputs), add/remove conditions, and a **live preview count** that updates as rules change.
+- **Campaign targeting**: `segment_id` added to the comms campaign model (`_EDITABLE` + create) and an optional **Audience segment** picker added to the campaign create modal.
+
+
 ## Comms Phase 2 — Intelligence, AI & dedup (Jun 23, 2026) ✅
 
 Tested: backend 16/16 pytest (100%); frontend flows verified (sections, deliverability, analytics, AI builder generation, dedup). Live AI confirmed.
