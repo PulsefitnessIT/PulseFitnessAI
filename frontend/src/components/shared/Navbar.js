@@ -326,7 +326,19 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
 
  return (
  <>
- <nav className="glass fixed top-0 left-0 right-0 z-50 border-b border-white/10">
+ <nav
+className="fixed top-0 left-0 right-0 z-50 border-b border-white/10"
+style={{
+backgroundColor: '#000000',
+fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
+// Force a permanent dark header regardless of the app's light/dark theme
+// (Pulse Fitness marketing: header must always be black with white text).
+'--theme-text': '#ffffff',
+'--theme-text-muted': 'rgba(255,255,255,0.82)',
+'--theme-border': 'rgba(255,255,255,0.18)',
+'--theme-surface': '#0a0a0a',
+}}
+>
  <div className="max-w-7xl mx-auto px-4">
  <div className="flex justify-between items-center h-20">
  <Link to={user ? (showPulseBrand ? '/pulse' : '/dashboard') : '/'} className="flex items-center space-x-2.5" data-testid="nav-logo">
@@ -380,7 +392,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  data-testid="theme-toggle-btn"
  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
  >
- {theme === 'dark' ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-slate-600" />}
+ {theme === 'dark' ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-slate-300" />}
  </button>
 
  {/* Language Switcher */}
@@ -558,7 +570,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  data-testid="mobile-theme-toggle"
  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
  >
- {theme === 'dark' ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-slate-600" />}
+ {theme === 'dark' ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-slate-300" />}
  </button>
  <button className="text-white p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="mobile-menu-toggle" style={{ color: 'var(--theme-text)' }}>
  {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
