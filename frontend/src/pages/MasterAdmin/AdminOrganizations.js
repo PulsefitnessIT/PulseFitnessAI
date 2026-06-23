@@ -899,23 +899,33 @@ useEffect(() => {
  </div>
 
  <div className="flex items-center gap-2 md:ml-auto flex-wrap w-full md:w-auto">
- <Select value={['free','pro','premium','enterprise','starter','professional','lite','pulse_pro'].includes(org.subscription_tier) ? org.subscription_tier : (org.account_type === 'pulse_pro' || org.account_type === 'lite' ? 'pulse_pro' : 'starter')} onValueChange={(v) => onUpdateTier(org.id, v)}>
- <SelectTrigger className={`h-7 text-xs border-0 w-full md:w-28 ${TIER_STYLES[org.subscription_tier || 'free'] || 'bg-zinc-100 text-zinc-600'}`} data-testid={`org-tier-${org.id}`}><SelectValue /></SelectTrigger>
- <SelectContent className="bg-white border-zinc-200">
- {(org.account_type === 'pulse_pro' || org.account_type === 'lite') ? (
- <>
- <SelectItem value="lite">Lite</SelectItem>
- <SelectItem value="pulse_pro">Pro</SelectItem>
- </>
- ) : (
- <>
- <SelectItem value="starter">Starter</SelectItem>
- <SelectItem value="professional">Professional</SelectItem>
- <SelectItem value="enterprise">Enterprise</SelectItem>
- </>
- )}
- </SelectContent>
- </Select>
+ {(() => {
+   // Pulse Fitness operations product = Lite (free) + Pro (paid).
+   // Applies to all Pulse Fitness orgs (account_type full/pulse_pro/lite).
+   const isPulseFamily = ['full', 'pulse_pro', 'lite'].includes(org.account_type);
+   const val = isPulseFamily
+     ? ((org.subscription_tier === 'lite' || org.account_type === 'lite') ? 'lite' : 'pulse_pro')
+     : (['free', 'pro', 'premium', 'enterprise', 'starter', 'professional'].includes(org.subscription_tier) ? org.subscription_tier : 'starter');
+   return (
+   <Select value={val} onValueChange={(v) => onUpdateTier(org.id, v)}>
+   <SelectTrigger className={`h-7 text-xs border-0 w-full md:w-28 ${TIER_STYLES[org.subscription_tier || 'free'] || 'bg-zinc-100 text-zinc-600'}`} data-testid={`org-tier-${org.id}`}><SelectValue /></SelectTrigger>
+   <SelectContent className="bg-white border-zinc-200">
+   {isPulseFamily ? (
+   <>
+   <SelectItem value="lite">Lite</SelectItem>
+   <SelectItem value="pulse_pro">Pro</SelectItem>
+   </>
+   ) : (
+   <>
+   <SelectItem value="starter">Starter</SelectItem>
+   <SelectItem value="professional">Professional</SelectItem>
+   <SelectItem value="enterprise">Enterprise</SelectItem>
+   </>
+   )}
+   </SelectContent>
+   </Select>
+   );
+ })()}
  <Select value={org.status || 'active'} onValueChange={(v) => onUpdateStatus(org.id, v)}>
  <SelectTrigger className={`h-7 text-xs border w-full md:w-24 ${STATUS_STYLES[org.status || 'active']}`} data-testid={`org-status-${org.id}`}><SelectValue /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
@@ -1392,18 +1402,19 @@ useEffect(() => {
      tiers, MOD orgs get MOD tiers, Pulse Fitness customers keep the
      Starter/Growth/Enterprise lineup. */}
  {(() => {
-   const isPulse = org.account_type === 'pulse_pro' || org.account_type === 'lite';
+   const isPulse = ['full', 'pulse_pro', 'lite'].includes(org.account_type);
    const isMod = (org.account_type || '').startsWith('mod_');
-   const cur = org.subscription_tier || (isPulse ? 'pulse_pro' : (isMod ? 'mod_branch' : 'starter'));
+   const cur = isPulse
+     ? ((org.subscription_tier === 'lite' || org.account_type === 'lite') ? 'lite' : 'pulse_pro')
+     : (org.subscription_tier || (isMod ? 'mod_branch' : 'starter'));
    return (
      <Select value={cur} onValueChange={(v) => onUpdateTier(org.id, v)}>
        <SelectTrigger className="mt-1 bg-white h-8 text-sm" data-testid={`org-billing-tier-${org.id}`}><SelectValue /></SelectTrigger>
        <SelectContent className="bg-white border-zinc-200">
          {isPulse && (
            <>
-             <SelectItem value="lite">Pulse Lite</SelectItem>
+             <SelectItem value="lite">Pulse Lite (free)</SelectItem>
              <SelectItem value="pulse_pro">Pulse Pro</SelectItem>
-             <SelectItem value="enterprise">Pulse Enterprise</SelectItem>
            </>
          )}
          {isMod && (
