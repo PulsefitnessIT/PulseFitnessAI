@@ -28829,3 +28829,14 @@ NOTE: fixes live in PREVIEW — user must redeploy to production.
 3. `dedupe_published_duplicate_titles()` — idempotent startup migration (runs in `init_seo_indexes` every boot): groups published articles by normalised title, keeps the EARLIEST (original Google-indexed slug), archives the rest with `archived_reason=duplicate_title_auto_dedupe`. **Production self-heals on next redeploy.**
 **Tests**: test_iter264_seo_duplicate_fix.py 7/7 (concurrency exclusivity, completed-day, stale reclaim, fresh-claim protection, dedupe keep-oldest + idempotency, source pins, unique index) — added to Makefile. Existing seo autopilot suite 28/28.
 NOTE: preview DB had no duplicates (single-process). The 4 prod duplicates will be auto-archived when the user REDEPLOYS.
+
+---
+## Comms Centre Phase 2 polish — Preference Centre & Unsubscribe (Jun 23, 2026)
+**User request**: route {{unsubscribe_link}} / {{preferences_link}} merge tags to a REAL preference centre/unsubscribe page (were dead placeholder routes; opt-outs not honoured).
+**Built**:
+- Backend public (no-auth) endpoints in `routes/comms.py`: GET/POST `/api/comms/public/preferences/{token}`, POST `/api/comms/public/unsubscribe/{token}`. Stateless HMAC token (org_id+email, signed with JWT_SECRET) — `_make_comms_token`/`_verify_comms_token`. Opt-outs stored in new `comms_optouts` collection ({organization_id, email, unsubscribed_all, opted_out_categories[], updated_at}).
+- Category-level prefs: Marketing / Memberships / B2B (Sales) / Service. `_pref_category_for_campaign` maps related_module (+ service_update type → service). `_is_suppressed` helper.
+- Dispatcher (`utils/comms_dispatch.py`): `_send_due_batch` now emits real tokenized PUBLIC_BASE_URL links per recipient; `_resolve_recipients` filters suppressed/unsubscribed via `_filter_suppressed` (both segment + inline audience paths).
+- Frontend public branded pages (Pulse Fitness AI dark theme): `pages/Comms/PublicPreferencesPage.js` (/preferences/:token — category toggles + master unsubscribe-all + "why" note) and `PublicUnsubscribePage.js` (/unsubscribe/:token — one-click unsubscribe + confirmation + manage-prefs link + resubscribe). Routes added to `routes/AppRoutes.js`.
+- GOTCHA: global marketing CSS overrides Tailwind `text-white` → near-black (rgb 24,24,27) on these public routes; fixed with inline `style={{color:'#fff'}}` on headings/labels.
+**Verified**: curl — GET/POST prefs, POST unsubscribe, persistence, bad-token 404 all pass. Suppression + token helpers unit-tested. Screenshot — both branded pages render + save flow works.

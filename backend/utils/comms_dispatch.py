@@ -55,11 +55,11 @@ def _tz(name):
         return ZoneInfo(_DEFAULT_TZ)
 
 
-def _personalise(text: str, r: dict) -> str:
+def _personalise(text: str, r: dict, links: dict | None = None) -> str:
     fn = (r.get("first_name") or "").strip()
     ln = (r.get("last_name") or "").strip()
     full = (f"{fn} {ln}").strip() or "there"
-    base = "https://pulsefitness.ai"
+    base = (PUBLIC_BASE_URL or "https://pulsefitness.ai").rstrip("/")
     repl = {
         "{{first_name}}": fn or "there", "{{contact_first_name}}": fn or "there",
         "{{last_name}}": ln, "{{contact_last_name}}": ln, "{{full_name}}": full,
@@ -69,6 +69,8 @@ def _personalise(text: str, r: dict) -> str:
         "{{view_in_browser_link}}": f"{base}/c/view",
         "{{forward_to_friend_link}}": f"{base}/c/forward",
     }
+    if links:
+        repl.update(links)
     out = text or ""
     for k, v in repl.items():
         out = out.replace(k, v)
@@ -81,7 +83,8 @@ async def _resolve_recipients(camp: dict) -> list[dict]:
     seg_id = camp.get("segment_id")
     inline = camp.get("audience_inline")
     if inline and isinstance(inline, list):
-        return [{"email": e, "first_name": "", "last_name": ""} for e in inline if "@" in str(e)]
+        recips = [{"email": e, "first_name": "", "last_name": ""} for e in inline if "@" in str(e)]
+        return await _filter_suppressed(camp, org_id, recips)
     if not seg_id:
         return []
     seg = await db.comms_segments.find_one({"id": seg_id, "organization_id": org_id}, {"_id": 0})
@@ -94,7 +97,24 @@ async def _resolve_recipients(camp: dict) -> list[dict]:
         base["marketing_consent.email"] = {"$ne": False}
     rule_filter = _build_filter(seg.get("rules") or {}) if seg.get("rules") else {}
     docs = await getattr(db, coll_name).find({**base, **rule_filter}, proj).to_list(length=100000)
-    return [d for d in docs if d.get("email") and "@" in d["email"]]
+    recips = [d for d in docs if d.get("email") and "@" in d["email"]]
+    return await _filter_suppressed(camp, org_id, recips)
+
+
+async def _filter_suppressed(camp: dict, org_id: str, recips: list[dict]) -> list[dict]:
+    """Drop recipients who have unsubscribed (all) or opted out of this
+    campaign's preference category via the public preference centre."""
+    from routes.comms import _pref_category_for_campaign, _is_suppressed
+    if not recips:
+        return recips
+    category = _pref_category_for_campaign(camp)
+    emails = list({d["email"].lower() for d in recips})
+    optouts = await db.comms_optouts.find(
+        {"organization_id": org_id, "email": {"$in": emails}},
+        {"_id": 0, "email": 1, "unsubscribed_all": 1, "opted_out_categories": 1},
+    ).to_list(length=len(emails))
+    sup = {o["email"]: o for o in optouts}
+    return [d for d in recips if not _is_suppressed(sup.get(d["email"].lower()), category)]
 
 
 def _scheduled_for(idx: int, base_utc: datetime, sched: dict, recip: dict) -> datetime:
@@ -182,10 +202,17 @@ async def _send_due_batch(camp: dict) -> int:
     raw_html = render_blocks_to_html(blocks) if blocks else (content.get("body_html") or "")
     raw_subject = content.get("subject") or camp.get("name") or "Pulse Fitness AI"
     category = _MODULE_EMAIL_CATEGORY.get(camp.get("related_module"), "support")
+    from routes.comms import _make_comms_token
+    link_base = (PUBLIC_BASE_URL or "https://pulsefitness.ai").rstrip("/")
     sent = bounced = 0
     for m in due:
         r = m.get("_recip") or {}
-        html = _inject_tracking(_personalise(raw_html, r), m["id"])
+        token = _make_comms_token(org_id, m["contact_email"])
+        links = {
+            "{{unsubscribe_link}}": f"{link_base}/unsubscribe/{token}",
+            "{{preferences_link}}": f"{link_base}/preferences/{token}",
+        }
+        html = _inject_tracking(_personalise(raw_html, r, links), m["id"])
         subject = _personalise(raw_subject, r)
         ok = False
         try:

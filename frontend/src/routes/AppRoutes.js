@@ -102,6 +102,8 @@ const AdminPartsRequests = lazy(() => import('@/pages/MasterAdmin/AdminPartsRequ
 const AdminMODSitesBulkImport = lazy(() => import('@/pages/MasterAdmin/AdminMODSitesBulkImport'));
 const MarketingSuite = lazy(() => import('@/pages/MarketingSuite'));
 const CommsCentre = lazy(() => import('@/pages/Comms/CommsCentre'));
+const PublicPreferencesPage = lazy(() => import('@/pages/Comms/PublicPreferencesPage'));
+const PublicUnsubscribePage = lazy(() => import('@/pages/Comms/PublicUnsubscribePage'));
 const ServiceDeskPage = lazy(() => import('@/pages/ServiceDeskPage'));
 const _ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
 const _ServiceOpsScheduler = lazy(() => import('@/pages/ServiceOps/ServiceScheduler'));
@@ -334,6 +336,9 @@ export default function AppRoutes({ user, login }) {
       <Route path="/track/:token" element={<PublicTrackingPage />} />
       <Route path="/org/:token" element={<PublicOrgChartPage />} />
       <Route path="/contracts/accept/:token" element={<PublicContractAcceptPage />} />
+      {/* Public email preference centre + one-click unsubscribe (no auth) */}
+      <Route path="/preferences/:token" element={<PublicPreferencesPage />} />
+      <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
       {/* Iter 216h88 — public Engineer Partner marketing landing */}
       <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />
       {/* Iter 216h286 — Gap 8: public review submission page.

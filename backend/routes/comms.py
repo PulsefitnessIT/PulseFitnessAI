@@ -15,6 +15,10 @@ from __future__ import annotations
 
 import html as _htmllib
 import re
+import os
+import json
+import hmac
+import hashlib
 import base64
 from typing import Optional
 
@@ -711,3 +715,132 @@ async def log_conversion(body: dict = Body(...), user: dict = Depends(get_curren
         meta=body.get("meta"),
     )
     return {"ok": ok}
+
+
+# ───────────────────────── Preference Centre / Unsubscribe (public) ─────────────────────────
+# Category-level email preferences + one-click unsubscribe, reachable from
+# the {{unsubscribe_link}} / {{preferences_link}} merge tags in every send.
+# Pages are unauthenticated; the recipient is identified by a stateless
+# HMAC-signed token (org_id + email) so no per-recipient row is needed and
+# links can't be trivially enumerated. Opt-outs land in ``comms_optouts``
+# and are honoured by the dispatcher's audience resolver.
+
+PREF_CATEGORIES = [
+    {"id": "marketing", "label": "Marketing & promotions",
+     "desc": "Offers, news, events and seasonal campaigns."},
+    {"id": "memberships", "label": "Membership & member updates",
+     "desc": "Renewals, class and timetable changes, member announcements."},
+    {"id": "b2b", "label": "Sales & account updates",
+     "desc": "Quotes, proposals and account-management communications."},
+    {"id": "service", "label": "Service & operational updates",
+     "desc": "Service visits, maintenance and operational notices."},
+]
+_PREF_CATEGORY_IDS = {c["id"] for c in PREF_CATEGORIES}
+_MODULE_PREF_CATEGORY = {"marketing": "marketing", "memberships": "memberships", "crm": "b2b"}
+
+_COMMS_TOKEN_SECRET = os.environ.get("JWT_SECRET", "pulse-comms-secret")
+
+
+def _make_comms_token(org_id: str, email: str) -> str:
+    payload = json.dumps({"o": org_id, "e": (email or "").lower()}, separators=(",", ":")).encode()
+    b = base64.urlsafe_b64encode(payload).rstrip(b"=")
+    sig = hmac.new(_COMMS_TOKEN_SECRET.encode(), b, hashlib.sha256).digest()
+    s = base64.urlsafe_b64encode(sig).rstrip(b"=")
+    return f"{b.decode()}.{s.decode()}"
+
+
+def _verify_comms_token(token: str):
+    try:
+        b_str, s_str = token.split(".", 1)
+        b = b_str.encode()
+        expected = base64.urlsafe_b64encode(
+            hmac.new(_COMMS_TOKEN_SECRET.encode(), b, hashlib.sha256).digest()
+        ).rstrip(b"=").decode()
+        if not hmac.compare_digest(expected, s_str):
+            return None
+        pad = b + b"=" * (-len(b) % 4)
+        data = json.loads(base64.urlsafe_b64decode(pad))
+        org_id, email = data.get("o"), data.get("e")
+        if not org_id or not email:
+            return None
+        return org_id, email
+    except Exception:
+        return None
+
+
+def _pref_category_for_campaign(camp: dict) -> str:
+    if (camp.get("campaign_type") or "") == "service_update":
+        return "service"
+    return _MODULE_PREF_CATEGORY.get(camp.get("related_module"), "marketing")
+
+
+def _is_suppressed(optout: dict | None, category: str) -> bool:
+    if not optout:
+        return False
+    if optout.get("unsubscribed_all"):
+        return True
+    return category in (optout.get("opted_out_categories") or [])
+
+
+async def _public_org_brand(org_id: str) -> dict:
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "name": 1, "logo_url": 1},
+    ) or {}
+    return {"org_name": org.get("name") or "Pulse Fitness", "org_logo": org.get("logo_url") or ""}
+
+
+@router.get("/public/preferences/{token}")
+async def public_get_preferences(token: str):
+    parsed = _verify_comms_token(token)
+    if not parsed:
+        raise HTTPException(404, "This link is invalid or has expired.")
+    org_id, email = parsed
+    brand = await _public_org_brand(org_id)
+    optout = await db.comms_optouts.find_one(
+        {"organization_id": org_id, "email": email.lower()}, {"_id": 0},
+    ) or {}
+    return {
+        "email": email,
+        **brand,
+        "categories": PREF_CATEGORIES,
+        "unsubscribed_all": bool(optout.get("unsubscribed_all")),
+        "opted_out_categories": optout.get("opted_out_categories") or [],
+    }
+
+
+@router.post("/public/preferences/{token}")
+async def public_update_preferences(token: str, body: dict = Body(...)):
+    parsed = _verify_comms_token(token)
+    if not parsed:
+        raise HTTPException(404, "This link is invalid or has expired.")
+    org_id, email = parsed
+    opted = [c for c in (body.get("opted_out_categories") or []) if c in _PREF_CATEGORY_IDS]
+    unsub_all = bool(body.get("unsubscribed_all"))
+    await db.comms_optouts.update_one(
+        {"organization_id": org_id, "email": email.lower()},
+        {"$set": {
+            "organization_id": org_id, "email": email.lower(),
+            "unsubscribed_all": unsub_all, "opted_out_categories": opted,
+            "updated_at": _now_iso(),
+        }},
+        upsert=True,
+    )
+    return {"ok": True, "unsubscribed_all": unsub_all, "opted_out_categories": opted}
+
+
+@router.post("/public/unsubscribe/{token}")
+async def public_unsubscribe(token: str):
+    parsed = _verify_comms_token(token)
+    if not parsed:
+        raise HTTPException(404, "This link is invalid or has expired.")
+    org_id, email = parsed
+    await db.comms_optouts.update_one(
+        {"organization_id": org_id, "email": email.lower()},
+        {"$set": {
+            "organization_id": org_id, "email": email.lower(),
+            "unsubscribed_all": True, "updated_at": _now_iso(),
+        }},
+        upsert=True,
+    )
+    brand = await _public_org_brand(org_id)
+    return {"ok": True, "email": email, **brand}
