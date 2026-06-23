@@ -129,3 +129,25 @@ async def analyse_campaign(context: dict):
     if isinstance(data, dict) and data.get("summary"):
         return data
     return None
+
+
+async def suggest_segment(description: str, catalogue: dict):
+    """Turn a plain-English audience description into a rule tree, strictly
+    using the provided field catalogue. Returns {name, source, rules}."""
+    system = (
+        _BRAND + " You build audience segments. Return ONLY JSON: "
+        "{\"name\": str, \"source\": \"contacts\"|\"members\", "
+        "\"rules\": {\"op\": \"and\"|\"or\", \"conditions\": "
+        "[{\"field\": str, \"op\": str, \"value\": any}]}}. "
+        "You MUST only use fields, operators and (for select fields) option "
+        "values from the provided CATALOGUE. Use date sentinels like "
+        "'90d_ago' for date fields. Keep it to 1-4 conditions."
+    )
+    prompt = (
+        f"Audience to build: {description}\n\nCATALOGUE:\n{json.dumps(catalogue, default=str)}"
+    )
+    raw = await _ask(system, prompt, "segsug")
+    data = _extract_json(raw) if raw else None
+    if isinstance(data, dict) and isinstance(data.get("rules"), dict):
+        return data
+    return None

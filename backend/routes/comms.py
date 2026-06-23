@@ -563,3 +563,86 @@ async def test_send_comms_campaign(
         logger.info("[comms] test-send failed: %s", exc)
         ok = False
     return {"ok": bool(ok), "sent_to": to}
+
+
+# ───────────────────────── Schedule / batch / timezone send ─────────────────────────
+
+@router.post("/campaigns/{campaign_id}/schedule", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def schedule_comms_campaign(
+    campaign_id: str, body: dict = Body(...), user: dict = Depends(get_current_user),
+):
+    org_id = await _org_id(user)
+    camp = await _get_owned(campaign_id, org_id)
+    if camp.get("status") in ("sending", "sent"):
+        raise HTTPException(400, "Campaign is already sending or sent.")
+    content = camp.get("content") or {}
+    if not (content.get("blocks") or content.get("body_html")):
+        raise HTTPException(400, "Add some email content before scheduling.")
+    if not camp.get("segment_id") and not camp.get("audience_inline"):
+        raise HTTPException(400, "Choose an audience segment for this campaign first.")
+
+    strategy = body.get("strategy", "scheduled")
+    schedule = {
+        "strategy": strategy,
+        "send_at": body.get("send_at") if strategy == "scheduled" else _now_iso(),
+        "batch_size": int(body.get("batch_size") or 0),
+        "batch_interval_minutes": int(body.get("batch_interval_minutes") or 0),
+        "timezone_mode": body.get("timezone_mode", "fixed"),
+        "tz": body.get("tz", "Europe/London"),
+        "local_hour": int(body.get("local_hour", 9)),
+    }
+    if strategy == "scheduled" and not schedule["send_at"]:
+        raise HTTPException(400, "Pick a send date/time.")
+    await db.marketing_campaigns.update_one(
+        {"id": campaign_id, "organization_id": org_id},
+        {"$set": {"schedule": schedule, "status": "scheduled", "updated_at": _now_iso()}},
+    )
+    if strategy == "immediate":
+        from utils.comms_dispatch import activate_campaign
+        camp["schedule"] = schedule
+        count = await activate_campaign(camp)
+        return {"ok": True, "status": "sending", "recipients": count}
+    return {"ok": True, "status": "scheduled", "send_at": schedule["send_at"]}
+
+
+@router.post("/campaigns/{campaign_id}/pause-send", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def pause_comms_send(campaign_id: str, user: dict = Depends(get_current_user)):
+    org_id = await _org_id(user)
+    camp = await _get_owned(campaign_id, org_id)
+    if camp.get("status") not in ("sending", "scheduled"):
+        raise HTTPException(400, "Campaign is not sending or scheduled.")
+    await db.marketing_campaigns.update_one(
+        {"id": campaign_id, "organization_id": org_id},
+        {"$set": {"status": "paused", "updated_at": _now_iso()}},
+    )
+    return {"ok": True, "status": "paused"}
+
+
+@router.post("/campaigns/{campaign_id}/resume-send", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def resume_comms_send(campaign_id: str, user: dict = Depends(get_current_user)):
+    org_id = await _org_id(user)
+    camp = await _get_owned(campaign_id, org_id)
+    if camp.get("status") != "paused":
+        raise HTTPException(400, "Campaign is not paused.")
+    # if a queue exists it's mid-send → resume to sending; else back to scheduled
+    queued = await db.marketing_messages.count_documents({"campaign_id": campaign_id, "status": "queued"})
+    new_status = "sending" if queued else "scheduled"
+    await db.marketing_campaigns.update_one(
+        {"id": campaign_id, "organization_id": org_id},
+        {"$set": {"status": new_status, "updated_at": _now_iso()}},
+    )
+    return {"ok": True, "status": new_status}
+
+
+@router.get("/campaigns/{campaign_id}/dispatch", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def dispatch_progress(campaign_id: str, user: dict = Depends(get_current_user)):
+    org_id = await _org_id(user)
+    camp = await _get_owned(campaign_id, org_id)
+    queued = await db.marketing_messages.count_documents({"campaign_id": campaign_id, "status": "queued"})
+    metrics = camp.get("metrics") or {}
+    total = (camp.get("schedule") or {}).get("total", 0) or (queued + int(metrics.get("sent", 0)) + int(metrics.get("bounced", 0)))
+    return {
+        "status": camp.get("status"), "total": total, "queued": queued,
+        "sent": int(metrics.get("sent", 0)), "bounced": int(metrics.get("bounced", 0)),
+        "schedule": camp.get("schedule") or {},
+    }

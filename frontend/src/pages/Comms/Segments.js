@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Plus, Trash2, X, Users, Filter, RefreshCw, Pencil } from 'lucide-react';
+import { Plus, Trash2, X, Users, Filter, RefreshCw, Pencil, Wand2, Loader2 } from 'lucide-react';
 
 const apiRoot = (API) => (API || process.env.REACT_APP_BACKEND_URL || '').replace(/\/api\/?$/, '');
 const card = { background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' };
@@ -20,6 +20,21 @@ export function SegmentsView({ API, headers }) {
   const [meta, setMeta] = useState(null);
   const [segments, setSegments] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [showAI, setShowAI] = useState(false);
+  const [aiDesc, setAiDesc] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const aiSuggest = async () => {
+    if (!aiDesc.trim()) { toast.error('Describe the audience'); return; }
+    setAiBusy(true);
+    try {
+      const r = await axios.post(`${root}/api/comms/segments/ai-suggest`, { description: aiDesc }, { headers });
+      setShowAI(false); setAiDesc('');
+      setEditing({ name: r.data.name, source: r.data.source, type: 'dynamic', rules: r.data.rules });
+      toast.success(`Suggested segment (~${r.data.count} matches) — review & save`);
+    } catch (e) { toast.error(e?.response?.data?.detail || 'AI is unavailable right now'); }
+    finally { setAiBusy(false); }
+  };
 
   const load = useCallback(async () => {
     try { const r = await axios.get(`${root}/api/comms/segments`, { headers }); setSegments(r.data.segments); }
@@ -38,8 +53,25 @@ export function SegmentsView({ API, headers }) {
     <div data-testid="segments-view">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm" style={muted}>Saved &amp; dynamic audiences — reusable across every campaign.</p>
-        <button onClick={() => setEditing({})} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="segment-create-btn"><Plus size={15} />New segment</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="segment-ai-btn"><Wand2 size={15} />AI suggest</button>
+          <button onClick={() => setEditing({})} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="segment-create-btn"><Plus size={15} />New segment</button>
+        </div>
       </div>
+
+      {showAI && (
+        <div className="fixed inset-0 z-[160] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowAI(false)}>
+          <div className="rounded-2xl p-6 w-full max-w-md border" style={card} onClick={(e) => e.stopPropagation()} data-testid="segment-ai-modal">
+            <h3 className="flex items-center gap-2 font-bold text-lg pulse-font-heading mb-1" style={txt}><Wand2 size={18} className="text-violet-500" />AI segment builder</h3>
+            <p className="text-sm mb-4" style={muted}>Describe the audience in plain English — we'll build the rules for you to review.</p>
+            <textarea value={aiDesc} onChange={(e) => setAiDesc(e.target.value)} rows={3} placeholder="e.g. lapsed members who haven't visited in 90 days" className={`w-full ${inputCls} mb-4`} style={inputStyle} data-testid="segment-ai-desc" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowAI(false)} className="px-4 py-2 rounded-full text-sm font-semibold hover:bg-black/5" style={muted}>Cancel</button>
+              <button onClick={aiSuggest} disabled={aiBusy} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white disabled:opacity-50" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="segment-ai-go">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}Build it</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!segments ? <p className="text-sm" style={muted}>Loading…</p>
         : segments.length === 0 ? (

@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import {
   Type, Heading1, Image as ImageIcon, MousePointerClick, Minus, MoveVertical,
   Share2, Video, Code, LayoutPanelTop, Sparkles, Monitor, Smartphone, Moon,
-  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2,
+  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2, Rocket, Clock, Users,
 } from 'lucide-react';
 
 const CYAN = '#19CDFF';
@@ -123,6 +123,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState('');
   const [showTest, setShowTest] = useState(false);
+  const [showSend, setShowSend] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiBrief, setAiBrief] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
@@ -294,6 +295,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
           </div>
           <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="builder-ai"><Wand2 size={14} />AI</button>
           <button onClick={() => setShowTest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-test"><Send size={14} />Test</button>
+          <button onClick={async () => { await save(); setShowSend(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-schedule"><Rocket size={14} />Send</button>
           <button onClick={save} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-[#03212b] disabled:opacity-50" style={{ background: CYAN }} data-testid="builder-save"><Save size={14} />{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
@@ -400,8 +402,98 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
           </div>
         </div>
       )}
+      {showSend && (
+        <SendModal campaign={campaign} API={API} headers={headers} onClose={() => setShowSend(false)} onDone={onClose} />
+      )}
     </div>
   ), document.body);
+}
+
+function SendModal({ campaign, API, headers, onClose, onDone }) {
+  const [segments, setSegments] = useState([]);
+  const [segmentId, setSegmentId] = useState(campaign?.segment_id || '');
+  const [strategy, setStrategy] = useState('immediate');
+  const [sendAt, setSendAt] = useState('');
+  const [tzMode, setTzMode] = useState('fixed');
+  const [localHour, setLocalHour] = useState(9);
+  const [batchSize, setBatchSize] = useState(0);
+  const [batchInterval, setBatchInterval] = useState(0);
+  const [busy, setBusy] = useState(false);
+
+  React.useEffect(() => {
+    axios.get(`${API}/api/comms/segments`, { headers }).then((r) => setSegments(r.data.segments || [])).catch(() => {});
+  }, [API, headers]);
+
+  const seg = segments.find((s) => s.id === segmentId);
+
+  const go = async () => {
+    if (!segmentId) { toast.error('Choose an audience segment'); return; }
+    if (strategy === 'scheduled' && !sendAt) { toast.error('Pick a send date/time'); return; }
+    setBusy(true);
+    try {
+      await axios.put(`${API}/api/comms/campaigns/${campaign.id}`, { segment_id: segmentId }, { headers });
+      const payload = {
+        strategy,
+        send_at: strategy === 'scheduled' ? new Date(sendAt).toISOString() : undefined,
+        timezone_mode: tzMode, local_hour: Number(localHour),
+        batch_size: Number(batchSize), batch_interval_minutes: Number(batchInterval),
+      };
+      const r = await axios.post(`${API}/api/comms/campaigns/${campaign.id}/schedule`, payload, { headers });
+      toast.success(r.data.status === 'sending' ? `Sending to ${r.data.recipients} recipients` : 'Campaign scheduled');
+      onClose();
+      onDone && onDone();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not schedule');
+    } finally { setBusy(false); }
+  };
+
+  const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-[#19CDFF] focus:outline-none';
+  return (
+    <div className="fixed inset-0 z-[210] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="send-modal">
+        <h3 className="flex items-center gap-2 font-bold text-lg text-slate-900 mb-1 pulse-font-heading"><Rocket size={18} className="text-[#0891b2]" />Send campaign</h3>
+        <p className="text-sm text-slate-500 mb-4">Batch + timezone-aware delivery via Pulse Fitness AI.</p>
+
+        <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Audience segment</label>
+        <select value={segmentId} onChange={(e) => setSegmentId(e.target.value)} className={`${inputCls} mb-1`} data-testid="send-segment">
+          <option value="">Choose a segment…</option>
+          {segments.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.member_count})</option>)}
+        </select>
+        {seg && <p className="flex items-center gap-1 text-xs text-slate-500 mb-3"><Users size={12} />{seg.member_count} recipients</p>}
+
+        <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1 mt-2">When</label>
+        <div className="flex gap-2 mb-3">
+          {[['immediate', 'Send now'], ['scheduled', 'Schedule']].map(([v, l]) => (
+            <button key={v} onClick={() => setStrategy(v)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${strategy === v ? 'border-[#19CDFF] bg-cyan-50 text-slate-900' : 'border-slate-200 text-slate-500'}`} data-testid={`send-strategy-${v}`}>{l}</button>
+          ))}
+        </div>
+        {strategy === 'scheduled' && (
+          <input type="datetime-local" value={sendAt} onChange={(e) => setSendAt(e.target.value)} className={`${inputCls} mb-3`} data-testid="send-at" />
+        )}
+
+        <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Timezone</label>
+        <select value={tzMode} onChange={(e) => setTzMode(e.target.value)} className={`${inputCls} mb-2`} data-testid="send-tzmode">
+          <option value="fixed">Fixed timezone (Europe/London)</option>
+          <option value="recipient_local">Each recipient's local time</option>
+        </select>
+        {tzMode === 'recipient_local' && (
+          <div className="flex items-center gap-2 mb-3 text-sm text-slate-600"><Clock size={14} />Send around
+            <input type="number" min="0" max="23" value={localHour} onChange={(e) => setLocalHour(e.target.value)} className="w-16 px-2 py-1 rounded-lg border border-slate-200" data-testid="send-localhour" />:00 local</div>
+        )}
+
+        <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1 mt-1">Batch delivery (optional)</label>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div><span className="text-xs text-slate-400">Batch size</span><input type="number" min="0" value={batchSize} onChange={(e) => setBatchSize(e.target.value)} placeholder="All at once" className={inputCls} data-testid="send-batch-size" /></div>
+          <div><span className="text-xs text-slate-400">Every (mins)</span><input type="number" min="0" value={batchInterval} onChange={(e) => setBatchInterval(e.target.value)} className={inputCls} data-testid="send-batch-interval" /></div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button onClick={go} disabled={busy} className="flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-bold text-[#03212b] disabled:opacity-50" style={{ background: CYAN }} data-testid="send-confirm">{busy ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{strategy === 'immediate' ? 'Send now' : 'Schedule'}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Field({ label, children }) {

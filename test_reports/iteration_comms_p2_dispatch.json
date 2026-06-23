@@ -1,0 +1,33 @@
+{
+  "summary": "Phase 2 — Comms batch+timezone DISPATCH worker, send/schedule API, pause/resume, dispatch progress, AND AI-suggested segments tested end-to-end. 7/7 backend pytests pass; full frontend Playwright flow green (AI suggest → SegmentEditor pre-fill → save; EmailBuilder Send modal with all controls; immediate send transitions to 'sent' via background worker).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EmailBuilder header (toolbar)", "issues": ["Multiple stacked toasts (Campaign created / Segment saved / Suggested segment review) in the top-right overlap and visually cover the Save/Send buttons immediately after create. Buttons are still clickable (z-index/portal handles it; force=True click worked) but the toast stack on the same edge as the controls is a polish issue — consider toasting bottom-right or auto-dismissing within 3s. Same dev-only React hydration warning '<span> cannot be a child of <option>' as previously reported — caused by emergent editor instrumentation wrappers, not app code; safe to ignore in production."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_comms_p2_dispatch.py",
+    "/app/test_reports/pytest/iter_comms_p2_dispatch.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "comms_dispatch.py is tight (~220 LOC): one collection scan per cycle, idempotent activate (clears prior queue), and _scheduled_for cleanly bakes batch offset + recipient_local timezone into the queued row's scheduled_for — drain is a simple time-window query. Good design.",
+    "_send_due_batch updates each marketing_messages row one-by-one inside the loop (N round-trips). For a large campaign (e.g. 50k recipients) this is N writes per cycle. Consider bulk_write with UpdateOne ops; non-blocking but worth noting for scale.",
+    "activate_campaign with 0 recipients immediately flips status to 'sent' (correct), but metrics.{sent,delivered,bounced} stay 0 and schedule.total is not set on this path — dispatch endpoint then reports total=0 which is fine, but consider setting schedule.total=0 explicitly for symmetry.",
+    "schedule_comms_campaign always overwrites schedule.send_at to _now_iso() for strategy='immediate' (good) and rejects sending/sent campaigns (400). pause-send / resume-send transitions are bounded to expected states — good.",
+    "ai-suggest validates rules against catalogue (only valid field/op/value kept) — verified: 'lapsed members in the last 90 days' returned source='members', 2 conditions (status==lapsed plus a recency rule).",
+    "EmailBuilder SendModal is portaled to body with z-1000 — sits above the navbar as documented; segment is required (Send now disabled without one — verified by send-segment dropdown). Good.",
+    "Toast stack on builder open clusters in top-right — consider repositioning so it never overlaps the toolbar's Send/Save buttons."
+  ],
+  "updated_files": ["/app/backend/tests/test_comms_p2_dispatch.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% — all listed testids verified, immediate send drained to 'sent' via worker"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created and cleaned up: 1 TEST_AI_<ts> segment, 1 TEST_p2_ui_send campaign (archived), plus 5 short-lived TEST_p2_* campaigns from pytest (archived/deleted in fixtures). Stray marketing_messages with test+...@example.com removed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest /app/backend/tests/test_comms_p2_dispatch.py covers: schedule endpoint 400s (no content, no audience, scheduled without send_at), immediate dispatch worker drains (polls /dispatch up to 50s — campaign reaches status='sent', total=1, sent+bounced=1), scheduled+pause+resume state machine, and AI segment suggest (rules dict + count + sample). pytest must be run from /app/backend so 'utils' imports resolve; conftest tries to import 'tests.shared_loop' from /app — that's only relevant if running from /app/. Run with: REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_comms_p2_dispatch.py from /app/backend. Frontend Playwright flow verified: comms-section-segments → segment-ai-btn → segment-ai-modal → segment-ai-desc + segment-ai-go → segment-editor pre-fills name/source/conditions → segment-save; campaign-edit-<id> opens email-builder → builder-schedule → send-modal with send-segment / send-strategy-immediate|scheduled / send-at / send-tzmode (recipient_local reveals send-localhour) / send-batch-size / send-batch-interval / send-confirm — confirm closes modal and dispatch worker drains immediate campaigns to status 'sent'. Wait ~6s after EmailBuilder opens before clicking builder-schedule to let toasts clear (or use force=True).",
+  "rca of the issue": "N/A — no blocking issues found. Note: the worker's per-row update inside _send_due_batch could be batched via bulk_write for large sends; recorded as a non-blocking code-quality observation."
+}

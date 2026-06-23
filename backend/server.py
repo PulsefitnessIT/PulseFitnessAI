@@ -629,6 +629,18 @@ async def startup() -> None:
             logger.error(f"sicon sync workers start failed: {e}")
 
 
+    # Comms Centre — batch + timezone-aware campaign send dispatcher.
+    # Activates due scheduled campaigns and drains their queued recipients
+    # in throttled cycles (batch size + pacing + per-recipient local time).
+    try:
+        from utils.comms_dispatch import run_comms_dispatch_loop
+        _cd_int = float(os.environ.get("COMMS_DISPATCH_INTERVAL_SEC", "30"))
+        asyncio.create_task(run_comms_dispatch_loop(interval_seconds=_cd_int))
+        logger.info("[comms-dispatch] loop registered (interval=%ss)", _cd_int)
+    except Exception as e:
+        logger.error(f"comms-dispatch loop start failed: {e}")
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:
     try:

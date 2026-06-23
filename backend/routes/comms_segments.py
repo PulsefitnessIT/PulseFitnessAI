@@ -176,7 +176,31 @@ async def delete_segment(segment_id: str, user: dict = Depends(get_current_user)
     return {"ok": True}
 
 
-@router.get("/segments/{segment_id}/members", dependencies=[Depends(_ANY_COMMS_MODULE)])
+@router.post("/segments/ai-suggest", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def ai_suggest_segment(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    org_id = await _org_id(user)
+    desc = (body.get("description") or "").strip()
+    if not desc:
+        raise HTTPException(400, "Describe the audience you want")
+    from utils import comms_ai
+    catalogue = {"sources": list(_SOURCES.keys()), "fields": _FIELDS,
+                 "operators": [o["id"] for o in _OPERATORS],
+                 "date_sentinels": ["7d_ago", "30d_ago", "60d_ago", "90d_ago", "180d_ago", "365d_ago"]}
+    sug = await comms_ai.suggest_segment(desc, catalogue)
+    if not sug:
+        raise HTTPException(503, "AI assistant is unavailable right now. Please try again.")
+    source = sug.get("source") if sug.get("source") in _SOURCES else "contacts"
+    valid_fields = {f["field"] for f in _FIELDS[source]}
+    valid_ops = {o["id"] for o in _OPERATORS}
+    conditions = [
+        c for c in (sug.get("rules", {}).get("conditions") or [])
+        if c.get("field") in valid_fields and c.get("op") in valid_ops and c.get("value") not in (None, "")
+    ]
+    rules = {"op": sug.get("rules", {}).get("op", "and") if sug.get("rules", {}).get("op") in ("and", "or") else "and",
+             "conditions": conditions}
+    count, sample = await _evaluate(org_id, source, rules, sample=8)
+    return {"name": sug.get("name", "AI segment"), "source": source, "rules": rules,
+            "count": count, "sample": sample}
 async def segment_members(
     segment_id: str, limit: int = Query(50, ge=1, le=500), user: dict = Depends(get_current_user),
 ):
