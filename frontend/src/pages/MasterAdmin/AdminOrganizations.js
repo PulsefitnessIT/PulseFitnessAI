@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
  Building2, Search, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive, Edit2, Mail,
- CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, UserCog, BarChart3, MoreHorizontal, Undo2, KeyRound, LockOpen,
+ CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -43,8 +43,6 @@ const MODULE_OPTIONS = [
   { id: 'crm',         label: 'CRM',         icon: Users,     color: '#6366F1' },
   { id: 'memberships', label: 'Memberships', icon: Calendar,  color: '#8B5CF6' },
   { id: 'marketing',   label: 'Marketing',   icon: Megaphone, color: '#D946EF' },
-  { id: 'staffing',    label: 'Staffing',    icon: UserCog,   color: '#A855F7' },
-  { id: 'reporting',   label: 'Reporting',   icon: BarChart3, color: '#2563EB' },
 ];
 
 const modulesFromPortalType = (pt) => {
