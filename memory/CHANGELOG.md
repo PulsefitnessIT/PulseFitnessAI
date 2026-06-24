@@ -551,3 +551,9 @@ End-user E2E audit (testing agent + manual verification):
 - SECTION_TO_GROUP augmented with legacy ids (`audit-logs`, `design-system`) so deep-links still highlight the right group. Removed now-unused lazy imports in MasterAdminPage.
 - Verified live: merged wrappers render with 2 tabs each; all legacy deep-links resolve; frontend compiles clean.
 - DEFERRED (user chose scope = P0 only): P1 de-clutter of Settings&Compliance (17 sub-tabs) + Growth (9 sub-tabs); P2 onboarding unification.
+
+## 2026-06-24 — Master Admin IA: P1 de-clutter of junk-drawer groups
+- Split **Growth (10 sub-tabs)** → **Marketing** (Growth Hub, SEO Autopilot, Social Autopilot, Social media library, Outbound emails — group gymaxisOnly) + **Sales & Comms** (Communications inbox, Canned replies, Sales insights, Trials, Pulse Sales CAPEX).
+- Split **Settings & Compliance (14 sub-tabs)** → **Compliance & Security** (Audit & compliance, Login events, Access matrix, Data Subject Erasure, Documents, Archive) + **Platform Tools** (Branding & design, Custom domains, Client crashes, Ask Support Desk, Support tools, Database viewer, Pulse data explorer, Maintenance jobs).
+- Section render switch unchanged (sub-tab ids preserved) → all deep-links intact. SECTION_TO_GROUP legacy mappings repointed (audit-logs→compliance-security, design-system→platform-tools). Added group titles/descriptions for the 4 new groups.
+- Verified live: 4 new nav groups render, old groups gone, Platform Tools lands on Branding & design. Compiles clean.

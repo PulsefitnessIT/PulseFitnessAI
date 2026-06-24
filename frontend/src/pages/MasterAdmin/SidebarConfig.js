@@ -97,27 +97,28 @@ export const SIDEBAR_ITEMS = [
       { id: 'capex-config',  label: 'CAPEX',          icon: TrendingUp },
     ],
   },
-  // 6. Growth — trials, marketing, sales insights, comms
+  // 6. Marketing — outbound growth automation + content (Pulse Fitness
+  //    self-promo tooling; entirely hidden for delegated Pulse admins).
   {
-    id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
+    id: 'marketing', label: 'Marketing', icon: Megaphone, group: 'main', gymaxisOnly: true,
     subTabs: [
-      // Iter 220ag — Growth Hub (aggregation of trials, SEO, outbound,
-      // CRM pipeline + sales insights — Pulse Fitness self-promotion lens).
-      // Iter 222 — Pulse Fitness-branded self-promo tooling; hidden for Pulse admins.
-      { id: 'marketing-studio', label: 'Growth Hub',   icon: Rocket, gymaxisOnly: true },
-      // Iter 220ad — SEO Autopilot (keyword research → article → publish)
-      { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles, gymaxisOnly: true },
-      // Iter 220bl — Social Media Autopilot (IG / TikTok / LinkedIn).
-      // Moved out of Catalogue & Library where the manual library lived;
-      // the new autopilot writes daily drafts with brand-coloured images.
-      { id: 'social-autopilot', label: 'Social Autopilot',   icon: Share2, gymaxisOnly: true },
-      { id: 'social-media-library', label: 'Social media library', icon: ImageIcon, gymaxisOnly: true },
+      // Growth Hub — aggregation of trials, SEO, outbound, CRM pipeline + sales.
+      { id: 'marketing-studio', label: 'Growth Hub',           icon: Rocket },
+      { id: 'seo-autopilot',    label: 'SEO Autopilot',        icon: Sparkles },
+      { id: 'social-autopilot', label: 'Social Autopilot',     icon: Share2 },
+      { id: 'social-media-library', label: 'Social media library', icon: ImageIcon },
+      { id: 'emails',           label: 'Outbound emails',      icon: Mail },
+    ],
+  },
+  // 7. Sales & Comms — inbound enquiries, reply templates, trials + sales.
+  {
+    id: 'sales-comms', label: 'Sales & Comms', icon: Inbox, group: 'main',
+    subTabs: [
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
-      { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
-      { id: 'emails',          label: 'Outbound emails',  icon: Mail, gymaxisOnly: true },
-      { id: 'trials',          label: 'Trials',           icon: Timer, gymaxisOnly: true },
-      { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
-      { id: 'pulse-sales',     label: 'Pulse Sales (CAPEX)', icon: TrendingUp },
+      { id: 'canned-replies',  label: 'Canned replies',       icon: FileText },
+      { id: 'sales-insights',  label: 'Sales insights',       icon: Sparkles },
+      { id: 'trials',          label: 'Trials',               icon: Timer, gymaxisOnly: true },
+      { id: 'pulse-sales',     label: 'Pulse Sales (CAPEX)',   icon: TrendingUp },
     ],
   },
   // Iter 220ad — Analytics promoted from a Growth sub-tab to a top-level
@@ -155,33 +156,32 @@ export const SIDEBAR_ITEMS = [
       { id: 'sicon-integration',   label: 'Sicon Service', icon: ArrowLeftRight },
     ],
   },
-  // 8. Settings & Compliance — audit log, login events, database, backfills
+  // 11. Compliance & Security — audit, access, data-subject + lifecycle.
   {
-    id: 'settings-compliance', label: 'Settings & Compliance', icon: Settings, group: 'main',
+    id: 'compliance-security', label: 'Compliance & Security', icon: ShieldCheck, group: 'main',
     subTabs: [
-      { id: 'audit-log',          label: 'Audit & compliance', icon: ScrollText },
-      { id: 'login-events',       label: 'Login events',       icon: ShieldAlert },
-      { id: 'access-matrix',      label: 'Access matrix',      icon: BadgeCheck },
-      { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert, gymaxisOnly: true },
-      { id: 'documents',          label: 'Documents',          icon: FolderArchive },
-      // Iter 216h59 — relocated from Overview. Archive is a data-
-      // lifecycle / compliance concern (soft-deleted orgs, restore
-      // tooling), so it sits naturally alongside the audit log and
-      // database tooling rather than the operator dashboard.
-      { id: 'archive',            label: 'Archive',            icon: FolderArchive },
-      // Iter 220ao — GDPR Art. 17 Data Subject Erasure Requests
+      { id: 'audit-log',          label: 'Audit & compliance',  icon: ScrollText },
+      { id: 'login-events',       label: 'Login events',        icon: ShieldAlert },
+      { id: 'access-matrix',      label: 'Access matrix',       icon: BadgeCheck },
       { id: 'gdpr-erasure',       label: 'Data Subject Erasure', icon: ShieldOff },
-      // Iter 222 — Ask Support Desk / Support tools / DB viewer /
-      // Maintenance jobs are Pulse Fitness-platform-internal (master-admin
-      // only on the backend). Hidden for delegated Pulse admins so they
-      // don't hit "Master admin access required" errors.
+      { id: 'documents',          label: 'Documents',           icon: FolderArchive },
+      { id: 'archive',            label: 'Archive',             icon: FolderArchive },
+    ],
+  },
+  // 12. Platform Tools — internal support, data, maintenance + brand config.
+  {
+    id: 'platform-tools', label: 'Platform Tools', icon: Settings, group: 'main',
+    subTabs: [
+      { id: 'theme-settings',     label: 'Branding & design',  icon: Palette },
+      { id: 'custom-domains',     label: 'Custom domains',     icon: Globe },
+      { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert, gymaxisOnly: true },
+      // Pulse Fitness-platform-internal (master-admin only on the backend);
+      // hidden for delegated Pulse admins so they don't hit access errors.
       { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles, gymaxisOnly: true },
       { id: 'support',            label: 'Support tools',      icon: Headphones, gymaxisOnly: true },
       { id: 'db-viewer',          label: 'Database viewer',    icon: Database, gymaxisOnly: true },
       { id: 'pulse-data',         label: 'Pulse data explorer', icon: Database, pulseOnly: true },
       { id: 'backfills',          label: 'Maintenance jobs',   icon: RefreshCcw, gymaxisOnly: true },
-      { id: 'theme-settings',     label: 'Branding & design',  icon: Palette },
-      { id: 'custom-domains',     label: 'Custom domains',     icon: Globe },
     ],
   },
 ];
@@ -198,8 +198,8 @@ export const SECTION_TO_GROUP = (() => {
   // Legacy section ids that were merged into a sibling screen (P0 SSoT
   // cleanup) keep their parent group so deep-links still highlight the
   // correct nav entry and render the group's sub-tab bar.
-  map['audit-logs'] = 'settings-compliance';   // → merged into 'audit-log' (Audit & compliance)
-  map['design-system'] = 'settings-compliance'; // → merged into 'theme-settings' (Branding & design)
+  map['audit-logs'] = 'compliance-security';   // → merged into 'audit-log' (Audit & compliance)
+  map['design-system'] = 'platform-tools';     // → merged into 'theme-settings' (Branding & design)
   return map;
 })();
 
@@ -326,9 +326,13 @@ export const sectionTitles = {
   finance: 'Finance',
   security: 'Security',
   growth: 'Growth',
+  marketing: 'Marketing',
+  'sales-comms': 'Sales & Comms',
   'analytics-section': 'Analytics',
   'support-hub': 'Support',
   'settings-compliance': 'Settings & Compliance',
+  'compliance-security': 'Compliance & Security',
+  'platform-tools': 'Platform Tools',
 };
 
 export const sectionDescriptions = {
@@ -382,8 +386,12 @@ export const sectionDescriptions = {
   finance: 'Pricing, billing, payments, Stripe and CAPEX in one place.',
   security: 'Login events plus the platform-health & trust dashboard.',
   growth: 'Marketing Suite plus active-trial conversion tracking.',
+  marketing: 'Outbound growth — Growth Hub funnel, SEO + Social autopilots, the social library and outbound email.',
+  'sales-comms': 'Inbound enquiries, reply templates, trial conversion and the internal CAPEX sales pipeline.',
   'support-hub': 'Help desk escalations, ad-hoc support tools, and outbound email audit.',
   'settings-compliance': 'Audit logs, login events, database, maintenance jobs and design system — every compliance + admin tool in one place.',
+  'compliance-security': 'Audit & compliance trail, login events, access matrix, GDPR erasure, documents and data-lifecycle archive.',
+  'platform-tools': 'Branding & design, custom domains, internal support tools, data explorers and maintenance jobs.',
 };
 
 /** Pill-style sub-tab bar used across the Overview and Analytics sections. */
