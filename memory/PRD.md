@@ -1,3 +1,17 @@
+# ═══ 2026-06-24 · BUGFIX · Onboarding "errors everywhere" = overlay click-interception ═══
+Master Admin reported errors throughout the Onboarding hub (buttons/downloads/uploads). Backend was
+100% healthy (all endpoints 200) — the real cause was UI overlay click-interception: `CookieConsent.js`
+(`fixed bottom-0 left-0 right-0`) and `PWAInstallPrompt.js` (`fixed bottom-4 left-4 right-4`) rendered
+FULL-WIDTH transparent fixed wrappers whose empty padding sat on top of the Onboarding action buttons,
+silently swallowing clicks (no network call, no toast → looked like "errors").
+FIX: `pointer-events-none` on each banner wrapper + `pointer-events-auto` on the inner visible card.
+Also hardened blob downloads (OnboardingReports.exportReport + AdminBulkImports.downloadTemplate) to
+surface JSON error responses instead of saving a broken file. VERIFIED by testing agent: with the banner
+physically overlapping a button, the click now fires (200) without force; banner's own buttons still work.
+
+────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06-24 · Multi-Site Data Isolation + Manager RBAC (SHIPPED) ═══
 Per-site data isolation across **Memberships, CRM, Marketing** via a centralized
 ContextVar engine. Owners/admins unrestricted; a `manager` with non-empty
