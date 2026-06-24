@@ -48,7 +48,7 @@ const matchesCategory = (file, cat) => {
   return cat.aliases.includes(fileCat);
 };
 
-const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => {
+const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload, isPro = false }) => {
   const { API } = useAuth();
   const { t } = useTranslation();
   // Iter 238 — translated category label (kebab-case id → snake_case key)
@@ -108,7 +108,8 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
           indexing still happens (per-file Index button + auto-trigger
           on upload), users just don't need a percentage gauge cluttering
           the page. */}
-      <DocumentQA compact />
+      {/* Lite has no AI — the Document Q&A box only renders for Pro/trial. */}
+      {isPro && <DocumentQA compact />}
 
       {/* Iter 216h49 — Drag-and-drop dropzone. Matches the spec-sheet
           pattern (AdminSpecSheets) so the gesture is consistent across
@@ -250,7 +251,7 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    {indexable && !f.ai_extracted ? (
+                    {isPro && indexable && !f.ai_extracted ? (
                       <Button
                         size="sm"
                         variant="outline"

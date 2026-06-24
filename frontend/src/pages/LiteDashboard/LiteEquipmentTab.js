@@ -15,7 +15,7 @@ const LiteEquipmentTab = ({
   filteredEquipment, search, onSearchChange,
   getEquipmentFaults, onSelectEquipment,
   _getSeverityStyle, _getSeverityLabel, _getStatusColor, onEquipmentUpdated,
-  onAddEquipment,
+  onAddEquipment, isPro = false,
 }) => {
   const { API, sites, user } = useAuth();
   const { t } = useTranslation();
@@ -158,7 +158,8 @@ const LiteEquipmentTab = ({
             <Plus size={12} className="mr-1.5" /> {t('equip.add', 'Add equipment')}
           </Button>
         )}
-        {missingImages > 0 && (
+        {/* Lite has no AI — the AI manufacturer-image lookup is Pro-only. */}
+        {isPro && missingImages > 0 && (
           <Button
             size="sm"
             variant="outline"

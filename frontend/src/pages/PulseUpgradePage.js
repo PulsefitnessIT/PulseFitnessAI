@@ -1,10 +1,17 @@
+import { useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  ClipboardCheck, BarChart3, Brain, CheckCircle, Zap, Shield,
-  ArrowRight, Star
+  ClipboardCheck, BarChart3, Brain, CheckCircle, Shield,
+  ArrowRight, Star, Loader2, CheckCircle2, Crown, Lock
 } from 'lucide-react';
+import { notify } from '@/components/notifications';
+import { notifyApiError } from '@/lib/formatApiError';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 const PRO_FEATURES = [
   {
@@ -51,6 +58,45 @@ const COMPARISON = [
 ];
 
 const PulseUpgradePage = ({ onDismiss }) => {
+  const { user, refreshMe } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const isOwner = (user?.role || '').toLowerCase() === 'owner';
+  const isMaster = user?.is_master_admin === true;
+  const canUpgrade = isOwner || isMaster;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+  const handleUpgrade = async () => {
+    if (!canUpgrade) {
+      notify.error('Owner-only', 'Ask the organisation owner to upgrade your portal to Pulse Pro.');
+      return;
+    }
+    setBusy(true);
+    try {
+      // Stage 1 of the two-step plan: unlock the full Pro version of
+      // Operations. Bolt-ons (Memberships / CRM / Marketing) are added
+      // separately afterwards, so we intentionally send no start_trials.
+      await axios.post(
+        `${API}/api/me/upgrade-to-pro`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setDone(true);
+      notify.success(
+        'Welcome to Pulse Pro',
+        'Operations is now fully unlocked — AI Diagnosis, Check Sheets, Reports, Staffing and more. Reloading…',
+        { duration: 7000 },
+      );
+      try { await refreshMe?.(); } catch (_) { /* fall back to reload */ }
+      setTimeout(() => { window.location.reload(); }, 1200);
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not complete your upgrade');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-8" data-testid="pulse-upgrade-page" data-portal="pulse">
       {/* Hero */}
@@ -131,22 +177,43 @@ const PulseUpgradePage = ({ onDismiss }) => {
         </div>
       </Card>
 
-      {/* CTA */}
+      {/* CTA — real in-app, one-click Lite → Pro Operations upgrade. */}
       <Card className="bg-gradient-to-r from-blue-600 to-blue-700 border-0 shadow-lg p-8 text-center" data-testid="upgrade-cta">
-        <Zap size={28} className="text-white/80 mx-auto mb-3" />
-        <h3 className="text-xl font-bold text-white mb-2">Ready to Upgrade?</h3>
-        <p className="text-blue-200 text-sm mb-6 max-w-md mx-auto">
-          Contact your account manager or reach out to our team to upgrade your portal to Pulse Fitness Pro.
+        <Crown size={28} className="text-amber-300 mx-auto mb-3" />
+        <h3 className="text-xl font-bold text-white mb-2">
+          {done ? 'You\'re on Pulse Pro 🎉' : 'Upgrade to Pulse Pro'}
+        </h3>
+        <p className="text-blue-100 text-sm mb-6 max-w-md mx-auto">
+          {done
+            ? 'Your Operations portal is now fully unlocked. Reloading your dashboard…'
+            : 'Unlock the full Pro version of Operations instantly — AI Fault Diagnosis, Check Sheets, Reports, Risk Assessments, Staffing and more. Memberships, CRM and Marketing can be added as bolt-ons afterwards.'}
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
-          <Button
-            className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-6 h-11"
-            onClick={() => window.location.href = 'mailto:support@pulsefitness.ai?subject=Pulse%20Pro%20Upgrade%20Request'}
-            data-testid="upgrade-contact-btn"
-          >
-            Request Upgrade <ArrowRight size={16} className="ml-2" />
-          </Button>
-          {onDismiss && (
+          {canUpgrade ? (
+            <Button
+              className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-6 h-11 disabled:opacity-60"
+              onClick={handleUpgrade}
+              disabled={busy || done}
+              data-testid="upgrade-now-btn"
+            >
+              {busy ? (
+                <><Loader2 size={16} className="mr-2 animate-spin" /> Upgrading…</>
+              ) : done ? (
+                <><CheckCircle2 size={16} className="mr-2" /> Pro activated</>
+              ) : (
+                <>Upgrade to Pro <ArrowRight size={16} className="ml-2" /></>
+              )}
+            </Button>
+          ) : (
+            <Button
+              className="bg-white/15 text-white border border-white/25 font-semibold px-6 h-11 cursor-not-allowed"
+              disabled
+              data-testid="upgrade-owner-only-btn"
+            >
+              <Lock size={14} className="mr-2" /> Owner can upgrade
+            </Button>
+          )}
+          {onDismiss && !done && (
             <Button
               variant="outline"
               className="border-white/30 text-white hover:bg-white/10 px-6 h-11"
@@ -157,6 +224,9 @@ const PulseUpgradePage = ({ onDismiss }) => {
             </Button>
           )}
         </div>
+        <p className="text-[11px] text-blue-200/80 mt-4 inline-flex items-center justify-center gap-1.5">
+          <Lock size={9} /> Instant unlock · cancel or adjust bolt-ons anytime
+        </p>
       </Card>
     </div>
   );

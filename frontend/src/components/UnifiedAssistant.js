@@ -114,7 +114,14 @@ const UnifiedAssistant = () => {
  const isMaster = user?.is_master_admin === true;
  const moduleAccess = user?.module_access || user?.moduleAccess || {};
  const accessibleMode = (m) => isMaster || moduleAccess[m] !== false;
- const mode = detected && accessibleMode(detected) ? detected : null;
+ // Pulse Lite has NO AI features — the operations dashboard is limited to
+ // Dashboard / Equipment / Faults / Documents. Trial / Pro / MOD / admin all
+ // keep the assistant; only a true Lite account suppresses it (matches the
+ // `isPro` gate used in LiteDashboardPage).
+ const isTrialActive = user?.trial?.is_trial === true && user?.trial?.status !== 'expired' && user?.trial?.locked_out !== true;
+ const isMODacct = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+ const isLiteNoAI = user?.account_type === 'lite' && !isTrialActive && !isMaster && !isMODacct;
+ const mode = detected && accessibleMode(detected) && !isLiteNoAI ? detected : null;
  const cfg = mode ? MODES[mode] : null;
  const confirm = useConfirm();
 

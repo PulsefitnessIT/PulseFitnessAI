@@ -510,3 +510,23 @@ End-user E2E audit (testing agent + manual verification):
 - "At risk" now means *due soon but not yet breached* everywhere. Previously the Cases KPI counted `sla_resolve_at <= now+2h` (no lower bound) so it included breached cases and read the same as Breached (449/449); the drill used a 2h future window; the dashboard used 24h.
 - Introduced a single canonical `SLA_RISK_WINDOW_HOURS = 24` in `utils/svc_state.py`, applied to the desk KPI (`svc/desk.py`), the `/svc/cases?sla=at_risk` drill (`svc/cases.py`) and the performance tile (`service_desk.py`). At-risk = `now <= sla_resolve_at < now+24h`; breached = `sla_resolve_at < now` — mutually exclusive.
 - Verified live: all three surfaces reconcile (at-risk 0 / breached 449), a seeded future-target case shows at-risk=1 on all three (then cleaned up). Tests `test_iter290f_sla_at_risk_alignment.py` (2) added to `make regression`. ruff clean.
+
+## 2026-06-24 — Lite tier: no-AI enforcement + module picker cleanup
+- Removed `staffing` & `reporting` from `MODULE_OPTIONS` (AdminOrganizations.js); they are native to Pro, not selectable bolt-ons. Cleaned unused icon imports.
+- Confirmed Lite Operations tab set is correct: Dashboard / Equipment / Faults / Documents (+ Start guide, + Upgrade to Pro). Defined by `LiteDashboardPage.buildTabs() → baseLite`.
+- Plugged AI leaks into Lite (Lite = NO AI):
+  - UnifiedAssistant.js: floating AI chat now suppressed for true Lite accounts (`isLiteNoAI`); Pro/trial/MOD/admin unaffected.
+  - LiteDocumentsTab.js: inline Document Q&A box + per-file AI "Index" button gated behind `isPro`.
+  - LiteEquipmentTab.js: AI "Auto-find images" lookup gated behind `isPro` (prop now passed from parent).
+- AI fault triage in the log-fault flow was already correctly Pro-only (verified).
+- Verified live in preview via admin `?view=lite`: Documents tab renders no AI Q&A and zero AI index buttons.
+- FOLLOW-UP (optional, defense-in-depth): backend hardening to reject AI endpoints (`/issues/triage`, `/files/{id}/extract`, equipment auto-lookup) for `account_type=lite`.
+
+## 2026-06-24 — Lite "Upgrade to Pro" tab → real in-app conversion
+- PulseUpgradePage.js CTA converted from a mailto link to a functional one-click upgrade.
+  - Calls existing `POST /api/me/upgrade-to-pro` with empty body (Stage 1 = unlock Pro Operations only; bolt-ons added afterwards per the two-stage plan).
+  - Owner/master-admin gated; non-owners see a locked "Owner can upgrade" button.
+  - Loading + success states, `refreshMe()` + auto-reload so the dashboard picks up the new Pro tabs.
+  - Kept the before/after Pro feature cards + Standard-vs-Pro comparison table.
+- Verified: endpoint live (clean 400 for non-lite accounts), Upgrade tab renders the CTA with `data-testid=upgrade-now-btn`.
+- NOTE: happy-path upgrade not run with a live Lite-owner account (only master-admin available); endpoint is the same one PulseProUpgradeCta already uses in production.

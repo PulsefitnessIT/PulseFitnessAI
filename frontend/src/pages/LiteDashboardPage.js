@@ -901,6 +901,7 @@ const LiteDashboardPage = () => {
                 onSelectEquipment={setSelectedEquipment}
                 onEquipmentUpdated={loadData}
                 onAddEquipment={() => setShowAddEquipment(true)}
+                isPro={isPro}
               />
             </TabsContent>
 
