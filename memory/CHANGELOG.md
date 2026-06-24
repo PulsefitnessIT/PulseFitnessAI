@@ -542,3 +542,12 @@ End-user E2E audit (testing agent + manual verification):
 - Global axios response interceptor (App.js) detects the AI-gate 403 (detail contains "AI features are available on Pulse Pro") and dispatches `pulse:ai-upgrade-required`.
 - LiteDashboardPage listens: if the Upgrade tab exists (non-staff Lite) → switches to it + scrolls top + info toast "Unlock AI with Pulse Pro"; staff get a toast asking the owner to upgrade.
 - Verified live (admin ?view=lite): dispatching the event flips to the upgrade tab, shows the toast, CTA present. Frontend compiles clean.
+
+## 2026-06-24 — Master Admin IA: P0 single-source-of-truth cleanup (founder review)
+- Stripe: removed duplicate nav entry from Integrations; Finance is now the single home (deep-link `?section=stripe-connect` still routes).
+- Audit: merged "Audit log" + "Compliance trail" into one **Audit & compliance** screen (new `AuditCompliancePanel` with inner Security-timeline / Compliance-trail tabs). Legacy `audit-logs` deep-link routes to the wrapper (compliance tab).
+- Design: merged "Design system" + "Theme settings" into one **Branding & design** screen (new `BrandingDesignPanel`; Design-system inner tab hidden for delegated Pulse admins). Legacy `design-system` deep-link routes to the wrapper.
+- Social: moved "Social media library" from Catalogue → Growth (next to Social Autopilot).
+- SECTION_TO_GROUP augmented with legacy ids (`audit-logs`, `design-system`) so deep-links still highlight the right group. Removed now-unused lazy imports in MasterAdminPage.
+- Verified live: merged wrappers render with 2 tabs each; all legacy deep-links resolve; frontend compiles clean.
+- DEFERRED (user chose scope = P0 only): P1 de-clutter of Settings&Compliance (17 sub-tabs) + Growth (9 sub-tabs); P2 onboarding unification.

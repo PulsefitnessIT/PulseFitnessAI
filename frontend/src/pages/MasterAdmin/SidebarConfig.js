@@ -81,7 +81,6 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'catalogue',         label: 'Equipment catalogue',  icon: ImageIcon },
       { id: 'custom-properties', label: 'Custom properties',    icon: ListChecks },
-      { id: 'social-media-library', label: 'Social media library', icon: Share2 },
     ],
   },
   // 5. Finance — pricing, billing, payments, Stripe, CAPEX, refunds
@@ -112,6 +111,7 @@ export const SIDEBAR_ITEMS = [
       // Moved out of Catalogue & Library where the manual library lived;
       // the new autopilot writes daily drafts with brand-coloured images.
       { id: 'social-autopilot', label: 'Social Autopilot',   icon: Share2, gymaxisOnly: true },
+      { id: 'social-media-library', label: 'Social media library', icon: ImageIcon, gymaxisOnly: true },
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
       { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
       { id: 'emails',          label: 'Outbound emails',  icon: Mail, gymaxisOnly: true },
@@ -153,15 +153,13 @@ export const SIDEBAR_ITEMS = [
       { id: 'integration-health',  label: 'Health',        icon: Activity },
       { id: 'orbit4',              label: 'Orbit 4',       icon: ArrowLeftRight },
       { id: 'sicon-integration',   label: 'Sicon Service', icon: ArrowLeftRight },
-      { id: 'stripe-connect',      label: 'Stripe Connect', icon: Banknote },
     ],
   },
   // 8. Settings & Compliance — audit log, login events, database, backfills
   {
     id: 'settings-compliance', label: 'Settings & Compliance', icon: Settings, group: 'main',
     subTabs: [
-      { id: 'audit-log',          label: 'Audit log',          icon: ScrollText },
-      { id: 'audit-logs',         label: 'Compliance trail',   icon: ScrollText },
+      { id: 'audit-log',          label: 'Audit & compliance', icon: ScrollText },
       { id: 'login-events',       label: 'Login events',       icon: ShieldAlert },
       { id: 'access-matrix',      label: 'Access matrix',      icon: BadgeCheck },
       { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert, gymaxisOnly: true },
@@ -182,8 +180,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'db-viewer',          label: 'Database viewer',    icon: Database, gymaxisOnly: true },
       { id: 'pulse-data',         label: 'Pulse data explorer', icon: Database, pulseOnly: true },
       { id: 'backfills',          label: 'Maintenance jobs',   icon: RefreshCcw, gymaxisOnly: true },
-      { id: 'design-system',      label: 'Design system',      icon: Palette, gymaxisOnly: true },
-      { id: 'theme-settings',     label: 'Theme settings',     icon: Palette },
+      { id: 'theme-settings',     label: 'Branding & design',  icon: Palette },
       { id: 'custom-domains',     label: 'Custom domains',     icon: Globe },
     ],
   },
@@ -198,6 +195,11 @@ export const SECTION_TO_GROUP = (() => {
       for (const sub of item.subTabs) map[sub.id] = item.id;
     }
   }
+  // Legacy section ids that were merged into a sibling screen (P0 SSoT
+  // cleanup) keep their parent group so deep-links still highlight the
+  // correct nav entry and render the group's sub-tab bar.
+  map['audit-logs'] = 'settings-compliance';   // → merged into 'audit-log' (Audit & compliance)
+  map['design-system'] = 'settings-compliance'; // → merged into 'theme-settings' (Branding & design)
   return map;
 })();
 
@@ -279,7 +281,7 @@ export const sectionTitles = {
   collections: 'Collections',
   'login-events': 'Login events',
   'client-errors': 'Client crashes',
-  'audit-log': 'Audit log',
+  'audit-log': 'Audit & compliance',
   'locked-staff': 'Site-locked users',          // Iter 216h17 — terminology cleanup
   trust: 'System health',                       // Iter 216h17 — was "Trust & Reliability Engine"
   archive: 'Archive',                           // Iter 216h53 — relocated from Service Desk
@@ -308,7 +310,7 @@ export const sectionTitles = {
   'financial-ops': 'Financial operations',
   'refunds': 'Refunds',
   'design-system': 'Design system',
-  'theme-settings': 'Theme settings',
+  'theme-settings': 'Branding & design',
   'custom-domains': 'Custom domains',
   'db-viewer': 'Database viewer',
   'pulse-data': 'Pulse data explorer',
@@ -340,7 +342,7 @@ export const sectionDescriptions = {
   'login-events': 'Security timeline — every login, MFA challenge, failed attempt and brute-force signal.',
   'access-matrix': 'Live role × capability grid — evaluated straight from the permission code, so it can never drift.',
   'client-errors': 'Front-end render crashes captured by ModalErrorBoundary — see the stack & component-stack to debug what broke for a user.',
-  'audit-log': 'Unified timeline of every platform-wide security event — logins, wallet activity, Auto-Bill charges, retry-ladder escalations. CSV export for SOC 2 / pentest evidence packets.',
+  'audit-log': 'Unified security + compliance timeline — every login, MFA challenge, wallet/Auto-Bill charge and retry-ladder escalation, with CSV export for SOC 2 / pentest evidence.',
   'locked-staff': 'Read-only audit view of every user with a per-site restriction set. Joins org name + site names + last-changed timestamp.',
   trust: 'Platform health, security events, and integration status — detect before customers do',
   'ask-support': 'Human-escalated AI support cases, CSAT trends, and deflection analytics',
@@ -366,7 +368,7 @@ export const sectionDescriptions = {
   'financial-ops': 'Revenue reserves, cost centres, and auto-top-up',
   'refunds': 'Issue and track Stripe refunds',
   'design-system': 'Living reference gallery — every button, tab pill, and input in one place',
-  'theme-settings': 'Pulse Fitness vs Pulse Fitness design-token isolation audit + per-tenant brand overrides.',
+  'theme-settings': 'Brand assets, per-tenant brand overrides, and the living design-system reference — fonts, colours, buttons, tabs and inputs in one place.',
   'custom-domains': 'Point a tenant\'s own domain (e.g. join.acmegym.com) at a specific member-facing surface — sign-up, branded app, brag page or public timetable.',
   'db-viewer': 'Read-only Mongo collection browser — search, paginate, and export.',
   'pulse-data': 'Read-only, Pulse-scoped view of your organisations, people, equipment, faults, members and posts.',

@@ -41,19 +41,16 @@ const AdminEngineerHealth = lazy(() => import('./MasterAdmin/AdminEngineerHealth
 const AdminRefundsPanel = lazy(() => import('./MasterAdmin/AdminRefundsPanel'));
 const AdminSupport = lazy(() => import('./MasterAdmin/AdminSupport'));
 const AdminEmails = lazy(() => import('./MasterAdmin/AdminEmails'));
-const AdminAuditLogs = lazy(() => import('./MasterAdmin/AdminAuditLogs'));
 const AdminCapex = lazy(() => import('./MasterAdmin/AdminCapex'));
 const TrustDashboard = lazy(() => import('./MasterAdmin/TrustDashboard'));
 const AskSupportDesk = lazy(() => import('./MasterAdmin/AskSupportDesk'));
 const AdminStripeConnect = lazy(() => import('./MasterAdmin/AdminStripeConnect'));
-const DesignSystemPage = lazy(() => import('./MasterAdmin/DesignSystemPage'));
 const PricingPanel = lazy(() => import('./MasterAdmin/PricingPanel'));
 const OrgBillingPanel = lazy(() => import('./MasterAdmin/OrgBillingPanel'));
 const EstateRollupPanel = lazy(() => import('./MasterAdmin/EstateRollupPanel'));
 const SalesInsightsPanel = lazy(() => import('./MasterAdmin/SalesInsightsPanel'));
 const LoginEventsPanel = lazy(() => import('./MasterAdmin/LoginEventsPanel'));
 const ClientErrorsPanel = lazy(() => import('./MasterAdmin/ClientErrorsPanel'));
-const AuditLogPanel = lazy(() => import('./MasterAdmin/AuditLogPanel'));
 const AccessMatrixPanel = lazy(() => import('./MasterAdmin/AccessMatrixPanel'));
 const LockedStaffPanel = lazy(() => import('./MasterAdmin/LockedStaffPanel'));
 const BackfillsPanel = lazy(() => import('./MasterAdmin/BackfillsPanel'));
@@ -74,7 +71,8 @@ const IntegrationsHub = lazy(() => import('./MasterAdmin/IntegrationsHub'));
 const AdminCommunications = lazy(() => import('./MasterAdmin/AdminCommunications'));
 const AdminCannedReplies = lazy(() => import('./MasterAdmin/AdminCannedReplies'));
 const AdminPulseSales = lazy(() => import('./MasterAdmin/AdminPulseSales'));
-const ThemeSettingsPanel = lazy(() => import('./MasterAdmin/ThemeSettingsPanel'));
+const AuditCompliancePanel = lazy(() => import('./MasterAdmin/AuditCompliancePanel'));
+const BrandingDesignPanel = lazy(() => import('./MasterAdmin/BrandingDesignPanel'));
 const CustomDomainsPanel = lazy(() => import('./MasterAdmin/CustomDomainsPanel'));
 const AnalyticsSection = lazy(() => import('./MasterAdmin/AnalyticsSection'));
 
@@ -421,7 +419,11 @@ const MasterAdminPage = ({ _onBack }) => {
       case 'pulse-sales':
         return <AdminPulseSales />;
       case 'theme-settings':
-        return <ThemeSettingsPanel />;
+      case 'design-system':
+        // P0 SSoT — Theme + Design system merged into one "Branding &
+        // design" screen. Design-system tab is platform-internal so it's
+        // hidden for delegated Pulse admins.
+        return <BrandingDesignPanel initialTab={section === 'design-system' ? 'design' : 'theme'} showDesignSystem={!isPulseAdmin} />;
       case 'custom-domains':
         return <CustomDomainsPanel />;
       case 'trust':
@@ -450,8 +452,10 @@ const MasterAdminPage = ({ _onBack }) => {
       case 'emails':
         return <AdminEmails />;
       case 'audit-logs':
-        // Iter 216h161 — platform-wide compliance audit viewer
-        return <AdminAuditLogs />;
+      case 'audit-log':
+        // P0 SSoT — security timeline + compliance trail merged into one
+        // "Audit & compliance" screen with an internal toggle.
+        return <AuditCompliancePanel initialTab={section === 'audit-logs' ? 'compliance' : 'security'} />;
       case 'capex-config':
         return (
           <AdminCapex
@@ -466,8 +470,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <FinancialOpsPanel />;
       case 'refunds':
         return <AdminRefundsPanel />;
-      case 'design-system':
-        return <DesignSystemPage />;
+      case 'design-system-legacy':
+        return <BrandingDesignPanel initialTab="design" showDesignSystem={!isPulseAdmin} />;
       case 'onboarding':
         return <AdminOnboardingHub API={API} onComplete={(orgId) => {
           // Iter 216f — drop directly into the org edit drawer for the
@@ -528,8 +532,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <LoginEventsPanel />;
       case 'client-errors':
         return <ClientErrorsPanel />;
-      case 'audit-log':
-        return <AuditLogPanel />;
+      case 'audit-log-legacy':
+        return <AuditCompliancePanel initialTab="security" />;
       case 'access-matrix':
         return <AccessMatrixPanel />;
       case 'locked-staff':
