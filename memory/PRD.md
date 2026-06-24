@@ -1,3 +1,43 @@
+# ═══ 2026-06-24 · Multi-Site Data Isolation + Manager RBAC (SHIPPED) ═══
+Per-site data isolation across **Memberships, CRM, Marketing** via a centralized
+ContextVar engine. Owners/admins unrestricted; a `manager` with non-empty
+`allowed_site_ids` is locked to those sites. Operations stays on legacy
+`apply_site_lock` (P3 backlog: unify later).
+
+Backend:
+- `utils/site_scope.py` — ContextVar scope, `set_request_site_scope(user)`,
+  `build_site_filter(site_id)` (403 `site_access_denied` / `$in` / `{}`),
+  `effective_site_filter()` (header-driven), `get_requested_site_id` (X-Site-Id / ?site_id=).
+- `utils/sites_isolation.py` — `get_primary_site_id`, idempotent backfill;
+  `scripts/backfill_site_ids.py` (run: `python -m scripts.backfill_site_ids`).
+- Wired into BOTH auth paths: `utils/auth.get_current_user` (Memberships/Marketing)
+  and `routes/crm_auth.get_crm_user` (CRM — mirrors role + allowed_site_ids + owner/admin
+  flags from the primary `users` record by email; the separate-auth-path leak the brief warned about).
+- Isolation applied: memberships members/dashboard/classes/plans/timetable/analytics;
+  CRM v1 (`crm_core._org_filter`), CRM v2 (`crm_v2._of` + `crm_permissions.compute_visibility`);
+  marketing campaigns/audiences/journeys/dashboard. Creates stamp `site_id` (active → org primary).
+- `GET /api/sites` narrows to allowed sites for restricted managers (no longer treats manager as privileged).
+- NEW `GET /api/sites/leaderboard` — per-site Active Members / MRR / Open Deals / Campaigns(30d) / Open Faults, HQ flagged.
+
+Frontend:
+- `App.js` axios interceptor sends `X-Site-Id` (active site or `all`); `allSitesMode` + `enableAllSites` context.
+- `SiteSwitcher.js` always offers "All Sites"; `AppRoutes.js` remounts on site change (key=siteKey).
+- `SiteLeaderboard.js` mounted in `Dashboard/OverviewTab.js` (renders only in All-Sites mode).
+- Team site-access UI already existed (`AccountSettings/team.js` → PATCH `/account/team/{id}/site-access`).
+
+Verification: handler-level two-site leak-proof pytest (memberships/crm/marketing) + 12 HTTP e2e tests ALL PASS.
+Proven over curl: owner sees both sites; manager sees only Site A; Site B → 403 across Memberships, Marketing,
+CRM (separate token) and `/api/sites`. Demo seed: `scripts/seed_site_isolation_demo.py`
+(owner@isodemo.com / manager@isodemo.com, pw IsoDemo123!). NOTE: frontend screenshot harness shows a
+"Loading…" screen for lazy module chunks (documented CSP/lazy-load limitation) — app compiles & runs fine;
+UI flows could not be auto-screenshotted but code is wired and backend is fully verified.
+
+P3 backlog: migrate Operations/Equipment onto the unified site_scope engine; consider showing the SiteSwitcher
+for a restricted manager with a single allowed site ("All my sites" affordance).
+
+────────────────────────────────────────────────────────────────────────
+
+
 ## Onboarding Epic — PHASE 5 (Reports, Emails, Customer Portal) ✅ (Jun 24, 2026)
 
 **Closes the massive Onboarding Epic (Phases 1–5 all shipped).** Customer-portal location chosen by user: inside **Account Settings → Onboarding**.

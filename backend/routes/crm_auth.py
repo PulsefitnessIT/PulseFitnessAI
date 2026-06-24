@@ -90,7 +90,16 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
         }
         # Mirror the resolved allow-list onto the CRM user dict so route
         # handlers / stamping read a consistent value.
+        # Mirror the resolved identity onto the CRM user dict so route
+        # handlers, sharing-rule checks (compute_visibility/is_unrestricted)
+        # and stamping all read a consistent role + allow-list. Without
+        # mirroring `role`, an org owner whose crm_users.role is 'manager'
+        # would be silently down-scoped to team-only CRM visibility.
         user["allowed_site_ids"] = scope_user["allowed_site_ids"]
+        user["role"] = scope_user["role"] or user.get("role")
+        user["is_org_owner"] = scope_user["is_org_owner"]
+        user["is_master_admin"] = scope_user["is_master_admin"]
+        user["is_pulse_admin"] = scope_user["is_pulse_admin"]
         set_request_site_scope(scope_user)
         set_requested_site(request.headers.get("x-site-id"))
     except Exception:
