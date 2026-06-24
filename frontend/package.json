@@ -77,6 +77,7 @@
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
+    "lint:overlays": "node scripts/check-overlay-clicks.js",
     "test:mobile-regression": "playwright test --config=playwright.config.js"
   },
   "browserslist": {
