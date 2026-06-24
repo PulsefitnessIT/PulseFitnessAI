@@ -1,0 +1,100 @@
+{
+  "summary": "Exhaustive UI audit of Master Admin Onboarding hub (all 8 subtabs + project drawer flows). Ran two passes via Playwright on the live preview as admin@pulsefitness.com. Result: NO backend API failures reproduced. Every targeted endpoint returned 200. The actionable bug surface is small; the user's 'errors right the way through' is most plausibly explained by overlay/click-interception (cookie banner + Install-App PWA banner + stacked toasts), not by broken endpoints.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminOnboardingHub overlay stack (cookie banner + 'Install App' PWA banner + toast queue)",
+        "issue": "When the user lands on the Onboarding hub the cookie consent banner AND the 'Install App / Later' PWA banner sit in the lower-right corner. After any action (project create, export, portal toggle) the success toasts stack ABOVE those banners on the right edge and remain for 4-5s. In the first automated pass, clicking 'Download equipment template' immediately after 'Download sites template' silently produced no network request and no error — the click was eaten by the toast/banner overlay. Retest with overlays explicitly dismissed: equipment download succeeded (200, equipment-template.csv). Strongly suspect this is what the Master Admin user sees as 'errors right the way through the system' — buttons that 'do nothing' because a transparent overlay region is intercepting the click.",
+        "selector": "[data-testid=\"bulk-template-equipment\"] / cookie banner / install-app prompt / right-edge toast stack",
+        "priority": "HIGH"
+      },
+      {
+        "component": "AdminOnboardingHub — top tab strip vs sub-tab strip",
+        "issue": "Hub has TWO tab strips: outer 'List / All sites / Onboarding / Module subscriptions / Customer activation' and inner subtabs ('Dashboard / Reports / Onboard Site / Head Office / Onboarding Packets / Bulk Imports / MOD Sites (bulk) / Onboard Staff'). The active styling on the outer strip + the highlighted 'Onboarding Packets' pill in the screenshots is visually confusing — users can't tell which tab is selected, which would feel like 'broken navigation'.",
+        "selector": "[data-testid^=\"onboarding-subtab-\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "AdminOnboardingHub — 'Emails' subtab absent at hub level",
+        "issue": "The review request expected an 'EMAILS' top-level subtab in the hub. There isn't one. Email render+send (data-testid onb-emails / onb-email-template / onb-email-send) only lives INSIDE the per-project drawer (Dashboard → click a project card → Emails tab in the drawer). Either the spec is stale or a hub-level Emails tab is missing.",
+        "selector": "expected [data-testid=\"onboarding-subtab-emails\"], not present",
+        "priority": "LOW"
+      },
+      {
+        "component": "DialogContent (onb-create-dialog and 3 others)",
+        "issue": "Console warning x4: 'Missing Description or aria-describedby={undefined} for DialogContent'. Accessibility lint — not functional.",
+        "selector": "[data-testid=\"onb-create-dialog\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Onboarding hub (all tabs)",
+        "issues": [
+          "Cookie consent banner + Install-App banner + right-edge toast stack overlap action buttons in the lower/right portion of the Bulk Imports and Reports cards. Either auto-dismiss them once acknowledged or push the toast stack to a region that does not overlap action buttons.",
+          "Outer tab strip ('Onboarding' selected) and inner subtab strip have very similar pill styling — selected state is ambiguous."
+        ]
+      }
+    ]
+  },
+  "verified_working_flows": {
+    "dashboard_projects": {
+      "GET /api/onboarding/customer-types": 200,
+      "GET /api/onboarding/dashboard": 200,
+      "GET /api/onboarding/projects": 200,
+      "POST /api/onboarding/projects (new project create)": 200,
+      "GET /api/onboarding/projects/{id}/readiness": 200,
+      "project card opens drawer": "OK",
+      "checklist/readiness/profile/golive drawer subtabs render": "OK"
+    },
+    "bulk_imports": {
+      "GET /api/master-admin/pulse-organizations": 200,
+      "GET /api/onboarding/import/types (ImportWizard)": 200,
+      "GET /api/master-admin/bulk-import/templates/sites": "200, sites-template.csv downloaded",
+      "GET /api/master-admin/bulk-import/templates/equipment": "200, equipment-template.csv downloaded (confirmed on retest)",
+      "GET /api/master-admin/bulk-import/templates/customers": "200, customers-template.csv downloaded"
+    },
+    "reports": {
+      "GET /api/onboarding/reports": 200,
+      "GET /api/onboarding/settings": 200,
+      "GET /api/onboarding/reports/export?format=csv": "200, onboarding-report.csv",
+      "GET /api/onboarding/reports/export?format=excel": "200, onboarding-report.xlsx",
+      "GET /api/onboarding/reports/export?format=pdf": "200, onboarding-report.pdf",
+      "PATCH /api/onboarding/settings (portal toggle)": "200, success toast 'Customer portal disabled' shown"
+    },
+    "mod_sites_packets_staff": "Tabs all render; Staff tab renders the 5-step StaffOnboardingWizard (Identity → Role → Sites → Modules → Review) with no console errors. Packets and MOD-bulk tabs render their primary cards."
+  },
+  "not_reproduced_failures": [
+    "Readiness 'Sync' POST, AI summary POST, and Go-live POST did not fire in the first automated pass — could not be confirmed as bug or as overlay-blocked click. Backend curl tests by main agent already returned 200 (or expected 400 for unlinked projects). Recommend manual verification once the overlay issue is fixed.",
+    "Bulk CSV file UPLOAD (multipart/form-data via [data-testid=\"bulk-upload-*\"]) was NOT exercised — main agent flagged the X-Site-Id interceptor could affect multipart, but no failing case was found by curl. Suggest a small targeted test with a 1-row CSV per kind."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "PRIMARY ROOT CAUSE HYPOTHESIS: The cookie consent banner + Install-App PWA banner + stacked toast notifications overlay the lower/right area of the Onboarding hub and intercept clicks on action buttons. This is the most likely explanation for the user's 'errors right the way through the system' report. Either (a) auto-dismiss these for authenticated master-admin sessions, (b) raise their z-index OR more importantly add pointer-events:none to non-interactive regions, or (c) move the toast stack to top-center so it doesn't sit on the button row.",
+    "Add 'Emails' as a hub-level subtab OR remove that expectation from the review spec — currently emails are only accessible inside a project drawer.",
+    "Disambiguate the outer vs inner tab strip styling (different shape/color for the selected pill).",
+    "Add aria-describedby/Description to DialogContent (onb-create-dialog and 3 other dialogs) to clear accessibility warnings.",
+    "Sanity-check that readiness-sync / ai-summary / go-live drawer buttons are not currently being blocked by the same overlay — they did not fire in the first automated pass."
+  ],
+  "critical_code_review_comments": [
+    "AdminBulkImports.js line 41: `const token = localStorage.getItem('token')` and `Authorization: Bearer ${token}` are still being attached even though the system is now HttpOnly-cookie auth (withCredentials=true). For master-admin sessions where the localStorage token is absent/stale this is harmless (cookie takes priority server-side) but it is dead code that contradicts the 'cookie-only auth' direction; remove or rely solely on `axios.defaults.withCredentials = true`.",
+    "downloadTemplate() in AdminBulkImports.js (line 22-38) and exportReport() in OnboardingReports.js use responseType:'blob' + a synthetic <a>.click() — this pattern works but does not surface backend errors that return JSON 4xx (the blob will be a JSON error and the browser will save it as a .csv). Wrap with `if (r.headers['content-type']?.includes('json')) { throw ... }` or use try/catch on a `r.data.text()` parse.",
+    "App.js axios request interceptor adds X-Site-Id to ALL requests including master-admin and onboarding endpoints that have no site concept. Backend appears tolerant, but it's noise. Scope the interceptor to memberships/CRM/marketing routes only.",
+    "Cookie/PWA/toast overlay z-index policy is not centralised — different components decide their own z-index, which is how an Install-App prompt ends up over the Onboarding action buttons."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% of touched endpoints returned 200 (15+ endpoints verified live)",
+    "frontend": "85% — all tabs render, all tested action buttons fire successfully; overlay interception risk remains and 3 drawer buttons (readiness-sync/ai-summary/go-live) were not confirmed via UI"
+  },
+  "seed_data_creation": "Created one onboarding project named 'TEST_OnbCustomer_<timestamp>' via the New-project dialog (POST /api/onboarding/projects 200). Safe to delete via admin UI or by name prefix 'TEST_'.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Two test passes were run against https://admin-setup-portal.preview.emergentagent.com with credentials admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg. Hub subtab testids are: dashboard, reports, site, head-office, packets, imports, mod-imports, staff (NOT 'bulk-imports' as the review spec said — the testid is just 'imports'). 'Emails' is a per-project-drawer tab, not a hub subtab. Cookie consent + Install-App prompts persist across sessions and overlay the lower-right region of the hub — explicitly dismiss them at the start of every Playwright test or click results will be flaky. The first pass's 'equipment template download failed' was a false positive caused by the toast/banner overlay eating the click immediately after the sites toast appeared; on a clean retest it succeeded. Drawer buttons onb-readiness-sync / onb-ai-summary-btn / onb-golive-approve were clicked but their POST calls did not appear in the network log — re-verify those after the overlay issue is fixed.",
+  "rca of the issue": "User complaint 'getting errors right the way through the system' on Onboarding could NOT be reproduced as backend errors — every API endpoint exercised returned 200. The probable root cause is UI-layer click interception: the cookie consent banner (bottom-center), the Install-App PWA prompt (lower-right), and the stacked success/error toast notifications (right edge) all sit ABOVE the Onboarding action buttons in the same regions. In a real user session, clicks that look like they should trigger a download/upload silently no-op because a transparent or low-contrast banner is intercepting the pointer event. This was confirmed in this audit when the first run's equipment-template click did not produce ANY network request (no 4xx, no 5xx, no console error) and a clean retest with the banners dismissed succeeded immediately. Mitigation: (1) for authenticated platform-admin sessions auto-dismiss the cookie + Install-App prompts, (2) move the toast stack out of the action-button column, (3) audit z-index policy app-wide."
+}
