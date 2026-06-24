@@ -88,6 +88,15 @@ const OnboardingReports = ({ types = [] }) => {
       const res = await axios.get(`${API}/onboarding/reports/export`, {
         params: { format }, responseType: 'blob',
       });
+      // A 4xx/5xx can still arrive as a blob containing a JSON error —
+      // detect it and surface the message instead of saving a broken file.
+      const ctype = res.data?.type || res.headers?.['content-type'] || '';
+      if (ctype.includes('application/json')) {
+        const txt = await res.data.text();
+        let msg = 'Export failed';
+        try { msg = JSON.parse(txt).detail || msg; } catch { /* keep default */ }
+        throw new Error(msg);
+      }
       const ext = format === 'excel' ? 'xlsx' : format;
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');

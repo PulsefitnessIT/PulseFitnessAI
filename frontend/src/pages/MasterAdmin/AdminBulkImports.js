@@ -27,6 +27,14 @@ const downloadTemplate = async (kind) => {
   const r = await axios.get(`${API_BASE}/master-admin/bulk-import/templates/${kind}`, {
     responseType: 'blob',
   });
+  // Surface JSON error responses instead of saving them as a broken .csv.
+  const ctype = r.data?.type || r.headers?.['content-type'] || '';
+  if (ctype.includes('application/json')) {
+    const txt = await r.data.text();
+    let msg = 'Template download failed';
+    try { msg = JSON.parse(txt).detail || msg; } catch { /* keep default */ }
+    throw new Error(msg);
+  }
   const url = URL.createObjectURL(r.data);
   const a = document.createElement('a');
   a.href = url;

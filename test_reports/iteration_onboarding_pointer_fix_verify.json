@@ -1,0 +1,28 @@
+{
+  "summary": "VERIFIED the CookieConsent + PWAInstallPrompt pointer-events fix on the Master Admin Onboarding Hub. With the cookie consent banner visible at the bottom and physically overlapping Onboarding action buttons (proven: bulk-template-equipment at y=959.5 overlapped banner at y=960.5), every Onboarding button was clickable WITHOUT Playwright force=True and fired its real network request. Previously the transparent banner wrapper swallowed pointer events and the click silently no-op'd. The fix (pointer-events-none on the fixed wrapper + pointer-events-auto on the inner visible card) works as designed. Regression: cookie Accept/Decline still dismiss the banner.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/onboarding_pointer_fix2.png"],
+  "action_items": [
+    "Fix is verified — main agent can close this bug.",
+    "Not retested in this run (out of scope but covered by previous audit iteration_onboarding_hub_audit_jan2026.json): bulk CSV file uploads (POST /api/master-admin/bulk-import/{kind}), embedded ImportWizard, project drawer flows (onb-readiness-sync, onb-ai-summary-btn, onb-golive-approve), email render/preview/send, and PWA install banner Install/Later regression (PWA banner only renders after a 30 s engagement delay + beforeinstallprompt event so it could not be triggered in a short Playwright run — but it shares the IDENTICAL pointer-events pattern as CookieConsent, which is conclusively verified working).",
+    "Minor: a non-blocking CSP warning is logged on every page load for us-assets.i.posthog.com / static.cloudflareinsights.com / assets.emergent.sh — third-party scripts the Master Admin Console isn't allow-listing. Cosmetic, unrelated to this bug."
+  ],
+  "critical_code_review_comments": [
+    "Fix in /app/frontend/src/components/shared/CookieConsent.js line 50 and /app/frontend/src/components/PWAInstallPrompt.js line 104 is correct and minimal: pointer-events-none on the fixed full-width wrapper, pointer-events-auto on the inner card. This is the standard Tailwind pattern for fixed-bottom overlays that shouldn't block clicks in their transparent padding regions.",
+    "OnboardingReports.exportReport() and AdminBulkImports.downloadTemplate() blob JSON-error detection looks correct — empirically the toast 'Export ready' fires on success and no broken file is saved.",
+    "Suggestion: the same pointer-events guard pattern should be audited on any other fixed-bottom/fixed-top transparent wrappers (e.g. global toast containers, FloatingChat launcher, AssistantDock) so this class of overlay-swallows-click bug doesn't recur. Quick grep: rg 'fixed bottom-' frontend/src — review each wrapper."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8 API calls 200)", "frontend": "100% on the buttons in scope (6/6 clicked w/o force, banner regression still works)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (read from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Onboarding Hub lives at /master-admin?section=onboarding (NOT /master-admin/onboarding-hub — that 404s). Subtab data-testids are 'onboarding-subtab-{dashboard|reports|site|head-office|packets|imports|mod-imports|staff}'. Bulk template buttons: data-testid='bulk-template-{sites|equipment|customers}'. Report export buttons: 'onb-export-{csv|excel|pdf}'. The fix relies on Tailwind's pointer-events-none/pointer-events-auto utilities — if those Tailwind classes ever get purged or shadowed by a parent rule, the bug recurs.",
+  "rca of the issue": "ROOT CAUSE: <div class='fixed bottom-0 left-0 right-0 z-[100] p-4'> in CookieConsent (and similar in PWAInstallPrompt) is a full-width fixed container whose transparent p-4 padding region extended OVER the bottom of the visible viewport. Anything beneath that padding (e.g. the lower Onboarding action buttons) received NO pointer events because the wrapper, although visually transparent, is the topmost paint layer with z-100/z-200. Real users saw their click do absolutely nothing — no spinner, no network call, no toast — which the Master Admin (correctly) reported as 'errors everywhere'. MITIGATION: added pointer-events-none to the wrapper so events fall through to the page, and pointer-events-auto on the inner visible card so its own buttons (Accept/Decline/Install/Later/Dismiss) remain interactive. VERIFICATION: a Playwright click on bulk-template-equipment (y=959.5) which physically overlaps the banner area (y=960.5) succeeds without force=True and produces a 200 from GET /api/master-admin/bulk-import/templates/equipment — pre-fix this would have hung in the banner's invisible padding."
+}

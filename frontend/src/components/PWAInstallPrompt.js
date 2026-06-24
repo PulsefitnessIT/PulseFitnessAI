@@ -101,10 +101,10 @@ export default function PWAInstallPrompt() {
     <>
       {/* Install Banner */}
       <div
-        className="fixed bottom-4 left-4 right-4 z-[200] mx-auto max-w-md animate-in slide-in-from-bottom-4"
+        className="fixed bottom-4 left-4 right-4 z-[200] mx-auto max-w-md animate-in slide-in-from-bottom-4 pointer-events-none"
         data-testid="pwa-install-banner"
       >
-        <div className="rounded-2xl p-4 shadow-2xl border"
+        <div className="rounded-2xl p-4 shadow-2xl border pointer-events-auto"
           style={{ background: '#111', borderColor: '#222' }}>
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: brandColour }}>
