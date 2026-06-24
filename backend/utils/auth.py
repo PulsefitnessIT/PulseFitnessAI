@@ -320,6 +320,17 @@ async def get_current_user(
                 child_ids.append(c["id"])
         user["_mod_child_org_ids"] = child_ids
         user["_mod_scope_ids"] = [user["organization_id"], *child_ids]
+    # Multi-site isolation — stamp the per-request site scope for the
+    # Memberships/CRM/Marketing isolation engine. Owners/admins are
+    # unrestricted; managers/staff with a non-empty allowed_site_ids
+    # are narrowed to their sites. Must run on EVERY auth path that can
+    # reach an isolated module's data (see utils/site_scope.py).
+    try:
+        from utils.site_scope import set_request_site_scope, set_requested_site
+        set_request_site_scope(user)
+        set_requested_site(request.headers.get("x-site-id"))
+    except Exception:
+        pass
     return user
 
 

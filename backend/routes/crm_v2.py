@@ -13,6 +13,8 @@ from utils.web_security import sanitize_rich_text, sanitize_rich_text_dict
 from utils.audit_log import audit_export
 from routes.crm_permissions import compute_visibility, redact
 from routes.crm_product_perms import redact_quote_cost
+from utils.site_scope import effective_site_filter, get_requested_site, resolve_stamp_site_id
+from utils.sites_isolation import get_primary_site_id
 import uuid
 import re
 import json
@@ -27,9 +29,18 @@ router = APIRouter(prefix="/crm/v2", tags=["CRM v2"])
 
 
 def _of(user: dict) -> dict:
-    """Org-scoped filter. Returns impossible match if no org."""
+    """Org-scoped + site-scoped filter. Returns impossible match if no org.
+
+    Merges the per-request site filter (X-Site-Id → RBAC) so a restricted
+    manager only reads their assigned site(s) on this v2 read path too."""
     org_id = user.get("organization_id")
-    return {"organization_id": org_id} if org_id else {"organization_id": "__NONE__"}
+    if not org_id:
+        return {"organization_id": "__NONE__"}
+    return {"organization_id": org_id, **effective_site_filter()}
+
+
+async def _v2_stamp_site(user: dict) -> str | None:
+    return resolve_stamp_site_id(get_requested_site(), await get_primary_site_id(user.get("organization_id")))
 
 
 # Platform-org names that must NEVER bleed into tenant-facing PDFs.
@@ -238,6 +249,7 @@ async def list_companies(
 async def create_company(data: dict, user=Depends(get_crm_user)):
     company = {
         "id": _id(), "organization_id": user.get("organization_id"),
+        "site_id": await _v2_stamp_site(user),
         "name": data.get("name", ""), "sector": data.get("sector", ""),
         "type": data.get("type", "prospect"),  # prospect, customer, partner, former
         "parent_id": data.get("parent_id"),
@@ -564,6 +576,7 @@ async def create_contact(data: dict, user=Depends(get_crm_user)):
 
     contact = {
         "id": _id(), "organization_id": user.get("organization_id"),
+        "site_id": await _v2_stamp_site(user),
         "first_name": data.get("first_name", ""),
         "last_name": data.get("last_name", ""),
         "email": email,
@@ -1033,6 +1046,7 @@ async def create_opportunity(data: dict, user=Depends(get_crm_user)):
     stage_info = next((s for s in OPPORTUNITY_STAGES if s["id"] == stage), OPPORTUNITY_STAGES[0])
     opp = {
         "id": _id(), "organization_id": user.get("organization_id"),
+        "site_id": await _v2_stamp_site(user),
         "title": data.get("title", ""),
         "company_id": data.get("company_id"),
         "company_name": data.get("company_name", ""),

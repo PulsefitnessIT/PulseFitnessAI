@@ -1,0 +1,70 @@
+{
+  "summary": "Tested per-site data isolation + Manager RBAC across Memberships, CRM and Marketing. Backend pytest HTTP e2e: 11 PASS + 1 XFAIL (real bug). Frontend Playwright verified Site Switcher behaviour. Owner switcher correctly lists All Sites + Demo Head Office + Demo Branch B (testids site-switcher-all, site-switcher-item-iso-demo-site-a, site-switcher-item-iso-demo-site-b). Manager switcher correctly hidden (only 1 allowed site, by component design). Backend /api/sites/leaderboard returns both rows for owner with HQ flagged + metrics. Two notable gaps below.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/crm/v2/companies (owner via /api/crm/auth/login Bearer)",
+        "issue": "Org owner sees ONLY 1 company (their own BravoCo) instead of both. Root cause: routes/crm_auth.get_crm_user mirrors role+allowed_site_ids to the request scope (site_scope ContextVar) but does NOT mirror the primary user's `role` onto the returned `user` dict. Therefore crm_permissions.compute_visibility -> is_unrestricted(user) reads crm_users.role (='manager' on the iso-demo seed for both accounts) and degrades the org owner to team-only visibility. Result: owner@isodemo.com gets companies={BravoCo} only. Fix: in get_crm_user also do `user['role'] = scope_user['role']` (and ideally is_org_owner/is_master_admin too) before returning. Verified by curl: CRM /auth/login response for owner shows `user.role='manager'`.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Operations dashboard All-Sites leaderboard",
+        "issue": "Owner picks 'All Sites' in switcher then navigates to /operations or /dashboard — the SiteLeaderboard component (data-testid=site-leaderboard / site-leaderboard-table / site-leaderboard-row-<id>) is NOT present in the rendered DOM. Backend GET /api/sites/leaderboard works perfectly (returns both rows, HQ flagged, all metric columns: active_members/mrr_gbp/open_deals/campaigns_30d/open_faults). So the wiring of SiteLeaderboard into the OverviewTab on the actual Operations dashboard URL is missing or gated. Main agent: confirm where OverviewTab.js is mounted and that allSitesMode triggers the SiteLeaderboard render.",
+        "affected_selectors": ["[data-testid=\"site-leaderboard\"]", "[data-testid=\"site-leaderboard-table\"]", "[data-testid=\"site-leaderboard-row-iso-demo-site-a\"]"]
+      },
+      {
+        "flow": "Account Settings → Team & roles site-access UI",
+        "issue": "Navigating to /account (and /account/settings 404s) doesn't expose any data-testid containing 'team' / 'account-team'. Per-teammate site-access controls were not visible from this entry point. Main agent: verify the exact route + testid (e.g. data-testid='account-team' on team panel and on the per-row site-access PATCH controls).",
+        "affected_selectors": ["[data-testid*=\"account-team\"]"]
+      },
+      {
+        "flow": "/memberships and /marketing module pages (owner + manager)",
+        "issue": "Navigating to /memberships or /marketing from a logged-in session lands on the marketing-site 404 page ('PULSE FITNESS · 404 - We can't find that page') instead of the in-app module console. Backend data is correct (verified via API), but the UI rows could not be visually confirmed because the SPA route resolves to 404. May be a ModuleAccessGate fallthrough or the iso-demo-org needs modules enabled for the user (the seed sets modules at the org level, double-check the user-level access check). Reproduce: log in as owner@isodemo.com → navigate to https://<host>/memberships → 404.",
+        "affected_selectors": []
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "SiteSwitcher",
+        "issues": ["Restricted manager (1 allowed site) gets no switcher at all — by design (component hides for sites.length<2). The review request implied the manager should still see their 1 site + 'All Sites'. Either: (a) update SiteSwitcher to render when restricted regardless of count, OR (b) accept current behaviour and document. Currently the manager has no way to flip into 'All Sites' from the UI."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_site_isolation_http_e2e.py",
+    "/app/test_reports/pytest/site_isolation_http_e2e.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Fix routes/crm_auth.get_crm_user to mirror primary user's role onto the returned user dict (not just the ContextVar scope) so crm_permissions.is_unrestricted recognises the org owner. Without this, the CRM separate-auth path silently down-scopes owners to team visibility — this IS the kind of leak the review explicitly called out (just in the opposite direction: under-grant, not over-grant).",
+    "Wire SiteLeaderboard.js into the Operations dashboard so data-testid='site-leaderboard' renders for owner in All-Sites mode. Backend endpoint is ready.",
+    "Verify Account Settings → Team & roles route + testids; restricted user could not be located via [data-testid*='team'] at /account.",
+    "Investigate why /memberships and /marketing render the marketing-site 404 inside an authenticated SPA session — looks like a route or module-gate misconfiguration for the iso-demo-org.",
+    "UX decision: should the SiteSwitcher render for a restricted manager with only 1 allowed site so they still have an 'All Sites (my sites)' affordance? Currently it's hidden."
+  ],
+  "critical_code_review_comments": [
+    "crm_auth.get_crm_user mirrors role into scope_user but assigns only allowed_site_ids back onto user; should also assign user['role'] = scope_user['role'] and user['is_org_owner'] = scope_user['is_org_owner'] so downstream is_unrestricted() / sharing-rule checks see the same identity. This is a security-relevant divergence.",
+    "utils/site_scope.py looks solid — single ContextVar source of truth, X-Site-Id header + ?site_id= both wired, 403 site_access_denied raised centrally in build_site_filter.",
+    "routes/sites.py GET /sites/leaderboard correctly narrows via build_site_filter and is well-structured; consider returning mrr in pence too (mrr_pence) alongside mrr_gbp for analytics consistency.",
+    "SiteSwitcher.js: `if (!sites || sites.length < 2) return null;` should probably also consider the restricted-with-1-site case (currently hidden, which the review request seemed to assume rendered).",
+    "Test data assertion: review_request says manager should see only 'AlphaMember' — verified via backend API. UI verification blocked by /memberships 404 issue above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_site_isolation_http_e2e.py"
+  ],
+  "success_rate": {
+    "backend": "92% (11/12 pass, 1 xfail tracking CRM-owner-role-leak bug)",
+    "frontend": "50% (switcher menu verified for owner + correctly hidden for manager; leaderboard, account team, and module pages could not be visually verified)"
+  },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (org iso-demo-org, unrestricted); manager@isodemo.com / IsoDemo123! (allowed_site_ids=[iso-demo-site-a]); master admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg per /app/memory/test_credentials.md. Re-seed: cd /app/backend && python -m scripts.seed_site_isolation_demo.",
+  "seed_data_creation": "Re-ran scripts.seed_site_isolation_demo to refresh iso-demo-org with sites iso-demo-site-a/b, owner+manager users, and Alpha*/Bravo* members, CRM companies+opportunities and marketing campaigns under each site.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend isolation (Memberships, Marketing, /sites, CRM separate-token) all enforce site_access_denied correctly and narrow manager rows to Alpha/Site A. The one outstanding backend bug is the CRM-owner-role-leak in get_crm_user (described above) — the e2e test xfails on this so it's tracked. Frontend: Site Switcher dropdown for owner is correct (All Sites + both sites with proper testids). What's NOT verified visually: (a) site-leaderboard rendering on Operations dashboard, (b) members/campaigns list narrowing in the in-app pages (because /memberships and /marketing resolve to the marketing-site 404 in this session — likely a route guard or module-gate issue specific to this preview), (c) Account Settings Team site-access UI. After the main agent fixes the routing/leaderboard wiring, re-run the playwright flow and the http_e2e pytest.",
+  "rca of the issue": "CRM owner-role-leak RCA — Reproduce: `curl -X POST $URL/api/crm/auth/login -d '{\"email\":\"owner@isodemo.com\",\"password\":\"IsoDemo123!\"}'` returns user.role='manager'; using that token, GET /api/crm/v2/companies returns only BravoCo (the owner's own row). Expected: AlphaCo + BravoCo. Root cause: routes/crm_auth.py:84-95 — get_crm_user computes scope_user.role from the primary users record and stamps it into the ContextVar via set_request_site_scope(scope_user), but only writes back `user['allowed_site_ids']` on the returned user dict (line 93). compute_visibility in routes/crm_permissions.py then reads user['role'] from the crm_users collection record (where role='manager' for both seeded accounts) and is_unrestricted() returns False for the org owner. The user is then restricted to team visibility, which on this seed = owner_id == iso-owner = BravoCo only. Mitigation: in get_crm_user also set `user['role'] = scope_user['role']` (and `user['is_org_owner'] = scope_user['is_org_owner']`, `user['is_master_admin'] = scope_user['is_master_admin']`) before returning."
+}

@@ -18,6 +18,8 @@ from routes.marketing.helpers import (
     _new_id,
     _now_iso,
     _org_id,
+    _org_site_filter,
+    _stamp_site,
 )
 
 router = APIRouter()
@@ -87,9 +89,8 @@ async def preview_audience(body: dict = Body(...), user: dict = Depends(get_curr
 
 @router.get("/marketing/audiences", dependencies=[Depends(require_module("marketing"))])
 async def list_audiences(user: dict = Depends(get_current_user)):
-    org_id = await _org_id(user)
     items = await db.marketing_audiences.find(
-        {"organization_id": org_id}, {"_id": 0},
+        await _org_site_filter(user), {"_id": 0},
     ).sort("created_at", -1).to_list(length=200)
     return {"audiences": items}
 
@@ -104,7 +105,8 @@ async def create_audience(body: dict = Body(...), user: dict = Depends(get_curre
     a_type = body.get("type", "dynamic")
     count, _ = await _evaluate_audience(org_id, rules)
     doc = {
-        "id": _new_id(), "organization_id": org_id, "created_by": user["id"],
+        "id": _new_id(), "organization_id": org_id, "site_id": await _stamp_site(user),
+        "created_by": user["id"],
         "name": name, "type": a_type, "rules": rules,
         "estimated_size": count, "computed_at": _now_iso(),
         "tags": body.get("tags", []),

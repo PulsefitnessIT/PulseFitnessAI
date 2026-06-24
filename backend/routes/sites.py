@@ -84,7 +84,18 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
         {"organization_id": org_id, "archived": {"$ne": True}}, {"_id": 0}
     ).sort("created_at", 1).to_list(100)
     allowed = user.get("allowed_site_ids") or []
-    if not is_privileged and allowed:
+    # Multi-site isolation — a restricted manager/staff (non-empty
+    # allowed_site_ids, not an owner/platform admin) sees ONLY their
+    # assigned sites in the switcher. NB: this deliberately narrows
+    # `manager` too (the older apply_site_lock treated managers as
+    # privileged); owners/master/Pulse admins still see every site.
+    is_owner_or_admin = (
+        role in ("owner", "master_admin", "master", "pulse_master_admin")
+        or bool(user.get("is_master_admin"))
+        or bool(user.get("is_pulse_admin"))
+        or bool(user.get("is_org_owner"))
+    )
+    if not is_owner_or_admin and allowed:
         allowed_set = set(allowed)
         sites = [s for s in sites if s.get("id") in allowed_set]
 
@@ -191,6 +202,71 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
         }]}
 
     return {"sites": []}
+
+
+@router.get("/sites/leaderboard")
+async def get_sites_leaderboard(user: dict = Depends(get_current_user)) -> dict:
+    """Cross-site comparison for the "All Sites" aggregate view.
+
+    Per-site: active members, MRR, open deals, campaigns sent (30d) and
+    open faults — with the primary/Head Office site flagged. RBAC: a
+    restricted manager only ever sees their assigned sites (the same
+    site_scope engine that isolates the modules narrows this too)."""
+    from utils.site_scope import build_site_filter
+    from datetime import timedelta
+
+    org_id = user.get("organization_id")
+    if not org_id:
+        return {"sites": [], "metrics": []}
+
+    # Narrow to the caller's allowed sites (owners → all).
+    site_filter = build_site_filter(None)  # {} or {"site_id": {"$in":[...]}}
+    site_q: dict = {"organization_id": org_id, "archived": {"$ne": True}}
+    allowed_ids = None
+    if site_filter.get("site_id"):
+        allowed_ids = site_filter["site_id"]["$in"]
+        site_q["id"] = {"$in": allowed_ids}
+
+    sites = await db.sites.find(site_q, {"_id": 0}).to_list(200)
+    if not sites:
+        return {"sites": [], "metrics": []}
+
+    month_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    rows = []
+    for s in sites:
+        sid = s["id"]
+        sf = {"organization_id": org_id, "site_id": sid}
+        active_members = await db.members.count_documents({**sf, "status": "active"})
+        # MRR — sum of active memberships' monthly price (best-effort).
+        mrr_pence = 0
+        async for mm in db.member_memberships.find(
+            {**sf, "status": "active"},
+            {"_id": 0, "price_pence": 1, "monthly_price_pence": 1},
+        ):
+            mrr_pence += int(mm.get("monthly_price_pence") or mm.get("price_pence") or 0)
+        open_deals = await db.crm2_opportunities.count_documents(
+            {**sf, "stage": {"$nin": ["closed_won", "closed_lost"]}},
+        )
+        campaigns_30d = await db.marketing_campaigns.count_documents(
+            {**sf, "sent_at": {"$gte": month_ago}},
+        )
+        open_faults = await db.issues.count_documents(
+            {**sf, "status": {"$nin": ["resolved", "closed", "completed"]}},
+        )
+        rows.append({
+            "site_id": sid,
+            "name": s.get("name", "Site"),
+            "is_head_office": bool(s.get("is_head_office")),
+            "active_members": active_members,
+            "mrr_gbp": round(mrr_pence / 100.0, 2),
+            "open_deals": open_deals,
+            "campaigns_30d": campaigns_30d,
+            "open_faults": open_faults,
+        })
+
+    rows.sort(key=lambda r: (not r["is_head_office"], -r["active_members"]))
+    return {"sites": rows, "count": len(rows)}
+
 
 
 @router.get("/sites/overview")

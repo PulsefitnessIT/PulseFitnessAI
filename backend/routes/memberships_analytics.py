@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from routes.memberships import _require_operator_org
 from utils.auth import get_current_user
 from utils.database import db
+from utils.site_scope import build_site_filter, get_requested_site_id
 from utils.safe_paginate import safe_to_list, BULK_CAP
 from utils.memberships_ai_insights import (
     generate_executive_brief,
@@ -110,7 +111,7 @@ def _pence_to_gbp(p: int | float) -> float:
 async def analytics_overview(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
-    site_id: str | None = None,
+    site_id: str | None = Depends(get_requested_site_id),
     period: Literal["daily", "weekly", "monthly"] = "monthly",
     user: dict = Depends(get_current_user),
 ):
@@ -121,13 +122,13 @@ async def analytics_overview(
     if hit is not None:
         return hit
 
-    member_q: dict = {"organization_id": org_id}
-    mm_q: dict = {"organization_id": org_id}
-    booking_q: dict = {"organization_id": org_id}
+    sf = build_site_filter(site_id)
+    member_q: dict = {"organization_id": org_id, **sf}
+    mm_q: dict = {"organization_id": org_id, **sf}
+    booking_q: dict = {"organization_id": org_id, **sf}
+    # payment_transactions are NOT site-stamped — keep org-scoped so a
+    # per-site view doesn't zero-out revenue.
     pay_q: dict = {"organization_id": org_id}
-    if site_id:
-        booking_q["site_id"] = site_id
-        mm_q["site_id"] = site_id
 
     # -- KPI cards
     active_members = await db.members.count_documents({**member_q, "status": "active"})
@@ -221,7 +222,7 @@ async def analytics_overview(
 
     # -- Occupancy (range)
     occ_rows = await db.class_occurrences.find(
-        {"organization_id": org_id, "starts_at": {"$gte": _iso(start), "$lte": _iso(end)}},
+        {"organization_id": org_id, "starts_at": {"$gte": _iso(start), "$lte": _iso(end)}, **sf},
         {"_id": 0, "capacity": 1, "bookings_count": 1, "attended_count": 1, "no_show_count": 1, "status": 1},
     ).to_list(5000)
     cap_sum = sum(int(o.get("capacity") or 0) for o in occ_rows) or 1
@@ -287,7 +288,7 @@ async def analytics_overview(
 async def analytics_retention(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
-    site_id: str | None = None,
+    site_id: str | None = Depends(get_requested_site_id),
     user: dict = Depends(get_current_user),
 ):
     org_id = await _require_operator_org(user)
@@ -297,15 +298,14 @@ async def analytics_retention(
     if hit is not None:
         return hit
 
-    member_q: dict = {"organization_id": org_id}
-    if site_id:
-        member_q["site_id"] = site_id
+    sf = build_site_filter(site_id)
+    member_q: dict = {"organization_id": org_id, **sf}
 
     members = await db.members.find(member_q, {"_id": 0, "password": 0}).to_list(20000)
     member_ids = [m["id"] for m in members]
 
     mms = await db.member_memberships.find(
-        {"organization_id": org_id, "member_id": {"$in": member_ids}},
+        {"organization_id": org_id, "member_id": {"$in": member_ids}, **sf},
         {"_id": 0},
     ).to_list(20000)
 
@@ -440,7 +440,7 @@ async def analytics_retention(
 async def analytics_classes(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
-    site_id: str | None = None,
+    site_id: str | None = Depends(get_requested_site_id),
     user: dict = Depends(get_current_user),
 ):
     org_id = await _require_operator_org(user)
@@ -450,9 +450,7 @@ async def analytics_classes(
     if hit is not None:
         return hit
 
-    q: dict = {"organization_id": org_id, "starts_at": {"$gte": _iso(start), "$lte": _iso(end)}}
-    if site_id:
-        q["site_id"] = site_id
+    q: dict = {"organization_id": org_id, "starts_at": {"$gte": _iso(start), "$lte": _iso(end)}, **build_site_filter(site_id)}
     occs = await db.class_occurrences.find(q, {"_id": 0}).to_list(5000)
 
     # -- By template: fill speed, popularity, attendance, no-show
@@ -621,6 +619,8 @@ async def analytics_operations(
     if hit is not None:
         return hit
 
+    # Restricted managers see only their assigned sites in the comparison.
+    sf = build_site_filter(None)
     # -- Booking conversion (book attempts → booked not waitlisted)
     total_bookings = await db.bookings.count_documents(
         {"organization_id": org_id, "booked_at": {"$gte": _iso(start), "$lte": _iso(end)}}
@@ -679,7 +679,7 @@ async def analytics_operations(
         "active_members": 0, "revenue_gbp": 0.0, "bookings": 0, "attended": 0,
         "no_show": 0, "churn": 0,
     })
-    async for m in db.members.find({"organization_id": org_id}, {"_id": 0, "site_id": 1, "status": 1}):
+    async for m in db.members.find({"organization_id": org_id, **sf}, {"_id": 0, "site_id": 1, "status": 1}):
         sid = m.get("site_id") or "default"
         if m.get("status") == "active":
             sites_agg[sid]["active_members"] += 1
@@ -689,9 +689,11 @@ async def analytics_operations(
         {"_id": 0, "amount_pence": 1, "member_id": 1}):
         mem = await db.members.find_one({"id": r.get("member_id")}, {"_id": 0, "site_id": 1})
         sid = (mem or {}).get("site_id") or "default"
+        if sf and sid not in (sf.get("site_id", {}).get("$in", []) if isinstance(sf.get("site_id"), dict) else [sf.get("site_id")]):
+            continue
         sites_agg[sid]["revenue_gbp"] += _pence_to_gbp(int(r.get("amount_pence") or 0))
     async for b in db.bookings.find(
-        {"organization_id": org_id, "booked_at": {"$gte": _iso(start), "$lte": _iso(end)}},
+        {"organization_id": org_id, "booked_at": {"$gte": _iso(start), "$lte": _iso(end)}, **sf},
         {"_id": 0, "site_id": 1, "status": 1}):
         sid = b.get("site_id") or "default"
         sites_agg[sid]["bookings"] += 1
@@ -701,7 +703,7 @@ async def analytics_operations(
             sites_agg[sid]["no_show"] += 1
     async for mm in db.member_memberships.find(
         {"organization_id": org_id, "status": "cancelled",
-         "cancel_effective_date": {"$gte": _iso(start), "$lte": _iso(end)}},
+         "cancel_effective_date": {"$gte": _iso(start), "$lte": _iso(end)}, **sf},
         {"_id": 0, "site_id": 1}):
         sid = mm.get("site_id") or "default"
         sites_agg[sid]["churn"] += 1
@@ -793,7 +795,7 @@ async def at_risk_members(
     org_id = await _require_operator_org(user)
     # Pull live members + activity
     members = await db.members.find(
-        {"organization_id": org_id, "status": "active"},
+        {"organization_id": org_id, "status": "active", **build_site_filter(None)},
         {"_id": 0, "password": 0},
     ).to_list(5000)
     visit_floor = _now() - timedelta(days=30)
@@ -1050,7 +1052,7 @@ async def export_pdf(
 async def list_sites(user: dict = Depends(get_current_user)):
     """Return the site options operators can filter by."""
     org_id = await _require_operator_org(user)
-    site_ids = await db.members.distinct("site_id", {"organization_id": org_id})
+    site_ids = await db.members.distinct("site_id", {"organization_id": org_id, **build_site_filter(None)})
     site_ids = [s for s in site_ids if s]
     sites = [{"id": s, "name": s} for s in site_ids]  # enrich from db.sites if available
     async for s in db.sites.find({"id": {"$in": site_ids}}, {"_id": 0, "id": 1, "name": 1}):
@@ -1168,25 +1170,26 @@ async def members_by_kpi(
     org-scoped via the operator JWT."""
     org_id = await _require_operator_org(user)
     start, end = _daterange(from_, to)
+    sf = build_site_filter(None)
     rows: list[dict] = []
 
     if kpi == "active_members":
         async for m in db.members.find(
-            {"organization_id": org_id, "status": "active"},
+            {"organization_id": org_id, "status": "active", **sf},
             {"_id": 0, "password": 0},
         ).limit(limit):
             rows.append(_member_brief(m))
     elif kpi == "new_members":
         async for m in db.members.find(
             {"organization_id": org_id,
-             "created_at": {"$gte": _iso(start), "$lte": _iso(end)}},
+             "created_at": {"$gte": _iso(start), "$lte": _iso(end)}, **sf},
             {"_id": 0, "password": 0},
         ).limit(limit):
             rows.append(_member_brief(m))
     elif kpi == "cancellations":
         async for mm in db.member_memberships.find(
             {"organization_id": org_id, "status": "cancelled",
-             "cancel_effective_date": {"$gte": _iso(start), "$lte": _iso(end)}},
+             "cancel_effective_date": {"$gte": _iso(start), "$lte": _iso(end)}, **sf},
             {"_id": 0}).limit(limit):
             mem = await db.members.find_one(
                 {"id": mm["member_id"]}, {"_id": 0, "password": 0})
@@ -1196,7 +1199,7 @@ async def members_by_kpi(
                              "cancel_effective_date": mm.get("cancel_effective_date")})
     elif kpi == "frozen":
         async for mm in db.member_memberships.find(
-            {"organization_id": org_id, "status": "frozen"},
+            {"organization_id": org_id, "status": "frozen", **sf},
             {"_id": 0}).limit(limit):
             mem = await db.members.find_one(
                 {"id": mm["member_id"]}, {"_id": 0, "password": 0})

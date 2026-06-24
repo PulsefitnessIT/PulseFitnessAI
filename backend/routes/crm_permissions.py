@@ -75,8 +75,15 @@ async def _resolve_access(user: dict, entity_type: str) -> str:
 
 
 async def compute_visibility(user: dict, entity_type: str) -> dict:
-    """Return a MongoDB query fragment enforcing this user's record visibility."""
-    base: dict = {"organization_id": user.get("organization_id") or "__none__"}
+    """Return a MongoDB query fragment enforcing this user's record visibility.
+
+    Always merges the per-request site filter (multi-site isolation) so a
+    restricted manager only ever reads their assigned site(s) — this is the
+    single choke-point for every CRM v2 list endpoint, so it can't be missed.
+    """
+    from utils.site_scope import effective_site_filter
+    site_f = effective_site_filter()
+    base: dict = {"organization_id": user.get("organization_id") or "__none__", **site_f}
     if entity_type not in ENTITY_TYPES:
         return base
     access = await _resolve_access(user, entity_type)

@@ -18,6 +18,8 @@ from utils.auth import get_current_user
 from utils.database import db
 from utils.module_guard import require_module
 from utils.security import sanitise_string
+from utils.site_scope import build_site_filter, get_requested_site_id, resolve_stamp_site_id
+from utils.sites_isolation import get_primary_site_id
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,7 @@ async def dismiss_corporate_invite(invite_id: str, user: dict = Depends(get_curr
 async def members_list(
     q: str | None = None,
     status_f: str | None = Query(None, alias="status"),
+    site_id: str | None = Depends(get_requested_site_id),
     user: dict = Depends(get_current_user),
 ):
     org_id = await _require_operator_org(user)
@@ -78,7 +81,8 @@ async def members_list(
     # would just show rows of "[REDACTED]" which is both ugly and a
     # privacy risk if an operator can still see the original member
     # number / linked-from links.
-    query: dict = {"organization_id": org_id, "gdpr_erased": {"$ne": True}}
+    query: dict = {"organization_id": org_id, "gdpr_erased": {"$ne": True},
+                   **build_site_filter(site_id)}
     if status_f:
         query["status"] = status_f
     if q:
@@ -279,7 +283,11 @@ async def members_bulk_import(file: UploadFile = File(...), user: dict = Depends
 
 
 @router.post("/memberships/members", dependencies=[Depends(require_module("memberships"))])
-async def members_create(body: dict = Body(...), user: dict = Depends(get_current_user)):
+async def members_create(
+    body: dict = Body(...),
+    site_id: str | None = Depends(get_requested_site_id),
+    user: dict = Depends(get_current_user),
+):
     org_id = await _require_operator_org(user)
     email = (body.get("email") or "").lower().strip()
     if not email:
@@ -335,7 +343,7 @@ async def members_create(body: dict = Body(...), user: dict = Depends(get_curren
         "last_name": sanitise_string(body.get("last_name") or ""),
         "phone": phone,
         "organization_id": org_id,
-        "site_id": body.get("site_id"),
+        "site_id": resolve_stamp_site_id(body.get("site_id") or site_id, await get_primary_site_id(org_id)),
         "account_type": "member",
         "status": "active",
         "tags": tags,

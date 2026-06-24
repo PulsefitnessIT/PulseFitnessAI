@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 from utils.auth import get_current_user
 from utils.database import db
 from utils.module_guard import require_module
+from utils.site_scope import build_site_filter, get_requested_site_id, resolve_stamp_site_id
+from utils.sites_isolation import get_primary_site_id
 
 from routes.memberships.helpers import (
     _now_iso,
@@ -121,19 +123,27 @@ class PlanIn(BaseModel):
 
 
 @router.get("/memberships/plans", dependencies=[Depends(require_module("memberships"))])
-async def plans_list(user: dict = Depends(get_current_user)):
+async def plans_list(
+    site_id: str | None = Depends(get_requested_site_id),
+    user: dict = Depends(get_current_user),
+):
     org_id = await _require_operator_org(user)
     plans = await db.membership_plans.find(
-        {"organization_id": org_id, "archived": {"$ne": True}},
+        {"organization_id": org_id, "archived": {"$ne": True}, **build_site_filter(site_id)},
         {"_id": 0},
     ).sort("display_order", 1).to_list(200)
     return {"plans": plans}
 
 
 @router.post("/memberships/plans", dependencies=[Depends(require_module("memberships"))])
-async def plans_create(body: PlanIn, user: dict = Depends(get_current_user)):
+async def plans_create(
+    body: PlanIn,
+    site_id: str | None = Depends(get_requested_site_id),
+    user: dict = Depends(get_current_user),
+):
     org_id = await _require_operator_org(user)
     payload = body.model_dump()
+    payload["site_id"] = resolve_stamp_site_id(payload.get("site_id") or site_id, await get_primary_site_id(org_id))
 
     # ── kind=course: materialise the N weekly occurrences from the
     # supplied template + start date so we have concrete bookable slots

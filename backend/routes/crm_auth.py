@@ -55,7 +55,7 @@ def crm_verify_token(token: str) -> dict:
         return None
 
 
-async def get_crm_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     payload = crm_verify_token(token)
     if not payload:
@@ -63,6 +63,38 @@ async def get_crm_user(credentials: HTTPAuthorizationCredentials = Depends(secur
     user = await db.crm_users.find_one({"id": payload['user_id']}, {"_id": 0, "password": 0})
     if not user:
         raise HTTPException(status_code=401, detail="CRM user not found")
+    # ── Multi-site isolation (CRITICAL) ───────────────────────────────
+    # CRM is a SEPARATE auth path backed by `crm_users`, which does NOT
+    # carry `allowed_site_ids` or the platform role. Mirror role +
+    # allowed_site_ids from the primary `users` record (matched by email)
+    # so a restricted manager can't read another site's CRM data. Without
+    # this, the request scope would default to unrestricted (owner) and
+    # the whole RBAC layer would be silently bypassed for CRM.
+    try:
+        from utils.site_scope import set_request_site_scope, set_requested_site
+        email_lc = (user.get("email") or "").lower().strip()
+        primary = (
+            await db.users.find_one(
+                {"email": email_lc},
+                {"_id": 0, "role": 1, "allowed_site_ids": 1,
+                 "is_master_admin": 1, "is_pulse_admin": 1, "is_org_owner": 1},
+            )
+            if email_lc else None
+        ) or {}
+        scope_user = {
+            "role": primary.get("role") or user.get("role"),
+            "allowed_site_ids": primary.get("allowed_site_ids") or user.get("allowed_site_ids") or [],
+            "is_master_admin": bool(primary.get("is_master_admin") or user.get("is_master_admin")),
+            "is_pulse_admin": bool(primary.get("is_pulse_admin")),
+            "is_org_owner": bool(primary.get("is_org_owner") or user.get("is_org_owner")),
+        }
+        # Mirror the resolved allow-list onto the CRM user dict so route
+        # handlers / stamping read a consistent value.
+        user["allowed_site_ids"] = scope_user["allowed_site_ids"]
+        set_request_site_scope(scope_user)
+        set_requested_site(request.headers.get("x-site-id"))
+    except Exception:
+        pass
     return user
 
 

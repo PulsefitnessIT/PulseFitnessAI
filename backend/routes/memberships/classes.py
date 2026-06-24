@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 from utils.auth import get_current_user
 from utils.database import db
 from utils.module_guard import require_module
+from utils.site_scope import build_site_filter, get_requested_site_id, resolve_stamp_site_id
+from utils.sites_isolation import get_primary_site_id
 
 from routes.memberships.helpers import (
     _assert_timetable_write,
@@ -56,17 +58,26 @@ class ClassTemplateIn(BaseModel):
 
 
 @router.get("/memberships/classes/templates", dependencies=[Depends(require_module("memberships"))])
-async def class_templates_list(user: dict = Depends(get_current_user)):
+async def class_templates_list(
+    site_id: str | None = Depends(get_requested_site_id),
+    user: dict = Depends(get_current_user),
+):
     org_id = await _require_operator_org(user)
-    rows = await db.class_templates.find({"organization_id": org_id, "archived": {"$ne": True}}, {"_id": 0}).sort("name", 1).to_list(200)
+    rows = await db.class_templates.find({"organization_id": org_id, "archived": {"$ne": True}, **build_site_filter(site_id)}, {"_id": 0}).sort("name", 1).to_list(200)
     return {"templates": rows}
 
 
 @router.post("/memberships/classes/templates", dependencies=[Depends(require_module("memberships"))])
-async def class_templates_create(body: ClassTemplateIn, user: dict = Depends(get_current_user)):
+async def class_templates_create(
+    body: ClassTemplateIn,
+    site_id: str | None = Depends(get_requested_site_id),
+    user: dict = Depends(get_current_user),
+):
     org_id = await _require_operator_org(user)
     _assert_timetable_write(user)
-    doc = {"id": _uuid(), "organization_id": org_id, "created_at": _now_iso(), **body.model_dump()}
+    payload = body.model_dump()
+    payload["site_id"] = resolve_stamp_site_id(payload.get("site_id") or site_id, await get_primary_site_id(org_id))
+    doc = {"id": _uuid(), "organization_id": org_id, "created_at": _now_iso(), **payload}
     await db.class_templates.insert_one(doc)
     # Materialise 8 weeks of occurrences up front.
     await _materialise_occurrences(doc, weeks=8)

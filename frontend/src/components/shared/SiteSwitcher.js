@@ -20,7 +20,7 @@ import { useAuth } from '@/App';
 
 const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
   const { t } = useTranslation();
-  const { sites, activeSite, setActiveSite } = useAuth();
+  const { sites, activeSite, setActiveSite, allSitesMode, enableAllSites } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -35,9 +35,22 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
   // to switch to. The parent header still renders the company name.
   if (!sites || sites.length < 2) return null;
 
-  const label = allSitesActive
-    ? t('sites.all_sites', 'All Operations Sites')
+  // Effective "all sites" mode: either the parent controls it
+  // (Operations) or the global isolation mode from the auth context.
+  const allActive = allSitesActive || (allSitesMode && !activeSite);
+  // When in global all-mode but a site is still cached for label, prefer
+  // showing "All sites" if the context flag is set and parent isn't driving.
+  const showAll = allSitesActive || allSitesMode;
+
+  const label = showAll
+    ? t('sites.all_sites', 'All Sites')
     : (activeSite?.name || t('sites.pick_site', 'Pick a site'));
+
+  const handleAllSites = () => {
+    if (onAllSites) onAllSites();
+    else enableAllSites();
+    setOpen(false);
+  };
 
   /**
    * Iter 216bk — picking a specific site after the org was in "All sites"
@@ -66,7 +79,7 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
         }}
         data-testid="site-switcher-trigger"
       >
-        {allSitesActive ? <Globe2 size={13} /> : <MapPin size={13} className="text-[var(--color-brand-blue)]" />}
+        {showAll ? <Globe2 size={13} /> : <MapPin size={13} className="text-[var(--color-brand-blue)]" />}
         <span className="max-w-[180px] truncate">{label}</span>
         <ChevronDown size={12} className="opacity-60" />
       </button>
@@ -88,25 +101,24 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
           <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>
             {t('sites.switch_site', 'Switch site')}
           </div>
-          {/* All-sites pseudo-entry — only relevant when the parent supplies a handler */}
-          {onAllSites ? (
-            <button
-              type="button"
-              onClick={() => { onAllSites(); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--theme-hover-bg)]"
-              style={{ color: 'var(--theme-text)' }}
-              data-testid="site-switcher-all"
-            >
-              <Globe2 size={14} className="text-[var(--color-brand-blue)]" />
-              <span className="flex-1 font-semibold">{t('sites.all_sites', 'All Operations Sites')}</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--rgb-brand-blue)/0.12)] text-[var(--color-brand-blue)] font-bold">overview</span>
-              {allSitesActive ? <Check size={14} className="text-emerald-500" /> : null}
-            </button>
-          ) : null}
+          {/* All-sites aggregate — always available so users can return to
+              the estate-wide / "all my sites" view from any module. */}
+          <button
+            type="button"
+            onClick={handleAllSites}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--theme-hover-bg)]"
+            style={{ color: 'var(--theme-text)' }}
+            data-testid="site-switcher-all"
+          >
+            <Globe2 size={14} className="text-[var(--color-brand-blue)]" />
+            <span className="flex-1 font-semibold">{t('sites.all_sites', 'All Sites')}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--rgb-brand-blue)/0.12)] text-[var(--color-brand-blue)] font-bold">overview</span>
+            {showAll ? <Check size={14} className="text-emerald-500" /> : null}
+          </button>
           <div className="border-t" style={{ borderColor: 'var(--theme-border-soft)' }} />
           <ul className="max-h-72 overflow-y-auto" data-testid="site-switcher-list">
             {sites.map((s) => {
-              const active = !allSitesActive && activeSite?.id === s.id;
+              const active = !showAll && activeSite?.id === s.id;
               return (
                 <li key={s.id}>
                   <button

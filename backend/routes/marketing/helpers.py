@@ -32,6 +32,22 @@ async def _org_id(user: dict) -> str:
     return org
 
 
+async def _org_site_filter(user: dict) -> dict:
+    """Org + per-request site filter for Marketing queries (multi-site
+    isolation). A restricted manager only ever reads their assigned
+    site(s); owners/admins are unrestricted. The active site flows in via
+    the X-Site-Id header → site_scope ContextVar (set in get_current_user)."""
+    from utils.site_scope import effective_site_filter
+    return {"organization_id": await _org_id(user), **effective_site_filter()}
+
+
+async def _stamp_site(user: dict) -> Optional[str]:
+    """site_id to stamp on a new Marketing record (active site → org primary)."""
+    from utils.site_scope import get_requested_site, resolve_stamp_site_id
+    from utils.sites_isolation import get_primary_site_id
+    return resolve_stamp_site_id(get_requested_site(), await get_primary_site_id(user.get("organization_id")))
+
+
 # ───────────────────────── Plans (defaults) ─────────────────────────
 
 DEFAULT_PLANS = [

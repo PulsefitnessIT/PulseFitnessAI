@@ -3,6 +3,7 @@ import { Button as ShadcnButton } from '@/components/ui/button';
 import Button from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from 'lucide-react';
+import SiteLeaderboard from '@/components/shared/SiteLeaderboard';
 
 // Iter 216h192 — Concrete, in-product next steps surfaced when the
 // Gym Health Score is dragged down by one of these sub-categories.
@@ -32,6 +33,10 @@ const OverviewTab = ({
 }) => {
  return (
  <>
+ {/* Multi-site: cross-site comparison leaderboard — only renders in
+     "All Sites" aggregate mode (self-guarded). */}
+ <SiteLeaderboard />
+
  {/* Iter 216c — `<ActivationMilestonesCard />` moved to the Start tab
      (`OperationsStartTab`). Once every milestone fires, Start auto-hides
      and Dashboard becomes the default first tab. */}

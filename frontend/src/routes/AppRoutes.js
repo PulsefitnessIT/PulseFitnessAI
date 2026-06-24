@@ -14,6 +14,7 @@
  */
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { moduleHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
@@ -318,10 +319,15 @@ function CrmRouteElement({ user }) {
 
 export default function AppRoutes({ user, login }) {
   const location = useLocation();
+  const { activeSite, allSitesMode } = useAuth();
   const isEngineerRoute = /^\/svc\/engineer/.test(location.pathname);
+  // Multi-site isolation — remount the active page when the site changes
+  // so every module re-fetches its now site-scoped data (brief: key tied
+  // to the active site). Route navigation within a site is unaffected.
+  const siteKey = allSitesMode ? 'all' : (activeSite?.id || 'none');
   return (
     <>
-    <Routes>
+    <Routes key={siteKey}>
       {/* ─── Default landing → Pulse Fitness experience (was GymAxis MarketingHome) ─── */}
       <Route path="/" element={
         user

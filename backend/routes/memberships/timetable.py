@@ -16,6 +16,7 @@ from utils.module_guard import require_module
 from utils.memberships_emails import (
     send_class_cancelled,
 )
+from utils.site_scope import build_site_filter, get_requested_site_id
 
 from routes.memberships.helpers import (
     _assert_timetable_write,
@@ -32,14 +33,16 @@ async def timetable(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
     site: str | None = None,
+    site_id: str | None = Depends(get_requested_site_id),
     user: dict = Depends(get_current_user),
 ):
     org_id = await _require_operator_org(user)
     frm = from_ or datetime.now(timezone.utc).isoformat()
     toh = to or (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
-    q = {"organization_id": org_id, "starts_at": {"$gte": frm, "$lte": toh}}
-    if site:
-        q["site_id"] = site
+    # `site` (explicit timetable filter) wins; both flow through the RBAC
+    # engine so a restricted user can never read another site's classes.
+    q = {"organization_id": org_id, "starts_at": {"$gte": frm, "$lte": toh},
+         **build_site_filter(site or site_id)}
     occs = await db.class_occurrences.find(q, {"_id": 0}).sort("starts_at", 1).to_list(500)
     return {"occurrences": occs}
 

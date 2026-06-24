@@ -16,6 +16,7 @@ from utils.module_guard import require_module
 
 from routes.marketing.helpers import (
     _org_id,
+    _org_site_filter,
 )
 
 router = APIRouter()
@@ -25,15 +26,15 @@ router = APIRouter()
 
 @router.get("/marketing/dashboard", dependencies=[Depends(require_module("marketing"))])
 async def dashboard(user: dict = Depends(get_current_user)):
-    org_id = await _org_id(user)
+    sf = await _org_site_filter(user)
     month_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
     campaigns_30d = await db.marketing_campaigns.count_documents(
-        {"organization_id": org_id, "sent_at": {"$gte": month_ago}},
+        {**sf, "sent_at": {"$gte": month_ago}},
     )
     sent_30d = 0
     opened_30d = 0
     cursor = db.marketing_campaigns.find(
-        {"organization_id": org_id, "sent_at": {"$gte": month_ago}},
+        {**sf, "sent_at": {"$gte": month_ago}},
         {"_id": 0, "metrics": 1},
     )
     async for c in cursor:
@@ -41,8 +42,8 @@ async def dashboard(user: dict = Depends(get_current_user)):
         sent_30d += m.get("sent", 0)
         opened_30d += m.get("opened", 0)
     open_rate = (opened_30d / sent_30d) if sent_30d else 0
-    audiences_total = await db.marketing_audiences.count_documents({"organization_id": org_id})
-    journeys_active = await db.marketing_journeys.count_documents({"organization_id": org_id, "status": "active"})
+    audiences_total = await db.marketing_audiences.count_documents(sf)
+    journeys_active = await db.marketing_journeys.count_documents({**sf, "status": "active"})
     return {
         "campaigns_30d": campaigns_30d,
         "messages_sent_30d": sent_30d,

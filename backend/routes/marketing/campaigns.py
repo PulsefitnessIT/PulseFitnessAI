@@ -42,6 +42,8 @@ from routes.marketing.helpers import (
     _new_id,
     _now_iso,
     _org_id,
+    _org_site_filter,
+    _stamp_site,
     logger,
 )
 from routes.marketing.audiences import _build_filter
@@ -184,9 +186,8 @@ async def _resolve_campaign_audience(campaign: dict) -> list[dict]:
 
 @router.get("/marketing/campaigns", dependencies=[Depends(require_module("marketing"))])
 async def list_campaigns(user: dict = Depends(get_current_user)):
-    org_id = await _org_id(user)
     items = await db.marketing_campaigns.find(
-        {"organization_id": org_id}, {"_id": 0},
+        await _org_site_filter(user), {"_id": 0},
     ).sort("created_at", -1).limit(200).to_list(length=200)
     return {"campaigns": items}
 
@@ -202,7 +203,8 @@ async def create_campaign(body: dict = Body(...), user: dict = Depends(get_curre
     )
     ab_test = _validate_ab_test(body.get("ab_test"))
     doc = {
-        "id": _new_id(), "organization_id": org_id, "created_by": user["id"],
+        "id": _new_id(), "organization_id": org_id, "site_id": await _stamp_site(user),
+        "created_by": user["id"],
         "name": (body.get("name") or "Untitled Campaign").strip(),
         "status": "draft", "channel": body.get("channel", "email"),
         "audience_id": body.get("audience_id"),

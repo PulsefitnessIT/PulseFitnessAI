@@ -10,16 +10,30 @@ import io
 from utils.database import db
 from utils.crm_pipeline import get_or_create_default_pipeline
 from routes.crm_auth import get_crm_user
+from utils.site_scope import effective_site_filter, get_requested_site, resolve_stamp_site_id
+from utils.sites_isolation import get_primary_site_id
 
 router = APIRouter(prefix="/crm", tags=["CRM Core"])
 
 
 def _org_filter(user: dict) -> dict:
-    """Return org-scoped filter for CRM queries. Uses impossible match if no org to prevent data leaks."""
+    """Return org-scoped + site-scoped filter for CRM queries.
+
+    Uses an impossible match if no org to prevent data leaks. Merges the
+    per-request site filter (X-Site-Id header → RBAC via site_scope) so a
+    restricted manager only ever reads their assigned site(s). CRM is a
+    SEPARATE auth path (get_crm_user) which mirrors role + allowed_site_ids
+    from the primary users record, so this is fully isolated."""
     org_id = user.get("organization_id")
     if not org_id:
         return {"organization_id": "__NO_ORG__"}
-    return {"organization_id": org_id}
+    return {"organization_id": org_id, **effective_site_filter()}
+
+
+async def _crm_stamp_site(user: dict) -> Optional[str]:
+    """Resolve the site_id to stamp onto a new CRM record (active site →
+    org primary), enforcing RBAC on the active site."""
+    return resolve_stamp_site_id(get_requested_site(), await get_primary_site_id(user.get("organization_id")))
 
 
 # ==================== AUDIT LOG HELPER ====================
@@ -109,6 +123,7 @@ async def create_contact(data: dict, user=Depends(get_crm_user)):
     contact = {
         "id": contact_id,
         "organization_id": user.get("organization_id"),
+        "site_id": await _crm_stamp_site(user),
         "first_name": data.get("first_name", ""),
         "last_name": data.get("last_name", ""),
         "email": data.get("email", ""),
@@ -187,6 +202,7 @@ async def create_company(data: dict, user=Depends(get_crm_user)):
     company = {
         "id": company_id,
         "organization_id": user.get("organization_id"),
+        "site_id": await _crm_stamp_site(user),
         "name": data.get("name", ""),
         "industry": data.get("industry", ""),
         "website": data.get("website", ""),
@@ -287,6 +303,7 @@ async def create_deal(data: dict, user=Depends(get_crm_user)):
     deal = {
         "id": deal_id,
         "organization_id": user.get("organization_id"),
+        "site_id": await _crm_stamp_site(user),
         "title": data.get("title", ""),
         "value": float(data.get("value", 0)),
         "stage": data.get("stage", "lead"),

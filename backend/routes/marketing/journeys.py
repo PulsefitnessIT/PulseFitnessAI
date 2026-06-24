@@ -26,7 +26,9 @@ from routes.marketing.helpers import (
     _new_id,
     _now_iso,
     _org_id,
+    _org_site_filter,
     _require_feature,
+    _stamp_site,
 )
 
 router = APIRouter()
@@ -39,9 +41,8 @@ _LEAF_NODE_TYPES = {"send_email", "send_sms", "send_push", "send_in_app"}
 
 @router.get("/marketing/journeys", dependencies=[Depends(require_module("marketing"))])
 async def list_journeys(user: dict = Depends(get_current_user)):
-    org_id = await _org_id(user)
     items = await db.marketing_journeys.find(
-        {"organization_id": org_id}, {"_id": 0},
+        await _org_site_filter(user), {"_id": 0},
     ).sort("created_at", -1).to_list(length=100)
     return {"journeys": items}
 
@@ -63,12 +64,14 @@ async def upsert_journey(body: dict = Body(...), user: dict = Depends(get_curren
         "metrics": {"entered": 0, "completed": 0, "converted": 0, "revenue_gbp": 0},
         "updated_at": _now_iso(),
     }
-    existing = await db.marketing_journeys.find_one({"id": j_id, "organization_id": org_id}, {"_id": 0, "created_at": 1})
+    existing = await db.marketing_journeys.find_one({"id": j_id, "organization_id": org_id}, {"_id": 0, "created_at": 1, "site_id": 1})
     if existing:
         doc["created_at"] = existing.get("created_at")
+        doc["site_id"] = existing.get("site_id") or await _stamp_site(user)
         await db.marketing_journeys.update_one({"id": j_id}, {"$set": doc})
     else:
         doc["created_at"] = _now_iso()
+        doc["site_id"] = await _stamp_site(user)
         await db.marketing_journeys.insert_one(doc)
     return {"journey": {k: v for k, v in doc.items() if k != "_id"}}
 

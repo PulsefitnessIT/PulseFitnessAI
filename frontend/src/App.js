@@ -13,6 +13,29 @@ import { ConfirmProvider as NotificationConfirmProvider } from '@/components/not
 // cross-origin API integrations, so this is a pure additive change.
 axios.defaults.withCredentials = true;
 
+// ═══ Multi-site isolation — send the active site on every request ═══
+// The Memberships/CRM/Marketing backend reads `X-Site-Id` to scope data
+// to the chosen site (see utils/site_scope.py). Owners/admins are never
+// restricted; managers are narrowed server-side. "All sites" is signalled
+// by the sentinel "all" (or an absent header), which widens the scope.
+axios.interceptors.request.use((config) => {
+  try {
+    const raw = localStorage.getItem('active_site_cache');
+    const allSites = localStorage.getItem('active_site_all') === '1';
+    if (allSites) {
+      config.headers = config.headers || {};
+      config.headers['X-Site-Id'] = 'all';
+    } else if (raw) {
+      const site = JSON.parse(raw);
+      if (site && site.id) {
+        config.headers = config.headers || {};
+        config.headers['X-Site-Id'] = site.id;
+      }
+    }
+  } catch { /* localStorage/JSON guard */ }
+  return config;
+});
+
 // ═══ Iter 216h68 — silent JWT refresh + session-resumed banner ═══
 // When ANY operator API call returns 401, attempt ONE silent
 // `/api/auth/refresh` with the current localStorage token. If the
@@ -287,6 +310,12 @@ function App() {
      return cached ? JSON.parse(cached) : null;
    } catch { return null; }
  });
+ // Multi-site isolation — "All sites" aggregate mode. When true, the
+ // X-Site-Id header is sent as "all" so Memberships/CRM/Marketing widen
+ // their scope (owners see the whole org; managers see all THEIR sites).
+ const [allSitesMode, setAllSitesMode] = useState(() => {
+   try { return localStorage.getItem('active_site_all') === '1'; } catch { return false; }
+ });
  // Iter 215bz — elevate token to AuthContext so consumers can do
  // `const { token } = useAuth()` instead of reaching into localStorage
  // independently (source-of-truth divergence caused the Product Tour
@@ -432,9 +461,26 @@ function App() {
  const setActiveSitePersisted = (site) => {
  setActiveSite(site);
  try {
- if (site) localStorage.setItem('active_site_cache', JSON.stringify(site));
- else localStorage.removeItem('active_site_cache');
+ if (site && site.id === '__all__') {
+   localStorage.setItem('active_site_all', '1');
+   localStorage.removeItem('active_site_cache');
+   setAllSitesMode(true);
+ } else if (site) {
+   localStorage.removeItem('active_site_all');
+   localStorage.setItem('active_site_cache', JSON.stringify(site));
+   setAllSitesMode(false);
+ } else {
+   localStorage.removeItem('active_site_all');
+   localStorage.removeItem('active_site_cache');
+   setAllSitesMode(false);
+ }
  } catch { /* quota */ }
+ };
+ // "All sites" aggregate — keeps activeSite for label fallback but flips
+ // the header to "all". Used by the global SiteSwitcher.
+ const enableAllSites = () => {
+ try { localStorage.setItem('active_site_all', '1'); } catch { /* quota */ }
+ setAllSitesMode(true);
  };
 
  useEffect(() => {
@@ -762,7 +808,7 @@ function App() {
  }
 
  return (
- <AuthContext.Provider value={{ user, token, login, logout, refreshUser, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite: setActiveSitePersisted, refreshSites }}>
+ <AuthContext.Provider value={{ user, token, login, logout, refreshUser, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite: setActiveSitePersisted, allSitesMode, enableAllSites, refreshSites }}>
  <div className="App">
  {/* WCAG: Skip to main content link */}
  <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[999] focus:bg-[var(--color-brand-blue)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm">
