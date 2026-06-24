@@ -1,0 +1,27 @@
+{
+  "summary": "Tested onboarding Phase 1 (projects) + Phase 2 (Import Centre) backend and frontend. All 15 backend pytest tests passed (customer-types/9, progressive-disclosure checklist for multi_site+crm+memberships, list/get/patch/checklist-step, go-live gating then success, dashboard, duplicate-org 409 guard, import types/template, auto-map of aliases Email Address/First Name/Surname/Telephone/Company, validate flags invalid email & in-file duplicate, commit skip then re-skip existing, commit update, saved mappings POST+GET). Frontend smoke verified all key data-testids present after login: onboarding-projects, onb-stat-active, onb-new-project-btn, onb-create-dialog, onb-create-submit, onboarding-subtab-imports, import-wizard, iw-type, iw-org, iw-upload-btn. Imports subtab renders Core records (quick CSV) section underneath as required. Test records cleaned up (projects archived, contacts deleted).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onboarding_phase1_phase2.py",
+    "/app/test_reports/pytest/iter_onboarding_phase12.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "onboarding_import.py:_existing_dupe_keys does per-key full-collection scans to_list(20000) — acceptable for current volumes but should switch to indexed case-insensitive $in for larger orgs.",
+    "iw-template testid only appears after import_type is chosen (conditional render) — fine, but main agent may want to expose the template button when type is preset to make discovery easier.",
+    "_validate_doc accepts any string for joined_at (kind='date') without parsing — consider ISO date validation.",
+    "onboarding_projects.archive_project always returns ok=true even on already-archived; idempotent which is good."
+  ],
+  "updated_files": ["/app/backend/tests/test_onboarding_phase1_phase2.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% smoke (all testids found)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created two test onboarding projects (prefixed TESTONB...) plus test CRM contacts (test_testonb*@example.com); cleaned up in test_zzz_cleanup. Some imported contacts may persist if CRM delete endpoint signature differs — emails are tagged with TESTONB for easy DB removal.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend Phase 1 + Phase 2 fully verified at /api/onboarding/* (projects, customer-types, checklist, go-live, dashboard, import/types, import/template/<t>, import/analyze, import/validate, import/commit, import/mappings). Frontend testids per spec are all wired correctly under Master Admin → Organisations → Onboarding (?section=onboarding). iw-template only shows after iw-type is chosen."
+}

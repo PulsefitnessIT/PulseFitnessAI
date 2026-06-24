@@ -577,3 +577,9 @@ End-user E2E audit (testing agent + manual verification):
 - Integrated into AdminOnboardingHub as new "Manage → Dashboard" tab; Onboarding section now lands here. Existing wizards (Customers/Team) untouched.
 - Verified: backend curl (create/dashboard/types), live screenshot (dashboard, list, detail, grouped checklist render). Test project cleaned up.
 - NEXT: Phase 2 unified Import Centre, Phase 3 module readiness, Phase 4 AI assist (GPT-4o), Phase 5 customer portal + emails + reporting.
+
+## 2026-06-24 — Onboarding system Phase 2: unified Import Centre
+- New backend routes/onboarding_import.py (registered). Config-driven TYPE_REGISTRY (contacts→crm_contacts, members→members, suppliers→suppliers) with field aliases, dedupe keys, defaults. Writes into EXISTING collections — no new silos.
+- Endpoints (/api/onboarding/import/*, pulse/master gated): types, template/{type} (CSV), analyze (parse+auto-map columns via aliases), validate (required/email/phone + existing & in-file dedupe + per-row report), commit (skip/update/create dedupe action, audit, auto-advances linked onboarding checklist step), GET/POST mappings (saved).
+- New frontend ImportWizard.js: 4-step stepper (Setup→Upload&map→Review→Done) with type+target-org pickers, template download, auto-mapping editor, validation/dedupe review table, dedupe-action picker, import report. Mounted atop the Bulk Imports tab; legacy sites/equipment/customers kept below as "Core records (quick CSV)".
+- Verified curl: auto-map matched all aliased columns; validate flagged invalid email/suspicious phone + in-file dup; commit created1/skipped1/failed1. UI renders. Test data cleaned.

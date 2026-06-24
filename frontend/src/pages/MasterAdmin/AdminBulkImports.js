@@ -11,6 +11,7 @@ import {
  CheckCircle2, AlertCircle, Building2, Loader2, MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ImportWizard from './ImportWizard';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -210,6 +211,20 @@ const AdminBulkImports = ({ API }) => {
  <div className="space-y-5" data-testid="admin-bulk-imports">
  {banner}
 
+      {/* Unified Import Centre — one consistent flow: template → upload →
+          auto-map → validate → dedupe → preview → import → report. */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <FileSpreadsheet size={18} className="text-[var(--color-brand-blue)]" />
+          <h2 className="text-base font-semibold">Import Centre</h2>
+        </div>
+        <p className="text-xs text-zinc-500 mb-3">
+          Guided import with column auto-mapping, validation, duplicate detection and a preview before anything is written.
+        </p>
+        <ImportWizard />
+      </div>
+
+
  {/* Target picker */}
  <Card className="p-5 rounded-xl border-zinc-200" data-testid="bulk-import-target-card">
  <div className="flex items-center gap-2 mb-3">
@@ -240,6 +255,11 @@ const AdminBulkImports = ({ API }) => {
  </Select>
  </div>
  </Card>
+
+      <div className="pt-2">
+        <h2 className="text-base font-semibold mb-1">Core records (quick CSV)</h2>
+        <p className="text-xs text-zinc-500 mb-3">Fast bulk loaders for sites, equipment and CRM customers with account-number auto-routing.</p>
+      </div>
 
  <div className="grid md:grid-cols-3 gap-4">
  <ImportCard
