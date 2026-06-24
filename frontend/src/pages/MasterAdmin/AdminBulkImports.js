@@ -18,22 +18,22 @@ import { useInlineBanner } from '@/components/notifications';
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL + '/api';
 
-const downloadTemplate = async (kind, token) => {
- // Use a fetch+blob round-trip so the browser triggers a real download
- // dialog regardless of the host browser's CORS-blob handling.
- const r = await fetch(`${API_BASE}/master-admin/bulk-import/templates/${kind}`, {
- headers: { Authorization: `Bearer ${token}` },
- });
- if (!r.ok) throw new Error(`Template fetch failed: ${r.status}`);
- const blob = await r.blob();
- const url = URL.createObjectURL(blob);
- const a = document.createElement('a');
- a.href = url;
- a.download = `${kind}-template.csv`;
- document.body.appendChild(a);
- a.click();
- a.remove();
- URL.revokeObjectURL(url);
+const downloadTemplate = async (kind) => {
+  // Use axios (withCredentials) so the HttpOnly session cookie carries the
+  // auth — the raw fetch previously relied on a localStorage token that is
+  // absent/stale in production, causing a 401. responseType:'blob' lets the
+  // browser trigger a real download dialog.
+  const r = await axios.get(`${API_BASE}/master-admin/bulk-import/templates/${kind}`, {
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(r.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${kind}-template.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 };
 
 const AdminBulkImports = ({ API }) => {
@@ -144,7 +144,7 @@ const AdminBulkImports = ({ API }) => {
  variant="outline"
  size="sm"
  onClick={async () => {
- try { await downloadTemplate(kind, token); show({ tone: 'success', title: 'Template downloaded' }); }
+ try { await downloadTemplate(kind); show({ tone: 'success', title: 'Template downloaded' }); }
  catch (err) { show({ tone: 'error', title: 'Download failed', detail: err.message }); }
  }}
  data-testid={`bulk-template-${kind}`}

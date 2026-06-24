@@ -563,3 +563,8 @@ End-user E2E audit (testing agent + manual verification):
 - Removed the separate "Onboard staff" entry from People; renamed Organisations "Customer onboarding" → "Onboarding" (single home for customers + team).
 - MasterAdminPage: `onboarding` + `staff-onboarding` both render the hub; `staff-onboarding` deep-link opens the staff tab (initialTab). SECTION_TO_GROUP['staff-onboarding']='organizations' for correct highlight. Hub now takes isPulseAdmin + initialTab props.
 - Verified live: hub renders grouped Customers/Team tabs, staff deep-link opens staff wizard, People cleaned up, compiles clean.
+
+## 2026-06-24 — Fix: Bulk Import template download 401
+- AdminBulkImports.downloadTemplate used raw fetch + localStorage token (absent/stale in prod; real session is HttpOnly cookie) → 401 "Template fetch failed".
+- Switched to axios withCredentials + responseType:'blob' so the session cookie carries auth and the 401-refresh interceptor applies.
+- Verified live (preview): sites-template.csv downloads, success toast, no error. Needs deploy to reach production.
