@@ -6,6 +6,7 @@ import logging
 
 from utils.database import db, EMERGENT_LLM_KEY
 from utils.auth import get_current_user
+from utils.ai_access import require_ai_access
 from utils.email import send_report_notification
 from models.schemas import ChatMessage, AuditRequest
 from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -200,7 +201,7 @@ AUDIT_SYSTEM = (
 
 
 @router.post("/chat/diagnose")
-async def diagnose_fault(message: ChatMessage, user: dict = Depends(get_current_user)) -> dict:
+async def diagnose_fault(message: ChatMessage, user: dict = Depends(require_ai_access)) -> dict:
     session_id = f"diagnosis_{user['id']}_{datetime.now().timestamp()}"
 
     knowledge_docs = await _fetch_diagnosis_knowledge(

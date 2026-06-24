@@ -7,6 +7,7 @@ import logging
 
 from utils.database import db, EMERGENT_LLM_KEY, RESEND_API_KEY, SENDER_EMAIL, APP_NAME, put_object
 from utils.auth import get_current_user, get_organization_filter, apply_site_lock
+from utils.ai_access import require_ai_access
 from models.schemas import IssueCreate, IssueBatchCreate, ServiceRequest
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -66,7 +67,7 @@ async def coverage_lookup(
 
 
 @router.post("/issues/triage")
-async def triage_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
+async def triage_issue(issue: IssueCreate, user: dict = Depends(require_ai_access)) -> dict:
     try:
         # Auto-warranty check: if this machine is still under manufacturer
         # warranty, the triage must lead with manual guidance + a manufacturer

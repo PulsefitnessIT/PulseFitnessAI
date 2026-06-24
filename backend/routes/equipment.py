@@ -10,6 +10,7 @@ import logging
 import os
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object, get_object
 from utils.auth import get_current_user, get_organization_filter, apply_site_lock
+from utils.ai_access import require_ai_access
 
 # Backend-side base URL for building absolute, browser-loadable public URLs.
 # Prefer backend-native FRONTEND_URL; fall back to REACT_APP_BACKEND_URL for local/dev.
@@ -1136,7 +1137,7 @@ async def auto_lookup_equipment_image(
     equipment_id: str,
     verify: bool = True,
     force: bool = False,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_ai_access),
 ) -> dict:
     """Search the manufacturer website for a product photo and, if found +
     verified by GPT-4o-mini, attach it to the equipment as `auto_image_url`."""

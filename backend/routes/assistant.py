@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from utils.auth import get_current_user
+from utils.ai_access import require_ai_access
 from utils.database import db
 from utils.ai_guardrails import (
     detect_injection,
@@ -410,7 +411,7 @@ def _extract_action_block(answer: str, mode: str) -> tuple[str, dict | None]:
 
 
 @router.post("/assistant/chat")
-async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_current_user)):
+async def assistant_chat(body: dict = Body(...), user: dict = Depends(require_ai_access)):
     """Mode-aware chat turn. Body: {mode, session_id, message, page_context?}.
 
     `page_context` (optional) is an opaque dict the frontend pushes describing
@@ -561,7 +562,7 @@ async def _log_destructive_action(*, user: dict, mode: str, action_type: str,
 
 
 @router.post("/assistant/execute-action")
-async def assistant_execute_action(body: dict = Body(...), user: dict = Depends(get_current_user)):
+async def assistant_execute_action(body: dict = Body(...), user: dict = Depends(require_ai_access)):
     """Run a one-click action recommended by the AI Assistant.
 
     Thin dispatcher — each `(mode, action_type)` is delegated to a small

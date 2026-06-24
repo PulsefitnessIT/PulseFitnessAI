@@ -8,6 +8,7 @@ import json
 
 from utils.database import db, APP_NAME, EMERGENT_LLM_KEY, put_object, get_object
 from utils.auth import get_current_user, get_organization_filter, verify_token
+from utils.ai_access import require_ai_access
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -209,7 +210,7 @@ async def _run_ai_extraction(file_doc: dict) -> dict:
 
 
 @router.post("/files/{file_id}/extract")
-async def extract_file_info(file_id: str, user: dict = Depends(get_current_user)):
+async def extract_file_info(file_id: str, user: dict = Depends(require_ai_access)):
     """AI extracts information from an uploaded document to improve future fault diagnosis."""
     org_filter = get_organization_filter(user)
     file_doc = await db.files.find_one({"id": file_id, **org_filter}, {"_id": 0})
@@ -436,7 +437,7 @@ async def _search_and_rank_docs(org_id: str | None, question: str, equipment_typ
 
 
 @router.post("/documents/ask")
-async def ask_documents(body: DocumentQuestion, user: dict = Depends(get_current_user)):
+async def ask_documents(body: DocumentQuestion, user: dict = Depends(require_ai_access)):
     """AI-powered Q&A over uploaded equipment documents."""
     sources, context_parts = await _search_and_rank_docs(
         user.get("organization_id"), body.question, body.equipment_type, body.supplier,

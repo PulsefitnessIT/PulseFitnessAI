@@ -530,3 +530,10 @@ End-user E2E audit (testing agent + manual verification):
   - Kept the before/after Pro feature cards + Standard-vs-Pro comparison table.
 - Verified: endpoint live (clean 400 for non-lite accounts), Upgrade tab renders the CTA with `data-testid=upgrade-now-btn`.
 - NOTE: happy-path upgrade not run with a live Lite-owner account (only master-admin available); endpoint is the same one PulseProUpgradeCta already uses in production.
+
+## 2026-06-24 — Backend hardening: AI endpoints blocked for Lite (defense-in-depth)
+- New `backend/utils/ai_access.py` → `require_ai_access` dependency. Blocks true Pulse Lite orgs (account_type=lite, no active Pro trial) with 403; allows Pulse Pro / full / MOD / master-admin / Lite-on-active-trial (mirrors frontend `isPro`).
+- Applied to AI endpoints: POST /issues/triage, /files/{id}/extract, /documents/ask, /assistant/chat, /assistant/execute-action, /chat/diagnose, /equipment/{id}/lookup-image.
+- NOT gated (intentional): /gym-health-score (computed metric, not generative AI), /help/ask & /ask (platform support, all tiers).
+- Verified vs real DB: lite→403, pulse_pro→allow, lite+active-trial→allow, master→allow. Master-admin live curl on /issues/triage & /documents/ask → 200 (no Pro regression).
+- Incidental fix: removed pre-existing trailing corruption in routes/issues.py (stray `rue)` + duplicate return at EOF) that blocked py_compile.
