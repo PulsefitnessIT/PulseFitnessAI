@@ -589,3 +589,10 @@ End-user E2E audit (testing agent + manual verification):
 - GET /api/onboarding/projects/{id}/readiness → per-area ready flag + per-check counts. POST .../readiness/sync → auto-completes matching checklist steps from live data (advance-only, audited).
 - Frontend: new "Module readiness" tab in the project detail Sheet — per-area cards (ready/not-ready), check rows with counts + optional markers, and "Sync checklist from live data" button.
 - Verified live: counts reflect seeded records (contacts/assets/members=1); sync advanced exactly those steps; empty org → all not-ready, sync no-op. UI renders 4 area cards + sync. All test data hard-deleted.
+
+## 2026-06-24 — Onboarding Phase 4: AI assistant (GPT-4o, advisory-only)
+- New backend routes/onboarding_ai.py (registered) using emergentintegrations LlmChat + EMERGENT_LLM_KEY, model gpt-4o. ADVISORY ONLY — never imports/writes data.
+- POST /api/onboarding/import/ai-analyze: given columns + sample rows, returns suggested import type, column→field mapping (guarded to known types/fields), data-quality issues + cleanup suggestions.
+- POST /api/onboarding/projects/{id}/ai-summary: returns plain-English status, risks, next_best_actions, missing_info, go_live_ready.
+- Frontend: ImportWizard map step gets "Ask AI to map" (applies AI mapping + shows issues banner); project detail checklist tab gets "AI summary" (summary/next-actions/risks panel). Both labelled advisory-only; human still drives validate/commit/go-live.
+- Verified: ai-analyze suggested 'contacts' high-confidence + mapped 5 aliased cols + flagged bad email/phone; ai-summary returned sensible next actions; UI smoke showed the AI summary panel rendering a live GPT-4o response. Test data cleaned.

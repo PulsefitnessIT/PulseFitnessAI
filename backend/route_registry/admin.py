@@ -95,6 +95,7 @@ from routes.pulse_sales import router as pulse_sales_router
 from routes.onboarding_projects import router as onboarding_projects_router
 from routes.onboarding_import import router as onboarding_import_router
 from routes.onboarding_readiness import router as onboarding_readiness_router
+from routes.onboarding_ai import router as onboarding_ai_router
 
 
 def register_admin(api_router: APIRouter) -> None:
@@ -175,6 +176,7 @@ def register_admin(api_router: APIRouter) -> None:
         onboarding_projects_router,
         onboarding_import_router,
         onboarding_readiness_router,
+        onboarding_ai_router,
         public_quote_router,
         public_demo_request_router,
     ):

@@ -293,6 +293,8 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
   const [goingLive, setGoingLive] = useState(false);
   const [readiness, setReadiness] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const p = project;
   const tLabel = (types.find((t) => t.id === p.customer_type) || {}).label || p.customer_type;
 
@@ -312,6 +314,15 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
   };
 
   const groups = (p.checklist || []).reduce((acc, s) => { (acc[s.group] = acc[s.group] || []).push(s); return acc; }, {});
+
+  const runAiSummary = async () => {
+    setAiBusy(true);
+    try {
+      const { data } = await axios.post(`${API}/onboarding/projects/${p.id}/ai-summary`);
+      setAiSummary(data);
+    } catch (e) { notifyApiError(notify, e, 'AI summary failed'); }
+    finally { setAiBusy(false); }
+  };
 
   const setStep = async (step, status) => {
     try {
@@ -369,6 +380,31 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
 
         {tab === 'checklist' && (
           <div className="mt-4 space-y-5" data-testid="onb-checklist">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500">{p.progress?.required_complete}/{p.progress?.required_total} required steps complete</span>
+              <Button size="sm" variant="outline" onClick={runAiSummary} disabled={aiBusy} data-testid="onb-ai-summary-btn"
+                      className="border-violet-300 text-violet-700 hover:bg-violet-50">
+                {aiBusy ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Sparkles size={13} className="mr-1.5" />} AI summary
+              </Button>
+            </div>
+            {aiSummary && (
+              <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs space-y-2" data-testid="onb-ai-summary">
+                <p className="text-violet-900">{aiSummary.summary}</p>
+                {(aiSummary.next_best_actions || []).length > 0 && (
+                  <div>
+                    <p className="font-medium text-violet-800">Next best actions</p>
+                    {aiSummary.next_best_actions.map((a, i) => <p key={i} className="text-violet-700">→ {a}</p>)}
+                  </div>
+                )}
+                {(aiSummary.risks || []).length > 0 && (
+                  <div>
+                    <p className="font-medium text-amber-800">Risks</p>
+                    {aiSummary.risks.map((r, i) => <p key={i} className="text-amber-700">• {r}</p>)}
+                  </div>
+                )}
+                <p className="text-[10px] text-violet-500">AI-generated · advisory only</p>
+              </div>
+            )}
             {Object.entries(groups).map(([grp, steps]) => (
               <div key={grp}>
                 <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold mb-2">{grp}</p>

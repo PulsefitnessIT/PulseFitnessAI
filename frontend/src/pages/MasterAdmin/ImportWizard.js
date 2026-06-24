@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Copy, Loader2,
-  Download, ArrowRight, ArrowLeft, RotateCcw, Database,
+  Download, ArrowRight, ArrowLeft, RotateCcw, Database, Sparkles,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,8 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
   const [dedupeAction, setDedupeAction] = useState('skip');
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiIssues, setAiIssues] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -66,6 +68,21 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
       notify.success('File analysed', `${data.row_count} rows · ${data.columns.length} columns. Columns auto-mapped.`);
     } catch (e) { notifyApiError(notify, e, 'Could not read file'); }
     finally { setBusy(false); }
+  };
+
+  const askAi = async () => {
+    setAiBusy(true);
+    try {
+      const { data } = await axios.post(`${API}/onboarding/import/ai-analyze`, {
+        columns: analysis.columns, sample_rows: analysis.sample_rows,
+      });
+      if (data.mapping && Object.keys(data.mapping).length) {
+        setMapping((m) => ({ ...m, ...data.mapping }));
+      }
+      setAiIssues(data);
+      notify.success('AI suggestions applied', `${Object.keys(data.mapping || {}).length} columns mapped · ${(data.issues || []).length} issue(s) flagged.`);
+    } catch (e) { notifyApiError(notify, e, 'AI suggestion failed'); }
+    finally { setAiBusy(false); }
   };
 
   const runValidate = async () => {
@@ -158,7 +175,23 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
       {/* Step 1 — Map */}
       {step === 1 && analysis && (
         <div className="space-y-4" data-testid="iw-map">
-          <p className="text-xs text-zinc-500">{analysis.row_count} rows detected. Confirm how your columns map to fields — required fields are marked.</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-zinc-500">{analysis.row_count} rows detected. Confirm how your columns map — required fields are marked.</p>
+            <Button size="sm" variant="outline" onClick={askAi} disabled={aiBusy} data-testid="iw-ai-suggest"
+                    className="border-violet-300 text-violet-700 hover:bg-violet-50">
+              {aiBusy ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Sparkles size={13} className="mr-1.5" />} Ask AI to map
+            </Button>
+          </div>
+          {aiIssues && (
+            <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs space-y-1" data-testid="iw-ai-issues">
+              <p className="font-medium text-violet-800">AI suggestion ({aiIssues.confidence || 'n/a'} confidence) — advisory only</p>
+              {aiIssues.suggested_type && <p className="text-violet-700">Looks like: <b>{aiIssues.suggested_type}</b></p>}
+              {(aiIssues.issues || []).map((i, idx) => (
+                <p key={idx} className={i.severity === 'error' ? 'text-red-600' : 'text-amber-700'}>• {i.message}</p>
+              ))}
+              {(aiIssues.cleanup_suggestions || []).map((s, idx) => <p key={`c${idx}`} className="text-violet-600">✦ {s}</p>)}
+            </div>
+          )}
           <div className="space-y-2">
             {analysis.fields.map((f) => (
               <div key={f.key} className="flex items-center gap-3" data-testid={`iw-map-${f.key}`}>
