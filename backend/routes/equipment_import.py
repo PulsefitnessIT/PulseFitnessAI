@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
 import uuid
@@ -562,19 +562,11 @@ def _build_import_record(import_id: str, user_id: str, filename: str, extracted:
     }
 
 
-@router.post("/parse-invoice")
-async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_user)):
-    """Upload a supplier invoice (PDF or image — JPG/PNG/WEBP).
-    AI extracts equipment data for import. Iter 216g — accepts scanned
-    PDFs and image uploads via the smart extractor (vision fallback)."""
-    from utils.file_validation import validate_upload
-    data = await file.read()
-    # Iter 216g — broaden allow-list to images for scanned invoices.
-    allowed = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
-    validate_upload(file_bytes=data, filename=file.filename, allowed=allowed, max_size=30 * 1024 * 1024)
-
+async def _run_invoice_extraction(data: bytes, filename: str, content_type: str | None, user: dict) -> dict:
+    """Shared invoice-extraction pipeline used by both the direct
+    `/parse-invoice` upload and the chunked finalize endpoint."""
     try:
-        extracted = await extract_invoice_smart(data, file.content_type)
+        extracted = await extract_invoice_smart(data, content_type)
     except HTTPException:
         raise
     except json.JSONDecodeError as e:
@@ -583,20 +575,9 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
         raise HTTPException(status_code=500, detail=f"AI extraction failed: {str(e)}")
 
     warranty_info = _enrich_equipment_dates(extracted)
-    storage = await _store_invoice_pdf(data, file.filename)
+    storage = await _store_invoice_pdf(data, filename)
     import_id = str(uuid.uuid4())
 
-    # Iter 216k — defensive supplier-as-make fallback. Even with the
-    # tightened prompt, individual line items occasionally come back
-    # with empty `make` because the supplier's own products aren't
-    # branded line-by-line on the invoice. Operators saw "Unknown" for
-    # every Pulse Fitness item; this fixes it without losing the AI's
-    # judgement on lines that DO declare a manufacturer.
-    #
-    # Iter 216h13 — also derive the SHORT display fields (`name`,
-    # `model`) here so the wizard review table shows clean rows like
-    # "Treadmill · 260G" instead of pasting the 200-char marketing
-    # description. The long description goes in `description`.
     supplier = (extracted.get("supplier_name") or "").strip()
     enriched_eq = []
     for eq in (extracted.get("equipment") or []):
@@ -605,7 +586,6 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
         if not make and supplier and supplier.lower() != "unknown":
             make = supplier
         cur["make"] = make
-        # Promote short display fields without losing the original AI output.
         short_name = _short_equipment_name(cur)
         short_model = _short_model_code(cur)
         full_desc = (cur.get("description") or cur.get("model") or "").strip()
@@ -616,13 +596,9 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
     extracted["equipment"] = enriched_eq
 
     await db.equipment_imports.insert_one(
-        _build_import_record(import_id, user["id"], file.filename, extracted, warranty_info, storage)
+        _build_import_record(import_id, user["id"], filename, extracted, warranty_info, storage)
     )
 
-    # Iter 216h12 — auto-match the extracted supplier against the org's
-    # supplier directory so the wizard can offer "Link to existing
-    # Pulse Fitness supplier" instead of forcing the operator to create
-    # a duplicate.
     matched_supplier = await match_supplier(
         user.get("organization_id"),
         extracted.get("supplier_name", ""),
@@ -653,6 +629,107 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
         "matched_supplier": matched_supplier,
         "matched_supplier_id": (matched_supplier or {}).get("id") or "",
     }
+
+
+# ── Chunked invoice upload (bypasses the 2MB ingress body limit) ──────────
+_CHUNK_DIR = "/tmp/pulse_invoice_chunks"
+_INVOICE_ALLOWED = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
+
+
+@router.post("/parse-invoice/chunk")
+async def parse_invoice_chunk(
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Receive one < 2MB slice of a large invoice. Chunks are appended to a
+    temp file keyed by upload_id; call /parse-invoice/finalize to process."""
+    import os, re
+    safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", upload_id)[:64]
+    if not safe_id:
+        raise HTTPException(400, "Invalid upload id")
+    os.makedirs(_CHUNK_DIR, exist_ok=True)
+    part = await file.read()
+    if len(part) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Chunk exceeds 2MB")
+    path = os.path.join(_CHUNK_DIR, f"{safe_id}.part")
+    # chunk_index 0 truncates (fresh upload); later chunks append in order.
+    with open(path, "wb" if chunk_index == 0 else "ab") as f:
+        f.write(part)
+    return {"ok": True, "upload_id": safe_id, "received": chunk_index + 1, "total": total_chunks}
+
+
+@router.post("/parse-invoice/finalize")
+async def parse_invoice_finalize(
+    upload_id: str = Form(...),
+    filename: str = Form(...),
+    content_type: str = Form(default="application/pdf"),
+    user=Depends(get_current_user),
+):
+    """Reassemble the chunked invoice and run extraction in a DECOUPLED
+    background task (large multi-page invoices can exceed the gateway
+    timeout). Returns a job_id immediately; poll /parse-invoice/status/{id}."""
+    import os, re, asyncio
+    from utils.file_validation import validate_upload
+    safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", upload_id)[:64]
+    path = os.path.join(_CHUNK_DIR, f"{safe_id}.part")
+    if not safe_id or not os.path.exists(path):
+        raise HTTPException(404, "Upload not found or expired")
+    with open(path, "rb") as f:
+        data = f.read()
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    # Validate synchronously so the user gets immediate feedback on bad files.
+    validate_upload(file_bytes=data, filename=filename, allowed=_INVOICE_ALLOWED, max_size=30 * 1024 * 1024)
+
+    job_id = str(uuid.uuid4())
+    await db.invoice_parse_jobs.insert_one({
+        "id": job_id, "user_id": user["id"], "filename": filename,
+        "status": "processing", "result": None, "error": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    async def _worker():
+        try:
+            result = await _run_invoice_extraction(data, filename, content_type, user)
+            await db.invoice_parse_jobs.update_one(
+                {"id": job_id}, {"$set": {"status": "done", "result": result}})
+        except HTTPException as e:
+            await db.invoice_parse_jobs.update_one(
+                {"id": job_id}, {"$set": {"status": "error", "error": str(e.detail)}})
+        except Exception as e:
+            await db.invoice_parse_jobs.update_one(
+                {"id": job_id}, {"$set": {"status": "error", "error": str(e)}})
+
+    # Decoupled from the request so a client disconnect won't cancel it.
+    asyncio.create_task(_worker())
+    return {"job_id": job_id, "status": "processing"}
+
+
+@router.get("/parse-invoice/status/{job_id}")
+async def parse_invoice_status(job_id: str, user=Depends(get_current_user)):
+    """Poll a background invoice-parse job. When status=='done', the full
+    parse-invoice response is under `result`."""
+    job = await db.invoice_parse_jobs.find_one(
+        {"id": job_id, "user_id": user["id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    return job
+
+
+@router.post("/parse-invoice")
+async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Upload a supplier invoice (PDF or image — JPG/PNG/WEBP).
+    AI extracts equipment data for import. Iter 216g — accepts scanned
+    PDFs and image uploads via the smart extractor (vision fallback)."""
+    from utils.file_validation import validate_upload
+    data = await file.read()
+    validate_upload(file_bytes=data, filename=file.filename, allowed=_INVOICE_ALLOWED, max_size=30 * 1024 * 1024)
+    return await _run_invoice_extraction(data, file.filename, file.content_type, user)
 
 
 @router.put("/update/{import_id}")

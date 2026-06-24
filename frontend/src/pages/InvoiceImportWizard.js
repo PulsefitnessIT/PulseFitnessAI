@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
+import { uploadInvoiceSmart } from '@/lib/uploadInvoice';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -50,16 +51,11 @@ export default function InvoiceImportWizard({ onComplete, _onClose }) {
    if (m && m.length) pageCount = m.length;
  } catch { /* best effort */ }
  try {
- const formData = new FormData();
- formData.append('file', file);
- const res = await axios.post(`${API}/api/equipment-import/parse-invoice`, formData, {
- headers,
- timeout: 180000,
- onUploadProgress: (evt) => {
-   const pct = evt.total ? (evt.loaded / evt.total) * 100 : 0;
-   setParseProgress({ phase: pct >= 100 ? 'parse' : 'upload', pct, pageCount });
- },
- });
+ const res = { data: await uploadInvoiceSmart(file, {
+   API: `${API}/api`,
+   headers,
+   onProgress: (pct) => setParseProgress({ phase: pct >= 100 ? 'parse' : 'upload', pct, pageCount }),
+ }) };
  setImportId(res.data.import_id);
  setImportData(res.data);
  setParseProgress({ phase: 'done', itemCount: res.data.equipment_count || res.data.equipment?.length || 0 });

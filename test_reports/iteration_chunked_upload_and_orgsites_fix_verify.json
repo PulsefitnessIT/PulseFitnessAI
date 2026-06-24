@@ -1,0 +1,31 @@
+{
+  "summary": "Verified BUG A (chunked invoice upload) end-to-end via backend pytest — fully passing. BUG B (Org add-site no false failure): backend POST + frontend OrgSitesPanel.js fix is correct per code review; could not exercise the UI flow because the master-admin Organisations row drawer did not open in my Playwright session (3 attempts with different click strategies). Backend chunked flow: 6/6 chunks returned 200 (no 413), finalize returned 200+job_id (no 502), background job completed in ~105s with equipment_count=176 from /tmp/cars.pdf (9.3MB). Independent re-confirmation matches main agent's curl results.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "MasterAdmin → Organisations row click → drawer open", "issue": "In Playwright, clicking the Iso Demo Fitness row (via locator, mouse coordinates, and parent-div click) did not open any drawer/dialog (document.querySelector('[role=dialog], [class*=Drawer]') returned null all three times). This may be a Playwright/dispatching quirk, not a real user bug — but it blocked me from exercising the Add-site flow end-to-end. Main agent should self-test interactively or add data-testid='org-row-{id}' so future agents can click reliably.", "affected_selectors": ["org list row", "Add site button (OrgSitesPanel)", "Site name input"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_chunked_invoice_upload.py",
+    "/app/test_reports/pytest/iter_chunked_invoice_upload.xml"
+  ],
+  "action_items": [
+    "(BUG B retest) Add data-testid='ma-org-row-{id}' on the Organisations rows in MasterAdminOrgs list and data-testid='org-sites-add' / 'org-sites-name-input' / 'org-sites-save' in OrgSitesPanel to make the add-site flow reliably testable by Playwright. Code review confirms the fix at /app/frontend/src/pages/MasterAdmin/OrgSitesPanel.js lines 82-100 is correctly implemented: POST is the only thing in the try/catch that can show 'Failed to create site'; success notify + optimistic setSites runs from r.data; loadSites() is wrapped in its own isolated try/catch that swallows any 401."
+  ],
+  "critical_code_review_comments": [
+    "BUG A (chunked upload): backend endpoints in /app/backend/routes/equipment_import.py look correct — chunk endpoint accepts multipart parts under 2MB cap, finalize spawns a background asyncio task writing to db.invoice_parse_jobs and returns immediately with a job_id, status endpoint polls. Background job took ~105s for 9.3MB / 6-chunk PDF — main agent's 60-120s estimate is accurate. equipment_count from real /tmp/cars.pdf = 176 (main agent reported 179; minor variance is expected from LLM non-determinism — not a regression).",
+    "BUG B (OrgSitesPanel.js submitNewSite, lines 77-100): the fix is structurally correct — only the POST is inside the try/catch that can surface notifyApiError('Failed to create site'); the optimistic setSites([...prev, r.data]) runs from the POST response; the follow-up loadSites() refresh is in its own try/catch that silently swallows errors. A transient 401 on the refresh GET can no longer surface as a false save error.",
+    "Backend axios interceptor adding X-Site-Id header confirmed NOT to break multipart chunk uploads — all 6 chunks succeeded.",
+    "Small non-chunked /api/equipment-import/parse-invoice endpoint still reachable (no 413/502) — only fails with 500 'AI returned invalid JSON' when fed a synthetic non-invoice PDF, which is expected behavior."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter_chunked_invoice_upload.py"],
+  "success_rate": {"backend": "100% (4/4 in chunked-upload test suite)", "frontend": "not exercised — drawer did not open in Playwright"},
+  "test_credentials": "Master admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created one background invoice-parse job (job_id 5abdc8ac-11de-4fff-8e8e-69bb0e9c22ca) in db.invoice_parse_jobs collection — completed successfully, can be cleaned up if needed.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "BUG A is fully verified by pytest (test_iter_chunked_invoice_upload.py — all 4 tests pass in ~110s). BUG B's frontend behavior could not be exercised because clicking an org row in /master-admin?section=organizations did not open the drawer programmatically (tried locator click, mouse coordinate click, and parent-element click; document.querySelector for [role=dialog] / [class*=Drawer] returned null every time). Code review confirms the fix is correct. To retest BUG B in UI, the Organisations row needs a stable data-testid OR the main agent can manually verify in browser. The backend endpoint POST /master-admin/organizations/{org_id}/sites itself is unchanged and curl-verified."
+}

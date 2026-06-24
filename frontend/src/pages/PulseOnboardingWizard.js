@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/App';
+import { uploadInvoiceSmart } from '@/lib/uploadInvoice';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -179,15 +180,7 @@ const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       throw new Error(`${file.name} — not a PDF`);
     }
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await axios.post(`${API}/equipment-import/parse-invoice`, formData, {
-      headers: { ...headers },
-      timeout: 120000,
-      onUploadProgress: (evt) => {
-        if (evt.total && onProgress) onProgress((evt.loaded / evt.total) * 100);
-      },
-    });
+    const res = { data: await uploadInvoiceSmart(file, { API, headers, onProgress }) };
     const invoiceResult = { ...res.data, filename: file.name };
     setProcessedInvoices(prev => [...prev, invoiceResult]);
     // Use functional updates so concurrent files don't clobber each other.

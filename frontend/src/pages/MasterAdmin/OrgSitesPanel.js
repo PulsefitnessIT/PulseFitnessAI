@@ -81,16 +81,22 @@ const OrgSitesPanel = ({ org, onClose }) => {
     }
     setAdding(true);
     try {
-      await axios.post(`${API}/master-admin/organizations/${org.id}/sites`, newSite, { headers: authHeaders() });
+      const r = await axios.post(`${API}/master-admin/organizations/${org.id}/sites`, newSite, { headers: authHeaders() });
       notify.success(`Site '${newSite.name}' added`);
+      // Optimistically add the created site so success doesn't depend on a
+      // follow-up refresh (a transient 401 on the refresh GET must NOT be
+      // reported as "save failed" — the site is already persisted).
+      if (r?.data?.id) setSites((prev) => [...(prev || []), r.data]);
       setNewSite({ name: '', address_line1: '', city: '', county: '', postcode: '', country: 'United Kingdom', phone: '', email: '', site_manager_email: '', is_head_office: false });
       setShowAdd(false);
-      await loadSites();
     } catch (e) {
       notifyApiError(notify, e, 'Failed to create site');
-    } finally {
       setAdding(false);
+      return;
     }
+    setAdding(false);
+    // Refresh in the background; never let its failure surface as a save error.
+    try { await loadSites(); } catch { /* already shown optimistically */ }
   };
 
   const downloadTemplate = async () => {
