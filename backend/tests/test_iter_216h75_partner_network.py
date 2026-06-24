@@ -23,7 +23,7 @@ import requests
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://pulse-staging-10.preview.emergentagent.com"
+    or "https://admin-setup-portal.preview.emergentagent.com"
 ).rstrip("/")
 
 OPERATOR_EMAIL = "e1.agent@gymaxisai.com"

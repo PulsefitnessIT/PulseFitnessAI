@@ -1,50 +1,42 @@
-<analysis>**original_problem_statement**: Import PulseFitnessAI from GitHub to Emergent. Perform a complete white-label conversion of the platform from GymAxis AI to Pulse Fitness AI. This includes replacing all branding (logos, UI, text, emails, PDFs, SEO metadata), updating domains to , starting with a clean database retaining only the Master Admin, and setting up fresh external integrations. 
+<analysis>**original_problem_statement**: Rebuild the Master Admin Onboarding journey into a massive, unified system supporting single-site/multi-site/enterprise, with a unified Import Centre, AI assistance, module readiness tracking, live checklist, and go-live review. (Product Requirements for Phase 5: Customer-facing onboarding portal, email templates, and reporting/exports in PDF/CSV/Excel).
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A fully functional, heavily customized white-labeled Pulse Fitness AI platform (React frontend, FastAPI backend, MongoDB). The codebase has been completely purged of GymAxis branding. Core systems include Service Desk (AI Triage, Risk Assessments), CRM (Quotes, Companies), Memberships, and Master Admin dashboards. Authentication has been stabilized for iframe environments. Email routing leverages verified Resend subdomains based on module categories. Equipment import templates and CAPEX logic have been enhanced.
+**what currently exists?**: A fully functional Pulse Fitness AI platform. The Master Admin Onboarding Epic (Phases 1-5) is now completely finished. The application features a robust onboarding backbone, a unified import centre, live module readiness checks, an AI assistant for data mapping, and as of this session, full reporting/export capabilities (CSV/Excel/PDF), onboarding email templates, and an embedded customer-facing onboarding portal within Account Settings. 
 
 **Last working item**: 
-    - Last item agent was working: Cleaning up legacy  CSS design tokens (purple/navy gradients) which were bleeding into authenticated modules. Remapped the CSS variables to use Pulse cyan () and Proxima Nova fonts globally. Also explained the location of the email centres to the user.
-    - Status: USER VERIFICATION PENDING
+    - Last item agent was working: Completing Onboarding Phase 5 by registering the backend router for reports/emails/customer portal and building the frontend components (, updating  and ).
+    - Status: COMPLETED
     - Agent Testing Done: Y
-    - Which testing method agent to use? Frontend testing agent (to verify authenticated pages for any remaining hardcoded purple/blue UI elements).
+    - Which testing method agent to use? NA (Already completed).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  None actively pending. The application is in a stable, pre-launch state awaiting final user deployment validation.
+  None
 
 **In progress Task List**: 
-  None actively in progress.
+  None
 
 **Upcoming and Future Tasks**:
-  Task 1: Complete a final sweep of authenticated modules (Operations, Memberships, CRM, Service Desk) to catch any deep components still hardcoding legacy purple/blue colors. (Priority: P1)
-  Task 2: Sicon and Sage ERP integrations for equipment, jobs, and invoices (Scheduled by user for next week). (Priority: P0)
-  Task 3: Stripe integration for membership billing, subscriptions, and quote/invoice payments (Scheduled by user for next week). (Priority: P0)
+  Task 1: Sicon and Sage ERP integrations for equipment, jobs, and invoices (Priority: P0)
+     - Scheduled by user for next week in a previous session.
+  Task 2: Stripe integration for membership billing, subscriptions, and quote/invoice payments (Priority: P0)
+     - Scheduled by user for next week in a previous session.
+  Task 3: Proactive weekly Comms brief (Priority: P2)
+     - Auto-flag at-risk members and quiet B2B accounts, providing 1-click AI reactivation campaign drafts.
 
 **Completed work in this session**:
-  - GitHub repo import & full Python/Node dependency installation (DONE)
-  - Global text replacement from GymAxis to Pulse Fitness AI across DB, frontend, backend, SEO, and emails (DONE)
-  - Clean DB reset and idempotent Master Admin seeding script (DONE)
-  - Master Admin password enforcement, deduplication, and Unlock manual override endpoint (DONE)
-  - Auth iframe stabilization (, Secure cookies) & SW reload loop fix (DONE)
-  - Case-insensitive login email matching (DONE)
-  - Favicons, OG images, and Pulse SVGs generated from raw vectors (DONE)
-  - Marketing Homepage rebrand: black header, Proxima Nova Extra Bold hero text, smooth-scroll hash navigation, matching footer (DONE)
-  - Operator logos imported, formatted to uniform height with transparent backgrounds (DONE)
-  - AI Triage (Operations): Added warranty checks (advises contacting manufacturer if under warranty) (DONE)
-  - Equipment Imports & CAPEX: Added Purchase Cost, Replacement Cost, and Contract dates. CAPEX uses actual imported costs (DONE)
-  - CRM Compare Quotes standalone view by Manufacturer/Model (DONE)
-  - AI Risk Assessments: Re-wired to use GPT-4o Vision for multi-photo hazard analysis. Photos now persist and render on generated PDFs (DONE)
-  - Email Domains: Re-routed Resend configurations for , , , , and  subdomains. (DONE)
-  - Codebase CORS, canonical tags, and  standardized to apex  (DONE)
-  - Design Tokens: Overrode  variables with Pulse Cyan (DONE)
+  - Registered  inside  (DONE)
+  - Created  (DONE)
+  - Updated  to include the Emails tab (DONE)
+  - Updated  to surface the customer-facing onboarding portal (DONE)
+  - Updated  reflecting the completion of the 5-phase Epic (DONE)
 
 **Earlier issues found/mentioned but not fixed**:
-  None. All issues raised by the user (auth lockouts, 7-8 page reloads, missing audit logs, overlapping UI buttons, email domain configs, missing photo AI analysis) have been resolved.
+  None
 
 **Known issue recurrence from previous fork**:
-  - Issue recurrence in previous fork: N/A (Initial session after Github import)
+  - Issue recurrence in previous fork: N/A
   - Recurrence count: 0
   - Status: NOT STARTED
 
@@ -52,78 +44,61 @@
 
 
 **Key Technical Concepts**:
-React.js (Frontend), FastAPI (Backend), MongoDB (Database), TailwindCSS (Styling), JWT + HttpOnly Cookies (Authentication), Service Workers (PWA), Resend (Transactional Emails), Emergent LLM (GPT-4o Vision), Python-magic & Cairosvg (System dependencies).
+React.js, FastAPI, MongoDB (Motor).  required for database IDs. Axios interceptors (HttpOnly cookie for auth).  pattern for FastAPI routers. PDF/CSV/Excel generation uses , , and .
 
 **key DB schema**:
-  - : {email, password_hash, is_master_admin, organization_id, disabled, lockout_until, failed_login_attempts}
-  - : {serial_number, equipment_type, purchase_cost, replacement_cost, contract_number, contract_start_date, contract_end_date, warranty_expiry}
-  - : {title, site_name, hazards, photo_urls}
-  - : {serial_number, fault_type, ai_triage, warranty_active}
-  - : {quote_number, company_id, lines (product_id, quantity, unit_price)}
+  - : { account_type, tier, enabled_modules }
+  - : Singleton collection for settings like .
+  - , 
 
 **changes in tech stack**:
-  - Installed  and  (libmagic) in the backend Linux environment for image generation and file type validation.
+  None in this session.
 
-**All files of reference**:
-  -  (Crucial for managing Master Admin password overrides and DB deduplication upon restarts)
-  -  (Contains the  cookie logic for iframe preview compatibility, and case-insensitive lookup)
-  -  (Houses the heavily overridden  CSS tokens to force Cyan branding)
-  -  (The main marketing site and component assembly)
-  -  (Contains the fallback logic for equipment replacement vs. purchase costs)
-  -  (The integration point for GPT-4o Vision analysis)
-  -  (The routing logic that dictates which Resend subdomain is used for which system action)
+**All files of reference**: 
+  - 
+  - 
+  - 
+  - 
+  - 
 
 **Areas that need refactoring**:
-  The CSS architecture relies heavily on legacy  wrapper classes applied at the route-level. While the variables inside this class have been successfully remapped to Pulse Cyan, a future structural refactor should remove this class entirely and rely on pure global root tokens to prevent any accidental color bleeding.
+  None
 
 **key api endpoints**:
-  -  (Authentication)
-  -  (Manual rate-limit clearing)
-  -  (AI Triage with warranty awareness)
-  -  (Multi-photo Vision AI)
-  -  (New endpoint to compare quotes by Manufacturer + Model)
+  - 
+  - 
 
 **Critical Info for New Agent**:
-  - **Auth & Iframe**: The app runs within Emergent's preview iframe. Auth cookies MUST retain , otherwise the cross-domain context will block the cookie and throw infinite 401s (which previously caused a reload loop).
-  - **Environment Variables**: The system relies heavily on variables managed dynamically by the deployment.  will actively overwrite the Admin password in MongoDB on every server boot using .
-  - **Canonical Domain**: The entire app's SEO and email routing is standardized to the apex domain .
-  - **Testing React StrictMode**: React StrictMode is ON in development. Playwright testing agents may misinterpret StrictMode's double-mounting as a redirect loop. Ensure you log true frame navigations.
+  - **Epic Complete**: The massive 5-phase onboarding epic is completely finished. The next major focus should be either Stripe integration or Sicon/Sage ERP integration. 
+  - **Integrations**: When starting Stripe or ERP integrations, you **MUST** use the  tool first. Note that a Stripe test key is already available in the pod environment folder.
+  - **Auth & API Calls**: The app relies on an **HttpOnly cookie** for its primary session. Always use  (which has  globally configured). Raw  commands will fail with 401s in production.
+  - **Testing Quirk**: The screenshot tool occasionally hangs on a Loading... screen for the master-admin bundle due to a CSP block involving third-party analytics in the test harness. The application itself compiles and works perfectly. The previous agent successfully validated the UI using direct python Playwright scripts. 
 
 **documents and test reports created in this job**:
-  - 
-  - 
+  -  (Updated)
   - 
 
 **Last 10 User Messages and any pending HUMAN messages**:
-  1. *p2 - b* (Requested CRM quote comparison to match by manufacturer + model) - COMPLETED
-  2. *Operations - Audit and improve AI Risk Assessments... We can only add 1 photo when i believe we should be ale to load multiplt* - COMPLETED
-  3. *Would you like me to also wire this same vision analysis into the QR-code fault triage photo... continue* - COMPLETED
-  4. *Domains - These domains have now been set on Resend - Please apply them to the relevant modules.* - COMPLETED
-  5. *Support and billing have been verified* - COMPLETED
-  6. *As a founder analyse the platform and evaluate if it is ready for deployment... Ignore Stripe, Sicon and Sage integrations for now* - COMPLETED
-  7. *Complete p0* - COMPLETED
-  8. *frontend_url= https://[apex] which is correct?* - COMPLETED (Standardized to apex)
-  9. *continue with founder roadmap* - COMPLETED (CORS & security implemented)
-  10. *Pulse Fitness Portal - Master Admin - Pulse Fitness has a mixture of the old Gym Axis branding colours... Where is the email centre?* - COMPLETED (Tokens fixed, locations explained)
+  1. *[Agent asked where to embed the customer portal and whether to proceed with Phase 5 or Stripe]* -> User replied: Within account settings - Onboarding and phase 5 (COMPLETED).
 
 **Project Health Check**:
   - Broken: None
-  - Mocked: Stripe, Sicon, and Sage ERP functionalities are intentionally excluded/mocked right now, planned for integration by the user next week.
+  - Mocked: Stripe, Sicon, Sage ERP
 
 **3rd Party Integrations**:
-  - OpenAI GPT-4o Vision — uses Emergent LLM Key (Wired into Risk Assessments & Triage)
-  - Resend (Emails) — requires User API Key (Wired heavily across all domains)
-  - Stripe (Payments) — requires User API Key (Pending)
-  - Sicon / Sage (ERP) — requires User API Key (Pending)
+  - OpenAI GPT-4o (Emergent LLM Key)
+  - Resend (User API Key)
+  - Stripe (Payments) — (Pending / Requires User API Key / Test key in pod env)
+  - Sicon / Sage (ERP) — (Pending / Requires User API Key)
 
 **Testing status**:
   - Testing agent used after significant changes: YES
-  - Troubleshoot agent used after agent stuck in loop: YES (Used to debug iframe cookie blocking and SW controllerchange reload loops)
-  - Test files created: []
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: 
   - Known regressions: None
 
 **Credentials to test flow**:
-  Check . (Master Admin:  / ). 
+  Master Admin credentials can be found at .
 
 **What agent forgot to execute**:
-  Nothing was overlooked. Integrations for Stripe, Sage, and Sicon were explicitly delayed to next week by the user.</analysis>
+  Nothing. The assigned task was fully completed and thoroughly verified.</analysis>

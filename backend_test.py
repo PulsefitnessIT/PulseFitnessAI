@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 class PulseFitnessProductionTest:
-    def __init__(self, base_url="https://pulse-staging-10.preview.emergentagent.com"):
+    def __init__(self, base_url="https://admin-setup-portal.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.token = None

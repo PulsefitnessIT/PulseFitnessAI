@@ -43,7 +43,7 @@ PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
 
 # Run the suite against the preview environment
 PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
-E2E_BASE_URL="https://pulse-staging-10.preview.emergentagent.com" \
+E2E_BASE_URL="https://admin-setup-portal.preview.emergentagent.com" \
   yarn test:mobile-regression
 ```
 

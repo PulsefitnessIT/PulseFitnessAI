@@ -16,7 +16,7 @@ import uuid
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = 'https://pulse-staging-10.preview.emergentagent.com'
+    BASE_URL = 'https://admin-setup-portal.preview.emergentagent.com'
 
 
 class TestEngineerEquipmentAPI:
