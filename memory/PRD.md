@@ -1,3 +1,25 @@
+## Onboarding Epic — PHASE 5 (Reports, Emails, Customer Portal) ✅ (Jun 24, 2026)
+
+**Closes the massive Onboarding Epic (Phases 1–5 all shipped).** Customer-portal location chosen by user: inside **Account Settings → Onboarding**.
+
+**Done & verified (backend 17/17 pytest @ public URL; frontend verified via direct Playwright + screenshot — Reports tab, exports, portal toggle, Emails tab all render with no page errors):**
+- **Registered** the pre-written `onboarding_phase5_router` in `route_registry/admin.py` (endpoints were dead until now).
+- **Reports & exports** (`routes/onboarding_phase5.py`): `GET /api/onboarding/reports` (summary: total/completed/go_live_success_rate, by_status/type/owner, imports_run, rows[]); `GET /api/onboarding/reports/export?format=csv|excel|pdf` (CSV via csv, XLSX via openpyxl, PDF via reportlab — all 200, pdf starts %PDF; bogus→400). Master-admin gated.
+- **Onboarding email templates**: 8 templates (welcome, request_missing_info, user_invitation, go_live_prep, go_live_complete, onboarding_delayed, data_issue, training_reminder). `GET /onboarding/email-templates`, `POST .../render` (merge-tag substitution from project profile + progress), `POST .../send` (Resend via `utils/email.send_email`, kind=onboarding, org-scoped branding, audit event). 404s on unknown template/project.
+- **Customer portal** (org-user facing, gated by `onboarding_settings.customer_portal_enabled`): `GET /onboarding/portal/me` (403 disabled / 404 no-org-or-project / 200 with customer-friendly checklist), `PATCH /onboarding/portal/me/steps/{id}` (customers may set only in_progress|ready_for_review|complete).
+- **Frontend**:
+  - New `pages/MasterAdmin/OnboardingReports.js` — Reports sub-tab in the Onboarding Hub: summary stat cards, CSV/Excel/PDF export (axios blob download), by-status/type/owner breakdown bars, all-projects table, and the **customer-portal toggle** (`PATCH /onboarding/settings`).
+  - `AdminOnboardingHub.js` — added "Reports" sub-tab under Manage.
+  - `OnboardingProjects.js` — added **Emails** tab to the project detail sheet (template picker → live preview → send to contact).
+  - `components/shared/AccountSettings/onboarding.js` — added `CustomerPortalPanel` at top of the Onboarding section: org users see their onboarding checklist + can mark steps in_progress/ready_for_review/complete (only shows when portal enabled and an active project is linked to their org).
+
+**Note:** master-admin SPA chunk shows a long "Loading…" under the screenshot-tool harness (CSP blocks the harness's own injected script) — NOT a product bug; verified working via direct Playwright (renders ADMIN CONSOLE + all Phase-5 testids).
+
+**Next (P0, user previously scheduled "next week"):** Stripe (membership billing/subscriptions/quote-invoice payments); Sicon & Sage ERP (equipment/jobs/invoices). **P2:** proactive weekly "Comms brief".
+
+---
+
+
 ## Comms — Open/click tracking + conversion pipeline (Jun 23, 2026) ✅
 
 Verified end-to-end (curl + UI): open pixel → opened+1; click → clicked+1, redirect, click-map populated; conversion logged → attributed → analytics shows count/rate/£revenue/by-type.
