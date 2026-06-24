@@ -291,8 +291,25 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
   const [profile, setProfile] = useState(project.profile || {});
   const [savingProfile, setSavingProfile] = useState(false);
   const [goingLive, setGoingLive] = useState(false);
+  const [readiness, setReadiness] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const p = project;
   const tLabel = (types.find((t) => t.id === p.customer_type) || {}).label || p.customer_type;
+
+  useEffect(() => {
+    axios.get(`${API}/onboarding/projects/${p.id}/readiness`).then((r) => setReadiness(r.data)).catch(() => {});
+  }, [p.id]);
+
+  const syncReadiness = async () => {
+    setSyncing(true);
+    try {
+      const { data } = await axios.post(`${API}/onboarding/projects/${p.id}/readiness/sync`);
+      setReadiness(data.readiness);
+      notify.success('Synced from live data', data.advanced.length ? `${data.advanced.length} step(s) auto-completed.` : 'Checklist already up to date.');
+      onChanged(data.project);
+    } catch (e) { notifyApiError(notify, e, 'Could not sync readiness'); }
+    finally { setSyncing(false); }
+  };
 
   const groups = (p.checklist || []).reduce((acc, s) => { (acc[s.group] = acc[s.group] || []).push(s); return acc; }, {});
 
@@ -339,7 +356,7 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
         </div>
 
         <div className="flex gap-1 mt-5 border-b border-zinc-200">
-          {[['checklist', 'Checklist'], ['profile', 'Business profile'], ['golive', 'Go-live']].map(([id, label]) => (
+          {[['checklist', 'Checklist'], ['readiness', 'Module readiness'], ['profile', 'Business profile'], ['golive', 'Go-live']].map(([id, label]) => (
             <button
               key={id} onClick={() => setTab(id)}
               data-testid={`onb-detail-tab-${id}`}
@@ -378,6 +395,50 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === 'readiness' && (
+          <div className="mt-4 space-y-4" data-testid="onb-readiness">
+            {!p.organization_id ? (
+              <Card className="p-5 text-sm text-amber-700 bg-amber-50 border-amber-200">
+                Link this project to an organisation to compute live module readiness.
+              </Card>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-zinc-500">
+                    {readiness ? `${readiness.ready_count}/${readiness.total_areas} modules ready` : 'Checking live data…'}
+                  </p>
+                  <Button size="sm" variant="outline" onClick={syncReadiness} disabled={syncing} data-testid="onb-readiness-sync">
+                    {syncing ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Sparkles size={14} className="mr-1.5" />} Sync checklist from live data
+                  </Button>
+                </div>
+                {(readiness?.areas || []).map((a) => (
+                  <Card key={a.area} className="p-4" data-testid={`onb-readiness-${a.area}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`h-2.5 w-2.5 rounded-full ${a.ready ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                      <span className="font-semibold text-sm text-zinc-800">{a.label}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${a.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {a.ready ? 'Ready' : 'Not ready'}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {a.checks.map((c) => (
+                        <div key={c.key} className="flex items-center gap-2 text-sm" data-testid={`onb-check-${a.area}-${c.key}`}>
+                          {c.ok ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertTriangle size={14} className="text-amber-400" />}
+                          <span className="flex-1 text-zinc-700">{c.label}{!c.required && <span className="text-[10px] text-zinc-400 ml-1">(optional)</span>}</span>
+                          <span className="text-xs text-zinc-500 tabular-nums">{c.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+                {readiness && readiness.areas.length === 0 && (
+                  <p className="text-sm text-zinc-500">No module readiness areas apply to this customer type / module selection.</p>
+                )}
+              </>
+            )}
           </div>
         )}
 
