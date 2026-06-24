@@ -473,16 +473,23 @@ const MasterAdminPage = ({ _onBack }) => {
       case 'design-system-legacy':
         return <BrandingDesignPanel initialTab="design" showDesignSystem={!isPulseAdmin} />;
       case 'onboarding':
-        return <AdminOnboardingHub API={API} onComplete={(orgId) => {
-          // Iter 216f — drop directly into the org edit drawer for the
-          // freshly-created org so the operator can immediately add
-          // per-site users without hunting through the org list.
-          setSection('organizations');
-          if (orgId) {
-            // The list page reads `?expand=<id>` from the URL on mount.
-            try { window.history.replaceState({}, '', `/master-admin/organizations?expand=${orgId}&view=users`); } catch { /* noop */ }
-          }
-        }} />;
+      case 'staff-onboarding':
+        // P2 SSoT — unified Onboarding hub. Customer flows (site, head
+        // office, packets, bulk imports) + Team flow (staff invite) live
+        // in one place. `staff-onboarding` deep-link opens the staff tab.
+        return <AdminOnboardingHub
+          API={API}
+          isPulseAdmin={isPulseAdmin}
+          initialTab={section === 'staff-onboarding' ? 'staff' : 'site'}
+          onComplete={(orgId) => {
+            // Drop directly into the org edit drawer for the freshly-created
+            // org so the operator can immediately add per-site users.
+            setSection('organizations');
+            if (orgId) {
+              try { window.history.replaceState({}, '', `/master-admin/organizations?expand=${orgId}&view=users`); } catch { /* noop */ }
+            }
+          }}
+        />;
       case 'trials':
         return <AdminTrials />;
       case 'tasks':
@@ -580,10 +587,7 @@ const MasterAdminPage = ({ _onBack }) => {
         // Organisations group (sites still belong to one org — SSoT
         // preserved). Row click jumps to the parent org's Sites drawer.
         return <AdminAllSites isPulseAdmin={isPulseAdmin} />;
-      case 'staff-onboarding':
-        // Iter 216h24 — P6. 5-step wizard for inviting new staff /
-        // admins. Reuses the iter-216h15 reset-link flow so the
-        // master admin never sees plaintext passwords.
+      case 'staff-onboarding-legacy':
         return <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />;
       default:
         return null;

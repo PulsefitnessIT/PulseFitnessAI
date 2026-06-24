@@ -46,7 +46,6 @@ export const SIDEBAR_ITEMS = [
     id: 'roles', label: 'People', icon: Users, group: 'main',
     subTabs: [
       { id: 'roles',          label: 'Directory',         icon: Users },
-      { id: 'staff-onboarding', label: 'Onboard staff',   icon: Rocket },
       { id: 'locked-staff',   label: 'Site-locked users', icon: Lock },
     ],
   },
@@ -64,7 +63,7 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'organizations',     label: 'List',                  icon: Building },
       { id: 'all-sites',         label: 'All sites',             icon: MapPin },
-      { id: 'onboarding',        label: 'Customer onboarding',   icon: Rocket },
+      { id: 'onboarding',        label: 'Onboarding',            icon: Rocket },
       { id: 'estate-rollup',     label: 'Module subscriptions',  icon: BarChart3 },
       { id: 'activation-funnel', label: 'Customer activation',   icon: TrendingUp },
     ],
@@ -200,6 +199,7 @@ export const SECTION_TO_GROUP = (() => {
   // correct nav entry and render the group's sub-tab bar.
   map['audit-logs'] = 'compliance-security';   // → merged into 'audit-log' (Audit & compliance)
   map['design-system'] = 'platform-tools';     // → merged into 'theme-settings' (Branding & design)
+  map['staff-onboarding'] = 'organizations';   // → folded into the unified Onboarding hub (staff tab)
   return map;
 })();
 
@@ -301,7 +301,8 @@ export const sectionTitles = {
   'sicon-integration': 'Sicon Service',
   'integrations-hub': 'Integrations hub',
   roles: 'People directory',                    // Iter 216h17 — was "Roles & Access"
-  'staff-onboarding': 'Onboard staff',
+  'staff-onboarding': 'Onboarding',
+  onboarding: 'Onboarding',
   'stripe-connect': 'Stripe Connect',
   support: 'Support tools',
   emails: 'Outbound emails',
@@ -363,7 +364,8 @@ export const sectionDescriptions = {
   communications: 'Every sales enquiry from the public marketing site — triage, reply via Resend, attach internal notes.',
   'canned-replies': 'Manage the global library of reusable reply templates surfaced in the Communications inbox composer.',
   roles: 'Pulse Admins · Customer Owners · Customer Staff · CRM contacts — all in one directory.',
-  'staff-onboarding': '5-step wizard to invite a new platform admin or org-scoped staff member. Generates a 72h invite link — the user sets their own password.',
+  'staff-onboarding': 'Unified onboarding hub — provision customer sites, head offices, packets & bulk imports, plus invite team members.',
+  onboarding: 'Unified onboarding hub — provision customer sites, head offices, packets & bulk imports, plus invite team members.',
   'stripe-connect': 'Connect Pulse Fitness to Stripe via OAuth, tune the platform fee, preview profit per customer',
   support: 'Tools for customer support',
   emails: 'Outbound email audit trail',

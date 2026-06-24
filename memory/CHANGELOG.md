@@ -557,3 +557,9 @@ End-user E2E audit (testing agent + manual verification):
 - Split **Settings & Compliance (14 sub-tabs)** → **Compliance & Security** (Audit & compliance, Login events, Access matrix, Data Subject Erasure, Documents, Archive) + **Platform Tools** (Branding & design, Custom domains, Client crashes, Ask Support Desk, Support tools, Database viewer, Pulse data explorer, Maintenance jobs).
 - Section render switch unchanged (sub-tab ids preserved) → all deep-links intact. SECTION_TO_GROUP legacy mappings repointed (audit-logs→compliance-security, design-system→platform-tools). Added group titles/descriptions for the 4 new groups.
 - Verified live: 4 new nav groups render, old groups gone, Platform Tools lands on Branding & design. Compiles clean.
+
+## 2026-06-24 — Master Admin P2: unified Onboarding hub
+- Folded staff onboarding into `AdminOnboardingHub` as a 6th tab, grouped under "Team"; the 5 customer flows (Onboard Site, Head Office, Packets, Bulk Imports, MOD Sites) sit under "Customers".
+- Removed the separate "Onboard staff" entry from People; renamed Organisations "Customer onboarding" → "Onboarding" (single home for customers + team).
+- MasterAdminPage: `onboarding` + `staff-onboarding` both render the hub; `staff-onboarding` deep-link opens the staff tab (initialTab). SECTION_TO_GROUP['staff-onboarding']='organizations' for correct highlight. Hub now takes isPulseAdmin + initialTab props.
+- Verified live: hub renders grouped Customers/Team tabs, staff deep-link opens staff wizard, People cleaned up, compiles clean.
