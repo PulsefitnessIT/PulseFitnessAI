@@ -480,7 +480,7 @@ const MasterAdminPage = ({ _onBack }) => {
         return <AdminOnboardingHub
           API={API}
           isPulseAdmin={isPulseAdmin}
-          initialTab={section === 'staff-onboarding' ? 'staff' : 'site'}
+          initialTab={section === 'staff-onboarding' ? 'staff' : 'dashboard'}
           onComplete={(orgId) => {
             // Drop directly into the org edit drawer for the freshly-created
             // org so the operator can immediately add per-site users.

@@ -568,3 +568,12 @@ End-user E2E audit (testing agent + manual verification):
 - AdminBulkImports.downloadTemplate used raw fetch + localStorage token (absent/stale in prod; real session is HttpOnly cookie) → 401 "Template fetch failed".
 - Switched to axios withCredentials + responseType:'blob' so the session cookie carries auth and the 401-refresh interceptor applies.
 - Verified live (preview): sites-template.csv downloads, success toast, no error. Needs deploy to reach production.
+
+## 2026-06-24 — Onboarding system Phase 1: orchestration backbone
+- New backend `routes/onboarding_projects.py` (registered in route_registry/admin.py). Collections: onboarding_projects, onboarding_audit_events, onboarding_settings. Thin tracking layer over existing records — references organization_id, NEVER duplicates orgs/sites/users/etc. Duplicate-guard: one active project per org.
+- Endpoints (/api/onboarding/*, pulse/master gated): customer-types, projects CRUD, checklist step PATCH, go-live approve (blocks if required steps incomplete + generates summary), dashboard aggregate, settings singleton (customer_portal_enabled), audit trail on every action.
+- 9 customer types with progressive-disclosure checklist (build_checklist) — multi-site shows hierarchy/regional managers; modules drive contacts/members/assets/service-desk steps; required vs optional; 7 statuses.
+- Frontend `OnboardingProjects.js`: dashboard stat cards + common-missing, project list w/ progress bars + status badges, create dialog (type + modules + owner + go-live), detail Sheet (Checklist grouped by phase w/ per-step status + Open→wizard launch, Business profile form w/ all spec fields, Go-live readiness + approve).
+- Integrated into AdminOnboardingHub as new "Manage → Dashboard" tab; Onboarding section now lands here. Existing wizards (Customers/Team) untouched.
+- Verified: backend curl (create/dashboard/types), live screenshot (dashboard, list, detail, grouped checklist render). Test project cleaned up.
+- NEXT: Phase 2 unified Import Centre, Phase 3 module readiness, Phase 4 AI assist (GPT-4o), Phase 5 customer portal + emails + reporting.

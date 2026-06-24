@@ -92,6 +92,7 @@ from routes.postcodes import router as postcodes_router
 from routes.mod_bulk_import import router as mod_bulk_import_router
 from routes.mod_demo_seed import router as mod_demo_seed_router
 from routes.pulse_sales import router as pulse_sales_router
+from routes.onboarding_projects import router as onboarding_projects_router
 
 
 def register_admin(api_router: APIRouter) -> None:
@@ -169,6 +170,7 @@ def register_admin(api_router: APIRouter) -> None:
         companies_house_router,
         postcodes_router,
         pulse_sales_router,
+        onboarding_projects_router,
         public_quote_router,
         public_demo_request_router,
     ):

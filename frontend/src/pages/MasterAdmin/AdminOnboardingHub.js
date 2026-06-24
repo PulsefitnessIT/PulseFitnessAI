@@ -2,11 +2,13 @@
  * Master Admin — Onboarding Hub
  *
  * Single source of truth for ALL onboarding — customers and team.
+ * Manage: project Dashboard (tracks every onboarding, checklist, go-live).
  * Customers: Onboard Site, Head Office (multi-site), Packets, Bulk Imports,
  * MOD Sites. Team: Onboard Staff (invite + role assignment).
  */
-import { useState } from 'react';
-import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard } from 'lucide-react';
 
 import PulseOnboardingWizard from '../PulseOnboardingWizard';
 import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
@@ -14,25 +16,40 @@ import AdminOnboardingPackets from './AdminOnboardingPackets';
 import AdminBulkImports from './AdminBulkImports';
 import MODBulkImport from './MODBulkImport';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
+import OnboardingProjects from './OnboardingProjects';
+
+const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const TABS = [
+  { id: 'dashboard',    group: 'Manage',    label: 'Dashboard',           icon: LayoutDashboard, description: 'Track every customer onboarding — progress, checklist, missing data and go-live readiness in one place.' },
   { id: 'site',         group: 'Customers', label: 'Onboard Site',        icon: Building2,       description: 'Step-through wizard for a single brand-new customer site.' },
   { id: 'head-office',  group: 'Customers', label: 'Head Office (multi-site)', icon: Building,   description: 'Create a corporate Head Office and N sites under it in one pass — for chains and multi-location operators.' },
   { id: 'packets',      group: 'Customers', label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
-  { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of equipment and customers.' },
+  { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of sites, equipment and customers.' },
   { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (bulk)',    icon: ShieldCheck,     description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
   { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
 ];
 
-const GROUPS = ['Customers', 'Team'];
+const GROUPS = ['Manage', 'Customers', 'Team'];
 
-const AdminOnboardingHub = ({ API, onComplete, isPulseAdmin = false, initialTab = 'site' }) => {
-  const [tab, setTab] = useState(TABS.some((t) => t.id === initialTab) ? initialTab : 'site');
+// Map a checklist step launched from a project to the relevant wizard tab.
+const STEP_TO_TAB = {
+  primary_site: 'site', sites: 'imports', site_hierarchy: 'head-office',
+  assets: 'imports', contacts: 'imports', members: 'imports', primary_users: 'site',
+};
+
+const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initialTab = 'dashboard' }) => {
+  const [tab, setTab] = useState(TABS.some((t) => t.id === initialTab) ? initialTab : 'dashboard');
+  const [types, setTypes] = useState([]);
   const active = TABS.find((t) => t.id === tab) || TABS[0];
+
+  useEffect(() => {
+    axios.get(`${API}/onboarding/customer-types`).then((r) => setTypes(r.data.types || [])).catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-5" data-testid="admin-onboarding-hub">
-      {/* Grouped sub-tab pill bar — Customers vs Team */}
+      {/* Grouped sub-tab pill bar — Manage / Customers / Team */}
       <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-zinc-200 -mt-2">
         {GROUPS.map((grp) => (
           <div key={grp} className="flex flex-col">
@@ -68,11 +85,12 @@ const AdminOnboardingHub = ({ API, onComplete, isPulseAdmin = false, initialTab 
       <p className="text-xs text-zinc-500" data-testid="onboarding-subtab-caption">{active.description}</p>
 
       {/* Active panel */}
+      {tab === 'dashboard'   && <OnboardingProjects types={types} onLaunchWizard={(stepKey) => setTab(STEP_TO_TAB[stepKey] || 'imports')} />}
       {tab === 'site'        && <PulseOnboardingWizard onComplete={onComplete} />}
       {tab === 'head-office' && <HeadOfficeOnboardingWizard onComplete={onComplete} />}
       {tab === 'packets'     && <AdminOnboardingPackets />}
-      {tab === 'imports'     && <AdminBulkImports API={API} />}
-      {tab === 'mod-imports' && <MODBulkImport API={API} />}
+      {tab === 'imports'     && <AdminBulkImports API={_api} />}
+      {tab === 'mod-imports' && <MODBulkImport API={_api} />}
       {tab === 'staff'       && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
     </div>
   );
