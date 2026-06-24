@@ -8,7 +8,7 @@
  */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard } from 'lucide-react';
+import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3 } from 'lucide-react';
 
 import PulseOnboardingWizard from '../PulseOnboardingWizard';
 import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
@@ -17,11 +17,13 @@ import AdminBulkImports from './AdminBulkImports';
 import MODBulkImport from './MODBulkImport';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
 import OnboardingProjects from './OnboardingProjects';
+import OnboardingReports from './OnboardingReports';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const TABS = [
   { id: 'dashboard',    group: 'Manage',    label: 'Dashboard',           icon: LayoutDashboard, description: 'Track every customer onboarding — progress, checklist, missing data and go-live readiness in one place.' },
+  { id: 'reports',      group: 'Manage',    label: 'Reports',             icon: BarChart3,       description: 'Onboarding analytics, go-live success rate, exports (CSV/Excel/PDF) and the customer-portal toggle.' },
   { id: 'site',         group: 'Customers', label: 'Onboard Site',        icon: Building2,       description: 'Step-through wizard for a single brand-new customer site.' },
   { id: 'head-office',  group: 'Customers', label: 'Head Office (multi-site)', icon: Building,   description: 'Create a corporate Head Office and N sites under it in one pass — for chains and multi-location operators.' },
   { id: 'packets',      group: 'Customers', label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
@@ -86,6 +88,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
 
       {/* Active panel */}
       {tab === 'dashboard'   && <OnboardingProjects types={types} onLaunchWizard={(stepKey) => setTab(STEP_TO_TAB[stepKey] || 'imports')} />}
+      {tab === 'reports'     && <OnboardingReports types={types} />}
       {tab === 'site'        && <PulseOnboardingWizard onComplete={onComplete} />}
       {tab === 'head-office' && <HeadOfficeOnboardingWizard onComplete={onComplete} />}
       {tab === 'packets'     && <AdminOnboardingPackets />}

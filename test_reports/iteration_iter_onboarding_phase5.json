@@ -1,0 +1,33 @@
+{
+  "summary": "Tested Onboarding Phase 5 — reports, exports (csv/xlsx/pdf), email templates (list/render/send), settings (customer_portal_enabled, allow-listed), and customer portal (disabled-403, enabled-no-org-404, happy path with org user signup + project link + step PATCH cycle in_progress→ready_for_review→complete). 17/17 backend pytest assertions pass against the public REACT_APP_BACKEND_URL. Trial signup via /auth/register (full_name + company_name, is_trial=false to bypass Turnstile) successfully creates an org user with organization_id. Frontend playwright run could not complete because the SPA Sign-In click did not transition the page off /login under the automation harness (sign-in button click is not progressing the SPA route — likely an automation-tool/SPA interaction quirk, login does work in real browsers per existing iterations). All Phase 5 backend endpoints are wired correctly and respond as specified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Master Admin login (automation only)", "issue": "Under Playwright automation in this run the Sign In click did not navigate away from /login (no error toast on screen, fields cleared). Backend /api/auth/login works fine via requests with the same creds, and prior iterations confirmed the UI works. Likely a Playwright/SPA timing race rather than a product bug — main agent should manually verify the UI Reports tab + exports + Emails tab end-to-end.", "affected_selectors": ["button:has-text('Sign In')"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onboarding_phase5.py",
+    "/app/test_reports/pytest/iter_onboarding_phase5.xml"
+  ],
+  "action_items": [
+    "Main agent: manually verify the Reports sub-tab UI (stat cards onb-report-total/completed/success, onb-report-table, exports onb-export-csv/excel/pdf, onb-portal-toggle) and the project Emails tab (onb-detail-tab-emails → onb-email-template → onb-email-preview → onb-email-to → onb-email-send) — automation could not log in under this harness."
+  ],
+  "critical_code_review_comments": [
+    "onboarding_phase5.py PATCH /onboarding/settings silently drops disallowed keys (good) but returns 200 even when only disallowed keys are sent; consider 400 for empty effective update for clearer client feedback.",
+    "send_template wraps the rendered body in HTML by replacing newlines with white-space:pre-wrap — readable, but no plaintext alt is sent. Resend supports both — passing a plain-text version improves deliverability.",
+    "portal_update_step audit log reads step['key'] but the customer-facing 'steps' response only exposes id/label/group/status/optional. Internal key is fine for audit, just confirming step always has 'key' (it does in build_checklist).",
+    "_progress is reused from onboarding_projects.py — good DRY. Make sure that helper continues to return a 'missing' list of human-readable labels for the email merge tag {missing_list}.",
+    "send_email path uses kind='onboarding' and org_id from project — looks correct for tenant scoping."
+  ],
+  "updated_files": ["/app/backend/tests/test_onboarding_phase5.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "not verified — automation login blocked"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md). Trial org user created dynamically per test run.",
+  "seed_data_creation": "Created two test onboarding projects (prefixed TESTONB5-...) and one trial org user (testonb5_<hex>@example.com); test_zzz_cleanup archives the test projects. Trial user remains but is non-privileged and harmless.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend Phase 5 fully verified at /api/onboarding/reports, /onboarding/reports/export (csv/xlsx/pdf/400-bogus), /onboarding/email-templates (list/render/send incl. 404s and merge-tag substitution), /onboarding/settings (allow-listed PATCH), and /onboarding/portal/me (403/404/200 happy path with step PATCH). Frontend testids for Reports tab (onb-report-total/completed/success/table, onb-export-csv/excel/pdf, onb-portal-toggle) and Emails tab (onb-detail-tab-emails, onb-email-template/preview/to/send) need a manual UI sanity check — automation Sign-In click did not transition the SPA off /login under this harness.",
+  "rca of the issue": "Frontend automation could not progress past /login: the Sign In button click + wait_for_url did not trigger an SPA route change in Playwright (likely a race between cookie-consent overlay and the auth POST + react-router push). Not a product bug — direct backend login via requests succeeds, and prior iterations exercised the same login flow in headed runs. Mitigation: add an explicit data-testid='login-submit' on the Sign In button and wait for /auth/me response before navigating in tests."
+}

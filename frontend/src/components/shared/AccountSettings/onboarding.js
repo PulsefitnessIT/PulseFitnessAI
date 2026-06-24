@@ -1,12 +1,109 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, Rocket, ChevronDown } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 import { useNavigate } from 'react-router-dom';
 import EquipmentImportInline from './EquipmentImportInline';
 import QrPrintInline from './QrPrintInline';
 import StripeConnectErrorBanner from '@/components/shared/StripeConnectErrorBanner';
+
+const PORTAL_STATUSES = [
+  { id: 'in_progress', label: 'In progress' },
+  { id: 'ready_for_review', label: 'Ready for review' },
+  { id: 'complete', label: 'Complete' },
+];
+
+function CustomerPortalPanel() {
+  const headers = useAuthHeaders();
+  const [portal, setPortal] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [savingStep, setSavingStep] = useState(null);
+
+  const load = async () => {
+    try {
+      const { data } = await axios.get(`${API}/onboarding/portal/me`, { headers: headers() });
+      setPortal(data);
+    } catch {
+      setPortal(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const setStep = async (stepId, status) => {
+    setSavingStep(stepId);
+    try {
+      await axios.patch(`${API}/onboarding/portal/me/steps/${stepId}`, { status }, { headers: headers() });
+      await load();
+      toast.success('Step updated');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Could not update step');
+    } finally {
+      setSavingStep(null);
+    }
+  };
+
+  if (loading || !portal) return null;
+
+  const pct = portal.progress?.percent ?? 0;
+  const groups = (portal.steps || []).reduce((acc, s) => { (acc[s.group] = acc[s.group] || []).push(s); return acc; }, {});
+
+  return (
+    <div className="space-y-4 pb-5 mb-5 border-b" style={{ borderColor: 'var(--theme-border)' }} data-testid="customer-onboarding-portal">
+      <div className="flex items-center gap-2">
+        <Rocket size={16} style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} />
+        <div>
+          <h3 className="account-section-title">Your onboarding</h3>
+          <p className="account-section-sub">
+            {portal.progress?.required_complete ?? 0} of {portal.progress?.required_total ?? 0} required steps complete
+            {portal.go_live_target ? ` · go-live target ${String(portal.go_live_target).slice(0, 10)}` : ''}
+          </p>
+        </div>
+      </div>
+      <div className="rounded-full overflow-hidden h-2 w-full" style={{ background: 'var(--theme-border-soft)' }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--brand-color, var(--color-brand-blue))' }} data-testid="portal-progress" />
+      </div>
+      <div className="space-y-4">
+        {Object.entries(groups).map(([grp, steps]) => (
+          <div key={grp}>
+            <p className="text-[10px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{grp}</p>
+            <div className="space-y-1.5">
+              {steps.map((s) => (
+                <div key={s.id} className="account-card rounded-lg p-2.5 flex items-center gap-2" data-testid={`portal-step-${s.id}`}>
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                       style={{ background: s.status === 'complete' ? 'var(--brand-color, var(--color-brand-blue))' : 'transparent', border: s.status === 'complete' ? 'none' : '1.5px solid var(--theme-border)' }}>
+                    {s.status === 'complete' && <Check size={10} color="#FFFFFF" strokeWidth={3} />}
+                  </div>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--theme-text)' }}>
+                    {s.label}{s.optional && <span className="text-[10px] ml-1" style={{ color: 'var(--theme-text-muted)' }}>(optional)</span>}
+                  </span>
+                  <div className="relative flex items-center">
+                    {savingStep === s.id && <Loader2 size={13} className="animate-spin mr-1.5" style={{ color: 'var(--theme-text-muted)' }} />}
+                    <select
+                      value={PORTAL_STATUSES.some((o) => o.id === s.status) ? s.status : ''}
+                      onChange={(e) => setStep(s.id, e.target.value)}
+                      disabled={savingStep === s.id}
+                      className="account-input account-input-sm pr-6 appearance-none"
+                      style={{ width: 140 }}
+                      data-testid={`portal-step-status-${s.id}`}
+                    >
+                      {!PORTAL_STATUSES.some((o) => o.id === s.status) && <option value="" disabled>Update…</option>}
+                      {PORTAL_STATUSES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 pointer-events-none" style={{ color: 'var(--theme-text-muted)' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const headers = useAuthHeaders();
@@ -140,6 +237,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const pct = data?.percent ?? 0;
   return (
     <div className="space-y-5" data-testid="account-section-onboarding">
+      <CustomerPortalPanel />
       <div>
         <h3 className="account-section-title">Setup checklist</h3>
         <p className="account-section-sub">

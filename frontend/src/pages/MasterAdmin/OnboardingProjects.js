@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Rocket, Plus, Building2, AlertTriangle, CheckCircle2, Clock, Users2,
-  ListChecks, X, Loader2, Sparkles, ChevronRight,
+  ListChecks, X, Loader2, Sparkles, ChevronRight, Mail, Send,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -367,7 +367,7 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
         </div>
 
         <div className="flex gap-1 mt-5 border-b border-zinc-200">
-          {[['checklist', 'Checklist'], ['readiness', 'Module readiness'], ['profile', 'Business profile'], ['golive', 'Go-live']].map(([id, label]) => (
+          {[['checklist', 'Checklist'], ['readiness', 'Module readiness'], ['profile', 'Business profile'], ['emails', 'Emails'], ['golive', 'Go-live']].map(([id, label]) => (
             <button
               key={id} onClick={() => setTab(id)}
               data-testid={`onb-detail-tab-${id}`}
@@ -504,6 +504,8 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
           </div>
         )}
 
+        {tab === 'emails' && <EmailsTab project={p} />}
+
         {tab === 'golive' && (
           <div className="mt-4 space-y-4" data-testid="onb-golive">
             {p.go_live?.approved ? (
@@ -541,6 +543,88 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
         )}
       </SheetContent>
     </Sheet>
+  );
+};
+
+// ── Emails tab ─────────────────────────────────────────────────────────────
+const EmailsTab = ({ project }) => {
+  const [templates, setTemplates] = useState([]);
+  const [selected, setSelected] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [to, setTo] = useState(project.profile?.main_contact || '');
+  const [rendering, setRendering] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API}/onboarding/email-templates`).then((r) => setTemplates(r.data.templates || [])).catch(() => {});
+  }, []);
+
+  const pick = async (id) => {
+    setSelected(id);
+    setPreview(null);
+    if (!id) return;
+    setRendering(true);
+    try {
+      const { data } = await axios.post(`${API}/onboarding/email-templates/render`, { template_id: id, project_id: project.id });
+      setPreview(data);
+    } catch (e) { notifyApiError(notify, e, 'Could not render template'); }
+    finally { setRendering(false); }
+  };
+
+  const send = async () => {
+    if (!to.trim() || !to.includes('@')) { notify.error('Recipient required', 'Enter a valid email address.'); return; }
+    setSending(true);
+    try {
+      await axios.post(`${API}/onboarding/email-templates/send`, { template_id: selected, project_id: project.id, to: to.trim() });
+      notify.success('Email sent', `Sent to ${to.trim()}.`);
+    } catch (e) { notifyApiError(notify, e, 'Could not send email'); }
+    finally { setSending(false); }
+  };
+
+  return (
+    <div className="mt-4 space-y-4" data-testid="onb-emails">
+      <div>
+        <Label className="text-xs">Onboarding email</Label>
+        <Select value={selected} onValueChange={pick}>
+          <SelectTrigger data-testid="onb-email-template"><SelectValue placeholder="Choose a template…" /></SelectTrigger>
+          <SelectContent>
+            {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {rendering && <div className="py-6 flex justify-center text-zinc-400"><Loader2 className="animate-spin" /></div>}
+
+      {preview && !rendering && (
+        <Card className="p-4 space-y-3" data-testid="onb-email-preview">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">Subject</p>
+            <p className="text-sm font-medium text-zinc-900">{preview.subject}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold mb-1">Body</p>
+            <pre className="text-xs text-zinc-700 whitespace-pre-wrap font-sans bg-zinc-50 rounded-lg p-3 border border-zinc-100">{preview.body}</pre>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end pt-1">
+            <div className="flex-1">
+              <Label className="text-xs">Send to</Label>
+              <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="contact@customer.com" data-testid="onb-email-to" />
+            </div>
+            <Button onClick={send} disabled={sending} data-testid="onb-email-send">
+              {sending ? <Loader2 size={15} className="mr-1.5 animate-spin" /> : <Send size={15} className="mr-1.5" />} Send
+            </Button>
+          </div>
+          <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Mail size={11} /> Sent via Resend with Pulse Fitness branding. Recorded in the project audit trail.</p>
+        </Card>
+      )}
+
+      {!selected && (
+        <Card className="p-8 text-center" data-testid="onb-emails-empty">
+          <Mail size={24} className="mx-auto text-zinc-300 mb-2" />
+          <p className="text-sm text-zinc-500">Pick a template to preview a personalised onboarding email for {project.customer_name}.</p>
+        </Card>
+      )}
+    </div>
   );
 };
 
