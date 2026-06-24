@@ -34,6 +34,18 @@ axios.defaults.withCredentials = true;
     async (error) => {
       const cfg = error?.config;
       const status = error?.response?.status;
+      // Iter — turn the AI-gate 403 into a conversion prompt. Any AI
+      // endpoint a Lite user hits returns this specific detail; we surface
+      // an event the operations dashboard listens for to pop the Upgrade tab.
+      if (status === 403) {
+        const detail = error?.response?.data?.detail;
+        if (typeof detail === 'string' && detail.includes('AI features are available on Pulse Pro')) {
+          try {
+            window.dispatchEvent(new CustomEvent('pulse:ai-upgrade-required', { detail: { message: detail } }));
+          } catch { /* ignore */ }
+        }
+        return Promise.reject(error);
+      }
       if (!cfg || status !== 401) return Promise.reject(error);
       const url = String(cfg.url || '');
       // Only proxy operator-side `/api/*` calls. Skip auth endpoints

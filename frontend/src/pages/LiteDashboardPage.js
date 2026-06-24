@@ -715,6 +715,26 @@ const LiteDashboardPage = () => {
     }
   }, [activeTab, opsTabKey, TABS]);
 
+  // Pop the Upgrade tab when a Lite user trips an AI-gated endpoint. The
+  // backend returns a 403 the global axios interceptor turns into this
+  // event — every stray AI call becomes a conversion prompt instead of a
+  // dead-end error.
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e?.detail?.message || 'AI features are available on Pulse Pro.';
+      const hasUpgradeTab = TABS.some((tab) => tab.id === 'upgrade');
+      if (hasUpgradeTab) {
+        setActiveTab('upgrade');
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { /* no-op */ }
+        notify.info('Unlock AI with Pulse Pro', msg, { duration: 7000 });
+      } else {
+        notify.info('Pulse Pro feature', `${msg} Ask your owner to upgrade.`, { duration: 7000 });
+      }
+    };
+    window.addEventListener('pulse:ai-upgrade-required', handler);
+    return () => window.removeEventListener('pulse:ai-upgrade-required', handler);
+  }, [TABS]);
+
   // Auto-scroll the active pill into view when tab changes (e.g. via bottom nav)
   React.useEffect(() => {
     if (!pulsePillBarRef.current) return;

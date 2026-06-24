@@ -537,3 +537,8 @@ End-user E2E audit (testing agent + manual verification):
 - NOT gated (intentional): /gym-health-score (computed metric, not generative AI), /help/ask & /ask (platform support, all tiers).
 - Verified vs real DB: lite→403, pulse_pro→allow, lite+active-trial→allow, master→allow. Master-admin live curl on /issues/triage & /documents/ask → 200 (no Pro regression).
 - Incidental fix: removed pre-existing trailing corruption in routes/issues.py (stray `rue)` + duplicate return at EOF) that blocked py_compile.
+
+## 2026-06-24 — AI-gate 403 → in-app upgrade conversion prompt
+- Global axios response interceptor (App.js) detects the AI-gate 403 (detail contains "AI features are available on Pulse Pro") and dispatches `pulse:ai-upgrade-required`.
+- LiteDashboardPage listens: if the Upgrade tab exists (non-staff Lite) → switches to it + scrolls top + info toast "Unlock AI with Pulse Pro"; staff get a toast asking the owner to upgrade.
+- Verified live (admin ?view=lite): dispatching the event flips to the upgrade tab, shows the toast, CTA present. Frontend compiles clean.
