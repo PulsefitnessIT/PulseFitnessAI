@@ -1,3 +1,33 @@
+# ═══ 2026-06-24 · BUGFIXES · Large invoice upload + Org add-site false 401 (both VERIFIED) ═══
+Two production bugs reported by Master Admin:
+1. **Large invoice upload "Network Error"** — the platform proxy enforces a 2MB request-body limit
+   (413 'Request body exceeds 2097152 bytes' → browser Network Error). A 9.3MB invoice failed.
+   FIX: chunked uploads. New backend endpoints in `routes/equipment_import.py`:
+   `POST /api/equipment-import/parse-invoice/chunk` (≤2MB slices) → `POST …/parse-invoice/finalize`
+   (returns a job_id, runs extraction in a DECOUPLED asyncio background task so a client disconnect /
+   gateway timeout can't cancel it) → `GET …/parse-invoice/status/{job_id}` (poll). Frontend helper
+   `src/lib/uploadInvoice.js` (`uploadInvoiceSmart`) auto-chunks files >1.5MB then polls; wired into
+   `PulseOnboardingWizard.js` and `InvoiceImportWizard.js`. VERIFIED: 9.3MB PDF → 6 chunks all 200,
+   finalize 200+job_id, background job done in ~105s, equipment_count=176.
+2. **Org add-site "Save failed (401)" but it saved** — `OrgSitesPanel.submitNewSite` ran the POST and
+   the follow-up refresh GET in the SAME try/catch; a transient 401 on the refresh surfaced as a false
+   'Failed to create site'. FIX: only the POST is in the try/catch (success toast + optimistic
+   `setSites` from the POST response); the refresh `loadSites()` is in its own isolated try/catch that
+   swallows errors. VERIFIED end-to-end via Playwright (POST 200, success toast, new row, no false error).
+
+Both were reported on PRODUCTION (pulsefitness.ai) — fixes are in PREVIEW and need a redeploy to go live.
+
+Tier reference (asked by user): Pulse Fitness AI — Starter (CRM+Memberships+basic ops), Professional
+(+Service Desk+AI triage+Sage outbox), Enterprise (multi-site, audit, SSO, custom SLA). Pulse — Lite
+(equipment+faults+docs), Pro (full platform+AI+reports).
+
+STILL OUTSTANDING (feature requests, not yet built): (a) CSV/spreadsheet import + template download in
+the Onboard-Site wizard (note: OrgSitesPanel already has CSV import+template); (b) option to attach a
+new onboarded site to a Head Office org.
+
+────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06-24 · BUGFIX · Onboarding "errors everywhere" = overlay click-interception ═══
 Master Admin reported errors throughout the Onboarding hub (buttons/downloads/uploads). Backend was
 100% healthy (all endpoints 200) — the real cause was UI overlay click-interception: `CookieConsent.js`
