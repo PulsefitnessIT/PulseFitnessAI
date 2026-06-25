@@ -1,3 +1,40 @@
+# ═══ 2026-06-25 · FEATURE · Onboard-Site wizard: CSV/XLSX import + "Add to Head Office" (VERIFIED) ═══
+Two requested features added to the Master Admin Onboard-a-Site wizard (`PulseOnboardingWizard.js`).
+
+1. **CSV/XLSX equipment import + template download** in the invoice step.
+   - NEW backend `POST /api/equipment-import/parse-spreadsheet` (equipment_import.py) — parses a CSV/XLSX
+     (via shared `utils/spreadsheet_import.iter_rows`+`normalise_row`+`parse_date_cell`) into a
+     `pending_review` `equipment_imports` record and returns the SAME shape as `/parse-invoice`
+     (import_id + equipment[]), so spreadsheet rows flow through the identical review → `/confirm` path
+     in ALL three modes. No equipment is created at parse time. Handles UK dd/mm/yyyy + ISO + Excel-serial dates.
+   - `confirm_import` now only writes an invoice `files` doc when `invoice_storage_path` is set (so
+     spreadsheet imports don't create phantom file records).
+   - Template download reuses `GET /api/master-admin/bulk-import/templates/equipment`.
+   - Frontend: `InvoiceUploadStep` gained a spreadsheet section (`onboard-spreadsheet-section`,
+     `onboard-download-template`, `onboard-spreadsheet-upload`/`-input`). Merge logic refactored into a
+     shared `mergeResult(data, filename)` used by both PDF (`parseAndMerge`) and CSV (`processSpreadsheet`)
+     paths. Equipment mapper now uses `eq.name || eq.model`.
+
+2. **"Add to Head Office" mode** — attach a NEW branch site under an existing Head Office org.
+   - NEW backend `GET /api/master-admin/head-offices` (master_admin_orgs.py) — lists Pulse-visible orgs
+     that have an `is_head_office` site, with org id/name + branch count, for the picker.
+   - Frontend: third mode card `onboard-mode-head-office` + HQ picker (`onboard-ho-list`/`onboard-ho-{id}`);
+     steps = choose → invoice → Branch Site → equipment → review (no Users step). `handleCreate` creates
+     the branch via `POST /api/master-admin/organizations/{org_id}/sites` (is_head_office:false), then
+     confirms each import into that org with `site_id=<new branch>` so equipment is correctly site-tagged.
+   - Success screen shows "Branch Site Added".
+   - Mode-switch guard `handleSetMode` clears uploaded equipment/aiData/selectedOrg when the operator
+     changes mode after uploading (fixes a QA-found count carry-over).
+
+VERIFIED: backend pytest 4/4 (`tests/test_onboarding_csv_ho.py`) + curl (parse-spreadsheet, head-offices,
+full attach flow tags equipment with branch site_id) + frontend Playwright 100% (all 3 mode cards, CSV
+upload, template download, HO attach success). ESLint clean. P3 backlog: split the ~1180-LoC wizard into
+per-step components.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-24 · BUGFIXES · Large invoice upload + Org add-site false 401 (both VERIFIED) ═══
 Two production bugs reported by Master Admin:
 1. **Large invoice upload "Network Error"** — the platform proxy enforces a 2MB request-body limit

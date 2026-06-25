@@ -940,6 +940,18 @@ const PulseOnboardingWizard = ({ onComplete }) => {
   const next = () => { if (validate()) setStep(s => Math.min(s + 1, maxStep)); };
   const back = () => setStep(s => Math.max(s - 1, 0));
 
+  // Clear any previously-uploaded invoices/equipment when the operator
+  // switches mode after uploading, so counts can't carry over between
+  // a New Site / Existing / Head Office run.
+  const handleSetMode = (m) => {
+    if (m !== mode) {
+      setAiData(null);
+      setSelectedOrg(null);
+      setForm(f => ({ ...f, equipment: [], site_name: '', account_ref: '', supplier_name: '', install_date: '' }));
+    }
+    setMode(m);
+  };
+
   const handleCreate = async () => {
     setCreating(true);
     try {
@@ -1156,7 +1168,7 @@ const PulseOnboardingWizard = ({ onComplete }) => {
       </div>
 
       {/* Step content */}
-      {currentStepId === 'choose' && <ChooseModeStep mode={mode} setMode={setMode} tier={tier} setTier={setTier} orgs={orgs} selectedOrg={selectedOrg} setSelectedOrg={setSelectedOrg} headOffices={headOffices} />}
+      {currentStepId === 'choose' && <ChooseModeStep mode={mode} setMode={handleSetMode} tier={tier} setTier={setTier} orgs={orgs} selectedOrg={selectedOrg} setSelectedOrg={setSelectedOrg} headOffices={headOffices} />}
       {currentStepId === 'invoice' && <InvoiceUploadStep aiData={aiData} setAiData={setAiData} form={form} setForm={setForm} mode={mode} headers={headers} />}
       {currentStepId === 'site' && <SiteDetailsStep form={form} setForm={setForm} mode={mode} tier={tier} />}
       {currentStepId === 'users' && <UsersStep form={form} setForm={setForm} />}
