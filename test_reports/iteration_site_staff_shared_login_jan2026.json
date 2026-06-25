@@ -1,0 +1,49 @@
+{
+  "summary": "Backend Site Staff Shared Login feature works end-to-end (15/15 pytest cases pass). Frontend shared-login Operations dashboard and Log a Fault dialog open correctly, but the mandatory 'Who is logging this fault?' reporter block does NOT render in the dialog for the shared-login user — making fault submission impossible via UI (backend correctly returns 400 without reporter_staff_id).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LiteDialogs.js → Log a Fault dialog",
+        "issue": "When logged in as the shared site login (demo-head-office), the dialog does NOT show the mandatory '[data-testid=\"lite-fault-reporter\"]' block (and therefore no '[data-testid=\"lite-fault-reporter-select\"]'). The dialog goes straight from title → Machine Type. requireReporter prop is being passed as isSharedLogin = !!user?.is_shared_site_login || user?.role === 'site_staff' (LiteDashboardPage.js:148/1079), but the rendered DOM has neither the block nor the testids. Likely cause: `user` object passed into LiteDashboardPage at the time the dialog mounts does not carry the is_shared_site_login/role flags (auth-context hydration timing) — /api/auth/me DOES return them (verified). Net effect: shared-login users see a fault form they can never submit (backend correctly returns 400 'Please select the staff member logging this fault…').",
+        "selector": "[data-testid=\"lite-fault-reporter\"], [data-testid=\"lite-fault-reporter-select\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Shared-login fault logging end-to-end",
+        "issue": "Frontend reporter dropdown missing → user cannot satisfy the backend's mandatory reporter_staff_id requirement → shared-login users effectively blocked from logging faults via UI.",
+        "affected_selectors": ["[data-testid=\"lite-fault-reporter\"]", "[data-testid=\"lite-fault-reporter-select\"]", "[data-testid=\"lite-fault-submit\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_site_staff_shared_login.py",
+    "/app/test_reports/pytest/site_staff_shared_login.xml"
+  ],
+  "action_items": [
+    "Investigate why the Log a Fault dialog (LiteDialogs.js) does not render the [data-testid=\"lite-fault-reporter\"] block when the shared-login user opens it. Check that LiteDashboardPage's `user` prop carries is_shared_site_login=true at render time (or fall back to user?.role==='site_staff'). Verify isSharedLogin computation and pass-through of requireReporter to LiteDialogs.",
+    "Once UI renders the dropdown, re-verify the full E2E happy path (select Sarah Jones → fill machine + description → submit) plus the empty-submit validation banner.",
+    "Manager flow (Staffing → People → 'Site Login' tab) was not visually re-verified in this iteration due to IP login rate-limit (HTTP 429). All manager-side backend endpoints pass; UI testids for site-staff-manager/site-staff-table/site-staff-add/site-staff-dialog/staff-* exist in source and should be smoke-tested by the main agent or in a follow-up run."
+  ],
+  "critical_code_review_comments": [
+    "LiteDashboardPage.js:148 — isSharedLogin falls back to role==='site_staff', but is_shared_site_login should be the canonical flag. If the cached user from local-storage was set before the flag was added, this could be undefined. Consider re-fetching /api/auth/me on mount.",
+    "Login is IP rate-limited; testing flow needs space between failed attempts to avoid 429 blocking subsequent valid attempts. Consider exempting localhost/test IPs in CI, or rotating UA for E2E suites.",
+    "Issue dialog already correctly enforces mandatory selection on backend (returns the exact wording from the spec). Front-end gating via `disabled` on lite-fault-submit when no reporter_staff_id selected would also be a nice UX safeguard."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_site_staff_shared_login.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~50% (login + dialog open OK; reporter block missing)"},
+  "test_credentials": "Manager: owner@isodemo.com / IsoDemo123! | Shared Login (username): demo-head-office / Fox-6307-river | Site: iso-demo-site-a",
+  "seed_data_creation": "Test created a TESTQA-prefixed site-staff record via the manager and cleaned it up; one extra issue (TEST-SN-002, Treadmill, Belt slipping under load) was created via shared login and is visible on the Faults tab.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend is solid; pytest file at /app/backend/tests/test_site_staff_shared_login.py (15 cases, all pass). The open work is the frontend: the Log a Fault dialog for the shared-login user must show the indigo '[data-testid=lite-fault-reporter]' block with the staff dropdown ([data-testid=lite-fault-reporter-select]) — currently it does not render, blocking the entire shared-login fault flow. Investigate isSharedLogin/user hydration in LiteDashboardPage.js (lines 148 & 1079) before re-testing the full UI E2E. Beware IP login rate-limit (HTTP 429) after a few failed/back-to-back attempts; space out test runs by ~1 minute.",
+  "rca of the issue": "Backend correctly enforces mandatory reporter_staff_id via _resolve_reporter() in routes/issues.py (returns 400 with the spec's customer-facing message). Frontend LiteDialogs.js gates the reporter block on `requireReporter` prop, which LiteDashboardPage passes as `isSharedLogin = !!user?.is_shared_site_login || user?.role === 'site_staff'`. In the live preview, this conditional evaluates falsy even though /api/auth/me returns both flags — suggesting the `user` object handed to LiteDashboardPage at render time is stale or missing the new fields. Recommended mitigation: refetch /api/auth/me on dashboard mount and update the auth context, or compute isSharedLogin from a freshly-fetched user before rendering the dialog."
+}

@@ -379,9 +379,9 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
             "equipment_serials": [issue_doc.get("serial_number") or ""] if issue_doc.get("serial_number") else [],
             "fault_code": issue_doc.get("fault_code") or "",
             "contract_id": cov_meta.get("contract_id") or "",
-            "customer_name": user.get("full_name") or "",
-            "customer_email": user.get("email") or "",
-            "customer_phone": user.get("phone") or "",
+            "customer_name": issue_doc.get("reporter_name") or user.get("full_name") or "",
+            "customer_email": issue_doc.get("reporter_email") or user.get("email") or "",
+            "customer_phone": issue_doc.get("reporter_phone") or user.get("phone") or "",
             # Iter 220dt — Serial-unknown escape hatch (rubbed-off
             # plate etc). Triggers an engineer-side "Capture serial
             # on visit 1" follow-up task; never blocks intake.
@@ -534,9 +534,9 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
             "equipment_serials": equipment_serials,
             "fault_code": first.get("fault_code") or "",
             "contract_id": primary.get("contract_id") or "",
-            "customer_name": user.get("full_name") or "",
-            "customer_email": user.get("email") or "",
-            "customer_phone": user.get("phone") or "",
+            "customer_name": first.get("reporter_name") or user.get("full_name") or "",
+            "customer_email": first.get("reporter_email") or user.get("email") or "",
+            "customer_phone": first.get("reporter_phone") or user.get("phone") or "",
             "source_meta": {
                 "job_id": job_id,
                 "issue_ids": [d["id"] for d in engineer_docs],
@@ -694,9 +694,98 @@ async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> Non
 
 
 
+async def _resolve_reporter(issue: IssueCreate, user: dict) -> dict:
+    """Resolve + validate the "who is logging this fault?" staff member.
+
+    Returns a dict of reporter fields to stamp on the issue. Enforces
+    mandatory staff selection when the caller is a shared site login OR
+    the target site has `require_staff_selection` on. Raises 400 with the
+    customer-facing wording from the spec when the rules aren't met.
+    """
+    from routes.site_staff import is_shared_site_login
+    from utils.security import sanitise_string as _san
+
+    org_id = user.get("organization_id")
+    shared = is_shared_site_login(user)
+
+    # Determine the target site: explicit on the payload, else the shared
+    # login's own site, else the user's single allowed site.
+    site_id = (issue.site_id or "").strip() or None
+    if not site_id and shared:
+        site_id = user.get("site_id") or (user.get("allowed_site_ids") or [None])[0]
+
+    settings = {}
+    if site_id:
+        site = await db.sites.find_one({"id": site_id}, {"_id": 0, "shared_login": 1})
+        settings = ((site or {}).get("shared_login") or {}).get("settings") or {}
+    require_selection = shared or bool(settings.get("require_staff_selection"))
+    allow_other = bool(settings.get("allow_other_staff"))
+
+    if not require_selection:
+        return {}
+
+    # A staff member was picked — validate it's an active staff record for
+    # the site, then stamp its stored contact details onto the fault.
+    if issue.reporter_staff_id:
+        staff = await db.site_staff.find_one(
+            {"id": issue.reporter_staff_id, "organization_id": org_id, "is_active": {"$ne": False}},
+            {"_id": 0},
+        )
+        if not staff:
+            raise HTTPException(status_code=400, detail="Selected staff member was not found for this site.")
+        if shared and site_id and staff.get("site_id") != site_id:
+            raise HTTPException(status_code=403, detail="That staff member belongs to a different site.")
+        await db.site_staff.update_one(
+            {"id": staff["id"]},
+            {"$inc": {"fault_count": 1},
+             "$set": {"last_reported_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        return {
+            "reporter_staff_id": staff["id"],
+            "reporter_name": staff.get("full_name"),
+            "reporter_job_title": staff.get("job_title"),
+            "reporter_email": staff.get("email"),
+            "reporter_phone": staff.get("phone"),
+            "logged_via_shared_login": shared,
+            "site_id": staff.get("site_id"),
+        }
+
+    # No staff picked — fall back to "other staff" only if the site allows it.
+    if allow_other and issue.reporter_name and issue.reporter_email and issue.reporter_phone:
+        return {
+            "reporter_staff_id": None,
+            "reporter_name": _san(issue.reporter_name),
+            "reporter_job_title": _san(issue.reporter_job_title or ""),
+            "reporter_email": issue.reporter_email.lower().strip(),
+            "reporter_phone": _san(issue.reporter_phone),
+            "logged_via_shared_login": shared,
+            "reporter_is_other": True,
+            "site_id": site_id,
+        }
+
+    # Mandatory and unmet — surface the right message.
+    if site_id:
+        any_staff = await db.site_staff.find_one(
+            {"organization_id": org_id, "site_id": site_id, "is_active": {"$ne": False}},
+            {"_id": 0, "id": 1},
+        )
+        if not any_staff:
+            raise HTTPException(
+                status_code=400,
+                detail="No site staff have been added yet. Please contact your site manager to add staff before logging a fault.",
+            )
+    raise HTTPException(
+        status_code=400,
+        detail="Please select the staff member logging this fault before submitting.",
+    )
+
+
 @router.post("/issues")
 async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
+    reporter = await _resolve_reporter(issue, user)
     issue_doc = _build_issue_doc(issue, user)
+    if reporter:
+        issue_doc.update({k: v for k, v in reporter.items() if k != "site_id"})
     # Iter 216h199 — Phase 3 auto-warranty-check: stamp coverage meta on
     # the issue row at intake. The downstream svc_case mirror reuses
     # the same meta so the Service Desk case is pre-routed correctly.
@@ -711,6 +800,10 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
     site_id_from_equip = coverage_meta.get("equipment_site_id") if isinstance(coverage_meta, dict) else None
     if site_id_from_equip:
         issue_doc["site_id"] = site_id_from_equip
+    # Shared-login faults: ensure the issue is stamped with the reporter's
+    # site even when the equipment serial didn't resolve a site_id.
+    if not issue_doc.get("site_id") and reporter.get("site_id"):
+        issue_doc["site_id"] = reporter["site_id"]
     await db.issues.insert_one(issue_doc)
     issue_doc.pop('_id', None)
 
@@ -764,6 +857,10 @@ async def create_issues_batch(
 
     job_id = (payload.job_id or "").strip() or str(uuid.uuid4())
 
+    # Resolve the reporter once for the whole job (all machines share the
+    # same "who is logging this?" staff member).
+    reporter = await _resolve_reporter(payload.machines[0], user)
+
     created: list[dict] = []
     for machine in payload.machines:
         # Stamp every sibling with the shared job_id, regardless of what
@@ -771,6 +868,8 @@ async def create_issues_batch(
         # frontend from accidentally splitting siblings across jobs.
         machine.job_id = job_id
         doc = _build_issue_doc(machine, user)
+        if reporter:
+            doc.update({k: v for k, v in reporter.items() if k != "site_id"})
         cov = await _resolve_coverage_for_issue(
             machine.serial_number, user.get("organization_id"),
         )
@@ -780,6 +879,8 @@ async def create_issues_batch(
         site_from_equip = cov.get("equipment_site_id") if isinstance(cov, dict) else None
         if site_from_equip:
             doc["site_id"] = site_from_equip
+        if not doc.get("site_id") and reporter.get("site_id"):
+            doc["site_id"] = reporter["site_id"]
         await db.issues.insert_one(doc)
         doc.pop("_id", None)
         await store_fix_history(machine, doc["id"], user)

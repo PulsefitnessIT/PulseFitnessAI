@@ -143,6 +143,19 @@ const LiteDashboardPage = () => {
   const [showFaultDialog, setShowFaultDialog] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [faultForm, setFaultForm] = useState({ equipment_id: '', serial_number: '', machine_type: '', issue_description: '', severity: 'operational_minor', supplier: '', fault_code: null });
+  // Site Staff Shared Login — when signed in as the shared site login,
+  // the operator must pick "who is logging this fault?" before submit.
+  const isSharedLogin = !!user?.is_shared_site_login || user?.role === 'site_staff';
+  const reporterSiteId = activeSite?.id || user?.site_id || (user?.allowed_site_ids || [])[0] || null;
+  const [reporterStaffId, setReporterStaffId] = useState('');
+  const [siteStaff, setSiteStaff] = useState([]);
+  useEffect(() => {
+    if (!isSharedLogin || !reporterSiteId) return;
+    axios.get(`${API}/site-staff/active?site_id=${reporterSiteId}`, { headers })
+      .then((r) => setSiteStaff(r.data.staff || []))
+      .catch(() => setSiteStaff([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSharedLogin, reporterSiteId]);
   // Iter 216d — multi-machine fault logging. After the user runs AI
   // triage + picks a resolution for one machine they can "Add to job +
   // log another machine" — that pushes the current machine (with its
@@ -309,6 +322,10 @@ const LiteDashboardPage = () => {
       // detail page can render the assessment. Without this, the
       // triage result was discarded at submission time.
       ai_triage: overrides.ai_triage || form.ai_triage || null,
+      // Site Staff Shared Login — job-level reporter + site (the backend
+      // validates this is an active staff member for the site).
+      reporter_staff_id: reporterStaffId || null,
+      site_id: reporterSiteId || undefined,
       ...overrides,
     };
     if (overrides.resolution_type === 'self_fix') base.status = 'resolved';
@@ -364,10 +381,19 @@ const LiteDashboardPage = () => {
       });
       return;
     }
+    if (isSharedLogin && !reporterStaffId) {
+      showFaultBanner({
+        tone: 'error',
+        title: 'Staff member required',
+        detail: siteStaff.length === 0
+          ? 'No site staff have been added yet. Please contact your site manager to add staff before logging a fault.'
+          : 'Please select the staff member logging this fault before submitting.',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       const isMultiMachine = stagedMachines.length > 0;
-
       if (isMultiMachine) {
         // Batch path — every staged machine + the current one becomes
         // its own issue under one shared job_id. Server returns the
@@ -1050,6 +1076,10 @@ const LiteDashboardPage = () => {
         equipment={equipment}
         faultForm={faultForm}
         setFaultForm={setFaultForm}
+        requireReporter={isSharedLogin}
+        siteStaff={siteStaff}
+        reporterStaffId={reporterStaffId}
+        setReporterStaffId={setReporterStaffId}
         selectEquipmentForFault={selectEquipmentForFault}
         coverage={coverage}
         faultMedia={faultMedia}

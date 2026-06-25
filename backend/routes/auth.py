@@ -296,6 +296,9 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "is_service_desk": user.get('is_service_desk', False),
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "must_change_password": user.get('must_change_password', False),
+        "is_shared_site_login": bool(user.get('is_shared_site_login')) or user.get('role') == 'site_staff',
+        "site_id": user.get('site_id'),
+        "allowed_site_ids": user.get('allowed_site_ids') or [],
         "account_type": org.get('account_type', 'full') if org else 'full',
         # Iter 253 — self-serve Service Provider setup wizard gate. Non-provider
         # accounts default True so existing flows never see a wizard.
@@ -864,6 +867,12 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "is_master_admin": user.get('is_master_admin', False),
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
+        # Site Staff Shared Login — flags the shared kiosk account so the
+        # Operations fault flow enforces the mandatory "who is logging
+        # this fault?" staff dropdown and the UI hides management areas.
+        "is_shared_site_login": bool(user.get('is_shared_site_login')) or user.get('role') == 'site_staff',
+        "site_id": user.get('site_id'),
+        "allowed_site_ids": user.get('allowed_site_ids') or [],
         "account_type": org.get('account_type', 'full') if org else 'full',
         # Iter 253 — self-serve Service Providers: the frontend routes
         # incomplete setups to /service-desk/setup on login/refresh.

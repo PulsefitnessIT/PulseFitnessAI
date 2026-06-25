@@ -411,11 +411,26 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
+ {/* Logged-by staff block — Site Staff Shared Login. Suppliers/engineers
+     use these contact details to call the person who logged the fault. */}
+ {issue.reporter_name && (
+ <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg" data-testid={`issue-logged-by-${issue.id}`}>
+ <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Logged by</span>
+ <p className="text-white font-semibold mt-1" data-testid="logged-by-name">{issue.reporter_name}</p>
+ {issue.reporter_job_title && <p className="text-[var(--color-text-muted)] text-sm">{issue.reporter_job_title}</p>}
+ <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
+ {issue.reporter_email && <a href={`mailto:${issue.reporter_email}`} className="text-[var(--color-brand-cyan-hover)] hover:underline" data-testid="logged-by-email">{issue.reporter_email}</a>}
+ {issue.reporter_phone && <a href={`tel:${issue.reporter_phone}`} className="text-[var(--color-brand-cyan-hover)] hover:underline" data-testid="logged-by-phone">{issue.reporter_phone}</a>}
+ </div>
+ {issue.logged_via_shared_login && <p className="text-[11px] text-[var(--color-text-muted)] mt-2">Logged via: Shared Site Login</p>}
+ </div>
+ )}
+
  {/* Info Grid */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
  <div>
  <span className="text-[var(--color-text-muted)]">Logged by</span>
- <p className="text-white font-medium">{issue.created_by_name || 'Unknown'}</p>
+ <p className="text-white font-medium">{issue.reporter_name || issue.created_by_name || 'Unknown'}</p>
  </div>
  <div>
  <span className="text-[var(--color-text-muted)]">Date & Time</span>

@@ -39,6 +39,7 @@ import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
+import SiteStaffManager from '@/pages/LiteDashboard/staffing/SiteStaffManager';
 import DeskExpenses from '@/pages/ServiceDesk/DeskExpenses';
 import ProductTour from '@/components/shared/ProductTour';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
@@ -65,6 +66,7 @@ const GROUPS_ALL = [
   // People = Staff roster + HR records (combined per user request).
   { id: 'people', label: 'People', icon: Users, children: [
     { id: 'staff',    label: 'Staff',     icon: Users,   roles: MGR },
+    { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
     { id: 'hr',       label: 'HR',        icon: IdCard,  roles: MGR },
     { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
   ] },
@@ -282,6 +284,7 @@ export default function StaffingConsole() {
         {tab === 'timeclock'   && <TimeClockTab   headers={headers} />}
         {tab === 'myclock'     && <MyClockTab     headers={headers} />}
         {tab === 'staff'       && (isMOD ? <MODStaffTab headers={headers} /> : <StaffTab headers={headers} />)}
+        {tab === 'site-access' && <SiteStaffManager headers={headers} />}
         {tab === 'leave'       && <LeaveTab       headers={headers} isManager={isManager} />}
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}

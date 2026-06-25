@@ -164,6 +164,15 @@ class IssueCreate(BaseModel):
     # task; the missing serial doesn't block customer intake.
     serial_unknown: Optional[bool] = False
     serial_unknown_reason: Optional[str] = None
+    # Site Staff Shared Login — "who is logging this fault?". Required when
+    # the user is a shared site login OR the site enforces staff selection.
+    # Resolved + validated server-side against db.site_staff.
+    reporter_staff_id: Optional[str] = None
+    reporter_name: Optional[str] = None
+    reporter_email: Optional[str] = None
+    reporter_phone: Optional[str] = None
+    reporter_job_title: Optional[str] = None
+    site_id: Optional[str] = None
 
 
 class IssueBatchCreate(BaseModel):
