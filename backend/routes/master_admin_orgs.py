@@ -417,6 +417,11 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             for k, v in existing.items():
                 if k not in entry:
                     entry[k] = v
+            # Stamp the master-admin as the source so an explicit disable
+            # here is distinguishable from "never opted in" — the trial
+            # gate uses this to show "contact your administrator" instead
+            # of a self-serve trial CTA that would re-enable it.
+            entry["source"] = "admin"
             # CRM mode flags — Gym (leisure) and Corporate (business). Accept
             # them from the incoming payload (previously dropped) and treat
             # either mode being on as implying CRM itself is enabled.
@@ -529,6 +534,7 @@ async def update_org_details(org_id: str, body: dict = Body(...), user: dict = D
             for k, v in prev.items():
                 if k not in entry:
                     entry[k] = v
+            entry["source"] = "admin"
             synced_modules[m_key] = entry
         updates["modules"] = synced_modules
     elif "portal_type" in updates and updates["portal_type"] not in ("service_portal", "crm", "both"):

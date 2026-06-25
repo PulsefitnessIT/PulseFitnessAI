@@ -209,9 +209,18 @@ def has_crm_access(user: dict, org: Optional[dict]) -> bool:
 def trial_status(org: Optional[dict]) -> dict:
     """Return per-module trial status for the org. Used by the upgrade
     UI to know whether each bolt-on can still be started fresh, is
-    currently running, or has been used."""
+    currently running, or has been used.
+
+    Also exposes `admin_disabled` — True when a master admin has
+    EXPLICITLY turned the module off (`modules.<key>.enabled == False`
+    and the entry wasn't left by an expired trial). When set, the
+    operator must NOT be offered a self-serve trial; they should be told
+    to contact their administrator. This is what stops a master-admin
+    disable from being silently re-enabled via the trial CTA.
+    """
     out: dict[str, dict] = {}
     trials = (org or {}).get("module_trials") or {}
+    modules_cfg = (org or {}).get("modules") or {}
     now = datetime.now(timezone.utc)
     for key in BOLT_ON_MODULES:
         rec = trials.get(key) or {}
@@ -227,10 +236,13 @@ def trial_status(org: Optional[dict]) -> dict:
             status = "active"
         else:
             status = "used"
+        mcfg = modules_cfg.get(key) or {}
+        admin_disabled = bool(mcfg) and (mcfg.get("enabled") is False) and (mcfg.get("source") != "trial")
         out[key] = {
             "status": status,
             "started_at": started,
             "expires_at": expires,
+            "admin_disabled": admin_disabled,
             "days_remaining": max(0, int((exp_dt - now).total_seconds() // 86400)) if exp_dt and exp_dt > now else 0,
         }
     return out

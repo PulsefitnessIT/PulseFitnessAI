@@ -1,3 +1,30 @@
+# ═══ 2026-06-25 · BUGFIX · Master-admin module disable was bypassable via the trial CTA (VERIFIED) ═══
+Report: "When modules are switched off for customers in Master Admin they are still showing when that
+customer logs in." Root cause (NOT the ModuleSwitcher — that correctly hides disabled modules, and the
+backend `resolve_module_access` correctly returns the module as off): when a customer hit a disabled
+module's route, `ModuleAccessGate` showed the **"Start 3-day free trial"** upgrade screen because an
+explicit master-admin disable was indistinguishable from "never opted in". The customer could click the
+trial and self-re-enable a module the admin had turned off (POST /me/module-trials/start flipped
+`modules.<key>.enabled=true`).
+
+FIX:
+- `utils/module_access.trial_status()` now returns per-module `admin_disabled` = (`modules.<key>.enabled is False`
+  AND `source != "trial"`) — i.e. an explicit admin/seed disable, not an expired trial.
+- Admin write paths stamp `modules.<key>.source = "admin"` so future toggles are unambiguous:
+  `routes/master_admin_orgs.update_org_features` (Feature Control matrix) + `update_org_details` (Modules picker sync).
+- `routes/module_trials.start_module_trial` returns **403** ("disabled by your administrator") when
+  `admin_disabled`; `upgrade_to_pro` skips admin-disabled modules in its auto-trial loop.
+- Frontend `ModuleAccessGate` renders a "{Module} is turned off — contact your administrator" screen
+  (no trial CTA) when `trials.<module>.admin_disabled` (non-Lite orgs).
+
+VERIFIED end-to-end (preview, owner@isodemo with Marketing disabled): /me/module-trials → admin_disabled:true;
+POST trial start → 403; /marketing route → "Marketing is turned off" screen. ModuleSwitcher already hides
+the pill. Backend logic unit-checked (admin-disabled vs trial-revoked vs enabled). ESLint clean.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-25 · FEATURE · Onboard-Site wizard: CSV/XLSX import + "Add to Head Office" (VERIFIED) ═══
 Two requested features added to the Master Admin Onboard-a-Site wizard (`PulseOnboardingWizard.js`).
 

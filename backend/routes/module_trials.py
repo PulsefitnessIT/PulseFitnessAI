@@ -107,6 +107,12 @@ async def start_module_trial(
         )
     statuses = trial_status(org)
     current = statuses.get(module, {})
+    if current.get("admin_disabled"):
+        raise HTTPException(
+            403,
+            f"{module.capitalize()} has been disabled by your administrator. "
+            "Please contact them to enable it.",
+        )
     if current.get("status") == "used":
         raise HTTPException(409, f"The free trial of {module.capitalize()} has already been used.")
     if current.get("status") == "active":
@@ -193,6 +199,8 @@ async def upgrade_to_pulse_pro(
             fresh = await _resolve_org(user)
             statuses = trial_status(fresh)
             if statuses.get(mod, {}).get("status") == "used":
+                continue
+            if statuses.get(mod, {}).get("admin_disabled"):
                 continue
             started_at = _now()
             expires_at = started_at + timedelta(days=TRIAL_DURATION_DAYS)

@@ -124,9 +124,30 @@ function UpgradeScreen({ module, state, onChange, headers }) {
   const isLite = state.account_type === 'lite';
   const trialInfo = state.trials?.[module];
   const trialUsed = trialInfo?.status === 'used';
+  const adminDisabled = !!trialInfo?.admin_disabled;
   const isOwner = state.is_owner;
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState(() => new Set(state.bolt_on_modules || ['memberships', 'crm', 'marketing']));
+
+  // A master admin has EXPLICITLY turned this module off — do not offer a
+  // self-serve trial (that would silently undo the admin's decision).
+  if (adminDisabled && !isLite) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 px-4 py-12" data-testid={`module-gate-${module}`}>
+        <div className="max-w-lg mx-auto text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-300 mb-4">
+            <Lock size={28} />
+          </div>
+          <h1 className="text-3xl font-extrabold pulse-font-heading text-zinc-900 dark:text-zinc-100" data-testid={`module-gate-${module}-admin-disabled`}>
+            {meta.label} is turned off
+          </h1>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-3 max-w-md mx-auto">
+            Your administrator has disabled {meta.label} for your organisation. Please contact them if you need it switched back on.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const toggle = (m) => {
     setSelected((prev) => {
