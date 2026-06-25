@@ -1,3 +1,28 @@
+# ═══ 2026-06-25 · FEATURE · Site Staff Shared Login — PHASE 3 (VERIFIED) ═══
+Closed Phase 3 of the commercial Site Staff Shared Login epic.
+
+DELIVERED & VERIFIED (backend pytest 7/7 + frontend UI e2e, zero issues):
+1. **Bulk import site staff** (`SiteStaffManager.js` → "Site Login" tab): Download template
+   (`GET /api/site-staff/import/template`), upload CSV/XLSX → preview with new/duplicate/invalid
+   classification + per-site email dedupe (`POST /site-staff/import/preview?site_id=`), then confirm
+   (`POST /site-staff/import/confirm`). Skips duplicates + invalid rows; reports created/skipped.
+2. **Usage report** dialog: `GET /api/site-staff/reports/usage?site_id=` — summary (total_faults,
+   via_shared_login, active_reporters, staff_count, unattributed) + faults-per-staff table +
+   top_reporters + no_activity. Wired to "Usage report" button.
+3. **Reporter visibility on Engineer app + Supplier portal** (the deferred Phase-3 item): the mirrored
+   `svc_cases` now stamps `reporter_job_title` + `logged_via_shared_login` (both `_mirror_issue_to_svc_case`
+   and `_mirror_job_to_svc_case` in issues.py; persisted in `svc/intake._create_case`). Engineer
+   `EngineerJobDetailV2.js` Equipment tab "Reported by" line shows the reporter's job title + a "via Shared
+   Site Login" badge. Supplier `_resolve_reporter_contact` now returns `role` (from reporter_job_title) +
+   `via_shared_login`; `SupplierCasePage.js` gives shared-login reporters the elevated contact card
+   (call/email buttons + "Logged from the site floor — call this person first" hint).
+
+STILL DEFERRED (P1): cross-site shared login ("select site first"); MOD portal parity pass.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-25 · FEATURE · Site Staff Shared Login — PHASE 2 (VERIFIED) ═══
 Added the four requested Phase-2 items on top of the Phase-1 engine.
 
