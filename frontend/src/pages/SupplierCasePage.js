@@ -44,10 +44,10 @@ function SiteContactCard({ reporter, site, organizationName, token, jobRef, issu
  const repEmail = reporter?.email || '';
  const repPhone = reporter?.phone || '';
  const repRole = reporter?.role || '';
- // Gym-floor-logged faults deserve extra visual weight on this card —
- // engineers reading the case page from a phone should immediately see
- // "shift worker, not manager" so they call the right person.
- const isGymFloor = repRole.toLowerCase() === 'gym floor';
+ // Gym-floor / shared-site-login faults deserve extra visual weight on this
+ // card — engineers reading the case page from a phone should immediately see
+ // "site staff, not manager" so they call the right person.
+ const isGymFloor = repRole.toLowerCase() === 'gym floor' || !!reporter?.via_shared_login;
 
  const handleCopyTicket = async () => {
  try {
@@ -128,7 +128,7 @@ function SiteContactCard({ reporter, site, organizationName, token, jobRef, issu
  )}
  {isGymFloor && (repEmail || repPhone) && (
  <p className="text-[10px] text-sky-700 mt-2 italic" data-testid="sup-case-reporter-floor-hint">
- Logged from the gym floor — call this shift worker first; they saw the fault.
+ Logged from the site floor — call this person first; they saw the fault.
  </p>
  )}
  </div>

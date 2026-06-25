@@ -856,12 +856,13 @@ async def _resolve_reporter_contact(issue: dict) -> dict:
                  or issue.get("created_by_email") or "",
         "phone": issue.get("reported_by_phone") or issue.get("reporter_phone")
                  or issue.get("created_by_mobile") or "",
-        "role": "",
+        "role": issue.get("reporter_job_title") or "",
+        "via_shared_login": bool(issue.get("logged_via_shared_login")),
     }
     # Faults logged via the shared gym-floor login carry an explicit role label
     # so suppliers know they came from a shift worker (not a manager / admin).
     if issue.get("created_via") == "gym_floor":
-        contact["role"] = "Gym Floor"
+        contact["role"] = contact["role"] or "Gym Floor"
     if reporter_id and not str(reporter_id).startswith("gym-floor:"):
         user = await db.users.find_one(
             {"id": reporter_id},

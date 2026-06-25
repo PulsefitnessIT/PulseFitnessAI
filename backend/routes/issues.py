@@ -382,6 +382,8 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
             "customer_name": issue_doc.get("reporter_name") or user.get("full_name") or "",
             "customer_email": issue_doc.get("reporter_email") or user.get("email") or "",
             "customer_phone": issue_doc.get("reporter_phone") or user.get("phone") or "",
+            "reporter_job_title": issue_doc.get("reporter_job_title") or "",
+            "logged_via_shared_login": bool(issue_doc.get("logged_via_shared_login")),
             # Iter 220dt — Serial-unknown escape hatch (rubbed-off
             # plate etc). Triggers an engineer-side "Capture serial
             # on visit 1" follow-up task; never blocks intake.
@@ -537,6 +539,8 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
             "customer_name": first.get("reporter_name") or user.get("full_name") or "",
             "customer_email": first.get("reporter_email") or user.get("email") or "",
             "customer_phone": first.get("reporter_phone") or user.get("phone") or "",
+            "reporter_job_title": first.get("reporter_job_title") or "",
+            "logged_via_shared_login": bool(first.get("logged_via_shared_login")),
             "source_meta": {
                 "job_id": job_id,
                 "issue_ids": [d["id"] for d in engineer_docs],

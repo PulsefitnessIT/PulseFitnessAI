@@ -2642,8 +2642,14 @@ function EquipmentTab({ job, onChange }) {
             </p>
           ) : null}
           {reporterName ? (
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1" data-testid="equipment-customer-reporter">
               Reported by {reporterName}
+              {job?.reporter_job_title ? ` (${job.reporter_job_title})` : ''}
+              {job?.logged_via_shared_login ? (
+                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-sky-100 text-sky-700 border border-sky-200" data-testid="equipment-customer-shared-badge">
+                  via Shared Site Login
+                </span>
+              ) : null}
             </p>
           ) : null}
           {customerPhotos.length > 0 ? (

@@ -126,6 +126,11 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         "customer_name": payload.get("customer_name") or "",
         "customer_email": payload.get("customer_email") or "",
         "customer_phone": payload.get("customer_phone") or "",
+        # Site Staff Shared Login — who actually logged the fault so the
+        # engineer app + supplier portal can show their role and a
+        # click-to-call / click-to-email button.
+        "reporter_job_title": payload.get("reporter_job_title") or "",
+        "logged_via_shared_login": bool(payload.get("logged_via_shared_login") or False),
         # Chargeable workflow extras (cascade step 5) — captured at intake when
         # the operator confirms the case is out of contract / warranty cover.
         "quote_required": bool(payload.get("quote_required") or False),

@@ -1,0 +1,23 @@
+{
+  "summary": "Phase 3 (bulk import + usage report) and Phase-3 deferred reporter propagation (reporter_job_title + logged_via_shared_login into svc_cases + supplier reporter resolver) all VERIFIED. Backend pytest 7/7 PASS. Frontend manager UI end-to-end PASS (bulk import dialog, template button, hidden file input, preview classification new/duplicate, confirm + toast, usage report dialog with all 4 summary stat cards and by-staff table including Sarah Jones — General Manager with non-zero count).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_site_staff_phase3.py",
+    "/app/test_reports/pytest/phase3_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Confirmed: routes/issues.py _mirror_issue_to_svc_case (~L385-386) and _mirror_job_to_svc_case (~L542-543) correctly forward reporter_job_title + logged_via_shared_login.",
+    "Confirmed: routes/svc/intake.py persists the new fields on svc_cases.",
+    "Confirmed: routes/supplier_portal.py _resolve_reporter_contact returns role (from reporter_job_title) + via_shared_login=true (verified by direct unit call with a shared-login issue).",
+    "Confirmed: engineer_job_detail returns the full case doc so the new fields are exposed to the engineer app (verified via /api/svc/cases/{id} fallback since manager isn't engineer-tier)."
+  ],
+  "updated_files": ["/app/backend/tests/test_site_staff_phase3.py"],
+  "success_rate": {"backend": "100% (7/7 pytest)", "frontend": "100% (bulk import + usage report verified)"},
+  "test_credentials": "Manager: owner@isodemo.com / IsoDemo123!  ·  Shared login: demo-head-office / Fox-6307-river",
+  "seed_data_creation": "Created site-staff rows via UI bulk import (UIBulk Tester, uibulk-test@example.com) and via pytest preview→confirm (BulkNew* with random suffix). One PH3-* high-severity engineer issue created via shared login (Sarah Jones reporter) which mirrored into svc_cases.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3 + reporter propagation fully verified. Backend test file: /app/backend/tests/test_site_staff_phase3.py (run from /app/backend with 'python -m pytest tests/test_site_staff_phase3.py'). For the engineer detail endpoint, manager users get HTTP 402 (engineer_app_blocked) — the test falls back to /api/svc/cases/{id} which returns the same case doc shape with reporter_job_title + logged_via_shared_login. UI route to reach SiteStaffManager: login → /dashboard → Operations tab → Staffing → People → Site Login. site-staff-import-input is hidden, use set_input_files. Confirm endpoint POST /api/site-staff/import/confirm takes JSON body {site_id, rows:[...]} (NOT multipart). Usage-report summary keys are: total_faults, via_shared_login, active_reporters, staff_count, unattributed."
+}
