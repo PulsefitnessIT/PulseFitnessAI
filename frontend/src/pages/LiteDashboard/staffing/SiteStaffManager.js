@@ -15,7 +15,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   KeyRound, Loader2, Copy, Check, Plus, Pencil, UserX, UserCheck,
-  ArrowRightLeft, RefreshCw, Power, Users, Phone, Mail, ShieldCheck,
+  ArrowRightLeft, RefreshCw, Power, Users, Phone, Mail, ShieldCheck, Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,13 @@ export default function SiteStaffManager({ headers }) {
   const [transferTo, setTransferTo] = useState('');
   const [credential, setCredential] = useState(null); // {username,password}
   const [copied, setCopied] = useState(false);
+  // Phase 3 — bulk import + usage report
+  const [importOpen, setImportOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const importRef = React.useRef(null);
+  const [report, setReport] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     if (!siteId && siteList.length) setSiteId(siteList[0].id);
@@ -140,6 +147,43 @@ export default function SiteStaffManager({ headers }) {
 
   const settings = shared?.settings || {};
 
+  const downloadStaffTemplate = async () => {
+    try {
+      const res = await axios.get(`${API}/site-staff/import/template`, { headers, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a'); a.href = url; a.download = 'site-staff-template.csv';
+      document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+    } catch { toast.error('Template download failed'); }
+  };
+
+  const previewImport = async (file) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const res = await axios.post(`${API}/site-staff/import/preview?site_id=${siteId}`, fd, { headers });
+      setImportPreview(res.data);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not read file'); }
+    setImporting(false);
+  };
+
+  const confirmImport = async () => {
+    setImporting(true);
+    try {
+      const res = await axios.post(`${API}/site-staff/import/confirm`, { site_id: siteId, rows: importPreview.rows }, { headers });
+      toast.success(`Imported ${res.data.created} staff (${res.data.skipped} skipped)`);
+      setImportOpen(false); setImportPreview(null); load();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Import failed'); }
+    setImporting(false);
+  };
+
+  const loadReport = async () => {
+    try {
+      const res = await axios.get(`${API}/site-staff/reports/usage?site_id=${siteId}`, { headers });
+      setReport(res.data); setReportOpen(true);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not load report'); }
+  };
+
   return (
     <div className="space-y-6" data-testid="site-staff-manager">
       {/* Site selector */}
@@ -209,6 +253,10 @@ export default function SiteStaffManager({ headers }) {
           <Button size="sm" onClick={() => { setEditing(null); setForm(EMPTY_STAFF); setShowAdd(true); }} disabled={!siteId} data-testid="site-staff-add">
             <Plus size={14} className="mr-1.5" />Add staff
           </Button>
+        </div>
+        <div className="flex items-center gap-2 mb-4">
+          <Button size="sm" variant="outline" onClick={() => { setImportPreview(null); setImportOpen(true); }} disabled={!siteId} data-testid="site-staff-import-open"><Plus size={14} className="mr-1.5" />Bulk import</Button>
+          <Button size="sm" variant="outline" onClick={loadReport} disabled={!siteId} data-testid="site-staff-report-open"><Users size={14} className="mr-1.5" />Usage report</Button>
         </div>
 
         {staff.length === 0 ? (
@@ -293,6 +341,85 @@ export default function SiteStaffManager({ headers }) {
             <Button variant="outline" onClick={() => setTransferring(null)}>Cancel</Button>
             <Button onClick={doTransfer} data-testid="transfer-confirm">Transfer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk import dialog */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl" data-testid="site-staff-import-dialog">
+          <DialogHeader><DialogTitle>Bulk import site staff</DialogTitle></DialogHeader>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={downloadStaffTemplate} data-testid="site-staff-template"><Download size={14} className="mr-1.5" />Download template</Button>
+            <input ref={importRef} type="file" accept=".csv,.xlsx,.xlsm" className="hidden" data-testid="site-staff-import-input"
+              onChange={(e) => { previewImport(e.target.files?.[0]); e.target.value = ''; }} />
+            <Button size="sm" onClick={() => importRef.current?.click()} disabled={importing} data-testid="site-staff-import-upload">Upload CSV/Excel</Button>
+            {importing && <Loader2 className="animate-spin" size={16} />}
+          </div>
+          {importPreview && (
+            <div className="mt-3" data-testid="site-staff-import-preview">
+              <p className="text-sm mb-2" style={{ color: 'var(--theme-text-muted)' }}>
+                {importPreview.summary.new} to import · {importPreview.summary.duplicate} duplicate · {importPreview.summary.invalid} invalid
+              </p>
+              <div className="max-h-72 overflow-y-auto border rounded-lg" style={{ borderColor: 'var(--theme-border)' }}>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {importPreview.rows.map((r, i) => (
+                      <tr key={i} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
+                        <td className="px-2 py-1.5" style={{ color: 'var(--theme-text)' }}>{r.first_name} {r.last_name}</td>
+                        <td className="px-2 py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{r.job_title}</td>
+                        <td className="px-2 py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{r.email}</td>
+                        <td className="px-2 py-1.5 font-medium" style={{ color: r.status === 'new' ? '#16a34a' : r.status === 'duplicate' ? '#d97706' : '#dc2626' }}>{r.status}{r.reason ? ` — ${r.reason}` : ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+            <Button onClick={confirmImport} disabled={!importPreview || importPreview.summary.new === 0 || importing} data-testid="site-staff-import-confirm">
+              Import {importPreview ? importPreview.summary.new : 0} staff
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Usage report dialog */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-2xl" data-testid="site-staff-report-dialog">
+          <DialogHeader><DialogTitle>Shared login usage</DialogTitle></DialogHeader>
+          {report && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-3 text-center">
+                {[['Total faults', report.summary.total_faults], ['Via shared login', report.summary.via_shared_login], ['Active reporters', report.summary.active_reporters], ['Staff', report.summary.staff_count]].map(([l, v]) => (
+                  <div key={l} className="rounded-lg border p-3" style={{ borderColor: 'var(--theme-border)' }}>
+                    <p className="text-2xl font-bold" style={{ color: 'var(--theme-text)' }} data-testid={`report-${l}`}>{v}</p>
+                    <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{l}</p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1" style={{ color: 'var(--theme-text)' }}>Faults logged by staff member</p>
+                <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
+                  <table className="w-full text-sm" data-testid="report-by-staff">
+                    <tbody>
+                      {report.by_staff.map((b) => (
+                        <tr key={b.staff_id} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
+                          <td className="px-3 py-1.5" style={{ color: 'var(--theme-text)' }}>{b.name}{!b.is_active && <span className="ml-1 text-xs text-red-500">inactive</span>}</td>
+                          <td className="px-3 py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{b.job_title}</td>
+                          <td className="px-3 py-1.5 text-right font-medium" style={{ color: 'var(--theme-text)' }}>{b.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {report.no_activity.length > 0 && (
+                <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No faults yet: {report.no_activity.map((n) => n.name).join(', ')}</p>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

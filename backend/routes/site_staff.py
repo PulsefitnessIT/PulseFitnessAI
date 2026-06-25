@@ -24,7 +24,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
 from utils.auth import get_current_user, hash_password
@@ -543,3 +544,167 @@ async def update_shared_login_config(payload: GlobalConfigPayload, request: Requ
 
 
 __all__ = ["router", "is_shared_site_login", "get_global_config"]
+
+
+# ══════════════════════════════════════════════════════════════════
+#              BULK IMPORT SITE STAFF  +  USAGE REPORT
+# ══════════════════════════════════════════════════════════════════
+STAFF_TEMPLATE_HEADERS = ["first_name", "last_name", "job_title", "email", "phone", "department", "active"]
+
+
+class StaffImportConfirm(BaseModel):
+    site_id: str
+    rows: list[dict]
+
+
+def _pick(row: dict, *names: str) -> str:
+    low = {str(k).strip().lower(): v for k, v in row.items()}
+    for n in names:
+        if n in low and low[n] is not None and str(low[n]).strip():
+            return str(low[n]).strip()
+    return ""
+
+
+def _classify_import_row(r: dict, existing: set, seen: set) -> tuple[str, str]:
+    em = (r.get("email") or "").lower()
+    if not (r["first_name"] and r["last_name"] and r["job_title"] and em and r["phone"]):
+        return "invalid", "Missing required field (first name, last name, job title, email, phone)"
+    if "@" not in em:
+        return "invalid", "Invalid email address"
+    if em in existing or em in seen:
+        return "duplicate", "Already exists for this site — will be skipped"
+    return "new", ""
+
+
+@router.get("/site-staff/import/template")
+async def staff_import_template(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    csv = ",".join(STAFF_TEMPLATE_HEADERS) + "\n" + \
+        "Sarah,Jones,General Manager,sarah@example.com,07123 456789,Management,yes\n" + \
+        "David,Smith,Fitness Instructor,david@example.com,07123 456780,Fitness,yes\n"
+    return Response(content=csv, media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=site-staff-template.csv"})
+
+
+@router.post("/site-staff/import/preview")
+async def staff_import_preview(site_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Parse + validate + dedupe a staff spreadsheet WITHOUT inserting."""
+    _require_manager(user)
+    await _get_site(site_id, user)
+    from utils.file_validation import validate_upload, MIME_SPREADSHEETS
+    from utils.spreadsheet_import import iter_rows
+    data = await file.read()
+    validate_upload(file_bytes=data, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=10 * 1024 * 1024)
+    org_id = user.get("organization_id")
+    existing_docs = await db.site_staff.find(
+        {"organization_id": org_id, "site_id": site_id}, {"_id": 0, "email_lc": 1},
+    ).to_list(5000)
+    existing = {e["email_lc"] for e in existing_docs if e.get("email_lc")}
+    rows: list[dict] = []
+    seen: set = set()
+    for raw in iter_rows(data, file.filename):
+        r = {
+            "first_name": _pick(raw, "first_name", "firstname", "first"),
+            "last_name": _pick(raw, "last_name", "lastname", "last", "surname"),
+            "job_title": _pick(raw, "job_title", "jobtitle", "title", "role"),
+            "email": _pick(raw, "email", "email_address", "e-mail").lower(),
+            "phone": _pick(raw, "phone", "telephone", "mobile", "contact", "tel"),
+            "department": _pick(raw, "department", "dept") or None,
+            "active": _pick(raw, "active", "status").lower() not in ("no", "false", "inactive", "0"),
+        }
+        if not any([r["first_name"], r["last_name"], r["job_title"], r["email"], r["phone"]]):
+            continue
+        status, reason = _classify_import_row(r, existing, seen)
+        if r["email"]:
+            seen.add(r["email"])
+        rows.append({**r, "status": status, "reason": reason})
+    summary = {
+        "total": len(rows),
+        "new": sum(1 for r in rows if r["status"] == "new"),
+        "duplicate": sum(1 for r in rows if r["status"] == "duplicate"),
+        "invalid": sum(1 for r in rows if r["status"] == "invalid"),
+    }
+    return {"rows": rows, "summary": summary}
+
+
+@router.post("/site-staff/import/confirm")
+async def staff_import_confirm(payload: StaffImportConfirm, request: Request, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    await _get_site(payload.site_id, user)
+    org_id = user.get("organization_id")
+    existing_docs = await db.site_staff.find(
+        {"organization_id": org_id, "site_id": payload.site_id}, {"_id": 0, "email_lc": 1},
+    ).to_list(5000)
+    existing = {e["email_lc"] for e in existing_docs if e.get("email_lc")}
+    now = datetime.now(timezone.utc).isoformat()
+    created = 0
+    skipped = 0
+    for r in payload.rows:
+        em = (r.get("email") or "").lower().strip()
+        if not (r.get("first_name") and r.get("last_name") and r.get("job_title") and em and "@" in em and r.get("phone")):
+            skipped += 1
+            continue
+        if em in existing:
+            skipped += 1
+            continue
+        existing.add(em)
+        contact = await db.contacts.find_one(
+            {"organization_id": org_id, "$or": [{"email": em}, {"email_lc": em}]}, {"_id": 0, "id": 1},
+        )
+        full_name = f"{r['first_name']} {r['last_name']}".strip()
+        await db.site_staff.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": org_id, "site_id": payload.site_id,
+            "first_name": sanitise_string(r["first_name"]), "last_name": sanitise_string(r["last_name"]),
+            "full_name": sanitise_string(full_name), "job_title": sanitise_string(r["job_title"]),
+            "email": em, "email_lc": em, "phone": sanitise_string(r["phone"]),
+            "department": sanitise_string(r.get("department")) if r.get("department") else None,
+            "notes": None, "receive_job_updates": True,
+            "contact_id": contact.get("id") if contact else None, "pin_hash": None,
+            "is_active": bool(r.get("active", True)), "fault_count": 0, "last_reported_at": None,
+            "created_at": now, "created_by": user.get("id"), "updated_at": now,
+        })
+        created += 1
+    await _audit("site_staff.bulk_import", user, payload.site_id, request, created=created, skipped=skipped)
+    return {"created": created, "skipped": skipped}
+
+
+@router.get("/site-staff/reports/usage")
+async def staff_usage_report(site_id: str, user: dict = Depends(get_current_user)):
+    """Shared-login usage report — faults per staff member, shared-login
+    volume, top reporters, and staff with no activity."""
+    _require_manager(user)
+    await _get_site(site_id, user)
+    org_id = user.get("organization_id")
+    agg = await db.issues.aggregate([
+        {"$match": {"organization_id": org_id, "site_id": site_id}},
+        {"$group": {"_id": "$reporter_staff_id", "count": {"$sum": 1},
+                    "via_shared": {"$sum": {"$cond": [{"$eq": ["$logged_via_shared_login", True]}, 1, 0]}},
+                    "name": {"$first": "$reporter_name"}}},
+    ]).to_list(2000)
+    agg_map = {a["_id"]: a for a in agg if a.get("_id")}
+    staff = await db.site_staff.find(
+        {"organization_id": org_id, "site_id": site_id},
+        {"_id": 0, "id": 1, "full_name": 1, "job_title": 1, "is_active": 1},
+    ).to_list(2000)
+    by_staff = []
+    for s in staff:
+        a = agg_map.get(s["id"], {})
+        by_staff.append({
+            "staff_id": s["id"], "name": s.get("full_name"), "job_title": s.get("job_title"),
+            "is_active": s.get("is_active", True),
+            "count": a.get("count", 0), "via_shared": a.get("via_shared", 0),
+        })
+    by_staff.sort(key=lambda x: -x["count"])
+    other = next((a for a in agg if not a.get("_id")), {})
+    return {
+        "summary": {
+            "total_faults": sum(a["count"] for a in agg),
+            "via_shared_login": sum(a["via_shared"] for a in agg),
+            "staff_count": len(staff),
+            "active_reporters": sum(1 for b in by_staff if b["count"] > 0),
+            "unattributed": other.get("count", 0),
+        },
+        "by_staff": by_staff,
+        "top_reporters": [b for b in by_staff if b["count"] > 0][:5],
+        "no_activity": [b for b in by_staff if b["count"] == 0 and b["is_active"]],
+    }
