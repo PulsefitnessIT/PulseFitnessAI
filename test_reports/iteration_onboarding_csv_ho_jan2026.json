@@ -1,0 +1,28 @@
+{
+  "summary": "Verified the new CSV/XLSX equipment import + Head Office attach mode in PulseOnboardingWizard. Backend pytest: 4/4 passed (template download, parse-spreadsheet returns import_id + 2 equipment rows, head-offices listing, full HO attach: create branch site under org -> confirm import with site_id). Frontend Playwright E2E: master admin login -> /master-admin?section=onboarding -> 'Onboard Site' sub-tab renders pulse-onboarding-wizard with all 3 mode cards (onboard-mode-new, onboard-mode-existing, onboard-mode-head-office). New Site mode -> invoice step shows onboard-spreadsheet-section with template + upload buttons and the PDF dropzone (regression OK). CSV upload via hidden input populates onboard-invoice-list with onboard-invoice-0. Template download fires with suggested filename 'equipment-template.csv'. Head Office mode -> onboard-ho-list lists 2 HOs ('Iso Demo Fitness', 'Test Org'); selecting 'onboard-ho-iso-demo-org' then Next -> invoice -> CSV upload -> site step (entered TEST_QA_Branch_UI_5165fb) -> equipment -> review -> Create -> onboard-success screen reads 'Branch Site Added — TEST_QA_Branch_UI_5165fb added to Iso Demo Fitness with 4 equipment items'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onboarding_csv_ho.py",
+    "/app/test_reports/pytest/onboarding_csv_ho.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Wizard state (uploaded invoices/equipment) persists across back-navigation between modes. During QA, after running the New Site CSV flow then navigating back to Choose and switching to Head Office mode, the prior 2 CSV rows remained merged with the freshly uploaded 2 rows, producing a 'Branch Site Added ... with 4 equipment items' on the success screen even though only one 2-row CSV was uploaded in the HO flow. Consider clearing invoices/equipment in handleSelectMode when mode changes after data has been uploaded — or surface a 'cleared previous imports' notice. Not a regression of new code, but worth a guard before launch.",
+    "Sub-tab label in the Onboarding hub is 'Onboard Site' (not 'Onboard a Site' as in the spec); spec wording should be aligned or the tab renamed for consistency.",
+    "PulseOnboardingWizard.js is large (~1180 lines); consider splitting steps (Choose, InvoiceUpload, SiteDetails, Users, Equipment, Review, Success) into separate components to keep file <700 LOC per code-review guideline.",
+    "All other code-review checks pass: API URLs via env, async backend, no _id leakage observed in confirm/parse responses, data-testid attributes present on every interactive element."
+  ],
+  "updated_files": ["/app/backend/tests/test_onboarding_csv_ho.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (all flows + testids verified end-to-end)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created 1 QA branch site 'TEST_QA_Branch_UI_5165fb' under org 'Iso Demo Fitness' via the UI flow, plus 1 'TEST_QA_Branch_*' site via the backend pytest (test_full_ho_attach_flow). Per spec it's acceptable to leave a small amount of test data; not cleaned up to keep tests simple.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints exercised: GET /api/master-admin/bulk-import/templates/equipment, POST /api/equipment-import/parse-spreadsheet (multipart CSV), GET /api/master-admin/head-offices, POST /api/master-admin/organizations/{org_id}/sites, POST /api/equipment-import/confirm/{import_id} with {target_organization_id, site_id}. UI sub-tab is labeled 'Onboard Site' under Onboarding hub at /master-admin?section=onboarding. The 3 modes render correctly; HO list returned 2 head-office orgs in this env (iso-demo-org + Test Org). Login uses POST /api/auth/login returning access_token. Note: chunked PDF dropzone (onboard-invoice-dropzone) still renders alongside the new spreadsheet-section, confirming regression-safe addition.",
+  "rca of the issue": "N/A — no bugs found in the new CSV/HO attach scope. The one observed UX nit (cross-mode state leak after back-navigation) is documented under critical_code_review_comments; it does not break the feature."
+}

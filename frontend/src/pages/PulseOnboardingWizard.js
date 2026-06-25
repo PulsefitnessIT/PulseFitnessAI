@@ -15,7 +15,7 @@ import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
   Building2, Users, Wrench, CheckCircle, ArrowRight, ArrowLeft,
   Loader2, Plus, Trash2, UserPlus, Download,
-  Eye, EyeOff, Star, Sparkles, FileText, UserCheck
+  Eye, EyeOff, Star, Sparkles, FileText, UserCheck, FileSpreadsheet, Network
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -28,7 +28,7 @@ const TIERS = [
 ];
 
 /* ─────── STEP 0: Choose Mode ─────── */
-const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSelectedOrg }) => {
+const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSelectedOrg, headOffices }) => {
   // Iter 216h51 — searchable + alphabetised picker. Lee reported that
   // scrolling through Pulse's full customer list takes ages; a search
   // box short-circuits that. We also sort by name (case-insensitive)
@@ -54,7 +54,7 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
       <p className="text-zinc-500 text-sm mt-1">Create a new customer site or add to an existing one</p>
     </div>
 
-    <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+    <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
       <button
         onClick={() => setMode('new')}
         className={`p-6 rounded-xl border-2 text-left transition-all ${mode === 'new' ? 'border-[var(--color-brand-blue)] bg-[rgb(var(--rgb-brand-blue)/0.05)] shadow-sm' : 'border-zinc-200 hover:border-zinc-300'}`}
@@ -76,6 +76,17 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
         </div>
         <h3 className="text-zinc-900 font-semibold mb-1">Existing Customer</h3>
         <p className="text-zinc-500 text-xs">Add new equipment or update an existing customer site</p>
+      </button>
+      <button
+        onClick={() => setMode('head_office')}
+        className={`p-6 rounded-xl border-2 text-left transition-all ${mode === 'head_office' ? 'border-[var(--color-brand-blue)] bg-[rgb(var(--rgb-brand-blue)/0.05)] shadow-sm' : 'border-zinc-200 hover:border-zinc-300'}`}
+        data-testid="onboard-mode-head-office"
+      >
+        <div className="w-12 h-12 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-3">
+          <Network size={22} className="text-indigo-600" />
+        </div>
+        <h3 className="text-zinc-900 font-semibold mb-1">Add to Head Office</h3>
+        <p className="text-zinc-500 text-xs">Attach a new branch site under an existing Head Office organisation</p>
       </button>
     </div>
 
@@ -149,6 +160,42 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
         )}
       </div>
     )}
+
+    {mode === 'head_office' && (
+      <div className="max-w-2xl mx-auto" data-testid="onboard-ho-picker">
+        <Label className="text-zinc-500 text-xs mb-2 block">Select Head Office Organisation</Label>
+        {(!headOffices || headOffices.length === 0) ? (
+          <div className="text-center py-8 border border-dashed border-zinc-200 rounded-lg">
+            <Network size={28} className="mx-auto text-zinc-300 mb-2" />
+            <p className="text-zinc-400 text-sm">No Head Office organisations found.</p>
+            <p className="text-zinc-400 text-xs mt-1">Create a multi-site Head Office first, then attach branch sites here.</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[28rem] overflow-y-auto border border-zinc-200 rounded-lg p-2" data-testid="onboard-ho-list">
+            {headOffices.map(ho => {
+              const selected = selectedOrg?.id === ho.organization_id;
+              return (
+                <button
+                  key={ho.head_office_site_id}
+                  onClick={() => setSelectedOrg({ id: ho.organization_id, name: ho.organization_name, company_code: ho.company_code, _headOffice: ho })}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${selected ? 'bg-[rgb(var(--rgb-brand-blue)/0.05)] border border-[rgb(var(--rgb-brand-blue)/0.3)]' : 'hover:bg-zinc-50 border border-transparent'}`}
+                  data-testid={`onboard-ho-${ho.organization_id}`}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                    <Network size={15} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-zinc-900 font-medium">{ho.organization_name}</span>
+                    <p className="text-xs text-zinc-400 truncate">HQ: {ho.head_office_name} · {ho.site_count} site{ho.site_count === 1 ? '' : 's'}</p>
+                  </div>
+                  {selected && <CheckCircle size={16} className="text-[var(--color-brand-blue)]" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    )}
   </div>
   );
 };
@@ -156,6 +203,7 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
 /* ─────── STEP 1: Upload Invoice (AI) — Bulk Support ─────── */
 const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }) => {
   const fileRef = useRef(null);
+  const sheetRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [processedInvoices, setProcessedInvoices] = useState([]);
@@ -172,6 +220,45 @@ const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }
   const [parseProgress, setParseProgress] = useState(null);
   const { enqueue } = useUploadQueue();
 
+  // Shared "merge a parsed import result into the wizard form" helper —
+  // used by the PDF invoice path AND the CSV/XLSX spreadsheet path so
+  // both feed the same review/confirm flow (import_id → /confirm).
+  const mergeResult = (data, filename) => {
+    const invoiceResult = { ...data, filename };
+    setProcessedInvoices(prev => [...prev, invoiceResult]);
+    // Use functional updates so concurrent files don't clobber each other.
+    if (data.site_name) setForm(f => ({ ...f, site_name: f.site_name || data.site_name }));
+    if (data.account_ref) setForm(f => ({ ...f, account_ref: f.account_ref || data.account_ref }));
+    if (data.install_date) setForm(f => ({ ...f, install_date: f.install_date || data.install_date }));
+    if (data.supplier_name) setForm(f => ({ ...f, supplier_name: f.supplier_name || data.supplier_name }));
+    if (data.equipment?.length > 0) {
+      const supplierFallback = (data.supplier_name || '').trim();
+      const goodSupplier = supplierFallback && supplierFallback.toLowerCase() !== 'unknown' ? supplierFallback : '';
+      const mapped = data.equipment.map(eq => ({
+        name: eq.name || eq.model || '',
+        equipment_type: eq.equipment_type || classifyEquipment(eq.name || eq.model || ''),
+        equipment_category: eq.equipment_category || '',
+        manufacturer: (eq.make && eq.make.trim()) || goodSupplier || 'Unknown',
+        model: eq.model || '',
+        serial_number: eq.serial_number || '',
+        location: eq.location || form.default_location || 'Main Floor',
+        unit_price: eq.unit_price || 0,
+        stock_item_code: eq.stock_item_code || '',
+        warranty_code: eq.warranty_code || '',
+        warranty_expiry: eq.warranty_expiry || '',
+        sla_name: eq.sla_name || '',
+        _invoice: data.invoice_number || filename,
+        _import_id: data.import_id,
+      }));
+      setForm(f => ({ ...f, equipment: [...f.equipment, ...mapped] }));
+    }
+    setAiData(prev => prev
+      ? { ...prev, batch_import_ids: [...(prev.batch_import_ids || [prev.import_id]), data.import_id] }
+      : { ...data, batch_import_ids: [data.import_id] }
+    );
+    return data;
+  };
+
   // Iter 216h35 — shared "parse one invoice and merge into form" helper
   // used by both the inline single-file path (with phased parseProgress
   // UI) and the multi-file enqueue() path (drawer-based).
@@ -180,47 +267,57 @@ const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       throw new Error(`${file.name} — not a PDF`);
     }
-    const res = { data: await uploadInvoiceSmart(file, {
+    const data = await uploadInvoiceSmart(file, {
       API, headers, onProgress,
       onStatus: (job) => {
         if (job?.phase === 'extracting') {
           setParseProgress({ phase: 'parse', pct: 88, pageCount: job.page_count || 0 });
         }
       },
-    }) };
-    const invoiceResult = { ...res.data, filename: file.name };
-    setProcessedInvoices(prev => [...prev, invoiceResult]);
-    // Use functional updates so concurrent files don't clobber each other.
-    if (res.data.site_name) setForm(f => ({ ...f, site_name: f.site_name || res.data.site_name }));
-    if (res.data.account_ref) setForm(f => ({ ...f, account_ref: f.account_ref || res.data.account_ref }));
-    if (res.data.install_date) setForm(f => ({ ...f, install_date: f.install_date || res.data.install_date }));
-    if (res.data.supplier_name) setForm(f => ({ ...f, supplier_name: f.supplier_name || res.data.supplier_name }));
-    if (res.data.equipment?.length > 0) {
-      const supplierFallback = (res.data.supplier_name || '').trim();
-      const goodSupplier = supplierFallback && supplierFallback.toLowerCase() !== 'unknown' ? supplierFallback : '';
-      const mapped = res.data.equipment.map(eq => ({
-        name: eq.model || '',
-        equipment_type: classifyEquipment(eq.model || ''),
-        equipment_category: eq.equipment_category || '',
-        manufacturer: (eq.make && eq.make.trim()) || goodSupplier || 'Unknown',
-        model: eq.model || '',
-        serial_number: eq.serial_number || '',
-        location: form.default_location || 'Main Floor',
-        unit_price: eq.unit_price || 0,
-        stock_item_code: eq.stock_item_code || '',
-        warranty_code: eq.warranty_code || '',
-        warranty_expiry: eq.warranty_expiry || '',
-        sla_name: eq.sla_name || '',
-        _invoice: res.data.invoice_number || file.name,
-        _import_id: res.data.import_id,
-      }));
-      setForm(f => ({ ...f, equipment: [...f.equipment, ...mapped] }));
+    });
+    return mergeResult(data, file.name);
+  };
+
+  // CSV / XLSX spreadsheet import — small files, direct multipart POST to
+  // the parse-spreadsheet endpoint which returns the SAME shape as a
+  // parsed invoice (import_id + equipment[]), then merged for review.
+  const processSpreadsheet = async (file) => {
+    if (!file) return;
+    const ok = /\.(csv|xlsx|xlsm)$/i.test(file.name);
+    if (!ok) { notify.error(`${file.name} — use a .csv or .xlsx file`); return; }
+    setCurrentFile(file.name);
+    setUploading(true);
+    setParseProgress({ phase: 'parse', pct: 60, pageCount: 0 });
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await axios.post(`${API}/equipment-import/parse-spreadsheet`, fd, { headers });
+      mergeResult(res.data, file.name);
+      notify.success(`${file.name}: imported ${res.data.equipment_count || 0} items${res.data.skipped ? ` (${res.data.skipped} skipped)` : ''}`);
+      setParseProgress({ phase: 'done', itemCount: res.data.equipment_count || 0 });
+      setTimeout(() => setParseProgress(null), 3500);
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || 'Failed';
+      setParseProgress({ phase: 'error', message: `${file.name}: ${detail}` });
+      setTimeout(() => setParseProgress(null), 6000);
+      notify.error(`${file.name}: ${detail}`);
     }
-    setAiData(prev => prev
-      ? { ...prev, batch_import_ids: [...(prev.batch_import_ids || [prev.import_id]), res.data.import_id] }
-      : { ...res.data, batch_import_ids: [res.data.import_id] }
-    );
-    return res.data;
+    setUploading(false);
+    setCurrentFile('');
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const res = await axios.get(`${API}/master-admin/bulk-import/templates/equipment`, { headers, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'equipment-template.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch { notify.error('Template download failed'); }
   };
 
   const processFile = async (file) => {
@@ -353,9 +450,34 @@ const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }
         )}
       </Card>
 
-      {/* Iter 216m — phased AI parse progress (replaces the old static
-          spinner inside the dropzone with a live progress bar that
-          shows real upload bytes + a simulated AI-parse phase). */}
+      {/* Spreadsheet (CSV/XLSX) import — skip PDFs and load equipment directly */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4" data-testid="onboard-spreadsheet-section">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+            <FileSpreadsheet size={18} className="text-emerald-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-zinc-700">No invoice? Import from a spreadsheet</p>
+            <p className="text-xs text-zinc-400">Upload a CSV or Excel (.xlsx) of equipment — review before saving.</p>
+          </div>
+        </div>
+        <input
+          type="file" accept=".csv,.xlsx,.xlsm" onChange={(e) => { processSpreadsheet(e.target.files?.[0]); e.target.value = ''; }}
+          ref={sheetRef} className="hidden" data-testid="onboard-spreadsheet-input"
+        />
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={downloadTemplate} disabled={uploading}
+            className="border-zinc-200 text-zinc-600" data-testid="onboard-download-template">
+            <Download size={14} className="mr-1.5" /> Template
+          </Button>
+          <Button size="sm" onClick={() => !uploading && sheetRef.current?.click()} disabled={uploading}
+            className="bg-emerald-600 text-white hover:bg-emerald-500" data-testid="onboard-spreadsheet-upload">
+            <FileSpreadsheet size={14} className="mr-1.5" /> Import spreadsheet
+          </Button>
+        </div>
+      </div>
+
+      {/* Phased AI parse progress — live bar instead of a static spinner. */}
       {parseProgress ? <InvoiceParseProgress state={parseProgress} /> : null}
 
       {/* Processed invoices list */}
@@ -669,7 +791,7 @@ const FinalReviewStep = ({ form, setForm, mode, tier, selectedOrg, aiData }) => 
     </div>
     <Card className="p-6 border-zinc-200">
       <div className="grid grid-cols-2 gap-4 text-sm">
-        <div><span className="text-zinc-500 text-xs">Mode:</span> <span className="font-medium text-zinc-900 ml-2">{mode === 'new' ? `New ${TIERS.find(t => t.id === tier)?.label || ''}` : `Existing — ${selectedOrg?.name}`}</span></div>
+        <div><span className="text-zinc-500 text-xs">Mode:</span> <span className="font-medium text-zinc-900 ml-2">{mode === 'new' ? `New ${TIERS.find(t => t.id === tier)?.label || ''}` : mode === 'head_office' ? `Branch under ${selectedOrg?.name}` : `Existing — ${selectedOrg?.name}`}</span></div>
         <div>
           <label className="text-zinc-500 text-xs block mb-1">Gym / Site Name</label>
           <input
@@ -737,9 +859,10 @@ const PulseOnboardingWizard = ({ onComplete }) => {
   const token = authToken || localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  const [mode, setMode] = useState(''); // 'new' | 'existing'
+  const [mode, setMode] = useState(''); // 'new' | 'existing' | 'head_office'
   const [tier, setTier] = useState('pro');
   const [orgs, setOrgs] = useState([]);
+  const [headOffices, setHeadOffices] = useState([]);
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [step, setStep] = useState(0);
   const [aiData, setAiData] = useState(null);
@@ -759,6 +882,9 @@ const PulseOnboardingWizard = ({ onComplete }) => {
     axios.get(`${API}/master-admin/organizations`, { headers })
       .then(res => setOrgs(res.data.organizations || []))
       .catch(() => {});
+    axios.get(`${API}/master-admin/head-offices`, { headers })
+      .then(res => setHeadOffices(res.data.head_offices || []))
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, []);
 
@@ -767,6 +893,15 @@ const PulseOnboardingWizard = ({ onComplete }) => {
       return [
         { id: 'choose', label: 'Choose', icon: Building2 },
         { id: 'invoice', label: 'Upload Invoice', icon: Sparkles },
+        { id: 'equipment', label: 'Equipment', icon: Wrench },
+        { id: 'review', label: 'Review & Add', icon: CheckCircle },
+      ];
+    }
+    if (mode === 'head_office') {
+      return [
+        { id: 'choose', label: 'Choose', icon: Building2 },
+        { id: 'invoice', label: 'Upload Invoice', icon: Sparkles },
+        { id: 'site', label: 'Branch Site', icon: Building2 },
         { id: 'equipment', label: 'Equipment', icon: Wrench },
         { id: 'review', label: 'Review & Add', icon: CheckCircle },
       ];
@@ -790,6 +925,7 @@ const PulseOnboardingWizard = ({ onComplete }) => {
       if (!mode) { notify.error('Please choose new site or existing customer'); return false; }
       if (mode === 'new' && !tier) { notify.error('Please select a service tier'); return false; }
       if (mode === 'existing' && !selectedOrg) { notify.error('Please select a customer'); return false; }
+      if (mode === 'head_office' && !selectedOrg) { notify.error('Please select a Head Office organisation'); return false; }
     }
     if (currentStepId === 'site') {
       if (!form.site_name.trim()) { notify.error('Site name is required'); return false; }
@@ -829,6 +965,39 @@ const PulseOnboardingWizard = ({ onComplete }) => {
         const res = await axios.post(`${API}/master-admin/onboard-pulse-site`, payload, { headers });
         setResult(res.data);
         notify.success('Site created successfully!');
+      } else if (mode === 'head_office') {
+        // Attach a new branch site under an existing Head Office org, then
+        // import equipment into that org tagged with the new site.
+        const orgId = selectedOrg?.id;
+        const siteRes = await axios.post(`${API}/master-admin/organizations/${orgId}/sites`, {
+          name: form.site_name, address: form.address, postcode: form.postcode,
+          city: form.city, county: form.county, phone: form.phone,
+          default_location: form.default_location, is_head_office: false,
+        }, { headers });
+        const newSiteId = siteRes.data?.id;
+
+        const importIds = aiData?.batch_import_ids || (aiData?.import_id ? [aiData.import_id] : []);
+        let totalCreated = 0;
+        for (const importId of importIds) {
+          try {
+            const importEquipment = (form.equipment || [])
+              .filter(eq => eq._import_id === importId)
+              .map(eq => ({ ...eq, location: eq.location || form.default_location || '' }));
+            if (importEquipment.length > 0) {
+              await axios.put(`${API}/equipment-import/update/${importId}`, {
+                equipment: importEquipment, default_location: form.default_location,
+              }, { headers });
+            }
+            const res = await axios.post(`${API}/equipment-import/confirm/${importId}`, {
+              target_organization_id: orgId, site_id: newSiteId,
+            }, { headers });
+            totalCreated += res.data.created || 0;
+          } catch (err) {
+            notify.error(`Invoice import failed: ${err.response?.data?.detail || err.message}`);
+          }
+        }
+        setResult({ existing: true, headOffice: true, org: selectedOrg, siteName: form.site_name, imported: totalCreated, invoiceCount: importIds.length });
+        notify.success(`Branch "${form.site_name}" added to ${selectedOrg.name}${totalCreated ? ` with ${totalCreated} equipment items` : ''}`);
       } else {
         // Existing customer — import equipment (supports multiple invoices)
         const importIds = aiData?.batch_import_ids || (aiData?.import_id ? [aiData.import_id] : []);
@@ -915,10 +1084,12 @@ const PulseOnboardingWizard = ({ onComplete }) => {
           <CheckCircle size={32} className="text-green-600" />
         </div>
         <h2 className="text-2xl font-bold text-zinc-900 mb-2">
-          {result.existing ? 'Equipment Added' : 'Site Created Successfully'}
+          {result.headOffice ? 'Branch Site Added' : result.existing ? 'Equipment Added' : 'Site Created Successfully'}
         </h2>
         <p className="text-zinc-500 mb-6">
-          {result.existing
+          {result.headOffice
+            ? `"${result.siteName}" added to ${result.org?.name}${result.imported ? ` with ${result.imported} equipment items` : ''}`
+            : result.existing
             ? `${result.imported} equipment items added${result.invoiceCount > 1 ? ` from ${result.invoiceCount} invoices` : ''} to ${result.org?.name}`
             : `${result.organization?.name} is now live`
           }
@@ -985,7 +1156,7 @@ const PulseOnboardingWizard = ({ onComplete }) => {
       </div>
 
       {/* Step content */}
-      {currentStepId === 'choose' && <ChooseModeStep mode={mode} setMode={setMode} tier={tier} setTier={setTier} orgs={orgs} selectedOrg={selectedOrg} setSelectedOrg={setSelectedOrg} />}
+      {currentStepId === 'choose' && <ChooseModeStep mode={mode} setMode={setMode} tier={tier} setTier={setTier} orgs={orgs} selectedOrg={selectedOrg} setSelectedOrg={setSelectedOrg} headOffices={headOffices} />}
       {currentStepId === 'invoice' && <InvoiceUploadStep aiData={aiData} setAiData={setAiData} form={form} setForm={setForm} mode={mode} headers={headers} />}
       {currentStepId === 'site' && <SiteDetailsStep form={form} setForm={setForm} mode={mode} tier={tier} />}
       {currentStepId === 'users' && <UsersStep form={form} setForm={setForm} />}

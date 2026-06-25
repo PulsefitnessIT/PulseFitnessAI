@@ -668,3 +668,50 @@ async def admin_bulk_create_sites(org_id: str, body: dict = Body(...), user: dic
         user["email"], "organization", org_id,
     )
     return {"created": created, "created_count": len(created), "skipped": skipped, "skipped_count": len(skipped)}
+
+
+
+# ───────────── /head-offices — onboarding "attach to HQ" picker ─────────────
+
+@router.get("/master-admin/head-offices")
+async def list_head_offices(user: dict = Depends(get_current_user)):
+    """List Pulse-visible organisations that have a Head Office site, so
+    the onboarding wizard can attach a new branch site to an existing HQ.
+    Returns one entry per org with its head-office site + branch count."""
+    require_master_admin(user)
+    hq_sites = await db.sites.find(
+        {"is_head_office": True},
+        {"_id": 0, "id": 1, "name": 1, "organization_id": 1},
+    ).to_list(2000)
+    if not hq_sites:
+        return {"head_offices": []}
+
+    org_ids = list({s["organization_id"] for s in hq_sites if s.get("organization_id")})
+    orgs = await db.organizations.find(
+        {"id": {"$in": org_ids}, "account_type": {"$in": list(PULSE_VISIBLE_ACCOUNT_TYPES)}},
+        {"_id": 0, "id": 1, "name": 1, "company_code": 1, "account_type": 1},
+    ).to_list(2000)
+    org_map = {o["id"]: o for o in orgs}
+
+    # Branch counts per org (one aggregate query).
+    counts = await db.sites.aggregate([
+        {"$match": {"organization_id": {"$in": list(org_map.keys())}}},
+        {"$group": {"_id": "$organization_id", "n": {"$sum": 1}}},
+    ]).to_list(2000)
+    count_map = {c["_id"]: c["n"] for c in counts}
+
+    out = []
+    for s in hq_sites:
+        org = org_map.get(s.get("organization_id"))
+        if not org:
+            continue
+        out.append({
+            "organization_id": org["id"],
+            "organization_name": org.get("name"),
+            "company_code": org.get("company_code"),
+            "head_office_site_id": s["id"],
+            "head_office_name": s.get("name"),
+            "site_count": count_map.get(org["id"], 1),
+        })
+    out.sort(key=lambda x: (x.get("organization_name") or "").lower())
+    return {"head_offices": out}

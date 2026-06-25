@@ -745,6 +745,91 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
     return await _run_invoice_extraction(data, file.filename, file.content_type, user)
 
 
+@router.post("/parse-spreadsheet")
+async def parse_spreadsheet(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Parse a CSV/XLSX equipment spreadsheet into a `pending_review`
+    import (same shape as /parse-invoice) so the onboarding wizard can
+    review + edit the rows and then confirm them through the identical
+    import_id → /confirm flow. No equipment is created here."""
+    from utils.file_validation import validate_upload, MIME_SPREADSHEETS
+    from utils.spreadsheet_import import iter_rows, normalise_row, parse_date_cell
+
+    data = await file.read()
+    validate_upload(file_bytes=data, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=50 * 1024 * 1024)
+
+    equipment: list[dict] = []
+    site_name = ""
+    supplier_name = ""
+    skipped = 0
+    for raw in iter_rows(data, file.filename):
+        row = normalise_row(raw)
+        if not any((str(v).strip() if v is not None else "") for v in row.values()):
+            continue
+        name = str(row.get("name") or "").strip()
+        if not name:
+            skipped += 1
+            continue
+        manufacturer = str(row.get("manufacturer") or "").strip()
+        model = str(row.get("model") or "").strip()
+        if not site_name:
+            site_name = str(row.get("site_name") or "").strip()
+        if not supplier_name:
+            supplier_name = str(row.get("supplier") or manufacturer or "").strip()
+        equipment.append({
+            "equipment_name": name,
+            "name": name,
+            "make": manufacturer,
+            "manufacturer": manufacturer,
+            "model": model,
+            "stock_item_code": model,
+            "description": str(row.get("notes") or "").strip() or name,
+            "equipment_category": str(row.get("equipment_type") or "").strip(),
+            "serial_number": str(row.get("serial_number") or "").strip(),
+            "unit_price": _parse_date_safe_float(row.get("unit_price")),
+            "install_date": parse_date_cell(row.get("purchase_date")),
+            "warranty_expiry": parse_date_cell(row.get("warranty_expiry")),
+            "warranty_code": "",
+            "sla_name": "",
+            "location": str(row.get("location") or "").strip(),
+        })
+
+    if not equipment:
+        raise HTTPException(status_code=400, detail="No valid equipment rows found. Each row needs at least a 'name'.")
+
+    import_id = str(uuid.uuid4())
+    extracted = {
+        "account_ref": "", "site_name": site_name, "invoice_number": "",
+        "install_date": "", "supplier_name": supplier_name,
+        "warranty_code": "", "warranty_description": "", "equipment": equipment,
+    }
+    await db.equipment_imports.insert_one({
+        "id": import_id, "user_id": user["id"], "status": "pending_review",
+        "original_filename": file.filename, "extracted_data": extracted,
+        "warranty_info": {"sla": "", "expiry_date": "", "years": 0},
+        "equipment_count": len(equipment),
+        "invoice_storage_path": "", "invoice_download_url": "",
+        "invoice_content_hash": "", "invoice_size": 0,
+        "source": "spreadsheet",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {
+        "import_id": import_id, "account_ref": "", "site_name": site_name,
+        "invoice_number": "", "install_date": "", "supplier_name": supplier_name,
+        "warranty_code": "", "warranty_description": "", "warranty_expiry": "",
+        "sla_name": "", "equipment": equipment, "equipment_count": len(equipment),
+        "skipped": skipped,
+    }
+
+
+def _parse_date_safe_float(value) -> float:
+    if value is None:
+        return 0
+    try:
+        return float(str(value).replace(",", "").replace("£", "").strip() or 0)
+    except (ValueError, TypeError):
+        return 0
+
+
 @router.put("/update/{import_id}")
 async def update_import(import_id: str, data: dict, user: dict = Depends(get_current_user)) -> dict:
     """User edits the extracted data before confirming."""
@@ -819,7 +904,8 @@ async def confirm_import(import_id: str, body: dict = None, user: dict = Depends
     )
 
     invoice_doc = _build_invoice_doc(imp, import_ctx)
-    await db.files.insert_one(invoice_doc)
+    if imp.get("invoice_storage_path"):
+        await db.files.insert_one(invoice_doc)
     return {"message": f"{created} equipment items imported", "created": created}
 
 
