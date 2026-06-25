@@ -17,7 +17,8 @@ DELIVERED & VERIFIED (backend pytest 7/7 + frontend UI e2e, zero issues):
    `via_shared_login`; `SupplierCasePage.js` gives shared-login reporters the elevated contact card
    (call/email buttons + "Logged from the site floor — call this person first" hint).
 
-STILL DEFERRED (P1): cross-site shared login ("select site first"); MOD portal parity pass.
+DROPPED (user decision 2026-06-25): cross-site shared login ("select site first") and MOD portal
+parity pass — will never be used; the Site Staff Shared Login epic is now considered fully complete.
 
 ────────────────────────────────────────────────────────────────────────
 
