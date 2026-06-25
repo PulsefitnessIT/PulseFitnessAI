@@ -689,21 +689,34 @@ async def parse_invoice_finalize(
     job_id = str(uuid.uuid4())
     await db.invoice_parse_jobs.insert_one({
         "id": job_id, "user_id": user["id"], "filename": filename,
-        "status": "processing", "result": None, "error": None,
+        "status": "processing", "phase": "queued", "page_count": None,
+        "result": None, "error": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
     async def _worker():
         try:
+            # Instant page count (fitz) so the UI can say "Reading an N-page
+            # invoice…" while the single LLM extraction call runs.
+            page_count = None
+            try:
+                if (content_type or "").lower().endswith("pdf") or filename.lower().endswith(".pdf"):
+                    import fitz
+                    with fitz.open(stream=data, filetype="pdf") as _doc:
+                        page_count = _doc.page_count
+            except Exception:
+                pass
+            await db.invoice_parse_jobs.update_one(
+                {"id": job_id}, {"$set": {"phase": "extracting", "page_count": page_count}})
             result = await _run_invoice_extraction(data, filename, content_type, user)
             await db.invoice_parse_jobs.update_one(
-                {"id": job_id}, {"$set": {"status": "done", "result": result}})
+                {"id": job_id}, {"$set": {"status": "done", "phase": "done", "result": result}})
         except HTTPException as e:
             await db.invoice_parse_jobs.update_one(
-                {"id": job_id}, {"$set": {"status": "error", "error": str(e.detail)}})
+                {"id": job_id}, {"$set": {"status": "error", "phase": "error", "error": str(e.detail)}})
         except Exception as e:
             await db.invoice_parse_jobs.update_one(
-                {"id": job_id}, {"$set": {"status": "error", "error": str(e)}})
+                {"id": job_id}, {"$set": {"status": "error", "phase": "error", "error": str(e)}})
 
     # Decoupled from the request so a client disconnect won't cancel it.
     asyncio.create_task(_worker())

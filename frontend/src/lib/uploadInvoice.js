@@ -13,7 +13,7 @@ const CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5MB per request
  * @param {File} file
  * @param {{ API: string, headers?: object, onProgress?: (pct:number)=>void }} opts
  */
-export async function uploadInvoiceSmart(file, { API, headers = {}, onProgress } = {}) {
+export async function uploadInvoiceSmart(file, { API, headers = {}, onProgress, onStatus } = {}) {
   // Small file → single request (unchanged behaviour).
   if (file.size <= CHUNK_SIZE) {
     const fd = new FormData();
@@ -55,16 +55,25 @@ export async function uploadInvoiceSmart(file, { API, headers = {}, onProgress }
   if (fin.data?.job_id) {
     const jobId = fin.data.job_id;
     const started = Date.now();
-    // Poll up to ~5 min; extraction of big multi-page PDFs can be slow.
-    while (Date.now() - started < 5 * 60 * 1000) {
+    const MAX_MS = 5 * 60 * 1000;
+    // Typical extraction ~90s; ramp the bar 85→97 over that window so it
+    // never looks stuck, then snap to 100 on completion.
+    while (Date.now() - started < MAX_MS) {
       await new Promise((r) => setTimeout(r, 2500));
       const s = await axios.get(`${API}/equipment-import/parse-invoice/status/${jobId}`, { headers: { ...headers } });
-      if (s.data?.status === 'done') {
+      const job = s.data || {};
+      if (onStatus) onStatus(job);
+      if (job.status === 'done') {
         if (onProgress) onProgress(100);
-        return s.data.result;
+        return job.result;
       }
-      if (s.data?.status === 'error') {
-        throw new Error(s.data.error || 'Invoice extraction failed');
+      if (job.status === 'error') {
+        throw new Error(job.error || 'Invoice extraction failed');
+      }
+      if (onProgress) {
+        const elapsed = Date.now() - started;
+        const ramp = 85 + Math.min(12, (elapsed / 90000) * 12);
+        onProgress(Math.round(ramp));
       }
     }
     throw new Error('Invoice is taking unusually long to process. Please try again or split the PDF.');

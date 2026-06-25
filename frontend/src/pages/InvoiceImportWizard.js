@@ -54,7 +54,8 @@ export default function InvoiceImportWizard({ onComplete, _onClose }) {
  const res = { data: await uploadInvoiceSmart(file, {
    API: `${API}/api`,
    headers,
-   onProgress: (pct) => setParseProgress({ phase: pct >= 100 ? 'parse' : 'upload', pct, pageCount }),
+   onProgress: (pct) => setParseProgress((p) => ({ phase: pct >= 100 ? 'parse' : (p?.phase === 'parse' ? 'parse' : 'upload'), pct, pageCount: p?.pageCount || pageCount })),
+   onStatus: (job) => { if (job?.phase === 'extracting') setParseProgress((p) => ({ phase: 'parse', pct: p?.pct || 85, pageCount: job.page_count || p?.pageCount || pageCount })); },
  }) };
  setImportId(res.data.import_id);
  setImportData(res.data);

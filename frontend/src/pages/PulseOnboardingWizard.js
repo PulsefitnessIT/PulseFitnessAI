@@ -180,7 +180,14 @@ const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       throw new Error(`${file.name} — not a PDF`);
     }
-    const res = { data: await uploadInvoiceSmart(file, { API, headers, onProgress }) };
+    const res = { data: await uploadInvoiceSmart(file, {
+      API, headers, onProgress,
+      onStatus: (job) => {
+        if (job?.phase === 'extracting') {
+          setParseProgress({ phase: 'parse', pct: 88, pageCount: job.page_count || 0 });
+        }
+      },
+    }) };
     const invoiceResult = { ...res.data, filename: file.name };
     setProcessedInvoices(prev => [...prev, invoiceResult]);
     // Use functional updates so concurrent files don't clobber each other.

@@ -17,6 +17,14 @@ Two production bugs reported by Master Admin:
 
 Both were reported on PRODUCTION (pulsefitness.ai) — fixes are in PREVIEW and need a redeploy to go live.
 
+ENHANCEMENT (2026-06-24): live invoice-parse progress. The background job now publishes
+`phase` ('queued'→'extracting'→'done') and the real `page_count` (computed instantly via fitz). The
+`uploadInvoiceSmart` helper fires an `onStatus` callback each poll + ramps the bar 85→97% during
+extraction; `InvoiceImportWizard` and `PulseOnboardingWizard` feed it into the existing
+`InvoiceParseProgress` component, which now animates "Reading page X of {N} with AI…" with the true
+page count instead of a blank spinner. Verified end-to-end via curl (mid-extraction: phase=extracting,
+page_count=26 for the 26-page Carshalton invoice).
+
 Tier reference (asked by user): Pulse Fitness AI — Starter (CRM+Memberships+basic ops), Professional
 (+Service Desk+AI triage+Sage outbox), Enterprise (multi-site, audit, SSO, custom SLA). Pulse — Lite
 (equipment+faults+docs), Pro (full platform+AI+reports).
