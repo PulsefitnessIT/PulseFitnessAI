@@ -430,6 +430,10 @@ const DashboardPage = () => {
         issueStep={wf.issueStep}
         issueForm={wf.issueForm}
         setIssueForm={wf.setIssueForm}
+        requireReporter={wf.requireReporter}
+        siteStaff={wf.siteStaff}
+        reporterStaffId={wf.reporterStaffId}
+        setReporterStaffId={wf.setReporterStaffId}
         selectedMachineType={wf.selectedMachineType}
         setSelectedMachineType={wf.setSelectedMachineType}
         allEquipment={allEquipment}

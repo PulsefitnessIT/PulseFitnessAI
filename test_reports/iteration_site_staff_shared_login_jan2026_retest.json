@@ -1,0 +1,37 @@
+{
+  "summary": "RETEST of Site Staff Shared Login (commercial / DashboardPage 'full' account_type). The previous HIGH bug (reporter dropdown NOT rendering in Log a Fault dialog for shared-login users) is now FIXED on the Dashboard path. Verified end-to-end on the live preview: (a) reporter block + dropdown render as the first field with Sarah Jones in the list, (b) IssueDetailPanel 'Logged by' block shows Sarah Jones + email + phone + 'Logged via: Shared Site Login' for the previously-created shared-login fault, (c) Manager Staffing → People → Site Login tab renders all expected testids (site-staff-manager, shared-login-panel, site-staff-table, site-staff-add) with Sarah Jones in the table and the shared username demo-head-office shown. The empty-submit toast and happy-path submit could NOT be exercised in this run because the test org currently has no equipment onboarded → 'Submit & Run AI Triage' button is rendered disabled with the message 'No equipment onboarded yet. Add equipment via the Equipment tab or Onboarding first.' This is orthogonal to the reporter fix; the dropdown + validation wiring itself is in place (FaultDialogs.js + useIssueWorkflow.js).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Shared-login fault submit end-to-end (UI happy-path)",
+        "issue": "Cannot exercise the empty-submit validation toast nor the success submit through the UI because the Log a Fault dialog disables the submit button when the org has zero onboarded equipment ('No equipment onboarded yet…'). The reporter dropdown itself is wired and renders correctly; the previous shared-login fault (TEST-SN-002) was created by the prior testing agent via direct API. To exercise the full UI flow, the seeded iso-demo-org needs at least one piece of equipment onboarded for site iso-demo-site-a so Machine Type has options.",
+        "affected_selectors": ["[data-testid=\"lite-fault-submit\"]", "[data-testid=\"issue-submit-btn\"]", "[data-testid=\"issue-type-select\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_site_staff_shared_login_jan2026.json",
+    "/app/backend/tests/test_site_staff_shared_login.py"
+  ],
+  "action_items": [
+    "(Optional) Seed at least one Equipment row for iso-demo-site-a so the shared-login Log-a-Fault dialog can be driven end-to-end through the UI (currently the submit button is disabled because Machine Type shows 'No equipment onboarded yet'). The reporter dropdown fix itself is verified."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js correctly guards the reporter block with requireReporter, lists siteStaff sorted with the expected testids, and useIssueWorkflow.js handleIssueSubmit blocks submit when reporter_staff_id is empty — that logic could not be exercised in UI because the Submit button is disabled when no equipment exists; consider letting the user submit a 'general' fault (no machine) so the reporter-validation path can still surface to end users in a no-equipment org.",
+    "Backend already returns the exact required message ('Please select the staff member logging this fault before submitting.') — verified previously (15/15 pytest pass)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (no backend changes; previous 15/15 still applicable)",
+    "frontend": "Reporter dropdown render: PASS. IssueDetail logged-by block: PASS. Manager Site Login UI (site-staff-manager / shared-login-panel / site-staff-table / site-staff-add): PASS. End-to-end UI submit + empty-submit toast: NOT VERIFIED via UI in this run (blocked by zero-equipment state of the test org)."
+  },
+  "test_credentials": "Shared login: demo-head-office / Fox-6307-river. Manager: owner@isodemo.com / IsoDemo123!. Seeded staff: Sarah Jones (sarah.qa@example.com / 07123 456789).",
+  "seed_data_creation": "No new seed data created in this run. TEST-SN-002 (Treadmill, Belt slipping under load — Sarah Jones reporter) still exists from prior iteration.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reporter dropdown fix on the Dashboard (full) path is visually confirmed: [data-testid=lite-fault-reporter] + [data-testid=lite-fault-reporter-select] render with Sarah Jones — General Manager as the first field of the Log a Fault dialog for the shared-login user (demo-head-office). IssueDetailPanel logged-by block also confirmed (Sarah Jones / sarah.qa@example.com / 07123 456789 / 'Logged via: Shared Site Login') on the previously-created TEST-SN-002 fault. Login IP rate-limit (HTTP 429) is still active — back-to-back logins between two different users in <60s will lock the second login out; allow ~60–90s between user switches. To re-run the empty-submit toast or happy-path submit via UI, the org needs at least one Equipment item onboarded for iso-demo-site-a; otherwise the Submit button stays disabled with 'No equipment onboarded yet.' The backend validation path (POST /api/issues without reporter_staff_id → 400) is still enforced and was previously covered by /app/backend/tests/test_site_staff_shared_login.py.",
+  "rca of the issue": "Original HIGH bug RCA was confirmed: the reporter block was only added to the Lite dashboard path; the iso-demo-org is account_type 'full' and therefore renders /app/frontend/src/pages/DashboardPage.js → /app/frontend/src/pages/Dashboard/FaultDialogs.js. Fix has been applied to the Dashboard path: useIssueWorkflow.js exposes requireReporter/siteStaff/reporterStaffId/setReporterStaffId, DashboardPage.js passes them into FaultDialogs.js, FaultDialogs.js renders the indigo-bordered '[data-testid=lite-fault-reporter]' block with '[data-testid=lite-fault-reporter-select]' as the FIRST field, and isSharedLogin = !!user?.is_shared_site_login || user?.role === 'site_staff'. Verified live: the dropdown lists Sarah Jones — General Manager (plus residual TESTQA staff from prior runs)."
+}

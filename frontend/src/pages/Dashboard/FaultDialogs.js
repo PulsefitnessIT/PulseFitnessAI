@@ -20,6 +20,7 @@ import CoverageBanner from '@/components/shared/CoverageBanner';
 const FaultDialogs = ({
  // Issue dialog state
  showIssueDialog, issueStep, issueForm, setIssueForm, selectedMachineType, setSelectedMachineType,
+ requireReporter = false, siteStaff = [], reporterStaffId = '', setReporterStaffId,
  allEquipment, issueLoading, issueMedia, setIssueMedia, faultMachines, activeMachineIdx, setActiveMachineIdx,
  triageResult, setTriageResult, machineTriageResults, resolutionNote, setResolutionNote,
  selectedFixStep, setSelectedFixStep, equipmentCoverage, coverageLoading, existingFaultWarning, setExistingFaultWarning,
@@ -69,6 +70,27 @@ const FaultDialogs = ({
  {/* Step 1: Issue Form — multi-machine */}
  {issueStep === 'form' && (
  <form onSubmit={onIssueSubmit} className="space-y-4">
+ {/* Site Staff Shared Login — mandatory "who is logging this fault?" */}
+ {requireReporter && (
+ <div className="rounded-lg border border-indigo-500/40 bg-indigo-500/5 p-3" data-testid="lite-fault-reporter">
+ <Label className="text-[var(--theme-text)] font-semibold">{t('dialog.who_logging', 'Who is logging this fault?')} <span className="text-red-500">*</span></Label>
+ <p className="text-xs text-[var(--color-text-muted)] mt-0.5 mb-2">{t('dialog.who_logging_help', 'Select your name so our service team knows who to contact if they need more information.')}</p>
+ {siteStaff.length === 0 ? (
+ <p className="text-xs text-amber-500" data-testid="lite-fault-reporter-empty">{t('dialog.no_staff', "Can't see your name? Please ask your site manager to add you to the site staff list.")}</p>
+ ) : (
+ <Select value={reporterStaffId || ''} onValueChange={(v) => setReporterStaffId && setReporterStaffId(v)}>
+ <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] h-11" data-testid="lite-fault-reporter-select">
+ <SelectValue placeholder={t('dialog.select_name', 'Select your name...')} />
+ </SelectTrigger>
+ <SelectContent>
+ {siteStaff.map((s) => (
+ <SelectItem key={s.id} value={s.id} data-testid={`lite-fault-reporter-${s.id}`}>{s.full_name} — {s.job_title}</SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+ )}
+ </div>
+ )}
  {/* Quick-log template picker (org + personal templates) */}
  <FaultTemplatePicker
  API={API}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { queuedMutation } from '@/utils/queuedMutation';
 
@@ -58,6 +58,22 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
   // Lazy-initialised the first time we submit a machine on a multi-
   // machine workflow.
   const [currentJobId, setCurrentJobId] = useState(null);
+  // Site Staff Shared Login — the shared kiosk account must pick "who is
+  // logging this fault?" before submit. Storing reporter_staff_id + site_id
+  // on issueForm means every per-machine payload (which spreads the form)
+  // carries the reporter automatically.
+  const isSharedLogin = !!user?.is_shared_site_login || user?.role === 'site_staff';
+  const reporterSiteId = user?.site_id || (user?.allowed_site_ids || [])[0] || null;
+  const [siteStaff, setSiteStaff] = useState([]);
+  useEffect(() => {
+    if (!isSharedLogin || !reporterSiteId) return;
+    const token = localStorage.getItem('token');
+    axios.get(`${API}/site-staff/active?site_id=${reporterSiteId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setSiteStaff(r.data.staff || []))
+      .catch(() => setSiteStaff([]));
+    setIssueForm((f) => ({ ...f, site_id: reporterSiteId }));
+  }, [isSharedLogin, reporterSiteId, API]);
+  const setReporterStaffId = (id) => setIssueForm((f) => ({ ...f, reporter_staff_id: id, site_id: reporterSiteId }));
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [issueMedia, setIssueMedia] = useState([]);
   const [showFaultSuccess, setShowFaultSuccess] = useState(false);
@@ -128,6 +144,12 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
 
   const handleIssueSubmit = async (e) => {
     e.preventDefault();
+    if (isSharedLogin && !issueForm.reporter_staff_id) {
+      notify.error(siteStaff.length === 0
+        ? 'No site staff have been added yet. Please contact your site manager to add staff before logging a fault.'
+        : 'Please select the staff member logging this fault before submitting.');
+      return;
+    }
     let machines = [...faultMachines];
     if (issueForm.serial_number && issueForm.issue_description) {
       const isDuplicate = faultMachines.some(
@@ -471,6 +493,9 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
     issueForm, setIssueForm,
     issueMedia, setIssueMedia,
     selectedMachineType, setSelectedMachineType,
+    // Site Staff Shared Login — reporter dropdown
+    requireReporter: isSharedLogin, siteStaff,
+    reporterStaffId: issueForm.reporter_staff_id || '', setReporterStaffId,
     // triage
     triageResult, setTriageResult,
     machineTriageResults,
