@@ -148,11 +148,14 @@ const LiteDashboardPage = () => {
   const isSharedLogin = !!user?.is_shared_site_login || user?.role === 'site_staff';
   const reporterSiteId = activeSite?.id || user?.site_id || (user?.allowed_site_ids || [])[0] || null;
   const [reporterStaffId, setReporterStaffId] = useState('');
+  const [reporterPin, setReporterPin] = useState('');
+  const [reporterOther, setReporterOther] = useState({ name: '', job_title: '', email: '', phone: '' });
   const [siteStaff, setSiteStaff] = useState([]);
+  const [siteStaffSettings, setSiteStaffSettings] = useState({});
   useEffect(() => {
     if (!isSharedLogin || !reporterSiteId) return;
     axios.get(`${API}/site-staff/active?site_id=${reporterSiteId}`, { headers })
-      .then((r) => setSiteStaff(r.data.staff || []))
+      .then((r) => { setSiteStaff(r.data.staff || []); setSiteStaffSettings(r.data.settings || {}); })
       .catch(() => setSiteStaff([]));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSharedLogin, reporterSiteId]);
@@ -324,7 +327,14 @@ const LiteDashboardPage = () => {
       ai_triage: overrides.ai_triage || form.ai_triage || null,
       // Site Staff Shared Login — job-level reporter + site (the backend
       // validates this is an active staff member for the site).
-      reporter_staff_id: reporterStaffId || null,
+      reporter_staff_id: reporterStaffId === '__other__' ? null : (reporterStaffId || null),
+      reporter_pin: reporterPin || undefined,
+      ...(reporterStaffId === '__other__' ? {
+        reporter_name: reporterOther.name,
+        reporter_job_title: reporterOther.job_title,
+        reporter_email: reporterOther.email,
+        reporter_phone: reporterOther.phone,
+      } : {}),
       site_id: reporterSiteId || undefined,
       ...overrides,
     };
@@ -389,6 +399,10 @@ const LiteDashboardPage = () => {
           ? 'No site staff have been added yet. Please contact your site manager to add staff before logging a fault.'
           : 'Please select the staff member logging this fault before submitting.',
       });
+      return;
+    }
+    if (isSharedLogin && reporterStaffId === '__other__' && (!reporterOther.name || !reporterOther.email || !reporterOther.phone)) {
+      showFaultBanner({ tone: 'error', title: 'Details required', detail: 'Please enter the name, email and phone for the staff member logging this fault.' });
       return;
     }
     setSubmitting(true);
@@ -1080,6 +1094,12 @@ const LiteDashboardPage = () => {
         siteStaff={siteStaff}
         reporterStaffId={reporterStaffId}
         setReporterStaffId={setReporterStaffId}
+        allowOtherStaff={!!siteStaffSettings.allow_other_staff}
+        requireStaffPin={!!siteStaffSettings.require_staff_pin}
+        reporterPin={reporterPin}
+        setReporterPin={setReporterPin}
+        reporterOther={reporterOther}
+        setReporterOther={setReporterOther}
         selectEquipmentForFault={selectEquipmentForFault}
         coverage={coverage}
         faultMedia={faultMedia}

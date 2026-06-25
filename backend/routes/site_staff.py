@@ -44,9 +44,29 @@ _MANAGER_ROLES = {"owner", "manager", "admin", "master_admin", "master"}
 DEFAULT_SETTINGS = {
     "require_staff_selection": True,
     "allow_other_staff": False,
+    "require_staff_pin": False,
     "notify_manager": False,
     "notify_staff": False,
+    "notify_service_desk": False,
+    "notify_supplier": False,
 }
+
+GLOBAL_CONFIG_ID = "shared_login_global"
+DEFAULT_GLOBAL = {
+    "allow_shared_site_logins": True,
+    "require_staff_selection": True,
+    "allow_other_staff": False,
+    "require_staff_pin": False,
+    "notify_manager": True,
+    "notify_staff": True,
+    "notify_service_desk": False,
+    "notify_supplier": False,
+}
+
+
+async def get_global_config() -> dict:
+    doc = await db.app_config.find_one({"id": GLOBAL_CONFIG_ID}, {"_id": 0})
+    return {**DEFAULT_GLOBAL, **((doc or {}).get("settings") or {})}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -62,6 +82,7 @@ class StaffCreate(BaseModel):
     department: Optional[str] = Field(default=None, max_length=120)
     notes: Optional[str] = Field(default=None, max_length=2000)
     receive_job_updates: bool = True
+    pin: Optional[str] = Field(default=None, min_length=4, max_length=8)
 
 
 class StaffUpdate(BaseModel):
@@ -73,6 +94,18 @@ class StaffUpdate(BaseModel):
     department: Optional[str] = Field(default=None, max_length=120)
     notes: Optional[str] = Field(default=None, max_length=2000)
     receive_job_updates: Optional[bool] = None
+    pin: Optional[str] = Field(default=None, max_length=8)  # "" clears the PIN
+
+
+class GlobalConfigPayload(BaseModel):
+    allow_shared_site_logins: Optional[bool] = None
+    require_staff_selection: Optional[bool] = None
+    allow_other_staff: Optional[bool] = None
+    require_staff_pin: Optional[bool] = None
+    notify_manager: Optional[bool] = None
+    notify_staff: Optional[bool] = None
+    notify_service_desk: Optional[bool] = None
+    notify_supplier: Optional[bool] = None
 
 
 class StaffTransfer(BaseModel):
@@ -86,8 +119,11 @@ class ProvisionPayload(BaseModel):
 class SharedLoginSettings(BaseModel):
     require_staff_selection: Optional[bool] = None
     allow_other_staff: Optional[bool] = None
+    require_staff_pin: Optional[bool] = None
     notify_manager: Optional[bool] = None
     notify_staff: Optional[bool] = None
+    notify_service_desk: Optional[bool] = None
+    notify_supplier: Optional[bool] = None
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -122,7 +158,8 @@ async def _get_site(site_id: str, user: dict) -> dict:
 
 
 def _staff_public(doc: dict) -> dict:
-    out = {k: v for k, v in doc.items() if k not in ("_id", "email_lc")}
+    out = {k: v for k, v in doc.items() if k not in ("_id", "email_lc", "pin_hash")}
+    out["has_pin"] = bool(doc.get("pin_hash"))
     return out
 
 
@@ -171,9 +208,8 @@ async def list_site_staff(site_id: str, user: dict = Depends(get_current_user)):
     await _get_site(site_id, user)
     items = await db.site_staff.find(
         {"organization_id": user.get("organization_id"), "site_id": site_id},
-        {"_id": 0, "email_lc": 0},
     ).sort("full_name", 1).to_list(1000)
-    return {"staff": items}
+    return {"staff": [_staff_public(s) for s in items]}
 
 
 @router.get("/site-staff/active")
@@ -194,9 +230,21 @@ async def list_active_site_staff(site_id: str, user: dict = Depends(get_current_
     items = await db.site_staff.find(
         {"organization_id": user.get("organization_id"), "site_id": site_id, "is_active": {"$ne": False}},
         {"_id": 0, "id": 1, "full_name": 1, "first_name": 1, "last_name": 1,
-         "job_title": 1, "email": 1, "phone": 1},
+         "job_title": 1, "email": 1, "phone": 1, "pin_hash": 1},
     ).sort("full_name", 1).to_list(1000)
-    return {"staff": items}
+    site = await db.sites.find_one({"id": site_id}, {"_id": 0, "shared_login": 1})
+    cfg = {**DEFAULT_SETTINGS, **(((site or {}).get("shared_login") or {}).get("settings") or {})}
+    staff_out = [{
+        "id": s["id"], "full_name": s.get("full_name"), "job_title": s.get("job_title"),
+        "email": s.get("email"), "phone": s.get("phone"), "has_pin": bool(s.get("pin_hash")),
+    } for s in items]
+    return {
+        "staff": staff_out,
+        "settings": {
+            "allow_other_staff": cfg.get("allow_other_staff", False),
+            "require_staff_pin": cfg.get("require_staff_pin", False),
+        },
+    }
 
 
 @router.post("/site-staff")
@@ -234,6 +282,7 @@ async def create_site_staff(payload: StaffCreate, request: Request, user: dict =
         "notes": sanitise_string(payload.notes) if payload.notes else None,
         "receive_job_updates": payload.receive_job_updates,
         "contact_id": contact.get("id") if contact else None,
+        "pin_hash": hash_password(payload.pin) if payload.pin else None,
         "is_active": True,
         "fault_count": 0,
         "last_reported_at": None,
@@ -264,6 +313,8 @@ async def update_site_staff(staff_id: str, payload: StaffUpdate, request: Reques
         updates["email_lc"] = payload.email.lower().strip()
     if payload.receive_job_updates is not None:
         updates["receive_job_updates"] = payload.receive_job_updates
+    if payload.pin is not None:
+        updates["pin_hash"] = hash_password(payload.pin) if payload.pin else None
     if "first_name" in updates or "last_name" in updates:
         fn = updates.get("first_name", existing.get("first_name", ""))
         ln = updates.get("last_name", existing.get("last_name", ""))
@@ -372,6 +423,9 @@ async def provision_shared_login(site_id: str, payload: ProvisionPayload, reques
     account_type = (org or {}).get("account_type")
     if account_type not in COMMERCIAL_ACCOUNT_TYPES:
         raise HTTPException(400, "Shared site login is only available for commercial customer sites")
+    gcfg = await get_global_config()
+    if not gcfg.get("allow_shared_site_logins"):
+        raise HTTPException(403, "Shared site logins are disabled platform-wide by the administrator.")
 
     existing = await _find_shared_login(site_id)
     new_password = _mint_password()
@@ -417,7 +471,8 @@ async def provision_shared_login(site_id: str, payload: ProvisionPayload, reques
     site_shared = site.get("shared_login") or {}
     site_shared["enabled"] = True
     site_shared["username"] = username
-    site_shared.setdefault("settings", dict(DEFAULT_SETTINGS))
+    if "settings" not in site_shared:
+        site_shared["settings"] = {k: gcfg.get(k, DEFAULT_SETTINGS[k]) for k in DEFAULT_SETTINGS}
     await db.sites.update_one({"id": site_id}, {"$set": {"shared_login": site_shared}})
 
     return {"username": username, "password": new_password, "rotated": bool(existing)}
@@ -443,7 +498,8 @@ async def update_shared_login_settings(site_id: str, payload: SharedLoginSetting
     site = await _get_site(site_id, user)
     site_shared = site.get("shared_login") or {}
     settings = {**DEFAULT_SETTINGS, **(site_shared.get("settings") or {})}
-    for field in ("require_staff_selection", "allow_other_staff", "notify_manager", "notify_staff"):
+    for field in ("require_staff_selection", "allow_other_staff", "require_staff_pin",
+                  "notify_manager", "notify_staff", "notify_service_desk", "notify_supplier"):
         val = getattr(payload, field)
         if val is not None:
             settings[field] = val
@@ -453,4 +509,37 @@ async def update_shared_login_settings(site_id: str, payload: SharedLoginSetting
     return {"settings": settings}
 
 
-__all__ = ["router", "is_shared_site_login"]
+# ══════════════════════════════════════════════════════════════════
+#              GLOBAL CONFIG — Admin → Portal Settings
+# ══════════════════════════════════════════════════════════════════
+def _require_master(user: dict) -> None:
+    if not user.get("is_master_admin"):
+        raise HTTPException(403, "Master admin only")
+
+
+@router.get("/master-admin/shared-login-config")
+async def get_shared_login_config(user: dict = Depends(get_current_user)):
+    _require_master(user)
+    return {"config": await get_global_config()}
+
+
+@router.put("/master-admin/shared-login-config")
+async def update_shared_login_config(payload: GlobalConfigPayload, request: Request, user: dict = Depends(get_current_user)):
+    _require_master(user)
+    cfg = await get_global_config()
+    for field in DEFAULT_GLOBAL:
+        val = getattr(payload, field)
+        if val is not None:
+            cfg[field] = val
+    await db.app_config.update_one(
+        {"id": GLOBAL_CONFIG_ID},
+        {"$set": {"id": GLOBAL_CONFIG_ID, "settings": cfg,
+                  "updated_at": datetime.now(timezone.utc).isoformat(),
+                  "updated_by": user.get("id")}},
+        upsert=True,
+    )
+    await _audit("shared_login.global_config", user, "", request, **cfg)
+    return {"config": cfg}
+
+
+__all__ = ["router", "is_shared_site_login", "get_global_config"]

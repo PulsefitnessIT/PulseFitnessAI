@@ -15,6 +15,7 @@ import { RefreshCw, Menu, ArrowLeftRight } from 'lucide-react';
 // because it renders on every section.
 const IntegrationAdminPanel = lazy(() => import('./IntegrationAdminPanel'));
 const SiconIntegrationPage = lazy(() => import('./MasterAdmin/SiconIntegrationPage'));
+const SharedLoginConfigPanel = lazy(() => import('./MasterAdmin/SharedLoginConfigPanel'));
 const FinancialOpsPanel = lazy(() => import('./FinancialOpsPanel'));
 const AdminOnboardingHub = lazy(() => import('./MasterAdmin/AdminOnboardingHub'));
 const AdminTrials = lazy(() => import('./MasterAdmin/AdminTrials'));
@@ -441,6 +442,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <PendingReviewPanel />;
       case 'ask-support':
         return <AskSupportDesk />;
+      case 'shared-login-config':
+        return <SharedLoginConfigPanel />;
       case 'analytics':
         return <AnalyticsSection />;
       case 'orbit4':

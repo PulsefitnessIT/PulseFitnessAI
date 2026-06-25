@@ -702,8 +702,9 @@ async def _resolve_reporter(issue: IssueCreate, user: dict) -> dict:
     the target site has `require_staff_selection` on. Raises 400 with the
     customer-facing wording from the spec when the rules aren't met.
     """
-    from routes.site_staff import is_shared_site_login
+    from routes.site_staff import is_shared_site_login, get_global_config
     from utils.security import sanitise_string as _san
+    from utils.auth import verify_password
 
     org_id = user.get("organization_id")
     shared = is_shared_site_login(user)
@@ -720,6 +721,7 @@ async def _resolve_reporter(issue: IssueCreate, user: dict) -> dict:
         settings = ((site or {}).get("shared_login") or {}).get("settings") or {}
     require_selection = shared or bool(settings.get("require_staff_selection"))
     allow_other = bool(settings.get("allow_other_staff"))
+    require_pin = bool(settings.get("require_staff_pin"))
 
     if not require_selection:
         return {}
@@ -735,6 +737,11 @@ async def _resolve_reporter(issue: IssueCreate, user: dict) -> dict:
             raise HTTPException(status_code=400, detail="Selected staff member was not found for this site.")
         if shared and site_id and staff.get("site_id") != site_id:
             raise HTTPException(status_code=403, detail="That staff member belongs to a different site.")
+        # Optional per-site staff PIN — a quick confirmation that the right
+        # person is logging the fault when the site enables it.
+        if require_pin and staff.get("pin_hash"):
+            if not issue.reporter_pin or not verify_password(issue.reporter_pin, staff["pin_hash"]):
+                raise HTTPException(status_code=403, detail="Incorrect staff PIN. Please check with your site manager.")
         await db.site_staff.update_one(
             {"id": staff["id"]},
             {"$inc": {"fault_count": 1},
@@ -780,6 +787,69 @@ async def _resolve_reporter(issue: IssueCreate, user: dict) -> dict:
     )
 
 
+async def _send_fault_notifications(issue_doc: dict, reporter: dict) -> None:
+    """Best-effort fault notifications for shared-login logged faults.
+    Driven by the site's shared_login.settings toggles (gated by the
+    global allow flag). Runs as a background task so it never blocks the
+    fault submit."""
+    try:
+        from routes.site_staff import get_global_config
+        from utils.email import send_email
+        site_id = issue_doc.get("site_id")
+        if not site_id:
+            return
+        site = await db.sites.find_one({"id": site_id}, {"_id": 0, "shared_login": 1, "name": 1})
+        settings = ((site or {}).get("shared_login") or {}).get("settings") or {}
+        if not (settings.get("notify_staff") or settings.get("notify_manager") or settings.get("notify_service_desk")):
+            return
+        gcfg = await get_global_config()
+        if not gcfg.get("allow_shared_site_logins"):
+            return
+        org_id = issue_doc.get("organization_id")
+        ref = (issue_doc.get("id") or "")[:8]
+        site_name = (site or {}).get("name") or ""
+        machine = issue_doc.get("machine_type") or "Equipment"
+        sev = issue_doc.get("severity") or ""
+        who = reporter.get("reporter_name") or "Site staff"
+        subject = f"Fault logged — {machine} @ {site_name} (#{ref})"
+
+        def body(intro: str) -> str:
+            return (
+                f"<p>{intro}</p><ul>"
+                f"<li><b>Ref:</b> #{ref}</li>"
+                f"<li><b>Site:</b> {site_name}</li>"
+                f"<li><b>Equipment:</b> {machine}</li>"
+                f"<li><b>Severity:</b> {sev}</li>"
+                f"<li><b>Logged by:</b> {who} ({reporter.get('reporter_email') or ''} · {reporter.get('reporter_phone') or ''})</li>"
+                f"</ul><p>{issue_doc.get('issue_description') or ''}</p>"
+            )
+
+        if settings.get("notify_staff") and reporter.get("reporter_email"):
+            await send_email(reporter["reporter_email"], f"We've received your fault report (#{ref})",
+                             body("Thanks — your fault has been logged and our service team will be in touch."),
+                             organization_id=org_id, kind="fault_staff_confirm", category="operations")
+        if settings.get("notify_manager"):
+            mgrs = await db.users.find(
+                {"organization_id": org_id, "role": {"$in": ["owner", "manager", "admin"]}},
+                {"_id": 0, "email": 1},
+            ).to_list(30)
+            seen = set()
+            for m in mgrs:
+                em = (m.get("email") or "").strip()
+                if em and "@" in em and "@site.local" not in em and em not in seen:
+                    seen.add(em)
+                    await send_email(em, subject, body(f"A fault was logged at {site_name} via the shared site login."),
+                                     organization_id=org_id, kind="fault_manager_notify", category="operations")
+        if settings.get("notify_service_desk"):
+            org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "service_desk_email": 1, "support_email": 1})
+            sd = (org or {}).get("service_desk_email") or (org or {}).get("support_email")
+            if sd and "@" in sd:
+                await send_email(sd, subject, body("New fault logged via shared site login."),
+                                 organization_id=org_id, kind="fault_servicedesk", category="operations")
+    except Exception as e:  # pragma: no cover
+        logger.warning("fault notification failed: %s", e)
+
+
 @router.post("/issues")
 async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     reporter = await _resolve_reporter(issue, user)
@@ -805,6 +875,8 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
     if not issue_doc.get("site_id") and reporter.get("site_id"):
         issue_doc["site_id"] = reporter["site_id"]
     await db.issues.insert_one(issue_doc)
+    if reporter:
+        asyncio.create_task(_send_fault_notifications(issue_doc, reporter))
     issue_doc.pop('_id', None)
 
     await store_fix_history(issue, issue_doc['id'], user)
@@ -897,6 +969,9 @@ async def create_issues_batch(
     # supplier (machine-first resolution). Idempotent per issue_id.
     for doc in created:
         await _auto_dispatch_to_primary_supplier(doc, user)
+
+    if reporter and created:
+        asyncio.create_task(_send_fault_notifications(created[0], reporter))
 
     return {"job_id": job_id, "issues": created, "count": len(created)}
 

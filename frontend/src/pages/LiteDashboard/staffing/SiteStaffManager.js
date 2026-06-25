@@ -33,7 +33,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const EMPTY_STAFF = {
   first_name: '', last_name: '', job_title: '', email: '', phone: '',
-  department: '', notes: '', receive_job_updates: true,
+  department: '', notes: '', receive_job_updates: true, pin: '',
 };
 
 export default function SiteStaffManager({ headers }) {
@@ -80,11 +80,13 @@ export default function SiteStaffManager({ headers }) {
       return;
     }
     try {
+      const payload = { ...form };
+      if (!payload.pin) delete payload.pin; // don't clear an existing PIN on edit
       if (editing) {
-        await axios.patch(`${API}/site-staff/${editing.id}`, form, { headers });
+        await axios.patch(`${API}/site-staff/${editing.id}`, payload, { headers });
         toast.success('Staff updated');
       } else {
-        await axios.post(`${API}/site-staff`, { ...form, site_id: siteId }, { headers });
+        await axios.post(`${API}/site-staff`, { ...payload, site_id: siteId }, { headers });
         toast.success('Staff added');
       }
       setShowAdd(false); setEditing(null); setForm(EMPTY_STAFF);
@@ -177,10 +179,16 @@ export default function SiteStaffManager({ headers }) {
                 checked={settings.require_staff_selection !== false} onChange={(v) => updateSetting('require_staff_selection', v)} />
               <SettingRow label='Allow an "Other staff member" option (manual name + contact)' testid="setting-allow-other"
                 checked={!!settings.allow_other_staff} onChange={(v) => updateSetting('allow_other_staff', v)} />
+              <SettingRow label="Require a staff PIN before logging a fault" testid="setting-require-pin"
+                checked={!!settings.require_staff_pin} onChange={(v) => updateSetting('require_staff_pin', v)} />
               <SettingRow label="Notify site manager when a fault is logged" testid="setting-notify-manager"
                 checked={!!settings.notify_manager} onChange={(v) => updateSetting('notify_manager', v)} />
-              <SettingRow label="Notify the selected staff member" testid="setting-notify-staff"
+              <SettingRow label="Notify the selected staff member (confirmation email)" testid="setting-notify-staff"
                 checked={!!settings.notify_staff} onChange={(v) => updateSetting('notify_staff', v)} />
+              <SettingRow label="Notify the service desk" testid="setting-notify-servicedesk"
+                checked={!!settings.notify_service_desk} onChange={(v) => updateSetting('notify_service_desk', v)} />
+              <SettingRow label="Notify the supplier" testid="setting-notify-supplier"
+                checked={!!settings.notify_supplier} onChange={(v) => updateSetting('notify_supplier', v)} />
             </div>
           </div>
         ) : (
@@ -257,6 +265,11 @@ export default function SiteStaffManager({ headers }) {
             <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="staff-email" /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="staff-phone" /></div>
             <div className="col-span-2"><Label>Department (optional)</Label><Input value={form.department || ''} onChange={(e) => setForm({ ...form, department: e.target.value })} data-testid="staff-department" /></div>
+            <div className="col-span-2">
+              <Label>Staff PIN (optional, 4–8 digits)</Label>
+              <Input value={form.pin || ''} onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 8) })} placeholder={editing?.has_pin ? '•••• (set — leave blank to keep)' : 'e.g. 1234'} data-testid="staff-pin" />
+              <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>Used when this site requires PIN confirmation before logging a fault.</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>

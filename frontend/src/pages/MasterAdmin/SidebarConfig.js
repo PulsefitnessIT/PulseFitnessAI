@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CreditCard, Headphones, Mail, TrendingUp,
   PoundSterling, ArrowLeftRight, BarChart3, Timer, ShieldCheck, Sparkles,
-  Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert,
+  Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert, KeyRound,
   Wallet, Megaphone, Lock, FolderArchive, AlertCircle,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
   Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText, Globe,
@@ -172,6 +172,7 @@ export const SIDEBAR_ITEMS = [
     id: 'platform-tools', label: 'Platform Tools', icon: Settings, group: 'main',
     subTabs: [
       { id: 'theme-settings',     label: 'Branding & design',  icon: Palette },
+      { id: 'shared-login-config', label: 'Shared Site Login',  icon: KeyRound },
       { id: 'custom-domains',     label: 'Custom domains',     icon: Globe },
       { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert, gymaxisOnly: true },
       // Pulse Fitness-platform-internal (master-admin only on the backend);

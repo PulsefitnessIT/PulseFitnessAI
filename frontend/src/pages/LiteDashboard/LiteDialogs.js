@@ -678,6 +678,8 @@ const LiteDialogs = ({
   showFaultDialog, onCloseFaultDialog,
   equipment, faultForm, setFaultForm,
   requireReporter = false, siteStaff = [], reporterStaffId = '', setReporterStaffId,
+  allowOtherStaff = false, requireStaffPin = false, reporterPin = '', setReporterPin,
+  reporterOther = {}, setReporterOther,
   selectEquipmentForFault, coverage,
   faultMedia, onMediaUpload, onRemoveMedia,
   onFaultSubmit, submitting, faultBanner,
@@ -830,8 +832,25 @@ const LiteDialogs = ({
                           {s.full_name} — {s.job_title}
                         </SelectItem>
                       ))}
+                      {allowOtherStaff && <SelectItem value="__other__" data-testid="lite-fault-reporter-other">Other staff member…</SelectItem>}
                     </SelectContent>
                   </Select>
+                )}
+                {/* Other staff member — manual contact details */}
+                {reporterStaffId === '__other__' && (
+                  <div className="grid grid-cols-2 gap-2 mt-3" data-testid="lite-fault-other-fields">
+                    <Input placeholder="Full name" value={reporterOther.name || ''} onChange={(e) => setReporterOther({ ...reporterOther, name: e.target.value })} data-testid="lite-fault-other-name" />
+                    <Input placeholder="Job title" value={reporterOther.job_title || ''} onChange={(e) => setReporterOther({ ...reporterOther, job_title: e.target.value })} data-testid="lite-fault-other-title" />
+                    <Input placeholder="Email" value={reporterOther.email || ''} onChange={(e) => setReporterOther({ ...reporterOther, email: e.target.value })} data-testid="lite-fault-other-email" />
+                    <Input placeholder="Phone" value={reporterOther.phone || ''} onChange={(e) => setReporterOther({ ...reporterOther, phone: e.target.value })} data-testid="lite-fault-other-phone" />
+                  </div>
+                )}
+                {/* Optional staff PIN confirmation */}
+                {requireStaffPin && reporterStaffId && reporterStaffId !== '__other__' && siteStaff.find((s) => s.id === reporterStaffId)?.has_pin && (
+                  <div className="mt-3">
+                    <Label className="text-xs text-[var(--color-text-muted)]">Staff PIN</Label>
+                    <Input type="password" inputMode="numeric" value={reporterPin || ''} onChange={(e) => setReporterPin && setReporterPin(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="Enter your PIN" className="h-10 mt-1" data-testid="lite-fault-reporter-pin" />
+                  </div>
                 )}
               </div>
             )}

@@ -1,3 +1,34 @@
+# ═══ 2026-06-25 · FEATURE · Site Staff Shared Login — PHASE 2 (VERIFIED) ═══
+Added the four requested Phase-2 items on top of the Phase-1 engine.
+
+1. **Admin → Portal Settings → Shared Site Login (global config):** `GET/PUT /api/master-admin/shared-login-config`
+   (singleton in db.app_config). Master kill-switch `allow_shared_site_logins` (provisioning blocked when off)
+   + platform defaults (require_staff_selection, allow_other_staff, require_staff_pin, notify_manager/staff/
+   service_desk/supplier) seeded into a site's settings on first provision. UI: `SharedLoginConfigPanel.js`
+   under Master Admin → Platform Tools → "Shared Site Login" (SidebarConfig leaf + MasterAdminPage case). VERIFIED rendering.
+2. **Notification emails:** `_send_fault_notifications()` in issues.py runs as a background asyncio task after a
+   shared-login fault is logged (single + batch), driven by per-site toggles (gated by global allow): staff
+   confirmation email, site-manager notice, service-desk notice. Uses existing `utils.email.send_email` (Resend).
+   No request blocking; failures swallowed. Verified no errors on dispatch.
+3. **Optional staff PIN:** per-staff `pin_hash` (bcrypt) set/cleared via staff create/edit; per-site
+   `require_staff_pin`. `_resolve_reporter` returns 403 "Incorrect staff PIN" when required+set and missing/wrong.
+   UI: PIN field in SiteStaffManager add/edit; PIN input in BOTH fault dialogs when staff has_pin. VERIFIED (403 + success).
+4. **"Other staff member" fallback:** per-site `allow_other_staff`; dropdown gains an "Other staff member…" option
+   revealing manual name/title/email/phone, stored as reporter_* with reporter_is_other. Wired into BOTH the Lite
+   (LiteDialogs/LiteDashboardPage) and full Dashboard (FaultDialogs/useIssueWorkflow/DashboardPage) flows.
+   `/site-staff/active` now also returns {allow_other_staff, require_staff_pin} + per-staff has_pin. VERIFIED (backend).
+
+VERIFIED: curl end-to-end (settings save, PIN 403/success, other-staff success, notification dispatch clean) +
+master-admin config panel rendered. ESLint clean on changed files (pre-existing SidebarConfig dup-key 'onboarding'
+warnings at L306/369 are unrelated). Frontend fault-dialog PIN/other-staff UI follows the verified Phase-1 pattern.
+
+REMAINING (Phase 3): bulk import site staff; shared-login usage REPORTS; explicit call/email buttons in
+engineer app + supplier portal; cross-site shared login ("select site first"); MOD parity pass.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-25 · FEATURE · Site Staff Shared Login (commercial) — PHASE 1 (VERIFIED) ═══
 Generalised the MOD service-portal pattern for commercial Pulse Lite / Pulse Pro sites. One shared
 login per site; staff still pick "who is logging this fault?" so suppliers/engineers know who to contact.

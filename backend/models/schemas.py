@@ -172,6 +172,7 @@ class IssueCreate(BaseModel):
     reporter_email: Optional[str] = None
     reporter_phone: Optional[str] = None
     reporter_job_title: Optional[str] = None
+    reporter_pin: Optional[str] = None
     site_id: Optional[str] = None
 
 

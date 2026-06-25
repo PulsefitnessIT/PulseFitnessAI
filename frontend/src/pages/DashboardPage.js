@@ -434,6 +434,12 @@ const DashboardPage = () => {
         siteStaff={wf.siteStaff}
         reporterStaffId={wf.reporterStaffId}
         setReporterStaffId={wf.setReporterStaffId}
+        allowOtherStaff={wf.allowOtherStaff}
+        requireStaffPin={wf.requireStaffPin}
+        reporterPin={wf.reporterPin}
+        setReporterPin={wf.setReporterPin}
+        reporterOther={wf.reporterOther}
+        setReporterOther={wf.setReporterOther}
         selectedMachineType={wf.selectedMachineType}
         setSelectedMachineType={wf.setSelectedMachineType}
         allEquipment={allEquipment}
