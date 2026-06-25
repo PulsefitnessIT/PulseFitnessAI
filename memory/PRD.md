@@ -1,3 +1,43 @@
+# ═══ 2026-06-25 · FEATURE · Site Staff Shared Login (commercial) — PHASE 1 (VERIFIED) ═══
+Generalised the MOD service-portal pattern for commercial Pulse Lite / Pulse Pro sites. One shared
+login per site; staff still pick "who is logging this fault?" so suppliers/engineers know who to contact.
+
+DELIVERED (Phase 1):
+- Backend `routes/site_staff.py`: site_staff CRUD (+ deactivate/reactivate/transfer between sites,
+  /jobs), shared-login provisioning (`POST /sites/{id}/shared-login/provision` create/rotate → password
+  once; /disable; GET status; PATCH settings), `GET /site-staff/active` dropdown source (site-scoped,
+  readable by the shared login for its own site only), audit → `db.shared_login_audit`. Manager-gated
+  (`role in {owner,manager,admin,master}`); shared login (role `site_staff`) blocked from management.
+- Shared login = a normal `db.users` record (role `site_staff`, is_shared_site_login, site_id +
+  allowed_site_ids=[site]) that signs in via the NORMAL landing-page /auth/login by USERNAME. Reuses
+  existing hash_password/verify/create_token (confirmed with integration expert).
+- `routes/issues.py` `_resolve_reporter()`: mandatory staff selection when shared login OR site
+  `require_staff_selection`; stamps reporter_name/job_title/email/phone + logged_via_shared_login +
+  site_id on the issue; propagates reporter to the mirrored svc_case customer_* fields; increments
+  staff fault_count. Empty-state + validation messages per spec. Wired into single + batch create.
+- `routes/auth.py`: /auth/me + login now expose is_shared_site_login, site_id, allowed_site_ids.
+- Frontend: `SiteStaffManager.js` (manager UI) on Staffing → People → "Site Login" tab; the mandatory
+  "Who is logging this fault?" dropdown added to BOTH fault flows — Lite (LiteDialogs/LiteDashboardPage)
+  and full Dashboard (Dashboard/FaultDialogs + useIssueWorkflow + DashboardPage); "Logged by" block on
+  IssueDetailPanel (name/title/email/phone + "Logged via: Shared Site Login").
+
+VERIFIED: backend pytest 15/15 + curl end-to-end (mandatory 400, reporter stored, fault_count, 403 on
+management by shared login, multi-site isolation). Frontend retest: reporter dropdown renders as first
+field, logged-by block shows full contact details, manager UI works. Seeded 2 equipment on iso-demo-site-a
+so the UI submit is exercisable. Creds in /app/memory/test_credentials.md.
+
+REMAINING (Phase 2/3 — not yet built):
+- P1: Admin → Portal Settings GLOBAL config; notification emails (service desk/supplier/manager/staff);
+  optional staff PIN/confirmation; "Other staff member" fallback UI (backend setting already supported).
+- P2: bulk import site staff (template→map→dedupe→preview→confirm); shared-login usage REPORTS; explicit
+  call/email buttons in engineer app + supplier portal (reporter data already flows to svc_case today).
+- P2: cross-site shared login ("select site first") + staff export.
+- P3: MOD parity pass (bring MOD portal to feature parity with the new commercial settings/reporting).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-25 · BUGFIX · Master-admin module disable was bypassable via the trial CTA (VERIFIED) ═══
 Report: "When modules are switched off for customers in Master Admin they are still showing when that
 customer logs in." Root cause (NOT the ModuleSwitcher — that correctly hides disabled modules, and the
