@@ -1,3 +1,35 @@
+# ═══ 2026-06-25 · BUGFIX (PRODUCTION) · Onboarding invoice upload → Cloudflare 520 (VERIFIED) ═══
+Report (production pulsefitness.ai, Master Admin onboarding): invoice uploads failed with
+"The origin web server sent a response that Cloudflare could not process" (Cloudflare 520).
+URGENT — onboarding hundreds of customers next week, need 100% reliability.
+
+ROOT CAUSE: small invoices (≤1.5MB) used a SINGLE synchronous POST to
+`/api/equipment-import/parse-invoice` where the (slow) AI extraction ran INSIDE the request.
+When extraction exceeded the production gateway/Cloudflare ~100s timeout the connection was
+dropped → Cloudflare 520. Large files already used a decoupled background job, so only
+small-but-slow invoices were affected.
+
+FIX:
+- `frontend/src/lib/uploadInvoice.js` `uploadInvoiceSmart` now ALWAYS chunks (even a tiny file =
+  one chunk) → finalize → decoupled background job → poll `/status`. No invoice upload ever holds
+  a synchronous request open during extraction, so the gateway timeout / 520 can't happen.
+- `backend/routes/equipment_import.py`: chunk storage moved from local `/tmp` to MongoDB
+  (`db.invoice_upload_chunks`, one doc per chunk, deleted on finalize) so reassembly works
+  regardless of which production REPLICA handles each chunk vs the finalize call (the /tmp approach
+  would break across pods). finalize returns a job_id immediately; the asyncio worker extracts and
+  writes the result to `db.invoice_parse_jobs` (shared, so any pod can serve the status poll).
+
+VERIFIED: testing agent 6/6 pytest @ external URL — single-chunk done (equipment_count/supplier/
+import_id), multi-chunk reassembly of a ~3.2MB PDF, bogus upload_id → 404 (no hang), corrupt file →
+clean job error (not 520), chunk docs cleaned up, finalize returns <10s. Frontend compiles clean;
+UI couldn't be auto-driven (documented master-admin CSP harness limitation, not a regression).
+
+ACTION (production): preview-only code fix — **redeploy pulsefitness.ai** to push it live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-25 · FEATURE · Site Staff Shared Login — PHASE 3 (VERIFIED) ═══
 Closed Phase 3 of the commercial Site Staff Shared Login epic.
 
