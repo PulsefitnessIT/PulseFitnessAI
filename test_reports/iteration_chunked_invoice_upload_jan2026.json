@@ -1,0 +1,33 @@
+{
+  "summary": "Backend chunked invoice upload + decoupled extraction VERIFIED end-to-end. 6/6 pytest cases pass against the production-style external URL: single-chunk happy path (job → done with equipment_count=1, page_count=1, supplier_name, import_id present), multi-chunk reassembly with a ~3.2MB real PDF (>=2 chunks, reassembled, extraction returned equipment_count>=1), finalize with bogus upload_id → 404 'Upload not found or expired' (no 520/hang), corrupt non-PDF bytes surface a clean job-level error (status=error with message), chunk docs are deleted immediately after finalize (re-finalize same upload_id → 404), and finalize returns immediately (<10s, status=processing — no synchronous long-hold). Frontend UI could NOT be driven because the master-admin SPA fails to bootstrap under the test harness's CSP (the SPA's main script bundle from assets.emergent.sh + posthog + cloudflareinsights are CSP-blocked, so post-login the app stays on /login). This matches the explicit note in the review request to fall back to backend verification in that case.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Master-admin onboarding wizard via testing harness", "issue": "Post-login the SPA does not advance — 3rd-party scripts (assets.emergent.sh/scripts/emergent-main.js, posthog, cloudflareinsights beacon) are blocked by CSP in this preview env, so the master-admin shell never finishes booting and /master-admin/onboarding falls through to the public 404. Not a regression from this fix — same behaviour as prior iterations. Backend chunked flow is fully proven via pytest.", "affected_selectors": ["[data-testid=onboard-invoice-dropzone]", "[data-testid=onboard-invoice-input]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_chunked_invoice_upload_jan2026.py",
+    "/app/test_reports/pytest/chunked_invoice_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/equipment_import.py: chunks are stored in MongoDB (db.invoice_upload_chunks) — works across replicas ✅. Stale chunks for the same upload_id are wiped on chunk_index==0 (good — prevents cross-upload contamination if a client retries with the same id).",
+    "/parse-invoice/finalize runs validate_upload synchronously then asyncio.create_task(_worker()) — correct pattern: client-facing 4xx for obviously bad files, background job for slow LLM extraction. job_id is returned immediately (verified ≤10s).",
+    "Worker writes status=error with the exception message — clean error surfacing, no hung 520s.",
+    "Minor (not blocking): _CHUNK_DIR='/tmp/pulse_invoice_chunks' constant at line 635 is now dead code (chunks live in Mongo). Safe to delete to avoid future confusion.",
+    "Minor: db.invoice_upload_chunks has no documented TTL index — if a client uploads chunks and never calls finalize, those documents persist. Consider adding a TTL on `created_at` (e.g. 1h) so abandoned uploads self-clean."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_chunked_invoice_upload_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (6/6 pytest)", "frontend": "not testable in this harness (CSP blocks master-admin SPA bootstrap)"},
+  "test_credentials": "Master admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (POST /api/auth/login returns {token})",
+  "seed_data_creation": "Tests create real invoice_imports (import_id) via the AI extraction path with TEST_ prefixed filenames (TEST_small_invoice.pdf, TEST_large_invoice.pdf, TEST_cleanup.pdf, TEST_immediate.pdf, TEST_garbage.pdf). No fixture-side teardown was added because each test uses fresh random upload_ids and the chunked docs are wiped by finalize.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run from /app/backend: `python -m pytest tests/test_chunked_invoice_upload_jan2026.py -v`. Test file uses REACT_APP_BACKEND_URL (falls back to reading /app/frontend/.env). Multi-chunk PDF is built by inserting a noisy JPEG per page until size >= 3.2MB (PyMuPDF/fitz). Multi-chunk extraction can take ~30-60s — _poll timeout is 240s. Frontend UI tests for the onboarding dropzone require the master-admin SPA to actually boot; under the preview CSP it does not (scripts from assets.emergent.sh are blocked). E1 may want to either (a) self-test the dropzone manually in a real browser, or (b) relax CSP for the preview environment so future automated UI runs can drive /master-admin/onboarding. Backend chunked flow itself is rock-solid and matches the fix described in the review request.",
+  "rca of the issue": "Original prod 520: small invoices (<=1.5MB) hit /api/equipment-import/parse-invoice synchronously and the AI extraction inside the request frequently exceeded Cloudflare's ~100s gateway timeout. Fix verified here: every invoice now goes through chunk → finalize → background job → poll. Finalize returns <1s with a job_id (no long-hold request to hit the gateway timeout); extraction happens in asyncio.create_task so a client disconnect cannot cancel it; chunks live in MongoDB so any replica can finalize regardless of which replica received the chunks."
+}

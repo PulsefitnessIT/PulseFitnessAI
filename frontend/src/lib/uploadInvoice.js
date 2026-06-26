@@ -14,21 +14,16 @@ const CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5MB per request
  * @param {{ API: string, headers?: object, onProgress?: (pct:number)=>void }} opts
  */
 export async function uploadInvoiceSmart(file, { API, headers = {}, onProgress, onStatus } = {}) {
-  // Small file → single request (unchanged behaviour).
-  if (file.size <= CHUNK_SIZE) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await axios.post(`${API}/equipment-import/parse-invoice`, fd, {
-      headers: { ...headers },
-      timeout: 120000,
-      onUploadProgress: (e) => { if (e.total && onProgress) onProgress((e.loaded / e.total) * 100); },
-    });
-    return res.data;
-  }
-
-  // Large file → chunked upload.
+  // EVERY invoice — regardless of size — is uploaded in chunks and then
+  // extracted in a DECOUPLED background job that we poll. This guarantees the
+  // upload HTTP request itself is always fast (just writing bytes to disk),
+  // so the slow AI extraction can never hold a request open long enough to
+  // trip the production gateway / Cloudflare ~100s timeout (which surfaced as
+  // a "The origin web server sent a response that Cloudflare could not
+  // process" / 520 error on small-but-slow invoices). A tiny file simply
+  // uploads as a single chunk.
   const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
   for (let i = 0; i < totalChunks; i++) {
     const blob = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
     const fd = new FormData();

@@ -644,21 +644,31 @@ async def parse_invoice_chunk(
     file: UploadFile = File(...),
     user=Depends(get_current_user),
 ):
-    """Receive one < 2MB slice of a large invoice. Chunks are appended to a
-    temp file keyed by upload_id; call /parse-invoice/finalize to process."""
-    import os, re
+    """Receive one < 2MB slice of an invoice. Chunks are persisted in MongoDB
+    (NOT local disk) keyed by upload_id so reassembly works regardless of which
+    backend replica handles the chunk vs the finalize request. Call
+    /parse-invoice/finalize to reassemble + process."""
     safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", upload_id)[:64]
     if not safe_id:
         raise HTTPException(400, "Invalid upload id")
-    os.makedirs(_CHUNK_DIR, exist_ok=True)
     part = await file.read()
     if len(part) > 2 * 1024 * 1024:
         raise HTTPException(413, "Chunk exceeds 2MB")
-    path = os.path.join(_CHUNK_DIR, f"{safe_id}.part")
-    # chunk_index 0 truncates (fresh upload); later chunks append in order.
-    with open(path, "wb" if chunk_index == 0 else "ab") as f:
-        f.write(part)
-    return {"ok": True, "upload_id": safe_id, "received": chunk_index + 1, "total": total_chunks}
+    now = datetime.now(timezone.utc).isoformat()
+    # chunk_index 0 clears any stale chunks for this id (fresh upload).
+    if chunk_index == 0:
+        await db.invoice_upload_chunks.delete_many({"upload_id": safe_id})
+    await db.invoice_upload_chunks.update_one(
+        {"upload_id": safe_id, "chunk_index": chunk_index},
+        {"$set": {
+            "upload_id": safe_id, "chunk_index": chunk_index,
+            "total_chunks": total_chunks, "user_id": user["id"],
+            "data": part, "created_at": now,
+        }},
+        upsert=True,
+    )
+    received = await db.invoice_upload_chunks.count_documents({"upload_id": safe_id})
+    return {"ok": True, "upload_id": safe_id, "received": received, "total": total_chunks}
 
 
 @router.post("/parse-invoice/finalize")
@@ -668,21 +678,22 @@ async def parse_invoice_finalize(
     content_type: str = Form(default="application/pdf"),
     user=Depends(get_current_user),
 ):
-    """Reassemble the chunked invoice and run extraction in a DECOUPLED
+    """Reassemble the MongoDB-stored chunks and run extraction in a DECOUPLED
     background task (large multi-page invoices can exceed the gateway
     timeout). Returns a job_id immediately; poll /parse-invoice/status/{id}."""
-    import os, re, asyncio
+    import asyncio
     from utils.file_validation import validate_upload
     safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", upload_id)[:64]
-    path = os.path.join(_CHUNK_DIR, f"{safe_id}.part")
-    if not safe_id or not os.path.exists(path):
+    if not safe_id:
+        raise HTTPException(400, "Invalid upload id")
+    chunks = await db.invoice_upload_chunks.find(
+        {"upload_id": safe_id}, {"_id": 0, "chunk_index": 1, "data": 1}
+    ).sort("chunk_index", 1).to_list(2000)
+    if not chunks:
         raise HTTPException(404, "Upload not found or expired")
-    with open(path, "rb") as f:
-        data = f.read()
-    try:
-        os.remove(path)
-    except OSError:
-        pass
+    data = b"".join(c["data"] for c in chunks)
+    # Reassembled — drop the chunk docs immediately.
+    await db.invoice_upload_chunks.delete_many({"upload_id": safe_id})
     # Validate synchronously so the user gets immediate feedback on bad files.
     validate_upload(file_bytes=data, filename=filename, allowed=_INVOICE_ALLOWED, max_size=30 * 1024 * 1024)
 
