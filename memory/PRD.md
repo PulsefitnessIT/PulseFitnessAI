@@ -1,3 +1,36 @@
+# ═══ 2026-06-26 · FEATURE · Set an ORG as a Head Office (VERIFIED backend) ═══
+Request (Master Admin): "We need to be able to set Orgs as head offices. I had to create a head
+office SITE duplicating the org details just to onboard equipment to the head office."
+
+Previously "head office" was a SITE-only flag, so a HO org with no site of its own forced the
+operator to hand-create a duplicate site. Now the ORG itself can be marked a Head Office.
+
+User choices: 1c (create new HO site by default, offer promote-existing when sites exist),
+2a (HO site name = the org name), 3a (turning off just clears the flag, keeps site + equipment).
+
+Backend (`routes/master_admin_orgs.py`):
+- `POST /api/master-admin/organizations/{org_id}/head-office` {enabled, promote_site_id?}.
+  Enable → sets org `is_head_office=true` AND ensures a HO site exists: promote a chosen site, OR
+  keep the existing HO site, OR auto-create one from the org's own details (name=org name, address/
+  postcode/phone/contact). Promote clears any other HQ flag (single HQ per org). Disable clears the
+  org flag only (site + equipment kept). Master-admin gated; audited (org_head_office_set/cleared).
+- Org list payload now returns `is_head_office`.
+
+Frontend (`MasterAdmin/OrgSitesPanel.js`): org-level Head Office banner with "Set as Head Office" /
+"Clear" buttons; when the org already has sites a choice dialog offers "Create new HO site (from org
+details)" or "Promote an existing site" (dropdown). testids: org-head-office-banner/set/clear/
+dialog/create-new/promote-select/promote-confirm-{orgId}.
+
+VERIFIED (curl @ external URL): auto-create from org details + idempotent re-set returns same site;
+existing-HO kept (no duplicate); promote reassigns HQ (exactly one HQ remains); clear resets flag,
+keeps site. Frontend compiles clean (UI not harness-testable — master-admin CSP bootstrap limitation).
+
+ACTION (production): preview-only — redeploy pulsefitness.ai to use it live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-25 · BUGFIX (PRODUCTION) · Onboarding invoice upload → Cloudflare 520 (VERIFIED) ═══
 Report (production pulsefitness.ai, Master Admin onboarding): invoice uploads failed with
 "The origin web server sent a response that Cloudflare could not process" (Cloudflare 520).

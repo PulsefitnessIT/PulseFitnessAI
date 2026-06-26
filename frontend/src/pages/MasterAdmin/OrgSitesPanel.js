@@ -28,6 +28,13 @@ const OrgSitesPanel = ({ org, onClose }) => {
   // Iter 216h53 — click a site row to open the detail drawer (Site
   // Details + Equipment inline-edit tabs).
   const [selectedSite, setSelectedSite] = useState(null);
+  // Org-level Head Office state — lets the operator mark the ORG as a head
+  // office (auto-provisions/promotes a HQ site so equipment can be onboarded
+  // without hand-creating a duplicate site).
+  const [orgIsHQ, setOrgIsHQ] = useState(!!org.is_head_office);
+  const [hqOrgBusy, setHqOrgBusy] = useState(false);
+  const [hqDialog, setHqDialog] = useState(false);
+  const [promoteSiteId, setPromoteSiteId] = useState('');
 
   // Add-site / CSV-import workflow state.
   const [showAdd, setShowAdd] = useState(false);
@@ -71,6 +78,51 @@ const OrgSitesPanel = ({ org, onClose }) => {
       notifyApiError(notify, e, 'Failed to update Head Office');
     } finally {
       setHqBusyId(null);
+    }
+  };
+
+  const applyOrgHeadOffice = async (promote_site_id) => {
+    setHqOrgBusy(true);
+    try {
+      const r = await axios.post(
+        `${API}/master-admin/organizations/${org.id}/head-office`,
+        { enabled: true, ...(promote_site_id ? { promote_site_id } : {}) },
+        { headers: authHeaders() },
+      );
+      setOrgIsHQ(true);
+      setHqDialog(false);
+      setPromoteSiteId('');
+      notify.success('Organisation set as Head Office');
+      if (r.data?.head_office_site_id) await loadSites();
+    } catch (e) {
+      notifyApiError(notify, e, 'Failed to set Head Office');
+    } finally {
+      setHqOrgBusy(false);
+    }
+  };
+
+  // Entry point for the "Set as Head Office" button: if the org already has
+  // sites, ask whether to create a new HQ site or promote an existing one;
+  // otherwise just auto-create the HQ site from the org details.
+  const onSetOrgHeadOffice = () => {
+    if (sites.length > 0) setHqDialog(true);
+    else applyOrgHeadOffice(null);
+  };
+
+  const clearOrgHeadOffice = async () => {
+    setHqOrgBusy(true);
+    try {
+      await axios.post(
+        `${API}/master-admin/organizations/${org.id}/head-office`,
+        { enabled: false },
+        { headers: authHeaders() },
+      );
+      setOrgIsHQ(false);
+      notify.success('Head Office flag cleared (site kept)');
+    } catch (e) {
+      notifyApiError(notify, e, 'Failed to clear Head Office');
+    } finally {
+      setHqOrgBusy(false);
     }
   };
 
@@ -182,6 +234,88 @@ const OrgSitesPanel = ({ org, onClose }) => {
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 ml-1"><X size={16} /></button>
         </div>
       </div>
+
+      {/* Org-level Head Office banner */}
+      <div
+        className={`flex items-center justify-between gap-3 rounded-md border p-3 mb-3 ${orgIsHQ ? 'bg-amber-50 border-amber-200' : 'bg-white border-zinc-200'}`}
+        data-testid={`org-head-office-banner-${org.id}`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <Crown size={16} className={orgIsHQ ? 'text-amber-500' : 'text-zinc-400'} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-zinc-800">
+              {orgIsHQ ? 'This organisation is a Head Office' : 'Set this organisation as a Head Office'}
+            </p>
+            <p className="text-[11px] text-zinc-500">
+              {orgIsHQ
+                ? 'A Head Office site exists for this org — onboard equipment to it directly.'
+                : 'Creates (or promotes) a Head Office site from the org details so you can onboard equipment without duplicating it.'}
+            </p>
+          </div>
+        </div>
+        {orgIsHQ ? (
+          <button
+            onClick={clearOrgHeadOffice}
+            disabled={hqOrgBusy}
+            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-md border bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100 disabled:opacity-50"
+            data-testid={`org-head-office-clear-${org.id}`}
+          >
+            {hqOrgBusy ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />} Clear
+          </button>
+        ) : (
+          <button
+            onClick={onSetOrgHeadOffice}
+            disabled={hqOrgBusy}
+            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-md border bg-amber-500 text-white border-amber-500 hover:bg-amber-600 disabled:opacity-50"
+            data-testid={`org-head-office-set-${org.id}`}
+          >
+            {hqOrgBusy ? <Loader2 size={11} className="animate-spin" /> : <Crown size={11} />} Set as Head Office
+          </button>
+        )}
+      </div>
+
+      {/* Head Office choice dialog (shown when the org already has sites) */}
+      {hqDialog && (
+        <div className="bg-white border border-amber-200 rounded-md p-3 mb-3" data-testid={`org-head-office-dialog-${org.id}`}>
+          <p className="text-sm font-semibold text-zinc-800 mb-2">How should this Head Office be set up?</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => applyOrgHeadOffice(null)}
+              disabled={hqOrgBusy}
+              className="w-full text-left text-sm border border-zinc-200 rounded px-3 py-2 hover:bg-amber-50 disabled:opacity-50"
+              data-testid={`org-head-office-create-new-${org.id}`}
+            >
+              <span className="font-semibold text-zinc-800">Create a new Head Office site</span>
+              <span className="block text-[11px] text-zinc-500">Named "{org.name}", pre-filled from the org's address &amp; contact details.</span>
+            </button>
+            <div className="border border-zinc-200 rounded px-3 py-2">
+              <p className="text-sm font-semibold text-zinc-800 mb-1.5">…or promote an existing site</p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={promoteSiteId}
+                  onChange={(e) => setPromoteSiteId(e.target.value)}
+                  className="flex-1 text-sm border border-zinc-200 rounded px-2 py-1"
+                  data-testid={`org-head-office-promote-select-${org.id}`}
+                >
+                  <option value="">Choose a site…</option>
+                  {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.is_head_office ? ' (current HQ)' : ''}</option>)}
+                </select>
+                <button
+                  onClick={() => applyOrgHeadOffice(promoteSiteId)}
+                  disabled={hqOrgBusy || !promoteSiteId}
+                  className="text-xs px-3 py-1.5 rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                  data-testid={`org-head-office-promote-confirm-${org.id}`}
+                >
+                  Promote
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end">
+            <button onClick={() => { setHqDialog(false); setPromoteSiteId(''); }} className="text-xs px-3 py-1.5 rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-50">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Inline add-site form */}
       {showAdd && (

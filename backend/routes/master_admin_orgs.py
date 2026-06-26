@@ -279,6 +279,7 @@ async def get_all_organizations(
             "primary_contact_phone": org.get("primary_contact_phone", ""),
             "primary_contact_user_id": org.get("primary_contact_user_id") or None,
             "notes": org.get("notes", ""),
+            "is_head_office": org.get("is_head_office", False),
         })
 
     return {
@@ -674,6 +675,81 @@ async def admin_bulk_create_sites(org_id: str, body: dict = Body(...), user: dic
         user["email"], "organization", org_id,
     )
     return {"created": created, "created_count": len(created), "skipped": skipped, "skipped_count": len(skipped)}
+
+
+# ───────────── /organizations/{id}/head-office — set/clear org as HQ ─────────────
+
+@router.post("/master-admin/organizations/{org_id}/head-office")
+async def admin_set_org_head_office(org_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Mark (or clear) an ORGANISATION as a Head Office.
+
+    When enabling, ensures the org has a Head Office *site* so equipment can be
+    onboarded to it — without the operator hand-creating a duplicate site:
+      • promote_site_id given → promote that existing site to HQ;
+      • else if the org already has a HQ site → keep it;
+      • else auto-create a HQ site from the org's own details (named as the org).
+    Disabling just clears the org-level flag; the HQ site + its equipment remain.
+    """
+    require_master_admin(user)
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+
+    enabled = bool(body.get("enabled", True))
+
+    if not enabled:
+        await db.organizations.update_one({"id": org_id}, {"$set": {"is_head_office": False}})
+        await log_activity("org_head_office_cleared", f"Cleared Head Office flag for org {org_id}",
+                           user["email"], "organization", org_id)
+        return {"is_head_office": False, "head_office_site_id": None}
+
+    await db.organizations.update_one({"id": org_id}, {"$set": {"is_head_office": True}})
+
+    promote_site_id = (body.get("promote_site_id") or "").strip()
+    ho_site = None
+
+    if promote_site_id:
+        site = await db.sites.find_one({"id": promote_site_id, "organization_id": org_id}, {"_id": 0})
+        if not site:
+            raise HTTPException(status_code=404, detail="Site to promote not found for this org")
+        await db.sites.update_many(
+            {"organization_id": org_id, "is_head_office": True},
+            {"$set": {"is_head_office": False}},
+        )
+        await db.sites.update_one({"id": promote_site_id}, {"$set": {"is_head_office": True}})
+        ho_site = await db.sites.find_one({"id": promote_site_id}, {"_id": 0})
+    else:
+        ho_site = await db.sites.find_one(
+            {"organization_id": org_id, "is_head_office": True}, {"_id": 0})
+        if not ho_site:
+            # Auto-create a HQ site from the org's own details (choice 2a: same name as the org).
+            ho_site = {
+                "id": str(uuid.uuid4()),
+                "organization_id": org_id,
+                "name": (org.get("name") or "Head Office").strip(),
+                "address": (org.get("address_line1") or org.get("address") or "").strip(),
+                "address_line1": (org.get("address_line1") or org.get("address") or "").strip(),
+                "address_line2": (org.get("address_line2") or "").strip(),
+                "address_line3": (org.get("address_line3") or "").strip(),
+                "city": (org.get("city") or "").strip(),
+                "county": (org.get("county") or "").strip(),
+                "postcode": (org.get("postcode") or "").strip(),
+                "country": (org.get("country") or "United Kingdom").strip(),
+                "phone": (org.get("phone") or org.get("primary_contact_phone") or "").strip(),
+                "email": (org.get("primary_contact_email") or "").strip(),
+                "site_manager_name": (org.get("primary_contact_name") or "").strip(),
+                "site_manager_email": (org.get("primary_contact_email") or "").strip(),
+                "is_head_office": True,
+                "default_location": "Main Floor",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.sites.insert_one(ho_site)
+            ho_site.pop("_id", None)
+
+    await log_activity("org_head_office_set", f"Set org {org_id} as Head Office",
+                       user["email"], "organization", org_id)
+    return {"is_head_office": True, "head_office_site_id": ho_site["id"], "head_office_site": ho_site}
+
 
 
 
