@@ -25,6 +25,11 @@ VERIFIED (curl @ external URL): auto-create from org details + idempotent re-set
 existing-HO kept (no duplicate); promote reassigns HQ (exactly one HQ remains); clear resets flag,
 keeps site. Frontend compiles clean (UI not harness-testable — master-admin CSP bootstrap limitation).
 
+FOLLOW-UP (2026-06-26): Organisations list now shows a "Head Office" badge (Crown) on flagged orgs
+(`AdminOrganizations.js`, testid org-head-office-badge-{id}) + a "Head Offices" filter toggle in the
+filter bar (testid org-head-office-filter) that narrows the list to HQ orgs. Reads the org-list
+`is_head_office` field; frontend compiles clean.
+
 ACTION (production): preview-only — redeploy pulsefitness.ai to use it live.
 
 ────────────────────────────────────────────────────────────────────────

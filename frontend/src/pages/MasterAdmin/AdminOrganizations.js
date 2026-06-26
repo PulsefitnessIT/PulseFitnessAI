@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
  Building2, Search, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive, Edit2, Mail,
- CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen,
+ CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen, Crown,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -453,6 +453,7 @@ useEffect(() => {
 }, [editingUser?.organization_id]);
 
  const [moduleFilter, setModuleFilter] = useState('all');
+ const [hqFilter, setHqFilter] = useState(false);
 
  // Iter 215au — when ⌘K (CommandPalette) selects an org, the parent
  // sets `selectedOrg`; we open the drawer for that org automatically.
@@ -607,6 +608,11 @@ useEffect(() => {
    });
  }
 
+ // Head Office filter — show only orgs flagged as a Head Office.
+ if (hqFilter) {
+   displayOrgs = displayOrgs.filter((o) => !!o.is_head_office);
+ }
+
  const handleCreateOrg = async () => {
  if (!orgForm.name.trim()) return;
  setCreating(true);
@@ -717,6 +723,15 @@ useEffect(() => {
  </SelectContent>
  </Select>
  )}
+ <button
+   type="button"
+   onClick={() => setHqFilter((v) => !v)}
+   className={`h-10 px-3 rounded-xl border text-sm inline-flex items-center gap-1.5 transition-colors ${hqFilter ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'}`}
+   title="Show only Head Office organisations"
+   data-testid="org-head-office-filter"
+ >
+   <Crown size={14} className={hqFilter ? 'text-white' : 'text-amber-500'} /> Head Offices
+ </button>
  <Button className="h-10 text-sm rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white hover:opacity-90 shadow-[0_6px_16px_-6px_rgba(37,99,235,0.35)] border-0" onClick={() => { setOrgForm({ name: '', portal_type: portalFilter || 'service_portal', account_type: 'full', subscription_tier: 'starter' }); setShowCreateOrg(true); }} data-testid="create-org-btn">
  <Plus size={14} className="mr-1" /> Create Organisation
  </Button>
@@ -847,6 +862,11 @@ useEffect(() => {
  <Badge className={`text-[10px] border ${ACCOUNT_TYPE_STYLES[org.account_type || 'full']}`} data-testid={`org-account-type-badge-${org.id}`}>
  {ACCOUNT_TYPE_LABELS[org.account_type || 'full']}
  </Badge>
+ {org.is_head_office && (
+   <Badge className="text-[10px] border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-1" data-testid={`org-head-office-badge-${org.id}`}>
+     <Crown size={10} className="text-amber-500" /> Head Office
+   </Badge>
+ )}
               {(() => {
                 const crm = (org.modules || {}).crm || {};
                 const crmOn = crm.enabled === true || crm.business_enabled === true;
