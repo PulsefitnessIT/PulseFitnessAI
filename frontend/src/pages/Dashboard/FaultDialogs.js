@@ -295,7 +295,7 @@ const FaultDialogs = ({
  <div className="flex gap-2 justify-end">
  <button type="button" className="px-3 py-1.5 text-sm rounded-md border border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
  onClick={() => { onResetDialog(); }} data-testid="cancel-duplicate-fault-btn">Cancel</button>
- <button type="button" className="px-3 py-1.5 text-sm rounded-md bg-[var(--color-brand-blue)] text-white font-semibold hover:opacity-90"
+ <button type="button" className="on-dark px-3 py-1.5 text-sm rounded-md bg-[var(--color-brand-blue)] text-white font-semibold hover:opacity-90"
  onClick={() => { setExistingFaultWarning(null); }} data-testid="continue-log-fault-btn">Continue Anyway</button>
  </div>
  </div>
