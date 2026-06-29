@@ -1,0 +1,51 @@
+{
+  "summary": "RETEST #3 of Log-a-Fault multi-upload using the REALISTIC Playwright file_chooser API (PATH C). The new fix — removed <label>, dropzone now <div role=button> firing mediaInputRef.current.click() with preventDefault+stopPropagation, plus all 4 Radix outside-event guards — IMPROVES the 1st upload (dialog stays open + 1 chip) but the bug STILL reproduces on the 2nd upload. PATH C upload #2 unmounts the issue-dialog (mount 1→0, chips 1→0). PATH A (direct set_input_files) also closes the dialog on the very next attempt. The label refactor was necessary but not sufficient.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FaultDialogs.js — issue-dialog / dropzone-div + issue-media-input (multi-upload)",
+        "issue": "2nd file upload still unmounts the Log-a-Fault dialog. PATH C (realistic page.expect_file_chooser → click dropzone div role=button → set_files): upload #1 keeps dialog open with 1 chip ✅, upload #2 closes the dialog (mount=0, chips=0) ❌. PATH A (direct set_input_files on data-testid='issue-media-input'): in a fresh dialog with no prior chip the 1st direct set_input_files itself closed the dialog (mount=0). Bug is therefore triggered on the 2nd file-chooser interaction OR on any direct set_input_files call when issueMedia already has length>=1 in the wider session.",
+        "selector": "[data-testid='issue-dialog'] [data-testid='issue-media-input']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "PATH_C_file_chooser_via_dropzone_div_click",
+      "result": "PARTIAL FAIL",
+      "details": "Login owner@isodemo.com ✅ → Operations/Faults tab ✅ → 'Log New Fault' button → [data-testid=issue-dialog] mounted (count=1, chips=0). Dropzone bbox confirmed visible after scroll_into_view_if_needed (bbox x=601 y=940.5 w=718 h=84). Upload #1 via expect_file_chooser + click dropzone div + set_files(photo_1.png) → dialog_mount=1, chips=1 ✅ (THIS IS NEW — previously PATH B label-click closed on 1st attempt; the ref-based input.click() fix is working for the first upload). Upload #2 same flow → dialog_mount=0, chips=0 ❌ (unmount returned us to the Faults list view). Upload #3 + chip-remove unreachable."
+    },
+    {
+      "id": "PATH_A_direct_set_input_files_after_reopen",
+      "result": "FAIL",
+      "details": "After PATH C closed the dialog, reopened via 'Log New Fault'. Called set_input_files directly on data-testid='issue-media-input' with photo_1.png → dialog=0, chips=0 ❌ (closed on 1st direct attempt this run — possibly because of stale React state from the previous closed instance or a focus-race; the previous testing run had the 1st direct attempt succeed and the 2nd close. Either way the bug is reproducible.)"
+    }
+  ],
+  "test_report_links": ["/app/test_reports/iteration_logfault_multi_upload_retest3_jan2026.json"],
+  "action_items": [
+    "HIGH — The 2nd file-chooser interaction still closes the Radix Dialog despite removing <label> and adding all 4 outside-event guards. Root cause is NOT the label. The remaining suspect is Radix DismissableLayer's internal blur-/focus-loss path when the native OS file chooser briefly steals window focus a second time AND issueMedia state changes between mounts (React re-render race).",
+    "HIGH — INSTRUMENT FIRST so we stop guessing. Change onOpenChange to: onOpenChange={(open) => { if (!open) { console.error('[issue-dialog] CLOSING', new Error().stack); onResetDialog(); } }}  and rerun PATH C with capture_logs=true. The stack will tell us whether the close is fired by (a) Radix DismissableLayer dispatch, (b) useBackGestureClose popstate, (c) a parent setState calling closeIssueDialog, or (d) something else.",
+    "HIGH — TRY: temporarily comment out the useBackGestureClose hook (FaultDialogs.js L49) and rerun PATH C. If the dialog now stays open through 3 uploads, the popstate handler is the cause — gate it on document.activeElement still being inside the dialog and ignore popstates that fire within ~500ms of a file_chooser close.",
+    "HIGH — TRY: render the Dialog with modal={false} (Radix prop) which disables DismissableLayer focus-trap dismissal, or wrap the file input in a separate Radix `Portal` so its synthetic focus events don't bubble back into the Dialog's DismissableLayer.",
+    "MEDIUM — Alternative: stop using Radix Dialog for this large multi-step form. Re-implement with a controlled <div role=dialog> + manual focus-trap; this is the cleanest exit from Radix's internal focus heuristics that are not exposed via public preventDefault props.",
+    "LOWER — Verify on a non-headless browser whether the bug reproduces (Playwright + headless may amplify focus-window-loss timing). A real user on Chrome desktop may or may not see this. Still ship the instrumentation first."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L48-49: mediaInputRef + ref-based click is correctly wired. preventDefault+stopPropagation on the div onClick is correct. This change is fine — keep it.",
+    "FaultDialogs.js L54: onOpenChange has NO logging. Without a stack trace it is impossible to bisect which code path is dispatching close on the 2nd upload. Add console.error stack BEFORE adding any more code changes.",
+    "FaultDialogs.js L49 useBackGestureClose: this hook subscribes to popstate. Some browser/PWA shells fire popstate when window briefly loses focus to the OS file chooser the SECOND time (the first push having already consumed the back-state). HIGH SUSPECT for the 2nd-upload close path.",
+    "@radix-ui/react-dialog DismissableLayer dispatches an internal `dismiss` on certain focus/blur sequences that does NOT route through onInteractOutside / onPointerDownOutside / onFocusOutside / onEscapeKeyDown — preventDefault on those four will never block it. If instrumentation shows the close fires from Radix internals, the only fixes are modal={false}, refactor off Radix, or stop the focus-loss from happening (e.g. pre-warming the OS picker only once and reusing the same input element)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "33% — 1 of 3 PATH C uploads succeeded; bug deterministically reproduces on upload #2"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Operations module is default on /dashboard).",
+  "seed_data_creation": "/tmp/upload_test/photo_{1..4}.png (40x40 PNGs via PIL).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login at https://admin-setup-portal.preview.emergentagent.com/login (NOT root — root is marketing). Dismiss cookie banner ('Essential Only') after login. Operations is default; click tab Faults; click 'Log New Fault'. Dropzone is now a div with role=button (NOT a label) — locator: page.locator(\"[data-testid='issue-dialog'] div[role='button']\").first  — it is BELOW the viewport so call .scroll_into_view_if_needed() first. Use page.expect_file_chooser() as the realistic path. Dialog mount counter: page.locator(\"[data-testid='issue-dialog']\").count(). Chip counter: page.locator(\"[data-testid='issue-dialog'] span.truncate\").count(). NEW REGRESSION INFO: upload #1 now PASSES via PATH C (the previous PATH B label-click bug is fixed). The remaining bug is on upload #2. Recommend adding stack-trace logging to onOpenChange BEFORE attempting another fix.",
+  "rca_of_the_issue": "The <label>-wrap removal + ref-based imperative click eliminated the 1st-upload close (PATH B) — this fix is real and should be kept. However the dialog still unmounts on the 2nd file_chooser interaction (PATH C upload #2). Since all 4 Radix outside-event hooks already preventDefault, the close is being dispatched from a code path NOT covered by those public hooks. Top remaining suspects in priority order: (1) useBackGestureClose popstate firing as the OS file chooser regains focus a second time; (2) Radix DismissableLayer's internal blur/focus-loss `dismiss` that bypasses the public preventDefault props; (3) a parent setState (e.g. setIssueMedia → re-render → child onOpenChange race). Mitigation: instrument onOpenChange with a stack trace and bisect by temporarily disabling useBackGestureClose. If Radix internals are confirmed, try modal={false} or refactor off Radix Dialog."
+}

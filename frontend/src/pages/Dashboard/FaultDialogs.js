@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,7 @@ const FaultDialogs = ({
  // mobile operators can swipe back to dismiss the modal instead of
  // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
  const closeIssueDialog = useCallback(() => { onResetDialog && onResetDialog(); }, [onResetDialog]);
+ const mediaInputRef = useRef(null);
  useBackGestureClose(showIssueDialog, closeIssueDialog, 'gymaxis-issue-dialog');
 
  return (
@@ -368,15 +369,17 @@ const FaultDialogs = ({
  <div>
  <Label className="text-[var(--theme-text)]">{t('faults.upload_label')}</Label>
  <p className="text-[var(--color-text-muted)] text-xs mb-2">{t('faults.upload_hint')}</p>
- <label className="cursor-pointer">
- <input type="file" className="hidden" accept="image/*,video/*" multiple
+ <input ref={mediaInputRef} type="file" className="hidden" accept="image/*,video/*" multiple
  onChange={(e) => { const files = Array.from(e.target.files || []); setIssueMedia(prev => [...prev, ...files]); e.target.value = ''; }}
  data-testid="issue-media-input" />
- <div className="border-2 border-dashed border-[var(--theme-border)] rounded-lg p-4 text-center hover:border-[rgb(var(--rgb-brand-blue)/0.3)] transition-colors">
+ <div
+ role="button"
+ tabIndex={0}
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); mediaInputRef.current?.click(); }}
+ className="cursor-pointer border-2 border-dashed border-[var(--theme-border)] rounded-lg p-4 text-center hover:border-[rgb(var(--rgb-brand-blue)/0.3)] transition-colors">
  <Upload size={20} className="mx-auto mb-1 text-[var(--color-text-muted)]" />
  <span className="text-[var(--color-text-muted)] text-sm">{t('faults.click_upload')}</span>
  </div>
- </label>
  {issueMedia.length > 0 && (
  <div className="flex flex-wrap gap-2 mt-2">
  {issueMedia.map((file, idx) => (
