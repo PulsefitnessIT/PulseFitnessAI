@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode, ChevronDown } from 'lucide-react';
 import axios from 'axios';
 import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
@@ -802,6 +802,7 @@ const LiteDialogs = ({
           <DialogHeader>
             <DialogTitle className="text-[var(--theme-text)]">{selectedEquipment?.name}</DialogTitle>
           </DialogHeader>
+          <DialogDescription className="sr-only">Equipment details, faults and documents.</DialogDescription>
           {selectedEquipment && <EquipmentDetailContent
             selectedEquipment={selectedEquipment}
             getEquipmentFaults={getEquipmentFaults}
@@ -830,6 +831,7 @@ const LiteDialogs = ({
           <DialogHeader>
             <DialogTitle className="text-[var(--theme-text)] text-xl">{t('dashboard.log_fault', 'Log a Fault')}</DialogTitle>
           </DialogHeader>
+          <DialogDescription className="sr-only">Log a fault: choose the machine, describe the issue, attach photos or video, then submit.</DialogDescription>
           <div className="space-y-5 pt-2">
             {faultBanner}
             {/* Site Staff Shared Login — mandatory "who is logging this?" */}
