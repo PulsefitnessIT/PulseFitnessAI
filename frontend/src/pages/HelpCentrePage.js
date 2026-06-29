@@ -147,6 +147,13 @@ export default function HelpCentrePage() {
       : { id: 'gymaxis', name: 'Pulse Fitness',       assistantHeading: 'Ask Pulse Fitness' };
   }, [user?.account_type]);
 
+  // Pulse Lite has NO AI — hide the Help Centre AI assistant rail (and any
+  // copy that points at it). Static guides + support tickets remain. Mirrors
+  // the isPro / UnifiedAssistant gate used across the app.
+  const isTrialActive = user?.trial?.is_trial === true && user?.trial?.status !== 'expired' && user?.trial?.locked_out !== true;
+  const isMODacct = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+  const aiEnabled = !((user?.account_type || '').toLowerCase() === 'lite' && !isTrialActive && !user?.is_master_admin && !isMODacct);
+
   // Keep the document title in sync with the active brand.
   useEffect(() => {
     document.title = `Help Centre · ${brand.name}`;
@@ -170,7 +177,9 @@ export default function HelpCentrePage() {
                 How can we help?
               </h1>
               <p className="text-sm mb-5" style={{ color: 'var(--theme-text-muted)' }} data-testid="help-subtitle">
-                Step-by-step guides, best practices, and an AI assistant that&apos;s trained only on {brand.name}.
+                {aiEnabled
+                  ? <>Step-by-step guides, best practices, and an AI assistant that&apos;s trained only on {brand.name}.</>
+                  : <>Step-by-step guides and best practices for {brand.name}.</>}
               </p>
             </div>
             <button
@@ -247,7 +256,7 @@ export default function HelpCentrePage() {
                 className="absolute left-0 right-0 top-full mt-2 rounded-2xl border p-4 z-10 text-sm"
                 style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
               >
-                No guides match "{q}" — try another phrase, ask the AI assistant on the right, or{' '}
+                No guides match "{q}" — try another phrase{aiEnabled ? <>, ask the AI assistant on the right,</> : ','} or{' '}
                 <button
                   type="button"
                   onClick={() => setShowSupport(true)}
@@ -264,7 +273,7 @@ export default function HelpCentrePage() {
         </div>
 
         {/* Body: sidebar + content + AI rail */}
-        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-12 grid grid-cols-1 lg:grid-cols-[220px_1fr_340px] gap-6">
+        <div className={`max-w-7xl mx-auto px-4 md:px-8 pb-12 grid grid-cols-1 gap-6 ${aiEnabled ? 'lg:grid-cols-[220px_1fr_340px]' : 'lg:grid-cols-[220px_1fr]'}`}>
           {/* Sidebar: categories */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
@@ -310,9 +319,24 @@ export default function HelpCentrePage() {
             )}
           </main>
 
-          {/* AI Assistant rail */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-24">
+          {/* AI Assistant rail — hidden on Pulse Lite (no AI). */}
+          {aiEnabled && (
+            <aside className="hidden lg:block">
+              <div className="sticky top-24">
+                <HelpAssistantRail
+                  headers={headers}
+                  currentModule={moduleHint}
+                  currentGuide={currentGuide}
+                  onOpenGuide={openGuide}
+                  brand={brand}
+                />
+              </div>
+            </aside>
+          )}
+
+          {/* Mobile: AI assistant appears after list — also Lite-gated. */}
+          {aiEnabled && (
+            <div className="lg:hidden">
               <HelpAssistantRail
                 headers={headers}
                 currentModule={moduleHint}
@@ -321,18 +345,7 @@ export default function HelpCentrePage() {
                 brand={brand}
               />
             </div>
-          </aside>
-
-          {/* Mobile: AI assistant appears after list */}
-          <div className="lg:hidden">
-            <HelpAssistantRail
-              headers={headers}
-              currentModule={moduleHint}
-              currentGuide={currentGuide}
-              onOpenGuide={openGuide}
-              brand={brand}
-            />
-          </div>
+          )}
         </div>
         {showSupport && (
           <SupportTicketModal

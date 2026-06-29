@@ -189,6 +189,7 @@ import CommandPalette, { useCommandPalette } from './components/CommandPalette';
  * so we read window.location directly.
  */
 function AskPulseFitnessGuard() {
+ const { user } = useAuth();
  const path = typeof window !== 'undefined' ? window.location.pathname : '/';
  const handledByUnified =
  path === '/' ||
@@ -200,6 +201,13 @@ function AskPulseFitnessGuard() {
  path.startsWith('/crm') ||
  path === '/dashboard';
  if (handledByUnified) return null;
+ // Pulse Lite has NO AI — suppress the floating "Ask AI support" orb on
+ // the remaining routes (e.g. /help). Trial / Pro / MOD / master admin
+ // keep it. Mirrors the UnifiedAssistant `isLiteNoAI` gate.
+ const isTrialActive = user?.trial?.is_trial === true && user?.trial?.status !== 'expired' && user?.trial?.locked_out !== true;
+ const isMODacct = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+ const isLiteNoAI = (user?.account_type || '').toLowerCase() === 'lite' && !isTrialActive && !user?.is_master_admin && !isMODacct;
+ if (isLiteNoAI) return null;
  return <AskPulseFitness />;
 }
 import { Toaster } from 'sonner';

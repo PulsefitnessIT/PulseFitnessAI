@@ -29369,3 +29369,13 @@ Decision (user): keep an "AI (Fault) Diagnosis" key that opens the AI-assisted f
 - **Lite already AI-free** (confirmed, no code change needed): Lite orgs use `LiteOverviewTab` (no AI quick key) and `LiteDialogs.js` already gates AI triage behind `isPro` (line 1111: AI-triage submit for Pro vs line 1137 plain submit for Lite — no `/issues/triage` call on Lite).
 - **AI is gym-scoped** (confirmed, no change): `issue_helpers._TRIAGE_SYSTEM_TEMPLATE` = *"expert gym equipment technician… ONLY respond to gym equipment faults / fitness equipment / gym environment issues… else return not-applicable."*
 - **Note:** restored `iso-demo-org` to its canonical `account_type: full` (earlier trial testing had left it Lite). Frontend-only change; compiles clean.
+
+---
+## Sweep: Guarantee ZERO AI surfaces on Pulse Lite (Jun 29, 2026)
+Per user directive ("On Lite there should be no AI features at all"), audited every AI surface reachable by a Lite (no-trial) account.
+**Already gated (verified, no change):** AI Triage/Diagnosis tab (`{isPro && …}`), Document Q&A panel (`{isPro && <DocumentQA/>}`), global `UnifiedAssistant` orb (`isLiteNoAI` → null), in-dialog AI fault triage (`LiteDialogs` line 1111 `isPro ?` vs plain submit, no `/issues/triage` call on Lite). **Not AI (left as-is):** `CrossModuleTipsBanner` (static cross-sell tips), CommandPalette "Ask Support Desk" (human support escalation).
+**Leaks found & FIXED:**
+1. `components/HelpHint.js` — the "Ask Pulse" button (opens the AI orb) showed on Lite (used in `LiteEquipmentTab`). Added `aiEnabled` gate → button hidden + footer reflows to single column + empty-state copy adjusted for Lite. Static help guide content still renders.
+2. `pages/HelpCentrePage.js` — the right-hand AI Assistant rail (`HelpAssistantRail`, desktop + mobile) rendered for Lite. Added `aiEnabled` gate → both rails hidden, grid reflows `[220px_1fr_340px]`→`[220px_1fr]`, hero subtitle + empty-search copy no longer mention AI.
+3. `App.js` `AskPulseFitnessGuard` — the floating "Ask AI support" orb (`ask-orb-btn`, `components/AskPulseFitness.js`) leaked on routes NOT handled by UnifiedAssistant (e.g. `/help`). Added the same `isLiteNoAI` gate → orb suppressed for Lite everywhere.
+All three gates mirror `UnifiedAssistant`'s `isLiteNoAI` rule (Trial/Pro/MOD/master-admin keep AI). **Verified** by temporarily flipping `iso-demo-org` to Lite and screenshotting `/help` + `/pulse`: no AI orb, no AI rail, AI-free copy. Org restored to canonical `account_type: full`. Frontend compiles clean. PREVIEW only — redeploy to push to pulsefitness.ai.

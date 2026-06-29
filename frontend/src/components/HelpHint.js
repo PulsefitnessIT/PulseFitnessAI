@@ -102,6 +102,13 @@ export default function HelpHint({ guideId, query, label, size = 14, className =
     if (resolvedId) navigate(`/help/${resolvedId}`);
   }, [resolvedId, navigate]);
 
+  // Pulse Lite has NO AI — suppress the "Ask Pulse" affordance (the AI orb
+  // it opens is itself hidden for Lite via UnifiedAssistant). The static
+  // help guide content still renders. Mirrors UnifiedAssistant's gate.
+  const isTrialActive = user?.trial?.is_trial === true && user?.trial?.status !== 'expired' && user?.trial?.locked_out !== true;
+  const isMODacct = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+  const aiEnabled = !(user?.account_type === 'lite' && !isTrialActive && !user?.is_master_admin && !isMODacct);
+
   // Iter 215n — render even when useAuth.user is null (e.g. inside the
   // CRM SPA which uses a separate auth context). The presence of a
   // token in localStorage is the only render gate.
@@ -127,13 +134,14 @@ export default function HelpHint({ guideId, query, label, size = 14, className =
           onClose={() => setOpen(false)}
           onAskPulse={askPulse}
           onOpenFull={openFullGuide}
+          showAskPulse={aiEnabled}
         />
       )}
     </>
   );
 }
 
-function HelpHintDrawer({ guide, loading, onClose, onAskPulse, onOpenFull }) {
+function HelpHintDrawer({ guide, loading, onClose, onAskPulse, onOpenFull, showAskPulse = true }) {
   // Close on ESC.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -182,7 +190,7 @@ function HelpHintDrawer({ guide, loading, onClose, onAskPulse, onOpenFull }) {
           )}
           {!loading && guide?.error && (
             <div className="text-sm text-zinc-600" data-testid="help-hint-empty">
-              No matching guide found yet — try Ask Pulse below.
+              {showAskPulse ? 'No matching guide found yet — try Ask Pulse below.' : 'No matching guide found yet.'}
             </div>
           )}
           {!loading && guide && !guide.error && (
@@ -215,15 +223,17 @@ function HelpHintDrawer({ guide, loading, onClose, onAskPulse, onOpenFull }) {
           )}
         </div>
 
-        <div className="p-3 border-t border-zinc-100 grid grid-cols-2 gap-2 bg-zinc-50">
-          <button
-            type="button"
-            onClick={onAskPulse}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500 text-zinc-900 text-sm font-semibold hover:bg-cyan-400"
-            data-testid="help-hint-ask-pulse"
-          >
-            <Sparkles size={14} /> Ask Pulse
-          </button>
+        <div className={`p-3 border-t border-zinc-100 grid ${showAskPulse ? 'grid-cols-2' : 'grid-cols-1'} gap-2 bg-zinc-50`}>
+          {showAskPulse && (
+            <button
+              type="button"
+              onClick={onAskPulse}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500 text-zinc-900 text-sm font-semibold hover:bg-cyan-400"
+              data-testid="help-hint-ask-pulse"
+            >
+              <Sparkles size={14} /> Ask Pulse
+            </button>
+          )}
           <button
             type="button"
             onClick={onOpenFull}
