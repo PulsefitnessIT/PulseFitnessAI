@@ -1,0 +1,44 @@
+{
+  "summary": "RETEST of Log-a-Fault multi-upload fix on FULL Operations dashboard. The reported fix (adding onFocusOutside={e=>e.preventDefault()} alongside onInteractOutside + onPointerDownOutside at FaultDialogs.js L57-59) is CONFIRMED present in the live code, but the bug STILL REPRODUCES on the 2nd file upload. Repro: login owner@isodemo.com → Operations → Faults → Log New Fault → set_input_files on data-testid='issue-media-input' twice. After upload #1 the dialog stays OPEN and 1 chip renders (✅). After upload #2 the dialog UNMOUNTS (issue-dialog count goes from 1→0), all chips disappear and the user lands back on the Faults list (❌). 3rd upload + chip removal could not be tested because the dialog was already gone after upload #2. onFocusOutside is therefore NOT the root cause (or preventDefault is being ignored on it for this particular Radix path).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FaultDialogs.js — issue-dialog / issue-media-input (multi-upload)",
+        "issue": "Adding onFocusOutside={(e)=>e.preventDefault()} at L59 did NOT fix the 2nd-upload close. Repro is deterministic: 1st set_input_files keeps dialog open (chips=1), 2nd set_input_files unmounts the dialog (dialog count 1→0, chips 1→0, user dumped back to Faults list). All 3 Radix outside-event guards are wired correctly, so the close path is NOT onPointerDownOutside / onInteractOutside / onFocusOutside. The triggering path is something else (likely a re-render side-effect or a focus path Radix doesn't expose via the *Outside props).",
+        "selector": "[data-testid='issue-dialog'] [data-testid='issue-media-input']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "TEST_logfault_multi_upload_retest",
+      "result": "FAIL",
+      "details": "Login owner@isodemo.com OK. Faults sub-tab → 'Log New Fault' opens issue-dialog (count=1). Upload #1 via set_input_files(photo_1.png) → dialog=1, chips=1 ✅. Upload #2 via set_input_files(photo_2.png) on the SAME data-testid='issue-media-input' → dialog=0, chips=0 ❌. Screenshot .screenshots/after_uploads.png shows Faults list (PH3-xxxxxx rows) — dialog has been unmounted. 3rd upload and ✕ chip removal could not be executed because the dialog was already closed. Reproduced twice in two separate runs."
+    }
+  ],
+  "test_report_links": ["/app/test_reports/iteration_logfault_multi_upload_retest_jan2026.json", ".screenshots/after_uploads.png"],
+  "action_items": [
+    "HIGH PRIORITY — The 3-handler preventDefault fix is INSUFFICIENT. Investigate alternate close paths.",
+    "Hypothesis A (most likely): The file <input> is inside the <form onSubmit={onIssueSubmit}>. When the 2nd change event fires, the file input is INSIDE a <label> which is inside the form; on some browser builds an implicit form submit (via Enter key bubble or focus-on-submit-button) may run when the input loses focus the second time. Try: (i) move the <input type='file'> outside the <form>, OR (ii) add `onChange={(e)=>{ e.stopPropagation(); /* existing */ }}` AND `onClick={(e)=>e.stopPropagation()}` on the file input, OR (iii) wrap the input handler in a `flushSync` so the chip re-render does not overlap with the focus-restore.",
+    "Hypothesis B: The chips row that appears after upload #1 (issueMedia.length>0 branch, FaultDialogs.js L379-389) changes the DOM under DialogContent and Radix's focus-trap loses track of the hidden file input's reference. When upload #2 fires onChange, focus snaps to body which Radix treats as a hard 'outside' event that bypasses the *Outside props. Try giving the <input type='file'> a stable `key` and/or `id`, or use `<input ref={fileInputRef} ... />` with an explicit imperative click.",
+    "Hypothesis C: useBackGestureClose hook (L48) pushes a phantom history entry; if anything in the upload flow programmatically fires a popstate (some PWA install/CSP shim has been observed in the console — see CSP errors for posthog/cloudflare beacons), the hook's popstate handler calls onResetDialog. Try disabling useBackGestureClose temporarily and re-test the 2nd upload — if it now stays open, the hook is the culprit.",
+    "Add console.log inside the Dialog `onOpenChange={(open) => { if (!open) { console.log('issue-dialog onOpenChange close', new Error().stack); onResetDialog(); } }}` so the next test agent can capture which call path closes it (Radix close vs. parent setShowIssueDialog vs. popstate)."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L371-373: <input type='file' ... onChange={...} /> nested inside a <form> + <label> wrapper. The 2nd upload's onChange should explicitly `e.stopPropagation()` to prevent any ancestor form/label re-entry.",
+    "FaultDialogs.js L53: onOpenChange has no logging. Add a stack-trace log so future regressions can be RCA'd without guessing which Radix path closed the dialog.",
+    "useBackGestureClose (lib/useBackGestureClose.js L37-62) is wired to the same dialog. Its popstate handler will silently call onResetDialog on ANY popstate while open — even spurious ones. Worth gating with `e.state?.[key]` truthiness."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "0% — multi-upload still closes on 2nd file"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — Operations dashboard, org 'Iso Demo Fitness'.",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "External URL https://admin-setup-portal.preview.emergentagent.com. Login form: input[type=email] + input[type=password] + button[type=submit]. Lands on /dashboard which IS the Operations module by default. Faults sub-tab via role=tab name~='Faults'. Open dialog with button name='Log New Fault'. Hidden file input: data-testid='issue-media-input' — use page.locator(...).set_input_files(path). Dialog presence check: page.locator(\"[data-testid='issue-dialog']\").count(). Chip count selector used: [data-testid='issue-dialog'] .truncate.max-w-\\\\[120px\\\\]. NOTE: previous iteration reported this same bug; current fix at FaultDialogs.js L57-59 (onInteractOutside + onPointerDownOutside + onFocusOutside all preventDefault) is INSUFFICIENT.",
+  "rca_of_the_issue": "Confirmed via 2 independent reproduction runs: the dialog unmounts on the 2nd set_input_files call. All three Radix *Outside guards are present and called, so the close path is NOT one of those. Most likely root cause is one of: (A) a focus-trap path Radix takes that bypasses onFocusOutside when an `<input type=file>` re-receives a change event whose focus then snaps to document.body; (B) a popstate firing from somewhere (CSP-blocked posthog/cloudflare scripts visible in console — unlikely but possible) that's caught by useBackGestureClose and calls onResetDialog; (C) an implicit form submit from the file input being inside the <form>. Fix attempts should target the file-input itself (stopPropagation on click+change), move it outside the <form>, or temporarily disable useBackGestureClose to isolate."
+}
