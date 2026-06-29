@@ -657,7 +657,7 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
             <option value="" disabled>{t('dialog.choose_serial', 'Choose serial number...')}</option>
             {groupItems.map(eq => (
               <option key={eq.id} value={eq.id}>
-                {eq.serial_number || 'No serial'}{eq.location ? ` · ${eq.location}` : ''}
+                {`${eq.serial_number || 'No serial'}${eq.location ? ` · ${eq.location}` : ''}`}
               </option>
             ))}
           </select>

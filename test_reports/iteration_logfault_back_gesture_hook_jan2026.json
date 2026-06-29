@@ -1,0 +1,39 @@
+{
+  "summary": "Verified root-cause fix in /app/frontend/src/lib/useBackGestureClose.js. The Log a Fault dialog on the FULL dashboard (FaultDialogs.js) NO LONGER closes when interacting with machine type select, serial number select (the historically-buggy step), existing-fault warning interaction, coverage banner render, or description typing. All required testids present and functional. No React `span cannot be a child of option` console error observed. Master Admin login + Organisations list load cleanly (regression sanity).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Log a Fault → existing-fault-warning",
+        "issues": [
+          "'Continue Anyway' button has Tailwind class `text-white` but computed color is rgb(24,24,27) — `text-white` is being overridden by a global/button base style. Text still legible on the teal (rgb(14,116,144)) bg, but contrast is not what the markup intends. Selector: [data-testid='continue-log-fault-btn']. Likely fix: add `!text-white` or check for a CSS rule scoped to button under .Dialog that's winning specificity."
+        ]
+      },
+      {
+        "screen": "Log a Fault dialog (main)",
+        "issues": [
+          "Main dialog has no visible 'Cancel' button — only the X close icon and the Submit button. The existing-fault-warning has its own Cancel which closes the dialog, but once the warning is dismissed the user has no Cancel control. Likely an intentional decision but worth confirming with E1."
+        ]
+      }
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_logfault_back_gesture_hook_jan2026.json"],
+  "action_items": [
+    "(Optional / Minor) Force `text-white` on the Continue Anyway button — currently being overridden by a higher-specificity rule and renders near-black text on teal background. Cosmetic only; not blocking.",
+    "(Optional) Decide whether the main dialog should have an explicit Cancel button in addition to the X icon."
+  ],
+  "critical_code_review_comments": [
+    "Hook fix is correct and idiomatic: latest `onClose` held in a ref, effect deps narrowed to [open, key], cleanup uses `closedByPopstate` flag to avoid double-popping history. This is the right pattern for callbacks-in-effects.",
+    "useBackGestureClose is shared across at least 3 modals (FaultDialogs, LiteDialogs, AdminOrganizations). The single hook fix benefits all of them, which is the right place for the change."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100% (primary bug fix verified end-to-end)" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Full org owner); admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (Master Admin)",
+  "seed_data_creation": "None — used existing seeded ISO-TM-001 equipment which already has 2 open faults.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Primary bug (Log a Fault closing on serial select) is RESOLVED on the FULL dashboard. Verified via Playwright on production preview URL with owner@isodemo.com. Existing-fault-warning shows '2 open faults already logged for Life Fitness Treadmill' listing both fault chips, Continue Anyway dismisses warning + keeps dialog open. Coverage banner ('Inactive coverage') renders without closing dialog. Description input works. Master Admin login works; the close-button selector inside the org drawer was not exercised (the drawer didn't open via row click in this run), so if a future report needs deeper coverage of AdminOrganizations, use the row's pencil/eye action button rather than the row body.",
+  "rca of the issue": "RCA confirmed by main agent: callers pass an inline/useCallback onClose whose identity changes each render. The hook listed `onClose` in its effect deps, so multi-state-update onChange handlers (serial picker → setIssueForm + fetchCoverage + setExistingFaultWarning) caused effect-cleanup to run mid-interaction; cleanup called history.back() → popstate → the freshly-registered listener ran onClose() → dialog closed. Mitigation in /app/frontend/src/lib/useBackGestureClose.js: store onClose in a ref and depend only on [open, key]. Verified working via Playwright."
+}

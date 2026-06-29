@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Iter 216f — back-gesture close handler for modals / sheets / dialogs.
@@ -35,6 +35,19 @@ import { useEffect } from 'react';
  *            multiple stacked modals not stomp each other's phantom entries.
  */
 export function useBackGestureClose(open, onClose, key = 'gymaxis-modal') {
+  // Keep the latest onClose in a ref so the effect below does NOT list it as
+  // a dependency. Root cause of the recurring "modal closes when I pick a
+  // dropdown / type" bug (Jun 2026): callers pass an inline/`useCallback`
+  // onClose whose identity changes on every render. When a field's onChange
+  // fired several state updates in a row (e.g. the fault serial picker →
+  // setIssueForm + fetchCoverage + setExistingFaultWarning), this effect
+  // re-ran, its cleanup called `history.back()`, and the resulting popstate
+  // was caught by the freshly-registered listener → onClose() → the dialog
+  // shut itself. Depending only on [open, key] makes it fire exactly once
+  // per open/close, never on incidental re-renders.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     if (!open) return undefined;
     try {
@@ -44,7 +57,7 @@ export function useBackGestureClose(open, onClose, key = 'gymaxis-modal') {
     let closedByPopstate = false;
     const handlePopState = () => {
       closedByPopstate = true;
-      try { onClose && onClose(); } catch { /* noop */ }
+      try { onCloseRef.current && onCloseRef.current(); } catch { /* noop */ }
     };
     window.addEventListener('popstate', handlePopState);
 
@@ -59,7 +72,7 @@ export function useBackGestureClose(open, onClose, key = 'gymaxis-modal') {
         } catch { /* noop */ }
       }
     };
-  }, [open, onClose, key]);
+  }, [open, key]);
 }
 
 export default useBackGestureClose;
