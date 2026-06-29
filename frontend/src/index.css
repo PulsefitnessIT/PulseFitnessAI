@@ -674,6 +674,15 @@
 [data-theme="light"] [style*="background: #66ccff"].text-white {
   color: #FFFFFF !important;
 }
+/* Pulse Pro upsell banner renders on a permanently-dark gradient
+   (from-zinc-950 → violet-950) in BOTH themes, so its white headline +
+   helper text must stay white in light mode too. The generic
+   `.text-white → var(--theme-text)` override above was turning
+   "Unlock everything for…" near-black on the dark banner. */
+[data-theme="light"] [data-testid="pulse-pro-upgrade-cta"] .text-white,
+[data-portal="pulse"]:not([data-theme="dark"]) [data-testid="pulse-pro-upgrade-cta"] .text-white {
+  color: #FFFFFF !important;
+}
 [data-theme="light"] .text-\[\#A1A1AA\] {
   color: var(--theme-text-muted) !important;
 }
