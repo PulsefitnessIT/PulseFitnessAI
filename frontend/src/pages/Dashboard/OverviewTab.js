@@ -4,6 +4,7 @@ import Button from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from 'lucide-react';
 import SiteLeaderboard from '@/components/shared/SiteLeaderboard';
+import { useAuth } from '@/App';
 
 // Iter 216h192 — Concrete, in-product next steps surfaced when the
 // Gym Health Score is dragged down by one of these sub-categories.
@@ -107,6 +108,11 @@ const OverviewTab = ({
  urgentExpiryAlerts, onLogIssue, onNavigateTab, onViewExpiryAlerts,
  getStatusColor, t
 }) => {
+ // AI features (incl. AI Diagnosis) are Pulse Pro only — Lite has no AI.
+ // `full` = Pulse Fitness internal (all features); master admin always sees it.
+ const { user } = useAuth();
+ const hasAI = !!user?.is_master_admin
+   || ['pulse_pro', 'full'].includes((user?.account_type || '').toLowerCase());
  return (
  <>
  {/* Multi-site: cross-site comparison leaderboard — only renders in
@@ -349,9 +355,11 @@ const OverviewTab = ({
  <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6" data-testid="quick-actions-card">
  <h3 className="text-xl font-semibold text-white mb-4">{t('dashboard.quick_actions')}</h3>
  <div className="space-y-3">
+ {hasAI && (
  <ShadcnButton onClick={onLogIssue} className="w-full justify-start" data-testid="quick-action-diagnosis">
  <MessageSquare className="mr-2" size={18} />{t('diagnosis.title')}
  </ShadcnButton>
+ )}
  <ShadcnButton onClick={() => onNavigateTab('equipment')} variant="outline" className="w-full border-[var(--theme-border)] text-white justify-start hover:bg-white/10" data-testid="quick-action-audit">
  <Upload className="mr-2" size={18} />{t('dashboard.generate_audit')}
  </ShadcnButton>
