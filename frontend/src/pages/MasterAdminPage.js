@@ -217,9 +217,9 @@ const MasterAdminPage = ({ _onBack }) => {
       const impToken = res.data?.token;
       if (!impToken) throw new Error('no token');
       localStorage.setItem('impersonation_return', '/master-admin');
-      window.location.href = '/pulse?impersonation_token=' + encodeURIComponent(impToken);
+      window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
     } catch (e) {
-      window.location.href = '/pulse';
+      window.location.href = '/dashboard';
     }
   };
   const handleOrgSwitch = async (orgId) => {

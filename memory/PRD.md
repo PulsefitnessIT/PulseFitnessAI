@@ -1,3 +1,29 @@
+# ═══ 2026-06-29 · CRITICAL BUGFIX · Master Admin quick button → Full platform for Pulse Fitness LTD (VERIFIED backend) ═══
+Report (P0, production): Master Admin couldn't see all modules even when "turned on", and the bottom-left
+quick button didn't take them through to the FULL platform for Pulse Fitness LTD.
+
+ROOT CAUSE: the `Pulse Fitness` organisation record had `account_type: null` and NO `modules` set. When the
+"Pulse Fitness Portal" quick button (`portal-switch-pulse`) impersonated its owner, `resolve_module_access`
+fell back to `pulse_pro` defaults → only **Operations** was visible. Also the button routed to `/pulse`
+(Lite/Pro self-service surface) instead of the full operator dashboard.
+
+FIX:
+- Backend (`routes/master_admin_users.py` `pulse_portal_login`): SELF-HEALS the Pulse Fitness org to
+  `account_type: full` + all 4 modules enabled (operations/memberships/marketing/crm, crm.business_enabled)
+  idempotently on every click. This fixes BOTH preview and production (after redeploy) without manual DB edits.
+- Frontend (`MasterAdminPage.js` `handlePulseSwitch`): re-pointed the quick button to land on
+  `/dashboard?impersonation_token=` (full 9-tab operator platform + module switcher) instead of `/pulse`.
+
+VERIFIED (curl @ external URL): master login → pulse-portal-login → `/auth/me` returns
+`account_type: full` + `module_access {operations,memberships,marketing,crm,crm_lite} = all True`.
+Frontend compiles clean (master-admin SPA not screenshot-harness testable — documented CSP limitation).
+
+ACTION (production): preview-only — **redeploy pulsefitness.ai** to push it live (user reported this on prod).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-26 · UI · Unified module page-header across the platform (VERIFIED) ═══
 Founder request: every module's page header should look the same. Built ONE reusable
 `components/shared/ModulePageHeader.js` (module name in brand-gradient + "· {company}" muted + a

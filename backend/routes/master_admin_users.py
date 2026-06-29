@@ -1271,6 +1271,22 @@ async def pulse_portal_login(request: Request, user: dict = Depends(get_current_
     org = await db.organizations.find_one({"name": "Pulse Fitness"}, {"_id": 0})
     if not org:
         raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
+    # Self-heal: Pulse Fitness (LTD) is the operator's OWN company — it must be a
+    # FULL platform with every module enabled so the master admin always lands on
+    # the complete operator dashboard. Older records had account_type/modules unset,
+    # which made resolve_module_access fall back to pulse_pro defaults (Operations
+    # only). Idempotently force `full` + all modules on, then re-read.
+    full_modules = {
+        k: {"enabled": True, "tier": "pro", "source": "admin"}
+        for k in ("operations", "memberships", "marketing", "crm")
+    }
+    full_modules["crm"]["business_enabled"] = True
+    if org.get("account_type") != "full" or not org.get("modules"):
+        await db.organizations.update_one(
+            {"id": org["id"]},
+            {"$set": {"account_type": "full", "modules": full_modules}},
+        )
+        org = await db.organizations.find_one({"id": org["id"]}, {"_id": 0})
     token = await _issue_org_portal_token(org, user, request)
     return {"token": token, "organization_id": org["id"], "organization_name": org.get("name")}
 
