@@ -1,3 +1,26 @@
+# ═══ 2026-06-26 · UI · Unified module page-header across the platform (VERIFIED) ═══
+Founder request: every module's page header should look the same. Built ONE reusable
+`components/shared/ModulePageHeader.js` (module name in brand-gradient + "· {company}" muted + a
+one-line subtitle + long-form en-GB date on the right + optional action slot) and rolled it into all
+five module shells, replacing their divergent inline headers:
+- Operations (`DashboardPage.js`) — "Operations" (master-admin keeps a separate "Global Dashboard").
+- Memberships (`Memberships/MembershipsConsole.js`) — was "Pulse Fitness Pro" → now "Memberships";
+  Studio Mode toggle moved into the header action slot.
+- CRM (`CRM/CRMApp.js`) — was "Pulse Fitness" → now "CRM".
+- Marketing (`MarketingSuite.js`) — now "Marketing".
+- Comms Centre (`Comms/CommsCentre.js`) — "Comms Centre".
+Design spec from design_agent (design_guidelines.json); deviated only on the agent's reversed
+"Operations must say Dashboard" rule — the founder explicitly wanted the module NAME, not "Dashboard".
+Verified by testing agent across all 5 modules (owner@isodemo.com): identical layout/typography, no
+legacy brand titles, tab bar unbroken beneath. testids: module-page-header / module-title /
+tenant-name / module-subtitle / module-date / module-action-slot.
+
+ACTION (production): preview-only — redeploy pulsefitness.ai to use it live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-26 · CRITICAL BUGFIX + UI · Fault upload / Equipment cover / Header (VERIFIED) ═══
 1. CRITICAL — "Adding a photo/video closes the fault card": ROOT CAUSE (found after 6 retests) =
    `lib/useBackGestureClose.js` popstate handler. The OS file chooser emits a (sometimes delayed)
