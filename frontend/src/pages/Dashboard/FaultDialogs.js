@@ -49,7 +49,15 @@ const FaultDialogs = ({
  // Guards against spurious dialog closes triggered by the OS file chooser
  // stealing/returning focus during photo/video upload.
  const suppressCloseRef = useRef(false);
- useBackGestureClose(showIssueDialog, closeIssueDialog, 'gymaxis-issue-dialog');
+ // Wrap the back-gesture close so it ALSO respects the upload suppress guard —
+ // the OS file chooser fires a popstate when it returns focus, which would
+ // otherwise close the whole dialog mid-upload (root cause of "adding a photo
+ // closes the fault card"). See suppressCloseRef.
+ const backGestureClose = useCallback(() => {
+   if (suppressCloseRef.current) { suppressCloseRef.current = false; return; }
+   closeIssueDialog();
+ }, [closeIssueDialog]);
+ useBackGestureClose(showIssueDialog, backGestureClose, 'gymaxis-issue-dialog');
 
  return (
  <>
