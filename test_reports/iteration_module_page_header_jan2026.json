@@ -1,0 +1,73 @@
+{
+  "summary": "Frontend-only verification of shared ModulePageHeader applied across all 5 modules (Operations, Memberships, CRM, Marketing, Comms Centre) for owner@isodemo.com on viewport 1920x800. All headers render the unified pattern (gradient module name + muted '· Iso Demo Fitness' + one-line subtitle + right-aligned long-form date) and the ModuleSwitcher pill bar + tab pills render directly beneath without overlap. Studio Mode toggle confirmed in Memberships action slot. None of the legacy product-brand titles ('Pulse Fitness Pro', 'Pulse Fitness', 'Dashboard') are present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/header_operations.jpeg",
+    "/app/test_reports/header_memberships.jpeg",
+    "/app/test_reports/header_crm.jpeg",
+    "/app/test_reports/header_marketing.jpeg",
+    "/app/test_reports/header_comms.jpeg"
+  ],
+  "verification_details": {
+    "operations": {
+      "module-title": "Operations · Iso Demo Fitness",
+      "tenant-name": "· Iso Demo Fitness",
+      "module-subtitle": "Equipment, faults, maintenance & compliance — your whole estate in one place.",
+      "module-date": "Monday, 29 June 2026",
+      "module-action-slot": null,
+      "switcher_below_header": "header y=96 h=68 ends at 164; switcher y=196 (gap 32px)",
+      "module_switcher_present": true
+    },
+    "memberships": {
+      "module-title": "Memberships · Iso Demo Fitness",
+      "module-subtitle": "Members, classes, timetables & plans — your studio in one place.",
+      "module-date": "Monday, 29 June 2026",
+      "module-action-slot": "Studio Mode off (toggle present)",
+      "switcher_below_header": "header ends at 164; switcher y=196 (gap 32px)"
+    },
+    "crm": {
+      "module-title": "CRM · Iso Demo Fitness",
+      "module-subtitle": "Pipeline, quotes, contracts & customer accounts.",
+      "module-date": "Monday, 29 June 2026",
+      "switcher_below_header": "no overlap"
+    },
+    "marketing": {
+      "module-title": "Marketing · Iso Demo Fitness",
+      "module-subtitle": "Campaigns, journeys, creative & growth insights.",
+      "module-date": "Monday, 29 June 2026",
+      "switcher_below_header": "no overlap"
+    },
+    "comms": {
+      "module-title": "Comms Centre · Iso Demo Fitness",
+      "module-subtitle": "One connected campaign & intelligence system across Marketing, Memberships and CRM.",
+      "module-date": "Monday, 29 June 2026",
+      "switcher_below_header": "header y=96 h=92 (subtitle wraps to 2 lines, longer copy); switcher y=220 (gap 32px) - no overlap"
+    }
+  },
+  "consistency_check": {
+    "uniform_layout": true,
+    "title_size_class": "text-3xl sm:text-4xl on all 5",
+    "muted_tenant_name": true,
+    "right_aligned_date": true,
+    "no_overlap_with_switcher_or_tabs": true,
+    "no_legacy_brand_titles": "Confirmed: 'Pulse Fitness Pro', 'Pulse Fitness', 'Dashboard' titles are gone"
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Date is computed client-side via new Date(); deterministic SSR/testing would prefer the date prop to be passed in by container. Currently fine because every container omits it.",
+    "ModulePageHeader is small (78 lines) and focused — good DRY refactor; consider memoizing with React.memo since it runs on every parent re-render across busy modules."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Shared ModulePageHeader is verified across all 5 modules. Switching modules via module-switcher pill bar works and re-renders header correctly. No regressions in tab pills below. Cookie banner appears bottom-center but does not occlude header area.",
+  "rca of the issue": "n/a — no defects detected"
+}

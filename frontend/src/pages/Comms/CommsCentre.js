@@ -14,6 +14,7 @@ import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users, Filter, Workfl
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
 import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
+import ModulePageHeader from '@/components/shared/ModulePageHeader';
 import PillTabBar from '@/components/shared/PillTabBar';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import CampaignsPanel from './CampaignsPanel';
@@ -84,22 +85,12 @@ export default function CommsCentre() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 md:pb-8 module-fade-in">
         <div className="mb-6" data-testid="comms-app-header">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <h1 className="text-3xl sm:text-4xl tracking-tight font-bold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>
-                {isPulseBranded ? 'Comms Centre' : <span className="gx-grad-text">Comms Centre</span>}
-                {user?.company_name && (
-                  <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>· {user.company_name}</span>
-                )}
-              </h1>
-              <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>
-                One connected campaign &amp; intelligence system across Marketing, Memberships and CRM.
-              </p>
-            </div>
-            <div className="text-sm pulse-font-body shrink-0 mt-1.5" style={{ color: 'var(--theme-text-muted)' }} data-testid="module-today-date">
-              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
-          </div>
+          <ModulePageHeader
+            moduleName="Comms Centre"
+            tenantName={user?.company_name}
+            subtitle="One connected campaign & intelligence system across Marketing, Memberships and CRM."
+            isPulseBranded={isPulseBranded}
+          />
           <ModuleSwitcher user={user} current="comms" />
         </div>
 

@@ -3,6 +3,7 @@ import { useAuth } from '@/App';
 import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 import Navbar from '@/components/shared/Navbar';
 import ModuleSwitcher, { hasModuleAccess } from '@/components/shared/ModuleSwitcher';
+import ModulePageHeader from '@/components/shared/ModulePageHeader';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useLocalization } from '@/utils/localization';
@@ -922,35 +923,12 @@ export default function CRMApp() {
             wrapper above already cleared the navbar. */}
         {showShell && (
           <div className="pb-3 px-4 md:px-8 max-w-7xl mx-auto" data-testid="crm-app-header">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div className="min-w-0">
-                <h1
-                  className="text-3xl sm:text-4xl tracking-tight font-bold mb-1 pulse-font-heading leading-tight"
-                  style={{ color: 'var(--theme-text)' }}
-                >
-                  {isPulseBrandedCRM ? (
-                    brandCfg.label.replace(' CRM', '')
-                  ) : (
-                    <span className="gx-grad-text">{brandCfg.label.replace(' CRM', '')}</span>
-                  )}{' '}
-                  {(platformUser?.account_type === 'pulse_pro' || platformUser?.account_type === 'full' || platformUser?.is_master_admin) && (
-                    <span style={{ color: isPulseBrandedCRM ? 'var(--color-brand-cyan-hover)' : 'var(--gx-brand-to)' }}>Pro</span>
-                  )}
-                  {platformUser?.company_name && (
-                    <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-                      · {platformUser.company_name}
-                    </span>
-                  )}
-                </h1>
-                <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>
-                  Welcome back, {platformUser?.full_name || user?.full_name}
-                </p>
-              </div>
-              <div className="text-sm pulse-font-body shrink-0 mt-1.5" style={{ color: 'var(--theme-text-muted)' }} data-testid="module-today-date">
-                {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </div>
-            </div>
-
+            <ModulePageHeader
+              moduleName="CRM"
+              tenantName={platformUser?.company_name}
+              subtitle="Pipeline, quotes, contracts & customer accounts."
+              isPulseBranded={isPulseBrandedCRM}
+            />
             {/* Toolbar row — module switcher + search + quick actions
                 + staff filter + settings, all level with each other. */}
             <div className="flex items-center gap-3 flex-wrap" data-testid="crm-toolbar">

@@ -37,6 +37,7 @@ import PullToRefresh from '@/components/shared/PullToRefresh';
 import Navbar from '@/components/shared/Navbar';
 import MobileBottomNav from '@/components/shared/MobileBottomNav';
 import ModuleSwitcher, { hasModuleAccess } from '@/components/shared/ModuleSwitcher';
+import ModulePageHeader from '@/components/shared/ModulePageHeader';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import HelpHint from '@/components/HelpHint';
@@ -225,29 +226,13 @@ function MembershipsConsoleInner() {
         {/* Unified app header — matches Pulse / Operations header so the module
             switcher position stays stable across routes. */}
         <div className="mb-6" data-testid="memberships-app-header">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <h1 className="text-3xl sm:text-4xl tracking-tight font-bold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>
-                {isPulseBrandedMbr
-                  ? brandLabel
-                  : <span className="gx-grad-text">{brandLabel}</span>
-                }{' '}
-                {(user?.account_type === 'pulse_pro' || user?.account_type === 'full' || user?.is_master_admin) && (
-                  <span style={{ color: isPulseBrandedMbr ? 'var(--color-brand-cyan-hover)' : 'var(--gx-brand-to)' }}>Pro</span>
-                )}
-                {user?.company_name && (
-                  <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-                    · {user.company_name}
-                  </span>
-                )}
-              </h1>
-              <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {user?.full_name}</p>
-            </div>
-            <div className="text-sm pulse-font-body shrink-0 mt-1.5 flex items-center gap-3" style={{ color: 'var(--theme-text-muted)' }} data-testid="module-today-date">
-              <StudioModeToggle studioMode={studio.studioMode} toggle={studio.toggle} saving={studio.saving} loading={studio.loading} />
-              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
-          </div>
+          <ModulePageHeader
+            moduleName="Memberships"
+            tenantName={user?.company_name}
+            subtitle="Members, classes, timetables & plans — your studio in one place."
+            isPulseBranded={isPulseBrandedMbr}
+            actionSlot={<StudioModeToggle studioMode={studio.studioMode} toggle={studio.toggle} saving={studio.saving} loading={studio.loading} />}
+          />
           <ModuleSwitcher user={user} current="memberships" />
         </div>
 
