@@ -98,33 +98,29 @@ def _org_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
     out = {}
     for key in MODULE_KEYS:
         cfg = org_modules.get(key)
-        if isinstance(cfg, dict) and "enabled" in cfg:
-            out[key] = bool(cfg["enabled"])
+        enabled = bool(cfg["enabled"]) if (isinstance(cfg, dict) and "enabled" in cfg) else defaults[key]
+        source = cfg.get("source") if isinstance(cfg, dict) else None
+
+        if key in BOLT_ON_MODULES:
+            if source == "trial":
+                # Trial bolt-on: live ONLY while the 3-day window is open;
+                # re-locks on expiry (→ ModuleAccessGate subscribe screen).
+                out[key] = _trial_active(org, key)
+            elif enabled:
+                # Explicitly enabled by a master admin (source="admin") or
+                # purchased (source="paid") → granted for ANY account_type,
+                # INCLUDING Lite. This is the standard "turn a module on for
+                # an org" flow from the Feature Control panel and must NOT be
+                # overridden by tier. (Fixes the Jun 2026 regression where a
+                # Lite/Pro org with all modules toggled on still only saw
+                # Operations because Lite bolt-ons were hard-gated to trials.)
+                out[key] = True
+            else:
+                # Off and no admin enable → only an active trial unlocks it.
+                out[key] = _trial_active(org, key)
         else:
-            out[key] = defaults[key]
-
-        # Lite + bolt-on module: only allow if a trial is active. The
-        # matrix cannot grant a bolt-on to a Lite org permanently —
-        # they must upgrade to Pro first.
-        if account_type == "lite" and key in BOLT_ON_MODULES:
-            out[key] = _trial_active(org, key)
-            continue
-
-        # Trial-sourced bolt-ons are ONLY live while their 3-day trial
-        # window is open. Once the trial expires the module re-locks
-        # (→ ModuleAccessGate's "trial used / subscribe" screen),
-        # regardless of account_type. Without this a Pro org kept a
-        # bolt-on forever after a trial because `modules.<key>.enabled`
-        # was left True at trial-start. Paid/admin-granted modules
-        # (source != "trial") are unaffected and stay on.
-        if key in BOLT_ON_MODULES and isinstance(cfg, dict) and cfg.get("source") == "trial":
-            out[key] = _trial_active(org, key)
-            continue
-
-        # Active trial overlays — extends access even when the matrix
-        # toggle is off (e.g. trial expired and was flipped off).
-        if not out[key] and _trial_active(org, key):
-            out[key] = True
+            # Core module (operations) — follow the flag / tier default.
+            out[key] = enabled
     return out
 
 
