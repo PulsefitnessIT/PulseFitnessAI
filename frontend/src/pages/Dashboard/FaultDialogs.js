@@ -204,8 +204,7 @@ const FaultDialogs = ({
    from intercepting keyboard events and closing the dialog. This is a known
    Radix issue (#3412) where inputs inside dialogs lose focus or cause the
    dialog to close when typing. */}
-<input
-   type="text"
+<select
    value={issueForm.serial_number || ''}
    onChange={(e) => {
      const val = e.target.value;
@@ -222,20 +221,17 @@ const FaultDialogs = ({
      }
    }}
    onKeyDown={(e) => e.stopPropagation()}
-   placeholder={selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')}
-   list="issue-serial-datalist"
-   autoComplete="off"
    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-2 h-10 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)] disabled:opacity-60"
    disabled={!!issueForm.serial_unknown}
    data-testid="issue-serial-select"
- />
- <datalist id="issue-serial-datalist">
- {filterSerialsByGroup(allEquipment, selectedMachineType).map(e => (
-   <option key={e.id} value={e.serial_number || e.id}>
-     {e.name}{e.manufacturer ? ` (${e.manufacturer})` : ''}
-   </option>
- ))}
- </datalist>
+ >
+   <option value="" disabled>{selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')}</option>
+   {filterSerialsByGroup(allEquipment, selectedMachineType).map(e => (
+     <option key={e.id} value={e.serial_number || e.id}>
+       {(e.serial_number || e.id)} — {e.name}{e.manufacturer ? ` (${e.manufacturer})` : ''}
+     </option>
+   ))}
+ </select>
  {/* Iter 220dw — Serial-unknown escape hatch. Some machines have
      rubbed-off plates; previously customers had to either guess
      or abandon the fault. The checkbox + reason field stamps the
