@@ -17,6 +17,7 @@ explain the next step.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -30,6 +31,20 @@ from utils.module_access import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# ── Paid bolt-on subscription plans (Iter — self-serve module purchase) ──
+# Source-of-truth prices live SERVER-SIDE only (never trust the frontend).
+# Recurring Stripe Price IDs are pre-provisioned in backend/.env; if absent
+# we fall back to an inline recurring price so checkout still works in
+# dev/test. Pence amounts mirror the ModuleAccessGate marketing copy.
+MODULE_PLANS = {
+    "memberships": {"name": "Memberships", "amount_pennies": 5900,
+                    "price_env": "STRIPE_PRICE_MEMBERSHIPS", "price_env_annual": "STRIPE_PRICE_MEMBERSHIPS_ANNUAL"},
+    "crm": {"name": "CRM", "amount_pennies": 4900,
+            "price_env": "STRIPE_PRICE_CRM", "price_env_annual": "STRIPE_PRICE_CRM_ANNUAL"},
+    "marketing": {"name": "Marketing", "amount_pennies": 3900,
+                  "price_env": "STRIPE_PRICE_MARKETING", "price_env_annual": "STRIPE_PRICE_MARKETING_ANNUAL"},
+}
 
 
 def _now() -> datetime:
@@ -230,3 +245,151 @@ async def upgrade_to_pulse_pro(
         "account_type": "pulse_pro",
         "trials_started": started,
     }
+
+
+@router.post("/me/module-purchase/checkout")
+async def create_module_checkout(
+    body: dict = Body(...), user: dict = Depends(get_current_user),
+):
+    """Owner → Stripe Checkout (subscription) for a single bolt-on module.
+
+    Mirrors the verified raw-SDK subscription pattern in
+    `routes/service_provider_billing.py` (idempotency, payment_transactions
+    ledger, polling status endpoint). On `paid`, the status endpoint flips
+    `modules.<module>.{enabled:true, source:"paid"}` so the module stays
+    unlocked beyond the trial window.
+    """
+    _require_owner_or_master(user)
+    from utils.database import STRIPE_API_KEY
+    if not STRIPE_API_KEY:
+        raise HTTPException(500, "Stripe is not configured.")
+
+    module = (body.get("module") or "").strip().lower()
+    if module not in MODULE_PLANS:
+        raise HTTPException(400, f"module must be one of {list(MODULE_PLANS)}")
+
+    org = await _resolve_org(user)
+    if (org.get("account_type") or "").lower() == "lite":
+        raise HTTPException(400, "Upgrade to Pulse Pro before subscribing to a bolt-on.")
+    cfg = (org.get("modules") or {}).get(module) or {}
+    if cfg.get("enabled") and cfg.get("source") == "paid":
+        raise HTTPException(400, f"{MODULE_PLANS[module]['name']} is already subscribed.")
+
+    interval = "annual" if (body.get("interval") == "annual") else "month"
+    origin_url = (body.get("origin_url") or "").rstrip("/")
+    if not origin_url:
+        raise HTTPException(400, "origin_url required")
+    return_path = body.get("return_path") or "/"
+    plan = MODULE_PLANS[module]
+
+    import stripe
+    stripe.api_key = STRIPE_API_KEY
+
+    metadata = {
+        "purpose": "module_subscription",
+        "organization_id": org["id"],
+        "user_id": user["id"],
+        "module": module,
+        "interval": interval,
+    }
+    sep = "&" if "?" in return_path else "?"
+    session_kwargs = {
+        "payment_method_types": ["card"],
+        "mode": "subscription",
+        "success_url": f"{origin_url}{return_path}{sep}purchase=success&session_id={{CHECKOUT_SESSION_ID}}",
+        "cancel_url": f"{origin_url}{return_path}{sep}purchase=cancelled",
+        "customer_email": user.get("email") or None,
+        "metadata": metadata,
+    }
+    price_id = os.environ.get(plan["price_env_annual"] if interval == "annual" else plan["price_env"])
+    if price_id:
+        session_kwargs["line_items"] = [{"price": price_id, "quantity": 1}]
+    else:
+        session_kwargs["line_items"] = [{
+            "price_data": {
+                "currency": "gbp",
+                "product_data": {"name": f"Pulse Pro · {plan['name']}"},
+                "unit_amount": plan["amount_pennies"] * (12 if interval == "annual" else 1),
+                "recurring": {"interval": "year" if interval == "annual" else "month"},
+            },
+            "quantity": 1,
+        }]
+
+    try:
+        from utils.stripe_client_idempotency import stripe_idem_key
+        session = stripe.checkout.Session.create(
+            **session_kwargs,
+            idempotency_key=stripe_idem_key("module_subscription", org["id"], module, interval),
+        )
+    except Exception as e:
+        logger.exception("Stripe module checkout failed")
+        raise HTTPException(502, f"Stripe error: {e}")
+
+    await db.payment_transactions.insert_one({
+        "session_id": session.id,
+        "organization_id": org["id"],
+        "user_id": user["id"],
+        "purpose": "module_subscription",
+        "module": module,
+        "interval": interval,
+        "amount": plan["amount_pennies"],
+        "currency": "gbp",
+        "payment_status": "pending",
+        "metadata": metadata,
+        "created_at": _now_iso(),
+    })
+    return {"url": session.url, "session_id": session.id}
+
+
+@router.get("/me/module-purchase/status/{session_id}")
+async def module_purchase_status(session_id: str, user: dict = Depends(get_current_user)):
+    """Poll Stripe; on `paid`, mark the module paid+enabled. Idempotent."""
+    from utils.database import STRIPE_API_KEY
+    if not STRIPE_API_KEY:
+        raise HTTPException(500, "Stripe is not configured.")
+    import stripe
+    stripe.api_key = STRIPE_API_KEY
+
+    txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if not txn:
+        raise HTTPException(404, "Transaction not found")
+    if txn.get("organization_id") != user.get("organization_id"):
+        raise HTTPException(403, "Not your transaction")
+
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        raise HTTPException(502, f"Stripe error: {e}")
+
+    payment_status = session.get("payment_status", "")
+    module = txn.get("module")
+    if payment_status == "paid" and txn.get("payment_status") != "paid":
+        now = _now_iso()
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"payment_status": "paid", "completed_at": now}},
+        )
+        await db.organizations.update_one(
+            {"id": txn["organization_id"]},
+            {"$set": {
+                f"modules.{module}.enabled": True,
+                f"modules.{module}.source": "paid",
+                f"modules.{module}.tier": "pro",
+                f"module_subscriptions.{module}.stripe_customer_id": session.get("customer"),
+                f"module_subscriptions.{module}.stripe_subscription_id": session.get("subscription"),
+                f"module_subscriptions.{module}.started_at": now,
+                f"module_subscriptions.{module}.interval": txn.get("interval"),
+                "updated_at": now,
+            }},
+        )
+        await db.account_change_audit.insert_one({
+            "id": f"subscribe-{txn['organization_id']}-{module}-{int(_now().timestamp())}",
+            "organization_id": txn["organization_id"],
+            "actor_id": user["id"],
+            "kind": "module_subscription_paid",
+            "module": module,
+            "created_at": now,
+        })
+        logger.info("Module %s subscribed (paid) for org %s session %s", module, txn["organization_id"], session_id)
+
+    return {"status": session.get("status"), "payment_status": payment_status, "module": module}

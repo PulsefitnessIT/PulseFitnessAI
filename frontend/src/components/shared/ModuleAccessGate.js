@@ -90,6 +90,38 @@ export default function ModuleAccessGate({ module, children }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Handle return from Stripe Checkout (module subscription). Poll the
+  // purchase status, then refresh access so the gate opens once paid.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('purchase') !== 'success') return;
+    const sessionId = params.get('session_id');
+    if (!sessionId) return;
+    let cancelled = false;
+    let attempts = 0;
+    const clean = () => {
+      params.delete('purchase'); params.delete('session_id');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    };
+    const poll = async () => {
+      if (cancelled || attempts >= 6) { clean(); return; }
+      attempts += 1;
+      try {
+        const r = await axios.get(`${API}/api/me/module-purchase/status/${sessionId}`, { headers });
+        if (r.data?.payment_status === 'paid') {
+          notify.success('Subscription active', 'Your module is now unlocked.');
+          clean();
+          load();
+          return;
+        }
+      } catch (_) { /* keep polling */ }
+      setTimeout(poll, 2000);
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [headers, load]);
+
   // Iter 274 — independent engineers are locked to the Engineer App; never
   // show them a gym-operator upgrade screen.
   if (isIndependentEngineer(user)) {
@@ -127,7 +159,28 @@ function UpgradeScreen({ module, state, onChange, headers }) {
   const adminDisabled = !!trialInfo?.admin_disabled;
   const isOwner = state.is_owner;
   const [busy, setBusy] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
   const [selected, setSelected] = useState(() => new Set(state.bolt_on_modules || ['memberships', 'crm', 'marketing']));
+
+  const subscribe = async () => {
+    if (!isOwner) {
+      notify.error('Only the organisation owner can subscribe — please ask them.');
+      return;
+    }
+    setSubscribing(true);
+    try {
+      const r = await axios.post(`${API}/api/me/module-purchase/checkout`, {
+        module,
+        origin_url: window.location.origin,
+        return_path: window.location.pathname,
+      }, { headers });
+      if (r.data?.url) { window.location.href = r.data.url; return; }
+      throw new Error('No checkout URL received');
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not start checkout');
+      setSubscribing(false);
+    }
+  };
 
   // A master admin has EXPLICITLY turned this module off — do not offer a
   // self-serve trial (that would silently undo the admin's decision).
@@ -265,7 +318,22 @@ function UpgradeScreen({ module, state, onChange, headers }) {
             {trialUsed ? (
               <div className="rounded-lg bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-4 text-center">
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{formatGBP(meta.price_monthly)} / month</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Contact your master admin to subscribe.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 mb-3">Your free trial has ended — subscribe to keep {meta.label}.</p>
+                <button
+                  onClick={subscribe}
+                  disabled={subscribing || !isOwner}
+                  className={`w-full px-4 py-3 rounded-md bg-gradient-to-r ${meta.accent} text-white text-sm font-bold disabled:opacity-50 inline-flex items-center justify-center gap-2`}
+                  data-testid="module-gate-subscribe-btn"
+                >
+                  {subscribing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  Subscribe {formatGBP(meta.price_monthly)}/mo
+                  <ArrowRight size={14} />
+                </button>
+                {!isOwner && (
+                  <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1.5" data-testid="module-gate-subscribe-not-owner">
+                    <AlertCircle size={11} /> Only the organisation owner can subscribe — please ask them.
+                  </p>
+                )}
               </div>
             ) : (
               <button
