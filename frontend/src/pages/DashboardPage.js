@@ -456,6 +456,7 @@ const DashboardPage = () => {
         issueMedia={wf.issueMedia}
         setIssueMedia={wf.setIssueMedia}
         faultMachines={wf.faultMachines}
+        submitCount={wf.submitCount}
         activeMachineIdx={wf.activeMachineIdx}
         setActiveMachineIdx={wf.setActiveMachineIdx}
         triageResult={wf.triageResult}

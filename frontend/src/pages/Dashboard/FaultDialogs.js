@@ -23,7 +23,7 @@ const FaultDialogs = ({
  requireReporter = false, siteStaff = [], reporterStaffId = '', setReporterStaffId,
  allowOtherStaff = false, requireStaffPin = false, reporterPin = '', setReporterPin,
  reporterOther = {}, setReporterOther,
- allEquipment, issueLoading, issueMedia, setIssueMedia, faultMachines, activeMachineIdx, setActiveMachineIdx,
+ allEquipment, issueLoading, issueMedia, setIssueMedia, faultMachines, submitCount, activeMachineIdx, setActiveMachineIdx,
  triageResult, setTriageResult, machineTriageResults, resolutionNote, setResolutionNote,
  selectedFixStep, setSelectedFixStep, equipmentCoverage, coverageLoading, existingFaultWarning, setExistingFaultWarning,
  // Callbacks
@@ -425,9 +425,11 @@ const FaultDialogs = ({
  {issueLoading ? (
  <span className="flex items-center gap-2">
  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
- {faultMachines.length > 0 ? t('faults.running_triage_multi', { count: faultMachines.length + (issueForm.serial_number ? 1 : 0) }) : t('faults.running_triage')}
+ {submitCount > 1 ? t('faults.running_triage_multi', { count: submitCount }) : t('faults.running_triage')}
  </span>
- ) : (faultMachines.length > 0 ? t('faults.submit_triage_multi', { count: faultMachines.length + (issueForm.serial_number && issueForm.issue_description ? 1 : 0) }) : t('faults.submit_triage'))}
+ ) : ((faultMachines.length + (issueForm.serial_number && issueForm.issue_description ? 1 : 0)) > 1
+ ? t('faults.submit_triage_multi', { count: faultMachines.length + (issueForm.serial_number && issueForm.issue_description ? 1 : 0) })
+ : t('faults.submit_triage'))}
  </Button>
  </div>
  {allEquipment.length === 0 && <p className="text-yellow-400 text-xs text-center">{t('faults.no_equipment_hint')}</p>}

@@ -49,6 +49,11 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
   const [resolutionNote, setResolutionNote] = useState('');
   const [issueForm, setIssueForm] = useState(EMPTY_ISSUE_FORM);
   const [faultMachines, setFaultMachines] = useState([]);
+  // Count of machines actually being triaged on the current submit. Captured
+  // BEFORE setFaultMachines(machines) folds the active form into the list, so
+  // the "Running AI Triage (N machines)" label can't double-count the
+  // in-progress machine (Jun 2026 bug: 1 machine showed as "2 machines").
+  const [submitCount, setSubmitCount] = useState(0);
   const [activeMachineIdx, setActiveMachineIdx] = useState(0);
   const [machineTriageResults, setMachineTriageResults] = useState([]);
   // Iter 216d — when the user is logging multiple machines, generate
@@ -126,6 +131,7 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
     setShowPOPrompt(false);
     setFaultMachines([]);
     setActiveMachineIdx(0);
+    setSubmitCount(0);
     setMachineTriageResults([]);
     setCurrentJobId(null);
     setExistingFaultWarning(null);
@@ -180,6 +186,7 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
       return;
     }
 
+    setSubmitCount(machines.length);
     setFaultMachines(machines);
     setIssueLoading(true);
     try {
@@ -523,6 +530,7 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
     machineTriageResults,
     // multi-machine
     faultMachines,
+    submitCount,
     activeMachineIdx, setActiveMachineIdx,
     // resolution
     resolutionNote, setResolutionNote,
