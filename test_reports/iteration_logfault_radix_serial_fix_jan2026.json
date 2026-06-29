@@ -1,0 +1,33 @@
+{
+  "summary": "Attempted to verify the FaultDialogs.js native <select> fix for the Serial Number dropdown in the Log-a-Fault modal as owner@isodemo.com. Could NOT reach FaultDialogs.js — owner@isodemo.com lands on the Pulse LITE workspace (banner: 'PULSE LITE · 3 MODULES LOCKED'), and BOTH the top-level 'Log a Fault' button on the Dashboard tab AND the 'Log New Fault' button in the Reactive Faults panel open a DIFFERENT dialog component (Pulse Lite fault dialog), not FaultDialogs.js. The opened dialog has NO data-testid='issue-dialog', NO Serial Number dropdown at all, and still uses a Radix Select trigger ('Choose machine type...') for Machine Type. The native-<select> fix in /app/frontend/src/pages/Dashboard/FaultDialogs.js (issue-type-select / issue-serial-select / issue-media-input testids) is therefore NOT exercised by this user/route, so the regression cannot be confirmed via this account.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Operations Dashboard 'Log a Fault' button (owner@isodemo.com on /pulse Dashboard tab)", "issue": "Opens the Pulse Lite fault dialog (no Serial Number field, Radix Select for Machine Type, no issue-dialog testid) instead of FaultDialogs.js. Either the routing/conditional is wrong, or owner@isodemo.com is no longer being routed to the Full/Pro DashboardPage as the test brief assumed.", "selector": "button:has-text('Log a Fault'), button:has-text('Log New Fault')", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Log-a-Fault (owner@isodemo.com /pulse Dashboard)", "issue": "Cannot reach FaultDialogs.js to verify the Radix-Select → native-<select> serial-number fix. The fix is correctly present in source (lines 178-234 use native <select> with onKeyDown stopPropagation, Dialog has onInteractOutside/onPointerDownOutside/onFocusOutside/onEscapeKeyDown all prevented), but no user path on this org reaches it.", "affected_selectors": ["[data-testid='issue-dialog']", "[data-testid='issue-type-select']", "[data-testid='issue-serial-select']", "[data-testid='issue-media-input']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Main agent must clarify which user/route exposes FaultDialogs.js. Either: (a) provision a Pulse-Pro (non-Lite) account for the iso-demo org so owner sees the Full Dashboard and FaultDialogs.js is rendered, OR (b) re-route the 'Log a Fault' / 'Log New Fault' buttons on the Lite Dashboard to use FaultDialogs.js when account_type=='full', OR (c) tell the testing agent which production route mounts FaultDialogs.js (we tried /pulse, /pulse Dashboard tab, Reactive Faults panel — all open the Lite dialog).",
+    "If FaultDialogs.js is intended for a different module (e.g. the iso-demo org with a Pro subscription, or a different sub-route under /operations or /dashboard), please update the test_credentials.md with the correct account or provide a deep-link.",
+    "Also apply the Radix-Select-inside-Dialog fix to the Pulse Lite fault dialog component (the one that actually opens for owner@isodemo.com) — it currently uses a Radix Select for Machine Type which is the exact pattern reported to close the dialog. Although no Serial Number dropdown is present, the same root cause may still recur."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js source-review: the fix is correct in principle — both selects are native <select>, both have onKeyDown stopPropagation, Dialog blocks outside/escape/focus interactions. The 'serial unknown' fallback <select> also has the same guard (good).",
+    "However, the suppressCloseRef + uploadActiveRef double-guard is fragile — once uploadActiveRef becomes true it disables back-gesture-close for the rest of the session. This is intentional but worth flagging — users on mobile won't be able to swipe-back to close after attaching media; they MUST tap X/Cancel/submit. Consider re-arming the back-gesture after a short cool-down.",
+    "Console warnings: 'Missing Description or aria-describedby for DialogContent' on the Lite dialog — minor a11y issue.",
+    "The Log-a-Fault entry button has both 'Log a Fault' (top of Dashboard) and 'Log New Fault' (inside the Reactive Faults panel) — they open the same Lite dialog. Worth de-duplicating once the Pro/Lite routing is sorted."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "0% — target dialog (FaultDialogs.js) could not be reached with the supplied credentials"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — logs in successfully, lands on /pulse with PULSE LITE banner. Demo Head Office scope visible.",
+  "seed_data_creation": "None — equipment for iso-demo-site-a appears seeded (faults like PH3-593685, PH3-fbf76d, PH3-70b665, PH3-d6c7c5, ISO-TM-001 are visible in the Reactive Faults list).",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "owner@isodemo.com is on Pulse LITE. The /pulse Dashboard tab 'Log a Fault' button does NOT open FaultDialogs.js (no data-testid='issue-dialog', no Serial Number dropdown). To verify the Radix-Select-inside-Dialog fix in FaultDialogs.js you must first locate the Pulse PRO / Full dashboard route — ask main agent for credentials or a deep-link. Source verification: FaultDialogs.js native <select> implementation looks correct (lines 178-234, with onKeyDown stopPropagation and Dialog onInteractOutside/onPointerDownOutside/onFocusOutside/onEscapeKeyDown all preventDefault'd).",
+  "rca of the issue": "Test environment mismatch — the credentials supplied (owner@isodemo.com on iso-demo-org) currently render the Pulse LITE workspace, but the bug-fix under review lives in FaultDialogs.js which is mounted by the Pulse Pro/Full DashboardPage. The 'Log a Fault' button on the Lite Dashboard opens a Lite-specific dialog (Radix Select Machine Type, no Serial Number, no issue-dialog testid). Hence the fix cannot be exercised end-to-end via this account. Mitigation: (1) provide a Pro account credential, or (2) gate the Lite dialog so that account_type=='full' orgs route to FaultDialogs.js, or (3) port the native-select / dialog-interaction-prevent fixes to the Lite dialog as well."
+}
