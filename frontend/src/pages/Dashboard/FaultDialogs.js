@@ -146,15 +146,19 @@ const FaultDialogs = ({
      one "Treadmill (2)" group — matching the Lite dialog behaviour. */}
  <div>
  <Label className="text-[var(--theme-text)]">{t('faults.machine_type')}</Label>
- <Select value={selectedMachineType} onValueChange={(val) => { setSelectedMachineType(val); setIssueForm({...issueForm, serial_number: '', machine_type: val, supplier: ''}); }}>
- <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-2 truncate" data-testid="issue-type-select"><SelectValue placeholder="Select machine type" /></SelectTrigger>
- <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] max-w-[90vw]">
+ <select
+   value={selectedMachineType || ''}
+   onChange={(ev) => { const v = ev.target.value; setSelectedMachineType(v); setIssueForm({...issueForm, serial_number: '', machine_type: v, supplier: ''}); }}
+   onKeyDown={(e) => e.stopPropagation()}
+   className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-2 h-10 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
+   data-testid="issue-type-select"
+ >
+ <option value="" disabled>Select machine type</option>
  {buildMachineTypeGroups(allEquipment).map(g => (
-   <SelectItem key={g.type} value={g.type}>{g.label}</SelectItem>
+   <option key={g.type} value={g.type}>{g.label}</option>
  ))}
- {allEquipment.length === 0 && <SelectItem value="_none" disabled>{t('faults.no_equipment')}</SelectItem>}
- </SelectContent>
- </Select>
+ {allEquipment.length === 0 && <option value="_none" disabled>{t('faults.no_equipment')}</option>}
+ </select>
  </div>
 
  {/* Serial Number dropdown — iter 216d2: filters by the same derived

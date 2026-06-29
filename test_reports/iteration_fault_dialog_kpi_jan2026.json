@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only verification on the full Operations DashboardPage of: (1) CRITICAL Log-a-Fault dialog no longer closes on Machine Type selection, (2) Equipment-detail → Log-a-fault pre-fills Machine Type + Serial, (3) AI Fault Diagnosis quick action opens Log-a-Fault dialog (no blank tab), (4) Gym Health Score gauge label sits below the donut, (5) KPI sparklines + trend badges render on stat-issues/audits/tasks, (6) Expenses queue pills have visible contrast. All 6 scenarios PASS as logged in as owner@isodemo.com on the external REACT_APP_BACKEND_URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staffing → Expenses queue pills", "issues": ["Active pill (desk-exp-queue-submitted 'To review') uses bg=rgb(14,116,144) brand-cyan with text-color=rgb(24,24,27) zinc-900. Contrast ratio ≈ 4.0:1 — readable but just below WCAG AA 4.5:1 for normal text. PRD said 'active pill is brand-blue with white text'; implementation uses brand-cyan with dark text. Core regression (washed-out white-on-white) is fixed; this is a minor deviation worth a follow-up review."]}
+    ]
+  },
+  "tests_executed": [
+    {"id": "TEST1_logfault_dialog_stays_open", "result": "PASS", "details": "Faults → Log a Fault opens issue-dialog. issue-type-select is now a native <SELECT> with options ['','Life Fitness Treadmill','Precor Elliptical']. After page.select_option('Life Fitness Treadmill') the dialog remained open (issue-dialog count=1, value='Life Fitness Treadmill'). Datalist serial 'ISO-TM-001' surfaced and was set. CRITICAL bug (Radix Select inside Dialog closing on option click) is FIXED."},
+    {"id": "TEST2_equipment_detail_prefills_type_and_serial", "result": "PASS", "details": "Equipment → Details (Life Fitness Treadmill) → lite-equip-log-fault closes details and opens issue-dialog with issue-type-select.value='Life Fitness Treadmill' AND issue-serial-select.value='ISO-TM-001'. Both pre-filled."},
+    {"id": "TEST3_ai_fault_diagnosis_quick_action", "result": "PASS", "details": "Dashboard subtab → Quick Actions → quick-action-diagnosis click opens issue-dialog (count=1). URL remains /dashboard — no navigation to a blank 'diagnosis' tab."},
+    {"id": "TEST4_gym_health_score_layout", "result": "PASS", "details": "Gym Health Score card renders score '38' (centered in donut) with rating label 'Needs Attention' sitting below the SVG donut, no overlap. Visually confirmed in dashboard screenshot (iter_dashboard_full.png)."},
+    {"id": "TEST5_kpi_sparklines_and_trend_badges", "result": "PASS", "details": "Dashboard subtab shows 3 KPI cards all with kpi-sparkline (3) + kpi-trend-badge (3). Card text examples: 'Open Faults 8 ▲ 100% Apr May Jun', 'Audits Completed 0 – 0% Apr May Jun', 'Maintenance Tasks 34 – 0% Apr May Jun'. Numbers + 3 month labels + % badges all render."},
+    {"id": "TEST6_expenses_queue_pill_contrast", "result": "PASS", "details": "Operations → Staffing → Expenses shows 2 pills. desk-exp-queue-submitted (active) bg=rgb(14,116,144) text=rgb(24,24,27); desk-exp-queue-approved (inactive) bg=rgb(244,244,245) text=rgb(24,24,27) border=rgb(196,196,204). Pills are clearly visible (not washed white-on-white). See design_issues for minor active-pill contrast follow-up."}
+  ],
+  "test_report_links": [
+    "/app/test_reports/iter_dashboard_full.png",
+    "/app/test_reports/iter_diag_dialog.png",
+    "/app/test_reports/iter_logfault_open.png",
+    "/app/test_reports/iter_logfault_prefilled.png",
+    "/app/test_reports/iter_expenses_pills.png"
+  ],
+  "action_items": [
+    "(Optional) Active expenses queue pill (desk-exp-queue-submitted) uses brand-cyan + zinc-900 text (~4.0:1 contrast). PRD says 'brand-blue + white text' — consider switching to white text or brand-blue for stricter WCAG AA compliance.",
+    "(Carryover from previous iter) Both issue-dialog and equipment-details-dialog still emit Radix `Missing Description or aria-describedby` warnings — silence with aria-describedby={undefined} or add DialogDescription for accessibility cleanup."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L149-161: Native <select> for Machine Type with onKeyDown stopPropagation correctly mirrors the already-fixed serial input pattern — solid resolution to the Radix-Select-inside-Dialog portal-close bug.",
+    "OverviewTab.js sparkline implementation is client-side computed from issues/audits/tasks; trend % shows '– 0%' for empty 3-month windows (correct neutral state), and '▲ 100%' for stat-issues — verify the formula handles the 0→N case gracefully (rendered fine in test, just flagging)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% (6/6 scenarios pass)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — full operations DashboardPage, theme-gymaxis light.",
+  "seed_data_creation": "None. Used existing iso-demo-site-a seed: Life Fitness Treadmill (ISO-TM-001) + Precor Elliptical + 8 open PH3-* faults.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 6 fixes confirmed working on https://admin-setup-portal.preview.emergentagent.com via owner@isodemo.com. Operations dashboard has sub-tabs (Start, Dashboard, Equipment, Faults, Check Sheets, Documents, Staffing, Reports, Suppliers, Gym Layout). KPI cards + Gym Health gauge + Quick Actions all live on the 'Dashboard' SUB-tab (not Start). Expenses pills live at Operations → Staffing → Expenses. issue-type-select is a NATIVE <select>; use page.select_option() instead of Radix click sequences. issue-serial-select is a native input + datalist (#issue-serial-datalist). Existing-fault warning fires when serial matches an open fault — may toggle dialog wrapper DOM but the dialog itself stays mounted (CRITICAL behavior preserved).",
+  "rca_of_the_issue": "Original bug RCA (already fixed by main agent): Radix UI Select component renders options in a portal; clicking an option emitted a pointerdown that the parent Radix Dialog treated as 'interact-outside' and closed itself. Fix: replaced Radix Select for Machine Type with native HTML <select>, mirroring the prior serial-input fix. Verified: dialog stays open after select_option."
+}

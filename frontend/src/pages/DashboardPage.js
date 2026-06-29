@@ -377,11 +377,14 @@ const DashboardPage = () => {
                     onClearExpiryFilter={() => setExpiryFilterIds(null)}
                     onOpenInvoiceImport={() => setShowInvoiceImport(true)}
                     onLogFault={(eq) => {
+                      const name = (eq.name || '').trim();
+                      const groupKey = name ? (name.includes(',') ? name.split(',')[0].trim() : name) : (eq.equipment_type || '').trim();
+                      wf.setSelectedMachineType && wf.setSelectedMachineType(groupKey);
                       wf.setIssueForm((f) => ({
                         ...f,
                         serial_number: eq.serial_number || '',
-                        machine_type: eq.equipment_type || eq.machine_type || '',
-                        supplier: eq.supplier || f.supplier || '',
+                        machine_type: groupKey || eq.equipment_type || eq.machine_type || '',
+                        supplier: eq.manufacturer || eq.supplier || f.supplier || '',
                       }));
                       wf.setShowIssueDialog(true);
                     }}

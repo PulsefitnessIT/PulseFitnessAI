@@ -26,6 +26,82 @@ const HEALTH_IMPROVE_TIPS = {
     'Every time you (or your team) log a successful fix, the platform stores it in your Knowledge Base. After ~5 logged fixes you hit the max 15 pts.',
 };
 
+// --- Live KPI trend helpers (Iter — GymAxis-style sparklines) -------------
+// Buckets a list of records into the last 3 calendar months using the first
+// available date field, so the trend graph is ALWAYS computed live from the
+// real data (no mocked series).
+const _recDate = (r) => {
+  const v = r?.created_at || r?.date || r?.completed_at || r?.scheduled_date || r?.due_date || r?.timestamp;
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+};
+const monthlySeries = (items, filterFn) => {
+  const now = new Date();
+  const buckets = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({ y: d.getFullYear(), m: d.getMonth(), label: d.toLocaleString('en-GB', { month: 'short' }), count: 0 });
+  }
+  (Array.isArray(items) ? items : []).forEach((r) => {
+    if (filterFn && !filterFn(r)) return;
+    const d = _recDate(r);
+    if (!d) return;
+    const b = buckets.find((x) => x.y === d.getFullYear() && x.m === d.getMonth());
+    if (b) b.count += 1;
+  });
+  const last = buckets[2].count;
+  const prev = buckets[1].count;
+  let pct = 0;
+  if (prev === 0) pct = last === 0 ? 0 : 100;
+  else pct = Math.round(((last - prev) / prev) * 100);
+  return { points: buckets, pct };
+};
+
+// Tiny inline area sparkline (3 points) + month axis labels.
+const Sparkline = ({ points, color = 'var(--color-brand-blue)' }) => {
+  const vals = points.map((p) => p.count);
+  const max = Math.max(1, ...vals);
+  const W = 240, H = 60, pad = 6;
+  const step = (W - pad * 2) / (points.length - 1);
+  const xy = points.map((p, i) => [pad + i * step, H - pad - (p.count / max) * (H - pad * 2)]);
+  const line = xy.map(([x, y]) => `${x},${y}`).join(' ');
+  const area = `${pad},${H - pad} ${line} ${W - pad},${H - pad}`;
+  const gid = `spark-${color.replace(/[^a-z0-9]/gi, '')}`;
+  return (
+    <div className="mt-3" data-testid="kpi-sparkline">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-14" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={area} fill={`url(#${gid})`} />
+        <polyline points={line} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {xy.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2.5" fill={color} />)}
+      </svg>
+      <div className="flex justify-between mt-1 px-1">
+        {points.map((p, i) => <span key={i} className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{p.label}</span>)}
+      </div>
+    </div>
+  );
+};
+
+const TrendBadge = ({ pct, invert = false }) => {
+  // invert=true → a DROP is good (e.g. fewer open faults), shown green.
+  const good = invert ? pct <= 0 : pct >= 0;
+  const flat = pct === 0;
+  const cls = flat ? 'bg-[var(--theme-surface-2)] text-[var(--theme-text-muted)]' : good ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400';
+  const arrow = flat ? '–' : pct > 0 ? '▲' : '▼';
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${cls}`} data-testid="kpi-trend-badge">
+      {arrow} {Math.abs(pct)}%
+    </span>
+  );
+};
+
+
 const OverviewTab = ({
  healthScore, issues, auditHistory, maintenanceTasks,
  urgentExpiryAlerts, onLogIssue, onNavigateTab, onViewExpiryAlerts,
@@ -104,11 +180,13 @@ const OverviewTab = ({
  <circle cx="18" cy="18" r="15.915" fill="none" stroke={healthScore.color} strokeWidth="3"
  strokeDasharray={`${healthScore.score} ${100 - healthScore.score}`} strokeLinecap="round" />
  </svg>
- <div className="absolute inset-0 flex flex-col items-center justify-center">
+ <div className="absolute inset-0 flex items-center justify-center">
  <span className="text-3xl font-bold text-white">{healthScore.score}</span>
- <span className="text-xs" style={{ color: healthScore.color }}>{healthScore.rating}</span>
  </div>
  </div>
+ {/* Rating label sits BELOW the dial (was absolutely centred and overlapped
+     the ring for longer labels like "Needs Attention"). */}
+ <span className="text-sm font-semibold mt-2 text-center" style={{ color: healthScore.color }}>{healthScore.rating}</span>
  </div>
  <div className="space-y-2">
  {Object.entries(healthScore.breakdown || {}).map(([key, val]) => {
@@ -156,30 +234,42 @@ const OverviewTab = ({
  <div className="flex items-center justify-between">
  <div>
  <p className="text-[var(--color-text-muted)] text-sm">{t('dashboard.open_faults')}</p>
- <p className="text-3xl font-bold text-white mt-2">{issues.filter(i => i.status === 'open').length}</p>
+ <div className="flex items-center gap-2 mt-2">
+ <p className="text-3xl font-bold text-white">{issues.filter(i => i.status === 'open').length}</p>
+ <TrendBadge pct={monthlySeries(issues).pct} invert />
+ </div>
  </div>
  <AlertCircle className="text-[var(--color-brand-blue)]" size={32} />
  </div>
+ <Sparkline points={monthlySeries(issues).points} color="var(--color-brand-blue)" />
  </Card>
 
  <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6 cursor-pointer hover:border-[rgb(var(--rgb-brand-blue)/0.5)] transition-colors" data-testid="stat-audits" onClick={() => onNavigateTab('equipment')}>
  <div className="flex items-center justify-between">
  <div>
  <p className="text-[var(--color-text-muted)] text-sm">{t('dashboard.audits_completed')}</p>
- <p className="text-3xl font-bold text-white mt-2">{auditHistory.length}</p>
+ <div className="flex items-center gap-2 mt-2">
+ <p className="text-3xl font-bold text-white">{auditHistory.length}</p>
+ <TrendBadge pct={monthlySeries(auditHistory).pct} />
+ </div>
  </div>
  <CheckCircle className="text-[var(--color-brand-blue)]" size={32} />
  </div>
+ <Sparkline points={monthlySeries(auditHistory).points} color="var(--color-brand-blue)" />
  </Card>
 
  <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6 cursor-pointer hover:border-[rgb(var(--rgb-brand-blue)/0.5)] transition-colors" data-testid="stat-tasks" onClick={() => onNavigateTab('maintenance')}>
  <div className="flex items-center justify-between">
  <div>
  <p className="text-[var(--color-text-muted)] text-sm">{t('dashboard.maintenance_tasks')}</p>
- <p className="text-3xl font-bold text-white mt-2">{maintenanceTasks.length}</p>
+ <div className="flex items-center gap-2 mt-2">
+ <p className="text-3xl font-bold text-white">{maintenanceTasks.length}</p>
+ <TrendBadge pct={monthlySeries(maintenanceTasks).pct} />
+ </div>
  </div>
  <Clock className="text-[var(--color-brand-blue)]" size={32} />
  </div>
+ <Sparkline points={monthlySeries(maintenanceTasks).points} color="var(--color-brand-blue)" />
  </Card>
  </div>
 
@@ -259,7 +349,7 @@ const OverviewTab = ({
  <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6" data-testid="quick-actions-card">
  <h3 className="text-xl font-semibold text-white mb-4">{t('dashboard.quick_actions')}</h3>
  <div className="space-y-3">
- <ShadcnButton onClick={() => onNavigateTab('diagnosis')} className="w-full justify-start" data-testid="quick-action-diagnosis">
+ <ShadcnButton onClick={onLogIssue} className="w-full justify-start" data-testid="quick-action-diagnosis">
  <MessageSquare className="mr-2" size={18} />{t('diagnosis.title')}
  </ShadcnButton>
  <ShadcnButton onClick={() => onNavigateTab('equipment')} variant="outline" className="w-full border-[var(--theme-border)] text-white justify-start hover:bg-white/10" data-testid="quick-action-audit">
