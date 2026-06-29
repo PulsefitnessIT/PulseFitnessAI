@@ -1,0 +1,51 @@
+{
+  "summary": "RETEST #2 of Log-a-Fault multi-upload. All FOUR Radix outside-event guards are present (onInteractOutside + onPointerDownOutside + onFocusOutside + onEscapeKeyDown all preventDefault, FaultDialogs.js L57-60). Bug STILL reproduces deterministically. PATH A: 1st set_input_files keeps dialog open & 1 chip rendered; 2nd set_input_files on the SAME hidden input UNMOUNTS the dialog (count 1→0, chips 1→0, lands back on Faults list). PATH B (click dropzone label THEN set_input_files): the LABEL CLICK ALONE closes the dialog — even before the first file is set. Conclusion: the close path is NOT any of the *Outside / Escape Radix props. Adding onEscapeKeyDown was therefore a no-op. The trigger is somewhere else — likely the label-wrap (LL pointer→input.click bubble) and a focus-loss path that Radix handles internally bypassing the public preventDefault props (e.g. DismissableLayer focus-loss-on-pointer-outside-window when the native file chooser briefly steals focus).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FaultDialogs.js — issue-dialog / issue-media-input (multi-upload)",
+        "issue": "PATH A — 2nd upload via set_input_files on data-testid='issue-media-input' unmounts the dialog (1→0). PATH B — clicking the <label> wrapping the hidden file input closes the dialog even on the FIRST attempt. All 4 Radix preventDefault guards are wired and verified in the live code; this is NOT the close path. The fix is INSUFFICIENT.",
+        "selector": "[data-testid='issue-dialog'] [data-testid='issue-media-input']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "PATH_A_pure_set_input_files",
+      "result": "FAIL",
+      "details": "Login OK → Faults tab → 'Log New Fault' → issue-dialog mounted (count=1, chips=0). set_input_files(photo_1.png) → dialog=1, chips=1 ✅. set_input_files(photo_2.png) on same hidden input → dialog=0, chips=0 ❌. Upload #3 + chip remove unreachable."
+    },
+    {
+      "id": "PATH_B_label_click_then_set_input_files",
+      "result": "FAIL",
+      "details": "Reopened dialog (count=1). Clicked the <label> wrapping the file input (FaultDialogs.js L371). The label click resolved & scrolled into view; immediately set_input_files(photo_1.png) → dialog=0 ❌ (closed BEFORE the 2nd upload). set_input_files then timed out because the input element was unmounted. The dropzone label-click alone is enough to close the dialog."
+    }
+  ],
+  "test_report_links": ["/app/test_reports/iteration_logfault_multi_upload_retest2_jan2026.json"],
+  "action_items": [
+    "HIGH — onEscapeKeyDown preventDefault did NOT fix the bug. The 4 Radix outside-event hooks are NOT the close path. Stop adding more *Outside props.",
+    "Instrument first: replace `onOpenChange={(open) => { if (!open) onResetDialog(); }}` with `onOpenChange={(open) => { if (!open) { console.log('[issue-dialog] CLOSE', new Error().stack); onResetDialog(); } }}` and re-test. The stack trace will pinpoint whether it's Radix DismissableLayer, useBackGestureClose popstate, or a parent React setState.",
+    "Hypothesis 1 (most likely now that PATH B also fails on 1st click): The hidden <input type='file'> is wrapped inside a <label> (L371-379). Native label semantics fire a synthetic click on the input. Combined with Radix DismissableLayer's pointerdown→focus race, this is the close path. FIX: detach the input from the label — render <input ref={fileInputRef} type='file' className='hidden' .../> as a SIBLING of the dropzone div, and use `onClick={() => fileInputRef.current?.click()}` on the dropzone div instead of relying on label-wrap.",
+    "Hypothesis 2: useBackGestureClose (FaultDialogs.js L48) is the culprit. The hook pushes a history entry; some PWA install/CSP shim may be firing a popstate during the upload. PROOF: temporarily comment out the `useBackGestureClose(showIssueDialog, closeIssueDialog, 'gymaxis-issue-dialog')` line and re-test PATH A. If it now stays open on upload #2, the hook is at fault. Gate its popstate handler on `e.state?.['gymaxis-issue-dialog'] === undefined`.",
+    "Hypothesis 3: Radix DismissableLayer's `onFocusOutside` only fires for focus moving WITHIN the document. When the native file picker opens, focus leaves the document entirely → Radix may have an internal `onDismiss` path (not the public `onFocusOutside`) that fires regardless of preventDefault. Check @radix-ui/react-dialog version & source. May need to switch to a controlled <Dialog> with `modal={false}` or migrate the file input off Radix entirely.",
+    "Quick remediation that should fix BOTH PATH A and PATH B: move the file input OUTSIDE the <label> AND use a useRef + button onClick (`fileInputRef.current.click()`) instead of label-click delegation. This eliminates the label-click→input-click→pointerdown synthesis that's triggering Radix's dismiss."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L371-379: <label class='cursor-pointer'><input type='file' className='hidden' .../><div>...</div></label> — the label-wrap is the primary suspect now. Use ref-based imperative click instead.",
+    "FaultDialogs.js L53 onOpenChange has NO logging — please add a stack-trace console.log so the next test agent can see which call path is firing the close.",
+    "FaultDialogs.js L373 onChange: e.target.value='' is correct for re-selecting the same filename, but the setIssueMedia(prev=>...) is fine. The bug isn't here.",
+    "useBackGestureClose hook (lib/useBackGestureClose.js) — its popstate handler calls onResetDialog on ANY popstate while open. Worth bisecting by commenting out L48 to confirm/exclude as a cause."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "0% — multi-upload still closes; PATH B also closes on FIRST attempt"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — landing → /login → /dashboard (Operations module is default).",
+  "seed_data_creation": "None — used /tmp/upload_test/photo_{1..3}.png (40x40 PNGs via PIL).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "External URL https://admin-setup-portal.preview.emergentagent.com/login (DO NOT hit root — it serves the marketing landing page, not the login form). Login form: input[type=email] + input[type=password] + button[type=submit]. After auth lands on /dashboard which IS Operations. Faults sub-tab: page.get_by_role('tab', name='Faults').first.click(force=True). Open dialog with role=button name='Log New Fault'. Hidden file input: data-testid='issue-media-input'. Chip count: page.locator(\"[data-testid='issue-dialog'] span.truncate\").count(). Dialog count: page.locator(\"[data-testid='issue-dialog']\").count(). IMPORTANT: avoid backslash inside f-strings — use string concatenation. The bug is deterministic — reproduced in 2 paths in this iteration alone.",
+  "rca_of_the_issue": "Confirmed: the dialog unmount on 2nd file upload (PATH A) and on dropzone label-click (PATH B) is NOT caused by any of the four Radix outside-event hooks (onInteractOutside / onPointerDownOutside / onFocusOutside / onEscapeKeyDown — all four now preventDefault). The most plausible remaining cause is the <label>-wraps-<input type='file'> pattern combined with Radix DismissableLayer's internal focus/pointer-race that bypasses the public preventDefault props. Recommended fix: refactor the file input to a ref-based imperative click (input as sibling, button onClick=>ref.click()), eliminating the label-wrap. Secondary: instrument onOpenChange with a stack trace, and bisect useBackGestureClose by temporarily disabling it."
+}

@@ -57,6 +57,7 @@ const FaultDialogs = ({
  onInteractOutside={(e) => e.preventDefault()}
  onPointerDownOutside={(e) => e.preventDefault()}
  onFocusOutside={(e) => e.preventDefault()}
+ onEscapeKeyDown={(e) => e.preventDefault()}
  >
  <DialogDescription className="sr-only">Log a fault: select the machine, describe the issue, attach photos or video, then submit.</DialogDescription>
  <DialogHeader>
