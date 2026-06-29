@@ -1,3 +1,31 @@
+# ═══ 2026-06-26 · UI CLEANUP · Operations Equipment + Faults + Onboarding (VERIFIED) ═══
+User feedback (preview, full operations dashboard). All verified by testing agent (6/6 flows pass):
+1. Equipment Information Hub — removed the 4 header buttons (Add Equipment / AI Invoice Import /
+   Export CSV / All QR Codes). After onboarding gyms don't use these daily, so the hub is now a
+   clean read-only list. (`EquipmentInfoTab.js`)
+2. Those equipment actions now live in Onboarding → "Import equipment" inline panel
+   (`EquipmentImportInline.js`): mode toggle Spreadsheet / AI Invoice Import / Add Equipment + an
+   Export CSV button. QR codes already covered by the "Print QR codes" onboarding step.
+3. Equipment details dialog — fixed the "Edit Details" button overlapping the ✕ close button
+   (pr-10 on the header row). (`EquipmentInfoTab.js`)
+4. Equipment details "Log a fault for this machine" — now opens the Log-a-Fault dialog DIRECTLY
+   with the machine pre-selected (via new onLogFault prop → wf.setIssueForm + setShowIssueDialog),
+   instead of navigating to the Faults tab. (`EquipmentInfoTab.js` + `DashboardPage.js`)
+5. Onboarding checklist — removed strike-through on completed steps (keep only the ✓ tick), across
+   `SetupChecklist.js`, `AccountSettings/onboarding.js`, and `ActivationMilestonesCard.js`.
+6. Fault detail grey leak — `IssueDetailPanel.js` theming overrides (previously scoped to
+   `[data-portal="pulse"]`, i.e. Lite only) now also apply under `.theme-gymaxis` (the full
+   dashboard light theme), so the dark grey panel background no longer leaks behind the Supplier
+   Reference / Logged By / Attachments cards.
+7. Supplier case page progress steps — improved contrast of inactive steps (was text-white/30 →
+   text-white/80, bg-white/15) so the step labels are no longer washed out. (`SupplierCasePage.js`)
+
+ACTION (production): preview-only — redeploy pulsefitness.ai to use it live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-26 · FEATURE · Set an ORG as a Head Office (VERIFIED backend) ═══
 Request (Master Admin): "We need to be able to set Orgs as head offices. I had to create a head
 office SITE duplicating the org details just to onboard equipment to the head office."

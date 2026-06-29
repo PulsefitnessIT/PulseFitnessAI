@@ -222,7 +222,7 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
                   />
                 )}
                 <span
-                  className={`flex-1 min-w-0 ${m.fired ? 'line-through opacity-60' : ''}`}
+                  className={`flex-1 min-w-0 ${m.fired ? 'opacity-70' : ''}`}
                   style={{ color: 'var(--theme-text)' }}
                 >
                   {t(`activation.${m.event_type}`, m.label)}
