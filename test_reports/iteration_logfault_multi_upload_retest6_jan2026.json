@@ -1,0 +1,27 @@
+{
+  "summary": "Retest #6 of Log-a-Fault multi-photo/video upload. The persistent uploadActiveRef fix (FaultDialogs.js L57-74) FULLY RESOLVES the delayed-popstate bug from retest #5. Across PATH C (dropzone + page.expect_file_chooser ×3 with 1.7s waits) and PATH A (set_input_files ×2 with 1.7s waits), the issue-dialog mount_count stayed at 1, chips grew 1→2→3 (PATH C) and 1→2 (PATH A), and EVERY popstate observed (3 captured during PATH C alone, including one fired AFTER the 1.7s wait following chip-remove) was correctly swallowed by backGestureClose re-pushing the phantom history entry. Legitimate close via the dialog's X button still works (verified: dialog unmounted, visible=False).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_logfault_multi_upload_retest6_jan2026.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L57-74: the uploadActiveRef approach is correct and timing-independent. Good comments explaining the OS-file-chooser popstate race.",
+    "Minor: once uploadActiveRef latches true the user can never back-gesture-close until the dialog reopens. This is the intended trade-off (the task brief explicitly states the user closes via X / Cancel / submit). Just worth noting that on mobile the swipe-back UX is now disabled for the rest of the dialog session as soon as a file is touched — acceptable per requirements.",
+    "useBackGestureClose.js still has no opt-out hook (consumer has to wrap onClose). Consider adding a `shouldClose` predicate so consumers don't need to know about lib internals (e.g. re-pushing history themselves). Non-blocking.",
+    "Suggestion: gate the phantom pushState behind a mobile-UA check to avoid history-stack pollution on desktop (cosmetic — not user-visible)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% — all required upload paths kept the dialog mounted, legitimate X-close still works"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — used existing iso-demo-org seed data. Test fixtures (1×1 PNGs) written to /tmp/upload_fixtures/.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The MutationObserver-based mount_count approach works well — set window.__faultMountCount=1 immediately after dialog opens (the observer can't see the first mount because it's attached AFTER the dialog renders), then increment via MutationObserver when [data-testid='issue-dialog'] is added. Capture popstates via window.addEventListener('popstate', ...). Note: the dialog X close button does NOT have aria-label='Close' or a data-testid — selector 'button:has(svg.lucide-x)' inside [data-testid=\"issue-dialog\"] works (verified in run 1). The Radix DialogContent built-in close X is positioned absolute top-right.",
+  "rca of the issue": "Previous retest #5 RCA: the suppressCloseRef.current was reset by a 600ms setTimeout, but the OS file chooser's popstate event could arrive 0.7-2.0s later. CURRENT FIX (verified): a separate uploadActiveRef latches true the moment a file is added (input onChange OR dropzone onClick) and is NOT cleared by any timeout — only by reopening the dialog (useEffect on showIssueDialog). When backGestureClose fires while uploadActiveRef is true, it re-pushes the phantom history entry instead of closing. Verified in headless Chromium: 3 separate popstates fired during the PATH C sequence (including one ~3s after the second upload) and all were swallowed; mount_count stayed at 1; chip-remove also kept the dialog open. Legitimate close paths (X button) remain unaffected because they go through Dialog onOpenChange (gated only by suppressCloseRef, which has already cleared by then) rather than through backGestureClose."
+}

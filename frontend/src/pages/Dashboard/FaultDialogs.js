@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,15 +46,29 @@ const FaultDialogs = ({
  // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
  const closeIssueDialog = useCallback(() => { onResetDialog && onResetDialog(); }, [onResetDialog]);
  const mediaInputRef = useRef(null);
- // Guards against spurious dialog closes triggered by the OS file chooser
- // stealing/returning focus during photo/video upload.
+ // Guards against spurious dialog closes triggered by the OS file chooser.
+ // suppressCloseRef → short-lived guard for the Dialog onOpenChange path.
+ // uploadActiveRef → once the user adds media, the OS file chooser can emit a
+ // (sometimes delayed) popstate that the back-gesture hook would treat as a
+ // back-gesture and close the dialog. We disable back-gesture-close for the
+ // rest of this dialog session once media has been touched (user closes via
+ // the X / Cancel / submit instead). Reset when the dialog reopens.
  const suppressCloseRef = useRef(false);
+ const uploadActiveRef = useRef(false);
+ useEffect(() => { if (showIssueDialog) uploadActiveRef.current = false; }, [showIssueDialog]);
  // Wrap the back-gesture close so it ALSO respects the upload suppress guard —
  // the OS file chooser fires a popstate when it returns focus, which would
  // otherwise close the whole dialog mid-upload (root cause of "adding a photo
  // closes the fault card"). See suppressCloseRef.
  const backGestureClose = useCallback(() => {
    if (suppressCloseRef.current) { suppressCloseRef.current = false; return; }
+   // Once media has been added, the OS file chooser can emit a delayed
+   // popstate — re-push the phantom history entry and keep the dialog open
+   // (the user closes via X / Cancel / submit).
+   if (uploadActiveRef.current) {
+     try { window.history.pushState({ 'gymaxis-issue-dialog': true }, '', window.location.href); } catch { /* noop */ }
+     return;
+   }
    closeIssueDialog();
  }, [closeIssueDialog]);
  useBackGestureClose(showIssueDialog, backGestureClose, 'gymaxis-issue-dialog');
@@ -381,12 +395,12 @@ const FaultDialogs = ({
  <Label className="text-[var(--theme-text)]">{t('faults.upload_label')}</Label>
  <p className="text-[var(--color-text-muted)] text-xs mb-2">{t('faults.upload_hint')}</p>
  <input ref={mediaInputRef} type="file" className="hidden" accept="image/*,video/*" multiple
- onChange={(e) => { suppressCloseRef.current = true; const files = Array.from(e.target.files || []); setIssueMedia(prev => [...prev, ...files]); e.target.value = ''; setTimeout(() => { suppressCloseRef.current = false; }, 600); }}
+ onChange={(e) => { suppressCloseRef.current = true; uploadActiveRef.current = true; const files = Array.from(e.target.files || []); setIssueMedia(prev => [...prev, ...files]); e.target.value = ''; setTimeout(() => { suppressCloseRef.current = false; }, 600); }}
  data-testid="issue-media-input" />
  <div
  role="button"
  tabIndex={0}
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); suppressCloseRef.current = true; mediaInputRef.current?.click(); }}
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); suppressCloseRef.current = true; uploadActiveRef.current = true; mediaInputRef.current?.click(); }}
  className="cursor-pointer border-2 border-dashed border-[var(--theme-border)] rounded-lg p-4 text-center hover:border-[rgb(var(--rgb-brand-blue)/0.3)] transition-colors">
  <Upload size={20} className="mx-auto mb-1 text-[var(--color-text-muted)]" />
  <span className="text-[var(--color-text-muted)] text-sm">{t('faults.click_upload')}</span>
