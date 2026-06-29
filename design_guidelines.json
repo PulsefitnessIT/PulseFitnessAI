@@ -1,49 +1,78 @@
 {
-  "project_context": "Gym Axis Homepage - B2B Service Desk Addition",
-  "theme": "LIGHT with a DARK Breakout Section",
-  "archetype": "Archetype 4 (Swiss & High-Contrast) - Authority, clarity, function-first",
+  "theme": "Light/Pulse Branded (Dark/Light variants)",
+  "archetype": "Archetype 2: Performance Pro",
   "typography": {
-    "headings": "Use existing font stack but apply tracking-tight or tracking-tighter to large headings. Avoid default bold, use font-light or font-medium to create E1 tension.",
-    "body": "Existing sans-serif. Keep leading-relaxed.",
-    "hierarchy_rules": "H2 for the new section must not exceed text-4xl sm:text-5xl."
+    "headings": {
+      "family": "Geometric Sans (e.g., Plus Jakarta Sans, Manrope, or system sans-serif)",
+      "weights": ["bold"],
+      "tracking": "tracking-tight"
+    },
+    "body": {
+      "family": "Inter, system-ui",
+      "weights": ["medium", "normal"]
+    }
   },
   "colors": {
-    "base": "Existing slate palette.",
-    "service_desk_accent": "orange-500 (#f97316). Use strictly for the Service Desk product highlights and its specific CTA.",
-    "new_section_bg": "slate-950 (#020617) - Use this for the new Service Desk section wrapper to create a high-contrast 'break' in the page flow, signaling a different target audience (Service Companies vs Gyms)."
+    "strategy": "Strictly utilize provided CSS variables to ensure seamless toggling between 'theme-gymaxis' (light) and 'pulse' (branded) themes.",
+    "variables": [
+      "--theme-text",
+      "--theme-text-muted",
+      "--theme-surface",
+      "--theme-border",
+      "--color-brand-blue"
+    ],
+    "branding_treatments": {
+      "neutral_gymaxis": "Apply the 'gx-grad-text' class to the Tenant Name to provide a premium, white-labeled gradient accent.",
+      "pulse_branded": "Apply 'text-[var(--color-brand-blue)]' to the Tenant Name for strong, brand-specific coloring."
+    }
   },
-  "spacing_and_layout": {
-    "generous_spacing": "Use py-24 or py-32 for the new Service Desk section to give it massive breathing room.",
-    "grid_mode": "Split-Screen (md:grid-cols-2). Wide gap (gap-12 or gap-16).",
-    "alignment": "Left-align text in the new section. Asymmetrical balance with the mockup taking up the right column."
+  "layout_and_spacing": {
+    "philosophy": "Tactical Minimalism. Dense but clear, prioritizing information hierarchy.",
+    "container": "pb-6 mb-6 border-b border-[var(--theme-border)]",
+    "responsive_reflow": {
+      "mobile": "flex flex-col gap-4 items-start",
+      "desktop": "md:flex-row md:justify-between md:items-start"
+    }
   },
   "components": {
-    "header_nav": {
-      "instruction": "Rename the 'Engineers' tab to 'Partners' (or 'Service Network' if i18n prefers). This encompasses both Suppliers/Companies and individual Engineers without crowding the nav."
-    },
-    "service_desk_section": {
-      "wrapper": "bg-slate-950 text-white overflow-hidden relative",
-      "content_left": "High-contrast typography. Focus on: self-serve signup, 4-step setup wizard, smart dispatch, owner analytics. CTA: 'Start 14-day free trial' pointing to /service-provider/signup.",
-      "content_right_mockup": "CRITICAL: Build the screenshot as a JSX/Tailwind mockup (like LiveCustomerAppPreview). NO PNGs. Light-themed UI, rounded-xl, shadow-2xl. Sidebar layout (Dashboard, Cases, Scheduler, Customers, Equipment, Parts, Billing, Engineers). Active state in orange-500. Show a 'Case Board' with SLA countdown pills (e.g., '14m remaining' in red/orange)."
+    "ModulePageHeader": {
+      "description": "Unified page-header system for Operations, Memberships, CRM, Marketing, and Comms Centre.",
+      "structure": {
+        "LeftRegion": {
+          "layout": "flex flex-col gap-1.5",
+          "TitleRow": {
+            "layout": "flex flex-wrap items-center gap-x-3 gap-y-1",
+            "ModuleIcon": "Optional Lucide-react icon (size 28 or 32, strokeWidth 2). Color: text-[var(--theme-text)]",
+            "ModuleName": "text-3xl md:text-4xl font-bold tracking-tight text-[var(--theme-text)]",
+            "Separator": "text-[var(--theme-text-muted)] text-3xl font-light (using '·')",
+            "TenantName": "text-2xl md:text-3xl font-semibold. Color treatment depends on active brand (see branding_treatments)."
+          },
+          "Subtitle": "text-sm md:text-base font-medium text-[var(--theme-text-muted)] max-w-2xl"
+        },
+        "RightRegion": {
+          "layout": "flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start w-full md:w-auto gap-4 md:gap-2",
+          "Date": "text-sm font-semibold text-[var(--theme-text-muted)] uppercase tracking-wider",
+          "ActionSlot": "Slot for module-specific controls like 'Studio Mode' toggle. Rendered right-aligned on desktop, inline or right-aligned on mobile."
+        }
+      },
+      "naming_rules": {
+        "operations_override": "If the module is 'Operations', the ModuleName displayed MUST be 'Dashboard'."
+      },
+      "testing_attributes": {
+        "container": "data-testid='module-page-header'",
+        "title": "data-testid='module-title'",
+        "tenant": "data-testid='tenant-name'",
+        "date": "data-testid='module-date'",
+        "action_slot": "data-testid='module-action-slot'"
+      }
     }
-  },
-  "image_urls": {
-    "section_background": {
-      "url": "https://images.pexels.com/photos/1526/dark-blur-blurred-gradient.jpg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-      "description": "Optional: Can be used as a low-opacity (opacity-10 to opacity-20) background or mask-image layer behind the dark bg-slate-950 Service Desk section to add a premium, subtle texture instead of flat color.",
-      "category": "background_texture"
-    }
-  },
-  "testing": {
-    "requirements": "All new interactive and key informational elements MUST have data-testid attributes (e.g., data-testid='nav-partners-link', data-testid='service-desk-signup-btn')."
   },
   "instructions_to_main_agent": [
-    "UPDATE NAVIGATION: In the main Header component, update the 'Engineers' navigation item to 'Partners' to correctly represent both individual engineers and service companies/suppliers.",
-    "CREATE NEW SECTION: Create a new React component (e.g., `ServiceDeskPromo`) and place it on the Homepage. Optimal placement is below the `ModuleGrid` and `CustomerExperience`, but ABOVE the `EngineerBanner`.",
-    "APPLY HIGH CONTRAST: To separate this B2B supplier audience from the gym audience, wrap this new section in a dark background (`bg-slate-950`) with generous vertical padding (`py-24`).",
-    "BUILD CSS MOCKUP: Do not use static images for the product screenshot. Build a JSX-based product mockup. Make it a light-theme dashboard with a left sidebar (showing items like Cases, Scheduler, Equipment) and a main area showing a 'Case Board' with SLA countdowns. Use `orange-500` for active states and primary buttons inside the mockup.",
-    "CONTENT: Ensure the copy highlights the 14-day free trial, self-serve signup, and 4-step setup wizard. Link the primary CTA to `/service-provider/signup`. Apply `orange-500` to the CTA.",
-    "I18N: Wrap all new user-facing text strings in the existing `t()` translation function.",
-    "TESTING: Add `data-testid` attributes to the new nav link and the new CTA button."
+    "Create a reusable 'ModulePageHeader.js' functional component.",
+    "The component should accept props: moduleName (string), tenantName (string), subtitle (string), date (string), actionSlot (node), icon (node), and brandMode ('gymAxis' | 'pulse').",
+    "Implement the 'Operations' -> 'Dashboard' renaming logic internally within the component.",
+    "Use only the specified CSS variables for colors (no hardcoded tailwind colors except for the gradient class).",
+    "Ensure all data-testid attributes are applied according to the guidelines.",
+    "Ensure the component uses a <header> HTML5 tag as its root element."
   ]
 }
