@@ -1,3 +1,31 @@
+# ═══ 2026-06-26 · CRITICAL BUGFIX + UI · Fault upload / Equipment cover / Header (VERIFIED) ═══
+1. CRITICAL — "Adding a photo/video closes the fault card": ROOT CAUSE (found after 6 retests) =
+   `lib/useBackGestureClose.js` popstate handler. The OS file chooser emits a (sometimes delayed)
+   popstate when it returns focus; the back-gesture hook treated it as a back-gesture and closed the
+   dialog directly (bypassing Radix dismiss events + onOpenChange). FIX (both dashboards): the
+   dropzone is now a div(role=button) firing a ref'd input (no <label> focus-forward), and a
+   persistent `uploadActiveRef` (set when media is added, reset when the dialog reopens) makes the
+   back-gesture close RE-PUSH the phantom history entry and refuse to close for the rest of the
+   session — user closes via X / Cancel / submit (those still work). Verified 6/6: multi-upload keeps
+   the dialog open even with delayed popstate; X-close + submit still close.
+   Files: `Dashboard/FaultDialogs.js`, `LiteDashboard/LiteDialogs.js`.
+2. Equipment cards — traffic-light LEFT border by warranty/contract cover: Green=within cover,
+   Amber=≤60 days, Red=expired/out of cover, grey=no cover info (from warranty_expiry + sla_expiry).
+   (`EquipmentInfoTab.js`) — verified.
+3. Operations header consistency — the module title always said "Dashboard" regardless of sub-tab;
+   now reads "Operations · {company}" with a description + date on the right, matching the
+   Comms Centre / Memberships header pattern. (`DashboardPage.js`) — verified.
+   NOTE: full cross-module header unification (Memberships still branded "Pulse Fitness Pro", varying
+   visual treatments) is a larger design pass — Operations is now aligned; remaining modules pending.
+   Also fixed: AI Fault Diagnosis quick action (was a blank tab → now opens Log-a-Fault); Gym Health
+   Score label overlap; Expenses queue pill contrast; live KPI trend sparklines (prior entry).
+
+ACTION (production): preview-only — redeploy pulsefitness.ai to use it live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-26 · BUGFIXES + KPI TRENDS · Operations dashboard (VERIFIED 6/6) ═══
 Reported on the FULL operations dashboard (owner@isodemo.com). All verified by testing agent:
 1. CRITICAL — Faults → "Log a new fault": selecting a machine CLOSED the whole dialog. Root cause:

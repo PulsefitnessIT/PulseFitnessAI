@@ -1,5 +1,5 @@
 import { notify } from '@/components/notifications';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -762,11 +762,25 @@ const LiteDialogs = ({
   // the Equipment Detail dialog. Mobile operators expect swipe-back
   // to dismiss a modal, not exit the dashboard.
   // See `lib/useBackGestureClose.js`.
+  // Once a photo/video is added the OS file chooser can emit a (sometimes
+  // delayed) popstate that the back-gesture hook would treat as a back-gesture
+  // and close the whole fault card. Disable back-gesture-close for the rest of
+  // the dialog session once media is touched (user closes via X / submit).
+  const faultMediaInputRef = useRef(null);
+  const faultUploadActiveRef = useRef(false);
+  useEffect(() => { if (showFaultDialog) faultUploadActiveRef.current = false; }, [showFaultDialog]);
   const closeFaultDialog = useCallback(() => {
     setTriageResult(null);
     onCloseFaultDialog && onCloseFaultDialog(false);
   }, [onCloseFaultDialog, setTriageResult]);
-  useBackGestureClose(showFaultDialog, closeFaultDialog, 'gymaxis-lite-fault-dialog');
+  const backGestureCloseFault = useCallback(() => {
+    if (faultUploadActiveRef.current) {
+      try { window.history.pushState({ 'gymaxis-lite-fault-dialog': true }, '', window.location.href); } catch { /* noop */ }
+      return;
+    }
+    closeFaultDialog();
+  }, [closeFaultDialog]);
+  useBackGestureClose(showFaultDialog, backGestureCloseFault, 'gymaxis-lite-fault-dialog');
 
   const closeEquipmentDialog = useCallback(() => {
     onCloseEquipment && onCloseEquipment();
@@ -1020,11 +1034,15 @@ const LiteDialogs = ({
             </div>
             <div>
               <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.upload_media', 'Upload Photos / Videos')}</Label>
-              <label className="mt-1.5 flex items-center justify-center gap-2 p-4 border-2 border-dashed border-[var(--theme-border)] rounded-lg cursor-pointer hover:border-[var(--color-brand-cyan-hover)] hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] transition-colors" data-testid="lite-fault-upload">
-                <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={(e) => { Array.from(e.target.files).forEach(f => onMediaUpload({ target: { files: [f] } })); e.target.value = ''; }} />
+              <input ref={faultMediaInputRef} type="file" className="hidden" accept="image/*,video/*" multiple onChange={(e) => { faultUploadActiveRef.current = true; Array.from(e.target.files).forEach(f => onMediaUpload({ target: { files: [f] } })); e.target.value = ''; }} data-testid="lite-fault-media-input" />
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); faultUploadActiveRef.current = true; faultMediaInputRef.current?.click(); }}
+                className="mt-1.5 flex items-center justify-center gap-2 p-4 border-2 border-dashed border-[var(--theme-border)] rounded-lg cursor-pointer hover:border-[var(--color-brand-cyan-hover)] hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] transition-colors" data-testid="lite-fault-upload">
                 <Camera size={20} className="text-[var(--color-text-muted)]" />
                 <span className="text-sm text-[var(--color-text-muted)]">{faultMedia.length > 0 ? t('dialog.add_more_media', 'Add more photos/videos') : t('dialog.tap_upload', 'Tap to upload photos or videos')}</span>
-              </label>
+              </div>
               {faultMedia.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {faultMedia.map((m, i) => (
