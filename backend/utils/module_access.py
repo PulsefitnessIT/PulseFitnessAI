@@ -110,6 +110,17 @@ def _org_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
             out[key] = _trial_active(org, key)
             continue
 
+        # Trial-sourced bolt-ons are ONLY live while their 3-day trial
+        # window is open. Once the trial expires the module re-locks
+        # (→ ModuleAccessGate's "trial used / subscribe" screen),
+        # regardless of account_type. Without this a Pro org kept a
+        # bolt-on forever after a trial because `modules.<key>.enabled`
+        # was left True at trial-start. Paid/admin-granted modules
+        # (source != "trial") are unaffected and stay on.
+        if key in BOLT_ON_MODULES and isinstance(cfg, dict) and cfg.get("source") == "trial":
+            out[key] = _trial_active(org, key)
+            continue
+
         # Active trial overlays — extends access even when the matrix
         # toggle is off (e.g. trial expired and was flipped off).
         if not out[key] and _trial_active(org, key):

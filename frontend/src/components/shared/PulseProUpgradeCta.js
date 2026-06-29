@@ -93,7 +93,7 @@ export default function PulseProUpgradeCta() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-violet-950/40 p-5 sm:p-6 mb-6"
+      className="on-dark relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-violet-950/40 p-5 sm:p-6 mb-6"
       data-testid="pulse-pro-upgrade-cta"
     >
       {/* Subtle accent bloom */}

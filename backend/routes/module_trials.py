@@ -200,8 +200,13 @@ async def upgrade_to_pulse_pro(
             statuses = trial_status(fresh)
             if statuses.get(mod, {}).get("status") == "used":
                 continue
-            if statuses.get(mod, {}).get("admin_disabled"):
-                continue
+            # NOTE: we intentionally do NOT skip `admin_disabled` here. On a
+            # Lite org every bolt-on is seeded `enabled:false, source:"admin"`
+            # by default — identical to a deliberate master-admin disable — so
+            # skipping it meant "Try Pulse Pro free" upgraded the tier but
+            # unlocked NOTHING (the reported bug). This branch only runs on an
+            # explicit owner-initiated Lite→Pro upgrade, so we always convert
+            # the requested bolt-ons into a live 3-day trial (source:"trial").
             started_at = _now()
             expires_at = started_at + timedelta(days=TRIAL_DURATION_DAYS)
             await db.organizations.update_one(

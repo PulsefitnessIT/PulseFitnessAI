@@ -674,13 +674,20 @@
 [data-theme="light"] [style*="background: #66ccff"].text-white {
   color: #FFFFFF !important;
 }
-/* Pulse Pro upsell banner renders on a permanently-dark gradient
-   (from-zinc-950 → violet-950) in BOTH themes, so its white headline +
-   helper text must stay white in light mode too. The generic
-   `.text-white → var(--theme-text)` override above was turning
-   "Unlock everything for…" near-black on the dark banner. */
-[data-theme="light"] [data-testid="pulse-pro-upgrade-cta"] .text-white,
-[data-portal="pulse"]:not([data-theme="dark"]) [data-testid="pulse-pro-upgrade-cta"] .text-white {
+/* ============================================================
+   .on-dark — opt-in helper for surfaces that stay DARK in BOTH light
+   and dark themes (hero banners, dark-gradient upsell cards, etc).
+   Add it to the dark container; descendant `.text-white` then keeps
+   its light colour in light mode instead of being flipped to the dark
+   `var(--theme-text)`. Stops the recurring "dark text on a dark banner"
+   wash-out class of bug (see PulseProUpgradeCta). Muted greys
+   (text-zinc-300/400) are untouched by the light override so they
+   already render correctly on dark surfaces.
+   ============================================================ */
+[data-theme="light"] .on-dark .text-white,
+[data-theme="light"] .on-dark.text-white,
+[data-portal="pulse"]:not([data-theme="dark"]) .on-dark .text-white,
+[data-portal="pulse"]:not([data-theme="dark"]) .on-dark.text-white {
   color: #FFFFFF !important;
 }
 [data-theme="light"] .text-\[\#A1A1AA\] {
