@@ -1,0 +1,57 @@
+{
+  "summary": "RETEST #4 of Log-a-Fault multi-upload bug. The new fix (suppressCloseRef wired into Dialog onOpenChange, set true from both the dropzone onClick and the input onChange, reset after 600ms) DOES NOT FIX the bug. The dialog still unmounts on the 2nd file-chooser interaction (PATH C upload #2) and on direct set_input_files on a freshly reopened dialog (PATH A upload #1). Root cause is now positively identified: useBackGestureClose's popstate handler calls onClose() -> onResetDialog() DIRECTLY, completely bypassing the suppressCloseRef check that only exists inside Dialog.onOpenChange. So the suppress guard is being defeated by a code path that was already flagged in retest3's action items.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FaultDialogs.js (issue-dialog) + lib/useBackGestureClose.js",
+        "issue": "2nd photo/video upload unmounts the Log-a-Fault Radix Dialog. PATH C (page.expect_file_chooser + click dashed dropzone div) — upload #1 mount=1 chips=1 PASS, upload #2 mount=0 chips=0 FAIL. PATH A (set_input_files directly on data-testid='issue-media-input' inside a freshly reopened dialog) — upload #1 mount=0 chips=0 FAIL. The suppressCloseRef guard in Dialog.onOpenChange is correctly written but is bypassed because lib/useBackGestureClose.js L45-48 invokes onClose() (= closeIssueDialog = onResetDialog) DIRECTLY on the popstate event the OS file chooser triggers when it returns focus. The Dialog onOpenChange path is never reached for these closes — so adding a guard there cannot fix the bug.",
+        "selector": "[data-testid='issue-dialog']",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "PATH_C_file_chooser_via_dropzone",
+      "result": "FAIL on upload #2",
+      "details": "Login owner@isodemo.com OK -> Faults tab OK -> 'Log a Fault' OK. Mounts/chips after each step: OPEN_DIALOG mount=1 chips=0; UPLOAD_1 mount=1 chips=1 PASS; UPLOAD_2 mount=0 chips=0 FAIL (dialog unmounted); UPLOAD_3 unreachable (dropzone locator timeout because dialog gone). Remove-chip unreachable."
+    },
+    {
+      "id": "PATH_A_direct_set_input_files",
+      "result": "FAIL on upload #1 of the reopened dialog",
+      "details": "After PATH C closed the dialog, clicked 'Log a Fault' again -> mount=1. Called set_input_files directly on [data-testid='issue-media-input'] with photo_4.png -> mount=0 chips=0 FAIL. Second PATH A call timed out because input no longer exists."
+    },
+    {
+      "id": "Legitimate close via X / submit",
+      "result": "NOT VERIFIED",
+      "details": "Could not reach this assertion because the dialog never survives long enough to test a deliberate X close. The 600ms suppress window expiry test is therefore moot as well."
+    }
+  ],
+  "test_report_links": ["/app/test_reports/iteration_logfault_multi_upload_retest4_jan2026.json"],
+  "action_items": [
+    "CRITICAL — Apply suppressCloseRef inside the back-gesture close path too. Easiest fix: change closeIssueDialog in FaultDialogs.js L47 from `() => { onResetDialog && onResetDialog(); }` to `() => { if (suppressCloseRef.current) { suppressCloseRef.current = false; return; } onResetDialog && onResetDialog(); }`. This makes BOTH the Radix onOpenChange path and the useBackGestureClose popstate path respect the same suppression flag.",
+    "CRITICAL — In addition (or as an alternative), gate the popstate handler in lib/useBackGestureClose.js so it ignores popstate events that fire within ~600ms of a file-chooser interaction. Pass a `shouldClose: () => boolean` ref parameter into the hook, OR widen the contract so the consumer can return false from onClose to indicate 'I refused to close'.",
+    "HIGH — A cleaner architectural fix: do not push a phantom history entry while a file input is being interacted with. Wrap mediaInputRef.current.click() with `window.history.replaceState` to neutralise the marker, then push it back after onChange completes. This eliminates the popstate race entirely.",
+    "MEDIUM — Defensive: also call `event.preventDefault()` on the popstate handler is impossible (popstate isn't cancelable), but you can re-push the phantom state inside handlePopState before invoking onClose conditionally. If onClose is suppressed, immediately `window.history.pushState({[key]: true}, '', location.href)` to restore the marker.",
+    "MEDIUM — Consider passing `useBackGestureClose(showIssueDialog && !suppressCloseRef.current, ...)` — but note this re-runs the effect each toggle which may itself spam pushState; the L47 guard in closeIssueDialog is the lowest-risk minimal patch.",
+    "LOW — After applying the fix, re-test ALL of: (a) PATH C uploads 1/2/3 keep mount=1, chips=1/2/3; (b) PATH A direct set_input_files twice keeps mount=1 chips=2; (c) chip remove keeps mount=1; (d) X-close after >600ms still closes dialog; (e) submit still closes dialog; (f) mobile back-gesture still closes dialog (this is what useBackGestureClose exists for — don't regress it)."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L47 closeIssueDialog is the actual single choke-point for ALL programmatic closes of the issue dialog (Radix onOpenChange now delegates to onResetDialog under the same guard; useBackGestureClose calls closeIssueDialog directly). The suppressCloseRef check belongs INSIDE closeIssueDialog, not (only) inside onOpenChange. Current placement protects only one of the two close paths.",
+    "FaultDialogs.js L57 onOpenChange — the guard is correct but redundant once L47 is fixed (Radix will route through onResetDialog which itself now respects suppression). Keep both for defence-in-depth.",
+    "lib/useBackGestureClose.js L45-48 — handlePopState unconditionally invokes onClose. Without a 'should-close' predicate or a re-push of the phantom state on refusal, ANY consumer that wants to veto a popstate close is structurally unable to. This is a hook API design gap that will bite future consumers, not just FaultDialogs.",
+    "lib/useBackGestureClose.js L41 — pushState happens on mount. When suppressCloseRef triggers and we want to KEEP the modal open, the phantom history entry has already been consumed by the popstate -> the next legitimate back gesture would skip past the modal. Re-pushing on refusal is mandatory for correctness.",
+    "FaultDialogs.js L375-377 — input onChange sets suppressCloseRef true at the START and resets after 600ms. Good. But if the user picks a very large file or the OS chooser takes >600ms to dispatch popstate (mobile Safari can), the guard expires before popstate arrives. Consider increasing to 1500ms or resetting on the next animation frame after the input change is processed by React, not on a hard timer."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "0% — bug reproduces deterministically on every retry; current suppressCloseRef fix has zero observable effect because the close fires from a path that doesn't go through onOpenChange"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! at https://admin-setup-portal.preview.emergentagent.com/login. Dismiss cookie banner ('Essential Only') and PWA install prompt ('Later') post-login. Operations tab is default; click Faults sub-tab; click 'Log New Fault' button.",
+  "seed_data_creation": "/tmp/upload_test/photo_{1..4}.png (40x40 PNGs via PIL).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After fix is applied, run the same script. Expected sequence: OPEN_DIALOG mount=1 chips=0 -> PATH_C_UPLOAD_1 mount=1 chips=1 -> PATH_C_UPLOAD_2 mount=1 chips=2 -> PATH_C_UPLOAD_3 mount=1 chips=3 -> REMOVE_CHIP mount=1 chips=2 -> PATH_A_UPLOAD_1 mount=1 chips=3 -> PATH_A_UPLOAD_2 mount=1 chips=4 -> wait 900ms -> click X close -> mount=0. Dropzone locator: page.locator(\"[data-testid='issue-dialog'] div[role='button']\").first then scroll_into_view_if_needed. Chip count: page.locator(\"[data-testid='issue-dialog'] span.truncate\").count(). Mount count: page.locator(\"[data-testid='issue-dialog']\").count().",
+  "rca_of_the_issue": "Reproduction (deterministic): (1) Open dialog (mount=1). (2) Click the dashed upload dropzone div via page.expect_file_chooser + set_files -> upload #1 succeeds (mount=1, 1 chip). (3) Click the dropzone again for upload #2 -> dialog unmounts (mount=0). Same closure occurs on a direct set_input_files on the freshly reopened dialog. WHY: The current fix puts a suppressCloseRef guard ONLY in Dialog.onOpenChange. However the actual close on upload #2 is dispatched by useBackGestureClose's popstate handler -> onClose() -> closeIssueDialog() -> onResetDialog(). That path NEVER consults suppressCloseRef. The OS file chooser pushes a transient history navigation when it opens/closes (PWA shell on mobile-emulating Playwright, and even on desktop Chrome with certain ingress configs), which fires popstate as soon as focus returns to the page. The phantom history entry pushed by useBackGestureClose on dialog open is consumed by that popstate, the hook treats it as a back gesture, and the dialog is torn down. The reason upload #1 works is that the phantom entry pushed on dialog mount swallows the FIRST file-chooser popstate as a no-op (history.state still has the marker so handlePopState fires, closes the dialog... wait — it doesn't on upload #1 because the marker is consumed BUT React state lags one tick and the chip update wins. By upload #2 the dialog has been mounted long enough that the popstate cleanly reaches onClose). MITIGATION (recommended, minimal): change closeIssueDialog in FaultDialogs.js L47 to consult suppressCloseRef before calling onResetDialog. This funnels BOTH close paths through the same gate. Also re-push the phantom history entry on the refused popstate (in useBackGestureClose) so the mobile back-gesture UX is not broken after a refusal."
+}

@@ -46,12 +46,15 @@ const FaultDialogs = ({
  // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
  const closeIssueDialog = useCallback(() => { onResetDialog && onResetDialog(); }, [onResetDialog]);
  const mediaInputRef = useRef(null);
+ // Guards against spurious dialog closes triggered by the OS file chooser
+ // stealing/returning focus during photo/video upload.
+ const suppressCloseRef = useRef(false);
  useBackGestureClose(showIssueDialog, closeIssueDialog, 'gymaxis-issue-dialog');
 
  return (
  <>
  {/* Log Issue Dialog - Multi-step: Form → Triage → Resolution */}
- <Dialog open={showIssueDialog} onOpenChange={(open) => { if (!open) onResetDialog(); }}>
+ <Dialog open={showIssueDialog} onOpenChange={(open) => { if (!open) { if (suppressCloseRef.current) { suppressCloseRef.current = false; return; } onResetDialog(); } }}>
  <DialogContent
  className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto"
  data-testid="issue-dialog"
@@ -370,12 +373,12 @@ const FaultDialogs = ({
  <Label className="text-[var(--theme-text)]">{t('faults.upload_label')}</Label>
  <p className="text-[var(--color-text-muted)] text-xs mb-2">{t('faults.upload_hint')}</p>
  <input ref={mediaInputRef} type="file" className="hidden" accept="image/*,video/*" multiple
- onChange={(e) => { const files = Array.from(e.target.files || []); setIssueMedia(prev => [...prev, ...files]); e.target.value = ''; }}
+ onChange={(e) => { suppressCloseRef.current = true; const files = Array.from(e.target.files || []); setIssueMedia(prev => [...prev, ...files]); e.target.value = ''; setTimeout(() => { suppressCloseRef.current = false; }, 600); }}
  data-testid="issue-media-input" />
  <div
  role="button"
  tabIndex={0}
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); mediaInputRef.current?.click(); }}
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); suppressCloseRef.current = true; mediaInputRef.current?.click(); }}
  className="cursor-pointer border-2 border-dashed border-[var(--theme-border)] rounded-lg p-4 text-center hover:border-[rgb(var(--rgb-brand-blue)/0.3)] transition-colors">
  <Upload size={20} className="mx-auto mb-1 text-[var(--color-text-muted)]" />
  <span className="text-[var(--color-text-muted)] text-sm">{t('faults.click_upload')}</span>
