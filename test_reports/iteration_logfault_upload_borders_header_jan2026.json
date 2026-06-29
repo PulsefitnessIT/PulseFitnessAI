@@ -1,0 +1,54 @@
+{
+  "summary": "Frontend-only verification on the Operations DashboardPage as owner@isodemo.com of: (1) CRITICAL — Log-a-Fault dialog should stay OPEN when a photo/video is added, (2) Equipment card traffic-light left borders, (3) Operations header consistency 'Operations · Iso Demo Fitness' + date on the right. TEST 2 and TEST 3 PASS. TEST 1 PARTIAL — first photo upload now correctly keeps the dialog open (original Radix interact-outside bug is fixed), but a SECOND set_input_files call causes the dialog to CLOSE.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FaultDialogs.js — issue-dialog / issue-media-input",
+        "issue": "Log-a-Fault dialog still closes when a SECOND photo/video is added. After the 1st `set_input_files` on data-testid='issue-media-input', the dialog stays open and the file chip appears (chip count=1, dialog count=1). After the 2nd `set_input_files` on the SAME input, the dialog count drops to 0 (we land back on the Faults list). The PRD explicitly says: 'Add a second file and confirm it appends.' The first-upload critical bug appears fixed via onInteractOutside/onPointerDownOutside preventDefault, but the second upload still trips a close path — likely a focus/blur event (onFocusOutside) that Radix interprets as outside-interaction. Suggested fix: also add onFocusOutside={(e)=>e.preventDefault()} on DialogContent, and/or ensure the hidden <input type='file'> click does not bubble (e.g. wrap in a controlled handler that calls e.stopPropagation on focus/blur).",
+        "selector": "[data-testid='issue-dialog'] [data-testid='issue-media-input']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "TEST1_logfault_photo_upload_keeps_dialog_open",
+      "result": "PARTIAL_FAIL",
+      "details": "Faults sub-tab → 'Log New Fault' opens issue-dialog. 1st set_input_files(test_photo1.png) → issue-dialog count=1 (OPEN), chip 'photoA_*.png' present (count=1) ✅. 2nd set_input_files(test_photo2.png) → issue-dialog count=0 (CLOSED) ❌, both chips gone. Screenshot .screenshots/dialog_uploaded.png shows we're back on the Faults list. The 1st-photo close (the originally reported CRITICAL bug) is resolved, but the multi-photo case still closes the dialog. Remove ✕ button could not be tested because the dialog was already closed after the 2nd upload."
+    },
+    {
+      "id": "TEST2_equipment_traffic_light_borders",
+      "result": "PASS",
+      "details": "Equipment sub-tab shows 2 cards (equipment-card-2588d6a7-... and equipment-card-5143ead7-...). Both render computed borderLeftColor=rgb(196, 196, 204) with borderLeftWidth=4px — the neutral/grey traffic-light state (no warranty_expiry/sla_expiry on seeded equipment), matching spec. Border is rendered via class (not inline style), 4px-wide. Other colour states (green/amber/red) depend on seeded dates that are not present, so only the grey state is observable; the styling system is wired up correctly."
+    },
+    {
+      "id": "TEST3_operations_header_consistency",
+      "result": "PASS",
+      "details": "data-testid='dashboard-title' renders 'Operations · Iso Demo Fitness' (note: small-glyph 'Operations·' with non-breaking middle dot) and data-testid='dashboard-date' renders 'Monday, 29 June 2026' on the right. Verified on ALL sub-tabs: Start, Dashboard, Equipment, Faults — the module title is preserved regardless of active sub-tab. Subtitle 'Equipment, faults, maintenance & compliance — your whole estate in one place.' also visible. Header layout matches Comms/Memberships header pattern."
+    }
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_logfault_upload_borders_header_jan2026.json",
+    ".screenshots/dialog_uploaded.png"
+  ],
+  "action_items": [
+    "HIGH PRIORITY — Fix Log-a-Fault dialog closing on the SECOND photo/video upload. Add `onFocusOutside={(e)=>e.preventDefault()}` to <DialogContent> in /app/frontend/src/pages/Dashboard/FaultDialogs.js (~L57-58) in addition to the existing onInteractOutside / onPointerDownOutside handlers. Radix Dialog also dispatches an `onFocusOutside` event when the OS file picker steals focus, which is the most likely root cause for the second-upload close.",
+    "Optional — confirm traffic-light green/amber/red borders by seeding equipment with warranty_expiry (current) / warranty_expiry (within 60d) / warranty_expiry (past) — current seed only exercises the grey/no-cover branch.",
+    "Optional A11y — the dialog-title text uses 'Operations· Iso Demo Fitness' (no space before middle dot in the rendered text). The PRD example shows 'Operations · Iso Demo Fitness' (space-dot-space). Cosmetic — verify with main agent if this is intentional."
+  ],
+  "critical_code_review_comments": [
+    "FaultDialogs.js L57-58: onInteractOutside + onPointerDownOutside preventDefault is the right starting move, but does not cover focus-shift caused by the OS file picker. Per Radix docs, onFocusOutside is a SEPARATE event from onPointerDownOutside; both should be guarded for file-input scenarios.",
+    "Consider an explicit attachment-list re-render guard: when setIssueMedia([...prev, ...files]) runs, ensure the input.value reset (e.target.value = '') happens BEFORE the state update so the input doesn't transiently re-trigger focus events that Radix interprets as outside-interaction."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "67% (TEST2+TEST3 PASS, TEST1 PARTIAL — 1st upload works, 2nd upload still closes)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — full Operations DashboardPage, org 'Iso Demo Fitness', site 'iso-demo-site-a' (2 equipment).",
+  "seed_data_creation": "None. Used existing iso-demo seed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "External URL https://admin-setup-portal.preview.emergentagent.com. Owner login works. The Faults sub-tab button is labelled 'Log New Fault' (not 'Log a Fault'). issue-media-input is a hidden <input type='file' multiple>; use page.locator('[data-testid=\\'issue-media-input\\']').set_input_files(...). The first set_input_files call keeps the dialog open (fix confirmed) but the SECOND call closes the dialog — instrument with onFocusOutside preventDefault before re-testing. Dashboard sub-tab title testids: dashboard-title, dashboard-date. Equipment cards: equipment-card-<uuid>; borderLeftColor visible via getComputedStyle. Cookie/Install banners may overlay — dismiss with 'Accept All'/'Later'.",
+  "rca_of_the_issue": "Original Radix Dialog close-on-file-picker bug (1st upload) is fixed by onInteractOutside+onPointerDownOutside preventDefault. Remaining issue (2nd upload closes the dialog) is most likely caused by Radix's onFocusOutside handler firing when focus returns from the OS file picker the second time — onPointerDownOutside is dispatched on pointer events, NOT on focus changes. Fix: add `onFocusOutside={(e) => e.preventDefault()}` to <DialogContent> alongside the existing two handlers."
+}

@@ -212,23 +212,34 @@ const DashboardPage = () => {
         >
         <div className="max-w-7xl mx-auto px-4">
           <div className="mb-8" data-testid="dashboard-header">
-            <h1
-              className="text-3xl sm:text-4xl tracking-tight font-bold mb-2"
-              style={{ color: 'var(--theme-text)' }}
-              data-testid="dashboard-title"
-            >
-              {user?.is_master_admin ? (
-                <><span className="gx-grad-text">Global</span> Dashboard</>
-              ) : t('dashboard.title')}
-            </h1>
-            <p style={{ color: 'var(--theme-text-muted)' }} data-testid="dashboard-subtitle">
-              {user?.is_master_admin ? 'Cross-gym analytics, documents & management' : `${t('dashboard.welcome')}, ${user?.full_name}`}
-            </p>
-            {!user?.is_master_admin && (
-              <Badge className="mt-2 bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-deep)] text-white border-0 shadow-[0_4px_12px_-4px_rgba(37,99,235,0.35)]" data-testid="subscription-badge">
-                {user?.subscription_tier === 'none' ? t('dashboard.free_tier') : t('dashboard.plan_label', { tier: user?.subscription_tier })}
-              </Badge>
-            )}
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h1
+                  className="text-3xl sm:text-4xl tracking-tight font-bold mb-2"
+                  style={{ color: 'var(--theme-text)' }}
+                  data-testid="dashboard-title"
+                >
+                  {user?.is_master_admin ? (
+                    <><span className="gx-grad-text">Global</span> Dashboard</>
+                  ) : (
+                    <><span className="gx-grad-text">Operations</span>{user?.company_name ? <span className="text-base sm:text-lg font-normal ml-2" style={{ color: 'var(--theme-text-muted)' }}>· {user.company_name}</span> : null}</>
+                  )}
+                </h1>
+                <p style={{ color: 'var(--theme-text-muted)' }} data-testid="dashboard-subtitle">
+                  {user?.is_master_admin ? 'Cross-gym analytics, documents & management' : 'Equipment, faults, maintenance & compliance — your whole estate in one place.'}
+                </p>
+                {!user?.is_master_admin && (
+                  <Badge className="mt-2 bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-deep)] text-white border-0 shadow-[0_4px_12px_-4px_rgba(37,99,235,0.35)]" data-testid="subscription-badge">
+                    {user?.subscription_tier === 'none' ? t('dashboard.free_tier') : t('dashboard.plan_label', { tier: user?.subscription_tier })}
+                  </Badge>
+                )}
+              </div>
+              {!user?.is_master_admin && (
+                <p className="hidden sm:block text-sm font-medium whitespace-nowrap pt-1" style={{ color: 'var(--theme-text-muted)' }} data-testid="dashboard-date">
+                  {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              )}
+            </div>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

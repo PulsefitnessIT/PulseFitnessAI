@@ -101,7 +101,8 @@ function Approvals({ API }) {
           { id: 'approved', label: 'Approved — to pay' },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${tab === t.id ? 'bg-[var(--color-brand-blue)] text-white border-[var(--color-brand-blue)]' : 'bg-[var(--theme-surface-2)] text-[var(--theme-text)] border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]'}`}
+            style={tab === t.id ? { color: '#ffffff' } : undefined}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${tab === t.id ? 'bg-[var(--color-brand-blue)] border-[var(--color-brand-blue)]' : 'bg-[var(--theme-surface-2)] text-[var(--theme-text)] border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]'}`}
             data-testid={`desk-exp-queue-${t.id.split(',')[0]}`}>{t.label}</button>
         ))}
       </div>

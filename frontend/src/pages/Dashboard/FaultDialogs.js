@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
- Dialog, DialogContent, DialogHeader, DialogTitle
+ Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from '@/components/ui/dialog';
 import { AlertCircle, CheckCircle, Plus, Upload, Wrench, X, Image as ImageIcon, Video } from 'lucide-react';
 import FaultTemplatePicker from './FaultTemplatePicker';
@@ -54,7 +54,10 @@ const FaultDialogs = ({
  <DialogContent
  className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto"
  data-testid="issue-dialog"
+ onInteractOutside={(e) => e.preventDefault()}
+ onPointerDownOutside={(e) => e.preventDefault()}
  >
+ <DialogDescription className="sr-only">Log a fault: select the machine, describe the issue, attach photos or video, then submit.</DialogDescription>
  <DialogHeader>
  <DialogTitle className="text-[var(--theme-text)]" data-testid="issue-dialog-title">
  {issueStep === 'form' && t('faults.log_fault')}
@@ -378,7 +381,7 @@ const FaultDialogs = ({
  <div key={idx} className="flex items-center gap-2 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded px-2 py-1">
  {file.type?.startsWith('video/') ? <Video size={14} className="text-[var(--color-brand-blue)]" /> : <ImageIcon size={14} className="text-[var(--color-brand-blue)]" />}
  <span className="text-[var(--theme-text)] text-xs truncate max-w-[120px]">{file.name}</span>
- <button onClick={() => setIssueMedia(issueMedia.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-300"><X size={12} /></button>
+ <button type="button" onClick={() => setIssueMedia(issueMedia.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-300"><X size={12} /></button>
  </div>
  ))}
  </div>

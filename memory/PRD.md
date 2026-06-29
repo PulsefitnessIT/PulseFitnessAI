@@ -1,3 +1,29 @@
+# ═══ 2026-06-26 · BUGFIXES + KPI TRENDS · Operations dashboard (VERIFIED 6/6) ═══
+Reported on the FULL operations dashboard (owner@isodemo.com). All verified by testing agent:
+1. CRITICAL — Faults → "Log a new fault": selecting a machine CLOSED the whole dialog. Root cause:
+   the Machine Type Radix <Select>'s portaled options were treated as interact-outside and closed
+   the Dialog (the serial field had already been converted to native for this reason). Fix: Machine
+   Type is now a native <select>. (`Dashboard/FaultDialogs.js`)
+2. Equipment detail → "Log a fault for this machine" now pre-selects BOTH Machine Type and Serial
+   (DashboardPage.onLogFault sets wf.setSelectedMachineType via the deriveGroupKey rule + serial).
+3. "AI Fault Diagnosis" quick action navigated to a non-existent `diagnosis` tab (blank page) — the
+   DiagnosisTab is orphaned/unwired. Repointed the button to open the Log-a-Fault dialog (AI triage).
+   (`Dashboard/OverviewTab.js`)
+4. Gym Health Score gauge: the rating label (e.g. "Needs Attention") overlapped the donut ring — moved
+   it BELOW the donut; score stays centred. (`Dashboard/OverviewTab.js`)
+5. Expenses queue filter pills were washed out (near-white bg-zinc-100 on the light page) — now
+   theme-aware: active = brand colour + forced white text, inactive = bordered surface.
+   (`ServiceDesk/DeskExpenses.js`)
+6. KPI cards (Open Faults / Audits Completed / Maintenance Tasks) now show GymAxis-style LIVE 3-month
+   area sparklines + a trend % badge, computed client-side from issues/auditHistory/maintenanceTasks
+   (no mocked data; Open Faults badge inverted so a drop reads green). (`Dashboard/OverviewTab.js`)
+
+ACTION (production): preview-only — redeploy pulsefitness.ai to use it live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-26 · UI CLEANUP · Operations Equipment + Faults + Onboarding (VERIFIED) ═══
 User feedback (preview, full operations dashboard). All verified by testing agent (6/6 flows pass):
 1. Equipment Information Hub — removed the 4 header buttons (Add Equipment / AI Invoice Import /

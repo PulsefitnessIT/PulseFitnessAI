@@ -552,7 +552,18 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  </>
  ) : filteredEquipment.map(equip => {
  const hasOpenFault = (equip.stats?.open_faults || 0) > 0;
- const eqBorderColor = hasOpenFault ? 'var(--color-danger)' : 'var(--color-success-alt-2)';
+ // Traffic-light cover status — Green = within warranty/contract,
+ // Amber = running out (≤60 days), Red = out of cover, grey = no cover info.
+ const _coverDates = [equip.warranty_expiry, equip.sla_expiry]
+   .filter(Boolean).map(d => new Date(d)).filter(d => !isNaN(d.getTime()));
+ let eqBorderColor = 'var(--theme-border)';
+ if (_coverDates.length) {
+   const latest = Math.max(..._coverDates.map(d => d.getTime()));
+   const daysLeft = Math.floor((latest - Date.now()) / 86400000);
+   if (daysLeft < 0) eqBorderColor = 'var(--color-danger)';
+   else if (daysLeft <= 60) eqBorderColor = '#f59e0b';
+   else eqBorderColor = 'var(--color-success-alt-2)';
+ }
  // Iter 216o-7 — compact row layout matching Pulse Lite. Same data
  // density, ~70% smaller vertical footprint so a 50-machine site is
  // a 2-screen scroll instead of a 10-screen scroll.
