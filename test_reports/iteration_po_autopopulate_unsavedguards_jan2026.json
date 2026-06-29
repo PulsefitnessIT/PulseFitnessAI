@@ -1,0 +1,34 @@
+{
+  "summary": "Verified Operations Log-a-Fault → PO flow on the FULL dashboard for iso-demo (owner@isodemo.com). (1) Submitted a fault on Precor Elliptical ISO-CT-002, completed AI triage (~15s), chose 'No, log for engineer'. (2) PO prompt opened with supplier_name='Precor', supplier_email='service.precor@example.com', callout='95', delivery_address='1 Demo Street' — auto-populated from the seeded Precor supplier. (3) PO modal stayed OPEN on Escape, outside-click and input edit. (4) PO unsaved-changes guard fired ('Discard this purchase order draft?'): dismiss→dialog still open, accept→dialog closed. (5) Fault unsaved-changes guard fired ('You have unsaved changes to this fault report. Discard and close?'): dismiss→dialog still open, accept→dialog closed. (6) Regression: serial select did NOT close the fault dialog. (7) Settings supplier labels confirmed in source (en.json → 'Call Out (£)', 'Labour per hour (£)', 'Travel (£)'); testids supplier-callout-fee/supplier-labour-rate/supplier-mileage-rate present in SettingsTab.js — Settings page itself was not navigated (separate route; verified via source review).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Settings → Suppliers (Operations → Suppliers tab quick-add modal)",
+        "issues": [
+          "The Operations → Suppliers tab 'Add supplier' quick modal only collects Name/Email/Contact/Phone — it does NOT expose the Call Out / Labour per hour / Travel price fields. Those fields live on the separate SettingsTab.js page (a different route — not the Operations Suppliers tab). If users are expected to set default prices from the Suppliers tab as well, consider surfacing the same fields there. Not blocking — the relabel itself is correctly applied where the fields render."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_po_autopopulate_unsavedguards_jan2026.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FaultDialogs.js line 49-58: issueDirty computation correctly tracks serial, description, media, multi-machine list. closeIssueDialog wraps onResetDialog with window.confirm — clean pattern.",
+    "FaultDialogs.js line 90-94: closePOPrompt uses (poForm.po_number || poForm.notes) as dirty heuristic. Slight gap — if user edits ONLY the auto-populated callout cost or supplier fields then closes, no guard fires. Probably acceptable since those fields are pre-filled by the system, not user input; flagging for awareness only.",
+    "FaultDialogs.js line 621-628: PO Dialog now correctly hardens against outside-click/Escape/focus-out via onPointerDownOutside/onInteractOutside/onFocusOutside/onEscapeKeyDown=preventDefault. Mirrors the issue-dialog pattern. Verified via Playwright — Escape and outside-click both leave dialog open.",
+    "Supplier prefill at /api/purchase-orders/supplier-lookup → returned Precor supplier with correct callout (£95) for ISO-CT-002 (manufacturer Precor). Case-insensitive exact→contains fallback works end-to-end."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only request)", "frontend": "100% — all 7 requested checks passed" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (FULL dashboard /dashboard, iso-demo-org)",
+  "seed_data_creation": "None — used existing seeded ISO-CT-002 Precor Elliptical and seeded Precor supplier (service.precor@example.com, callout 95). One real fault was created against ISO-CT-002 as a by-product of testing 'Create PO & Log Fault' was NOT clicked — only X dismiss/accept — so no PO row was persisted. The fault itself WAS created on submit (status=engineer_required); main agent may want to clean up the 'Belt slipping intermittently' fault on ISO-CT-002 if it pollutes counts.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All four behaviors requested are working: (a) PO auto-populate from supplier (verified values: Precor / service.precor@example.com / £95 callout), (b) PO modal hardened against outside-click/Escape/input-edit, (c) PO unsaved-changes guard with proper dismiss/accept semantics, (d) Fault unsaved-changes guard with proper dismiss/accept semantics. NOTE for future Playwright runs: native-confirm dialogs MUST be handled via page.on('dialog') — Playwright auto-dismisses otherwise. Also: machine-type & serial dropdowns on the FULL dashboard fault form use native HTML <select> (not Radix), so use page.select_option('[data-testid=\"issue-type-select\"]', value='Precor Elliptical') — get_by_role('option') fails because native options aren't focusable until dropdown opens.",
+  "rca of the issue": "n/a — verification of prior fix. PO dialog previously closed on every outside event because it had no onPointerDownOutside/onEscapeKeyDown preventDefault handlers and no back-gesture guard; both are now in place (FaultDialogs.js ~line 621). Supplier lookup (purchase_orders.py lookup_supplier_for_po) now matches on equipment.manufacturer/service_provider with exact→contains fallback so Precor Elliptical → Precor supplier resolves correctly."
+}

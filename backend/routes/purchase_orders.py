@@ -162,11 +162,16 @@ async def get_po_pdf_view(po_id: str, token: str = None, user: dict = Depends(ge
 # --- Default PO Prices Settings ---
 
 @router.get("/purchase-orders/supplier-lookup")
-async def lookup_supplier_for_po(equipment_serial: str = "", supplier_name: str = "", user: dict = Depends(get_current_user)):
-    """Look up supplier email and pricing for PO auto-population based on equipment or supplier name"""
+async def lookup_supplier_for_po(equipment_serial: str = "", supplier_name: str = "", manufacturer: str = "", user: dict = Depends(get_current_user)):
+    """Look up supplier email + pricing for PO auto-population from the
+    equipment's service_provider / manufacturer or a passed supplier name.
+    Matching is forgiving: case-insensitive exact first, then a contains
+    match, so 'Precor' resolves 'Precor UK Ltd' etc."""
+    import re
     org_id = user.get('organization_id')
     result = {"supplier_name": supplier_name, "supplier_email": "", "pricing": {}}
 
+    candidates = []
     # If we have a serial number, find the equipment's service_provider or manufacturer
     if equipment_serial and org_id:
         equip = await db.equipment.find_one(
@@ -174,24 +179,41 @@ async def lookup_supplier_for_po(equipment_serial: str = "", supplier_name: str 
             {"_id": 0, "service_provider": 1, "manufacturer": 1}
         )
         if equip:
+            for v in (equip.get("service_provider"), equip.get("manufacturer")):
+                if v:
+                    candidates.append(v)
             result["supplier_name"] = equip.get("service_provider") or equip.get("manufacturer") or supplier_name
+    for v in (supplier_name, manufacturer):
+        if v:
+            candidates.append(v)
+    # de-dup (case-insensitive), preserve order
+    seen = set()
+    cands = [c for c in candidates if c and not (c.lower() in seen or seen.add(c.lower()))]
 
     # Look up the supplier from suppliers collection (including pricing fields)
-    if result["supplier_name"] and org_id:
-        supplier_doc = await db.suppliers.find_one(
-            {"organization_id": org_id, "name": safe_regex_exact(result['supplier_name'])},
-            {"_id": 0}
-        )
-        if supplier_doc:
-            result["supplier_email"] = supplier_doc.get("email", "")
-            result["supplier_name"] = supplier_doc.get("name", result["supplier_name"])
-            result["pricing"] = {
-                "callout_fee": supplier_doc.get("callout_fee", 0),
-                "labour_rate_per_hour": supplier_doc.get("labour_rate_per_hour", 0),
-                "mileage_rate": supplier_doc.get("mileage_rate", 0),
-                "parts_markup_pct": supplier_doc.get("parts_markup_pct", 0),
-                "custom_items": supplier_doc.get("custom_items", [])
-            }
+    supplier_doc = None
+    if org_id and cands:
+        for c in cands:  # case-insensitive exact
+            supplier_doc = await db.suppliers.find_one(
+                {"organization_id": org_id, "name": {"$regex": f"^{re.escape(c)}$", "$options": "i"}}, {"_id": 0})
+            if supplier_doc:
+                break
+        if not supplier_doc:
+            for c in cands:  # contains fallback
+                supplier_doc = await db.suppliers.find_one(
+                    {"organization_id": org_id, "name": {"$regex": re.escape(c), "$options": "i"}}, {"_id": 0})
+                if supplier_doc:
+                    break
+    if supplier_doc:
+        result["supplier_email"] = supplier_doc.get("email", "")
+        result["supplier_name"] = supplier_doc.get("name", result["supplier_name"])
+        result["pricing"] = {
+            "callout_fee": supplier_doc.get("callout_fee", 0),
+            "labour_rate_per_hour": supplier_doc.get("labour_rate_per_hour", 0),
+            "mileage_rate": supplier_doc.get("mileage_rate", 0),
+            "parts_markup_pct": supplier_doc.get("parts_markup_pct", 0),
+            "custom_items": supplier_doc.get("custom_items", [])
+        }
 
     return result
 

@@ -296,7 +296,7 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
       const [orgRes, supplierRes] = await Promise.all([
         axios.get(`${API}/settings/org-details`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: {} })),
         axios.get(
-          `${API}/purchase-orders/supplier-lookup?equipment_serial=${encodeURIComponent(currentMachine.serial_number)}&supplier_name=${encodeURIComponent(currentMachine.supplier || '')}`,
+          `${API}/purchase-orders/supplier-lookup?equipment_serial=${encodeURIComponent(currentMachine.serial_number)}&supplier_name=${encodeURIComponent(currentMachine.supplier || '')}&manufacturer=${encodeURIComponent(equip?.manufacturer || '')}`,
           { headers: { Authorization: `Bearer ${token}` } },
         ).catch(() => ({ data: {} })),
       ]);
@@ -307,6 +307,7 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
       const autoItems = [];
       if (pricing.callout_fee) autoItems.push({ description: `Engineer callout - ${currentMachine.machine_type} (${currentMachine.serial_number})`, quantity: 1, unit_price: pricing.callout_fee });
       if (pricing.labour_rate_per_hour) autoItems.push({ description: 'Labour (per hour)', quantity: 1, unit_price: pricing.labour_rate_per_hour });
+      if (pricing.mileage_rate) autoItems.push({ description: 'Travel / mileage', quantity: 1, unit_price: pricing.mileage_rate });
       if (pricing.custom_items?.length > 0) {
         pricing.custom_items.forEach(ci => {
           if (ci.description) autoItems.push({ description: ci.description, quantity: ci.quantity || 1, unit_price: ci.unit_price || 0 });

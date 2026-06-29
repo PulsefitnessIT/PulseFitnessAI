@@ -44,7 +44,18 @@ const FaultDialogs = ({
  // Iter 216f — back-gesture close on the main "Log a Fault" dialog so
  // mobile operators can swipe back to dismiss the modal instead of
  // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
- const closeIssueDialog = useCallback(() => { onResetDialog && onResetDialog(); }, [onResetDialog]);
+ // Iter — unsaved-changes guard: warn before discarding a part-filled fault
+ // report. Only while still on the entry form (after submit the data is saved).
+ const issueDirty = issueStep === 'form' && (
+   !!issueForm.serial_number ||
+   !!(issueForm.issue_description && issueForm.issue_description.trim()) ||
+   (issueMedia && issueMedia.length > 0) ||
+   (faultMachines && faultMachines.length > 0)
+ );
+ const closeIssueDialog = useCallback(() => {
+   if (issueDirty && !window.confirm('You have unsaved changes to this fault report. Discard and close?')) return;
+   onResetDialog && onResetDialog();
+ }, [onResetDialog, issueDirty]);
  const mediaInputRef = useRef(null);
  // Guards against spurious dialog closes triggered by the OS file chooser.
  // suppressCloseRef → short-lived guard for the Dialog onOpenChange path.
@@ -73,10 +84,19 @@ const FaultDialogs = ({
  }, [closeIssueDialog]);
  useBackGestureClose(showIssueDialog, backGestureClose, 'gymaxis-issue-dialog');
 
+ // PO prompt: guard against discarding a started PO draft, and keep the
+ // dialog open on stray outside/escape/native interactions (it used to
+ // "close down" mid-entry because it had none of the issue-dialog's guards).
+ const closePOPrompt = useCallback(() => {
+   if ((poForm.po_number || poForm.notes) && !window.confirm('Discard this purchase order draft?')) return;
+   setShowPOPrompt(false);
+ }, [poForm.po_number, poForm.notes, setShowPOPrompt]);
+ useBackGestureClose(showPOPrompt, () => setShowPOPrompt(false), 'gymaxis-po-prompt');
+
  return (
  <>
  {/* Log Issue Dialog - Multi-step: Form → Triage → Resolution */}
- <Dialog open={showIssueDialog} onOpenChange={(open) => { if (!open) { if (suppressCloseRef.current) { suppressCloseRef.current = false; return; } onResetDialog(); } }}>
+ <Dialog open={showIssueDialog} onOpenChange={(open) => { if (!open) { if (suppressCloseRef.current) { suppressCloseRef.current = false; return; } closeIssueDialog(); } }}>
  <DialogContent
  className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto"
  data-testid="issue-dialog"
@@ -598,8 +618,15 @@ const FaultDialogs = ({
  </Dialog>
 
  {/* PO Required Prompt Dialog */}
- <Dialog open={showPOPrompt} onOpenChange={(open) => { if (!open) setShowPOPrompt(false); }}>
- <DialogContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] max-w-lg max-h-[90vh] overflow-y-auto" data-testid="po-prompt-dialog">
+ <Dialog open={showPOPrompt} onOpenChange={(open) => { if (!open) closePOPrompt(); }}>
+ <DialogContent
+   className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] max-w-lg max-h-[90vh] overflow-y-auto"
+   data-testid="po-prompt-dialog"
+   onPointerDownOutside={(e) => e.preventDefault()}
+   onInteractOutside={(e) => e.preventDefault()}
+   onFocusOutside={(e) => e.preventDefault()}
+   onEscapeKeyDown={(e) => e.preventDefault()}
+ >
  <DialogHeader><DialogTitle className="text-[var(--theme-text)]" data-testid="po-prompt-title">{t('po.required')}</DialogTitle></DialogHeader>
  <div className="space-y-4">
  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg" data-testid="no-coverage-warning">
