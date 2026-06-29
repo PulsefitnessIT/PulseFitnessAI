@@ -380,16 +380,16 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  return (
  <div className="issue-detail-themed border-t border-[var(--theme-border)] p-5 bg-[rgb(var(--rgb-ink-alt)/0.5)] space-y-5" data-testid={`issue-detail-${issue.id}`}>
  <style>{`
- [data-portal="pulse"] .issue-detail-themed { background: var(--theme-bg, var(--color-neutral-25)) !important; border-color: var(--theme-border, var(--color-border-alt)) !important; }
- [data-portal="pulse"] .issue-detail-themed .text-white { color: var(--theme-text, #111) !important; }
- [data-portal="pulse"] .issue-detail-themed .text-\\[\\var(--color-text-muted)\\] { color: var(--theme-text-muted, var(--color-text-faint-alt)) !important; }
- [data-portal="pulse"] .issue-detail-themed .bg-\\[\\var(--color-surface-dark-alt)\\] { background: var(--theme-surface, #fff) !important; }
- [data-portal="pulse"] .issue-detail-themed .bg-\\[\\var(--color-ink-alt)\\] { background: var(--theme-bg, var(--color-neutral-100)) !important; }
- [data-portal="pulse"] .issue-detail-themed .bg-\\[\\var(--color-ink-alt)\\]\\/50 { background: var(--theme-bg, var(--color-neutral-25)) !important; }
- [data-portal="pulse"] .issue-detail-themed .border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
- [data-portal="pulse"] .issue-detail-themed .border-white\\/5 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
- [data-portal="pulse"] .issue-detail-themed .border-t.border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
- [data-portal="pulse"] .issue-detail-themed input, [data-portal="pulse"] .issue-detail-themed textarea { background: var(--theme-bg, #fff) !important; border-color: var(--theme-border, #d1d5db) !important; color: var(--theme-text, #111) !important; }
+ [data-portal="pulse"] .issue-detail-themed, .theme-gymaxis .issue-detail-themed { background: var(--theme-bg, var(--color-neutral-25)) !important; border-color: var(--theme-border, var(--color-border-alt)) !important; }
+ [data-portal="pulse"] .issue-detail-themed .text-white, .theme-gymaxis .issue-detail-themed .text-white { color: var(--theme-text, #111) !important; }
+ [data-portal="pulse"] .issue-detail-themed .text-\\[\\var(--color-text-muted)\\], .theme-gymaxis .issue-detail-themed .text-\\[\\var(--color-text-muted)\\] { color: var(--theme-text-muted, var(--color-text-faint-alt)) !important; }
+ [data-portal="pulse"] .issue-detail-themed .bg-\\[\\var(--color-surface-dark-alt)\\], .theme-gymaxis .issue-detail-themed .bg-\\[\\var(--color-surface-dark-alt)\\] { background: var(--theme-surface, #fff) !important; }
+ [data-portal="pulse"] .issue-detail-themed .bg-\\[\\var(--color-ink-alt)\\], .theme-gymaxis .issue-detail-themed .bg-\\[\\var(--color-ink-alt)\\] { background: var(--theme-bg, var(--color-neutral-100)) !important; }
+ [data-portal="pulse"] .issue-detail-themed .bg-\\[\\var(--color-ink-alt)\\]\\/50, .theme-gymaxis .issue-detail-themed .bg-\\[\\var(--color-ink-alt)\\]\\/50 { background: var(--theme-bg, var(--color-neutral-25)) !important; }
+ [data-portal="pulse"] .issue-detail-themed .border-white\\/10, .theme-gymaxis .issue-detail-themed .border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
+ [data-portal="pulse"] .issue-detail-themed .border-white\\/5, .theme-gymaxis .issue-detail-themed .border-white\\/5 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
+ [data-portal="pulse"] .issue-detail-themed .border-t.border-white\\/10, .theme-gymaxis .issue-detail-themed .border-t.border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
+ [data-portal="pulse"] .issue-detail-themed input, [data-portal="pulse"] .issue-detail-themed textarea, .theme-gymaxis .issue-detail-themed input, .theme-gymaxis .issue-detail-themed textarea { background: var(--theme-bg, #fff) !important; border-color: var(--theme-border, #d1d5db) !important; color: var(--theme-text, #111) !important; }
  `}</style>
  {/* Iter 216h263 — Supplier Reference / Job Number lifted to the
      top of the detail panel (above the Logged-by header) so it's

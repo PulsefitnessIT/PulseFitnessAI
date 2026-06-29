@@ -206,7 +206,7 @@ export default function SetupChecklist() {
                   <Circle size={15} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-text-muted)' }} />
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className={`text-xs ${it.completed ? 'line-through opacity-60' : 'font-semibold'} pulse-font-body`} style={{ color: 'var(--theme-text)' }}>
+                  <div className={`text-xs font-semibold pulse-font-body`} style={{ color: 'var(--theme-text)' }}>
                     {it.label}
                   </div>
                   <div className="mt-1 flex items-center gap-2">

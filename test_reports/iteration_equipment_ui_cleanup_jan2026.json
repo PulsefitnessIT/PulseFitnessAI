@@ -1,0 +1,69 @@
+{
+  "summary": "Frontend-only verification of Operations → Equipment UI cleanup on the full DashboardPage and Account Settings → Onboarding. All 6 requested behaviors verified PASS using owner@isodemo.com on the external REACT_APP_BACKEND_URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "TEST1_equipment_hub_buttons_removed",
+      "result": "PASS",
+      "details": "Equipment tab → Equipment Information Hub: add-equipment-btn=0, ai-import-btn=0, export-csv-btn=0, bulk-download-qr-btn=0. Total Equipment + Warranty cards still render. Equipment list (Life Fitness Treadmill, Precor Elliptical) still visible with Details buttons."
+    },
+    {
+      "id": "TEST2_equipment_details_edit_close_layout",
+      "result": "PASS",
+      "details": "equipment-details-dialog opens. edit-equipment-btn rendered at x=1112, w=119, with ancestor header class 'flex items-start justify-between gap-3 pr-10'. Screenshot confirms Edit Details button is not cramped under the ✕ close button — clear spacing."
+    },
+    {
+      "id": "TEST3_log_fault_opens_dialog_directly",
+      "result": "PASS",
+      "details": "lite-equip-log-fault click closes equipment-details-dialog and opens issue-dialog inline; URL stays /dashboard (no ?tab=issues navigation). Serial input prefilled to 'ISO-TM-001' and machine type 'Life Fitness Treadmill' pre-selected."
+    },
+    {
+      "id": "TEST4_onboarding_no_strikethrough",
+      "result": "PASS",
+      "details": "Account Settings → Onboarding shows 9 step rows (account-onboarding-step-*). All completed steps render blue ✓ tick + normal bold text — no line-through and no opacity-60 on label. Inspected HTML of each step row confirmed has_line_through=False."
+    },
+    {
+      "id": "TEST4_note_activation_milestones",
+      "result": "INFO",
+      "details": "ActivationMilestonesCard.js (a separate dashboard widget for First login / First fault logged) still uses 'line-through opacity-60' on fired milestones. This is a different component than the Setup/Onboarding checklist scoped in this request, so technically not a failure — flagging for awareness only."
+    },
+    {
+      "id": "TEST5_onboarding_import_equipment_modes",
+      "result": "PASS",
+      "details": "account-onboarding-step-import_machines → Review opens inline Import equipment panel with toolbar: account-equip-mode-spreadsheet=1, account-equip-mode-invoice=1, account-equip-add-manual=1, account-equip-export-csv=1. Click invoice → account-equip-invoice-wizard visible. Click spreadsheet → Download template + Choose file rendered. Click Add Equipment → add-equipment-dialog-iter224 opens."
+    },
+    {
+      "id": "TEST6_fault_detail_no_grey_leak",
+      "result": "PASS",
+      "details": "Faults tab → expanded PH3-* fault → issue-detail-<id> panel renders with panel background rgb(245,245,247) (light). Supplier Reference card, 'Logged by' card (Sarah Jones, General Manager, Shared Site Login), and Attachments card are all on light surfaces — no dark grey leak observed. Screenshot confirms light theming throughout."
+    }
+  ],
+  "test_report_links": [
+    "/app/test_reports/equip_hub.png",
+    "/app/test_reports/equip_details.png",
+    "/app/test_reports/fault_dialog.png",
+    "/app/test_reports/onboarding.png",
+    "/app/test_reports/import_panel2.png",
+    "/app/test_reports/fault_detail.png"
+  ],
+  "action_items": [
+    "(Optional/info) ActivationMilestonesCard.js L225 still applies 'line-through opacity-60' to fired milestones (First login / First fault logged). If the intent of decision #4 was to remove strike-through across ALL checklist surfaces (not just SetupChecklist + AccountSettings/onboarding), apply the same change to ActivationMilestonesCard. Otherwise no action needed."
+  ],
+  "critical_code_review_comments": [
+    "issue-dialog (Log a Fault) has DialogContent without aria-describedby (React warning logged twice on open). Add a Description or aria-describedby={undefined explicitly suppressed} to silence the a11y warning.",
+    "equipment-details-dialog also emits the same DialogContent aria-describedby warning."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% (6/6 scenarios pass)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (full operations DashboardPage, theme-gymaxis light dashboard)",
+  "seed_data_creation": "None. Used existing iso-demo-org seed (2 equipment + multiple PH3-* faults logged by Sarah Jones via Shared Site Login).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 6 UI cleanup behaviors on the full operations DashboardPage and Account Settings → Onboarding are confirmed working. Login flow uses email/password on /login (not Emergent auth). Equipment Hub header is clean (no action buttons). lite-equip-log-fault uses the in-place dialog flow via wf.setIssueForm + wf.setShowIssueDialog without browser navigation. Import equipment inline panel testids match exactly: account-equip-mode-spreadsheet | account-equip-mode-invoice | account-equip-add-manual | account-equip-export-csv | account-equip-invoice-wizard. Add Equipment opens dialog with testid add-equipment-dialog-iter224. Fault detail (issue-detail-<id>) renders with light bg rgb(245,245,247) — no dark grey leak.",
+  "rca_of_the_issue": "N/A — verification run only, no bugs found."
+}

@@ -276,7 +276,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div
-                  className={`text-sm font-semibold ${s.completed ? 'line-through opacity-60' : ''}`}
+                  className={`text-sm font-semibold`}
                   style={{ color: 'var(--theme-text)' }}
                 >
                   {s.label}

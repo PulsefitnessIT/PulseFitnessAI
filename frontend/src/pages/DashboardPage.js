@@ -376,6 +376,15 @@ const DashboardPage = () => {
                     expiryFilterIds={expiryFilterIds}
                     onClearExpiryFilter={() => setExpiryFilterIds(null)}
                     onOpenInvoiceImport={() => setShowInvoiceImport(true)}
+                    onLogFault={(eq) => {
+                      wf.setIssueForm((f) => ({
+                        ...f,
+                        serial_number: eq.serial_number || '',
+                        machine_type: eq.equipment_type || eq.machine_type || '',
+                        supplier: eq.supplier || f.supplier || '',
+                      }));
+                      wf.setShowIssueDialog(true);
+                    }}
                   />
                 </>
               )}

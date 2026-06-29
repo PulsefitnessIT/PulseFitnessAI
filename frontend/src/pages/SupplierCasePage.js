@@ -630,8 +630,8 @@ const SupplierCasePage = () => {
  const Icon = s.icon;
  return (
  <React.Fragment key={s.value}>
- {i > 0 && <div className={`h-0.5 flex-1 min-w-[16px] ${done ? 'bg-white/60' : 'bg-white/15'}`} />}
- <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium whitespace-nowrap ${done ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30'}`}>
+ {i > 0 && <div className={`h-0.5 flex-1 min-w-[16px] ${done ? 'bg-white/70' : 'bg-white/30'}`} />}
+ <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap ${done ? 'bg-white/25 text-white' : 'bg-white/15 text-white/80'}`}>
  <Icon size={11} /> {s.label}
  </div>
  </React.Fragment>

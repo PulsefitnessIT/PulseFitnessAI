@@ -26,7 +26,7 @@ const SLA_RESPONSE_OPTIONS = [
   { value: '__other__', label: 'Other (enter manually)' },
 ];
 
-const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceImport }) => {
+const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceImport, onLogFault }) => {
  const { API, user } = useAuth();
  const { _t } = useTranslation();
  const [equipment, setEquipment] = useState([]);
@@ -464,69 +464,9 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  <h2 className="text-2xl font-semibold text-white">Equipment Information Hub</h2>
  <p className="text-[var(--color-text-muted)]">Comprehensive view of all machines, manuals, and maintenance history</p>
  </div>
- {/* Iter 216h230 — mobile fix. Was `flex items-center gap-2` which
-     pushed buttons off-screen right on phones (Lee's audit screenshot).
-     Now wraps cleanly and includes a direct Add Equipment CTA. */}
- <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
- <Button
-   size="sm"
-   onClick={() => setShowAddEquipment(true)}
-   className="bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)]"
-   data-testid="add-equipment-btn"
- >
-   <Plus size={14} className="mr-1.5" /> Add Equipment
- </Button>
- {/* Iter 216n — AI Invoice Import lives in the page header now,
-     replacing the standalone row above the equipment list that
-     looked tacked-on. */}
- {onOpenInvoiceImport ? (
-   <Button
-     size="sm"
-     onClick={onOpenInvoiceImport}
-     variant="outline"
-     className="border-white/10 text-white hover:bg-white/10"
-     data-testid="ai-import-btn"
-   >
-     <Sparkles size={14} className="mr-1.5" /> AI Invoice Import
-   </Button>
- ) : null}
- <Button
- size="sm"
- variant="outline"
- onClick={handleExportCSV}
- className="border-white/10 text-white hover:bg-white/10"
- data-testid="export-csv-btn"
- >
- <Download size={16} className="mr-1" /> Export CSV
- </Button>
- <Button
- size="sm"
- variant="outline"
- onClick={async () => {
- const token = localStorage.getItem('token');
- for (const eq of equipment) {
- try {
- const res = await axios.get(`${API}/equipment/${eq.id}/qr-card?size=62x35`, {
- headers: { Authorization: `Bearer ${token}` }, responseType: 'arraybuffer'
- });
- const blob = new Blob([res.data], { type: 'image/png' });
- const url = URL.createObjectURL(blob);
- const link = document.createElement('a');
- link.href = url;
- link.download = `gymaxis-qr-${eq.serial_number || eq.id}.png`;
- document.body.appendChild(link); link.click(); link.remove();
- URL.revokeObjectURL(url);
- await new Promise(r => setTimeout(r, 300));
- } catch { /* skip */ }
- }
- notify.success(`Downloading ${equipment.length} Pulse Fitness QR labels`);
- }}
- className="border-white/10 text-white hover:bg-white/10"
- data-testid="bulk-download-qr-btn"
- >
- <QrCode size={16} className="mr-1" /> All QR Codes
- </Button>
- </div>
+ {/* Equipment management actions (Add / AI Invoice Import / Export CSV / All QR
+     Codes) were moved into the Onboarding setup flow — after initial onboarding
+     gyms don't use these day-to-day, so the hub stays a clean read-only view. */}
  </div>
 
  {/* Expiry Filter Banner */}
@@ -750,7 +690,9 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
      w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] */}
  <DialogContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="equipment-details-dialog">
  <DialogHeader>
- <div className="flex items-start justify-between gap-3">
+ {/* pr-10 keeps the Edit Details button clear of the Radix ✕ close
+     button (absolute top-right) so the header no longer looks cramped. */}
+ <div className="flex items-start justify-between gap-3 pr-10">
  <div className="min-w-0">
  <DialogTitle className="text-[var(--theme-text)] text-2xl truncate">{selectedEquipment?.name}</DialogTitle>
  <p className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
@@ -758,7 +700,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  {selectedEquipment?.equipment_type ? ` · ${selectedEquipment.equipment_type}` : ''}
  </p>
  </div>
- <Button size="sm" variant="outline" className="border-[var(--theme-border)] text-[var(--color-brand-blue)] hover:bg-[rgb(var(--rgb-brand-blue)/0.1)] shrink-0" onClick={() => openEditForm(selectedEquipment)} data-testid="edit-equipment-btn">
+ <Button size="sm" variant="outline" className="border-[var(--theme-border)] text-[var(--color-brand-blue)] hover:bg-[rgb(var(--rgb-brand-blue)/0.1)] shrink-0 mt-0.5" onClick={() => openEditForm(selectedEquipment)} data-testid="edit-equipment-btn">
  <Edit size={14} className="mr-1.5" /> Edit Details
  </Button>
  </div>
@@ -794,7 +736,11 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
     getSeverityLabel={(s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Low')}
     getStatusColor={(s) => (s === 'resolved' ? 'text-emerald-400' : s === 'in_progress' ? 'text-amber-400' : 'text-red-400')}
     onLogFaultForEquipment={(eq) => {
-      try { window.location.href = `/dashboard?tab=issues&equipment=${eq.id}`; } catch { /* noop */ }
+      // Open the Log-a-Fault dialog directly with this machine pre-selected
+      // (was navigating away to the Faults screen). Close details first.
+      setShowDetailsDialog(false);
+      if (onLogFault) onLogFault(eq);
+      else { try { window.location.href = `/dashboard?tab=issues&equipment=${eq.id}`; } catch { /* noop */ } }
     }}
     onDownloadFile={async (file) => {
       const token = localStorage.getItem('token');
