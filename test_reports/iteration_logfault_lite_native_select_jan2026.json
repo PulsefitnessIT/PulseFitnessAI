@@ -1,0 +1,29 @@
+{
+  "summary": "End-to-end retest of the Pulse LITE 'Log a Fault' dialog after converting Radix Selects to native <select> in /app/frontend/src/pages/LiteDashboard/LiteDialogs.js and hardening the Dialog to always preventDefault on outside/escape interactions. Logged in as owner@isodemo.com → lands on /pulse with PULSE LITE banner. Opened Log a Fault modal, exercised Machine Type native select, photo upload, description, severity, outside-click, Escape, and submit — modal stayed open throughout. Duplicate-detection modal correctly intercepted submit ('2 open faults logged for Life Fitness Treadmill — Continue Logging?'). All originally reported bug symptoms (modal closing on Serial Number open / option click) are FIXED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "log-fault-dialog (LITE)", "issues": ["Console warning: 'Missing Description or aria-describedby={undefined} for {DialogContent}' — accessibility nit, attach <DialogDescription> or aria-describedby on the Log a Fault DialogContent (also affects equipment-detail-dialog)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, low priority) Add a DialogDescription or aria-describedby to the LITE Log a Fault and Equipment Detail DialogContents to silence the Radix a11y warning.",
+    "(Test-data note) Iso-demo seed only has 1 unit per machine type, so the lite-fault-serial-select branch (needsSerialPick) could not be exercised in the live UI. The single-unit branch (lite-fault-serial read-only display) was exercised and works. If future regression coverage of the multi-serial native <select> is desired, seed at least 2 units of the same machine_type under iso-demo-site-a."
+  ],
+  "critical_code_review_comments": [
+    "LiteDialogs.js FaultMachineSelector (lines ~605–676) correctly uses native HTML <select> with onKeyDown stopPropagation for both Machine Type (data-testid='lite-fault-machine-select') and Serial Number (data-testid='lite-fault-serial-select'). This eliminates the Radix portal pointer-down-outside leak that closed the parent Dialog.",
+    "Log Fault Dialog wrapper (lines ~821–828) now always preventDefault on onPointerDownOutside / onInteractOutside / onFocusOutside / onEscapeKeyDown — confirmed at runtime: outside click and Escape both leave the modal open. Only X-button / Cancel / explicit submit-completion can dismiss, matching the spec.",
+    "Native <select> path renders the same JSX whether 1 or N serials exist (groupItems.map), so the fix is structurally sound for multi-serial groups even though seed data has only single-unit groups."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only retest)", "frontend": "100% on the 8 requested LITE log-fault scenarios"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None. Used existing iso-demo-site-a seeded equipment (Life Fitness Treadmill ISO-TM-001 + Precor Elliptical). Note: both machine types have only 1 unit, so the multi-serial <select> branch was not visible in the UI — single-unit read-only serial display is what rendered (data-testid='lite-fault-serial').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Confirmed LITE fault dialog is rock-solid: Machine Type native select, photo upload, outside click, Escape, description+severity, and submit (→ duplicate-detected confirm modal) all leave data-testid='log-fault-dialog' OPEN. Submit produced an HTTP 400 on /api/issues/{...} which is the EXPECTED duplicate-detection path (the UI then shows the 'Existing Fault Detected' confirm modal with Continue Logging). The original Radix bug is gone. Only outstanding nit is the Radix a11y warning about missing DialogDescription on DialogContent.",
+  "rca of the issue": "Original bug: clicking a Serial Number option inside a Radix <Select> in LiteDialogs.js bubbled a pointer-down-outside event to the parent Dialog because the Radix Select renders its option list in a portal sibling of DialogContent. The Dialog's default onPointerDownOutside handler then closed the modal mid-selection, and the serial list never rendered options. Mitigation (verified in this retest): (1) replace Radix <Select> with a native <select> for both Machine Type and Serial Number — native <select> uses the OS-native popup that does not interact with the React portal/focus-trap; (2) belt-and-braces, on the Log Fault DialogContent always preventDefault on onPointerDownOutside/onInteractOutside/onFocusOutside/onEscapeKeyDown so even an unrelated focus-shift can't dismiss the dialog. Reproduction steps before fix: login owner@isodemo.com → click 'Log New Fault' → click Machine Type → modal closes (or Serial dropdown empty/closes modal). After fix: same steps, modal remains open, selections register, photo upload + outside click + Escape are all no-ops on the dialog, and only X / Cancel / completed submit close it."
+}

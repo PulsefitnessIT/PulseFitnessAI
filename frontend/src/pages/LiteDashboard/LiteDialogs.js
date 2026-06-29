@@ -626,34 +626,41 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
     <>
       <div>
         <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.machine_type', 'Machine Type')}</Label>
-        <Select value={selectedGroup} onValueChange={handleGroupChange}>
-          <SelectTrigger className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[44px] h-auto py-2 items-start text-left [&>span]:whitespace-normal [&>span]:break-words [&>span]:line-clamp-none" data-testid="lite-fault-machine-select">
-            <SelectValue placeholder={t('dialog.choose_machine_type', 'Choose machine type...')} />
-          </SelectTrigger>
-          <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60 max-w-[calc(100vw-80px)]" style={{ scrollBehavior: 'smooth' }}>
-            {groupRows.map(g => (
-              <SelectItem key={g.type} value={g.type} className="text-[var(--theme-text)] py-3 whitespace-normal">
-                <span className="whitespace-normal break-words block">{g.label}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Iter 217 — native <select> replaces the Radix Select. A Radix
+            Select renders its options in a portal; clicking one registered
+            as a pointer-down-outside on the parent Dialog and closed the
+            whole fault card (the exact bug fixed in Dashboard/FaultDialogs.js).
+            onKeyDown stopPropagation keeps keyboard events off the Dialog. */}
+        <select
+          value={selectedGroup}
+          onChange={(e) => handleGroupChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="w-full bg-[var(--theme-surface-2)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[44px] px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
+          data-testid="lite-fault-machine-select"
+        >
+          <option value="" disabled>{t('dialog.choose_machine_type', 'Choose machine type...')}</option>
+          {groupRows.map(g => (
+            <option key={g.type} value={g.type}>{g.label}</option>
+          ))}
+        </select>
       </div>
       {selectedGroup && needsSerialPick && (
         <div>
           <Label className="text-[var(--color-text-muted)] font-medium">{t('dialog.select_serial', 'Select Serial Number')}</Label>
-          <Select value={faultForm.equipment_id} onValueChange={handleSerialChange}>
-            <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 h-11" data-testid="lite-fault-serial-select">
-              <SelectValue placeholder={t('dialog.choose_serial', 'Choose serial number...')} />
-            </SelectTrigger>
-            <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60">
-              {groupItems.map(eq => (
-                <SelectItem key={eq.id} value={eq.id} className="text-[var(--theme-text)]">
-                  {eq.serial_number || 'No serial'} {eq.location ? `· ${eq.location}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <select
+            value={faultForm.equipment_id || ''}
+            onChange={(e) => handleSerialChange(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 h-11 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
+            data-testid="lite-fault-serial-select"
+          >
+            <option value="" disabled>{t('dialog.choose_serial', 'Choose serial number...')}</option>
+            {groupItems.map(eq => (
+              <option key={eq.id} value={eq.id}>
+                {eq.serial_number || 'No serial'}{eq.location ? ` · ${eq.location}` : ''}
+              </option>
+            ))}
+          </select>
         </div>
       )}
       {selectedGroup && !needsSerialPick && faultForm.serial_number && (
@@ -815,9 +822,10 @@ const LiteDialogs = ({
         <DialogContent
           className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[85vh] overflow-y-auto"
           data-testid="log-fault-dialog"
-          onPointerDownOutside={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
-          onInteractOutside={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
-          onEscapeKeyDown={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onFocusOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader>
             <DialogTitle className="text-[var(--theme-text)] text-xl">{t('dashboard.log_fault', 'Log a Fault')}</DialogTitle>
