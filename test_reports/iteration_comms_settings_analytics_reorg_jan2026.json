@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only verification of Comms Centre tab reorganization (/comms). Logged in as owner@isodemo.com, validated main tabs, Settings dropdown, Analytics sub-tabs, deep-link backward compatibility, and module-scope visibility rules. All 45 UI assertions passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Comms Centre — Analytics > Engagement sub-view", "issues": ["Console hydration warning: <span> cannot be a child of <option> inside InactiveView select in /app/frontend/src/pages/Comms/Intelligence.js (~line 129). Pre-existing dev-tool annotation injection; does not break functionality but should be cleaned up to silence React warning."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_comms_settings_analytics_reorg_jan2026.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CommsCentre.js is concise (~222 lines) and well-structured: SECTIONS / ANALYTICS_TABS / SETTINGS_ITEMS constants, deep-link parser, and shared go(id) navigation are clean.",
+    "Module scope hide list in the JSX (line 206) duplicates intent — consider deriving from a SCOPE_HIDDEN constant to keep it in sync with SETTINGS_IDS plus segments/flows.",
+    "SettingsMenu is rendered on both desktop and mobile with different testIds; OK, but two DropdownMenu instances mount concurrently — minor DOM weight, acceptable."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% (45/45 assertions)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Comms Centre tab reorganization is fully working. Main tabs: Campaigns/Flows/Segments/Analytics/Inactive. Settings dropdown (comms-settings-btn) contains Deliverability, Import (migrate), API & Webhooks (developer). Analytics tab reveals comms-analytics-tabs sub-row with Engagement/Best Send Time/Benchmarks. Deep-link routes (?view=deliverability|engagement|benchmarks|best-time|migrate|developer|segments|flows|inactive|campaigns) all navigate correctly. Module-scope pill is correctly hidden on deliverability/segments/flows/migrate/developer and visible on campaigns/inactive/analytics sub-views.",
+  "verified_assertions": [
+    "comms-centre loads after login",
+    "all 5 main tabs present (campaigns/flows/segments/analytics/inactive)",
+    "comms-settings-btn present to the right of pill bar",
+    "deliverability/migrate/developer/engagement/best-time/benchmarks are NOT top-level comms-section-* tabs",
+    "Settings dropdown opens with 3 items labeled Deliverability, Import, API & Webhooks",
+    "Clicking Analytics defaults to ?view=engagement and reveals comms-analytics-tabs",
+    "Analytics sub-tabs navigate to engagement/best-time/benchmarks correctly",
+    "Settings items navigate to ?view=deliverability/migrate/developer",
+    "Deep links ?view=deliverability, ?view=engagement, ?view=benchmarks render correct view with proper active sub-tab styling",
+    "Module scope (comms-scope) hidden on deliverability/segments/flows/migrate/developer; visible on campaigns/inactive/engagement"
+  ]
+}
