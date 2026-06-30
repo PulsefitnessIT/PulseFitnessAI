@@ -596,3 +596,11 @@ End-user E2E audit (testing agent + manual verification):
 - POST /api/onboarding/projects/{id}/ai-summary: returns plain-English status, risks, next_best_actions, missing_info, go_live_ready.
 - Frontend: ImportWizard map step gets "Ask AI to map" (applies AI mapping + shows issues banner); project detail checklist tab gets "AI summary" (summary/next-actions/risks panel). Both labelled advisory-only; human still drives validate/commit/go-live.
 - Verified: ai-analyze suggested 'contacts' high-confidence + mapped 5 aliased cols + flagged bad email/phone; ai-summary returned sensible next actions; UI smoke showed the AI summary panel rendering a live GPT-4o response. Test data cleaned.
+
+## 2026-06-30 — Comms Centre: "Import email → AI rebuild"
+- New feature: drag-and-drop / paste any existing email into the Email Builder and AI rebuilds it into editable, on-brand template blocks.
+- Supported inputs: .eml, Outlook .msg, HTML file, pasted HTML/text, image screenshot (vision), PDF.
+- Linked (absolute http/https) images are pulled into image blocks automatically; embedded (cid)/screenshot images can't be hosted so a placeholder + a human-readable note is surfaced (toast) telling the user to upload them.
+- Backend: new POST /api/comms/ai/import-email (routes/comms_intel.py) accepts multipart (file optional + text field) → utils/email_ingest.parse_email() normalises every format → utils/comms_ai.import_email_to_blocks() (gpt-4o) returns {subject,preview,blocks,notes,source_kind}. Route tolerates both {type,props} and {blocktype:{props}} block shapes.
+- Frontend: EmailBuilder.js gets a new "Import" toolbar button (data-testid builder-import) + ImportModal (dropzone, file input, paste textarea, rebuild button). applyImported() wraps returned blocks with logo+footer and fills subject.
+- Verified: backend curl/requests for pasted HTML (4 blocks, image src preserved) and .eml with cid image (note flagged); testing agent confirmed full UI flow 100% (paste→rebuild→canvas populated, modal auto-close, subject filled).
