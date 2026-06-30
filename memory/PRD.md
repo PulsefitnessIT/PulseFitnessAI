@@ -1,3 +1,30 @@
+# ═══ 2026-06-30 · CRITICAL BUGFIX · Master Admin portal button entered WRONG Pulse org (VERIFIED) ═══
+Report (production, recurring loop): Lee (master admin) still couldn't see all modules on "Pulse Fitness LTD"
+despite enabling them. Screenshots showed the "Pulse Fitness Portal" quick button impersonating
+`portal+df723011@pulse-fitness.portal` (org NAMED "Pulse Fitness") and landing on /pulse — NOT "Pulse Fitness
+Ltd" (lee.somers@pulsefitness.com, the org where all modules were enabled).
+
+ROOT CAUSE: `pulse_portal_login` was hardcoded to `find_one({"name": "Pulse Fitness"})`. Production has FOUR
+overlapping orgs (Pulse Fitness / Pulse Fitness Ltd / Pulse Fitness AI / Pulse Fitness AI Admin). The button
+kept entering the stray near-empty "Pulse Fitness" org instead of the real operator company "Pulse Fitness Ltd".
+Compounded by: (a) old code routed to /pulse not /dashboard; (b) user on production with no redeploy of prior fix.
+
+FIX (routes/master_admin_users.py `pulse_portal_login`):
+- Now resolves the operator company across all `/pulse\s*fitness/i` orgs, ranking: exclude internal "...AI"/
+  "...Admin" → prefer Ltd/Limited → most enabled modules → most users. Self-heals the chosen org to full +
+  all modules (idempotent, merges rather than overwrites). Frontend already routes to /dashboard.
+- VERIFIED on preview by mirroring prod (stray "Pulse Fitness" ops-only + full "Pulse Fitness Ltd"): button
+  now returns "Pulse Fitness Ltd" and /auth/me shows all 4 modules.
+
+IMMEDIATE WORKAROUND (no redeploy): Master Admin → org picker (▼ next to Pulse Fitness Portal) → pick
+"Pulse Fitness Ltd" → per-org switch already routes to /dashboard with all modules.
+ACTION (production): redeploy pulsefitness.ai for the quick button itself to target the right org.
+FOLLOW-UP IDEA (offered to user): explicit "operator company" pin flag in Master Admin + duplicate-org cleanup.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-29 · ANALYSIS + FEATURE · Sicon import-readiness audit + Phase-1 import gaps closed ═══
 Founder asked: is pulsefitness.ai ready to auto-import customers/equipment/contracts from Sicon once
 credentials are entered, and where are the gaps? Scale: 5,000+ customers, 300,000 equipment.

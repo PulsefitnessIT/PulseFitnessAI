@@ -1266,25 +1266,56 @@ async def _issue_org_portal_token(org: dict, actor: dict, request: Request) -> s
 
 @router.post("/master-admin/pulse-portal-login")
 async def pulse_portal_login(request: Request, user: dict = Depends(get_current_user)):
-    """Log a Pulse master admin straight into the Pulse Fitness (LTD) portal."""
+    """Log a Pulse master admin straight into the Pulse Fitness (LTD) portal.
+
+    Resolves the operator's REAL company robustly. Several near-duplicate orgs
+    can exist ("Pulse Fitness", "Pulse Fitness Ltd", "Pulse Fitness AI", ...);
+    a naive name=="Pulse Fitness" lookup landed the admin in a near-empty org
+    that only showed Operations. We now prefer the genuine operator company
+    (Ltd/Limited), then the pulse-fitness org with the MOST modules already
+    enabled, excluding the internal "...AI" / "...Admin" orgs.
+    """
     require_master_admin(user)
-    org = await db.organizations.find_one({"name": "Pulse Fitness"}, {"_id": 0})
-    if not org:
+    candidates = await db.organizations.find(
+        {"name": {"$regex": "pulse\\s*fitness", "$options": "i"}}, {"_id": 0},
+    ).to_list(50)
+    if not candidates:
         raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
-    # Self-heal: Pulse Fitness (LTD) is the operator's OWN company — it must be a
-    # FULL platform with every module enabled so the master admin always lands on
-    # the complete operator dashboard. Older records had account_type/modules unset,
-    # which made resolve_module_access fall back to pulse_pro defaults (Operations
-    # only). Idempotently force `full` + all modules on, then re-read.
+
+    def _enabled_count(o: dict) -> int:
+        mods = o.get("modules") or {}
+        return sum(1 for v in mods.values() if isinstance(v, dict) and v.get("enabled"))
+
+    def _rank(o: dict):
+        name = (o.get("name") or "").strip().lower()
+        is_internal = ("ai" in name.split()) or ("admin" in name)   # exclude "Pulse Fitness AI/Admin"
+        is_ltd = name.endswith("ltd") or name.endswith("limited") or " ltd" in name or " limited" in name
+        # Higher tuple sorts first: prefer non-internal, then Ltd/Limited,
+        # then most enabled modules, then most users, then has an owner.
+        return (
+            0 if is_internal else 1,
+            1 if is_ltd else 0,
+            _enabled_count(o),
+            o.get("user_count", 0) or 0,
+        )
+
+    org = sorted(candidates, key=_rank, reverse=True)[0]
+
+    # Self-heal: the chosen operator company must be a FULL platform with every
+    # module enabled so the admin always lands on the complete operator
+    # dashboard (idempotent — only writes when something is missing).
     full_modules = {
         k: {"enabled": True, "tier": "pro", "source": "admin"}
         for k in ("operations", "memberships", "marketing", "crm")
     }
     full_modules["crm"]["business_enabled"] = True
-    if org.get("account_type") != "full" or not org.get("modules"):
+    if org.get("account_type") != "full" or _enabled_count(org) < 4:
+        merged = {**(org.get("modules") or {})}
+        for k, v in full_modules.items():
+            merged[k] = {**(merged.get(k) or {}), **v}
         await db.organizations.update_one(
             {"id": org["id"]},
-            {"$set": {"account_type": "full", "modules": full_modules}},
+            {"$set": {"account_type": "full", "modules": merged}},
         )
         org = await db.organizations.find_one({"id": org["id"]}, {"_id": 0})
     token = await _issue_org_portal_token(org, user, request)
