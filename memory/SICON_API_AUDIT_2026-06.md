@@ -59,6 +59,22 @@ come from a Sage 200 export / Sicon Asset Management API / DB extract / CSV.
 HTTP Basic (username+password service account) over TLS + `companyId` query param on every call.
 Stored Fernet-encrypted per-org in `sicon_config`. Same creds drive all three APIs (different base routes).
 
+## CoreWebAPI.R260200c — Sage 200 Core WebAPI (added 2026-06-29, 135 paths)
+Doc: https://webapidocs.blob.core.windows.net/published/Redoc.html?page=CoreWebAPI.R260200c
+spec JSON: https://webapidocs.blob.core.windows.net/published/CoreWebAPI.R260200c.json
+- ✅ Customers: `GET /api/Customer/GetCustomers` (Reference, **AmendedAfterDate** → incremental sync),
+  `/GetCustomer`, `/SearchForCustomers`, `POST /api/Customers`, `/Customers/Contacts`, delivery addresses.
+  → SECOND (better) route to auto-import customers + ongoing delta sync.
+- Suppliers: `GET /api/Supplier/GetSuppliers`, `/Suppliers`, `/Suppliers/Contacts`.
+- Stock: `GetStockItemsByCode`, `StockItem/Search` (paged), Create/Amend, Add/Transfer/WriteOff,
+  **traceable items** (`GetTraceableItem` by StockItemCode+IdentificationNo/serial) — product/SKU + stock
+  control, NOT installed assets.
+- SOP (sales orders/quotes/despatch/invoice), SL/PL ledgers, SalesInvoices, PurchaseDocuments, credit notes,
+  payments/receipts, Nominal journals/ledger, CashBook, PriceBook.
+- ⚠️ **0 "equipment"/"asset" mentions.** Only Sage traceable stock (serial/batch) — NOT the Sicon Service
+  equipment register. Confirms equipment auto-pull is still blocked (Sicon Service has no list endpoint).
+- 🔴 No contracts here (Sicon-specific, push-only).
+
 ## Recommended migration strategy (for 5k customers / 300k equipment)
 1. **Customers + contacts** → live CRM API pull (paged, idempotent on Sage ref / sicon_company_id).
 2. **Equipment** → bulk CSV/Excel/Sage-export pipeline (no Sicon API). MUST be batched + background +
