@@ -12,11 +12,12 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
 
 from utils.auth import get_current_user
 from utils.database import db
 from utils import comms_ai
+from utils import email_ingest
 from routes.marketing.helpers import _org_id, _now_iso, logger
 from routes.comms import _ANY_COMMS_MODULE, _get_owned, render_blocks_to_html
 
@@ -472,6 +473,80 @@ async def ai_write(body: dict = Body(...), user: dict = Depends(get_current_user
         if t in ("heading", "text", "button"):
             blocks.append({"id": f"ai{len(blocks)}", "type": t, "props": b.get("props") or {}})
     return {"subject": res.get("subject", ""), "preview": res.get("preview", ""), "blocks": blocks}
+
+
+_ALLOWED_IMPORT_BLOCKS = {"heading", "text", "button", "image", "divider", "spacer"}
+_MAX_IMPORT_BYTES = 15 * 1024 * 1024
+
+
+@router.post("/ai/import-email", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def ai_import_email(
+    file: Optional[UploadFile] = File(default=None),
+    text: str = Form(default=""),
+    user: dict = Depends(get_current_user),
+):
+    """Rebuild a dropped/pasted email into editable template blocks.
+
+    Accepts a file (.eml/.msg/.html/.txt/.pdf/image) or pasted text/HTML.
+    """
+    file_bytes, filename, content_type = None, "", ""
+    if file is not None:
+        file_bytes = await file.read()
+        if file_bytes and len(file_bytes) > _MAX_IMPORT_BYTES:
+            raise HTTPException(413, "File is too large — keep it under 15MB.")
+        filename = file.filename or ""
+        content_type = file.content_type or ""
+
+    if not file_bytes and not (text or "").strip():
+        raise HTTPException(400, "Drop an email file or paste the email content.")
+
+    parsed = email_ingest.parse_email(file_bytes, filename, text, content_type)
+
+    res = await comms_ai.import_email_to_blocks(
+        text_content=parsed.get("text", ""),
+        available_images=parsed.get("images", []),
+        image_b64=parsed.get("image_b64"),
+        file_path=parsed.get("file_path"),
+        file_mime=parsed.get("file_mime"),
+    )
+    if res is None:
+        raise HTTPException(503, "Couldn't read that email right now. Please try again or paste the text.")
+
+    notes = [str(n).strip() for n in (res.get("notes") or []) if str(n).strip()]
+    blocks = []
+    missing_imgs = 0
+    for b in res.get("blocks", []):
+        if not isinstance(b, dict):
+            continue
+        t = b.get("type")
+        props = b.get("props")
+        # Tolerate the alternate {blocktype: {..props..}} shape the model sometimes emits.
+        if t is None:
+            for k, v in b.items():
+                if k in _ALLOWED_IMPORT_BLOCKS and isinstance(v, dict):
+                    t, props = k, v
+                    break
+        if t not in _ALLOWED_IMPORT_BLOCKS:
+            continue
+        props = props if isinstance(props, dict) else {}
+        if t == "image" and not (props.get("src") or "").strip():
+            missing_imgs += 1
+        blocks.append({"id": f"imp{len(blocks)}", "type": t, "props": props})
+
+    # If the source clearly had embedded images we couldn't host, make it explicit.
+    embedded = parsed.get("embedded_image_count", 0)
+    if (embedded or missing_imgs) and not any("image" in n.lower() for n in notes):
+        notes.append(
+            "Some images were embedded in the original and couldn't be pulled in automatically — "
+            "placeholders were added so you can upload them.")
+
+    return {
+        "subject": res.get("subject", ""),
+        "preview": res.get("preview", ""),
+        "blocks": blocks,
+        "notes": notes,
+        "source_kind": parsed.get("kind", "text"),
+    }
 
 
 @router.post("/ai/improve", dependencies=[Depends(_ANY_COMMS_MODULE)])

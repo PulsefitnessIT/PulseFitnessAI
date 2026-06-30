@@ -1,0 +1,24 @@
+{
+  "summary": "Validated the new 'Import email -> AI rebuild' feature in the Comms Centre Email Builder end-to-end via Playwright as owner@isodemo.com. Login, navigation to /comms, opening an existing campaign in EmailBuilder, the new 'Import' toolbar button, the Import modal with all required testids, paste->Rebuild flow with the sample HTML, API call to POST /api/comms/ai/import-email (200, 4 blocks, subject 'Summer Sale!', linked Unsplash image pulled, no flags), modal auto-close, canvas population (heading + paragraph + image + button), and subject input populated. Toast 'Email rebuilt into editable blocks' displayed. All acceptance criteria met.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EmailBuilder.js is large (~600+ LOC with ImportModal inline) - consider splitting ImportModal into its own file for maintainability.",
+    "Import modal does not show a loading spinner state explicitly inside the modal beyond disabling the submit button; the AI call can take 10-40s, so an inline progress indicator would improve UX.",
+    "When pasted HTML upload returns notes (e.g., cid: embedded images), the toast surfaces them but they should also be persisted on the affected image block (placeholder hint) so users notice them after the toast dismisses."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only test)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None. Used existing 'Join for £15' draft campaign on Iso Demo Fitness.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature is live and working. Acceptance flow: /login -> dashboard -> /comms -> Campaigns tab -> click pencil on 'Join for £15' (campaign-edit-<id>) -> EmailBuilder opens -> click 'builder-import' -> modal 'import-email-modal' opens with import-dropzone, import-file-input, import-paste, import-submit. Pasting HTML into import-paste and clicking import-submit posts to /api/comms/ai/import-email (gpt-4o, ~5-15s in our run), closes modal, fills builder-subject and adds blocks to builder-canvas (image/heading/paragraph/button observed). Linked Unsplash image URL is preserved.",
+  "rca of the issue": "N/A - no issues found."
+}

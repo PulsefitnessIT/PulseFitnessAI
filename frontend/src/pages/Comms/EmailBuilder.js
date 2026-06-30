@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import {
   Type, Heading1, Image as ImageIcon, MousePointerClick, Minus, MoveVertical,
   Share2, Video, Code, LayoutPanelTop, Sparkles, Monitor, Smartphone, Moon,
-  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2, Rocket, Clock, Users, FlaskConical, Plus,
+  Send, Save, Trash2, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle, CheckCircle2, Wand2, Loader2, Rocket, Clock, Users, FlaskConical, Plus, Upload, FileUp, Mail, Info,
 } from 'lucide-react';
 
 const CYAN = '#19CDFF';
@@ -166,6 +166,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
   const [showTest, setShowTest] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [aiBrief, setAiBrief] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [subjIdeas, setSubjIdeas] = useState([]);
@@ -195,6 +196,24 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'AI is unavailable right now');
     } finally { setAiBusy(false); }
+  };
+
+  const applyImported = (data) => {
+    const newBlocks = (data.blocks || []).map((b) => ({ id: uid(), type: b.type, props: b.props || {} }));
+    if (newBlocks.length) {
+      setBlocks([
+        { id: uid(), type: 'logo', props: { ...DEFAULTS.logo } },
+        ...newBlocks,
+        { id: uid(), type: 'footer', props: { ...DEFAULTS.footer } },
+      ]);
+    }
+    if (data.subject) setSubject(data.subject);
+    setShowImport(false);
+    if ((data.notes || []).length) {
+      toast.warning(data.notes[0], { duration: 7000 });
+    } else {
+      toast.success('Email rebuilt into editable blocks — tweak it as you like');
+    }
   };
 
   const aiSuggestSubjects = async () => {
@@ -338,6 +357,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
             <span className={errors ? 'text-rose-600' : 'text-slate-600'}>{errors} err · {warns} warn</span>
           </div>
           <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="builder-ai"><Wand2 size={14} />AI</button>
+          <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-import"><FileUp size={14} />Import</button>
           <button onClick={() => setShowAB(true)} className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-sm font-semibold ${ab.enabled ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`} data-testid="builder-ab"><FlaskConical size={14} />A/B{ab.enabled ? ` · ${variants.length}` : ''}</button>
           <button onClick={() => setShowTest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-test"><Send size={14} />Test</button>
           <button onClick={async () => { await save(); setShowSend(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="builder-schedule"><Rocket size={14} />Send</button>
@@ -445,6 +465,9 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
         </div>
       )}
 
+      {showImport && (
+        <ImportModal API={API} headers={headers} onClose={() => setShowImport(false)} onImported={applyImported} />
+      )}
       {showTest && (
         <div className="fixed inset-0 z-[210] bg-black/40 flex items-center justify-center p-4" onClick={() => setShowTest(false)}>
           <div className="bg-white rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} data-testid="test-send-modal">
@@ -500,6 +523,98 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
       )}
     </div>
   ), document.body);
+}
+
+function ImportModal({ API, headers, onClose, onImported }) {
+  const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [file, setFile] = useState(null);
+  const [pasted, setPasted] = useState('');
+  const inputRef = useRef(null);
+
+  const ACCEPT = '.eml,.msg,.html,.htm,.txt,.pdf,.png,.jpg,.jpeg,.webp,.gif,message/rfc822';
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) { setFile(f); setPasted(''); }
+  };
+
+  const submit = async () => {
+    if (!file && !pasted.trim()) { toast.error('Drop an email file or paste the content'); return; }
+    setBusy(true);
+    try {
+      const form = new FormData();
+      if (file) form.append('file', file);
+      if (pasted.trim()) form.append('text', pasted);
+      const r = await axios.post(`${API}/api/comms/ai/import-email`, form, {
+        headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+      });
+      if (!(r.data.blocks || []).length) {
+        toast.error('Could not detect any content in that email');
+      } else {
+        onImported(r.data);
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Import failed — try pasting the email text instead');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[210] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="import-email-modal">
+        <h3 className="flex items-center gap-2 font-bold text-lg text-slate-900 mb-1 pulse-font-heading"><FileUp size={18} className="text-[#0891b2]" />Import an email</h3>
+        <p className="text-sm text-slate-500 mb-4">Drop any email and AI will rebuild it into editable, on-brand blocks. Supports <strong>.eml, .msg, HTML, .txt, PDF</strong> and <strong>screenshots</strong>.</p>
+
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          onClick={() => inputRef.current?.click()}
+          data-testid="import-dropzone"
+          className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${dragOver ? 'border-[#19CDFF] bg-cyan-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'}`}
+        >
+          <Upload size={26} className="mx-auto text-slate-400 mb-2" />
+          {file ? (
+            <p className="text-sm font-semibold text-slate-700 flex items-center justify-center gap-1.5"><Mail size={14} />{file.name}</p>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-slate-700">Drag &amp; drop an email here</p>
+              <p className="text-xs text-slate-400 mt-0.5">or click to browse</p>
+            </>
+          )}
+          <input ref={inputRef} type="file" accept={ACCEPT} className="hidden" data-testid="import-file-input"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setPasted(''); } }} />
+        </div>
+
+        <div className="flex items-center gap-2 my-3 text-[11px] uppercase tracking-wider font-bold text-slate-300">
+          <div className="flex-1 h-px bg-slate-200" />or paste<div className="flex-1 h-px bg-slate-200" />
+        </div>
+
+        <textarea
+          value={pasted}
+          onChange={(e) => { setPasted(e.target.value); if (e.target.value) setFile(null); }}
+          rows={5}
+          placeholder="Paste the email body or HTML here…"
+          data-testid="import-paste"
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:border-[#19CDFF] focus:outline-none"
+        />
+
+        <div className="flex items-start gap-1.5 mt-3 text-xs text-slate-500 bg-slate-50 rounded-lg p-2.5">
+          <Info size={13} className="mt-0.5 shrink-0 text-slate-400" />
+          <span>Linked images are pulled in automatically. Embedded or screenshot images can't be hosted — we'll add a placeholder and flag it so you can upload them.</span>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button onClick={submit} disabled={busy} className="flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-bold text-[#03212b] disabled:opacity-50" style={{ background: CYAN }} data-testid="import-submit">
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}{busy ? 'Rebuilding…' : 'Rebuild with AI'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SendModal({ campaign, API, headers, onClose, onDone }) {

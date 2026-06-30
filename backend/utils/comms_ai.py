@@ -103,6 +103,87 @@ async def write_email(brief: str, campaign_type: str, tone: str):
     return None
 
 
+_IMPORT_SYSTEM = (
+    _BRAND + " You are an email migration assistant. You are given the content of an "
+    "existing email (as extracted text/HTML, and/or an image or PDF of the email). "
+    "Rebuild it as a Pulse Fitness AI drag-and-drop template, faithfully preserving the "
+    "content, copy, hierarchy and call-to-action order, but re-styled cleanly on-brand.\n"
+    "Return ONLY JSON: {\"subject\": str, \"preview\": str, "
+    "\"blocks\": [{\"type\": str, \"props\": {...}}], \"notes\": [str]}.\n"
+    "Each block MUST be an object with exactly two keys: \"type\" (a string) and "
+    "\"props\" (an object). Example block: {\"type\": \"heading\", \"props\": "
+    "{\"text\": \"Welcome\", \"size\": 26, \"align\": \"left\"}}.\n"
+    "Allowed block types and their props:\n"
+    "- heading: {text, size (20-30), align, color}\n"
+    "- text: {text, align}  (one paragraph each; split long copy into multiple text blocks)\n"
+    "- button: {text, url}  (use the original link if present, else '{{booking_link}}')\n"
+    "- image: {src, alt}\n"
+    "- divider: {}\n"
+    "- spacer: {height}\n"
+    "Rules:\n"
+    "1. Use the email's real subject line if present, otherwise infer a fitting one.\n"
+    "2. For every image in the original: if a usable absolute URL appears in AVAILABLE_IMAGES, "
+    "set props.src to that exact URL and write descriptive props.alt. If an image clearly existed "
+    "but NO usable URL is available (inline/embedded/screenshot), still add an image block with "
+    "src=\"\" and a descriptive props.alt, AND append a human-readable line to \"notes\" such as "
+    "'The header image could not be pulled in automatically — add it manually.'\n"
+    "3. Preserve merge tags like {{first_name}} if present. Do not invent prices, dates or facts.\n"
+    "4. Do NOT add a logo or footer block — the builder adds those. 4-14 blocks total."
+)
+
+
+async def import_email_to_blocks(text_content: str, available_images: list,
+                                 image_b64: Optional[str] = None,
+                                 file_path: Optional[str] = None,
+                                 file_mime: Optional[str] = None):
+    """Reverse-engineer a dropped email into editable template blocks.
+
+    ``text_content`` is the extracted text/HTML; ``available_images`` is a list
+    of {url, alt} pulled from the source; ``image_b64`` / ``file_path`` feed the
+    vision model for screenshots/PDFs. Returns the block JSON or None.
+    """
+    key = os.environ.get("EMERGENT_LLM_KEY")
+    if not key:
+        return None
+    try:
+        from emergentintegrations.llm.chat import (
+            LlmChat, UserMessage, ImageContent, FileContentWithMimeType,
+        )
+        chat = LlmChat(
+            api_key=key, session_id=f"import_{datetime.now().timestamp()}",
+            system_message=_IMPORT_SYSTEM,
+        ).with_model("openai", "gpt-4o")
+
+        parts = []
+        if text_content and text_content.strip():
+            parts.append("EMAIL CONTENT (extracted):\n" + text_content.strip()[:18000])
+        if available_images:
+            parts.append("AVAILABLE_IMAGES (usable URLs you may place):\n"
+                         + json.dumps(available_images[:20], default=str))
+        if image_b64 or file_path:
+            parts.append("An image/PDF of the email is attached — read its layout and copy.")
+        if not parts:
+            return None
+        prompt = "\n\n".join(parts)
+
+        file_contents = []
+        if image_b64:
+            file_contents.append(ImageContent(image_base64=image_b64))
+        if file_path and file_mime:
+            file_contents.append(FileContentWithMimeType(file_path=file_path, mime_type=file_mime))
+
+        msg = UserMessage(text=prompt, file_contents=file_contents) if file_contents else UserMessage(text=prompt)
+        raw = (await chat.send_message(msg)).strip()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("[comms-ai] import failed: %s", exc)
+        return None
+
+    data = _extract_json(raw)
+    if isinstance(data, dict) and isinstance(data.get("blocks"), list):
+        return data
+    return None
+
+
 async def improve_text(text: str, goal: str):
     system = _BRAND + " Return ONLY the improved text, no preamble, no quotes."
     prompt = (
