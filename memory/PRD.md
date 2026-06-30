@@ -1,3 +1,36 @@
+# ═══ 2026-06-30 · DEPLOY BLOCKER FIXED · weak JWT_SECRET aborted production startup ═══
+SYMPTOM: production redeploy of "fitness-ai-migrate" (pulsefitness.ai) FAILED — k8s never became ready,
+nginx /health → "connection refused". Because the deploy failed, production kept running the OLD build, so
+(a) Lee still landed on the Master Dashboard and (b) the role dropdown still showed "Owner" — none of this
+session's code fixes were live.
+
+ROOT CAUSE: backend aborted on startup. `utils/secrets_audit.py::run_startup_audit(abort_on_critical_in_prod=
+True)` calls sys.exit(2) in production (APP_ENV=production) when JWT_SECRET is <32 chars or contains a known-
+weak substring. backend/.env had `JWT_SECRET=gymaxis-ai-secret-key-2026` (26 chars, weak) → CRITICAL → exit(2)
+→ /health never served → deploy timeout. (Preview has APP_ENV unset, so it never aborted there.)
+
+FIX: set a strong JWT_SECRET in backend/.env (64-char secrets.token_hex(32), no 'gymaxis'). Verified by
+simulating the production audit (APP_ENV=production): 0 CRITICAL findings (only 1 HIGH: CORS '*', which does
+NOT abort). Backend reboots clean, /health=200, login works with the new secret.
+deployment_agent scan: compilation passes, no other blockers (1 WARN: .gitignore blocks .env — not the actual
+blocker since the deploy snapshot already carried env values; primary blocker was the weak value).
+
+⚠️ JWT_SECRET rotation invalidates ALL existing tokens → everyone re-logs in (expected; also explains the
+"session expired" toast Lee saw).
+
+USER ACTIONS:
+1. REDEPLOY pulsefitness.ai — should now succeed.
+2. After deploy: re-set lee.somers@pulsefitness.com to "Master Admin" in Pulse Fitness Ltd → People. Since
+   Pulse Fitness Ltd is Pulse-branded, role becomes pulse_master_admin → dropdown shows "Master Admin (Pulse)".
+3. Lee re-logs in → lands on the Pulse Fitness Ltd platform (org_is_operator routing) with Master Admin in the
+   profile menu.
+NOTE: if production uses a separate deployment env-var config (not the snapshotted backend/.env), the strong
+JWT_SECRET must be set there too (≥32 random chars). If the redeploy still fails, contact Emergent Support.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-30 · FEATURE · Master admin lands on operator platform (Pulse Fitness Ltd) (VERIFIED API) ═══
 User (Lee Somers): the "Pulse Fitness Portal" button dead-ends at the Master Admin screen. When
 lee.somers@pulsefitness.com (Pulse staff + master admin, owner of "Pulse Fitness Ltd") logs in, they should
