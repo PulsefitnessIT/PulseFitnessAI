@@ -1098,7 +1098,7 @@ useEffect(() => {
  </div>
  </div>
  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
- <Select value={u.role || 'staff'} onValueChange={(v) => onEditUser && onEditUser(u.id, { role: v })}>
+ <Select value={u.is_master_admin ? 'master_admin' : ((u.is_pulse_admin || u.role === 'pulse_master_admin') ? 'pulse_master_admin' : (u.role || 'staff'))} onValueChange={(v) => onEditUser && onEditUser(u.id, { role: v })}>
  <SelectTrigger className={`h-7 text-xs border w-24 ${u.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' : u.role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`} data-testid={`user-role-${u.id}`}><SelectValue /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
  <SelectItem value="owner">Owner</SelectItem>
@@ -1109,7 +1109,7 @@ useEffect(() => {
      role→engineer and deactivates it when switching away. */}
  <SelectItem value="engineer">Engineer</SelectItem>
  <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
- {u.role === 'pulse_master_admin' && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
+ {(u.role === 'pulse_master_admin' || u.is_pulse_admin) && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
  </SelectContent>
  </Select>
  {u.user_type === 'crm' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">CRM</Badge>}

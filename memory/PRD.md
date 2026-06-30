@@ -1,3 +1,28 @@
+# ═══ 2026-06-30 · BUGFIX (UX) · Role dropdown didn't reflect Master Admin promotion (VERIFIED) ═══
+SYMPTOM (production, deploy now succeeded): promoting Lee Somers to "Master Admin" → "User updated" toast,
+but the role dropdown still showed "Owner".
+
+ROOT CAUSE: NOT a failed update — the grant worked. For a NON-Pulse-brand org, `master_admin_users.py` edit
+stores a full admin as `role="owner"` + `is_master_admin=True` (the role string intentionally stays "owner";
+the admin grant is a separate flag). The org People dropdown rendered `value={u.role}` → showed "Owner", with
+no master-admin indication. So Lee IS already a master admin on production — the UI just didn't show it.
+(Pulse Fitness Ltd resolved as non-Pulse: account_type 'full', brand not 'pulse'/'pulse_fitness'.)
+
+FIX (frontend, AdminOrganizations.js): the per-user role <Select> now shows the EFFECTIVE status —
+`is_master_admin → 'master_admin'` ("Master Admin (full platform)"), `is_pulse_admin/role==pulse_master_admin
+→ 'pulse_master_admin'` ("Master Admin (Pulse)"), else the stored role. The pulse SelectItem also renders when
+is_pulse_admin. The `/master-admin/users` payload already includes is_master_admin/is_pulse_admin per user.
+
+VERIFIED (curl): promote a user in non-Pulse full org → payload `role: owner, is_master_admin: True` → dropdown
+now shows "Master Admin (full platform)". Frontend compiles clean.
+
+ACTION: redeploy to push the display fix. NOTE: Lee is ALREADY a master admin on production (grant succeeded);
+with org_is_operator routing, Lee lands on the Pulse Fitness Ltd platform with Master Admin in the profile menu.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-30 · DEPLOY BLOCKER FIXED · weak JWT_SECRET aborted production startup ═══
 SYMPTOM: production redeploy of "fitness-ai-migrate" (pulsefitness.ai) FAILED — k8s never became ready,
 nginx /health → "connection refused". Because the deploy failed, production kept running the OLD build, so
