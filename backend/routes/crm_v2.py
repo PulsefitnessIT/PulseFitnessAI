@@ -132,6 +132,31 @@ class ActivityFilters(BaseModel):
     type: str = ""
 
 
+async def _maybe_regional_activity_scope(user: dict, kwargs: dict):
+    """For the GLOBAL appointments/calendar view (no specific entity
+    filter), restrict regional staff to activities in their area — i.e.
+    linked to a company in one of their assigned territories, or owned by
+    them. Returns an extra query fragment, or None to leave unchanged.
+
+    Safe by design: admins/owners and any user with no assigned territory
+    are unaffected, and record-scoped reads (company_id/contact_id/etc.)
+    are never double-filtered.
+    """
+    if any(kwargs.get(f) for f in ("company_id", "contact_id", "opportunity_id", "case_id", "asset_id")):
+        return None
+    from routes.crm_permissions import is_unrestricted
+    if is_unrestricted(user):
+        return None
+    from routes.crm_territories import covered_territory_ids
+    tids = await covered_territory_ids(user)
+    if not tids:
+        return None  # not regional staff → behaviour unchanged
+    org = user.get("organization_id")
+    comp_ids = [c["id"] async for c in db.crm2_companies.find(
+        {"organization_id": org, "territory_id": {"$in": tids}}, {"_id": 0, "id": 1})]
+    return {"$or": [{"company_id": {"$in": comp_ids}}, {"owner_id": user.get("id")}]}
+
+
 @router.get("/activities")
 async def list_activities(
     filters: ActivityFilters = Depends(),
@@ -141,6 +166,9 @@ async def list_activities(
 ):
     """List activities filtered by any linked entity."""
     q = _build_activity_filter(user, **filters.dict())
+    regional = await _maybe_regional_activity_scope(user, filters.dict())
+    if regional:
+        q = {"$and": [q, regional]}
     total = await db.crm2_activities.count_documents(q)
     items = await db.crm2_activities.find(q, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return {"activities": items, "total": total}

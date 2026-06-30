@@ -60,6 +60,24 @@ def _require_team_admin(user: dict):
 
 # ── Team hierarchy helpers ───────────────────────────────────────────
 
+async def covered_territory_ids(user: dict) -> list[str]:
+    """Territory ids where this user is an assigned rep — i.e. their 'area'.
+
+    Used to scope the global appointments/calendar so regional staff only
+    see what's happening in the patch they cover. Empty list = the user
+    isn't assigned to any territory (treated as 'not regional staff').
+    """
+    org = user.get("organization_id")
+    uid = user.get("id")
+    if not org or not uid:
+        return []
+    cur = db.crm_territories.find(
+        {"organization_id": org, "assigned_rep_ids": uid, "archived": {"$ne": True}},
+        {"_id": 0, "id": 1},
+    )
+    return [t["id"] async for t in cur]
+
+
 async def collect_team_ids(user_id: str, org_id: str, visited: set | None = None) -> list[str]:
     """Return `[user_id]` + every direct/indirect subordinate.
 

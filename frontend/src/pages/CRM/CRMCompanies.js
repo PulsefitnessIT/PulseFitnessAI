@@ -1181,7 +1181,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'overview', label: 'Overview' },
     { id: 'contacts', label: `Contacts (${company.contacts?.length || 0})` },
     { id: 'opportunities', label: `Deals (${company.opportunities?.length || 0})` },
-    { id: 'cases', label: `Cases (${company.cases?.length || 0})` },
+    { id: 'cases', label: `Support Cases (${company.cases?.length || 0})` },
     // Iter 291 — Service & Engineers: surfaces live Service Desk activity
     // (open cases, assigned engineers + where they are now, next PPM) so a
     // CRM sales manager sees the whole Pulse team working as one.
@@ -1380,7 +1380,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
           <div className="space-y-2">
             <div className="flex justify-end">
               <button onClick={() => setShowAddCase(true)} className="text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="company-add-case-btn">
-                <Plus size={12} /> Log case
+                <Plus size={12} /> Log support case
               </button>
             </div>
             {(company.cases || []).map(cs => (
@@ -1392,7 +1392,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 </div>
               </div>
             ))}
-            {(company.cases || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No service cases</p>}
+            {(company.cases || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No support cases logged. For field jobs &amp; engineer visits, see the <strong>Service &amp; Engineers</strong> tab.</p>}
           </div>
         )}
 
@@ -1865,7 +1865,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddCase(false)} data-testid="company-add-case-dialog">
           <div className="rounded-lg max-w-md w-full mx-4 p-5 shadow-2xl" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold" style={{ color: c.text }}>Log a case</h3>
+              <h3 className="font-semibold" style={{ color: c.text }}>Log a support case</h3>
               <button onClick={() => setShowAddCase(false)} className="p-1 hover:opacity-70" style={{ color: c.textDim }} data-testid="company-add-case-close"><X size={16} /></button>
             </div>
             <p className="text-xs mb-3" style={{ color: c.textDim }}>Linked to <b style={{ color: c.text }}>{company.name}</b>.</p>
@@ -1888,7 +1888,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setShowAddCase(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="company-add-case-cancel">Cancel</button>
               <button onClick={handleAddCase} disabled={saving || !caseForm.subject.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="company-add-case-submit">
-                {saving ? 'Logging…' : 'Log case'}
+                {saving ? 'Logging…' : 'Log support case'}
               </button>
             </div>
           </div>

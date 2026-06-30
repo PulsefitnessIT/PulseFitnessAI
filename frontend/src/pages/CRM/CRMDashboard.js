@@ -249,7 +249,7 @@ function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isD
     { label: 'Weighted Forecast', value: fmt(data.weighted_forecast), icon: Target, color: 'var(--color-success-alt)', sub: 'Probability-weighted' },
     { label: 'Won Revenue', value: fmt(data.won_revenue), icon: CurrencyIcon, color: 'var(--color-success-ios)', sub: `${data.win_rate}% win rate` },
     { label: 'Service Revenue YTD', value: fmt(serviceRevenue?.total_net), icon: Wrench, color: 'var(--color-accent-violet)', sub: `${serviceRevenue?.invoice_count || 0} invoices` },
-    { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: data.open_cases > 0 ? 'var(--color-accent-amber)' : 'var(--color-success-alt)', sub: 'Service' },
+    { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: data.open_cases > 0 ? 'var(--color-accent-amber)' : 'var(--color-success-alt)', sub: 'Support' },
     { label: 'Tasks Due', value: data.tasks_due, icon: CheckCircle, color: data.tasks_due > 0 ? 'var(--color-danger-alt)' : 'var(--color-success-alt)', sub: 'Incomplete', click: () => setActiveTab('inbox') },
   ];
   return (
@@ -288,7 +288,7 @@ function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isD
 /* ─── SERVICE ADMIN ─── */
 function _ServiceAdminDash({ data, tasks, wfRuns, isDark, c, setActiveTab }) {
   const kpis = [
-    { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Active service tickets' },
+    { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Active support tickets' },
     { label: 'High Severity', value: data.cases_by_severity?.high || 0, icon: AlertCircle, color: 'var(--color-danger-alt)', sub: 'Urgent' },
     { label: 'Assets', value: data.total_assets, icon: Wrench, color: 'var(--color-info-ios)', sub: 'Installed base' },
     { label: 'Tasks Due', value: data.tasks_due, icon: CheckCircle, color: data.tasks_due > 0 ? 'var(--color-danger-alt)' : 'var(--color-success-alt)', sub: 'Overdue', click: () => setActiveTab('inbox') },
@@ -362,7 +362,7 @@ function _DirectorDash({ data, serviceRevenue, stagnating, wfRuns, isDark, c, na
     { label: 'Won Revenue', value: fmt(data.won_revenue), icon: CurrencyIcon, color: 'var(--color-success-ios)', sub: `${data.won_count || 0} deals won` },
     { label: 'Service Revenue YTD', value: fmt(serviceRevenue?.total_net), icon: Wrench, color: 'var(--color-accent-violet)', sub: `${serviceRevenue?.invoice_count || 0} invoices` },
     { label: 'Win Rate', value: `${data.win_rate}%`, icon: Award, color: data.win_rate >= 50 ? 'var(--color-success-alt)' : 'var(--color-accent-amber)', sub: `${data.lost_count || 0} lost` },
-    { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Service backlog' },
+    { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Support backlog' },
   ];
   return (
     <div className="space-y-5">

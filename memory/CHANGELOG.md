@@ -631,3 +631,8 @@ End-user E2E audit (testing agent + manual verification):
 - P1: CRM "Cases" tab shows crm2_cases (CRM-internal) separately from Service Desk svc_cases — relabel/unify to avoid confusion/duplication.
 - P2: Memberships ↔ CRM person identity (members vs contacts) — audit for a unified person/dedup.
 - P2: Operations/Equipment ↔ Service Desk asset linkage (cases reference assets; confirm single source of truth).
+
+## 2026-06-30 — CRM Cases relabel + regional appointment scoping
+- Relabel: CRM company "Cases" (crm2_cases = support/account cases) → "Support Cases" to disambiguate from Service Desk field cases (now in the "Service & Engineers" tab). Updated tab label, "Log support case" button/modal title, empty state (points users to Service & Engineers for field jobs), and CRM Dashboard tiles ('Service' sub-labels → 'Support').
+- Regional appointment scoping: GET /api/crm/v2/activities now restricts REGIONAL staff (CRM users assigned as a rep on one or more crm_territories) to activities in their area — linked to a company whose territory_id they cover, OR owned by them. Implemented via crm_territories.covered_territory_ids() + crm_v2._maybe_regional_activity_scope(). Safe-by-design: admins/owners (is_unrestricted) and users with NO assigned territory are unaffected (no regression); record-scoped reads (company_id/contact_id/etc.) are never double-filtered, so only the global calendar/appointments list is regionally scoped.
+- Verified: direct logic test — regional rep sees only in-region + own activities (a1,a3), not other regions (a2,a4); owner→unrestricted (None); record-scoped→no extra filter. Frontend compiles.
