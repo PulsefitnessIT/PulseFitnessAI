@@ -337,7 +337,9 @@ export default function AppRoutes({ user, login }) {
                   : <Navigate to="/master-admin" replace />)
               : isIndependentEngineer(user)
                 ? <Navigate to="/partner-engineer" replace />
-                : <LiteDashboardPage />)
+                : (user.is_pulse_admin && user.org_is_operator)
+                    ? <Navigate to="/dashboard" replace />
+                    : <LiteDashboardPage />)
           : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
       } />
       <Route path="/m/:slug/join" element={<JoinPage />} />
