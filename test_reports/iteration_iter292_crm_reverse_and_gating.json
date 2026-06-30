@@ -1,0 +1,52 @@
+{
+  "summary": "Validated CRM Company tab gating + relabel on AlphaCo (Site A) using owner@isodemo.com. Backend GET /api/svc/cases/qa-case-rev/crm-context returns the correct linked=true payload for the same user. However, the Service Desk reverse-view UI could NOT be validated end-to-end because owner@isodemo.com cannot reach /service-desk: the frontend capability gate `view_service_desk` in src/utils/capabilities.js (line 39-40) requires user.is_service_desk OR user.is_master_admin OR isPulseAdmin; iso-owner has all three flags = false (role='owner'), so AppRoutes.js line 486 redirects /service-desk → /login → /dashboard.",
+  "test_scope": "Frontend only — (a) Service Desk case drawer Sales-context (CRM) card on case qa-case-rev/SC-2001, and (b) CRM company tab gating (Service & Engineers + Support Cases relabel) on AlphaCo (iso-cA).",
+  "verified_acceptance_criteria": {
+    "crm_alphaco_company_detail": {
+      "loads_without_errors": true,
+      "tab_list_observed": ["Overview", "Contacts (0)", "Deals (2)", "Support Cases (0)", "Service & Engineers", "Activity (0)", "Timeline", "Sites & Equipment", "Assets (0)", "Quotes (0)", "Tenders (0)", "Drawings", "Site Surveys"],
+      "support_cases_tab_relabel_present": true,
+      "service_and_engineers_tab_visible": true,
+      "service_tab_renders_company-service-tab_testid": true,
+      "service_tab_content_seen": "1 Open case · 0 Engineers active · Open service case row 'SC-2001: Boiler fault · new · unassigned'",
+      "header_data": "Account Owner 'Sarah Jones', SLA: Gold, Total Revenue £8,000, Open Pipeline £24,000 — all rendered"
+    },
+    "service_desk_reverse_view": {
+      "backend_endpoint_GET_/api/svc/cases/qa-case-rev/crm-context": "200 — linked=true, account_owner='Sarah Jones', contract_tier='Gold', open_deal_count=1, open_pipeline_value=24000, won_revenue=8000, active_contract.contract_number='CT-5001', open_deals[0].name='Gym refit 2026'",
+      "frontend_drawer_rendering": "NOT VALIDATED — could not reach /service-desk with the provided owner@isodemo.com credentials (see blocker below)"
+    }
+  },
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Service Desk reverse-view (Sales-context CRM card)",
+        "issue": "BLOCKER — owner@isodemo.com (role=owner, is_service_desk=false, is_master_admin=false, is_pulse_admin=false) is hard-redirected away from /service-desk by the `view_service_desk` capability gate, so the new CrmContextCard inside ServiceCaseDrawer.js cannot be rendered with this account. Backend payload is correct; only the UI is unreachable.",
+        "affected_selectors": ["[data-testid=\"drawer-tab-customer\"]", "[data-testid=\"drawer-crm-context\"]", "[data-testid=\"drawer-crm-owner\"]", "[data-testid=\"drawer-crm-tier\"]", "[data-testid=\"drawer-crm-open-deals\"]", "[data-testid=\"drawer-crm-deal-list\"]", "[data-testid=\"drawer-crm-open\"]"],
+        "evidence": "POST /api/auth/login → user.is_service_desk=false, is_master_admin=false, role='owner'. Navigating to /service-desk lands on /dashboard. capabilities.js:39 `view_service_desk = !!(user?.is_service_desk || user?.is_master_admin) || isPulseAdmin(user)` does NOT grant by role=owner."
+      }
+    ],
+    "design_issues": []
+  },
+  "blocker_root_cause": "Either (a) the seed for iso-owner needs `is_service_desk: true` (preferred since iso-demo-org has Service Desk data seeded — case qa-case-rev, engineer qa-eng-1, PPM qa-ppm-1, contract CT-5001), or (b) the `view_service_desk` capability must also grant managerial role (owner/manager of an org whose account_type='full' includes service ops). Without one of these, the new reverse-view UI is unreachable for the credentials in this review_request.",
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (platform). CRM requires a second login (same creds, separate token).",
+  "critical_code_review_comments": [
+    "capabilities.js `view_service_desk` is too narrow: org owners of an iso-demo-org-style tenant (which clearly runs the desk: has cases, engineers, PPMs) are blocked. Recommend grant for managerial-of-service-org (e.g., user.role in ['owner','manager'] AND org.has_service_ops).",
+    "AppRoutes.js:486 redirects unauthorized users to /login even when already authenticated, causing a confusing /login → /dashboard hop. Prefer Navigate to '/dashboard' (or a 403 page) for capability-gated routes when user is authed.",
+    "ServiceCaseDrawer.js CrmContextCard correctly fetches with `auth()` headers and gracefully renders `drawer-crm-context-unlinked` when linked=false — good defensive UX.",
+    "CRMCompanies.js line 1189 cleanly conditionalises the service tab on `company.has_service_ops` (matches spec). Cases→Support Cases relabel applied on line 1184."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Grant owner@isodemo.com the ability to access /service-desk — either flip is_service_desk=true on the seed user, or relax `view_service_desk` capability so managerial roles of orgs with service ops also pass.",
+    "Once unblocked, re-test: open Service Desk → Cases tab → click `case-row-SC-2001` → click `drawer-tab-customer` → assert all drawer-crm-* testids render with the values verified at the backend (Sarah Jones / Gold / 1 · £24,000 / £8,000 / CT-5001 / 'Gym refit 2026').",
+    "Consider showing a clear 'Service Desk not enabled for your role/org' message instead of silently bouncing to /dashboard."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (1/1 endpoint verified)", "frontend": "50% — CRM gating + relabel: PASS; Service Desk reverse-view UI: BLOCKED" },
+  "seed_data_creation": "None — used pre-seeded iso-demo-org data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AlphaCo tab gating already verified — tabs render in order: Overview / Contacts / Deals / Support Cases / Service & Engineers / Activity / Timeline / Sites & Equipment / Assets / Quotes / Tenders / Drawings / Site Surveys. For the reverse view, the case drawer is opened from /service-desk → Cases tab (data-testid='desk-tab-cases') → click data-testid='case-row-SC-2001' → drawer Customer tab (data-testid='drawer-tab-customer'). All the CrmContextCard testids exist in src/pages/ServiceOps/ServiceCaseDrawer.js lines 142-165 and the backend payload is correct; only the user permission blocks UI access today."
+}

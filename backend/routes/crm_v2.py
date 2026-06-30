@@ -474,6 +474,13 @@ async def get_company(company_id: str, user=Depends(get_crm_user)):
     won_opps = await db.crm2_opportunities.find({"company_id": company_id, "stage": "closed_won", **of}, {"_id": 0, "value": 1}).to_list(500)
     c["total_revenue"] = sum(o.get("value", 0) for o in won_opps)
     c["open_pipeline"] = sum(o.get("value", 0) for o in c["opportunities"] if o.get("stage") not in ("closed_won", "closed_lost"))
+    # Iter 291 — only surface the "Service & Engineers" tab when this org
+    # actually uses Service Ops (has engineers or service cases). Keeps the
+    # CRM clean for customers who don't run the Service Desk.
+    _org = c.get("organization_id")
+    c["has_service_ops"] = bool(
+        await db.svc_engineers.find_one({"organization_id": _org}, {"_id": 1})
+        or await db.svc_cases.find_one({"organization_id": _org}, {"_id": 1}))
     return c
 
 

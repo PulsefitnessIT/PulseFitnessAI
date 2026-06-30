@@ -22,7 +22,7 @@ import axios from 'axios';
 import {
   X, Loader2, Clock, AlertTriangle, MapPin, Phone, Mail, User as UserIcon,
   Wrench, Activity, Save, Send, ChevronRight, Sparkles, CheckCircle2, History, Bell,
-  FileText, Link as LinkIcon, RefreshCw,
+  FileText, Link as LinkIcon, RefreshCw, Briefcase, Award, TrendingUp,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import CoverageBanner from '@/components/shared/CoverageBanner';
@@ -110,6 +110,60 @@ function TabButton({ id, label, icon: Icon, active, onClick, count }) {
       <Icon size={13} /> {label}
       {typeof count === 'number' ? <span className="svc-muted">({count})</span> : null}
     </button>
+  );
+}
+
+function CrmContextCard({ caseId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    axios.get(`${API}/svc/cases/${caseId}/crm-context`, auth())
+      .then((r) => { if (alive) setData(r.data); })
+      .catch(() => { if (alive) setData(null); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [caseId]);
+
+  if (loading) {
+    return <div className="svc-card" style={{ padding: 14 }} data-testid="drawer-crm-context-loading"><Loader2 size={15} className="animate-spin" /></div>;
+  }
+  if (!data || !data.linked) {
+    return (
+      <div className="svc-card" style={{ padding: 12 }} data-testid="drawer-crm-context-unlinked">
+        <div className="inline-flex items-center gap-1.5 svc-muted text-xs"><Briefcase size={12} /> Not linked to a CRM account yet.</div>
+      </div>
+    );
+  }
+  const gbp = (n) => `£${Number(n || 0).toLocaleString('en-GB')}`;
+  return (
+    <div className="svc-card" style={{ padding: 14 }} data-testid="drawer-crm-context">
+      <div className="flex items-center justify-between mb-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold"><Briefcase size={13} /> Sales context (CRM)</span>
+        <a href={`/crm`} className="svc-link text-[11px]" data-testid="drawer-crm-open">Open in CRM</a>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div><span className="svc-muted">Account owner</span><div className="font-medium" data-testid="drawer-crm-owner">{data.account_owner || '—'}</div></div>
+        <div><span className="svc-muted">Contract tier</span><div className="font-medium inline-flex items-center gap-1" data-testid="drawer-crm-tier"><Award size={11} />{data.contract_tier || '—'}</div></div>
+        <div><span className="svc-muted">Open deals</span><div className="font-medium" data-testid="drawer-crm-open-deals">{data.open_deal_count} · {gbp(data.open_pipeline_value)}</div></div>
+        <div><span className="svc-muted">Won revenue</span><div className="font-medium inline-flex items-center gap-1"><TrendingUp size={11} />{gbp(data.won_revenue)}</div></div>
+      </div>
+      {data.active_contract?.contract_number ? (
+        <div className="text-[11px] svc-muted mt-2">Active contract {data.active_contract.contract_number}{data.active_contract.end_date ? ` · ends ${new Date(data.active_contract.end_date).toLocaleDateString('en-GB')}` : ''}</div>
+      ) : null}
+      {(data.open_deals || []).length > 0 ? (
+        <div className="mt-2 space-y-1" data-testid="drawer-crm-deal-list">
+          {data.open_deals.map((d) => (
+            <div key={d.id} className="flex items-center justify-between text-[11px] border-t pt-1" style={{ borderColor: 'var(--svc-border, #e5e7eb)' }}>
+              <span className="truncate">{d.name || 'Deal'}</span>
+              <span className="svc-muted whitespace-nowrap">{(d.stage || '').replace(/_/g, ' ')} · {gbp(d.value)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -676,6 +730,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 {merged.customer_email ? <a href={`mailto:${merged.customer_email}`} className="svc-link inline-flex items-center gap-1"><Mail size={11} /> Email</a> : null}
                 {merged.site_name ? <span className="inline-flex items-center gap-1 svc-muted"><MapPin size={11} /> {merged.site_name}</span> : null}
               </div>
+              <div className="sm:col-span-2"><CrmContextCard caseId={caseId} /></div>
             </div>
           ) : (
             <CommsTab

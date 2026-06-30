@@ -1184,8 +1184,9 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'cases', label: `Support Cases (${company.cases?.length || 0})` },
     // Iter 291 — Service & Engineers: surfaces live Service Desk activity
     // (open cases, assigned engineers + where they are now, next PPM) so a
-    // CRM sales manager sees the whole Pulse team working as one.
-    { id: 'service', label: 'Service & Engineers' },
+    // CRM sales manager sees the whole Pulse team working as one. Hidden
+    // for orgs that don't run the Service Desk.
+    ...(company.has_service_ops ? [{ id: 'service', label: 'Service & Engineers' }] : []),
     // Iter 216h266 — dedicated Activities tab (data already loaded by
     // /companies/{id} timeline). Customer feedback: needed all
     // related activities in one 360° place.

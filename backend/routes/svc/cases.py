@@ -273,6 +273,74 @@ async def get_case(case_id: str, user=Depends(get_current_user)):
     return case
 
 
+@router.get("/cases/{case_id}/crm-context")
+async def case_crm_context(case_id: str, user=Depends(get_current_user)):
+    """Reverse view — surface the CRM/sales context for a case so the
+    Service Desk sees who owns the account, open deals and the contract
+    tier. Resolves the linked CRM company by canonical ``company_id``
+    (name/email fallback). Read-only; never mutates."""
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **_of(user)},
+        {"_id": 0, "company_id": 1, "customer_name": 1, "customer_email": 1, "site_postcode": 1})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    org = (user.get("organization_id") or user.get("service_org_id"))
+
+    company_id = case.get("company_id") or ""
+    if not company_id:
+        from utils.svc_crm_sync import find_company_id
+        company_id = await find_company_id(
+            org, name=case.get("customer_name") or "",
+            email=case.get("customer_email") or "", postcode=case.get("site_postcode") or "")
+
+    if not company_id:
+        return {"linked": False}
+
+    company = await db.crm2_companies.find_one(
+        {"organization_id": org, "id": company_id},
+        {"_id": 0, "id": 1, "name": 1, "type": 1, "status": 1, "sla_tier": 1,
+         "account_owner_name": 1, "owner_name": 1, "phone": 1, "website": 1})
+    if not company:
+        return {"linked": False}
+
+    opps = await db.crm2_opportunities.find(
+        {"organization_id": org, "company_id": company_id},
+        {"_id": 0, "id": 1, "name": 1, "value": 1, "stage": 1, "close_date": 1}
+    ).sort("value", -1).to_list(100)
+    open_deals = [o for o in opps if o.get("stage") not in ("closed_won", "closed_lost")]
+    won = [o for o in opps if o.get("stage") == "closed_won"]
+
+    contracts = await db.crm2_contracts.find(
+        {"organization_id": org, "company_id": company_id},
+        {"_id": 0, "id": 1, "tier": 1, "status": 1, "contract_number": 1,
+         "end_date": 1, "sla": 1}
+    ).sort("created_at", -1).to_list(20)
+    active_contract = next((c for c in contracts if (c.get("status") or "").lower() in ("active", "signed", "live")), contracts[0] if contracts else None)
+
+    return {
+        "linked": True,
+        "company_id": company_id,
+        "company_name": company.get("name"),
+        "account_owner": company.get("account_owner_name") or company.get("owner_name") or "",
+        "account_type": company.get("type"),
+        "account_status": company.get("status"),
+        "contract_tier": (active_contract or {}).get("tier") or company.get("sla_tier") or "",
+        "active_contract": ({
+            "contract_number": active_contract.get("contract_number"),
+            "status": active_contract.get("status"),
+            "end_date": active_contract.get("end_date"),
+        } if active_contract else None),
+        "open_deal_count": len(open_deals),
+        "open_pipeline_value": round(sum(float(o.get("value") or 0) for o in open_deals), 2),
+        "open_deals": [
+            {"id": o.get("id"), "name": o.get("name"), "value": o.get("value"),
+             "stage": o.get("stage"), "close_date": o.get("close_date")}
+            for o in open_deals[:5]
+        ],
+        "won_revenue": round(sum(float(o.get("value") or 0) for o in won), 2),
+    }
+
+
 @router.get("/cases/{case_id}/events")
 async def list_case_events(
     case_id: str, skip: int = 0, limit: int = 100,
