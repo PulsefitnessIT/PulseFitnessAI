@@ -1,3 +1,35 @@
+# ═══ 2026-06-29 · ANALYSIS + FEATURE · Sicon import-readiness audit + Phase-1 import gaps closed ═══
+Founder asked: is pulsefitness.ai ready to auto-import customers/equipment/contracts from Sicon once
+credentials are entered, and where are the gaps? Scale: 5,000+ customers, 300,000 equipment.
+
+AUDIT (grounded in the 3 real Sicon OpenAPI specs — stored in memory/SICON_API_AUDIT_2026-06.md):
+- Customers/contacts: ✅ auto-pullable via CRM.R221200c `GET /api/CRM/Companies` + `/People` (paginated).
+- Contracts: 🔴 Contracts.R260200c is PUSH-ONLY (4 POST endpoints, no GET/list) — cannot pull from Sicon.
+- Equipment (300k): 🔴 no installed-asset list in Service/CRM specs (StockItems = product catalogue, not
+  serial assets). Service embeds `Equipment` only on cases; a generic paged `TEntity` reader exists but no
+  documented equipment route. User confirmed equipment lives in Sicon Service + needs ongoing two-way sync
+  → BLOCKED pending a Sicon equipment/asset API doc or Sage 200 API access (Sage KB link provided, gated).
+- The existing Sicon integration is an OPERATIONAL case/contract SYNC engine, not a bulk onboarding importer.
+
+PHASE-1 BUILD (no API dependency — option C, VERIFIED):
+- NEW Contracts CSV importer: `GET /api/master-admin/bulk-import/templates/contracts` +
+  `POST /api/master-admin/bulk-import/contracts` → `crm2_contracts`. Idempotent on `contract_number` per org,
+  batched insert_many (500), 200MB cap, links CRM company by name, captures `sicon_contract_id`/`sage_reference`.
+  (routes/master_admin_bulk_import.py). Tested: 2 imported, idempotent re-run skipped 2, sicon_contract_id stored.
+- Equipment bulk import now captures `sicon_equipment_id` + `sage_item_id` (template + doc builder) so migrated
+  assets carry Sicon linkage for the ongoing sync. (Already batched + idempotent on serial — good for 300k.)
+- Master Admin → Bulk Imports UI: added a 4th "Bulk import contracts" card + updated equipment columns.
+
+NEXT (Phase 2, when user supplies docs/decision):
+- Build "Import customers from Sicon" auto-pull (CRM API, paginated, idempotent on Sage ref) — feasible now.
+- Equipment + contract auto-sync BLOCKED — need Sicon equipment/asset API doc OR Sage 200 WebAPI access.
+
+ACTION (production): preview-only — redeploy pulsefitness.ai to expose the contracts importer live.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-29 · CRITICAL BUGFIX · Master Admin quick button → Full platform for Pulse Fitness LTD (VERIFIED backend) ═══
 Report (P0, production): Master Admin couldn't see all modules even when "turned on", and the bottom-left
 quick button didn't take them through to the FULL platform for Pulse Fitness LTD.

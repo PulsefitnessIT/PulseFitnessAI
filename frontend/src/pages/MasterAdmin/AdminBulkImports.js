@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
  Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,
- CheckCircle2, AlertCircle, Building2, Loader2, MapPin,
+ CheckCircle2, AlertCircle, Building2, Loader2, MapPin, ScrollText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ImportWizard from './ImportWizard';
@@ -50,11 +50,12 @@ const AdminBulkImports = ({ API }) => {
  const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
  const [orgs, setOrgs] = useState([]);
  const [orgId, setOrgId] = useState('');
- const [busy, setBusy] = useState({ equipment: false, customers: false, sites: false });
- const [results, setResults] = useState({ equipment: null, customers: null, sites: null });
+ const [busy, setBusy] = useState({ equipment: false, customers: false, sites: false, contracts: false });
+ const [results, setResults] = useState({ equipment: null, customers: null, sites: null, contracts: null });
  const equipmentInput = useRef(null);
  const customersInput = useRef(null);
  const sitesInput = useRef(null);
+ const contractsInput = useRef(null);
  const { banner, show, clear } = useInlineBanner();
 
  useEffect(() => {
@@ -266,10 +267,10 @@ const AdminBulkImports = ({ API }) => {
 
       <div className="pt-2">
         <h2 className="text-base font-semibold mb-1">Core records (quick CSV)</h2>
-        <p className="text-xs text-zinc-500 mb-3">Fast bulk loaders for sites, equipment and CRM customers with account-number auto-routing.</p>
+        <p className="text-xs text-zinc-500 mb-3">Fast bulk loaders for sites, equipment, CRM customers and contracts with account-number auto-routing.</p>
       </div>
 
- <div className="grid md:grid-cols-3 gap-4">
+ <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
  <ImportCard
  kind="sites"
  icon={MapPin}
@@ -283,7 +284,7 @@ const AdminBulkImports = ({ API }) => {
  icon={Wrench}
  title="Bulk import equipment"
  description="Upload a CSV of every machine across one or many customer floors. Equipment auto-links to sites by site_name; supplier resolves to a row in the suppliers directory so fault emails route correctly. Duplicates by serial_number are skipped."
- headers={['site_name', 'customer_account_number', 'supplier', 'name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'purchase_date', 'warranty_expiry', 'service_provider', 'unit_price', 'length', 'width', 'height', 'location', 'notes']}
+ headers={['site_name', 'customer_account_number', 'supplier', 'name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'purchase_date', 'warranty_expiry', 'service_provider', 'unit_price', 'length', 'width', 'height', 'location', 'notes', 'sicon_equipment_id', 'sage_item_id']}
  inputRef={equipmentInput}
  />
  <ImportCard
@@ -293,6 +294,14 @@ const AdminBulkImports = ({ API }) => {
  description="Upload a CSV roster of CRM contacts (members, key accounts). When auto-routing, the customer_account_number column decides which tenant each contact lands in."
  headers={['customer_account_number', 'first_name', 'last_name', 'email', 'phone', 'company', 'title', 'tags', 'linkedin', 'address']}
  inputRef={customersInput}
+ />
+ <ImportCard
+ kind="contracts"
+ icon={ScrollText}
+ title="Bulk import contracts"
+ description="Upload a CSV of existing service contracts (the Sicon Contracts API is push-only, so there is no auto-pull). Links to a CRM company by company_name; captures sicon_contract_id for ongoing two-way sync. Duplicates by contract_number are skipped."
+ headers={['customer_account_number', 'contract_number', 'title', 'company_name', 'type', 'tier', 'status', 'start_date', 'end_date', 'renewal_date', 'annual_value', 'total_value', 'billing_frequency', 'sla_response_hours', 'sla_resolution_hours', 'auto_renew', 'sicon_contract_id', 'sage_reference']}
+ inputRef={contractsInput}
  />
  </div>
 

@@ -68,6 +68,11 @@ _EQUIPMENT_HEADERS = [
     "unit_price", "replacement_cost",
     "contract_number", "contract_start", "contract_end",
     "length", "width", "height", "location", "notes",
+    # Sicon two-way-sync linkage — capture the Sicon Service equipment id
+    # (and Sage stock ItemID) at migration time so the ongoing case/sync
+    # engine can match each asset back to its Sicon master record without
+    # a serial-number guess. Both optional; leave blank for non-Sicon kit.
+    "sicon_equipment_id", "sage_item_id",
     # Iter 216h111 — MOD Force tag. Accepts Army/RAF/Navy (case-insensitive;
     # also accepts "British Army", "Royal Air Force", "Royal Navy" and the
     # short tokens "army"/"raf"/"navy"). Ignored for non-MOD rows so a
@@ -83,6 +88,7 @@ _EQUIPMENT_EXAMPLE = [
     "3450.00", "3800.00",
     "CON-2024-0142", "2024-01-15", "2029-01-14",
     "2.20", "0.95", "1.55", "Cardio Mezzanine", "Brand new — first install",
+    "48213", "9920",  # sicon_equipment_id, sage_item_id (blank for non-Sicon kit)
     "",  # mod_force — leave blank for non-MOD customers
 ]
 
@@ -96,6 +102,32 @@ _CUSTOMER_EXAMPLE = [
     "Sarah", "Johnson", "sarah.johnson@gymtest.com", "+447700900001",
     "Tottenham Green Leisure Centre", "Operations Manager",
     "active,key-account", "https://linkedin.com/in/sarah-johnson", "Tottenham, London N17",
+]
+
+# Contracts bulk import — maps to the CRM `crm2_contracts` collection.
+# Lets onboarding load a customer's existing book of service contracts in
+# one file (the Sicon Contracts API is push-only, so there is no auto-pull).
+# `contract_number` is the dedupe key per org; `sicon_contract_id` is
+# captured for the ongoing two-way sync.
+_CONTRACT_HEADERS = [
+    "customer_account_number",
+    "contract_number", "title", "company_name",
+    "type", "tier", "status",
+    "start_date", "end_date", "renewal_date",
+    "annual_value", "total_value", "billing_frequency",
+    "sla_response_hours", "sla_resolution_hours",
+    "auto_renew",
+    "sicon_contract_id", "sage_reference",
+]
+_CONTRACT_EXAMPLE = [
+    "PULSENC01",
+    "CON-2024-0142", "Tottenham Green — Gold Service Cover", "Tottenham Green Leisure Centre",
+    "service", "gold", "active",
+    "2024-01-15", "2029-01-14", "2028-11-15",
+    "12500.00", "62500.00", "annual",
+    "4", "24",
+    "true",
+    "8841", "TOTTGRN01",
 ]
 
 
@@ -157,6 +189,12 @@ async def template_customers(user: dict = Depends(get_current_user)) -> Response
     return _csv_response(_CUSTOMER_HEADERS, _CUSTOMER_EXAMPLE, "customers-template.csv")
 
 
+@router.get("/master-admin/bulk-import/templates/contracts")
+async def template_contracts(user: dict = Depends(get_current_user)) -> Response:
+    _require_pulse_or_master(user)
+    return _csv_response(_CONTRACT_HEADERS, _CONTRACT_EXAMPLE, "contracts-template.csv")
+
+
 # ── Importers ────────────────────────────────────────────────────────────
 
 
@@ -166,6 +204,15 @@ def _parse_decimal(s: str) -> Optional[float]:
     try:
         return float(s.replace(",", "").strip())
     except ValueError:
+        return None
+
+
+def _parse_int(s: str) -> Optional[int]:
+    if not s:
+        return None
+    try:
+        return int(float(str(s).replace(",", "").strip()))
+    except (ValueError, TypeError):
         return None
 
 
@@ -570,6 +617,9 @@ async def _do_bulk_import_equipment(
                 ),
                 "location": _normalize(row, "location", "Location") or str(get_pick(row, "location", "")).strip(),
                 "notes": _normalize(row, "notes", "Notes") or str(get_pick(row, "notes", "")).strip(),
+                # Sicon/Sage round-trip refs (optional) — enable ongoing two-way sync.
+                "sicon_equipment_id": _parse_int(_normalize(row, "sicon_equipment_id", "Sicon Equipment ID", "SiconEquipmentID") or str(get_pick(row, "sicon_equipment_id", "")).strip()),
+                "sage_item_id": _parse_int(_normalize(row, "sage_item_id", "Sage Item ID", "ItemID") or str(get_pick(row, "sage_item_id", "")).strip()),
                 "length": _parse_decimal(_normalize(row, "length", "Length") or str(get_pick(row, "length", "")).strip()),
                 "width": _parse_decimal(_normalize(row, "width", "Width") or str(get_pick(row, "width", "")).strip()),
                 "height": _parse_decimal(_normalize(row, "height", "Height") or str(get_pick(row, "height", "")).strip()),
@@ -713,6 +763,158 @@ async def bulk_import_customers(
             pending.append(doc)
             if email:
                 email_set_cache[target_org].add(email)
+            imported += 1
+            org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
+            if len(pending) >= BATCH_SIZE:
+                await _flush_pending()
+        except Exception as exc:
+            errors.append(f"Row {i}: {exc}")
+
+    await _flush_pending()
+
+    return {
+        "imported": imported, "skipped": skipped,
+        "errors": errors[:50], "error_count": len(errors),
+        "organization_id": default_org,
+        "org_breakdown": org_breakdown,
+    }
+
+
+# ── Contracts bulk import ────────────────────────────────────────────────
+
+def _parse_bool(s: str) -> bool:
+    return str(s or "").strip().lower() in ("1", "true", "yes", "y", "on")
+
+
+@router.post("/master-admin/bulk-import/contracts")
+async def bulk_import_contracts(
+    file: UploadFile = File(...),
+    organization_id: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Bulk-load a customer's existing service contracts into CRM
+    (`crm2_contracts`). Idempotent on `contract_number` per org, batched
+    for scale. Captures `sicon_contract_id` for the ongoing two-way sync."""
+    _require_pulse_or_master(user)
+    default_org = await _resolve_target_org(user, organization_id) if organization_id else None
+
+    contents = await file.read()
+    validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
+    from utils.spreadsheet_import import iter_rows, parse_date_cell, get_pick
+    rows_iter = iter_rows(contents, file.filename)
+
+    imported, skipped, errors = 0, 0, []
+    org_cache: dict = {}
+    company_cache: dict = {}       # (org, lower(name)) -> company doc
+    number_set_cache: dict = {}    # org -> set(contract_number)
+    org_breakdown: dict = {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    BATCH_SIZE = 500
+    pending: list = []
+
+    async def _flush_pending():
+        if not pending:
+            return
+        try:
+            await db.crm2_contracts.insert_many(pending, ordered=False)
+        except Exception as exc:
+            logger.warning(f"contracts insert_many failed, falling back row-by-row: {exc}")
+            for d in pending:
+                try:
+                    await db.crm2_contracts.insert_one(d)
+                except Exception as e2:
+                    errors.append(f"DB insert failed for row id {d.get('id')}: {e2}")
+        pending.clear()
+
+    async def _number_set_for(target_org: str) -> set:
+        if target_org in number_set_cache:
+            return number_set_cache[target_org]
+        cursor = db.crm2_contracts.find(
+            {"organization_id": target_org, "contract_number": {"$exists": True, "$ne": ""}},
+            {"_id": 0, "contract_number": 1},
+        )
+        s = {(doc.get("contract_number") or "").lower() async for doc in cursor if doc.get("contract_number")}
+        number_set_cache[target_org] = s
+        return s
+
+    async def _company_for(target_org: str, name: str) -> Optional[dict]:
+        name = (name or "").strip()
+        if not name:
+            return None
+        key = (target_org, name.lower())
+        if key in company_cache:
+            return company_cache[key]
+        from utils.security_plus import safe_regex
+        doc = await db.crm2_companies.find_one(
+            {"organization_id": target_org, "name": safe_regex(f"^{name}$")}, {"_id": 0, "id": 1, "name": 1},
+        )
+        company_cache[key] = doc
+        return doc
+
+    for i, row in enumerate(rows_iter, start=2):
+        try:
+            if _is_blank_row(row):
+                continue
+            target_org, route_err = await _resolve_row_target_org(row, default_org, org_cache)
+            if not target_org:
+                skipped += 1
+                if route_err:
+                    errors.append(f"Row {i}: {route_err}")
+                continue
+            number = (_normalize(row, "contract_number", "Contract Number") or str(get_pick(row, "contract_number", "")).strip())
+            title = _normalize(row, "title", "Title", "contract_title") or str(get_pick(row, "title", "")).strip()
+            if not number and not title:
+                skipped += 1
+                errors.append(f"Row {i}: missing required column 'contract_number' (or 'title')")
+                continue
+            if number:
+                existing = await _number_set_for(target_org)
+                if number.lower() in existing:
+                    skipped += 1
+                    errors.append(f"Row {i}: duplicate — contract '{number}' already exists in this org")
+                    continue
+            company_name = _normalize(row, "company_name", "Company", "company") or str(get_pick(row, "company_name", "")).strip()
+            company = await _company_for(target_org, company_name)
+            doc = {
+                "id": str(uuid.uuid4()),
+                "organization_id": target_org,
+                "contract_number": number or f"CTR-{str(uuid.uuid4())[:6].upper()}",
+                "title": title or number,
+                "type": (_normalize(row, "type", "Type") or str(get_pick(row, "type", "")).strip() or "service"),
+                "tier": (_normalize(row, "tier", "Tier") or str(get_pick(row, "tier", "")).strip() or "silver").lower(),
+                "status": (_normalize(row, "status", "Status") or str(get_pick(row, "status", "")).strip() or "active").lower(),
+                "company_id": (company or {}).get("id", ""),
+                "company_name": company_name or (company or {}).get("name", ""),
+                "contact_id": "", "contact_name": "", "site_id": "",
+                "opportunity_id": "", "quote_id": "", "order_id": "", "parent_contract_id": None,
+                "start_date": parse_date_cell(get_pick(row, "start_date") or row.get("Start Date") or row.get("start_date")) or "",
+                "end_date": parse_date_cell(get_pick(row, "end_date") or row.get("End Date") or row.get("end_date")) or "",
+                "renewal_date": parse_date_cell(get_pick(row, "renewal_date") or row.get("Renewal Date") or row.get("renewal_date")) or "",
+                "annual_value": _parse_decimal(_normalize(row, "annual_value", "Annual Value") or str(get_pick(row, "annual_value", "")).strip()) or 0.0,
+                "total_value": _parse_decimal(_normalize(row, "total_value", "Total Value") or str(get_pick(row, "total_value", "")).strip()) or 0.0,
+                "billing_frequency": (_normalize(row, "billing_frequency", "Billing Frequency") or str(get_pick(row, "billing_frequency", "")).strip() or "annual"),
+                "auto_renew": _parse_bool(_normalize(row, "auto_renew", "Auto Renew") or str(get_pick(row, "auto_renew", "")).strip()),
+                "renewal_notice_days": 90,
+                "sla": {
+                    "response_hours": _parse_decimal(_normalize(row, "sla_response_hours", "SLA Response Hours") or str(get_pick(row, "sla_response_hours", "")).strip()),
+                    "resolution_hours": _parse_decimal(_normalize(row, "sla_resolution_hours", "SLA Resolution Hours") or str(get_pick(row, "sla_resolution_hours", "")).strip()),
+                    "parts_included": False, "labour_included": True,
+                    "visits_per_year": None, "preventive_maintenance": False,
+                },
+                "signature": None, "signed_by": None, "signed_at": None,
+                "sicon_contract_id": _parse_int(_normalize(row, "sicon_contract_id", "Sicon Contract ID", "SiconContractID") or str(get_pick(row, "sicon_contract_id", "")).strip()),
+                "sage_reference": _normalize(row, "sage_reference", "Sage Reference", "SageReference") or str(get_pick(row, "sage_reference", "")).strip() or None,
+                "version": 1,
+                "created_by": user.get("full_name", ""),
+                "owner_id": user.get("id"),
+                "owner_name": user.get("full_name", ""),
+                "imported_via": "bulk_csv",
+                "created_at": now_iso, "updated_at": now_iso,
+            }
+            pending.append(doc)
+            if number:
+                number_set_cache[target_org].add(number.lower())
             imported += 1
             org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
             if len(pending) >= BATCH_SIZE:
