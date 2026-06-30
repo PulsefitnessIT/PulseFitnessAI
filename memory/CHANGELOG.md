@@ -618,3 +618,16 @@ End-user E2E audit (testing agent + manual verification):
 - Deep links preserved: ?view=engagement|best-time|benchmarks open Analytics with the right sub-tab; ?view=deliverability|migrate|developer open via Settings; ?view=analytics defaults to engagement.
 - Module-scope pill still shown on campaigns/inactive/analytics sub-views; hidden on deliverability/segments/flows/migrate/developer.
 - File: frontend/src/pages/Comms/CommsCentre.js (rewrite, ~222 lines). Verified by testing agent: 45/45 frontend assertions passed.
+
+## 2026-06-30 — Cross-module: Service Desk ↔ CRM (Slice 1 of "one Pulse team")
+- New backend endpoint GET /api/crm/v2/companies/{company_id}/service-activity (crm_v2.py) — consolidates live Service Desk data for a CRM account, org-scoped, matched by canonical company_id with a name fallback (no duplication). Returns: open svc_cases, engineers on the account with current status (on_site/en_route/assigned), their current case + last known location ping (svc_engineer_locations), next PPM due (svc_ppm_schedules), last completed visit, and summary counts.
+- New CRM UI tab "Service & Engineers" on the Company detail (CRMCompanies.js → ServiceActivityTab): summary tiles, "Where engineers are" cards (status chip, current case/site, location-updated, click-to-call), open service cases list, next-PPM banner, and graceful empty/not-linked states.
+- This builds on existing bridges (sales_to_service.py contract→service onboarding; svc_crm_sync.py case/invoice→crm2_activities; customer_links.py canonical company_id) — the gap was purely SURFACING service ops to CRM sales managers. Now closed.
+- Fixed pre-existing duplicate 'timeline' key in CRMCompanies sections array (React warning).
+- Verified: backend curl with seeded data (linked=true, engineer on_site, next PPM); testing agent 100% (AlphaCo data + BravoCo empty state). Synthetic QA seed data removed after test.
+
+### Cross-module gap audit — remaining (proposed backlog for the initiative)
+- P1: Reverse view — show CRM sales context (account owner, open deals, contract tier) inside the Service Desk case/engineer app so field + desk see the relationship.
+- P1: CRM "Cases" tab shows crm2_cases (CRM-internal) separately from Service Desk svc_cases — relabel/unify to avoid confusion/duplication.
+- P2: Memberships ↔ CRM person identity (members vs contacts) — audit for a unified person/dedup.
+- P2: Operations/Equipment ↔ Service Desk asset linkage (cases reference assets; confirm single source of truth).

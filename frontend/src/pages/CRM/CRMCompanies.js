@@ -1206,7 +1206,6 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'surveys', label: 'Site Surveys' },
     { id: 'invoices', label: 'Invoices' },
     { id: 'equipment', label: 'Equipment' },
-    { id: 'timeline', label: 'Timeline' },
     { id: 'audit', label: 'Audit' },
   ];
 
