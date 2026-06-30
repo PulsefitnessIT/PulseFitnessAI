@@ -3,7 +3,7 @@ CRM v2 — Core Data Model & Activity Engine
 All CRM entities with full cross-linking and org-scoped queries.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from utils.security_plus import safe_regex
+from utils.security_plus import safe_regex, safe_regex_exact
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from utils.database import db
@@ -447,6 +447,104 @@ async def get_company(company_id: str, user=Depends(get_crm_user)):
     c["total_revenue"] = sum(o.get("value", 0) for o in won_opps)
     c["open_pipeline"] = sum(o.get("value", 0) for o in c["opportunities"] if o.get("stage") not in ("closed_won", "closed_lost"))
     return c
+
+
+@router.get("/companies/{company_id}/service-activity")
+async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
+    """Consolidated Service Desk view for a CRM account — so a sales
+    manager sees live service operations and *where engineers are* without
+    leaving the CRM. Reads the linked Service Ops collections by canonical
+    ``company_id`` (with a name fallback) so the two halves of the Pulse
+    team work as one. Org-scoped; never duplicates data."""
+    org = user.get("organization_id")
+    if not org:
+        raise HTTPException(403, "Organization context required")
+    company = await db.crm2_companies.find_one(
+        {"id": company_id, "organization_id": org}, {"_id": 0, "id": 1, "name": 1})
+    if not company:
+        raise HTTPException(404, "Company not found")
+
+    from utils.svc_state import OPEN_STATES, TERMINAL_STATES
+    name = (company.get("name") or "").strip()
+    or_clause = [{"company_id": company_id}]
+    if name:
+        or_clause.append({"customer_name": safe_regex_exact(name)})
+
+    fields = {
+        "_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1, "priority": 1,
+        "case_type": 1, "site_name": 1, "site_postcode": 1, "scheduled_at": 1,
+        "assigned_engineer_id": 1, "assigned_engineer_name": 1, "company_id": 1,
+        "created_at": 1, "updated_at": 1, "closed_at": 1,
+    }
+    cases = await db.svc_cases.find(
+        {"organization_id": org, "$or": or_clause}, fields
+    ).sort("updated_at", -1).to_list(200)
+
+    open_cases = [c for c in cases if c.get("status") in OPEN_STATES]
+    closed_cases = [c for c in cases if c.get("status") in TERMINAL_STATES]
+
+    # Engineers active on this account + where each one is right now.
+    eng_ids = sorted({c.get("assigned_engineer_id") for c in open_cases if c.get("assigned_engineer_id")})
+    engineers = []
+    for eid in eng_ids:
+        eng = await db.svc_engineers.find_one(
+            {"organization_id": org, "id": eid},
+            {"_id": 0, "full_name": 1, "name": 1, "phone": 1, "status": 1, "on_site": 1, "en_route": 1})
+        loc = await db.svc_engineer_locations.find_one(
+            {"engineer_id": eid}, {"_id": 0, "lat": 1, "lng": 1, "recorded_at": 1, "case_id": 1})
+        eng_cases = [c for c in open_cases if c.get("assigned_engineer_id") == eid]
+        current = next((c for c in eng_cases if c.get("status") in ("en_route", "on_site")),
+                       eng_cases[0] if eng_cases else None)
+        eng = eng or {}
+        cur_status = (current or {}).get("status")
+        status = eng.get("status") or ("on_site" if cur_status == "on_site" else "en_route" if cur_status == "en_route" else "assigned")
+        engineers.append({
+            "id": eid,
+            "name": eng.get("full_name") or eng.get("name") or (current or {}).get("assigned_engineer_name") or "Engineer",
+            "phone": eng.get("phone"),
+            "status": status,
+            "on_site": bool(eng.get("on_site")) or cur_status == "on_site",
+            "en_route": bool(eng.get("en_route")) or cur_status == "en_route",
+            "open_case_count": len(eng_cases),
+            "current_case": ({
+                "id": current["id"], "reference": current.get("reference"),
+                "title": current.get("title"), "site_name": current.get("site_name"),
+                "site_postcode": current.get("site_postcode"),
+                "scheduled_at": current.get("scheduled_at"), "status": current.get("status"),
+            } if current else None),
+            "last_location": ({
+                "lat": loc.get("lat"), "lng": loc.get("lng"), "recorded_at": loc.get("recorded_at"),
+            } if loc else None),
+        })
+
+    ppm_or = [{"company_id": company_id}]
+    if name:
+        ppm_or.append({"customer_name": safe_regex_exact(name)})
+    next_ppm = await db.svc_ppm_schedules.find_one(
+        {"organization_id": org, "active": True, "$or": ppm_or},
+        {"_id": 0, "next_due_date": 1, "visits_per_year": 1, "tier": 1, "interval_days": 1},
+        sort=[("next_due_date", 1)])
+
+    last = closed_cases[0] if closed_cases else None
+    linked = any(c.get("company_id") == company_id for c in cases) or bool(
+        await db.svc_engineer_customers.find_one(
+            {"organization_id": org, "company_id": company_id}, {"_id": 1}))
+
+    return {
+        "linked": linked,
+        "company_id": company_id,
+        "total_cases": len(cases),
+        "open_case_count": len(open_cases),
+        "open_cases": open_cases[:50],
+        "engineers": engineers,
+        "next_ppm": next_ppm,
+        "last_visit": ({
+            "reference": last.get("reference"), "title": last.get("title"),
+            "site_name": last.get("site_name"),
+            "closed_at": last.get("closed_at") or last.get("updated_at"),
+            "engineer_name": last.get("assigned_engineer_name"),
+        } if last else None),
+    }
 
 
 @router.put("/companies/{company_id}")

@@ -4,7 +4,7 @@ import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
   FileText, Calendar, Activity, CheckCircle, Edit2, Trash2, X,
-  Upload, Download, Sparkles, Loader2, Hash, Award
+  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
@@ -417,6 +417,142 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
 }
 
 /* ═══ COMPANY FILE TAB (Drawings / Surveys / Invoices) ═══ */
+function ServiceActivityTab({ companyId, API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/crm/v2/companies/${companyId}/service-activity`, { headers: headers() });
+      setData(res.data);
+    } catch (e) { console.error(e); setData(null); }
+    setLoading(false);
+  }, [API, headers, companyId]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const border = isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)';
+  const fmtDate = (s) => { try { return new Date(s).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
+  const fmtAgo = (s) => {
+    try {
+      const mins = Math.round((Date.now() - new Date(s).getTime()) / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins} min ago`;
+      const h = Math.round(mins / 60);
+      if (h < 24) return `${h}h ago`;
+      return `${Math.round(h / 24)}d ago`;
+    } catch { return ''; }
+  };
+  const PRIORITY = { p1: 'var(--color-danger-alt)', p2: 'var(--color-accent-amber)', p3: 'var(--color-info-ios)', p4: 'var(--color-text-faint-alt)' };
+  const statusChip = (eng) => {
+    if (eng.on_site) return { label: 'On site', bg: 'var(--color-success-alt)' };
+    if (eng.en_route) return { label: 'En route', bg: 'var(--color-accent-amber)' };
+    return { label: 'Assigned', bg: 'var(--color-info-ios)' };
+  };
+
+  if (loading) return <div className="py-10 text-center" data-testid="company-service-loading"><Loader2 size={20} className="animate-spin mx-auto" style={{ color: c.textDim }} /></div>;
+  if (!data) return <p className="text-sm text-center py-6" style={{ color: c.textDim }}>Couldn't load service activity.</p>;
+
+  const { open_cases = [], engineers = [], next_ppm, last_visit, linked, open_case_count } = data;
+
+  return (
+    <div className="space-y-5" data-testid="company-service-tab">
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Open cases', value: open_case_count, icon: Wrench },
+          { label: 'Engineers active', value: engineers.length, icon: Users },
+          { label: 'Next PPM', value: next_ppm?.next_due_date ? new Date(next_ppm.next_due_date).toLocaleDateString('en-GB') : '—', icon: Calendar },
+          { label: 'Last visit', value: last_visit?.closed_at ? new Date(last_visit.closed_at).toLocaleDateString('en-GB') : '—', icon: CheckCircle },
+        ].map((t, i) => (
+          <div key={i} className="p-3 rounded-lg border" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: border }} data-testid={`service-tile-${i}`}>
+            <t.icon size={15} style={{ color: 'var(--color-info-ios)' }} />
+            <p className="text-lg font-semibold mt-1" style={{ color: c.text }}>{t.value}</p>
+            <p className="text-[11px]" style={{ color: c.textDim }}>{t.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {!linked && (
+        <div className="flex items-start gap-2 p-3 rounded-md text-xs" style={{ background: 'var(--color-warning-bg, #FEF3C7)', color: 'var(--color-warning, #92400E)' }} data-testid="service-not-linked">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>This account isn't formally linked to a Service Desk customer yet — showing matches by name. Linking happens automatically when a maintenance contract is activated or an engineer saves the customer.</span>
+        </div>
+      )}
+
+      {/* Where are the engineers */}
+      <div>
+        <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: c.text }}><Navigation size={14} style={{ color: 'var(--color-info-ios)' }} /> Where engineers are</h3>
+        {engineers.length === 0 ? (
+          <p className="text-sm py-4 text-center rounded-md border border-dashed" style={{ color: c.textDim, borderColor: border }}>No engineers currently assigned to this account.</p>
+        ) : (
+          <div className="space-y-2">
+            {engineers.map((eng) => {
+              const chip = statusChip(eng);
+              return (
+                <div key={eng.id} className="p-3 rounded-md border" style={{ borderColor: border, background: isDark ? 'var(--color-surface-dark-1)' : '#fff' }} data-testid={`service-engineer-${eng.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate" style={{ color: c.text }}>{eng.name}</p>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: chip.bg }}>{chip.label}</span>
+                      </div>
+                      {eng.current_case && (
+                        <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>
+                          On {eng.current_case.reference || 'case'}{eng.current_case.site_name ? ` · ${eng.current_case.site_name}` : ''}{eng.current_case.scheduled_at ? ` · ${fmtDate(eng.current_case.scheduled_at)}` : ''}
+                        </p>
+                      )}
+                      {eng.last_location?.recorded_at && (
+                        <p className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: c.textDim }}>
+                          <MapPin size={10} /> Location updated {fmtAgo(eng.last_location.recorded_at)}
+                        </p>
+                      )}
+                    </div>
+                    {eng.phone && (
+                      <a href={`tel:${eng.phone}`} className="p-1.5 rounded-md shrink-0" style={{ color: 'var(--color-info-ios)' }} data-testid={`service-engineer-call-${eng.id}`}><Phone size={14} /></a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Open service cases */}
+      <div>
+        <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: c.text }}><Wrench size={14} style={{ color: 'var(--color-info-ios)' }} /> Open service cases</h3>
+        {open_cases.length === 0 ? (
+          <p className="text-sm py-4 text-center rounded-md border border-dashed" style={{ color: c.textDim, borderColor: border }}>No open service cases.</p>
+        ) : (
+          <div className="space-y-2">
+            {open_cases.map((cs) => (
+              <div key={cs.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: border, background: isDark ? 'var(--color-surface-dark-1)' : '#fff' }} data-testid={`service-case-${cs.id}`}>
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY[cs.priority] || 'var(--color-text-faint-alt)' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: c.text }}>{cs.reference ? `${cs.reference}: ` : ''}{cs.title || 'Service case'}</p>
+                  <p className="text-[11px]" style={{ color: c.textDim }}>
+                    {(cs.status || '').replace(/_/g, ' ')}{cs.assigned_engineer_name ? ` · ${cs.assigned_engineer_name}` : ' · unassigned'}{cs.site_name ? ` · ${cs.site_name}` : ''}{cs.scheduled_at ? ` · ${fmtDate(cs.scheduled_at)}` : ''}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {next_ppm?.next_due_date && (
+        <div className="flex items-center gap-2 p-3 rounded-md text-xs border" style={{ borderColor: border, color: c.textDim }} data-testid="service-next-ppm">
+          <Clock size={13} style={{ color: 'var(--color-info-ios)' }} />
+          Next preventive maintenance due <strong style={{ color: c.text }}>{new Date(next_ppm.next_due_date).toLocaleDateString('en-GB')}</strong>
+          {next_ppm.visits_per_year ? ` · ${next_ppm.visits_per_year} visit(s)/year` : ''}{next_ppm.tier ? ` · ${next_ppm.tier}` : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CompanyFileTab({ companyId, category, label, accept, API, headers, c, isDark }) {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -1046,6 +1182,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'contacts', label: `Contacts (${company.contacts?.length || 0})` },
     { id: 'opportunities', label: `Deals (${company.opportunities?.length || 0})` },
     { id: 'cases', label: `Cases (${company.cases?.length || 0})` },
+    // Iter 291 — Service & Engineers: surfaces live Service Desk activity
+    // (open cases, assigned engineers + where they are now, next PPM) so a
+    // CRM sales manager sees the whole Pulse team working as one.
+    { id: 'service', label: 'Service & Engineers' },
     // Iter 216h266 — dedicated Activities tab (data already loaded by
     // /companies/{id} timeline). Customer feedback: needed all
     // related activities in one 360° place.
@@ -1255,6 +1395,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
             ))}
             {(company.cases || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No service cases</p>}
           </div>
+        )}
+
+        {activeSection === 'service' && (
+          <ServiceActivityTab companyId={companyId} API={API} headers={headers} c={c} isDark={isDark} />
         )}
 
         {activeSection === 'activities' && (

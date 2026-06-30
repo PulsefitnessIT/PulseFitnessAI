@@ -1,0 +1,56 @@
+{
+  "summary": "Validated the new 'Service & Engineers' tab on the CRM Company detail view for AlphaCo (Site A, iso-cA) and the empty state for BravoCo (Site B, iso-cB). All required data-testids render with correct seeded data, GET /api/crm/v2/companies/{id}/service-activity returns 200 on both companies, and no console errors related to this feature were observed.",
+  "test_scope": "Frontend only — CRM > Companies > AlphaCo / BravoCo > 'Service & Engineers' tab.",
+  "verified_acceptance_criteria": {
+    "tab_present_alongside_other_sections": true,
+    "summary_tiles": {
+      "open_cases": "1 (correct)",
+      "engineers_active": "1 (correct)",
+      "next_ppm": "15/08/2026 (correct)",
+      "last_visit": "30/06/2026 (rendered)"
+    },
+    "where_engineers_are": {
+      "engineer_card_qa-eng-1_present": true,
+      "name": "Dave Mitchell",
+      "status_chip": "On site",
+      "current_case_line": "On SC-1001 · Demo Head Office · 30 Jun, 21:17",
+      "location_updated_line": "Location updated 4 min ago",
+      "phone_call_button_qa-eng-1_present": true
+    },
+    "open_service_cases": {
+      "service-case-qa-case-1_present": true,
+      "title_rendered": "SC-1001: Treadmill belt fault",
+      "meta_line": "on site · Dave Mitchell · Demo Head Office · 30 Jun, 21:17"
+    },
+    "service-next-ppm_present": true,
+    "next_ppm_text": "Next preventive maintenance due 15/08/2026 · 4 visit(s)/year · gold",
+    "api_call_observed": "GET /api/crm/v2/companies/iso-cA/service-activity → 200",
+    "no_feature_related_console_errors": true
+  },
+  "empty_state_company_iso-cB": {
+    "tab_renders_without_crash": true,
+    "tiles_show_zeros_and_dashes": true,
+    "not_linked_warning_shown": true,
+    "no_engineers_empty_state": "No engineers currently assigned to this account.",
+    "no_open_cases_empty_state": "No open service cases.",
+    "api_call_observed": "GET /api/crm/v2/companies/iso-cB/service-activity → 200"
+  },
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "critical_code_review_comments": [
+    "Pre-existing (not introduced by this iter) React warning: 'Encountered two children with the same key, timeline' — caused by the sections array in CRMCompanies.js declaring { id: 'timeline' } twice (lines ~1196 and ~1209). Harmless to this feature but should be deduped.",
+    "ServiceActivityTab renders 'Last visit' tile even when last_visit is null (shows '—'). Behavior matches spec; verified."
+  ],
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (platform login + CRM module). Seeded data: company iso-cA (AlphaCo Site A), engineer qa-eng-1, case qa-case-1, PPM qa-ppm-1.",
+  "test_report_links": [],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only request)", "frontend": "100%" },
+  "seed_data_creation": "None — used pre-seeded iso-demo-org data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM /crm route requires a SECOND login (separate CRM token) after platform login on /login. Use data-testid='company-row-iso-cA' to open AlphaCo. The Service & Engineers tab button has no data-testid — select by exact text 'Service & Engineers'. Inside the tab: data-testid='company-service-tab', 'service-tile-{0..3}', 'service-engineer-qa-eng-1', 'service-engineer-call-qa-eng-1', 'service-case-qa-case-1', 'service-next-ppm'."
+}
