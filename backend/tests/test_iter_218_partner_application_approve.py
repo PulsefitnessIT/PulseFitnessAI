@@ -24,7 +24,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://admin-setup-portal.preview.emergentagent.com",
+    "https://admin-portal-fix-37.preview.emergentagent.com",
 )
 
 

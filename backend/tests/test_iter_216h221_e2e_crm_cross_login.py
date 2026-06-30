@@ -11,7 +11,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://admin-setup-portal.preview.emergentagent.com"
+    BASE_URL = "https://admin-portal-fix-37.preview.emergentagent.com"
 
 
 class TestCRMCrossLoginBugFix:
