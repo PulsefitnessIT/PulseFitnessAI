@@ -43,12 +43,14 @@ app = FastAPI()
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # CORS — fail-fast in prod, permissive in dev (P0.2)
-from utils.security_plus import resolve_cors_origins, body_size_guard
+from utils.security_plus import resolve_cors_origins, resolve_cors_origin_regex, body_size_guard
 _cors_origins = resolve_cors_origins()
+_cors_origin_regex = resolve_cors_origin_regex()
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=_cors_origins,
+    allow_origin_regex=_cors_origin_regex,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Signature"],
 )

@@ -604,3 +604,9 @@ End-user E2E audit (testing agent + manual verification):
 - Backend: new POST /api/comms/ai/import-email (routes/comms_intel.py) accepts multipart (file optional + text field) → utils/email_ingest.parse_email() normalises every format → utils/comms_ai.import_email_to_blocks() (gpt-4o) returns {subject,preview,blocks,notes,source_kind}. Route tolerates both {type,props} and {blocktype:{props}} block shapes.
 - Frontend: EmailBuilder.js gets a new "Import" toolbar button (data-testid builder-import) + ImportModal (dropzone, file input, paste textarea, rebuild button). applyImported() wraps returned blocks with logo+footer and fills subject.
 - Verified: backend curl/requests for pasted HTML (4 blocks, image src preserved) and .eml with cid image (note flagged); testing agent confirmed full UI flow 100% (paste→rebuild→canvas populated, modal auto-close, subject filled).
+
+## 2026-06-30 — Security: Production CORS wildcard removed (P2)
+- backend/.env CORS_ORIGINS changed from "*" to explicit allow-list: https://pulsefitness.ai, https://www.pulsefitness.ai, https://fitness-ai-migrate.emergent.host.
+- security_plus.resolve_cors_origins() now ignores a "*" value in production (falls back to brand defaults) and added resolve_cors_origin_regex() — a regex (https://([a-z0-9-]+\.)*(preview\.emergentagent\.com|emergent\.host)) so Emergent preview/host subdomains keep working across redeploys without editing env.
+- server.py CORSMiddleware now passes allow_origin_regex.
+- Verified app-level: pulsefitness.ai → echoed; preview subdomain → echoed via regex; evil.example.com → DENIED (no ACAO, 400). secrets_audit '[security-audit] all checks passed'. Public login 200, login page renders. NOTE: the public ingress edge still adds its own 'access-control-allow-origin: *' header (platform-level, outside app control), but the app no longer trusts arbitrary origins.

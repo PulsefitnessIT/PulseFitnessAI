@@ -425,6 +425,13 @@ _BRAND_DEFAULT_ORIGINS = [
 ]
 
 
+def _is_prod() -> bool:
+    return (
+        (os.environ.get("APP_ENV") or "").lower() == "production"
+        or (os.environ.get("ENVIRONMENT", "development") or "").lower().startswith("prod")
+    )
+
+
 def resolve_cors_origins() -> list[str]:
     """Resolve the CORS allow-list.
 
@@ -434,9 +441,17 @@ def resolve_cors_origins() -> list[str]:
       3. Anything else: permissive ``*`` for dev convenience (logged).
     """
     raw = os.environ.get("CORS_ORIGINS", "").strip()
-    if raw:
+    if raw and raw != "*":
         return [o.strip() for o in raw.split(",") if o.strip()]
-    if os.environ.get("ENVIRONMENT", "development").lower().startswith("prod"):
+    if raw == "*" and _is_prod():
+        # Never honour a wildcard in production — fall back to the known
+        # brand domains (platform subdomains are covered by the regex below).
+        logger.warning("[security] CORS_ORIGINS='*' ignored in production — using brand defaults")
+        return list(_BRAND_DEFAULT_ORIGINS)
+    if raw == "*":
+        logger.warning("[security] CORS_ORIGINS='*' — permissive (dev only)")
+        return ["*"]
+    if _is_prod():
         # Production deployment without explicit CORS_ORIGINS → fall back
         # to the two known brand domains. Better than crashing the app on
         # boot or, worse, defaulting to ``*``.
@@ -444,6 +459,29 @@ def resolve_cors_origins() -> list[str]:
         return list(_BRAND_DEFAULT_ORIGINS)
     logger.warning("[security] CORS_ORIGINS not set — defaulting to permissive for dev")
     return ["*"]
+
+
+# Emergent platform preview/host subdomains. Allowing these via regex means
+# preview redeploys (which change the subdomain) keep working without editing
+# CORS_ORIGINS, while still excluding arbitrary third-party origins.
+_PLATFORM_ORIGIN_REGEX = r"https://([a-z0-9-]+\.)*(preview\.emergentagent\.com|emergent\.host)"
+
+
+def resolve_cors_origin_regex():
+    """Regex of trusted platform origins, or None to disable.
+
+    ``CORS_ORIGIN_REGEX`` env var overrides. A literal ``CORS_ORIGINS='*'``
+    or an explicit allow-list with no platform domains still benefits from
+    this so the Emergent preview/host always works.
+    """
+    raw = os.environ.get("CORS_ORIGIN_REGEX", "").strip()
+    if raw:
+        return raw
+    # When the allow-list is the open wildcard in dev there's no need for a
+    # regex (everything is allowed already).
+    if (os.environ.get("CORS_ORIGINS", "").strip() == "*") and not _is_prod():
+        return None
+    return _PLATFORM_ORIGIN_REGEX
 
 
 async def ensure_security_indexes() -> None:
