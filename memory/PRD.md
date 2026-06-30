@@ -1,3 +1,34 @@
+# ═══ 2026-06-30 · FEATURE · Master admin lands on operator platform (Pulse Fitness Ltd) (VERIFIED API) ═══
+User (Lee Somers): the "Pulse Fitness Portal" button dead-ends at the Master Admin screen. When
+lee.somers@pulsefitness.com (Pulse staff + master admin, owner of "Pulse Fitness Ltd") logs in, they should
+land DIRECTLY on the Pulse Fitness Ltd front-end platform, with "Master Admin" available in the top-right
+profile/hamburger menu. The global admin@pulsefitness.com (sees global info) should still land on /master-admin.
+
+ROOT CAUSE: AppRoutes forced EVERY master admin to /master-admin (DashboardRoute L248 + "/" route), so a
+master admin who is also an operator could only reach the platform via the fragile impersonation button.
+
+FIX (no email hardcoding, no lockout risk):
+- Backend `/auth/me` + login payload now expose `org_is_operator` (bool) — computed from the RAW org doc:
+  account_type in {full,pulse_pro,lite,mod_*} OR any module enabled OR is_operator_company pin. The system
+  org "Pulse Fitness AI Admin" (account_type None, no modules) → False; "Pulse Fitness Ltd" (full) → True.
+- Frontend `routes/AppRoutes.js`: a master admin with `org_is_operator` now lands on /dashboard (full operator
+  platform) instead of /master-admin; the "/" route routes them to /dashboard. Global admin (org_is_operator
+  False) still → /master-admin.
+- The "Master Admin" entry point ALREADY EXISTS: Navbar profile menu (+ mobile menu) shows it for master
+  admins on /dashboard|/pulse and DashboardPage renders MasterAdminPage as an overlay (with Back). No new UI
+  needed — the routing fix unlocks it.
+
+VERIFIED (curl): admin@pulsefitness → is_master_admin True, org_is_operator False (→ /master-admin). A test
+master admin attached to the full "Iso Demo Fitness" org → org_is_operator True (→ /dashboard). Frontend compiles.
+
+⚠️ PRODUCTION PRE-REQ for Lee: lee.somers@pulsefitness.com must (a) have is_master_admin = true, and (b) belong
+to the "Pulse Fitness Ltd" org. If lee isn't yet a master admin, promote them (via admin@pulsefitness.com in
+Master Admin → People). Then redeploy. ⚠️ Frontend flow not visually verified (master-admin SPA CSP harness limit).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-30 · FEATURE · Master Admin "Organisation Cleanup" tool (backend VERIFIED) ═══
 User: clean up the 4 duplicate Pulse orgs → keep one operator company. Confirmed: keep "Pulse Fitness Ltd"
 (operator) + "Pulse Fitness AI Admin" (SYSTEM/master-admin org), retire "Pulse Fitness" + "Pulse Fitness AI";

@@ -293,6 +293,11 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "organization_id": user.get('organization_id'),
         "company_code": (org.get('company_code') if org and is_owner_or_mgr else None),
         "is_master_admin": user.get('is_master_admin', False),
+        "org_is_operator": bool(org) and (
+            (org or {}).get('account_type') in {"full", "pulse_pro", "lite", "mod_site", "mod_branch", "mod_org"}
+            or any(isinstance(v, dict) and v.get("enabled") for v in ((org or {}).get("modules") or {}).values())
+            or bool((org or {}).get("is_operator_company"))
+        ),
         "is_service_desk": user.get('is_service_desk', False),
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "must_change_password": user.get('must_change_password', False),
@@ -855,6 +860,21 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
     features = await get_enabled_features(user)
     module_access = resolve_module_access(user, org)
 
+    # Iter — operator-vs-system org discriminator. A master admin whose OWN
+    # org is a real operator company (Pulse Fitness Ltd — has a real account
+    # type or enabled modules, or is the pinned operator) lands on the
+    # operator platform on login; the global admin (system org with no
+    # modules) keeps landing on /master-admin. Computed from the RAW org doc
+    # so the account_type fallback above can't mask a system org.
+    _OPERATOR_ACCOUNT_TYPES = {"full", "pulse_pro", "lite", "mod_site", "mod_branch", "mod_org"}
+    _raw_at = (org or {}).get("account_type")
+    _raw_modules = (org or {}).get("modules") or {}
+    org_is_operator = bool(org) and (
+        _raw_at in _OPERATOR_ACCOUNT_TYPES
+        or any(isinstance(v, dict) and v.get("enabled") for v in _raw_modules.values())
+        or bool((org or {}).get("is_operator_company"))
+    )
+
     return {
         "id": user['id'],
         "email": user['email'],
@@ -865,6 +885,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "organization_id": user.get('organization_id'),
         "company_code": org.get('company_code') if org and user.get('role') in ['owner', 'manager'] else None,
         "is_master_admin": user.get('is_master_admin', False),
+        "org_is_operator": org_is_operator,
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         # Site Staff Shared Login — flags the shared kiosk account so the
