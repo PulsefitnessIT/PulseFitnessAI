@@ -62,6 +62,7 @@ export const SIDEBAR_ITEMS = [
     id: 'organizations', label: 'Organisations', icon: Building, group: 'main',
     subTabs: [
       { id: 'organizations',     label: 'List',                  icon: Building },
+      { id: 'org-cleanup',       label: 'Cleanup & operator',    icon: ShieldCheck },
       { id: 'all-sites',         label: 'All sites',             icon: MapPin },
       { id: 'onboarding',        label: 'Onboarding',            icon: Rocket },
       { id: 'estate-rollup',     label: 'Module subscriptions',  icon: BarChart3 },
@@ -322,6 +323,7 @@ export const sectionTitles = {
   'integration-health': 'Integration health',
   'custom-properties': 'Custom properties',
   organizations: 'Organisations',
+  'org-cleanup': 'Organisation cleanup',
   backfills: 'Maintenance jobs',                // Iter 216h17 — terminology cleanup
   partners: 'Partner Engineers',                // Iter 219 — promoted to top-level
   // Group-level titles when no sub-tab is yet selected
@@ -384,6 +386,7 @@ export const sectionDescriptions = {
   'integration-health': 'Live status of every third-party service.',
   'integrations-hub': 'All third-party connections in one screen — Stripe Connect, Sicon, Orbit 4 and Sage 200. Click any card to manage.',
   organizations: 'Customer organisations — Pulse Fitness, Pulse Fitness. Click any row for a full drawer.',
+  'org-cleanup': 'Pin your operator company and safely merge & delete duplicate / stray organisations.',
   backfills: 'One-off maintenance jobs — preview, then commit. Powers data clean-up.',
   partners: 'Approve incoming partner engineer applications, manage active partners, and queue commission payouts — a core revenue stream.',
   finance: 'Pricing, billing, payments, Stripe and CAPEX in one place.',

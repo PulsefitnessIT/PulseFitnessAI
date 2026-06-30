@@ -1,3 +1,36 @@
+# ═══ 2026-06-30 · FEATURE · Master Admin "Organisation Cleanup" tool (backend VERIFIED) ═══
+User: clean up the 4 duplicate Pulse orgs → keep one operator company. Confirmed: keep "Pulse Fitness Ltd"
+(operator) + "Pulse Fitness AI Admin" (SYSTEM/master-admin org), retire "Pulse Fitness" + "Pulse Fitness AI";
+hard-delete; build a safe in-app tool; add an operator-company pin.
+
+BUILT:
+- Backend `routes/master_admin_org_cleanup.py` (registered in route_registry/admin.py):
+  - GET  /api/master-admin/org-cleanup/candidates?q= → orgs annotated with data counts, owner, is_system_org
+    (owns an is_master_admin user → protected), is_operator_company.
+  - POST /api/master-admin/org-cleanup/set-operator/{org_id} → pins ONE org as operator (unsets others).
+  - POST /api/master-admin/org-cleanup/merge-delete {keep_org_id, delete_org_ids[], dry_run} → reassigns ALL
+    org-scoped records (dynamic scan of every collection, keys organization_id+org_id) to keep org, then
+    HARD-deletes the stray; snapshots the deleted org to `org_cleanup_audit` + admin_activity_log.
+    GUARDS: cannot delete keep org, pinned operator, or a system org. dry_run previews counts.
+- `pulse_portal_login` now PREFERS the pinned operator org (`is_operator_company:true`), then the name
+  heuristic — makes the portal-button target deterministic (kills the wrong-org bug for good).
+- Frontend `pages/MasterAdmin/AdminOrgCleanup.js` + sidebar sub-tab "Cleanup & operator" under Organisations
+  + section title/description + render case 'org-cleanup'. Pin button, keep radio, delete checkboxes (locked
+  for protected/keep), dry-run preview, typed "DELETE" confirmation.
+
+VERIFIED (curl @ external URL): candidates correctly flags "Pulse Fitness AI Admin" as system/protected;
+set-operator pins + portal-login then returns the pinned org; system-org delete → 400; pinned-operator
+delete → 400; real delete reassigned a child site to keep org, removed the stray, wrote audit snapshot.
+Frontend compiles clean. ⚠️ Frontend UI NOT visually verified — master-admin SPA has a documented CSP
+screenshot-harness limitation (stuck on Loading). Needs user (or live) verification.
+
+ACTION (production): redeploy pulsefitness.ai, then Master Admin → Organisations → "Cleanup & operator":
+pin "Pulse Fitness Ltd" as operator, then merge-delete "Pulse Fitness" + "Pulse Fitness AI" into it.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-30 · CRITICAL BUGFIX · Master Admin portal button entered WRONG Pulse org (VERIFIED) ═══
 Report (production, recurring loop): Lee (master admin) still couldn't see all modules on "Pulse Fitness LTD"
 despite enabling them. Screenshots showed the "Pulse Fitness Portal" quick button impersonating

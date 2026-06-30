@@ -3,6 +3,7 @@ from fastapi import APIRouter
 
 from routes.master_admin import router as master_admin_router
 from routes.master_admin_orgs import router as master_admin_orgs_router
+from routes.master_admin_org_cleanup import router as master_admin_org_cleanup_router
 from routes.master_admin_users import router as master_admin_users_router
 from routes.master_admin_pulse import router as master_admin_pulse_router
 from routes.master_admin_onboard import router as master_admin_onboard_router
@@ -102,6 +103,7 @@ from routes.onboarding_phase5 import router as onboarding_phase5_router
 def register_admin(api_router: APIRouter) -> None:
     for r in (
         master_admin_router, master_admin_orgs_router,
+        master_admin_org_cleanup_router,
         master_admin_users_router,
         master_admin_pulse_router,
         master_admin_onboard_router,

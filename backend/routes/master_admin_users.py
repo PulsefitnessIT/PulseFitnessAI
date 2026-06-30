@@ -1276,30 +1276,37 @@ async def pulse_portal_login(request: Request, user: dict = Depends(get_current_
     enabled, excluding the internal "...AI" / "...Admin" orgs.
     """
     require_master_admin(user)
-    candidates = await db.organizations.find(
-        {"name": {"$regex": "pulse\\s*fitness", "$options": "i"}}, {"_id": 0},
-    ).to_list(50)
-    if not candidates:
-        raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
+    # 1) An explicit pin always wins — set via the Org Cleanup tool. This makes
+    #    the operator company deterministic and kills the "wrong org" bug class.
+    org = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0})
+    if not org:
+        # 2) Fall back to a heuristic across all "Pulse Fitness…" orgs.
+        candidates = await db.organizations.find(
+            {"name": {"$regex": "pulse\\s*fitness", "$options": "i"}}, {"_id": 0},
+        ).to_list(50)
+        if not candidates:
+            raise HTTPException(status_code=404, detail="Pulse Fitness organisation not found")
+
+        def _enabled_count_h(o: dict) -> int:
+            mods = o.get("modules") or {}
+            return sum(1 for v in mods.values() if isinstance(v, dict) and v.get("enabled"))
+
+        def _rank(o: dict):
+            name = (o.get("name") or "").strip().lower()
+            is_internal = ("ai" in name.split()) or ("admin" in name)
+            is_ltd = name.endswith("ltd") or name.endswith("limited") or " ltd" in name or " limited" in name
+            return (
+                0 if is_internal else 1,
+                1 if is_ltd else 0,
+                _enabled_count_h(o),
+                o.get("user_count", 0) or 0,
+            )
+
+        org = sorted(candidates, key=_rank, reverse=True)[0]
 
     def _enabled_count(o: dict) -> int:
         mods = o.get("modules") or {}
         return sum(1 for v in mods.values() if isinstance(v, dict) and v.get("enabled"))
-
-    def _rank(o: dict):
-        name = (o.get("name") or "").strip().lower()
-        is_internal = ("ai" in name.split()) or ("admin" in name)   # exclude "Pulse Fitness AI/Admin"
-        is_ltd = name.endswith("ltd") or name.endswith("limited") or " ltd" in name or " limited" in name
-        # Higher tuple sorts first: prefer non-internal, then Ltd/Limited,
-        # then most enabled modules, then most users, then has an owner.
-        return (
-            0 if is_internal else 1,
-            1 if is_ltd else 0,
-            _enabled_count(o),
-            o.get("user_count", 0) or 0,
-        )
-
-    org = sorted(candidates, key=_rank, reverse=True)[0]
 
     # Self-heal: the chosen operator company must be a FULL platform with every
     # module enabled so the admin always lands on the complete operator

@@ -66,6 +66,7 @@ const CustomPropertiesPanel = lazy(() => import('./MasterAdmin/CustomPropertiesP
 const RecentErrorsPanel = lazy(() => import('./MasterAdmin/RecentErrorsPanel'));
 const IntegrationHealthPanel = lazy(() => import('./MasterAdmin/IntegrationHealthPanel'));
 const AdminOrganizations = lazy(() => import('./MasterAdmin/AdminOrganizations'));
+const AdminOrgCleanup = lazy(() => import('./MasterAdmin/AdminOrgCleanup'));
 const AdminAllSites = lazy(() => import('./MasterAdmin/AdminAllSites'));
 const StaffOnboardingWizard = lazy(() => import('./MasterAdmin/StaffOnboardingWizard'));
 const IntegrationsHub = lazy(() => import('./MasterAdmin/IntegrationsHub'));
@@ -579,6 +580,8 @@ const MasterAdminPage = ({ _onBack }) => {
         // `orgsProps` bundle keeps every action (status / tier /
         // features / users / drawer) wired identically.
         return <AdminOrganizations {...orgsProps} />;
+      case 'org-cleanup':
+        return <AdminOrgCleanup />;
       case 'integrations-hub':
         // Iter 216h22 — P5 Integrations Hub. 4 cards (Stripe Connect /
         // Sicon / Orbit 4 / Sage 200) with brand status pills + a
