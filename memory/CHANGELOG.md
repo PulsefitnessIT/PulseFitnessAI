@@ -610,3 +610,11 @@ End-user E2E audit (testing agent + manual verification):
 - security_plus.resolve_cors_origins() now ignores a "*" value in production (falls back to brand defaults) and added resolve_cors_origin_regex() — a regex (https://([a-z0-9-]+\.)*(preview\.emergentagent\.com|emergent\.host)) so Emergent preview/host subdomains keep working across redeploys without editing env.
 - server.py CORSMiddleware now passes allow_origin_regex.
 - Verified app-level: pulsefitness.ai → echoed; preview subdomain → echoed via regex; evil.example.com → DENIED (no ACAO, 400). secrets_audit '[security-audit] all checks passed'. Public login 200, login page renders. NOTE: the public ingress edge still adds its own 'access-control-allow-origin: *' header (platform-level, outside app control), but the app no longer trusts arbitrary origins.
+
+## 2026-06-30 — Comms Centre tab reorganization
+- Main tabs reduced to: Campaigns / Flows / Segments / Analytics / Inactive.
+- New "Analytics" tab groups Engagement / Best Send Time / Benchmarks behind a sub-tab row (data-testid comms-analytics-tabs / comms-analytics-<id>).
+- New "Settings" dropdown (comms-settings-btn, shadcn DropdownMenu) holds Deliverability / Import (migrate) / API & Webhooks (developer) — removed from top-level pills.
+- Deep links preserved: ?view=engagement|best-time|benchmarks open Analytics with the right sub-tab; ?view=deliverability|migrate|developer open via Settings; ?view=analytics defaults to engagement.
+- Module-scope pill still shown on campaigns/inactive/analytics sub-views; hidden on deliverability/segments/flows/migrate/developer.
+- File: frontend/src/pages/Comms/CommsCentre.js (rewrite, ~222 lines). Verified by testing agent: 45/45 frontend assertions passed.
