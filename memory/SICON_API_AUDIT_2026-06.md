@@ -75,6 +75,20 @@ spec JSON: https://webapidocs.blob.core.windows.net/published/CoreWebAPI.R260200
   equipment register. Confirms equipment auto-pull is still blocked (Sicon Service has no list endpoint).
 - 🔴 No contracts here (Sicon-specific, push-only).
 
+## Projects.R260200c — Sicon Projects / Job Costing (SIJC) (added 2026-06-29, 86 paths)
+Doc: https://webapidocs.blob.core.windows.net/published/Redoc.html?page=Projects.R260200c
+- Jobs/JobSheets (GetJobSheets, GetProjectHeadersForProjects, PostNewJobSheet, UpdateJob),
+  ProjectLevel hierarchy (phases/stages/activities/statuses), `GET /api/customers/{traderaccountid}/projects`,
+  SIJCBudgets (budgets/cost), SIJCCHD (job headers/cost codes), JobTimesheet + SIJCTRN (labour/timesheets/
+  job completion), ProjectRates, SIJCEMP (employees), PlannedPurchase, HiredInPlant.
+- 🔴 **0 equipment / 0 asset / 0 serial.** Job costing only — does NOT unlock equipment.
+
+## EQUIPMENT HUNT — reviewed 5 APIs, NONE list installed equipment
+Service (EquipmentIDs only, embedded on cases; generic `/~/api/v2/TEntity` paged reader exists but entity-type
+for Equipment undocumented), Contracts (push-only), CRM (StockItems=catalogue), Core/Sage (traceable stock,
+no equipment entity), Projects (job costing). → Equipment likely needs a SEPARATE Sicon Asset Management /
+Service Equipment-register API doc, the Service TEntity entity-type name for Equipment, or a DB/SQL export.
+
 ## Recommended migration strategy (for 5k customers / 300k equipment)
 1. **Customers + contacts** → live CRM API pull (paged, idempotent on Sage ref / sicon_company_id).
 2. **Equipment** → bulk CSV/Excel/Sage-export pipeline (no Sicon API). MUST be batched + background +
