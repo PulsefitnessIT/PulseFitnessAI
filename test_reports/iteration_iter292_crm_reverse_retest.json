@@ -1,0 +1,42 @@
+{
+  "summary": "Re-test of Service Desk reverse-view UI (Sales-context CRM card) on case SC-2001 / qa-case-rev as owner@isodemo.com. Prior BLOCKER (capability gate) is RESOLVED — owner@isodemo.com now reaches /service-desk and the CrmContextCard inside ServiceCaseDrawer renders correctly with all expected values matching the backend payload. PASS.",
+  "test_scope": "Frontend only — Service Desk → Cases → SC-2001 row → drawer Customer tab → drawer-crm-context card.",
+  "verified_acceptance_criteria": {
+    "login_owner_isodemo": "PASS — POST /api/auth/login succeeded; /service-desk accessible (no redirect to /dashboard).",
+    "navigate_to_service_desk": "PASS — /service-desk loaded with Service Desk shell + Cases nav.",
+    "open_cases_tab": "PASS — desk-tab-cases clicked, case list rendered.",
+    "click_case_row_SC_2001": "PASS — case-row-SC-2001 clicked, drawer opened (header 'SC-2001 · Boiler fault · P2 · High · New').",
+    "click_drawer_customer_tab": "PASS — drawer-tab-customer clicked, Customer panel rendered (Customer name 'AlphaCo (Site A)').",
+    "crm_context_card_rendering": {
+      "drawer-crm-context": "rendered (linked=true branch)",
+      "drawer-crm-owner": "'Sarah Jones'",
+      "drawer-crm-tier": "'Gold'",
+      "drawer-crm-open-deals": "'1 · £24,000'",
+      "won_revenue_text": "'£8,000' present in card",
+      "active_contract_line": "'Active contract CT-5001 · ends 01/01/2027' rendered",
+      "drawer-crm-deal-list": "rendered with row 'Gym refit 2026 · proposal · £24,000'",
+      "drawer-crm-open": "rendered with href='/crm' (Open in CRM link)"
+    },
+    "console_errors": "No app-level errors. Only 3 benign CSP warnings for third-party scripts (assets.emergent.sh, posthog, cloudflareinsights) — unrelated to feature."
+  },
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "critical_code_review_comments": [
+    "drawer-crm-open href is hard-coded to '/crm' — consider deep-linking to the linked CRM company (e.g. /crm/companies/<account_id>) so 'Open in CRM' lands the user on the correct account rather than the CRM home.",
+    "CrmContextCard gracefully renders loading/unlinked/linked states with proper data-testids — good defensive UX."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only retest)", "frontend": "100% — all reverse-view acceptance criteria met" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None — used pre-seeded qa-case-rev (SC-2001) under iso-demo-org / Site A linked to company iso-cA.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Service Desk reverse-view (Sales-context CRM card) fully validated end-to-end on case SC-2001. The previous BLOCKER (owner@isodemo.com lacking is_service_desk) is resolved. All drawer-crm-* testids render correct values matching GET /api/svc/cases/qa-case-rev/crm-context. Only minor enhancement opportunity: deep-link 'Open in CRM' to the specific company page.",
+  "rca of the issue": "Previous blocker root cause was capability gate `view_service_desk` requiring is_service_desk flag; flag has been granted to owner@isodemo.com and access is now correct."
+}
