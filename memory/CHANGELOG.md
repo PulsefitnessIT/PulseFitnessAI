@@ -659,3 +659,10 @@ End-user E2E audit (testing agent + manual verification):
 - Frontend: MemberIdentityCard on the CRM contact detail (CRMContacts.js) — shows an 'Also a gym member' card with status badge, plan · site · joined · matched-by line, and a 'View member' button. Renders nothing for non-members.
 - Verified: backend curl (matched by email; plan/site resolved) + testing agent 100% (member shows card; non-member shows none). QA seed removed.
 - Completes the cross-module 'one Pulse team' initiative (Service↔CRM both ways, regional scoping, equipment SoT, member identity).
+
+## 2026-07-01 — Fix: Comms email import returned empty/malformed response (Cloudflare 520)
+- Bug: importing an Outlook .msg newsletter could make POST /api/comms/ai/import-email return an empty/invalid HTTP response (Cloudflare "could not parse" 520) — from the gpt-4o rebuild hanging past the gateway timeout on a large body, or an unhandled parse error.
+- Fix (comms_intel.py ai_import_email): wrapped parse in try/except → 422 JSON; wrapped AI rebuild in asyncio.wait_for(timeout=75) → 504 JSON on timeout, 502 JSON on error; res None → 422 JSON. Endpoint now ALWAYS returns clean JSON, never an empty/malformed response.
+- email_ingest._html_to_parts caps HTML at 3MB before BeautifulSoup (guards memory/time on huge Outlook newsletters). Added asyncio/logging imports + logger.
+- Verified: backend curl (empty→400, paste→200 blocks) + testing agent 100% (paste HTML rebuilds; invalid .msg → clean 200 JSON + friendly toast, no blank/empty response).
+- NOTE: user hit this on PRODUCTION whose deploy had failed (backend crash-looping = the empty response). Fix is in PREVIEW; needs redeploy. deployment_agent static scan = deploy-ready (strong JWT, CORS ok, no blockers) → earlier deploy failure was likely a transient k8s readiness timeout; re-deploy should succeed.
