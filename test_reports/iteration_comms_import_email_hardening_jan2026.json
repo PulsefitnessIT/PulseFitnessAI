@@ -1,0 +1,23 @@
+{
+  "summary": "Verified the hardening fix for POST /api/comms/ai/import-email in the Comms Centre Email Builder. Logged in as owner@isodemo.com, opened the 'Join for \u00a315' draft campaign to reach the EmailBuilder, opened the Import modal, and exercised both flows. HAPPY PATH (paste HTML with h1/p/img/a): API returned 200, modal auto-closed within ~3s, subject populated ('Feel the Beat'), and canvas rendered blocks (heading, paragraph, image, button visible on screen). ERROR ROBUSTNESS (small invalid .msg file uploaded via import-file-input): API returned 200 with a valid JSON body, modal closed, an informational toast was shown ('The email content provided did not include any images. No images were added.'), the EmailBuilder remained present, and the page did NOT go blank. No Cloudflare 520 / empty response observed on either call. No uncaught application-level console exceptions (only unrelated CSP warnings for posthog / cloudflare beacon / emergent-main scripts).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The invalid .msg upload succeeded end-to-end (HTTP 200) and the AI hallucinated a plausible-but-unrelated email ('Important: Action Required for Your Account') from ~200 bytes of garbage text. This is not the bug under test (the 520/empty-response is fixed), but consider a lightweight backend validator that rejects .msg payloads that fail to parse into any meaningful subject/body/HTML before invoking the AI, to avoid burning tokens on junk and confusing users. A friendlier 'We couldn\u2019t read this file' toast would be preferable to a hallucinated rebuild.",
+    "The paste-rebuild toast on this run said images were skipped even though the pasted HTML included an <img src=\"https://images.unsplash.com/...\">. Suspected AI-side inconsistency (previous iteration_comms_import_email_jan2026 pulled the Unsplash image successfully); worth spot-checking the prompt/parse path to ensure remote <img> URLs are always forwarded through to the AI/blocks."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None. Reused existing 'Join for \u00a315' draft campaign on Iso Demo Fitness. Created /tmp/invalid_fake.msg locally in the test runner for the upload path.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Repro: /login \u2192 owner@isodemo.com / IsoDemo123! \u2192 /comms \u2192 click campaign-edit-<id> on 'Join for \u00a315' \u2192 EmailBuilder opens (data-testid=email-builder) \u2192 click builder-import \u2192 import-email-modal appears. Paste flow: fill import-paste, click import-submit, wait \u226440s; modal closes, builder-subject fills, canvas renders. Invalid .msg flow: set_input_files on import-file-input with any short binary/text file renamed .msg, click import-submit; endpoint responds with clean JSON (200 in our run) and the modal closes with an informative toast \u2014 crucially, no blank screen and no empty response. Both /api/comms/ai/import-email calls returned HTTP 200. Note: block-count assertions via '[data-testid^=\"builder-block-\"]' / '[data-block-id]' did NOT match the actual DOM \u2014 the canvas uses different selectors; visual verification via screenshot confirmed blocks rendered.",
+  "rca of the issue": "N/A \u2014 the 520 / empty-response bug is fixed. Both paste and invalid-.msg import paths now return clean JSON with proper HTTP status codes, the modal closes deterministically, and the UI degrades gracefully (toast + preserved builder) instead of showing a blank page."
+}
