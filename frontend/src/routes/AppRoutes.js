@@ -231,6 +231,11 @@ function DashboardRoute({ user }) {
   if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
   const params = new URLSearchParams(window.location.search);
   const previewAsOperator = params.get('as') === 'operator';
+  // Iter 292 — ?as=global lets a master admin (even one whose home org
+  // isn't the operator) reach the Global collective DashboardPage instead
+  // of being bounced back to the /master-admin console.
+  const previewAsGlobal = params.get('as') === 'global';
+  const previewDashboard = previewAsOperator || previewAsGlobal;
   // Iter 220bz — mandatory profile-completion gate. New trial signups
   // collect this on the modal's step 2; legacy trials that signed up
   // before this iter shipped get routed here on first dashboard load.
