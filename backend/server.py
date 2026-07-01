@@ -386,6 +386,15 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"Secrets audit failed: {e}")
 
+    # Deploy-readiness: defer ALL heavy initialisation (seeding, backfills,
+    # index builds, one-shot migrations, background loops) to a background
+    # task so uvicorn binds :8001 and the k8s /health probe passes IMMEDIATELY.
+    # Awaiting Atlas index builds inside the startup event was blocking the
+    # port from opening → readiness timeout → failed production rollout.
+    asyncio.create_task(_full_boot())
+
+
+async def _full_boot() -> None:
     try:
         init_storage()
         logger.info("Storage initialized")

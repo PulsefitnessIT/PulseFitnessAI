@@ -1,6 +1,15 @@
 # Changelog
 
 
+## Jul 1, 2026 — Production deploy blocker fixed: non-blocking startup (Iter 297)
+Production rollout was failing with a k8s readiness timeout — nginx logged `connect() failed (111: Connection refused)` on `/health` because the backend never bound `:8001`.
+- **Root cause:** the FastAPI `@app.on_event("startup")` handler *awaited* heavy work (admin/CRM seeding, one-shot backfills/migrations, and `ensure_all_indexes` = 129 indexes across 67 collections) BEFORE uvicorn opens the port. Against production MongoDB Atlas the index builds/backfills blocked long enough that the readiness probe timed out and the pod was killed/restarted in a loop.
+- **Fix (`backend/server.py`):** `startup()` now runs only the fast secrets audit, then schedules all heavy init via `asyncio.create_task(_full_boot())` and returns immediately. uvicorn binds `:8001` right after imports and `/health` (trivial `{"status":"ok"}`) passes instantly, while seeding + index builds complete in the background. Verified: local `:8001/health` and external `/api/health` return 200 within seconds; login works; background seeds/indexes complete afterwards.
+- **Advisories (not code blockers, user action):**
+  - Production `JWT_SECRET` is weak (`gymaxis-ai-secret`, 26 chars) — set in the DEPLOYMENT env, not the repo `.env` (preview `.env` already uses a strong 64-char secret). Rotate it in the deploy secrets to 32+ random chars; otherwise `APP_ENV=production` boots will hard-abort via the secrets audit.
+  - `libmagic` not present in the container → file uploads return HTTP 415. Container-image level, unrelated to the timeout.
+
+
 ## Jul 1, 2026 — Comms Centre: send to specific people (not just segments) (Iter 296)
 Fixed user feedback: an email could only be delivered to a *segment*, with no way to send to one person, and segments needed categories that couldn't be linked to a member.
 - The backend already supported `audience_inline` (a list of emails); the Send modal just didn't expose it.
