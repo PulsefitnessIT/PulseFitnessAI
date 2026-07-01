@@ -4,7 +4,7 @@ import { useCRM } from './CRMApp';
 import {
   Users, Plus, ChevronRight, Phone, Mail, Building2, ArrowLeft, ArrowRightLeft,
   FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database, Sparkles,
-  TrendingUp, Heart, Crown, Save, ChevronUp, Workflow, Check, Send,
+  TrendingUp, Heart, Crown, Save, ChevronUp, Workflow, Check, Send, Dumbbell,
 } from 'lucide-react';
 import axios from 'axios';
 import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
@@ -647,6 +647,41 @@ function StrategicSellingPanel({ contact, isDark, c, API, headers, onSaved }) {
   );
 }
 
+function MemberIdentityCard({ contactId, API, headers, c, isDark, navigateTo }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/crm/v2/contacts/${contactId}/member-identity`, { headers: headers() })
+      .then((r) => { if (alive) setData(r.data); })
+      .catch(() => { if (alive) setData(null); });
+    return () => { alive = false; };
+  }, [API, headers, contactId]);
+
+  if (!data || !data.is_member) return null;
+  const m = data.member || {};
+  const statusColor = m.status === 'active' ? 'var(--color-success-alt)' : m.status === 'frozen' ? 'var(--color-accent-amber)' : 'var(--color-text-faint-alt)';
+  return (
+    <div className="mb-4 flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', background: isDark ? 'var(--color-surface-dark-1)' : 'var(--color-neutral-50)' }} data-testid="contact-member-identity">
+      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+        <Dumbbell size={16} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold" style={{ color: c.text }}>Also a gym member</span>
+          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full text-white" style={{ background: statusColor }} data-testid="member-identity-status">{m.status || 'member'}</span>
+        </div>
+        <p className="text-[11px]" style={{ color: c.textDim }}>
+          {m.plan ? `${m.plan}` : 'Membership'}{m.site ? ` · ${m.site}` : ''}{m.joined_at ? ` · joined ${new Date(m.joined_at).toLocaleDateString('en-GB')}` : ''} · matched by {data.matched_via}
+        </p>
+      </div>
+      {navigateTo && (
+        <button onClick={() => navigateTo(`/memberships?member=${m.id}`)} className="px-2.5 py-1.5 rounded-md text-xs font-semibold shrink-0" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="member-identity-open">View member</button>
+      )}
+    </div>
+  );
+}
+
 function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo }) {
   const [contact, setContact] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -773,6 +808,8 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
         {contact.phone && <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" style={{ background: isDark ? 'var(--color-surface-dark-1)' : 'var(--color-neutral-100)', color: c.textMuted }}><Phone size={12} />{contact.phone}</a>}
         {contact.linkedin && <a href={contact.linkedin} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" style={{ background: isDark ? 'var(--color-surface-dark-1)' : 'var(--color-neutral-100)', color: c.textMuted }}><Globe size={12} />LinkedIn</a>}
       </div>
+
+      <MemberIdentityCard contactId={contactId} API={API} headers={headers} c={c} isDark={isDark} navigateTo={navigateTo} />
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 flex-wrap">

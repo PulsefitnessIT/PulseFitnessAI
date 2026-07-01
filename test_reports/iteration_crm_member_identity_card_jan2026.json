@@ -1,0 +1,47 @@
+{
+  "summary": "Validated CRM ↔ Memberships identity card on CRM Contact Detail. Logged in as owner@isodemo.com, navigated CRM → Members tab, opened Jamie Reed (qa-ct-mem): MemberIdentityCard renders with ACTIVE status badge, correct line 'Premium Monthly · Demo Head Office · joined 01/07/2026 · matched by email' and 'View member' button. GET /api/crm/v2/contacts/qa-ct-mem/member-identity returned 200. Then opened NonMember Tester (a contact that is NOT a member): detail view loaded and the identity card was correctly absent (0 elements with data-testid='contact-member-identity'). No console errors related to the feature.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_crm_member_identity_card_jan2026.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MemberIdentityCard swallows all errors silently (.catch(() => setData(null))). Consider logging non-404 errors for observability (e.g., 500s would be indistinguishable from 'not a member').",
+    "Card renders status text via CSS uppercase; the raw value asserted via data-testid='member-identity-status' returns 'active' visually as 'ACTIVE'. This is acceptable but worth noting: the requirement said the status testid should equal 'active' — the DOM textContent is 'active' (CSS text-transform: uppercase applied only visually), so the assertion still holds.",
+    "CRMContacts.js is 1413 lines — consider splitting the detail view / identity card into their own files for maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested (frontend-only request)",
+    "frontend": "100% (2/2 scenarios passed)"
+  },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM login via /login page, then navigate to /crm)",
+  "seed_data_creation": "None. Used pre-seeded contacts: qa-ct-mem (Jamie Reed, member) and 3c76cab3-... (NonMember Tester).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM contacts are shown under CRM → 'Members' nav tab (label 'Members' means 'Contacts' in Members-mode CRM). Two 'Members' controls exist on the page — the nav tab is the 2nd occurrence. Contact row testid: contact-row-{id}. Detail root: crm-contact-detail. Identity card testids: contact-member-identity, member-identity-status, member-identity-open. Non-member contact API returns 200 with is_member=false and the component returns null. Note: an unrelated 401 was observed on non-member detail load (not on the member-identity endpoint, both returned 200) — likely from an unrelated ancillary CRM call; did not affect the tested feature.",
+  "verification_evidence": {
+    "member_case": {
+      "api_status": 200,
+      "url": "/api/crm/v2/contacts/qa-ct-mem/member-identity",
+      "card_present": true,
+      "status_text": "active (displayed ACTIVE via CSS uppercase)",
+      "line_text": "Premium Monthly · Demo Head Office · joined 01/07/2026 · matched by email",
+      "view_member_button": true
+    },
+    "non_member_case": {
+      "api_status": 200,
+      "url": "/api/crm/v2/contacts/3c76cab3-eba3-4eed-8883-47ed97804a98/member-identity",
+      "card_present": false,
+      "detail_loaded": true
+    }
+  }
+}

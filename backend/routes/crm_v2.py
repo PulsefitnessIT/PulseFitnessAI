@@ -1876,6 +1876,54 @@ async def create_asset(data: dict, user=Depends(get_crm_user)):
     return {k: v for k, v in asset.items() if k != "_id"}
 
 
+@router.get("/contacts/{contact_id}/member-identity")
+async def contact_member_identity(contact_id: str, user=Depends(get_crm_user)):
+    """Person-identity link — is this CRM contact also a gym member?
+
+    Matches db.members (the Memberships module) by canonical email, then
+    exact phone, within the org. Read-only: surfaces the unified person so
+    the CRM and Memberships stay one identity rather than duplicating."""
+    of = _of(user)
+    contact = await db.crm2_contacts.find_one(
+        {"id": contact_id, **of}, {"_id": 0, "email": 1, "phone": 1})
+    if not contact:
+        raise HTTPException(404, "Contact not found")
+    org = user.get("organization_id")
+    email = (contact.get("email") or "").strip().lower()
+    phone = (contact.get("phone") or "").strip()
+
+    proj = {"_id": 0, "id": 1, "first_name": 1, "last_name": 1, "name": 1,
+            "status": 1, "plan_id": 1, "site_id": 1, "joined_at": 1, "email": 1}
+    match, via = None, None
+    if email:
+        match = await db.members.find_one({"organization_id": org, "email": email}, proj)
+        if match:
+            via = "email"
+    if not match and phone:
+        match = await db.members.find_one({"organization_id": org, "phone": phone}, proj)
+        if match:
+            via = "phone"
+    if not match:
+        return {"is_member": False}
+
+    plan = await db.membership_plans.find_one({"id": match.get("plan_id")}, {"_id": 0, "name": 1}) if match.get("plan_id") else None
+    site = await db.sites.find_one({"id": match.get("site_id")}, {"_id": 0, "name": 1}) if match.get("site_id") else None
+    name = (f"{match.get('first_name', '')} {match.get('last_name', '')}").strip() or match.get("name")
+    return {
+        "is_member": True,
+        "matched_via": via,
+        "member": {
+            "id": match.get("id"),
+            "name": name,
+            "status": match.get("status"),
+            "plan": (plan or {}).get("name"),
+            "site": (site or {}).get("name"),
+            "joined_at": match.get("joined_at"),
+            "email": match.get("email"),
+        },
+    }
+
+
 # ═══════════════════════════════════════════
 # QUOTES
 # ═══════════════════════════════════════════
