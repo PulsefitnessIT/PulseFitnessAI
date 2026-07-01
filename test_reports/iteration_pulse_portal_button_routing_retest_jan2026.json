@@ -1,0 +1,30 @@
+{
+  "summary": "Retest of Master Admin portal-switch buttons after AppRoutes.js DashboardRoute guard fix + MasterAdminPage handler swap. BOTH buttons now route correctly. Global Dashboard button (portal-switch-gymaxis) navigates to /dashboard?as=global and renders the Global cross-gym view (h1='Global Dashboard', tagline 'Cross-gym analytics, documents & management', [data-testid=dashboard-header] present). Pulse Fitness Portal button (portal-switch-pulse) navigates to /dashboard?as=operator and renders the operator Operations dashboard (h1='Operations · Pulse Fitness AI Admin', 'Your Operations Hub' visible). No bounce-back to /master-admin observed for either button. Bug fully resolved.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_verification_results": {
+    "login_master_admin": "PASS — admin@pulsefitness.com logged in and landed on /master-admin.",
+    "global_dashboard_button": "PASS — click [data-testid=portal-switch-gymaxis] → URL becomes /dashboard?as=global (NOT redirected back to /master-admin). [data-testid=dashboard-header] renders with text 'Global DashboardCross-gym analytics, documents & management'. h1 = 'Global Dashboard'. The route guard on AppRoutes.js line 253 now correctly bypasses the master-admin redirect when previewAsGlobal is true.",
+    "pulse_fitness_portal_button": "PASS — click [data-testid=portal-switch-pulse] → URL becomes /dashboard?as=operator (NOT the Global view, NOT redirected back to /master-admin). Renders Operations dashboard: h1 = 'Operations · Pulse Fitness AI Admin', tagline 'Equipment, faults, maintenance & compliance — your whole estate in one place', 'Your Operations Hub' section visible.",
+    "views_are_distinct": "PASS — Global view header/tagline is clearly different from Operator view header/tagline. The two intents render distinct top-of-page content as expected. (Shared module tabs below the header — Operations/Memberships/CRM/Marketing/Comms Centre — are common to both, which is by design.)",
+    "console_errors": "Only CSP violations for third-party analytics scripts (emergent-main.js, posthog, cloudflareinsights) — pre-existing platform-level noise, unrelated to this change. No app-level React errors."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The fix is clean: AppRoutes.js DashboardRoute now recognises both `?as=operator` and `?as=global` as previewDashboard, bypassing the master-admin redirect for either intent. MasterAdminPage.handlePulseFitnessSwitch pushes ?as=global; handlePulseSwitch pushes ?as=operator. DashboardPage.showGlobal correctly renders Global when as!='operator'. All three pieces now agree.",
+    "Minor note (not blocking): the shared module tabs area under the header shows 'Your Operations Hub' text in both Global and Operator preview modes — this is expected shared chrome but a future improvement might tailor the sub-hero copy to the previewed intent for extra clarity."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only retest)", "frontend": "100% (3/3 requested checks pass)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fully resolved. If any future change touches AppRoutes.js DashboardRoute or MasterAdminPage handlePulseSwitch/handlePulseFitnessSwitch or DashboardPage showGlobal logic, re-run this quick 3-step check: (1) login as admin@pulsefitness.com → /master-admin; (2) click portal-switch-gymaxis → expect URL /dashboard?as=global with h1 'Global Dashboard'; (3) go back to /master-admin, click portal-switch-pulse → expect URL /dashboard?as=operator with h1 containing 'Operations'.",
+  "rca of the issue": "Previous iteration RCA: guard at AppRoutes.js:253 bounced any master admin whose home org wasn't the operator org back to /master-admin whenever they hit /dashboard, so the Global Dashboard branch in DashboardPage.showGlobal was unreachable. Fix applied by main agent: (a) MasterAdminPage.handlePulseFitnessSwitch now navigates to /dashboard?as=global (explicit intent); (b) DashboardRoute reads previewAsGlobal = (?as=='global') and includes it in previewDashboard so the master-admin bounce-back is skipped when Global is explicitly requested. Verified end-to-end in this iteration: URL settles at /dashboard?as=global and the Global header renders."
+}

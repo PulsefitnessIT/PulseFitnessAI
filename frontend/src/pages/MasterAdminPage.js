@@ -227,7 +227,7 @@ const MasterAdminPage = ({ _onBack }) => {
   // Iter 292 — "Global Dashboard" shows the cross-gym collective view
   // (the master-admin DashboardPage). Plain /dashboard renders Global for
   // master admins (no ?as=operator).
-  const handlePulseFitnessSwitch = () => { window.location.href = '/dashboard'; };
+  const handlePulseFitnessSwitch = () => { window.location.href = '/dashboard?as=global'; };
 
   const loadCapexConfig = useCallback(async () => {
     try {

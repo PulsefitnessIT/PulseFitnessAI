@@ -250,7 +250,7 @@ function DashboardRoute({ user }) {
   ) {
     return <Navigate to="/complete-profile" replace />;
   }
-  if (user.is_master_admin && !previewAsOperator && !user.org_is_operator) return <Navigate to="/master-admin" />;
+  if (user.is_master_admin && !previewDashboard && !user.org_is_operator) return <Navigate to="/master-admin" />;
   // Iter 216h113 — MOD users land in the standard Pulse Fitness
   // dashboard like every other Pulse customer. Module-level gating
   // (ModuleAccessGate) still hides any modules they're not entitled
