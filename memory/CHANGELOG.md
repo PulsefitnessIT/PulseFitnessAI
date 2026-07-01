@@ -652,3 +652,10 @@ End-user E2E audit (testing agent + manual verification):
   - create_asset now persists equipment_id/sicon_equipment_id/source.
   - Frontend: AssetReconcilePanel on the CRM company Assets tab (CRMCompanies.js) — shows register count, duplicate list with one-click 'Link', crm-only note; asset rows show 'linked to register'; empty state points to the Sites & Equipment tab as the SoT. Added missing `toast` import.
 - Verified: backend curl (duplicate via serial detected; link → already_linked increments, duplicates→0) and testing agent 100% frontend. QA seed removed.
+
+## 2026-07-01 — Memberships ↔ CRM person identity (unified person surface)
+- Audit: db.members (Memberships) and crm2_contacts (CRM) both key on email but had no link — same person could exist in both with no connection.
+- Fix: GET /api/crm/v2/contacts/{contact_id}/member-identity (crm_v2.py) matches db.members by canonical email then exact phone within the org; returns is_member + member {name, status, plan (membership_plans), site (sites), joined_at, matched_via}. Read-only.
+- Frontend: MemberIdentityCard on the CRM contact detail (CRMContacts.js) — shows an 'Also a gym member' card with status badge, plan · site · joined · matched-by line, and a 'View member' button. Renders nothing for non-members.
+- Verified: backend curl (matched by email; plan/site resolved) + testing agent 100% (member shows card; non-member shows none). QA seed removed.
+- Completes the cross-module 'one Pulse team' initiative (Service↔CRM both ways, regional scoping, equipment SoT, member identity).
