@@ -613,14 +613,24 @@ function ImportModal({ API, headers, onClose, onImported }) {
           <span>Linked images are pulled in automatically. Embedded or screenshot images can't be hosted — we'll add a placeholder and flag it so you can upload them.</span>
         </div>
 
-        {busy && (
-          <div className="flex items-center gap-2 mt-3 text-xs rounded-lg p-2.5 text-[#0e7490]" style={{ background: 'rgba(8,145,178,0.08)' }} data-testid="import-progress-note">
-            <Loader2 size={13} className="animate-spin shrink-0" />
-            <span>{elapsed < 5
-              ? 'Rebuilding your email with AI…'
-              : 'Large email — this can take up to a minute. Hang tight, no need to retry.'}</span>
-          </div>
-        )}
+        {busy && (() => {
+          const estSec = file ? Math.max(12, Math.min(60, Math.round((file.size / 1048576) * 10) + 8)) : 12;
+          const pct = Math.min(92, Math.round((elapsed / estSec) * 92));
+          return (
+            <div className="mt-3 rounded-lg p-2.5" style={{ background: 'rgba(8,145,178,0.08)' }} data-testid="import-progress-note">
+              <div className="flex items-center gap-2 text-xs text-[#0e7490] mb-1.5">
+                <Loader2 size={13} className="animate-spin shrink-0" />
+                <span className="flex-1">{elapsed < 5
+                  ? 'Rebuilding your email with AI…'
+                  : 'Large email — this can take up to a minute. Hang tight, no need to retry.'}</span>
+                <span className="font-semibold tabular-nums" data-testid="import-progress-pct">{pct}%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(8,145,178,0.15)' }}>
+                <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: CYAN }} data-testid="import-progress-bar" />
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} disabled={busy} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">Cancel</button>

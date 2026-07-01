@@ -670,3 +670,6 @@ End-user E2E audit (testing agent + manual verification):
 ## 2026-07-01 — Enhancement: import "rebuilding" progress note
 - EmailBuilder ImportModal now shows a reassuring progress note (data-testid='import-progress-note') while the AI rebuilds: "Rebuilding your email with AI…", escalating after 5s to "Large email — this can take up to a minute. Hang tight, no need to retry." Cancel is disabled while busy. Prevents users retrying/aborting large Outlook newsletter imports.
 - Verified: compiles clean; additive UI gated on busy state.
+
+## 2026-07-01 — Enhancement: import progress bar + percentage
+- Import modal now shows a size-based progress bar (data-testid='import-progress-bar') + percentage (import-progress-pct) that eases toward ~92% over an estimated duration derived from file size (8-60s), giving responsive feedback on large newsletter imports. Completes on response. Self-verified via compile (additive UI on the busy state).
