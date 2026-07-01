@@ -111,6 +111,13 @@ const DashboardPage = () => {
     loadData, checkPaymentStatus,
   } = useDashboardData(API);
 
+  // Iter 292 — Master admins see the Global (cross-gym) dashboard by default.
+  // The "Pulse Fitness Portal" button appends ?as=operator so the operator
+  // (e.g. Lee at Pulse Fitness Ltd) lands on their OWN Operations dashboard
+  // without self-impersonation. The "Global Dashboard" button omits it.
+  const previewAsOperator = searchParams.get('as') === 'operator';
+  const showGlobal = user?.is_master_admin && !previewAsOperator;
+
   // Check payment status once on mount (Stripe redirect)
   React.useEffect(() => {
     const sessionId = searchParams.get('session_id');
@@ -212,7 +219,7 @@ const DashboardPage = () => {
           }}
         >
         <div className="max-w-7xl mx-auto px-4">
-          {user?.is_master_admin ? (
+          {showGlobal ? (
             <div className="mb-8" data-testid="dashboard-header">
               <h1 className="text-3xl sm:text-4xl tracking-tight font-bold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }} data-testid="dashboard-title">
                 <span className="gx-grad-text">Global</span> Dashboard
@@ -238,7 +245,7 @@ const DashboardPage = () => {
             <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} showSuppliers={showSuppliersTab} t={t} />
 
             {/* Proactive nudges (warranty, PPM, supplier SLA drift) */}
-            {!user?.is_master_admin && (
+            {!showGlobal && (
               <NudgeBanner canDismiss={can(user, 'dismiss_nudges')} />
             )}
 
@@ -257,7 +264,7 @@ const DashboardPage = () => {
 
             <TabsContent value="overview" data-testid="overview-content">
               <Suspense fallback={<DashboardTabFallback />}>
-              {user?.is_master_admin ? (
+              {showGlobal ? (
                 <AdminDashboardTab />
               ) : (
                 <OverviewTab
@@ -300,7 +307,7 @@ const DashboardPage = () => {
 
             <TabsContent value="issues" data-testid="issues-content">
               <Suspense fallback={<DashboardTabFallback />}>
-              {user?.is_master_admin ? (
+              {showGlobal ? (
                 <AdminFaultsTab />
               ) : (
                 <FaultsTab
@@ -328,7 +335,7 @@ const DashboardPage = () => {
 
             <TabsContent value="maintenance" data-testid="maintenance-content">
               <Suspense fallback={<DashboardTabFallback />}>
-              {user?.is_master_admin ? (
+              {showGlobal ? (
                 <AdminCheckSheetsTab />
               ) : (
                 <MaintenanceTab
@@ -349,7 +356,7 @@ const DashboardPage = () => {
 
             <TabsContent value="documents" data-testid="documents-content">
               <Suspense fallback={<DashboardTabFallback />}>
-              {user?.is_master_admin ? <GlobalDocumentsTab /> : <DocumentsTab />}
+              {showGlobal ? <GlobalDocumentsTab /> : <DocumentsTab />}
               </Suspense>
             </TabsContent>
 
@@ -361,7 +368,7 @@ const DashboardPage = () => {
 
             <TabsContent value="equipment" data-testid="equipment-content">
               <Suspense fallback={<DashboardTabFallback />}>
-              {user?.is_master_admin ? (
+              {showGlobal ? (
                 <AdminEquipmentTab />
               ) : (
                 <>

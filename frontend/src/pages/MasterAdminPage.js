@@ -212,17 +212,11 @@ const MasterAdminPage = ({ _onBack }) => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  const handlePulseSwitch = async () => {
-    try {
-      const res = await axios.post(`${API}/master-admin/pulse-portal-login`, {}, { headers, withCredentials: true });
-      const impToken = res.data?.token;
-      if (!impToken) throw new Error('no token');
-      localStorage.setItem('impersonation_return', '/master-admin');
-      window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
-    } catch (e) {
-      window.location.href = '/dashboard';
-    }
-  };
+  // Iter 292 — "Pulse Fitness Portal" drops the operator (e.g. Lee at
+  // Pulse Fitness Ltd) straight into their OWN Operations dashboard via the
+  // ?as=operator flag — no self-impersonation, no Global view. The dropdown
+  // arrow beside it still opens the impersonation org-picker.
+  const handlePulseSwitch = () => { window.location.href = '/dashboard?as=operator'; };
   const handleOrgSwitch = async (orgId) => {
     const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true });
     const impToken = res.data?.token;
@@ -230,11 +224,10 @@ const MasterAdminPage = ({ _onBack }) => {
     localStorage.setItem('impersonation_return', '/master-admin');
     window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
   };
-  // Iter 215bs — One-click "as operator" preview into the Pulse Fitness dashboard
-  // so master admins can sanity-check the operator UX without seeding a
-  // fake user. The `?as=operator` flag bypasses the master-admin redirect
-  // gate in App.js for this navigation.
-  const handlePulseFitnessSwitch = () => { window.location.href = '/dashboard?as=operator'; };
+  // Iter 292 — "Global Dashboard" shows the cross-gym collective view
+  // (the master-admin DashboardPage). Plain /dashboard renders Global for
+  // master admins (no ?as=operator).
+  const handlePulseFitnessSwitch = () => { window.location.href = '/dashboard'; };
 
   const loadCapexConfig = useCallback(async () => {
     try {

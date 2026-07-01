@@ -1,0 +1,33 @@
+{
+  "summary": "Master Admin portal button routing verification. Pulse Fitness Portal button works correctly. Global Dashboard button is BROKEN — it navigates to /dashboard which then gets redirected back to /master-admin by AppRoutes.js line 248 because admin@pulsefitness.com has org_is_operator=false. The Global Dashboard view is unreachable for this admin.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AppRoutes.DashboardRoute (line 248)", "issue": "Global Dashboard button (portal-switch-gymaxis) navigates to /dashboard, but the route guard `if (user.is_master_admin && !previewAsOperator && !user.org_is_operator) return <Navigate to=\"/master-admin\" />` immediately bounces the master admin back to /master-admin. As a result, the Global Dashboard collective view is NEVER rendered for admin@pulsefitness.com (org_is_operator=false verified via /api/auth/me). The dashboard-header data-testid never appears; user lands on /master-admin?section=overview showing 'Dashboard Overview' (master-admin overview) instead of the 'Global Dashboard' view.", "selector": "[data-testid=\"portal-switch-gymaxis\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_verification_results": {
+    "pulse_fitness_portal_button": "PASS — click portal-switch-pulse → navigated to /dashboard?as=operator, rendered Operations page ('Operations · Pulse Fitness AI Admin', 'Your Operations Hub'), header does NOT say 'Global Dashboard', no impersonation banner detected, URL contains as=operator.",
+    "global_dashboard_button": "FAIL — click portal-switch-gymaxis → briefly hits /dashboard then gets redirected back to /master-admin. Final URL is /master-admin, [data-testid=dashboard-header] never appears. The h1 shows 'Dashboard Overview' (master-admin OverviewSection), NOT the Global Dashboard collective view.",
+    "org_picker_dropdown": "PASS — click portal-switch-org-picker-btn opens org-portal-modal with 26 org rows rendered (impersonation picker), confirming impersonation still lives on the dropdown.",
+    "console_errors": "No app-level React errors. Only CSP violations for third-party analytics scripts (emergent-main.js, posthog, cloudflareinsights) — pre-existing platform-level noise, unrelated to this change."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix /app/frontend/src/routes/AppRoutes.js line 248: the master-admin redirect on /dashboard must NOT fire when the operator explicitly requested the Global Dashboard. Options: (a) drop the `!user.org_is_operator` clause so `/dashboard` (without ?as=operator) always renders DashboardPage — which then correctly shows Global via `showGlobal = is_master_admin && !previewAsOperator`; OR (b) change handlePulseFitnessSwitch in MasterAdminPage.js to append an explicit intent flag (e.g. `/dashboard?view=global`) and let DashboardRoute honour it and bypass the redirect. Current wiring means the Global Dashboard button is a no-op for any master admin whose own org isn't flagged operator (the norm)."
+  ],
+  "critical_code_review_comments": [
+    "AppRoutes.js line 248 redirect and MasterAdminPage.handlePulseFitnessSwitch are inconsistent: the sidebar button wants to show the Global Dashboard at /dashboard, but the route guard sends master admins back to /master-admin unless their org happens to be an operator. The two pieces need to agree — either the guard must exempt the Global Dashboard intent, or the button must carry the intent in the URL.",
+    "DashboardPage.js `showGlobal` logic (line 119) is correct in isolation, but is unreachable in this DB because the route guard intercepts first — coverage gap in end-to-end testing."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "66% (2/3 buttons work as specified)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug centres on AppRoutes.js DashboardRoute redirect. Verify after fix: (1) portal-switch-pulse → /dashboard?as=operator renders Operations (currently OK); (2) portal-switch-gymaxis → /dashboard renders header with data-testid=dashboard-header containing 'Global'; (3) portal-switch-org-picker-btn opens org-portal-modal (currently OK). Use master admin admin@pulsefitness.com — org_is_operator=false, is_master_admin=true.",
+  "rca of the issue": "Root cause: The fix swapped the two button handlers (Pulse Portal now uses ?as=operator, Global Dashboard uses plain /dashboard), but the pre-existing route guard in AppRoutes.js DashboardRoute — `if (user.is_master_admin && !previewAsOperator && !user.org_is_operator) return <Navigate to=\"/master-admin\" />` — still redirects any master admin without an operator org away from /dashboard. Since admin@pulsefitness.com has org_is_operator=false (confirmed via /api/auth/me), clicking Global Dashboard just bounces them straight back to /master-admin, so the DashboardPage's `showGlobal` branch is never reached. Reproduction: Login as admin@pulsefitness.com → /master-admin → click 'Global Dashboard' → observe URL settles at /master-admin (not /dashboard) and header shows 'Dashboard Overview' (master-admin OverviewSection), not the 'Global Dashboard' [data-testid=dashboard-header]. Mitigation: relax/rework the redirect in AppRoutes.js line 248 so /dashboard renders for master admins by default (with DashboardPage's own showGlobal branch handling Global-vs-Operator rendering), OR pass an explicit intent (e.g. ?view=global) from handlePulseFitnessSwitch that the guard honours."
+}
