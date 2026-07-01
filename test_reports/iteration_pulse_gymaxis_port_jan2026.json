@@ -1,0 +1,41 @@
+{
+  "summary": "E2E testing of freshly ported GymAxis→Pulse Fitness features (AI Scheduling, Membership Dunning, Revenue Autopilot, GDPR, Machine Manuals, Equipment Transfers) plus CRM regression. 16/16 backend endpoint tests pass. All frontend panels render without crash. One UI bug found on Machine Manuals (toast 'Failed to load manual directory' despite backend returning 200).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "unknown (secondary manuals directory listing)", "issue": "A 500 is observed in the browser console when loading the Machine Manuals panel; the primary GET /api/machine-manuals returns 200 with {manuals:[]}. Likely a companion endpoint used by MachineManualsDirectoryPanel (e.g. /api/machine-manuals/directory or similar) 500s. Please check backend logs for the 500 and confirm the panel is hitting the correct route."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MachineManualsDirectoryPanel", "issue": "Shows red toast 'Failed to load manual directory' (rendered twice) on load, though the empty state 'No machine manuals uploaded yet' also renders below. Backend /api/machine-manuals is 200 — likely a different call from the panel is failing (see backend minor issue).", "selector": "toast text 'Failed to load manual directory'", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ServiceDesk page", "issues": ["React hydration warning: '<span> cannot be a child of <option>' from ServiceDeskPage line ~341. Non-blocking but should be cleaned up."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pulse_gymaxis_port_jan2026.py",
+    "/app/test_reports/pytest/pulse_gymaxis_port_jan2026.xml"
+  ],
+  "action_items": [
+    "Investigate why MachineManualsDirectoryPanel shows 'Failed to load manual directory' toast on mount despite GET /api/machine-manuals returning 200 — likely a secondary endpoint 500. Check backend logs for the 500 seen in browser console.",
+    "Fix minor React hydration warning: <span> inside <option> in ServiceDeskPage.js (~line 341)."
+  ],
+  "critical_code_review_comments": [
+    "Backend routers wired correctly under /api: svc/scheduling/*, dunning/*, autopilot/revenue/*, gdpr/*, machine-manuals, operations/equipment-transfers.",
+    "Master Admin routing intact — /dashboard?as=operator and /dashboard?as=global both load without bouncing to /master-admin.",
+    "Memberships console new tabs (Recover/Autopilot/Privacy) render at /memberships."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pulse_gymaxis_port_jan2026.py (new)"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "~95% (1 toast bug)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints all confirmed 200: /api/svc/scheduling/{board,settings,proposals,reports,duration-insights}, /api/dunning/{summary,at-risk}, /api/autopilot/revenue/{overview,settings,actions}, /api/gdpr/{search,erasures}, /api/machine-manuals, /api/operations/equipment-transfers, /api/crm/v2/tenders. Login endpoint is /api/auth/login (operator) + /api/crm/auth/login (CRM). Frontend login page is /login (NOT /master-login → that returns 404). AI Scheduling hub renders correctly with all stat cards, re-plan buttons, Insights/Settings, and Today's schedule / AI proposal columns. Diary board sub-tab shows engineer diary. Memberships tabs (Recover/Autopilot/Privacy) present at /memberships. Machine Manuals sub-tab under Master Admin → Catalogue & Library works but shows a toast error due to a secondary endpoint 500 (browser console showed a 500).",
+  "rca of the issue": "Machine Manuals toast 'Failed to load manual directory' + browser 500: The MachineManualsDirectoryPanel likely fetches a secondary endpoint on mount (in addition to /api/machine-manuals). Trace the panel's useEffect / react-query calls and add the missing/failing endpoint, or update the panel to only rely on /api/machine-manuals. Mitigation: catch the fetch error silently when list is empty, or fix the underlying 500."
+}

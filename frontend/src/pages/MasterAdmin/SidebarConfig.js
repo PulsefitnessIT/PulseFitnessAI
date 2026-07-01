@@ -81,6 +81,7 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'catalogue',         label: 'Equipment catalogue',  icon: ImageIcon },
       { id: 'custom-properties', label: 'Custom properties',    icon: ListChecks },
+      { id: 'machine-manuals',   label: 'Machine manuals',      icon: FileText },
     ],
   },
   // 5. Finance — pricing, billing, payments, Stripe, CAPEX, refunds
@@ -245,6 +246,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'activation-funnel':  'organizations',
   'catalogue':          'catalogue',
   'custom-properties':  'catalogue',
+  'machine-manuals':    'catalogue',
   'social-media-library': 'catalogue',
   'orbit4':             'integrations-hub',
   'integration-health': 'integrations-hub',

@@ -111,6 +111,9 @@ from routes.svc.engineer_parts_requests import (
 # Iter 215dq — Phase 3 Scheduler + Parts catalogue
 from routes.svc.parts import router as svc_parts_router
 from routes.svc.scheduler import router as svc_scheduler_router
+# Ported from GymAxis — AI Scheduling Agent (re-plan/approve layer over the diary)
+from routes.svc.ai_scheduling import router as svc_ai_scheduling_router
+from routes.svc.ai_scheduling import engineer_router as svc_ai_sched_engineer_router
 # Iter 215dr — Phase 4 Inventory deepening (reorder, low-stock, POs)
 from routes.svc.inventory import router as svc_inventory_router
 # Iter 220ea·19 — Engineer App Phase 5: Stock Control hub (engineer reads)
@@ -207,6 +210,11 @@ from routes.svc.engineer_ratings import router as svc_engineer_ratings_router
 from routes.incidents import router as incidents_router
 # Iter 278 — Expenses Tracker & Receipt Photo Scanner
 from routes.expenses import router as expenses_router
+# Ported from GymAxis — standalone features
+from routes.machine_manuals import router as machine_manuals_router
+from routes.membership_dunning import router as membership_dunning_router
+from routes.revenue_autopilot import router as revenue_autopilot_router
+from routes.gdpr import router as gdpr_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -227,6 +235,8 @@ _UNGATED_ROUTERS = (
     check_sheets_router, reports_router, ai_diagnosis_router,
     risk_assessments_router, purchase_orders_router, suppliers_router,
     suppliers_catalogue_router,
+    machine_manuals_router, membership_dunning_router,
+    revenue_autopilot_router, gdpr_router,
     digest_router, onboarding_router, gym_layouts_router,
     health_score_router, supplier_portal_router, qr_codes_router,
     svc_engineer_qr_router, svc_engineer_qr_public_router,
@@ -300,6 +310,9 @@ _UNGATED_ROUTERS = (
     svc_engineer_parts_requests_admin_router,
     # Iter 215dq — Phase 3 Scheduler + Parts
     svc_parts_router, svc_scheduler_router,
+    # AI Scheduling Agent (ported from GymAxis) — re-plan/approve layer
+    svc_ai_scheduling_router,
+    svc_ai_sched_engineer_router,
     # Iter 215dr — Phase 4 Inventory deepening
     svc_inventory_router,
     # Iter 220ea·19 — Engineer App Phase 5: Stock Control hub

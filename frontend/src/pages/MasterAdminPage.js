@@ -61,6 +61,7 @@ const CollectionsDashboard = lazy(() => import('./MasterAdmin/CollectionsDashboa
 const DbViewerPanel = lazy(() => import('./MasterAdmin/DbViewerPanel'));
 const PulseDbExplorerPanel = lazy(() => import('./MasterAdmin/PulseDbExplorerPanel'));
 const CataloguePanel = lazy(() => import('./MasterAdmin/CataloguePanel'));
+const MachineManualsDirectoryPanel = lazy(() => import('./MasterAdmin/MachineManualsDirectoryPanel'));
 const SocialMediaLibraryPanel = lazy(() => import('./MasterAdmin/SocialMediaLibraryPanel'));
 const CustomPropertiesPanel = lazy(() => import('./MasterAdmin/CustomPropertiesPanel'));
 const RecentErrorsPanel = lazy(() => import('./MasterAdmin/RecentErrorsPanel'));
@@ -556,6 +557,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <PulseDbExplorerPanel />;
       case 'catalogue':
         return <CataloguePanel />;
+      case 'machine-manuals':
+        return <MachineManualsDirectoryPanel />;
       case 'social-media-library':
         return <SocialMediaLibraryPanel />;
       case 'custom-properties':

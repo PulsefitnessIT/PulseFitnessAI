@@ -16,7 +16,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, Theater, Loader2, Wallet, Mail,
+  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, Theater, Loader2, Wallet, Mail, AlertCircle, Bot, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -65,6 +65,9 @@ const StudioBuilderTab = lazy(() => import('@/pages/Memberships/StudioBuilderTab
 const FamilyBillingTab = lazy(() => import('@/pages/Memberships/FamilyBillingTab'));
 const EventsTab = lazy(() => import('@/pages/Memberships/EventsTab'));
 const CampaignsPanel = lazy(() => import('@/pages/Comms/CampaignsPanel'));
+const DunningPanel = lazy(() => import('@/pages/Memberships/DunningPanel'));
+const RevenueAutopilotPanel = lazy(() => import('@/pages/Memberships/RevenueAutopilotPanel'));
+const GDPRPanel = lazy(() => import('@/pages/Memberships/GDPRPanel'));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-16 text-zinc-400" data-testid="memberships-tab-loading">
@@ -155,6 +158,9 @@ function MembershipsConsoleInner() {
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
     // — Cross-platform tools
     { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
+    { id: 'recover', label: 'Recover', icon: AlertCircle },
+    { id: 'autopilot', label: 'Autopilot', icon: Bot },
+    { id: 'privacy', label: 'Privacy', icon: ShieldCheck },
     { id: 'booking-rules', label: 'Booking rules', icon: Settings },
   ], [t, showEmbeddedEmails]);
 
@@ -324,6 +330,9 @@ function MembershipsConsoleInner() {
         {tab === 'ads'       && <AdsTab       API={API} headers={headers} />}
         {tab === 'analytics' && <AnalyticsTab key={`ana-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'crm-loop'  && <CRMLoopTab    API={API} headers={headers} />}
+        {tab === 'recover'    && <DunningPanel  key={`dun-${reloadKey}`} />}
+        {tab === 'autopilot'  && <RevenueAutopilotPanel key={`ap-${reloadKey}`} />}
+        {tab === 'privacy'    && <GDPRPanel     key={`gdpr-${reloadKey}`} />}
         {tab === 'booking-rules' && <BookingRulesTab API={API} headers={headers} />}
         {tab === 'mobile-app' && <MemberAppTab key={`ma-${reloadKey}`} API={API} headers={headers} />}
         </Suspense>

@@ -45,7 +45,7 @@ import { ServiceOpsEmbeddedContext } from './ServiceOps/ServiceOpsShell';
 
 // Lazy-load the heavier Service Ops pages — keeps the initial shell light.
 const OpsCases     = lazy(() => import('./ServiceOps/ServiceDeskPage'));
-const OpsScheduler = lazy(() => import('./ServiceOps/ServiceScheduler'));
+const OpsScheduler = lazy(() => import('./ServiceOps/SchedulerHub'));
 const OpsParts     = lazy(() => import('./ServiceOps/PartsInventoryPage'));
 const OpsBilling   = lazy(() => import('./ServiceOps/BillingPage'));
 const OpsEngineers = lazy(() => import('./ServiceOps/EngineersAdminPage'));

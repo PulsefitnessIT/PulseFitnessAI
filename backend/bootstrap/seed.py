@@ -271,6 +271,21 @@ async def seed_services() -> None:
         await backfill_service_org_ids()
     except Exception as e:  # pragma: no cover
         logger.warning("Service-org backfill failed: %s", e)
+    try:
+        from routes.svc.ai_scheduling import ensure_scheduling_indexes
+        await ensure_scheduling_indexes()
+    except Exception as e:  # pragma: no cover
+        logger.warning("AI scheduling index ensure failed: %s", e)
+    try:
+        from routes.equipment_transfer import ensure_indexes as _eq_transfer_indexes
+        await _eq_transfer_indexes()
+    except Exception as e:  # pragma: no cover
+        logger.warning("Equipment transfer index ensure failed: %s", e)
+    try:
+        from routes.machine_manuals import ensure_machine_manuals_indexes
+        await ensure_machine_manuals_indexes()
+    except Exception as e:  # pragma: no cover
+        logger.warning("Machine manuals index ensure failed: %s", e)
 
 
 async def backfill_service_org_ids() -> None:

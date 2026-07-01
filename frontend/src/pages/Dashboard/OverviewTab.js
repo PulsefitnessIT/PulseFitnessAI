@@ -4,6 +4,7 @@ import Button from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from 'lucide-react';
 import SiteLeaderboard from '@/components/shared/SiteLeaderboard';
+import EquipmentTransfersInbox from './EquipmentTransfersInbox';
 import { useAuth } from '@/App';
 
 // Iter 216h192 — Concrete, in-product next steps surfaced when the
@@ -115,6 +116,8 @@ const OverviewTab = ({
    || ['pulse_pro', 'full'].includes((user?.account_type || '').toLowerCase());
  return (
  <>
+ {/* Ported from GymAxis — incoming equipment transfers (engineer → operator) */}
+ <EquipmentTransfersInbox onImported={() => onNavigateTab && onNavigateTab('equipment')} />
  {/* Multi-site: cross-site comparison leaderboard — only renders in
      "All Sites" aggregate mode (self-guarded). */}
  <SiteLeaderboard />
