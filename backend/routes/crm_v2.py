@@ -3993,6 +3993,52 @@ async def ai_win_strategy(tender_id: str, user=Depends(get_crm_user)):
 # CPQ — Approval Workflow + Digital Signature
 # ═══════════════════════════════════════════
 
+async def _crm_quote_recipients(org_id: str, *, approvers_only: bool = False, exclude_email: str = "") -> list[str]:
+    """CRM user emails for quote-workflow notifications. When approvers_only,
+    limit to org owners / admins / managers."""
+    users = await db.crm_users.find(
+        {"organization_id": org_id}, {"_id": 0, "email": 1, "role": 1, "is_org_owner": 1}
+    ).to_list(500)
+    ex = (exclude_email or "").strip().lower()
+    out: list[str] = []
+    for u in users:
+        email = (u.get("email") or "").strip()
+        if not email or email.lower() == ex:
+            continue
+        if approvers_only and not (u.get("is_org_owner") or u.get("role") in ("admin", "manager")):
+            continue
+        out.append(email)
+    return out
+
+
+async def _crm_user_email_by_name(org_id: str, full_name: str | None) -> str:
+    if not full_name:
+        return ""
+    u = await db.crm_users.find_one(
+        {"organization_id": org_id, "full_name": full_name}, {"_id": 0, "email": 1})
+    return (u or {}).get("email", "") or ""
+
+
+async def _send_quote_emails(org_id: str, recipients: list[str], subject: str,
+                             title: str, lines: list[str], kind: str) -> None:
+    if not recipients:
+        return
+    body = "".join(f"<p style='margin:6px 0;color:#334155;font-size:14px;'>{ln}</p>" for ln in lines)
+    html = (
+        "<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;"
+        "padding:24px;border:1px solid #e2e8f0;border-radius:12px;\">"
+        f"<h2 style=\"color:#0f172a;margin:0 0 14px;font-size:18px;\">{title}</h2>{body}"
+        "<p style=\"margin-top:22px;font-size:12px;color:#94a3b8;\">Pulse Fitness CRM</p></div>"
+    )
+    from utils.email import send_email
+    for r in recipients:
+        try:
+            await send_email(to=r, subject=subject, html=html,
+                             organization_id=org_id, kind=kind, category="crm_quote_workflow")
+        except Exception:
+            logger.warning("[crm.quote] notification email failed for %s", r)
+
+
 @router.post("/quotes/{quote_id}/submit-approval")
 async def submit_quote_for_approval(quote_id: str, user=Depends(get_crm_user)):
     q = await db.crm2_quotes.find_one({"id": quote_id, **_of(user)})
@@ -4009,6 +4055,16 @@ async def submit_quote_for_approval(quote_id: str, user=Depends(get_crm_user)):
         "entity_type": "quote", "entity_id": quote_id,
         "read": False, "created_at": _now(),
     })
+    recipients = await _crm_quote_recipients(
+        user.get("organization_id"), approvers_only=True, exclude_email=user.get("email", ""))
+    await _send_quote_emails(
+        user.get("organization_id"), recipients,
+        f"Approval needed — Quote {q.get('quote_number', '')}",
+        "A quote needs your approval",
+        [f"{user.get('full_name', 'A colleague')} submitted quote <strong>{q.get('quote_number', '')}</strong> for approval.",
+         f"Total: £{q.get('total') or q.get('total_value') or 0}",
+         "Open the CRM → Quotes to review, approve or reject it."],
+        "crm_quote_approval_request")
     return {"success": True, "status": "pending_approval"}
 
 
@@ -4028,7 +4084,30 @@ async def approve_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
             {"id": quote_id},
             {"$set": {"status": "rejected", "rejected_by": user.get("full_name", ""), "rejected_reason": data.get("reason", ""), "rejected_at": _now(), "updated_at": _now()}}
         )
-    return {"success": True, "status": "approved" if action == "approve" else "rejected"}
+    approved = action == "approve"
+    verb = "approved" if approved else "rejected"
+    reason = (data.get("reason") or "").strip()
+    await db.crm2_notifications.insert_one({
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "type": "approval", "title": f"Quote {verb.capitalize()}",
+        "message": f"Quote {q.get('quote_number', '')} was {verb} by {user.get('full_name', '')}"
+                   + (f" — {reason}" if (not approved and reason) else ""),
+        "entity_type": "quote", "entity_id": quote_id,
+        "read": False, "created_at": _now(),
+    })
+    submitter_email = await _crm_user_email_by_name(user.get("organization_id"), q.get("submitted_by"))
+    recipients = [submitter_email] if submitter_email else await _crm_quote_recipients(
+        user.get("organization_id"), exclude_email=user.get("email", ""))
+    lines = [f"Quote <strong>{q.get('quote_number', '')}</strong> was {verb} by {user.get('full_name', '')}."]
+    if approved:
+        lines.append("It can now be signed and sent to the customer.")
+    elif reason:
+        lines.append(f"Reason: {reason}")
+    await _send_quote_emails(
+        user.get("organization_id"), recipients,
+        f"Quote {q.get('quote_number', '')} {verb}",
+        f"Your quote was {verb}", lines, "crm_quote_approval_result")
+    return {"success": True, "status": "approved" if approved else "rejected"}
 
 
 @router.post("/quotes/{quote_id}/sign")
@@ -4051,6 +4130,23 @@ async def sign_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
             "updated_at": _now(),
         }}
     )
+    await db.crm2_notifications.insert_one({
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "type": "approval", "title": "Quote Signed",
+        "message": f"Quote {q.get('quote_number', '')} was signed by {signer_name}",
+        "entity_type": "quote", "entity_id": quote_id,
+        "read": False, "created_at": _now(),
+    })
+    recipients = await _crm_quote_recipients(
+        user.get("organization_id"), approvers_only=True, exclude_email=user.get("email", ""))
+    await _send_quote_emails(
+        user.get("organization_id"), recipients,
+        f"Quote {q.get('quote_number', '')} signed",
+        "A quote has been signed",
+        [f"Quote <strong>{q.get('quote_number', '')}</strong> was signed by {signer_name}.",
+         f"Total: £{q.get('total') or q.get('total_value') or 0}",
+         "The quote is now accepted."],
+        "crm_quote_signed")
     try:
         from utils.comms_conversions import record_conversion
         org_id = q.get("organization_id")

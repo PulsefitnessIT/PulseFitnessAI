@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jul 1, 2026 — CPQ approval/sign: prominence + notifications (Iter 295)
+- **(b) Visibility:** Added a lifecycle stepper (**Draft → Approval → Approved → Signed**, with a red "Rejected" state) at the top of the CRM quote detail (`CRMCPQ.js`), plus success/error toasts on Submit-for-approval / Approve / Reject / Sign.
+- **(c) Notifications + emails:** `crm_v2.py` quote endpoints now fire events — **submit-approval** notifies org approvers (owner/admin/manager); **approve/reject** notifies the quote owner (with reason on reject); **sign** notifies approvers. Both an in-app CRM notification (`crm2_notifications`) and a branded email (`send_email`, category `crm_quote_workflow`) are sent. Helpers: `_crm_quote_recipients`, `_crm_user_email_by_name`, `_send_quote_emails`.
+- Tested end-to-end: draft→submit→approve→sign transitions all 200, 3 in-app notifications created correctly.
+- ⚠️ **Email delivery requires a valid Resend API key** — the currently configured key returns "API key is invalid", so emails are attempted but not delivered (handled gracefully, no crash). In-app notifications work regardless.
+
+
 ## Jul 1, 2026 — GymAxis → Pulse Fitness feature port (Iter 294)
 Ported user-selected features from the original GymAxis repo, rebranded to Pulse Fitness. This platform stays source of truth; only genuinely net-new features were brought across.
 - **AI Scheduling (Service Desk):** new `routes/svc/ai_scheduling/` package (board, replan, simulate, duration-insights, proposal approve/reject, job locks, reports + engineer schedule-change ack). Frontend `ServiceOps/SchedulerHub.js` + `AIScheduling.js` — the Service Desk "Scheduler" tab is now a hub with **AI Scheduling** + **Diary board** sub-tabs. Verified end-to-end.

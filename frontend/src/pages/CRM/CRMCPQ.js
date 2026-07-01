@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import CRMQuoteSagePanel from './CRMQuoteSagePanel';
+import { notify } from '@/components/notifications';
 import { formatMoneySync } from '@/utils/localization';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', sent: 'var(--color-info-ios)', accepted: 'var(--color-success-alt)', rejected: 'var(--color-danger)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', superseded: 'var(--color-accent-violet)' };
@@ -112,17 +113,17 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
 
   const submitApproval = async () => {
     setActionLoading('submit');
-    try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/submit-approval`, {}, { headers: headers() }); load(); } catch (e) { console.error(e); }
+    try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/submit-approval`, {}, { headers: headers() }); notify.success('Submitted for approval — approvers notified'); load(); } catch (e) { console.error(e); notify.error('Could not submit for approval'); }
     setActionLoading('');
   };
   const approveReject = async (action, reason = '') => {
     setActionLoading(action);
-    try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/approve`, { action, reason }, { headers: headers() }); load(); } catch (e) { console.error(e); }
+    try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/approve`, { action, reason }, { headers: headers() }); notify.success(action === 'approve' ? 'Quote approved — owner notified' : 'Quote rejected — owner notified'); load(); } catch (e) { console.error(e); notify.error(`Could not ${action} quote`); }
     setActionLoading('');
   };
   const handleSign = async (sigData, signerName) => {
     setActionLoading('sign');
-    try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/sign`, { signature: sigData, signer_name: signerName }, { headers: headers() }); setShowSign(false); load(); } catch (e) { console.error(e); }
+    try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/sign`, { signature: sigData, signer_name: signerName }, { headers: headers() }); notify.success('Quote signed & accepted'); setShowSign(false); load(); } catch (e) { console.error(e); notify.error('Could not save signature'); }
     setActionLoading('');
   };
 
@@ -252,6 +253,38 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
             <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{quote.status?.replace('_', ' ')}</span>
           </div>
         </div>
+
+        {/* Lifecycle stepper — draft → approval → approved → signed */}
+        {(() => {
+          const rejected = quote.status === 'rejected';
+          const STEPS = ['Draft', 'Approval', 'Approved', 'Signed'];
+          const stageByStatus = { draft: 0, pending_approval: 1, rejected: 1, approved: 2, sent: 2, accepted: 3, superseded: 0 };
+          const active = quote.signature ? 3 : (stageByStatus[quote.status] ?? 0);
+          return (
+            <div className="flex items-center mb-6" data-testid="quote-lifecycle-stepper">
+              {STEPS.map((label, i) => {
+                const done = i < active;
+                const current = i === active;
+                const isRej = rejected && i === 1;
+                const color = isRej ? 'var(--color-danger-alt)' : (done || current) ? 'var(--color-success-alt)' : c.textDim;
+                const bg = isRej ? 'var(--color-danger-alt)' : done ? 'var(--color-success-alt)' : current ? 'var(--color-success-alt)' : 'transparent';
+                return (
+                  <div key={label} className="flex items-center" style={{ flex: i < STEPS.length - 1 ? 1 : 'none' }}>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center rounded-full text-[11px] font-bold" style={{ width: 24, height: 24, background: (done || current || isRej) ? bg : 'transparent', border: `2px solid ${color}`, color: (done || current || isRej) ? '#fff' : color }}>
+                        {isRej ? '✕' : done ? '✓' : i + 1}
+                      </div>
+                      <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: current || isRej ? color : c.textMuted }}>{isRej && i === 1 ? 'Rejected' : label}</span>
+                    </div>
+                    {i < STEPS.length - 1 && (
+                      <div className="mx-2 h-0.5 flex-1" style={{ background: i < active ? 'var(--color-success-alt)' : (isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)') }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Iter 216h265 — approval-required callout (margin below min). */}
         {(quote.approval_required || quote.approval_status === 'pending_approval') && quote.status !== 'approved' && (
