@@ -1,6 +1,11 @@
 # Changelog
 
 
+## Jul 1, 2026 — Master Admin routing fix + duplicate Pulse org reappearance fix (Iter 293)
+- **Master Admin routing (P0, verified):** `AppRoutes.js` DashboardRoute guard (line 253) now bypasses the `/master-admin` bounce for BOTH `?as=operator` and `?as=global` (`previewDashboard`). `MasterAdminPage.handlePulseFitnessSwitch` now navigates to `/dashboard?as=global`. Result: "Global Dashboard" button loads the cross-gym Global view; "Pulse Fitness Portal" button loads the operator Operations dashboard. Neither bounces back. Testing agent: 3/3 PASS.
+- **Deleted Pulse orgs reappearing (P1, verified):** Root cause = `seed_crm_admin()` in `crm_auth.py` (lines 711-742) re-created "Pulse Fitness AI" + "Pulse Fitness" CRM orgs on every boot when `CRM_SEED_DEMO_ORGS` was unset (default on). Fix: set `CRM_SEED_DEMO_ORGS=0` in `backend/.env`. Consolidated DB to a single tenant org: reassigned stray "Pulse Fitness AI" (80e9b381) data to the tenant org, deleted the stray (snapshot saved to `org_cleanup_audit`), renamed the tenant org "Pulse Fitness" → "Pulse Fitness Ltd" and pinned `is_operator_company=true`. "Pulse Fitness AI Admin" (master-admin login org) retained. Confirmed no reappearance after backend reboot.
+
+
 ## Jun 16, 2026 — Social Media Autopilot: Gymshark/Nike brand-voice revamp (Iter 291)
 
 - **Short & sharp captions**: Rewrote all 3 channel `tone_brief`s + `caption_target/max_chars`
