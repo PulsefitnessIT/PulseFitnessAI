@@ -604,6 +604,39 @@ async def test_send_comms_campaign(
     return {"ok": bool(ok), "sent_to": to}
 
 
+# ───────────────────────── Audience: search individual people ─────────────────────────
+
+@router.get("/audience/search", dependencies=[Depends(_ANY_COMMS_MODULE)])
+async def search_audience(q: str = Query("", max_length=120), user: dict = Depends(get_current_user)):
+    """Live search for individual recipients (members + CRM contacts) by name
+    or email, so a campaign can be sent to specific people via ``audience_inline``
+    without building a segment."""
+    org_id = await _org_id(user)
+    q = (q or "").strip()
+    if len(q) < 2:
+        return {"results": []}
+    rx = re.escape(q)
+    name_or = [
+        {"email": {"$regex": rx, "$options": "i"}},
+        {"first_name": {"$regex": rx, "$options": "i"}},
+        {"last_name": {"$regex": rx, "$options": "i"}},
+        {"name": {"$regex": rx, "$options": "i"}},
+    ]
+    proj = {"_id": 0, "email": 1, "first_name": 1, "last_name": 1, "name": 1}
+    seen: set[str] = set()
+    results: list[dict] = []
+    for coll, source in (("members", "member"), ("crm2_contacts", "contact")):
+        cursor = db[coll].find({"organization_id": org_id, "$or": name_or}, proj).limit(15)
+        async for d in cursor:
+            email = (d.get("email") or "").strip().lower()
+            if not email or "@" not in email or email in seen:
+                continue
+            seen.add(email)
+            nm = (d.get("name") or f"{d.get('first_name', '')} {d.get('last_name', '')}").strip()
+            results.append({"email": email, "name": nm or email, "source": source})
+    return {"results": results[:20]}
+
+
 # ───────────────────────── Schedule / batch / timezone send ─────────────────────────
 
 @router.post("/campaigns/{campaign_id}/schedule", dependencies=[Depends(_ANY_COMMS_MODULE)])

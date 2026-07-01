@@ -646,6 +646,13 @@ function ImportModal({ API, headers, onClose, onImported }) {
 function SendModal({ campaign, API, headers, onClose, onDone }) {
   const [segments, setSegments] = useState([]);
   const [segmentId, setSegmentId] = useState(campaign?.segment_id || '');
+  const [audienceMode, setAudienceMode] = useState(
+    (campaign?.audience_inline && campaign.audience_inline.length && !campaign?.segment_id) ? 'people' : 'segment');
+  const [people, setPeople] = useState(
+    (campaign?.audience_inline || []).map((e) => ({ email: e, name: e, source: 'email' })));
+  const [peopleQuery, setPeopleQuery] = useState('');
+  const [peopleResults, setPeopleResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const [strategy, setStrategy] = useState('immediate');
   const [sendAt, setSendAt] = useState('');
   const [tzMode, setTzMode] = useState('fixed');
@@ -658,14 +665,41 @@ function SendModal({ campaign, API, headers, onClose, onDone }) {
     axios.get(`${API}/api/comms/segments`, { headers }).then((r) => setSegments(r.data.segments || [])).catch(() => {});
   }, [API, headers]);
 
+  React.useEffect(() => {
+    const q = peopleQuery.trim();
+    if (audienceMode !== 'people' || q.length < 2) { setPeopleResults([]); return; }
+    let cancelled = false;
+    setSearching(true);
+    const t = setTimeout(() => {
+      axios.get(`${API}/api/comms/audience/search`, { params: { q }, headers })
+        .then((r) => { if (!cancelled) setPeopleResults(r.data.results || []); })
+        .catch(() => { if (!cancelled) setPeopleResults([]); })
+        .finally(() => { if (!cancelled) setSearching(false); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [peopleQuery, audienceMode, API, headers]);
+
   const seg = segments.find((s) => s.id === segmentId);
 
+  const addPerson = (p) => {
+    const email = (p.email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) { toast.error('Enter a valid email'); return; }
+    if (people.some((x) => x.email === email)) return;
+    setPeople((prev) => [...prev, { email, name: p.name || email, source: p.source || 'email' }]);
+    setPeopleQuery(''); setPeopleResults([]);
+  };
+  const removePerson = (email) => setPeople((prev) => prev.filter((x) => x.email !== email));
+
   const go = async () => {
-    if (!segmentId) { toast.error('Choose an audience segment'); return; }
+    if (audienceMode === 'segment' && !segmentId) { toast.error('Choose an audience segment'); return; }
+    if (audienceMode === 'people' && people.length === 0) { toast.error('Add at least one recipient'); return; }
     if (strategy === 'scheduled' && !sendAt) { toast.error('Pick a send date/time'); return; }
     setBusy(true);
     try {
-      await axios.put(`${API}/api/comms/campaigns/${campaign.id}`, { segment_id: segmentId }, { headers });
+      const audiencePatch = audienceMode === 'people'
+        ? { audience_inline: people.map((p) => p.email), segment_id: null }
+        : { segment_id: segmentId, audience_inline: null };
+      await axios.put(`${API}/api/comms/campaigns/${campaign.id}`, audiencePatch, { headers });
       const payload = {
         strategy,
         send_at: strategy === 'scheduled' ? new Date(sendAt).toISOString() : undefined,
@@ -688,12 +722,62 @@ function SendModal({ campaign, API, headers, onClose, onDone }) {
         <h3 className="flex items-center gap-2 font-bold text-lg text-slate-900 mb-1 pulse-font-heading"><Rocket size={18} className="text-[#0891b2]" />Send campaign</h3>
         <p className="text-sm text-slate-500 mb-4">Batch + timezone-aware delivery via Pulse Fitness AI.</p>
 
-        <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Audience segment</label>
-        <select value={segmentId} onChange={(e) => setSegmentId(e.target.value)} className={`${inputCls} mb-1`} data-testid="send-segment">
-          <option value="">Choose a segment…</option>
-          {segments.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.member_count})</option>)}
-        </select>
-        {seg && <p className="flex items-center gap-1 text-xs text-slate-500 mb-3"><Users size={12} />{seg.member_count} recipients</p>}
+        <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1">Audience</label>
+        <div className="flex gap-2 mb-3">
+          {[['segment', 'A segment'], ['people', 'Specific people']].map(([v, l]) => (
+            <button key={v} onClick={() => setAudienceMode(v)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border ${audienceMode === v ? 'border-[#19CDFF] bg-cyan-50 text-slate-900' : 'border-slate-200 text-slate-500'}`} data-testid={`audience-mode-${v}`}>{l}</button>
+          ))}
+        </div>
+
+        {audienceMode === 'segment' && (
+          <>
+            <select value={segmentId} onChange={(e) => setSegmentId(e.target.value)} className={`${inputCls} mb-1`} data-testid="send-segment">
+              <option value="">Choose a segment…</option>
+              {segments.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.member_count})</option>)}
+            </select>
+            {seg && <p className="flex items-center gap-1 text-xs text-slate-500 mb-3"><Users size={12} />{seg.member_count} recipients</p>}
+          </>
+        )}
+
+        {audienceMode === 'people' && (
+          <div className="mb-3">
+            <div className="relative">
+              <input
+                value={peopleQuery}
+                onChange={(e) => setPeopleQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (peopleQuery.includes('@')) addPerson({ email: peopleQuery }); } }}
+                placeholder="Search members/contacts, or type an email + Enter"
+                className={inputCls}
+                data-testid="audience-people-search"
+              />
+              {(searching || peopleResults.length > 0) && peopleQuery.trim().length >= 2 && (
+                <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto" data-testid="audience-people-results">
+                  {searching && <div className="px-3 py-2 text-xs text-slate-400">Searching…</div>}
+                  {!searching && peopleResults.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-slate-400">No matches. {peopleQuery.includes('@') ? 'Press Enter to add this email.' : ''}</div>
+                  )}
+                  {peopleResults.map((p) => (
+                    <button key={p.email} onClick={() => addPerson(p)} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between" data-testid={`audience-result-${p.email}`}>
+                      <span className="text-sm text-slate-800">{p.name}<span className="text-slate-400 ml-1 text-xs">{p.email}</span></span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">{p.source}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {people.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2" data-testid="audience-people-chips">
+                {people.map((p) => (
+                  <span key={p.email} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-xs text-slate-700" data-testid={`audience-chip-${p.email}`}>
+                    {p.name}
+                    <button onClick={() => removePerson(p.email)} className="text-slate-400 hover:text-slate-700" data-testid={`audience-chip-remove-${p.email}`}><X size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="flex items-center gap-1 text-xs text-slate-500 mt-2"><Users size={12} />{people.length} recipient{people.length === 1 ? '' : 's'}</p>
+          </div>
+        )}
 
         <label className="block text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1 mt-2">When</label>
         <div className="flex gap-2 mb-3">

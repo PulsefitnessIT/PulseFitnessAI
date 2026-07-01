@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 1, 2026 — Comms Centre: send to specific people (not just segments) (Iter 296)
+Fixed user feedback: an email could only be delivered to a *segment*, with no way to send to one person, and segments needed categories that couldn't be linked to a member.
+- The backend already supported `audience_inline` (a list of emails); the Send modal just didn't expose it.
+- **Send modal (`EmailBuilder.js`)** now has an **Audience** toggle: **A segment** (existing) or **Specific people**. "Specific people" gives a live search picker (members + CRM contacts) plus free-text email entry (type an email + Enter), shown as removable chips with a live recipient count. On send it writes `audience_inline` and clears `segment_id`.
+- New backend endpoint **`GET /api/comms/audience/search?q=`** (`comms.py`) searches `members` + `crm2_contacts` by name/email for the org.
+- Verified end-to-end: single-recipient send resolves to `recipients: 1`; picker renders with chip + count.
+
+
 ## Jul 1, 2026 — CPQ approval/sign: prominence + notifications (Iter 295)
 - **(b) Visibility:** Added a lifecycle stepper (**Draft → Approval → Approved → Signed**, with a red "Rejected" state) at the top of the CRM quote detail (`CRMCPQ.js`), plus success/error toasts on Submit-for-approval / Approve / Reject / Sign.
 - **(c) Notifications + emails:** `crm_v2.py` quote endpoints now fire events — **submit-approval** notifies org approvers (owner/admin/manager); **approve/reject** notifies the quote owner (with reason on reject); **sign** notifies approvers. Both an in-app CRM notification (`crm2_notifications`) and a branded email (`send_email`, category `crm_quote_workflow`) are sent. Helpers: `_crm_quote_recipients`, `_crm_user_email_by_name`, `_send_quote_emails`.
