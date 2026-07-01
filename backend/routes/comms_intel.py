@@ -8,6 +8,8 @@ intelligence reflects real sends; AI endpoints only return suggestions.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -18,6 +20,8 @@ from utils.auth import get_current_user
 from utils.database import db
 from utils import comms_ai
 from utils import email_ingest
+
+logger = logging.getLogger("comms_intel")
 from routes.marketing.helpers import _org_id, _now_iso, logger
 from routes.comms import _ANY_COMMS_MODULE, _get_owned, render_blocks_to_html
 
@@ -500,17 +504,30 @@ async def ai_import_email(
     if not file_bytes and not (text or "").strip():
         raise HTTPException(400, "Drop an email file or paste the email content.")
 
-    parsed = email_ingest.parse_email(file_bytes, filename, text, content_type)
+    try:
+        parsed = email_ingest.parse_email(file_bytes, filename, text, content_type)
+    except Exception as exc:
+        logger.warning("[comms-ai] email parse failed for %r: %s", filename, exc)
+        raise HTTPException(422, "We couldn't read that email file. Try exporting it as .eml or pasting the email text/HTML instead.")
 
-    res = await comms_ai.import_email_to_blocks(
-        text_content=parsed.get("text", ""),
-        available_images=parsed.get("images", []),
-        image_b64=parsed.get("image_b64"),
-        file_path=parsed.get("file_path"),
-        file_mime=parsed.get("file_mime"),
-    )
+    try:
+        res = await asyncio.wait_for(
+            comms_ai.import_email_to_blocks(
+                text_content=parsed.get("text", ""),
+                available_images=parsed.get("images", []),
+                image_b64=parsed.get("image_b64"),
+                file_path=parsed.get("file_path"),
+                file_mime=parsed.get("file_mime"),
+            ),
+            timeout=75,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(504, "That email is taking too long to rebuild. Try a smaller email or paste just the body text.")
+    except Exception as exc:
+        logger.warning("[comms-ai] import rebuild failed: %s", exc)
+        raise HTTPException(502, "Couldn't rebuild that email right now. Please try again or paste the text.")
     if res is None:
-        raise HTTPException(503, "Couldn't read that email right now. Please try again or paste the text.")
+        raise HTTPException(422, "We couldn't extract any content from that email. Try pasting the email body or HTML instead.")
 
     notes = [str(n).strip() for n in (res.get("notes") or []) if str(n).strip()]
     blocks = []

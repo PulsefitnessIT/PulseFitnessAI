@@ -26,7 +26,10 @@ def _html_to_parts(html: str) -> tuple[str, list]:
         from bs4 import BeautifulSoup
     except Exception:
         return html or "", []
-    soup = BeautifulSoup(html or "", "lxml")
+    html = html or ""
+    if len(html) > 3_000_000:  # guard against huge Outlook newsletter bodies
+        html = html[:3_000_000]
+    soup = BeautifulSoup(html, "lxml")
     images = []
     for img in soup.find_all("img"):
         src = (img.get("src") or "").strip()
