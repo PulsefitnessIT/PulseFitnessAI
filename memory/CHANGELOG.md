@@ -1,6 +1,19 @@
 # Changelog
 
 
+## Jul 1, 2026 — GymAxis → Pulse Fitness feature port (Iter 294)
+Ported user-selected features from the original GymAxis repo, rebranded to Pulse Fitness. This platform stays source of truth; only genuinely net-new features were brought across.
+- **AI Scheduling (Service Desk):** new `routes/svc/ai_scheduling/` package (board, replan, simulate, duration-insights, proposal approve/reject, job locks, reports + engineer schedule-change ack). Frontend `ServiceOps/SchedulerHub.js` + `AIScheduling.js` — the Service Desk "Scheduler" tab is now a hub with **AI Scheduling** + **Diary board** sub-tabs. Verified end-to-end.
+- **Membership Dunning:** `routes/membership_dunning.py` (/dunning/*) + Memberships console "Recover" tab.
+- **Revenue Autopilot:** `routes/revenue_autopilot.py` (/autopilot/revenue/*) + Memberships "Autopilot" tab.
+- **GDPR tools:** `routes/gdpr.py` (/gdpr/*) + Memberships "Privacy" tab.
+- **Machine Manuals:** `routes/machine_manuals.py` (/machine-manuals + /master-admin/machine-manuals/*) + Master Admin → Catalogue & Library → "Machine manuals" sub-tab. Fixed a ported dependency (`assert_platform_admin` → Pulse `require_master_admin`).
+- **Equipment Transfer:** `routes/equipment_transfer.py` + `Dashboard/EquipmentTransfersInbox.jsx` on the operator Overview tab (self-hides when empty).
+- **NOT ported — CRM Tenders/CPQ:** already fully present in Pulse's `crm_v2.py` (knowledge-base, tender-templates, pitch-slides, win-loss, quote submit-approval/approve/sign/pdf/send-email). GymAxis's separate `crm_v2_tenders/cpq/tenders_ai` files were pre-split duplicates that conflicted on `/crm/v2/tenders`; reverted to avoid regression.
+- Added a small reusable frontend `lib/api.js` shim (`api` + `crmApi` axios instances with Bearer-token injection) to support ported GymAxis components.
+- Testing: 16/16 backend endpoint tests pass; all frontend panels render. Report: `/app/test_reports/iteration_pulse_gymaxis_port_jan2026.json`.
+
+
 ## Jul 1, 2026 — Master Admin routing fix + duplicate Pulse org reappearance fix (Iter 293)
 - **Master Admin routing (P0, verified):** `AppRoutes.js` DashboardRoute guard (line 253) now bypasses the `/master-admin` bounce for BOTH `?as=operator` and `?as=global` (`previewDashboard`). `MasterAdminPage.handlePulseFitnessSwitch` now navigates to `/dashboard?as=global`. Result: "Global Dashboard" button loads the cross-gym Global view; "Pulse Fitness Portal" button loads the operator Operations dashboard. Neither bounces back. Testing agent: 3/3 PASS.
 - **Deleted Pulse orgs reappearing (P1, verified):** Root cause = `seed_crm_admin()` in `crm_auth.py` (lines 711-742) re-created "Pulse Fitness AI" + "Pulse Fitness" CRM orgs on every boot when `CRM_SEED_DEMO_ORGS` was unset (default on). Fix: set `CRM_SEED_DEMO_ORGS=0` in `backend/.env`. Consolidated DB to a single tenant org: reassigned stray "Pulse Fitness AI" (80e9b381) data to the tenant org, deleted the stray (snapshot saved to `org_cleanup_audit`), renamed the tenant org "Pulse Fitness" → "Pulse Fitness Ltd" and pinned `is_operator_company=true`. "Pulse Fitness AI Admin" (master-admin login org) retained. Confirmed no reappearance after backend reboot.

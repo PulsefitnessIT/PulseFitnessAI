@@ -517,8 +517,8 @@ async def delete_manual(manual_id: str, user: dict = Depends(get_current_user)) 
 @router.get("/master-admin/machine-manuals/directory")
 async def manuals_directory(user: dict = Depends(get_current_user)) -> dict:
     """Cross-org directory for Master Admin — includes platform-global manuals."""
-    from utils.auth_guards import assert_platform_admin
-    assert_platform_admin(user, "Master admin only")
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
     rows = await db.machine_manuals.find({}, {"storage": 0, "text_excerpt": 0}).sort("uploaded_at", -1).limit(2000).to_list(length=2000)
     org_ids = list({r.get("organization_id") for r in rows if r.get("organization_id") and r.get("organization_id") != GLOBAL_ORG})
     orgs = await db.organizations.find({"id": {"$in": org_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(length=2000)
@@ -542,8 +542,8 @@ async def upload_global_manual(
 ) -> dict:
     """Master Admin uploads a platform-curated GLOBAL manual for a make/model.
     De-dupes globals by exact hash."""
-    from utils.auth_guards import assert_platform_admin
-    assert_platform_admin(user, "Master admin only")
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
     if not manufacturer.strip() or not model.strip():
         raise HTTPException(400, "Manufacturer and model are required")
 
@@ -573,8 +573,8 @@ async def upload_global_manual(
 async def promote_to_global(manual_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Promote an org-uploaded manual into the platform-global library (clones
     it; the org's original copy is left untouched)."""
-    from utils.auth_guards import assert_platform_admin
-    assert_platform_admin(user, "Master admin only")
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
     src = await db.machine_manuals.find_one({"id": manual_id})
     if not src:
         raise HTTPException(404, "Manual not found")
