@@ -666,3 +666,7 @@ End-user E2E audit (testing agent + manual verification):
 - email_ingest._html_to_parts caps HTML at 3MB before BeautifulSoup (guards memory/time on huge Outlook newsletters). Added asyncio/logging imports + logger.
 - Verified: backend curl (empty→400, paste→200 blocks) + testing agent 100% (paste HTML rebuilds; invalid .msg → clean 200 JSON + friendly toast, no blank/empty response).
 - NOTE: user hit this on PRODUCTION whose deploy had failed (backend crash-looping = the empty response). Fix is in PREVIEW; needs redeploy. deployment_agent static scan = deploy-ready (strong JWT, CORS ok, no blockers) → earlier deploy failure was likely a transient k8s readiness timeout; re-deploy should succeed.
+
+## 2026-07-01 — Enhancement: import "rebuilding" progress note
+- EmailBuilder ImportModal now shows a reassuring progress note (data-testid='import-progress-note') while the AI rebuilds: "Rebuilding your email with AI…", escalating after 5s to "Large email — this can take up to a minute. Hang tight, no need to retry." Cancel is disabled while busy. Prevents users retrying/aborting large Outlook newsletter imports.
+- Verified: compiles clean; additive UI gated on busy state.

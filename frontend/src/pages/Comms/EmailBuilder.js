@@ -7,7 +7,7 @@
  * save. Content model = `{ subject, blocks:[{id,type,props}] }` — the same
  * shape the shared Comms engine renders server-side.
  */
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -527,10 +527,17 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
 
 function ImportModal({ API, headers, onClose, onImported }) {
   const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState(null);
   const [pasted, setPasted] = useState('');
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!busy) { setElapsed(0); return; }
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
 
   const ACCEPT = '.eml,.msg,.html,.htm,.txt,.pdf,.png,.jpg,.jpeg,.webp,.gif,message/rfc822';
 
@@ -606,8 +613,17 @@ function ImportModal({ API, headers, onClose, onImported }) {
           <span>Linked images are pulled in automatically. Embedded or screenshot images can't be hosted — we'll add a placeholder and flag it so you can upload them.</span>
         </div>
 
+        {busy && (
+          <div className="flex items-center gap-2 mt-3 text-xs rounded-lg p-2.5 text-[#0e7490]" style={{ background: 'rgba(8,145,178,0.08)' }} data-testid="import-progress-note">
+            <Loader2 size={13} className="animate-spin shrink-0" />
+            <span>{elapsed < 5
+              ? 'Rebuilding your email with AI…'
+              : 'Large email — this can take up to a minute. Hang tight, no need to retry.'}</span>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button onClick={onClose} disabled={busy} className="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">Cancel</button>
           <button onClick={submit} disabled={busy} className="flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-bold text-[#03212b] disabled:opacity-50" style={{ background: CYAN }} data-testid="import-submit">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}{busy ? 'Rebuilding…' : 'Rebuild with AI'}
           </button>
