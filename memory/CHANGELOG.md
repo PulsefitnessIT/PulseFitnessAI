@@ -643,3 +643,12 @@ End-user E2E audit (testing agent + manual verification):
 - Tab gating: CRM get_company (crm_v2.py) now returns has_service_ops (org has any svc_engineers or svc_cases). CRMCompanies.js shows the "Service & Engineers" tab ONLY when has_service_ops is true — so customers without the Service Desk don't see it. (Answers user's question: yes, now hidden when no Service Desk.)
 - Granted demo owner owner@isodemo.com is_service_desk=true (records in test_credentials.md) so the desk is reachable for testing.
 - Verified: backend curl (linked payload correct); testing agent 100% — CRM gating + Support Cases relabel PASS, Service Desk Sales-context card PASS (after access grant). Synthetic QA seed removed.
+
+## 2026-06-30 — Operations/Equipment ↔ Service Desk single-source-of-truth (asset reconciliation)
+- Audit finding: db.equipment (Operations register) is the canonical asset source — Service Desk (svc/engineer machine-history, svc_cases asset_id/equipment_ids) and CRM's Sites & Equipment tab all read it. The duplication risk was db.crm2_assets: a parallel, manually-created CRM asset store with no link to the register.
+- Fix (non-destructive): 
+  - GET /api/crm/v2/companies/{id}/asset-reconciliation (crm_contracts.py) — compares crm2_assets vs the register (resolved via linked_organization_id or exact name match), flags duplicates matched by equipment_id → sicon_equipment_id → normalized serial_number, plus crm_only assets and unlinked_register_count. Read-only.
+  - POST /api/crm/v2/assets/{asset_id}/link-equipment — resolves a duplicate by pointing the CRM asset at its canonical register record (sets equipment_id + source='register', backfills serial/sicon). 
+  - create_asset now persists equipment_id/sicon_equipment_id/source.
+  - Frontend: AssetReconcilePanel on the CRM company Assets tab (CRMCompanies.js) — shows register count, duplicate list with one-click 'Link', crm-only note; asset rows show 'linked to register'; empty state points to the Sites & Equipment tab as the SoT. Added missing `toast` import.
+- Verified: backend curl (duplicate via serial detected; link → already_linked increments, duplicates→0) and testing agent 100% frontend. QA seed removed.
