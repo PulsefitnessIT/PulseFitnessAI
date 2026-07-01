@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only validation of the CRM Company Assets tab 'Equipment source of truth' reconciliation panel for AlphaCo (iso-cA). All 6 acceptance criteria pass end-to-end: panel renders with register count, single duplicate row (qa-ast-dup) is detected via serial match, CRM-only Vending Machine note is shown, Link button POSTs to /api/crm/v2/assets/qa-ast-dup/link-equipment (200), sonner success toast appears ('Linked to the register — no more duplicate'), panel refreshes so the duplicate row disappears and the header now shows '1 linked'; existing CRM asset rows still render below the panel; no console errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/CRM/CRMCompanies.js (AssetReconcilePanel component, lines 421-482, rendered at line 1513)"
+  ],
+  "test_flow_executed": [
+    "Login owner@isodemo.com / IsoDemo123! at /login → redirected to /service-desk",
+    "Navigate /crm?tab=companies → CRM Companies list visible",
+    "Click data-testid=company-row-iso-cA → CompanyDetail 'AlphaCo (Site A)' visible",
+    "Click 'Assets (2)' tab button → asset-reconcile-panel visible",
+    "Verified panel text: 'Equipment source of truth · Operations register: 4'",
+    "Verified asset-reconcile-duplicates section with asset-dup-qa-ast-dup: 'Treadmill (dup) (S/N sn-abc-123 · matched by serial)'",
+    "Verified asset-reconcile-crmonly text: '1 CRM-only asset(s) not in the register (manually added).'",
+    "Click asset-link-qa-ast-dup → POST /api/crm/v2/assets/qa-ast-dup/link-equipment returned 200",
+    "Sonner toast displayed: 'Linked to the register — no more duplicate'",
+    "GET /api/crm/v2/companies/iso-cA/asset-reconciliation returned 200 (refresh) → duplicates=0, already_linked=1",
+    "Panel now shows '· 1 linked' badge; asset-reconcile-duplicates section is gone; crm-only still visible",
+    "CRM asset rows ('Treadmill (dup)' + 'Vending Machine') still render beneath the panel"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMCompanies.js is 2032 lines — recommend splitting CompanyDetail, sub-tab components (AssetReconcilePanel, ServiceActivityTab, PortalEquipmentTab, SitesAndEquipmentTab, CompanyFileTab) into separate files for maintainability (already flagged by prior iterations; not blocking).",
+    "AssetReconcilePanel silently swallows load errors (setData(null) → returns null with no visible state). Consider a small error indicator so ops know when reconciliation could not be computed. Not a bug for this slice."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only slice)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Used pre-seeded data (iso-cA / qa-eq-1 / qa-ast-dup / qa-ast-only). No new seed required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The Link action mutates state (qa-ast-dup is now linked). If re-testing, backend must reset qa-ast-dup to UNLINKED (source != 'operations_equipment', equipment_id null) before running the Link click again. Backend endpoints: GET /api/crm/v2/companies/{id}/asset-reconciliation and POST /api/crm/v2/assets/{asset_id}/link-equipment (both verified 200).",
+  "rca of the issue": "N/A — no issues found; feature works as specified."
+}

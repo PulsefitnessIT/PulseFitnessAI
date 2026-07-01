@@ -909,6 +909,127 @@ async def link_company_to_organization(company_id: str, data: dict,
     return {"success": True, "linked_organization_id": org_id}
 
 
+def _norm_serial(s: str) -> str:
+    return "".join((s or "").strip().lower().split())
+
+
+async def _resolve_linked_org(company: dict, user: dict) -> str:
+    """Explicit link, else exact name-match to the caller's own org."""
+    linked = company.get("linked_organization_id") or ""
+    if linked:
+        return linked
+    uoid = user.get("organization_id") or ""
+    if uoid:
+        uo = await db.organizations.find_one({"id": uoid}, {"_id": 0, "name": 1}) or {}
+        if (uo.get("name") or "").strip().lower() == (company.get("name") or "").strip().lower():
+            return uoid
+    return ""
+
+
+@router.get("/companies/{company_id}/asset-reconciliation")
+async def company_asset_reconciliation(company_id: str, user=Depends(get_crm_user)):
+    """Single-source-of-truth check for a company's equipment.
+
+    The Operations equipment register (``db.equipment``) — also used by the
+    Service Desk — is the canonical source. This compares any CRM-side
+    ``crm2_assets`` against that register and flags duplicates (same serial /
+    Sicon id) that should be linked, manual CRM-only assets, and register
+    items not yet reflected in CRM. Read-only.
+    """
+    of = _of(user)
+    company = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found")
+
+    linked_org_id = await _resolve_linked_org(company, user)
+    register = []
+    if linked_org_id:
+        register = await db.equipment.find(
+            {"organization_id": linked_org_id},
+            {"_id": 0, "id": 1, "name": 1, "model": 1, "manufacturer": 1,
+             "serial_number": 1, "sicon_equipment_id": 1, "site_id": 1},
+        ).to_list(5000)
+    crm_assets = await db.crm2_assets.find(
+        {"company_id": company_id, **of}, {"_id": 0}).to_list(2000)
+
+    by_id, by_serial, by_sicon = {}, {}, {}
+    for e in register:
+        by_id[e.get("id")] = e
+        ns = _norm_serial(e.get("serial_number"))
+        if ns:
+            by_serial[ns] = e
+        sic = (e.get("sicon_equipment_id") or "").strip()
+        if sic:
+            by_sicon[sic] = e
+
+    duplicates, crm_only, matched_reg_ids, already_linked = [], [], set(), 0
+    for a in crm_assets:
+        match, via = None, None
+        if a.get("equipment_id") and a["equipment_id"] in by_id:
+            match, via = by_id[a["equipment_id"]], "equipment_id"
+        if not match:
+            sic = (a.get("sicon_equipment_id") or "").strip()
+            if sic and sic in by_sicon:
+                match, via = by_sicon[sic], "sicon"
+        if not match:
+            ns = _norm_serial(a.get("serial_number"))
+            if ns and ns in by_serial:
+                match, via = by_serial[ns], "serial"
+        if match:
+            matched_reg_ids.add(match.get("id"))
+            if a.get("equipment_id"):
+                already_linked += 1
+                continue
+            duplicates.append({
+                "crm_asset": {"id": a.get("id"), "name": a.get("name"),
+                              "serial_number": a.get("serial_number"), "status": a.get("status")},
+                "register": {"id": match.get("id"), "name": match.get("name"),
+                             "serial_number": match.get("serial_number"), "model": match.get("model")},
+                "matched_via": via,
+            })
+        else:
+            crm_only.append({"id": a.get("id"), "name": a.get("name"),
+                             "serial_number": a.get("serial_number"), "status": a.get("status")})
+
+    unlinked_register = sum(1 for e in register if e.get("id") not in matched_reg_ids)
+    return {
+        "linked_organization_id": linked_org_id or None,
+        "source_of_truth": "operations_equipment_register",
+        "register_count": len(register),
+        "crm_asset_count": len(crm_assets),
+        "already_linked": already_linked,
+        "duplicates": duplicates,
+        "crm_only": crm_only,
+        "unlinked_register_count": unlinked_register,
+    }
+
+
+@router.post("/assets/{asset_id}/link-equipment")
+async def link_asset_to_equipment(asset_id: str, data: dict, user=Depends(get_crm_user)):
+    """Resolve a duplicate by pointing a CRM asset at its canonical register
+    record — the register stays the single source of truth."""
+    of = _of(user)
+    equipment_id = (data.get("equipment_id") or "").strip()
+    if not equipment_id:
+        raise HTTPException(400, "equipment_id is required")
+    asset = await db.crm2_assets.find_one({"id": asset_id, **of}, {"_id": 0})
+    if not asset:
+        raise HTTPException(404, "Asset not found")
+    eq = await db.equipment.find_one(
+        {"id": equipment_id},
+        {"_id": 0, "id": 1, "serial_number": 1, "model": 1, "name": 1, "sicon_equipment_id": 1})
+    if not eq:
+        raise HTTPException(404, "Register equipment not found")
+    upd = {"equipment_id": equipment_id, "source": "register", "updated_at": _now()}
+    if eq.get("serial_number") and not asset.get("serial_number"):
+        upd["serial_number"] = eq["serial_number"]
+    if eq.get("sicon_equipment_id"):
+        upd["sicon_equipment_id"] = eq["sicon_equipment_id"]
+    await db.crm2_assets.update_one({"id": asset_id, **of}, {"$set": upd})
+    return {"ok": True, "asset_id": asset_id, "equipment_id": equipment_id}
+
+
+
 @router.post("/companies/{company_id}/equipment-coverage")
 async def attach_equipment_to_contract(company_id: str, data: dict,
                                        user=Depends(get_crm_user)):

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
+import { toast } from 'sonner';
 import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
@@ -417,6 +418,69 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
 }
 
 /* ═══ COMPANY FILE TAB (Drawings / Surveys / Invoices) ═══ */
+function AssetReconcilePanel({ companyId, API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [linking, setLinking] = useState('');
+
+  const load = React.useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/crm/v2/companies/${companyId}/asset-reconciliation`, { headers: headers() });
+      setData(res.data);
+    } catch (e) { setData(null); }
+  }, [API, headers, companyId]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  if (!data) return null;
+  const { duplicates = [], crm_only = [], register_count = 0, already_linked = 0, unlinked_register_count = 0 } = data;
+  const border = isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)';
+
+  const linkOne = async (assetId, equipmentId) => {
+    setLinking(assetId);
+    try {
+      await axios.post(`${API}/crm/v2/assets/${assetId}/link-equipment`, { equipment_id: equipmentId }, { headers: headers() });
+      toast.success('Linked to the register — no more duplicate');
+      await load();
+    } catch (e) { toast.error('Could not link asset'); }
+    setLinking('');
+  };
+
+  const clean = duplicates.length === 0 && crm_only.length === 0;
+  return (
+    <div className="rounded-lg border p-3 mb-1" style={{ borderColor: border, background: isDark ? 'var(--color-surface-dark-1)' : 'var(--color-neutral-50)' }} data-testid="asset-reconcile-panel">
+      <div className="flex items-center gap-2 mb-2">
+        <Wrench size={14} style={{ color: 'var(--color-info-ios)' }} />
+        <span className="text-xs font-semibold" style={{ color: c.text }}>Equipment source of truth</span>
+        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--color-info-ios)', color: '#fff' }}>Operations register: {register_count}</span>
+        {already_linked > 0 && <span className="text-[10px]" style={{ color: c.textDim }}>· {already_linked} linked</span>}
+      </div>
+
+      {clean ? (
+        <p className="text-[11px]" style={{ color: c.textDim }} data-testid="asset-reconcile-clean">No duplicate CRM assets — the Operations/Service register is the single source of truth{unlinked_register_count ? ` (${unlinked_register_count} register item(s) here)` : ''}.</p>
+      ) : (
+        <div className="space-y-2">
+          {duplicates.length > 0 && (
+            <div data-testid="asset-reconcile-duplicates">
+              <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--color-accent-amber)' }}>{duplicates.length} possible duplicate(s) of register equipment — link to keep one source:</p>
+              {duplicates.map((d) => (
+                <div key={d.crm_asset.id} className="flex items-center gap-2 text-[11px] py-1 border-t" style={{ borderColor: border }} data-testid={`asset-dup-${d.crm_asset.id}`}>
+                  <span className="flex-1 min-w-0 truncate" style={{ color: c.text }}>{d.crm_asset.name} <span style={{ color: c.textDim }}>(S/N {d.crm_asset.serial_number || 'N/A'} · matched by {d.matched_via})</span></span>
+                  <button onClick={() => linkOne(d.crm_asset.id, d.register.id)} disabled={linking === d.crm_asset.id}
+                    className="px-2 py-1 rounded-md font-semibold shrink-0" style={{ background: 'var(--color-info-ios)', color: '#fff' }}
+                    data-testid={`asset-link-${d.crm_asset.id}`}>{linking === d.crm_asset.id ? '…' : 'Link'}</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {crm_only.length > 0 && (
+            <p className="text-[11px]" style={{ color: c.textDim }} data-testid="asset-reconcile-crmonly">{crm_only.length} CRM-only asset(s) not in the register (manually added).</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ServiceActivityTab({ companyId, API, headers, c, isDark }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1446,16 +1510,17 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
         {activeSection === 'assets' && (
           <div className="space-y-2">
+            <AssetReconcilePanel companyId={companyId} API={API} headers={headers} c={c} isDark={isDark} />
             {(company.assets || []).map(a => (
               <div key={a.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
-                <Shield size={16} style={{ color: 'var(--color-accent-magenta)' }} />
+                <Shield size={16} style={{ color: a.equipment_id ? 'var(--color-success-alt)' : 'var(--color-accent-magenta)' }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: c.text }}>{a.name}</p>
-                  <p className="text-[11px]" style={{ color: c.textDim }}>S/N: {a.serial_number || 'N/A'} | {a.status}</p>
+                  <p className="text-[11px]" style={{ color: c.textDim }}>S/N: {a.serial_number || 'N/A'} | {a.status}{a.equipment_id ? ' · linked to register' : ''}</p>
                 </div>
               </div>
             ))}
-            {(company.assets || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No assets installed</p>}
+            {(company.assets || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No CRM assets. Equipment lives in the Operations register — see the <strong>Sites &amp; Equipment</strong> tab (single source of truth).</p>}
           </div>
         )}
 
