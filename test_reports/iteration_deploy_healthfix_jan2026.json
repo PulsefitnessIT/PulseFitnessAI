@@ -1,0 +1,33 @@
+{
+  "summary": "Backend-only regression tests for the deploy crash-loop fix (init_storage() offloaded via run_in_threadpool in _full_boot). All 6 tests passed: /health served in ~1.5ms internally, /api/health returns 200 quickly, /api/health/deep reports mongo=ok, parts-request attachment bytes round-trip via object storage, exploded-drawing bytes round-trip, and authenticated /api/parts-requests list works. No regression from the threadpool offload.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/health/deep", "issue": "overall='degraded' because checks.file_validation.status='down' (detected: null). Unrelated to the deploy fix but worth investigating — file_validation dep may not be installed/configured. Not blocking readiness."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_deploy_healthfix_jan2026.py",
+    "/app/test_reports/pytest/deploy_healthfix.xml"
+  ],
+  "action_items": [
+    "None required for the deploy fix — offloading init_storage() to threadpool is verified working with no regressions.",
+    "Optional: investigate why /api/health/deep reports file_validation.status='down' (pre-existing, not blocking readiness)."
+  ],
+  "critical_code_review_comments": [
+    "Fix looks correct: await run_in_threadpool(init_storage) keeps the event loop free during boot so /health remains responsive.",
+    "init_storage() in utils/database.py uses synchronous requests with a 30s timeout — offloading is appropriate. Consider adding a timeout/short-circuit inside init_storage() itself for extra safety in future.",
+    "Note about external ingress: the unprefixed /health path is routed to the frontend by the ingress (only /api/* hits backend). K8s readiness probe hits backend directly on :8001, which now returns in ~1.5ms — confirmed working."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_deploy_healthfix_jan2026.py (new pytest module for this fix)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "not tested (backend-only)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (platform JWT login)",
+  "seed_data_creation": "Created one TEST_ parts-request with one attachment and one TEST_ exploded-drawing during the test run. Not cleaned up (small, prefixed TEST_).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The deploy crash-loop fix (init_storage via run_in_threadpool) is verified. Health endpoint served by backend on :8001 in ~1.5ms. Object storage round-trip works for both parts-request attachments and exploded drawings. Unrelated /api/health/deep file_validation=down is pre-existing and not blocking.",
+  "rca of the issue": "Original crash-loop RCA (per problem statement): _full_boot() called synchronous requests.post to object-storage with 30s timeout on the event loop, starving /health during boot -> readiness timeout -> restart. Mitigation applied by E1: wrapped init_storage() in starlette run_in_threadpool inside _full_boot. Verified: /health on backend port 8001 returns in ~1.5ms; object-storage-backed uploads/downloads still work (lazy init on first put/get). No regression."
+}

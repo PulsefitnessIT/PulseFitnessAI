@@ -395,11 +395,20 @@ async def startup() -> None:
 
 
 async def _full_boot() -> None:
+    # Never let boot-time work block the event loop — the k8s readiness
+    # probe hits GET /health and the port is already bound by the time this
+    # task runs. init_storage() is a synchronous requests.post() to an
+    # external object-storage service; if it were awaited inline it would
+    # freeze the loop (and /health) for up to its 30s timeout while the
+    # storage service is unreachable during a fresh deploy → readiness
+    # timeout → crash loop. Offload it to a worker thread. It also inits
+    # lazily on first put/get, so a boot-time failure here is harmless.
+    from starlette.concurrency import run_in_threadpool
     try:
-        init_storage()
+        await run_in_threadpool(init_storage)
         logger.info("Storage initialized")
     except Exception as e:
-        logger.error(f"Storage init failed: {e}")
+        logger.error(f"Storage init failed (will init lazily on first use): {e}")
 
     try:
         await _seed_master_admin()
