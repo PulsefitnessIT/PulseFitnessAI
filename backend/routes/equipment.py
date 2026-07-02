@@ -9,7 +9,7 @@ import logging
 
 import os
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object, get_object
-from utils.auth import get_current_user, get_organization_filter, apply_site_lock
+from utils.auth import get_current_user, get_organization_filter
 from utils.ai_access import require_ai_access
 
 # Backend-side base URL for building absolute, browser-loadable public URLs.

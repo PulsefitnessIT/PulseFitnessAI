@@ -1,3 +1,38 @@
+# ═══ 2026-07-02 · BRAND ASSETS + REFACTOR · Branded favicon/OG image + Operations site-scope migration (VERIFIED) ═══
+Two user-approved items delivered this session.
+
+1) BRANDED FAVICON + OG SOCIAL IMAGE (Core Blue #19CDFF / Soft Black #1B1C1D):
+- Rebuilt favicon-source.svg (exact Pulse pulse-mark on Soft Black, was #0A0C10) and rasterised via
+  cairosvg → favicon-48/96/192/512.png, apple-touch-icon.png (180), favicon.ico (multi-size). Crisp logo,
+  no AI distortion. Script: scripts/gen_brand_assets.py.
+- New OG social share image (1200x630, brand/og-cover.jpg + og/) — Soft Black bg, Core Blue Pulse mark +
+  white "pulsefitness" wordmark (real logo SVG recoloured), Proxima Nova headline/subhead, Core Blue accent +
+  pulsefitness.ai URL. Referenced by index.html og:image/twitter:image + all marketing landing SEO.
+- Aligned theme colours to brand: index.html theme-color, manifest.json + manifest-pulse.json theme/bg +
+  the inline /pulse PWA data-URI icons (#66ccff/#212721 → #19CDFF/#1B1C1D). Verified both assets render on preview.
+
+2) OPERATIONS/EQUIPMENT SITE-SCOPE MIGRATION (P3 backlog closed):
+- Retired legacy utils.auth.apply_site_lock for route use; Operations now shares the SAME ContextVar engine
+  (utils.site_scope.build_site_filter) as Memberships/CRM/Marketing. Managers with a non-empty allowed_site_ids
+  are now correctly site-restricted in Operations too (apply_site_lock had treated managers as unrestricted).
+- Change point: utils/mod_scope.py resolve_mod_query_filter non-MOD branch → build_site_filter. The MOD-HQ
+  branch (organization_id rebinding for mod_org/mod_branch) is UNCHANGED. issues.py (get_issues_for_job) and
+  reports.py (resolution-stats / equipment-summary / operational) now route through resolve_mod_query_filter.
+  Dropped dead apply_site_lock/get_organization_filter imports. apply_site_lock fn kept (still unit-tested).
+- VERIFIED (curl e2e, iso-demo): owner unrestricted sees both sites (count 3 incl. an inserted Site-B item);
+  manager restricted → only Site A (count 2); manager requesting Site B → 403 site_access_denied on BOTH
+  /api/equipment and /api/reports/resolution-stats; Site A → 200. apply_site_lock unit test 11/11 green.
+- NOTE: 403 detail shape is now the structured {error:"site_access_denied",...} (was plain string); no frontend
+  code parses the old string. Restricted-user "all my sites" no longer bleeds null-site_id legacy rows (strict
+  $in) — the equipment route's lazy single-site backfill + scripts/backfill_site_ids.py cover legacy data.
+- Legacy live-URL test tests/test_iter_216h120_mod_scope_rollup.py uses STALE GymAxis creds
+  (admin@gymaxisai.com) absent from the clean Pulse DB → can't run here (pre-existing, not a regression).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-07-02 · BRANDING (FLAT-COLOUR) · Removed brand gradients → solid Core Blue, de-navied shadows (VERIFIED 100%) ═══
 Enforced the Pulse guideline "no gradients — flat solid colours only" on top of the platform-wide sweep.
 

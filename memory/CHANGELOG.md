@@ -1,6 +1,12 @@
 # Changelog
 
 
+## Jul 2, 2026 — Branded favicon/OG image + Operations site-scope migration
+- **Brand assets:** regenerated favicon (Pulse mark on Soft Black `#1B1C1D`, Core Blue `#19CDFF`) at all sizes + `favicon.ico`/`apple-touch-icon`, and a new 1200×630 OG social image (`brand/og-cover.jpg`) with the real Pulse logo + Proxima Nova. Aligned `theme-color`/manifests/PWA data-URI icons to brand. Regen script: `scripts/gen_brand_assets.py`. Both verified rendering on preview.
+- **Operations site-scope migration (P3):** retired legacy `apply_site_lock` for routes — Operations/Equipment now use the same ContextVar `build_site_filter` engine as Memberships/CRM/Marketing (via `mod_scope.resolve_mod_query_filter`'s non-MOD branch; MOD-HQ branch unchanged). Managers with `allowed_site_ids` are now correctly site-locked in Operations. Migrated `issues.py`, `reports.py`. Verified via curl e2e (owner sees both sites; manager sees only Site A; 403 on disallowed site for equipment + reports). `apply_site_lock` unit test 11/11 green.
+
+
+
 ## Jul 1, 2026 — Production deploy blocker fixed: non-blocking startup (Iter 297)
 Production rollout was failing with a k8s readiness timeout — nginx logged `connect() failed (111: Connection refused)` on `/health` because the backend never bound `:8001`.
 - **Root cause:** the FastAPI `@app.on_event("startup")` handler *awaited* heavy work (admin/CRM seeding, one-shot backfills/migrations, and `ensure_all_indexes` = 129 indexes across 67 collections) BEFORE uvicorn opens the port. Against production MongoDB Atlas the index builds/backfills blocked long enough that the readiness probe timed out and the pod was killed/restarted in a loop.

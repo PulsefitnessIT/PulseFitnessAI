@@ -3,7 +3,8 @@ from datetime import datetime, timezone, timedelta
 import logging
 
 from utils.database import db
-from utils.auth import get_current_user, get_organization_filter, apply_site_lock
+from utils.auth import get_current_user
+from utils.mod_scope import resolve_mod_query_filter
 from utils.helpers import get_bulk_equipment_stats
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,7 @@ async def get_resolution_stats(
     the SiteSwitcher is on "All Operations Sites"). Owners/managers
     bypass the site_id constraint via the same allowed_site_ids logic
     that protects the equipment listing."""
-    org_filter = get_organization_filter(user)
-    org_filter = apply_site_lock(user, site_id, org_filter)
+    org_filter = await resolve_mod_query_filter(user, site_id)
     all_issues = await db.issues.find(
         org_filter,
         {"_id": 0, "status": 1, "resolution_type": 1, "resolved_by": 1, "created_at": 1,
@@ -94,8 +94,7 @@ async def get_equipment_summary_report(
     site_id: str | None = None,
     user: dict = Depends(get_current_user),
 ):
-    org_filter = get_organization_filter(user)
-    org_filter = apply_site_lock(user, site_id, org_filter)
+    org_filter = await resolve_mod_query_filter(user, site_id)
     equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(200)
 
     summary = {
@@ -215,8 +214,7 @@ async def get_operational_reports(
     site_id: str | None = None,
     user: dict = Depends(get_current_user),
 ) -> dict:
-    org_filter = get_organization_filter(user)
-    org_filter = apply_site_lock(user, site_id, org_filter)
+    org_filter = await resolve_mod_query_filter(user, site_id)
     cutoff = _period_cutoff_iso(period)
 
     all_issues = await db.issues.find(org_filter, {"_id": 0}).to_list(5000)

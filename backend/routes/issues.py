@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from utils.database import db, EMERGENT_LLM_KEY, RESEND_API_KEY, SENDER_EMAIL, APP_NAME, put_object
-from utils.auth import get_current_user, get_organization_filter, apply_site_lock
+from utils.auth import get_current_user, get_organization_filter
 from utils.ai_access import require_ai_access
 from models.schemas import IssueCreate, IssueBatchCreate, ServiceRequest
 from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -991,8 +991,8 @@ async def get_issues_for_job(
     machines fixed". Honours org isolation + site-lock so staff only
     see siblings they're allowed to see.
     """
-    org_filter = get_organization_filter(user)
-    org_filter = apply_site_lock(user, None, org_filter)
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, None)
     cursor = db.issues.find(
         {**org_filter, "job_id": job_id},
         {"_id": 0},

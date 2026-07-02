@@ -1,10 +1,12 @@
 """Centralised per-request site-scope engine (multi-site data isolation).
 
 This is the SINGLE source of truth for site-level RBAC across the
-**Memberships, CRM and Marketing** modules. Operations/Equipment keep
-using the older ``utils.auth.apply_site_lock`` for now (tracked as a P3
-unification backlog item) — but BOTH systems read the same source of
-truth: ``users.allowed_site_ids`` + the ``sites`` collection.
+**Memberships, CRM, Marketing and Operations/Equipment** modules — all
+now read the same source of truth: ``users.allowed_site_ids`` + the
+``sites`` collection. (Operations/Equipment reach it via
+``utils.mod_scope.resolve_mod_query_filter``, which delegates its
+non-MOD branch to :func:`build_site_filter`; the legacy
+``utils.auth.apply_site_lock`` is retired for route use.)
 
 How it works
 ------------

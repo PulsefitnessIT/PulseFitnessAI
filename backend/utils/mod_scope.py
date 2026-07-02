@@ -40,7 +40,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
-from utils.auth import apply_site_lock, get_organization_filter
+from utils.auth import get_organization_filter
+from utils.site_scope import build_site_filter
 from utils.database import db
 
 
@@ -98,9 +99,16 @@ async def resolve_mod_query_filter(
 
     if not _is_mod_hq(user):
         # ── Non-MOD-HQ path (Pulse Pro, Lite, full, mod_site, etc.) ──
+        # Iter 2026-07 — unified onto the ContextVar site-scope engine
+        # (utils.site_scope.build_site_filter), the SAME engine used by
+        # Memberships/CRM/Marketing. This retires the legacy
+        # apply_site_lock for Operations: managers with a non-empty
+        # allowed_site_ids are now correctly restricted here too, and a
+        # restricted user requesting a disallowed site gets 403
+        # site_access_denied. The per-request scope is stamped by
+        # utils.auth.get_current_user.
         f = get_organization_filter(user)
-        f = apply_site_lock(user, requested_site_id, {**f, **base})
-        return f
+        return {**f, **base, **build_site_filter(requested_site_id)}
 
     # ── MOD HQ path ──
     child_ids = await _mod_child_org_ids(user)
