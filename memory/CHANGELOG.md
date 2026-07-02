@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 4/4): Offline mobile drafts — PHASE 2 COMPLETE
+- Frontend-only (`PreInstallSurveys.js`, SurveyEditor). Every edit is cached to `localStorage` (`pis_survey_draft_<id>` = {data, savedAt, dirty}) so work survives reload / poor signal. Header sync badge cycles Synced → Unsaved → Offline·saved-on-device → Syncing. When a Save fails offline, the draft is kept locally with a "Saved on device — will sync when back online" toast (no error). `online`/`offline` listeners auto-sync the pending draft on reconnect (toast "Reconnected — your draft has been synced") and clear the local cache. On reopen, a dirty local draft raises a Restore/Discard banner. Attachment uploads are guarded offline (uploads require connectivity).
+- **Verified**: testing agent 7/7 offline-behaviour checks (localStorage persist, dirty→synced, offline save, restore prompt, reconnect auto-sync, offline upload guard) — 100%, zero issues.
+- **Pre-Install Site Survey Phase 2 is now complete** (AI summaries+risk-flagging, customer portal, version-diff, offline drafts). Backlog beyond Phase 2: reporting dashboard + exports, Master-Admin template builder UI, calendar/task auto-creation, email notifications on status change, deep-link surfacing in Opportunities/Quotes/Projects/Service Desk/Engineer app, dedicated Site-record page tab, migrate attachments to object storage.
+
+
+
 ## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 3/4): Version-diff UI
 - **Backend** (`crm_site_surveys.py`): `GET /{id}/diff?compare_to={otherId}` — field-level diff between two versions in the same lineage (`root_id`), labelled via SURVEY_SCHEMA. Compares meta (status/type/target date/priority/links), all non-repeatable section fields, and repeatable sections (rooms/equipment/risks/site_contacts/existing_equipment) per index. Auto-orders lower version as "from"; 400 if versions aren't from the same lineage.
 - **Frontend** (`PreInstallSurveys.js`): "Versions" button in the editor → modal listing the version chain (status chips + current badge) with two version selectors and a Compare action → side-by-side diff table (Field | vA | vB) with old struck-through / new highlighted. Guards against comparing a version with itself.
