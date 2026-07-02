@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only e2e test of Phase 2 Pre-Install Site Survey Versions/Compare feature on public URL. Verified full flow: CRM login (owner@isodemo.com) → Corporate → Companies → AlphaCo (Site A) → Site Surveys tab → survey PIS-00001-v2 opens (survey-editor). Clicked survey-versions-btn → survey-versions-modal opened listing v1 (superseded chip) and v2 (draft + green 'current' badge). Version selectors defaulted correctly: survey-diff-from=v1, survey-diff-to=v2. Clicked survey-diff-run → survey-diff-result rendered '4 changes · v1 → v2' table with fields: Survey·Status (superseded→draft), Survey·Priority (normal→high), Access and Delivery·Delivery entrance (Rear door→Front door via reception), Access and Delivery·Lift available (No→Yes). Old values are struck-through, new values styled as additions. All three expected changes from the spec (Priority, Delivery entrance, Lift available) verified; plus Status diff is included. Same-version test: set survey-diff-to = v1 (same as from), clicked Compare → toast 'Pick two different versions' appeared (top-right, visible in screenshot), editor did NOT crash (survey-editor still mounted). Backend GET /versions and /diff?compare_to=… behaved as expected via UI.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Versions modal <select>", "issues": ["Console warning: <span> cannot be a child of <option> (hydration warning) — likely icons/badges rendered inside <option> in survey-diff-from/to selects. Cosmetic only; app functions correctly."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: remove any inline <span> children from the <option> elements in the Versions modal's diff-from/diff-to <select>s to silence the React hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "openVersions() and runDiff() are defined inside SurveyEditor alongside the AI/status/audit handlers — file is now ~653 lines. Consider extracting the Versions/Compare modal (and its state: showVersions, versions, diffFrom, diffTo, diffLoading, diffResult) into its own component for maintainability.",
+    "runDiff() uses toast.error(e?.response?.data?.detail || 'Diff failed') — if backend returns an object as detail (FastAPI validation errors), the toast will render '[object Object]'. Consider normalizing.",
+    "The Versions modal renders <option> elements that appear to contain inline <span>/icon children — invalid HTML and produces a hydration warning in console."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! — 5 logins/5min IP rate limit (reuse token/session).",
+  "seed_data_creation": "No new data. Used existing PIS-00001 (v1 superseded) + PIS-00001-v2 (v2 draft, current) on AlphaCo (Site A)/iso-cA. NOT deleted per instructions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Versions/Compare feature is fully working end-to-end. All 4 review scenarios pass. Login rate limit 5/5min per IP — reuse session. The 2-version PIS-00001 survey on AlphaCo (Site A) is preserved for future tests. Diff endpoint currently returns 4 changes (Status, Priority, Delivery entrance, Lift available); spec mentioned 3 (Priority + 2 access) — the extra Status diff (superseded vs draft) is inherent to the supersede action and considered correct.",
+  "rca of the issue": "N/A — no bugs found in the Versions/Compare flow."
+}

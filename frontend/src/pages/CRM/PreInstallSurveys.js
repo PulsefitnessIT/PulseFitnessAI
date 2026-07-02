@@ -4,11 +4,20 @@ import { toast } from 'sonner';
 import {
   Plus, ArrowLeft, FileText, Upload, Download, Trash2, ShieldAlert,
   CheckCircle2, Circle, ClipboardList, History, AlertTriangle, Loader2, X,
-  Sparkles, ClipboardCopy,
+  Sparkles, ClipboardCopy, GitCompare, Layers,
 } from 'lucide-react';
 
 const REPEATABLE = { site_contacts: 'Contact', rooms: 'Room / Area', equipment: 'Equipment', existing_equipment: 'Existing item', risks: 'Risk' };
 const UNITS = ['m', 'cm', 'mm', 'ft/in'];
+
+const fmtDiffVal = (v) => {
+  if (v === true) return 'Yes';
+  if (v === false) return 'No';
+  if (v === null || v === undefined || v === '') return '—';
+  if (Array.isArray(v)) return `${v.length} item${v.length === 1 ? '' : 's'}`;
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
 
 const statusColor = (s) => {
   if (['approved_for_installation', 'completed'].includes(s)) return 'var(--color-success-alt)';
@@ -95,6 +104,12 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
   const [aiMode, setAiMode] = useState('analyse');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [diffFrom, setDiffFrom] = useState('');
+  const [diffTo, setDiffTo] = useState('');
+  const [diffResult, setDiffResult] = useState(null);
+  const [diffLoading, setDiffLoading] = useState(false);
 
   const load = useCallback(async () => {
     const res = await axios.get(`${API}/crm/site-surveys/${surveyId}`, { headers: headers() });
@@ -187,6 +202,24 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
     } catch (e) { toast.error('Insert failed'); }
   };
   const copyText = (t) => { navigator.clipboard?.writeText(t); toast.success('Copied'); };
+  const openVersions = async () => {
+    setShowVersions(true); setDiffResult(null);
+    try {
+      const res = await axios.get(`${API}/crm/site-surveys/${surveyId}/versions`, { headers: headers() });
+      const vs = res.data.versions || [];
+      setVersions(vs);
+      if (vs.length >= 2) { setDiffFrom(vs[vs.length - 2].id); setDiffTo(vs[vs.length - 1].id); }
+      else if (vs.length === 1) { setDiffFrom(vs[0].id); setDiffTo(vs[0].id); }
+    } catch (e) { toast.error('Could not load versions'); }
+  };
+  const runDiff = async () => {
+    if (!diffFrom || !diffTo || diffFrom === diffTo) { toast.error('Pick two different versions'); return; }
+    setDiffLoading(true); setDiffResult(null);
+    try {
+      const res = await axios.get(`${API}/crm/site-surveys/${diffFrom}/diff?compare_to=${diffTo}`, { headers: headers() });
+      setDiffResult(res.data);
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Diff failed'); } finally { setDiffLoading(false); }
+  };
 
   if (!survey) return <div className="py-10 text-center"><Loader2 className="animate-spin inline" size={20} /></div>;
   const readiness = survey.readiness || { checks: [], critical_missing: [] };
@@ -208,6 +241,7 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
         </span>
         <button onClick={openStatus} disabled={isReadonly} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-change-status">Change status</button>
         <button onClick={loadAudit} className="px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-audit-btn"><History size={12} /> Audit</button>
+        <button onClick={openVersions} className="px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-versions-btn"><Layers size={12} /> Versions</button>
         <button onClick={() => runAI('analyse')} className="px-3 py-1.5 text-xs font-semibold rounded-md border inline-flex items-center gap-1" style={{ borderColor: 'var(--color-info-ios)', color: 'var(--color-info-ios)' }} data-testid="survey-ai-btn"><Sparkles size={12} /> AI Assist</button>
         <button onClick={downloadPdf} className="px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-handover-pdf"><Download size={12} /> Handover PDF</button>
         <button onClick={() => save(false)} disabled={saving || isReadonly} className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white inline-flex items-center gap-1" data-testid="survey-save">
@@ -420,6 +454,80 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
           </div>
         </div>
       )}
+
+      {/* Versions / diff modal */}
+      {showVersions && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowVersions(false)}>
+          <div className="w-full max-w-3xl rounded-xl border p-5 max-h-[85vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: c.border }} onClick={(e) => e.stopPropagation()} data-testid="survey-versions-modal">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold inline-flex items-center gap-1.5" style={{ color: c.text }}><Layers size={15} style={{ color: 'var(--color-info-ios)' }} /> Version history &amp; compare</h3>
+              <button onClick={() => setShowVersions(false)}><X size={16} style={{ color: c.textMuted }} /></button>
+            </div>
+
+            {versions.length <= 1 ? (
+              <p className="text-sm py-4" style={{ color: c.textDim }}>This survey has a single version. Use “Change status” to create a new version (supersede) when the survey needs revising after approval.</p>
+            ) : (
+              <>
+                <div className="space-y-1 mb-4">
+                  {versions.map((v) => (
+                    <div key={v.id} className="flex items-center gap-2 text-xs p-2 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)' }} data-testid={`survey-version-${v.version}`}>
+                      <span className="font-bold" style={{ color: c.text }}>v{v.version}</span>
+                      <span style={{ color: c.textDim }}>{v.reference}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: `${statusColor(v.status)}20`, color: statusColor(v.status) }}>{v.status}</span>
+                      {v.is_current && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-success-alt)20', color: 'var(--color-success-alt)' }}>current</span>}
+                      <span className="ml-auto" style={{ color: c.textDim }}>{v.updated_at ? new Date(v.updated_at).toLocaleDateString('en-GB') : ''}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-end gap-2 mb-4 flex-wrap">
+                  <div>
+                    <label className="block text-[11px] font-semibold mb-1" style={{ color: c.textMuted }}>Compare</label>
+                    <select value={diffFrom} onChange={(e) => setDiffFrom(e.target.value)} className="px-2 py-1.5 text-xs rounded-md border" style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: c.border, color: c.text }} data-testid="survey-diff-from">
+                      {versions.map((v) => <option key={v.id} value={v.id}>v{v.version} · {v.reference}</option>)}
+                    </select>
+                  </div>
+                  <GitCompare size={16} style={{ color: c.textDim, marginBottom: 8 }} />
+                  <div>
+                    <label className="block text-[11px] font-semibold mb-1" style={{ color: c.textMuted }}>With</label>
+                    <select value={diffTo} onChange={(e) => setDiffTo(e.target.value)} className="px-2 py-1.5 text-xs rounded-md border" style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: c.border, color: c.text }} data-testid="survey-diff-to">
+                      {versions.map((v) => <option key={v.id} value={v.id}>v{v.version} · {v.reference}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={runDiff} className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white inline-flex items-center gap-1" data-testid="survey-diff-run">
+                    {diffLoading ? <Loader2 className="animate-spin" size={12} /> : <GitCompare size={12} />} Compare
+                  </button>
+                </div>
+
+                {diffResult && (
+                  <div data-testid="survey-diff-result">
+                    <p className="text-xs font-semibold mb-2" style={{ color: c.text }}>
+                      {diffResult.changed_count} change{diffResult.changed_count === 1 ? '' : 's'} · v{diffResult.from.version} → v{diffResult.to.version}
+                    </p>
+                    {diffResult.changed_count === 0 ? (
+                      <p className="text-sm py-3" style={{ color: c.textDim }}>No differences between these versions.</p>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden" style={{ borderColor: c.border }}>
+                        <div className="grid grid-cols-[1.4fr_1fr_1fr] text-[10px] font-bold uppercase" style={{ background: 'var(--color-soft-black, #1B1C1D)', color: '#fff' }}>
+                          <div className="p-2">Field</div><div className="p-2">v{diffResult.from.version}</div><div className="p-2">v{diffResult.to.version}</div>
+                        </div>
+                        {diffResult.changes.map((ch, i) => (
+                          <div key={i} className="grid grid-cols-[1.4fr_1fr_1fr] text-xs border-t" style={{ borderColor: c.border }}>
+                            <div className="p-2" style={{ color: c.text }}><span style={{ color: c.textDim }}>{ch.section_title} · </span>{ch.label}</div>
+                            <div className="p-2" style={{ color: c.textDim, textDecoration: 'line-through' }}>{fmtDiffVal(ch.old)}</div>
+                            <div className="p-2 font-medium" style={{ color: 'var(--color-success-alt)' }}>{fmtDiffVal(ch.new)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

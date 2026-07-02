@@ -531,6 +531,83 @@ async def get_versions(survey_id: str, user=Depends(get_crm_user)):
     return {"versions": [_summary(d) for d in chain], "total": len(chain)}
 
 
+# ── Version diff (compare two versions in the same lineage) ─────────
+
+_META_DIFF_FIELDS = [
+    ("status", "Status"), ("survey_type", "Survey type"),
+    ("target_install_date", "Target install date"), ("priority", "Priority"),
+    ("quote_id", "Linked quote"), ("opportunity_id", "Linked opportunity"),
+    ("project_id", "Linked project"),
+]
+_REPEATABLE_SECTIONS = {"site_contacts", "rooms", "equipment", "existing_equipment", "risks"}
+
+
+def _norm(v):
+    if v in (None, "", [], {}):
+        return None
+    return v
+
+
+def _diff_surveys(a: dict, b: dict) -> list[dict]:
+    """Field-level diff a→b using SURVEY_SCHEMA for section/field labels."""
+    changes = []
+    # Meta
+    for key, label in _META_DIFF_FIELDS:
+        oldv, newv = _norm(a.get(key)), _norm(b.get(key))
+        if oldv != newv:
+            changes.append({"section": "meta", "section_title": "Survey",
+                            "field": key, "label": label, "old": oldv, "new": newv})
+    da, dbb = a.get("data") or {}, b.get("data") or {}
+    for sec in SURVEY_SCHEMA:
+        sid, stitle = sec["id"], sec["title"]
+        fmap = {f["key"]: f["label"] for f in sec["fields"]}
+        if sec.get("repeatable"):
+            la, lb = da.get(sid) or [], dbb.get(sid) or []
+            for idx in range(max(len(la), len(lb))):
+                ia = la[idx] if idx < len(la) else {}
+                ib = lb[idx] if idx < len(lb) else {}
+                for fk, flabel in fmap.items():
+                    oldv, newv = _norm(ia.get(fk)), _norm(ib.get(fk))
+                    if oldv != newv:
+                        changes.append({"section": sid, "section_title": f"{stitle} #{idx + 1}",
+                                        "field": fk, "label": flabel, "old": oldv, "new": newv})
+        else:
+            sa, sb = da.get(sid) or {}, dbb.get(sid) or {}
+            for fk, flabel in fmap.items():
+                oldv, newv = _norm(sa.get(fk)), _norm(sb.get(fk))
+                if oldv != newv:
+                    changes.append({"section": sid, "section_title": stitle,
+                                    "field": fk, "label": flabel, "old": oldv, "new": newv})
+    return changes
+
+
+@router.get("/{survey_id}/diff")
+async def diff_versions(survey_id: str, compare_to: str, user=Depends(get_crm_user)):
+    """Compare this survey (from) against another version (to). Both must
+    belong to the same lineage (root_id)."""
+    a = await _load(survey_id, user)
+    b = await db[SURVEYS].find_one({"id": compare_to, **_of(user)}, {"_id": 0})
+    if not b:
+        raise HTTPException(404, "Comparison version not found")
+    root_a = a.get("root_id") or a["id"]
+    root_b = b.get("root_id") or b["id"]
+    if root_a != root_b:
+        raise HTTPException(400, "Versions are not from the same survey lineage")
+    # Order lower version = "from".
+    if (b.get("version", 1)) < (a.get("version", 1)):
+        a, b = b, a
+    changes = _diff_surveys(a, b)
+    return {
+        "from": {"id": a["id"], "reference": a.get("reference"), "version": a.get("version", 1),
+                 "status": a.get("status"), "updated_at": a.get("updated_at")},
+        "to": {"id": b["id"], "reference": b.get("reference"), "version": b.get("version", 1),
+               "status": b.get("status"), "updated_at": b.get("updated_at")},
+        "changes": changes,
+        "changed_count": len(changes),
+    }
+
+
+
 # ── Attachments ─────────────────────────────────────────────────────
 
 @router.get("/{survey_id}/attachments")
