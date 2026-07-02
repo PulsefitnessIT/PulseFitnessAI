@@ -396,7 +396,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
 
       {/* AI comms drawer */}
       {aiOpen ? (
-        <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'rgba(168,85,247,0.04)' }} data-testid="events-ai-comms">
+        <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'rgba(25, 205, 255,0.04)' }} data-testid="events-ai-comms">
           <div className="flex items-center justify-between">
             <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
               <Wand2 size={11} className="text-violet-500" /> AI-drafted parent comms

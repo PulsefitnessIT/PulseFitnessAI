@@ -25,7 +25,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const KPI_PALETTES = {
-  organisations: { fg: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
+  organisations: { fg: '#2563EB', bg: 'rgba(25, 205, 255,0.08)' },
   users:         { fg: '#5B5BF5', bg: 'rgba(91,91,245,0.08)' },
   revenue:       { fg: '#059669', bg: 'rgba(5,150,105,0.10)' },
   cases:         { fg: '#D97706', bg: 'rgba(217,119,6,0.10)' },

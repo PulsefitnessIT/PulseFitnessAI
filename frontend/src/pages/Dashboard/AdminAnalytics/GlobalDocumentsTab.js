@@ -482,7 +482,7 @@ const GlobalDocumentsTab = () => {
  {/* Auto-detect Toggle */}
  <div
  className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors"
- style={{ background: autoDetect ? 'rgba(168,85,247,0.1)' : 'var(--theme-bg)', border: autoDetect ? '1px solid rgba(168,85,247,0.3)' : '1px solid var(--theme-border)' }}
+ style={{ background: autoDetect ? 'rgba(25, 205, 255,0.1)' : 'var(--theme-bg)', border: autoDetect ? '1px solid rgba(25, 205, 255,0.3)' : '1px solid var(--theme-border)' }}
  onClick={() => setAutoDetect(!autoDetect)}
  data-testid="auto-detect-toggle"
  >
@@ -589,7 +589,7 @@ const GlobalDocumentsTab = () => {
 
  {/* AI Detection Results */}
  {uploadResult && (
- <div className="space-y-2 p-3 rounded-xl" style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }} data-testid="detection-results">
+ <div className="space-y-2 p-3 rounded-xl" style={{ background: 'rgba(25, 205, 255,0.08)', border: '1px solid rgba(25, 205, 255,0.2)' }} data-testid="detection-results">
  <div className="flex items-center gap-2 mb-2">
  <CheckCircle size={16} className="text-emerald-400" />
  <p className="text-sm font-medium" style={{ color: 'var(--theme-text)' }}>

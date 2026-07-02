@@ -34,7 +34,7 @@ import UnifiedTrialsCard from './UnifiedTrialsCard';
 const PIE_COLORS = ['#2563EB', '#10B981', '#F59E0B', '#9D4CDD'];
 
 const KPI_PALETTES = {
-  organisations: { fg: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
+  organisations: { fg: '#2563EB', bg: 'rgba(25, 205, 255,0.08)' },
   users:         { fg: '#5B5BF5', bg: 'rgba(91,91,245,0.08)' },
   revenue:       { fg: '#059669', bg: 'rgba(5,150,105,0.10)' },
   cases:         { fg: '#D97706', bg: 'rgba(217,119,6,0.10)' },

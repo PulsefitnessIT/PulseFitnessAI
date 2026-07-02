@@ -71,11 +71,11 @@ export default function StudioBrainTab({ API, headers }) {
         className="rounded-2xl border p-4 flex items-start gap-3 flex-wrap"
         style={{
           borderColor: 'var(--theme-border, #e2e8f0)',
-          background: 'linear-gradient(135deg, rgba(168,85,247,0.10), rgba(59,130,246,0.06))',
+          background: 'linear-gradient(135deg, rgba(25, 205, 255,0.10), rgba(59,130,246,0.06))',
         }}
         data-testid="studio-brain-headline"
       >
-        <div className="rounded-full p-2" style={{ background: 'rgba(168,85,247,0.2)' }}>
+        <div className="rounded-full p-2" style={{ background: 'rgba(25, 205, 255,0.2)' }}>
           <Brain size={18} className="text-violet-600" />
         </div>
         <div className="flex-1 min-w-0">

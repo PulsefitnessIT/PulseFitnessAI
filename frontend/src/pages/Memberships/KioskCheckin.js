@@ -233,7 +233,7 @@ export default function KioskCheckin() {
 
 function Shell({ studio, children, onBack }) {
   const subtle = useMemo(() => ({
-    background: 'radial-gradient(circle at 20% 20%, rgba(25,205,255,0.12), transparent 60%), radial-gradient(circle at 80% 80%, rgba(168,85,247,0.10), transparent 60%), var(--color-surface-darker)',
+    background: 'radial-gradient(circle at 20% 20%, rgba(25,205,255,0.12), transparent 60%), radial-gradient(circle at 80% 80%, rgba(25, 205, 255,0.10), transparent 60%), var(--color-surface-darker)',
   }), []);
   return (
     <div className="min-h-screen w-full text-white overflow-hidden flex flex-col" style={subtle} data-testid="kiosk-shell">

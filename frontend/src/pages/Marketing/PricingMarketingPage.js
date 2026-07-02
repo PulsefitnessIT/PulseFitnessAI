@@ -181,7 +181,7 @@ function BundleHero({ siteCount, setSiteCount, billingCycle, setBillingCycle }) 
     <div className="relative" data-testid="gx-pricing-bundle">
       {/* Most Popular ribbon */}
       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white text-[11px] font-bold uppercase tracking-[0.18em] px-3 py-1 shadow-[0_8px_20px_-6px_rgba(37,99,235,0.45)]">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white text-[11px] font-bold uppercase tracking-[0.18em] px-3 py-1 shadow-[0_8px_20px_-6px_rgba(25, 205, 255,0.45)]">
           <Sparkles size={12} /> Most Popular
         </span>
       </div>
@@ -277,7 +277,7 @@ function ModuleCard({ mod }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-[0_18px_45px_-18px_rgba(15,23,42,0.18)] flex flex-col dark:bg-zinc-900 dark:border-zinc-800" data-testid={`gx-module-${mod.id}`}>
       <div className="flex items-start gap-3">
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mod.accent} flex items-center justify-center text-white shadow-[0_8px_20px_-8px_rgba(37,99,235,0.35)] shrink-0`}>
+        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mod.accent} flex items-center justify-center text-white shadow-[0_8px_20px_-8px_rgba(25, 205, 255,0.35)] shrink-0`}>
           <Icon size={18} />
         </div>
         <div className="flex-1 min-w-0">

@@ -1,0 +1,45 @@
+{
+  "summary": "Retest of Pulse flat-solid brand rule. Logged in as owner@isodemo.com/IsoDemo123! (landed /service-desk). Ran a computed-style scan across /dashboard, /crm, /memberships, /marketing, /comms, /service-desk for banned palette (navy 37,99,235 / violet 124,58,237 / purple 147,51,234 & 168,85,247 / indigo 79,70,229 / teal 20,184,166) across color/backgroundColor/backgroundImage/border*/outlineColor/boxShadow/textDecorationColor/fill/stroke/caretColor. RESULT: ZERO hits on every route, INCLUDING box-shadow values. Deep-inspected the /memberships sub-tab active pill (data-testid mbr-tab-*) for 6 different tabs after click: all show flat Core Blue rgb(25,205,255) background, dark ink text rgb(24,24,27), and a CYAN shadow rgba(25, 205, 255, 0.35) — the previously-reported navy 'rgba(37,99,235,0.35)' shadow is GONE. Pages render, tabs clickable, no app-level JS errors. Only console noise is third-party CSP blocks (emergent-main.js / posthog / cloudflareinsights) which are not app code.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "computed_style_evidence": {
+    "/memberships active sub-tab pill (mbr-tab-start / dashboard / schedule / checkin / members / mobile-app)": {
+      "backgroundColor": "rgb(25, 205, 255)",
+      "color": "rgb(24, 24, 27)",
+      "boxShadow": "rgba(25, 205, 255, 0.35) 0px 6px 16px -6px",
+      "inlineStyle": "background: var(--color-brand-cyan); color: var(--color-ink); box-shadow: rgba(25, 205, 255, 0.35) 0px 6px 16px -6px;",
+      "navy_37_99_235_in_shadow": false,
+      "verdict": "PASS — flat solid Core Blue #19CDFF, dark legible ink text, cyan shadow (no navy)"
+    },
+    "Banned-color totals per route (navy/violet/purple1/purple2/indigo/teal)": {
+      "/dashboard":    "0 / 0 / 0 / 0 / 0 / 0",
+      "/crm":          "0 / 0 / 0 / 0 / 0 / 0",
+      "/memberships":  "0 / 0 / 0 / 0 / 0 / 0",
+      "/marketing":    "0 / 0 / 0 / 0 / 0 / 0",
+      "/comms":        "0 / 0 / 0 / 0 / 0 / 0",
+      "/service-desk": "0 / 0 / 0 / 0 / 0 / 0",
+      "GRAND": "0 / 0 / 0 / 0 / 0 / 0"
+    },
+    "active tab legibility": "Dark ink rgb(24,24,27) on Core Blue rgb(25,205,255) on /memberships — high contrast, easily legible. /comms visual verified: active 'Campaigns' pill flat cyan with dark text; active 'COMMS CENTRE' module tab flat cyan with dark text (see screenshot). CRM/Marketing/Comms did not expose 'crm-tab-*/mkt-tab-*/comms-tab-*' testid prefixes at the currently-rendered level but the computed-style scan across every element on those routes returned zero banned-colour hits, confirming no navy/violet/purple/indigo/teal in any pill background, color, or box-shadow."
+  },
+  "js_errors_observed": "None from app code. Only CSP-blocked third-party scripts (emergent-main.js, posthog, cloudflareinsights) — pre-existing environment noise, not regression.",
+  "pages_rendered": "All 6 routes rendered successfully post-login. Tabs clickable (verified by clicking 6 mbr-tab-* buttons in sequence and reading updated computed styles).",
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Retest confirms MembershipsConsole.js activeStyle unification — cyan-only shadow now applied. Consider still deleting the legacy else-branch pattern (documented in prev iteration) across MembershipsConsole/CRMApp/MarketingSuite/CommsCentre to prevent future regressions if the ternary ever falls into a legacy path. Non-blocking.",
+    "Latent literal rgba(37,99,235,*) still exists in several non-owner routes/files (MasterAdmin/*, Marketing/marketing.css, PulseLandingPage.js, index.css --rgb-pulse-primary token). Not rendered on owner-login routes today but recommend token-layer enforcement (--rgb-pulse-primary → 25 205 255) as durable fix."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% — all 6 owner routes zero banned-colour hits INCLUDING box-shadow, /memberships active pill fully compliant (cyan bg + dark ink + cyan shadow)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (used successfully — landed /service-desk, navigated /dashboard,/crm,/memberships,/marketing,/comms).",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pulse flat-solid brand rule now fully passing on owner routes. If further hardening requested: (a) log in as Master Admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg and re-scan MasterAdmin/* routes — those files still contain literal rgba(37,99,235,*) per prev iteration; (b) verify PulseLandingPage.js and marketing.css if unauthenticated landing/marketing pages are in-scope for the rule (prev iteration excluded landing).",
+  "rca of the issue": "Previously (iteration_pulse_flat_solid_no_gradient_jan2026), MembershipsConsole activeStyle else-branch shipped inline boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)'. Fix applied by main agent unified both ternary branches to the Pulse-branded flat cyan style: background var(--color-brand-cyan) + color var(--color-ink) + cyan boxShadow rgba(25,205,255,0.35). Verified in DOM: all 6 tested mbr-tab-* buttons now emit the cyan-only shadow with dark ink text — navy literal no longer appears anywhere in computed style across the 6 owner routes."
+}

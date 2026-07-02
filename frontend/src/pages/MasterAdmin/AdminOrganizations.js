@@ -732,7 +732,7 @@ useEffect(() => {
  >
    <Crown size={14} className={hqFilter ? 'text-white' : 'text-amber-500'} /> Head Offices
  </button>
- <Button className="h-10 text-sm rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white hover:opacity-90 shadow-[0_6px_16px_-6px_rgba(37,99,235,0.35)] border-0" onClick={() => { setOrgForm({ name: '', portal_type: portalFilter || 'service_portal', account_type: 'full', subscription_tier: 'starter' }); setShowCreateOrg(true); }} data-testid="create-org-btn">
+ <Button className="h-10 text-sm rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white hover:opacity-90 shadow-[0_6px_16px_-6px_rgba(25, 205, 255,0.35)] border-0" onClick={() => { setOrgForm({ name: '', portal_type: portalFilter || 'service_portal', account_type: 'full', subscription_tier: 'starter' }); setShowCreateOrg(true); }} data-testid="create-org-btn">
  <Plus size={14} className="mr-1" /> Create Organisation
  </Button>
  </div>

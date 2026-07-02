@@ -1014,9 +1014,7 @@ export default function CRMApp() {
               {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = activeTab === item.id;
-                const activeStyle = isPulseBrandedCRM
-                  ? { background: brandCfg.accent, color: 'var(--color-ink)' }
-                  : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF', boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)' };
+                const activeStyle = { background: brandCfg.accent || 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' };
                 return (
                   <button
                     key={item.id}
@@ -1048,7 +1046,7 @@ export default function CRMApp() {
                 const active = activeTab === item.id;
                 const activeStyleMobile = isPulseBrandedCRM
                   ? { background: brandCfg.accent, color: 'var(--color-ink)' }
-                  : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF' };
+                  : { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' };
                 return (
                   <button
                     key={item.id}

@@ -99,7 +99,7 @@
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--gx-brand-from);
-  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, .35);
+  box-shadow: 0 4px 12px -3px rgba(25, 205, 255, .35);
   cursor: grab;
   transition: transform .12s ease;
 }
@@ -110,11 +110,11 @@
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--gx-brand-from);
-  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, .35);
+  box-shadow: 0 4px 12px -3px rgba(25, 205, 255, .35);
   cursor: grab;
 }
 .gx-pricing-range:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, .25);
+  outline: 3px solid rgba(25, 205, 255, .25);
   outline-offset: 4px;
 }
 
@@ -124,7 +124,7 @@
   transition: box-shadow .25s ease, transform .25s ease;
 }
 .gx-cta:hover {
-  box-shadow: 0 10px 25px -5px rgba(157, 76, 221, .4);
+  box-shadow: 0 10px 25px -5px rgba(25, 205, 255, .4);
   transform: translateY(-1px);
 }
 /* Iter 216ax — reset the hover lift while the button is being clicked
@@ -145,8 +145,8 @@
 }
 
 .gx-glow {
-  box-shadow: 0 0 60px -15px rgba(37, 99, 235, .35),
-              0 0 80px -25px rgba(157, 76, 221, .35);
+  box-shadow: 0 0 60px -15px rgba(25, 205, 255, .35),
+              0 0 80px -25px rgba(25, 205, 255, .35);
 }
 
 /* AXIS orbit motion */
@@ -203,8 +203,8 @@
 /* Soft grid background pattern for hero */
 .gx-grid-bg {
   background-image:
-    radial-gradient(circle at 50% 0%, rgba(37,99,235,.08), transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(157,76,221,.08), transparent 50%),
+    radial-gradient(circle at 50% 0%, rgba(25, 205, 255,.08), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(25, 205, 255,.08), transparent 50%),
     linear-gradient(rgba(15,23,42,.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(15,23,42,.04) 1px, transparent 1px);
   background-size: auto, auto, 48px 48px, 48px 48px;
@@ -254,7 +254,7 @@
 .gx-prose a {
   color: rgb(79 70 229);
   font-weight: 600;
-  border-bottom: 1px solid rgba(79, 70, 229, 0.35);
+  border-bottom: 1px solid rgba(25, 205, 255, 0.35);
   transition: border-color .2s ease, color .2s ease;
 }
 .gx-prose a:hover { color: rgb(55 48 163); border-bottom-color: rgb(55 48 163); }

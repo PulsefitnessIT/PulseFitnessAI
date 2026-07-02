@@ -149,7 +149,7 @@ export default function ContactsTab() {
         </Button>
         <Button
           onClick={() => setEditing('new')}
-          className="h-10 rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white border-0 shadow-[0_6px_16px_-6px_rgba(37,99,235,0.35)]"
+          className="h-10 rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white border-0 shadow-[0_6px_16px_-6px_rgba(25, 205, 255,0.35)]"
           data-testid="contacts-create-btn"
         >
           <Plus size={14} className="mr-1.5" /> New contact

@@ -90,7 +90,7 @@ export default function CommsCentre() {
 
   const activeStyle = isPulseBranded
     ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-    : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF', boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)' };
+    : { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' };
 
   const renderSection = () => {
     switch (view) {

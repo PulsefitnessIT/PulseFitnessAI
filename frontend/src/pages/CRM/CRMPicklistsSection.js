@@ -134,7 +134,7 @@ export default function CRMPicklistsSection({ API, headers, user, c, isDark }) {
             anything you add here is scoped to your organisation only.
           </p>
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold" style={{ background: isMasterAdmin ? 'rgba(124,58,237,0.15)' : 'rgba(120,120,120,0.1)', color: isMasterAdmin ? '#7c3aed' : c.textDim }} data-testid="picklists-role-badge">
+        <span className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold" style={{ background: isMasterAdmin ? 'rgba(25, 205, 255,0.15)' : 'rgba(120,120,120,0.1)', color: isMasterAdmin ? '#7c3aed' : c.textDim }} data-testid="picklists-role-badge">
           {isMasterAdmin ? 'Master · Global edit' : 'Org · Local edit'}
         </span>
       </div>
@@ -213,7 +213,7 @@ export default function CRMPicklistsSection({ API, headers, user, c, isDark }) {
                       style={{ color: v.deprecated ? c.textDim : c.text, opacity: v.deprecated ? 0.6 : 1 }}
                       data-testid={`picklists-row-${v.id}`}
                     >
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase" style={{ background: isGlobal ? 'rgba(124,58,237,0.12)' : 'rgba(0,122,255,0.10)', color: isGlobal ? '#7c3aed' : 'var(--color-info-ios)' }}>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase" style={{ background: isGlobal ? 'rgba(25, 205, 255,0.12)' : 'rgba(0,122,255,0.10)', color: isGlobal ? '#7c3aed' : 'var(--color-info-ios)' }}>
                         {isGlobal ? 'Global' : 'Org'}
                       </span>
                       {editing ? (

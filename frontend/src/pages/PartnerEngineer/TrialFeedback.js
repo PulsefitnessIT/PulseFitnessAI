@@ -64,7 +64,7 @@ export default function TrialFeedback() {
 
   return (
     <div className="min-h-screen bg-[#070B1C] text-white flex items-center justify-center px-4 py-10"
-      style={{ backgroundImage: 'radial-gradient(1200px 500px at 50% -10%, rgba(37,99,235,0.35), transparent)' }}
+      style={{ backgroundImage: 'radial-gradient(1200px 500px at 50% -10%, rgba(25, 205, 255,0.35), transparent)' }}
       data-testid="trial-feedback-page">
       <div className="w-full max-w-lg">
         <div className="flex items-center gap-2 mb-6 justify-center">

@@ -178,7 +178,7 @@ export default function RevenueAutopilotPanel() {
                 className="text-left rounded-xl p-3 border transition-colors"
                 style={{
                   borderColor: active ? '#2563eb' : 'var(--theme-border)',
-                  background: active ? 'rgba(37,99,235,0.06)' : 'transparent',
+                  background: active ? 'rgba(25, 205, 255,0.06)' : 'transparent',
                 }}>
                 <div className="text-sm font-bold" style={{ color: active ? '#1d4ed8' : 'var(--theme-text)' }}>{l.label}</div>
                 <div className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>{l.desc}</div>

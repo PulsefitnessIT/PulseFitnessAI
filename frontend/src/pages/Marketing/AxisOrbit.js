@@ -168,7 +168,7 @@ export default function AxisOrbit() {
           />
           <div
             className="relative w-full h-full rounded-full bg-white flex items-center justify-center gx-glow dark:bg-zinc-900"
-            style={{ boxShadow: '0 18px 50px -12px rgba(37, 99, 235, .35), 0 0 0 1px rgba(15, 23, 42, .04)' }}
+            style={{ boxShadow: '0 18px 50px -12px rgba(25, 205, 255, .35), 0 0 0 1px rgba(15, 23, 42, .04)' }}
             data-testid="gx-orbit-center"
           >
             <PulseFitnessMark className="w-[68%] h-[68%]" />

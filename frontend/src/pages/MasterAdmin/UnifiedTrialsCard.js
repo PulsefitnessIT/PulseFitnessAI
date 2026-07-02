@@ -25,9 +25,9 @@ import {
 } from 'lucide-react';
 
 const MODULE_META = {
-  operations:  { label: 'Operations',  icon: Wrench,    color: '#2563EB', bg: 'rgba(37,99,235,0.10)' },
+  operations:  { label: 'Operations',  icon: Wrench,    color: '#2563EB', bg: 'rgba(25, 205, 255,0.10)' },
   memberships: { label: 'Memberships', icon: Users,     color: '#059669', bg: 'rgba(5,150,105,0.10)' },
-  crm:         { label: 'CRM',         icon: Building2,  color: '#9D4CDD', bg: 'rgba(157,76,221,0.10)' },
+  crm:         { label: 'CRM',         icon: Building2,  color: '#9D4CDD', bg: 'rgba(25, 205, 255,0.10)' },
   marketing:   { label: 'Marketing',   icon: Megaphone,  color: '#D97706', bg: 'rgba(217,119,6,0.10)' },
 };
 const MODULE_ORDER = ['operations', 'memberships', 'crm', 'marketing'];

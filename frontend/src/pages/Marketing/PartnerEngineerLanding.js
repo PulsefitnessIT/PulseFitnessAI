@@ -336,7 +336,7 @@ function Perks() {
 function Commission() {
   return (
     <section className="relative py-20 md:py-28 overflow-hidden" data-testid="pe-commission">
-      <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(60% 40% at 20% 0%, rgba(124,58,237,0.08), transparent 60%), radial-gradient(50% 40% at 90% 80%, rgba(16,185,129,0.08), transparent 60%)' }} />
+      <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(60% 40% at 20% 0%, rgba(25, 205, 255,0.08), transparent 60%), radial-gradient(50% 40% at 90% 80%, rgba(16,185,129,0.08), transparent 60%)' }} />
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="grid lg:grid-cols-[1fr_1.6fr] gap-12 items-start">
           {/* Left intro */}

@@ -255,9 +255,7 @@ function MembershipsConsoleInner() {
         >
           {TABS.filter((x) => !(hideStartFinal && x.id === 'start')).filter((x) => visibleTabs.some((v) => v.id === x.id)).map(({ id, label, icon: Icon }) => {
             const isActive = tab === id;
-            const activeStyle = isPulseBrandedMbr
-              ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-              : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF', boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)' };
+            const activeStyle = { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' };
             return (
               <button
                 key={id}
@@ -279,9 +277,7 @@ function MembershipsConsoleInner() {
         <div ref={pillBarRef} className="md:hidden mb-5 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
           {TABS.filter((x) => !(hideStartFinal && x.id === 'start')).filter((x) => visibleTabs.some((v) => v.id === x.id)).map(({ id, label }) => {
             const isActive = tab === id;
-            const activeStyle = isPulseBrandedMbr
-              ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-              : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF' };
+            const activeStyle = { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' };
             return (
               <button
                 key={id}

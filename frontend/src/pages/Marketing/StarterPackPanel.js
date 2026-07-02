@@ -167,8 +167,8 @@ export default function StarterPackPanel({ API, headers }) {
     <div
       className="rounded-2xl border p-5 mb-5"
       style={{
-        background: 'linear-gradient(135deg, rgba(168,85,247,0.05), rgba(236,72,153,0.05))',
-        borderColor: 'rgba(168,85,247,0.25)',
+        background: 'linear-gradient(135deg, rgba(25, 205, 255,0.05), rgba(236,72,153,0.05))',
+        borderColor: 'rgba(25, 205, 255,0.25)',
       }}
       data-testid="starter-pack-panel"
     >

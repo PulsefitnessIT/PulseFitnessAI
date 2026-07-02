@@ -904,7 +904,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
                           )}
                           {/* Iter 216h101 — KB suggestions panel (top 3 RAG hits) */}
                           {snippetCache[q.id]?.suggestions?.length > 0 && (
-                            <div className="mb-2 p-3 rounded-md" style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }} data-testid={`kb-suggest-${q.id}`}>
+                            <div className="mb-2 p-3 rounded-md" style={{ background: 'rgba(25, 205, 255,0.06)', border: '1px solid rgba(25, 205, 255,0.15)' }} data-testid={`kb-suggest-${q.id}`}>
                               <p className="text-[10px] uppercase tracking-wider mb-2 flex items-center gap-1" style={{ color: 'var(--color-accent-magenta)' }}>
                                 <Lightbulb size={10} /> Top {snippetCache[q.id].suggestions.length} from bid library
                               </p>
@@ -964,7 +964,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
                             </div>
                             <div className="flex gap-1 flex-wrap">
                               <button onClick={() => fetchSnippets(q.id)} disabled={!!aiLoading || snippetCache[q.id]?.loading}
-                                className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md" style={{ background: 'rgba(168,85,247,0.12)', color: 'var(--color-accent-magenta)' }}
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md" style={{ background: 'rgba(25, 205, 255,0.12)', color: 'var(--color-accent-magenta)' }}
                                 data-testid={`suggest-kb-${q.id}`}>
                                 {snippetCache[q.id]?.loading ? <Loader2 size={10} className="animate-spin" /> : <Lightbulb size={10} />} Suggest from KB
                               </button>
@@ -1271,7 +1271,7 @@ function SlideManager({ tenderId, API, headers, onClose, c, inputStyle }) {
                 onDragOver={onDragOver}
                 onDrop={() => onDrop(i)}
                 className="p-3 rounded-lg border"
-                style={{ borderColor: c.border, background: dragIdx === i ? 'rgba(168,85,247,0.06)' : 'transparent' }}
+                style={{ borderColor: c.border, background: dragIdx === i ? 'rgba(25, 205, 255,0.06)' : 'transparent' }}
                 data-testid={`slide-row-${i}`}
               >
                 <div className="flex items-center gap-3 cursor-move">

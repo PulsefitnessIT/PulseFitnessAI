@@ -254,7 +254,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
             const isActive = tab === id;
             const activeStyle = isPulseBrandedMkt
               ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-              : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF', boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)' };
+              : { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' };
             return (
               <button
                 key={id}
@@ -281,7 +281,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
             const isActive = tab === id;
             const activeStyleMobile = isPulseBrandedMkt
               ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-              : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF' };
+              : { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' };
             return (
               <button
                 key={id}
@@ -303,7 +303,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
             stays clean. */}
         {entitlement && (
           <div className="flex items-center gap-2 mb-5" data-testid="marketing-plan-badge">
-            <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-deep)] text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-[0_4px_12px_-4px_rgba(37,99,235,0.35)]">
+            <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-deep)] text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-[0_4px_12px_-4px_rgba(25, 205, 255,0.35)]">
               <ShieldCheck size={13} /> {planName}
             </span>
             {isTrial && (
