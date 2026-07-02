@@ -143,7 +143,7 @@ export default function EngineerAnalyticsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-10"><Loader2 className="animate-spin text-blue-500" /></div>
+          <div className="flex items-center justify-center py-10"><Loader2 className="animate-spin text-cyan-500" /></div>
         ) : (
           <>
             {/* Headline KPIs */}
@@ -343,7 +343,7 @@ function KPI({ icon: Icon, label, value, onClick, testid }) {
     </div>
   );
   return onClick ? (
-    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 text-left hover:border-blue-300 transition-colors" data-testid={testid}>{inner}</button>
+    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 text-left hover:border-cyan-300 transition-colors" data-testid={testid}>{inner}</button>
   ) : (
     <div className="bg-white rounded-2xl border border-slate-200" data-testid={testid}>{inner}</div>
   );

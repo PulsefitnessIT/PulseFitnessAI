@@ -111,12 +111,12 @@ export default function PartnerEngineerActivate() {
 
   // ─── Frame ────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-900 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-teal-950 to-teal-900 text-slate-900 flex flex-col">
       <header className="border-b border-white/10 bg-white/95 backdrop-blur px-6 py-4 flex items-center justify-between shadow-sm">
         <Link to="/" className="text-sm font-extrabold tracking-tight text-slate-900">
-          Pulse Fitness · <span className="text-purple-600">Engineer Partners</span>
+          Pulse Fitness · <span className="text-teal-600">Engineer Partners</span>
         </Link>
-        <Link to="/login" className="text-xs text-slate-500 hover:text-purple-600 font-bold" data-testid="activate-sign-in-link">
+        <Link to="/login" className="text-xs text-slate-500 hover:text-teal-600 font-bold" data-testid="activate-sign-in-link">
           Already have an account? Sign in
         </Link>
       </header>
@@ -125,7 +125,7 @@ export default function PartnerEngineerActivate() {
         <div className="w-full max-w-md">
           {loading ? (
             <div className="flex flex-col items-center gap-3 py-12" data-testid="activate-loading">
-              <Loader2 size={22} className="animate-spin text-purple-300" />
+              <Loader2 size={22} className="animate-spin text-teal-300" />
               <p className="text-sm text-white/80">Checking your activation link…</p>
             </div>
           ) : error && !info ? (
@@ -152,7 +152,7 @@ export default function PartnerEngineerActivate() {
               <button
                 type="button"
                 onClick={() => navigate(`/login?email=${encodeURIComponent(info.email)}&next=/partner-engineer?action=subscribe`)}
-                className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold shadow-lg shadow-purple-600/20"
+                className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-lg shadow-teal-600/20"
                 data-testid="activate-go-to-login"
               >
                 Sign in <ArrowRight size={14} />
@@ -165,7 +165,7 @@ export default function PartnerEngineerActivate() {
               data-testid="activate-form"
             >
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-purple-600">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-teal-600">
                   Engineer Partner · Welcome
                 </p>
                 <h1 className="text-2xl font-extrabold mt-1 text-slate-900" data-testid="activate-headline">
@@ -194,7 +194,7 @@ export default function PartnerEngineerActivate() {
                 <p className="text-[11px] text-slate-500 mt-1">
                   This is the email you applied with. Need to change it?
                   {' '}
-                  <a href="mailto:support@pulsefitness.ai" className="underline text-purple-600">contact support</a>.
+                  <a href="mailto:support@pulsefitness.ai" className="underline text-teal-600">contact support</a>.
                 </p>
               </label>
 
@@ -212,7 +212,7 @@ export default function PartnerEngineerActivate() {
                     autoFocus
                     autoComplete="new-password"
                     placeholder="At least 8 characters"
-                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                     data-testid="activate-password"
                   />
                   <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -239,7 +239,7 @@ export default function PartnerEngineerActivate() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-bold transition-colors shadow-lg shadow-purple-600/20"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-bold transition-colors shadow-lg shadow-teal-600/20"
                 data-testid="activate-submit"
               >
                 {submitting ? (
@@ -269,7 +269,7 @@ export default function PartnerEngineerActivate() {
       </main>
 
       <footer className="text-center text-[11px] text-white/70 py-6">
-        Pulse Fitness · You can email <a href="mailto:support@pulsefitness.ai" className="underline text-purple-200 hover:text-white">support@pulsefitness.ai</a> any time.
+        Pulse Fitness · You can email <a href="mailto:support@pulsefitness.ai" className="underline text-teal-200 hover:text-white">support@pulsefitness.ai</a> any time.
       </footer>
     </div>
   );

@@ -94,7 +94,7 @@ export default function EngineerUpcomingList() {
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/jobs/new')}
-              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold"
+              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-bold"
               data-testid="upcoming-cta-new"
             >
               Book a job
@@ -121,16 +121,16 @@ export default function EngineerUpcomingList() {
                         key={j.id}
                         type="button"
                         onClick={() => navigate(`/svc/engineer/jobs/${j.id}`)}
-                        className="w-full text-left bg-white rounded-2xl border border-slate-200 p-3 flex items-center gap-3 hover:shadow-sm hover:border-blue-300 transition-all"
+                        className="w-full text-left bg-white rounded-2xl border border-slate-200 p-3 flex items-center gap-3 hover:shadow-sm hover:border-cyan-300 transition-all"
                         data-testid={`upcoming-job-${j.id}`}
                       >
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex flex-col items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-700 flex flex-col items-center justify-center flex-shrink-0">
                           <Calendar size={14} />
                           <span className="text-[10px] font-bold mt-0.5">{f.time || '—'}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-[10px] font-bold tracking-wider text-blue-600">{j.reference}</p>
+                            <p className="text-[10px] font-bold tracking-wider text-cyan-600">{j.reference}</p>
                             {j.priority && (
                               <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
                                 {j.priority}

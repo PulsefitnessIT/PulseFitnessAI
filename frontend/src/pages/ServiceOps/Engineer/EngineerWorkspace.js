@@ -45,7 +45,7 @@ const auth = () => ({
 const PRIO = {
   P1: { bg: 'bg-red-500',    text: 'text-white',    label: 'P1' },
   P2: { bg: 'bg-amber-500',  text: 'text-white',    label: 'P2' },
-  P3: { bg: 'bg-blue-500',   text: 'text-white',    label: 'P3' },
+  P3: { bg: 'bg-cyan-500',   text: 'text-white',    label: 'P3' },
   P4: { bg: 'bg-slate-400',  text: 'text-white',    label: 'P4' },
 };
 const prioStyle = (p) => PRIO[(p || 'P3').toUpperCase()] || PRIO.P3;
@@ -87,14 +87,14 @@ const NavBtn = ({ icon: Icon, label, active, onClick, testid, shortcut }) => (
     title={`${label}${shortcut ? ` · ${shortcut}` : ''}`}
     className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
       active
-        ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+        ? 'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200'
         : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
     }`}
     data-testid={testid}
   >
     <Icon size={18} />
     {active ? (
-      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-6 rounded-l-full bg-blue-600" />
+      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-6 rounded-l-full bg-cyan-600" />
     ) : null}
   </button>
 );
@@ -104,7 +104,7 @@ const Sidebar = ({ onNav, onHelp }) => (
     className="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-2 flex-shrink-0"
     data-testid="workspace-sidebar"
   >
-    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold mb-3">
+    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-600 to-teal-600 flex items-center justify-center text-white font-extrabold mb-3">
       G
     </div>
     <NavBtn icon={Home}     label="Home"     shortcut="h" onClick={() => onNav('/svc/engineer')}            testid="ws-nav-home" />
@@ -132,7 +132,7 @@ const JobRow = ({ job, active, onClick, refEl }) => {
       data-testid={`ws-job-row-${job.reference}`}
       className={`w-full text-left px-3 py-2.5 border-l-2 transition-all ${
         active
-          ? 'bg-blue-50 border-blue-600'
+          ? 'bg-cyan-50 border-cyan-600'
           : 'bg-white border-transparent hover:bg-slate-50'
       }`}
     >
@@ -205,7 +205,7 @@ const JobListPane = ({ jobs, selected, onSelect, search, setSearch, searchRef,
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search jobs (press /)"
-            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 rounded-md pl-7 pr-2 py-1.5 text-sm focus:outline-none"
+            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-cyan-400 rounded-md pl-7 pr-2 py-1.5 text-sm focus:outline-none"
             data-testid="ws-search"
           />
         </div>
@@ -352,7 +352,7 @@ const DetailPane = ({ caseId, onOpenFull }) => {
           <button
             type="button"
             onClick={onOpenFull}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-2 rounded-lg whitespace-nowrap"
+            className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold px-3 py-2 rounded-lg whitespace-nowrap"
             data-testid="ws-open-full"
             title="Open full view · o"
           >
@@ -388,7 +388,7 @@ const DetailPane = ({ caseId, onOpenFull }) => {
             <ol className="space-y-3" data-testid="ws-detail-events">
               {events.map((e, i) => (
                 <li key={i} className="flex items-start gap-3 text-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 flex-shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-600 mt-1.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900">{e.kind || e.type || 'event'}</p>
                     {e.summary ? (

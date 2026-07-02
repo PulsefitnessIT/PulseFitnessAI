@@ -93,7 +93,7 @@ export default function MachineRowCustomFields({ caseId: _caseId, row, onPatch }
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-blue-700"
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-cyan-700"
           data-testid={`mrcf-new-${row.id}`}
         >
           <Plus size={9} /> Custom field
@@ -106,7 +106,7 @@ export default function MachineRowCustomFields({ caseId: _caseId, row, onPatch }
     <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2" data-testid={`mrcf-${row.id}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <Sliders size={11} className="text-blue-600" />
+          <Sliders size={11} className="text-cyan-600" />
           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
             Machine details {context.equipment_type ? `· ${context.equipment_type}` : ''}
           </p>
@@ -114,7 +114,7 @@ export default function MachineRowCustomFields({ caseId: _caseId, row, onPatch }
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:underline"
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-700 hover:underline"
           data-testid={`mrcf-new-${row.id}`}
         >
           <Plus size={9} /> Custom field

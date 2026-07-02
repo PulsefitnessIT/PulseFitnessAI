@@ -27,7 +27,7 @@ const auth = () => ({
 const PRIO_DOT = {
   P1: 'bg-red-500',
   P2: 'bg-amber-500',
-  P3: 'bg-blue-500',
+  P3: 'bg-cyan-500',
   P4: 'bg-slate-400',
 };
 
@@ -144,7 +144,7 @@ const AssignModal = ({ job, engineers, onClose, onAssign, suggestedAt }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold"
+              className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg py-2 text-sm font-semibold"
               data-testid="assign-submit"
             >
               Assign
@@ -172,7 +172,7 @@ const EngineerColumn = ({ engineer, slots, onPick }) => {
         <button
           type="button"
           onClick={() => onPick(engineer)}
-          className="text-xs font-semibold text-blue-700 hover:underline"
+          className="text-xs font-semibold text-cyan-700 hover:underline"
           data-testid={`pick-engineer-${engineer.id}`}
         >
           Pick
@@ -292,7 +292,7 @@ export default function AdminDispatchBoard() {
               <ChevronLeft size={22} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
                 Pulse Fitness · Service Ops
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -356,7 +356,7 @@ export default function AdminDispatchBoard() {
                     <button
                       type="button"
                       onClick={() => setAssignFor(j)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
+                      className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
                       data-testid={`dispatch-assign-btn-${j.reference}`}
                     >
                       <Users size={12} /> Assign

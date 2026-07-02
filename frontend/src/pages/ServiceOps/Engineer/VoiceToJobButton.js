@@ -182,7 +182,7 @@ export default function VoiceToJobButton() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-600 to-teal-700 text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
           aria-label="Voice-to-job"
           data-testid="voice-to-job-fab"
         >
@@ -199,7 +199,7 @@ export default function VoiceToJobButton() {
           <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-200">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-blue-700">
+                <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-cyan-700">
                   Voice-to-job
                 </p>
                 <h3 className="text-lg font-extrabold text-slate-900 mt-1">
@@ -228,7 +228,7 @@ export default function VoiceToJobButton() {
                 disabled={processing}
                 onClick={recording ? stop : start}
                 className={`relative inline-flex items-center justify-center w-20 h-20 rounded-full text-white font-bold shadow-lg transition-transform active:scale-95 disabled:opacity-50 ${
-                  recording ? 'bg-rose-600' : 'bg-gradient-to-br from-blue-600 to-indigo-700'
+                  recording ? 'bg-rose-600' : 'bg-gradient-to-br from-cyan-600 to-teal-700'
                 }`}
                 aria-label={recording ? 'Stop recording' : 'Start recording'}
                 data-testid="voice-to-job-mic-btn"

@@ -101,7 +101,7 @@ export default function ComplianceCard({ caseId, onChange }) {
         </p>
         <div className="flex items-center gap-1">
           {ptwActive ? (
-            <span className="px-1.5 py-0.5 rounded-full bg-white border border-blue-200 text-blue-800 text-[10px] font-bold uppercase tracking-wide" data-testid="compliance-ptw-chip">
+            <span className="px-1.5 py-0.5 rounded-full bg-white border border-cyan-200 text-cyan-800 text-[10px] font-bold uppercase tracking-wide" data-testid="compliance-ptw-chip">
               PTW {ptwActive.status}
             </span>
           ) : ptwNeeded ? (
@@ -248,7 +248,7 @@ function PtwDialog({ caseId, onClose, onRecorded }) {
   return (
     <div className="p-4">
       <div className="flex items-center gap-2 mb-3">
-        <ShieldCheck size={16} className="text-blue-600" />
+        <ShieldCheck size={16} className="text-cyan-600" />
         <p className="text-sm font-bold flex-1">Permit to Work</p>
         <button onClick={onClose} className="text-slate-500" data-testid="ptw-dialog-close"><X size={14} /></button>
       </div>
@@ -304,7 +304,7 @@ function PtwDialog({ caseId, onClose, onRecorded }) {
         <button
           onClick={request}
           disabled={!tplId || busy}
-          className="w-full px-3 py-2 rounded bg-blue-600 text-white text-xs font-bold uppercase disabled:opacity-50"
+          className="w-full px-3 py-2 rounded bg-cyan-600 text-white text-xs font-bold uppercase disabled:opacity-50"
           data-testid="ptw-request-submit"
         >
           {busy ? <Loader2 size={12} className="animate-spin inline" /> : <><Plus size={12} className="inline -mt-0.5" /> Request permit</>}
@@ -360,7 +360,7 @@ function LotoDialog({ caseId, onClose, onRecorded }) {
   return (
     <div className="p-4">
       <div className="flex items-center gap-2 mb-3">
-        <ClipboardCheck size={16} className="text-blue-600" />
+        <ClipboardCheck size={16} className="text-cyan-600" />
         <p className="text-sm font-bold flex-1">Lockout / Tagout</p>
         <button onClick={onClose} className="text-slate-500" data-testid="loto-dialog-close"><X size={14} /></button>
       </div>

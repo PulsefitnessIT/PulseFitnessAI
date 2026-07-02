@@ -134,7 +134,7 @@ export default function NotePresetChips({ onInsert, currentText }) {
             <span
               key={p.id}
               className={`group inline-flex items-center gap-1 max-w-full text-xs rounded-full border px-2.5 py-1 cursor-pointer
-                ${p.scope === 'shared' ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-white border-slate-200 text-slate-800'}
+                ${p.scope === 'shared' ? 'bg-cyan-50 border-cyan-200 text-cyan-900' : 'bg-white border-slate-200 text-slate-800'}
                 hover:shadow-sm`}
               data-testid={`preset-chip-${p.id}`}
               onClick={() => insertAndCount(p)}
@@ -169,7 +169,7 @@ export default function NotePresetChips({ onInsert, currentText }) {
         <button
           type="button"
           onClick={() => setShowAll(s => !s)}
-          className="text-[10px] text-blue-600 font-bold mt-1.5"
+          className="text-[10px] text-cyan-600 font-bold mt-1.5"
           data-testid="preset-show-toggle"
         >
           {showAll ? 'Show fewer' : `Show all ${presets.length}`}
@@ -191,7 +191,7 @@ export default function NotePresetChips({ onInsert, currentText }) {
           type="button"
           onClick={() => saveCurrentAsPreset('shared')}
           disabled={saving}
-          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
           data-testid="preset-save-shared"
         >
           {saving ? <Loader2 size={9} className="animate-spin" /> : <Plus size={9} />} Shared (org)

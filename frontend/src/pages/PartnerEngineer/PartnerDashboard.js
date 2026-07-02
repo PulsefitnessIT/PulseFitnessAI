@@ -199,7 +199,7 @@ export default function PartnerDashboard() {
             Earn commission on every gym you refer to Pulse Fitness and take jobs through the Engineer App.
           </p>
           <Link to="/partners/engineers/apply"
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold"
             data-testid="partner-apply-cta">
             Apply now <ExternalLink size={13} />
           </Link>
@@ -237,7 +237,7 @@ export default function PartnerDashboard() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-extrabold text-purple-500 flex items-center gap-1.5">
+            <div className="text-[10px] uppercase tracking-wider font-extrabold text-teal-500 flex items-center gap-1.5">
               <Sparkles size={11} /> Partner Engineer
             </div>
             <h1 className="text-2xl font-black">Hi {(partner.full_name || '').split(' ')[0] || 'there'}</h1>
@@ -458,7 +458,7 @@ function Card({ title, icon: Icon, children, testId }) {
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5" data-testid={testId}>
       <div className="flex items-center gap-2 mb-3">
-        {Icon && <Icon size={14} className="text-purple-500" />}
+        {Icon && <Icon size={14} className="text-teal-500" />}
         <h3 className="text-sm font-extrabold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">{title}</h3>
       </div>
       {children}
@@ -512,7 +512,7 @@ function SubscriptionCard({ partner, tier, activeCount, busy, onStart, onCancel,
             </div>
           </div>
           <button onClick={onStart} disabled={busy}
-            className="px-4 py-2 text-sm font-bold rounded-md bg-purple-600 hover:bg-purple-700 text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-bold rounded-md bg-teal-600 hover:bg-teal-700 text-white inline-flex items-center gap-1.5 disabled:opacity-50"
             data-testid="partner-sub-start">
             {busy ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={13} />}
             Start subscription

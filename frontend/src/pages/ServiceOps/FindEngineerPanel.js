@@ -30,7 +30,7 @@ function auth() {
 
 const LEVEL_LABEL = {
   verified_partner:  { label: 'Verified',  Icon: BadgeCheck, color: '#0ea5e9' },
-  strategic_partner: { label: 'Strategic', Icon: ShieldCheck, color: '#7c3aed' },
+  strategic_partner: { label: 'Strategic', Icon: ShieldCheck, color: '#0e7490' },
 };
 const TIER_BADGE = {
   top_tier:           { cls: 'bg-emerald-100 text-emerald-800', label: 'Top-tier' },
@@ -108,7 +108,7 @@ export default function FindEngineerPanel({ defaultPostcode = '' }) {
       <div className="svc-section-head">
         <div className="flex items-center gap-1.5 text-xs font-bold svc-muted">
           <Search size={13} /> Find an engineer
-          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-200 text-[9px] font-bold uppercase tracking-wider">
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-200 text-[9px] font-bold uppercase tracking-wider">
             Verified partners
           </span>
         </div>

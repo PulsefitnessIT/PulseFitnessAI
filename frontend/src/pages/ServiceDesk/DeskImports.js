@@ -177,7 +177,7 @@ export default function DeskImports({ API, embedded = false }) {
             </div>
             {unmatchedCount > 0 && (
               <button onClick={askAi} disabled={aiBusy}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 disabled:opacity-60"
                 data-testid="import-ai-map">
                 {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                 Ask AI to map {unmatchedCount} unmatched

@@ -106,7 +106,7 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="wrf-widget">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Sliders size={14} className="text-blue-600" />
+          <Sliders size={14} className="text-cyan-600" />
           <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500">
             Machine readings &amp; details
           </p>
@@ -114,7 +114,7 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-bold text-cyan-700 hover:underline"
           data-testid="wrf-widget-new-btn"
         >
           <Plus size={12} /> New field
@@ -253,7 +253,7 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
                   && String(current) === String(lv);
                 return (
                   <p
-                    className={`text-[10px] mt-1 ${matches ? 'text-emerald-600' : 'text-blue-600'}`}
+                    className={`text-[10px] mt-1 ${matches ? 'text-emerald-600' : 'text-cyan-600'}`}
                     data-testid={`wrf-lastreading-${f.key}`}
                   >
                     {matches ? '✓ ' : '↺ '}

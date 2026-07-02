@@ -127,7 +127,7 @@ export default function EngineerEquipment() {
           </div>
           <Link
             to={newHref}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-bold hover:bg-cyan-700"
             data-testid="equipment-add-btn"
           >
             <Plus size={14} /> Add
@@ -141,7 +141,7 @@ export default function EngineerEquipment() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search name, serial, model…"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
               data-testid="equipment-search-input"
             />
           </div>
@@ -214,7 +214,7 @@ export default function EngineerEquipment() {
             </p>
             <Link
               to={newHref}
-              className="mt-4 inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+              className="mt-4 inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-cyan-600 text-white text-xs font-bold hover:bg-cyan-700"
               data-testid="equipment-empty-add-btn"
             >
               <Plus size={14} /> Add equipment
@@ -280,8 +280,8 @@ function EquipmentRow({ item, sites }) {
         aria-expanded={open}
       >
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <Wrench size={16} className="text-blue-600" />
+          <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center flex-shrink-0">
+            <Wrench size={16} className="text-cyan-600" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-slate-900 truncate">
@@ -476,7 +476,7 @@ function ServiceHistory({ data }) {
                     </span>
                   )}
                   {v.cleaned && (
-                    <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">
+                    <span className="px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 font-bold">
                       ✓ Cleaned
                     </span>
                   )}
@@ -839,7 +839,7 @@ export function EngineerEquipmentForm() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50 hover:bg-blue-700"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-cyan-600 text-white text-sm font-bold disabled:opacity-50 hover:bg-cyan-700"
             data-testid="equipment-form-submit"
           >
             {saving ? (
@@ -875,7 +875,7 @@ function FormField({ label, required, hint, error, children }) {
 function inputCls(hasError) {
   return (
     'w-full px-3 py-2.5 rounded-xl border text-sm bg-white focus:outline-none ' +
-    'focus:ring-2 focus:ring-blue-500 ' +
+    'focus:ring-2 focus:ring-cyan-500 ' +
     (hasError ? 'border-rose-400' : 'border-slate-200')
   );
 }

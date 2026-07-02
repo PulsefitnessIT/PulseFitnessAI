@@ -6,10 +6,10 @@ import { Search, ChevronRight } from 'lucide-react';
 import { authConfig } from './authConfig';
 
 const ACCOUNT_TYPE_LABELS = {
-  full: { label: 'Pulse Fitness', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  pulse_pro: { label: 'Pulse Pro', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  full: { label: 'Pulse Fitness', className: 'bg-teal-50 text-teal-700 border-teal-200' },
+  pulse_pro: { label: 'Pulse Pro', className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
   lite: { label: 'Pulse Lite', className: 'bg-sky-50 text-sky-700 border-sky-200' },
-  gymaxis: { label: 'Pulse Fitness', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  gymaxis: { label: 'Pulse Fitness', className: 'bg-teal-50 text-teal-700 border-teal-200' },
 };
 
 function OrgRow({ org, onSelect }) {
@@ -25,7 +25,7 @@ function OrgRow({ org, onSelect }) {
           <div className="text-sm font-semibold text-zinc-900 truncate dark:text-zinc-100">{org.name}</div>
           <Badge variant="outline" className={`text-[10px] ${acct.className}`}>{acct.label}</Badge>
           {org.is_multi_site && (
-            <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">Multi-site</Badge>
+            <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">Multi-site</Badge>
           )}
           {org.status === 'archived' && (
             <Badge variant="outline" className="text-[10px] bg-zinc-100 text-zinc-600 dark:bg-zinc-800">Archived</Badge>
@@ -83,7 +83,7 @@ export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
         <p className="text-sm text-zinc-500 mt-1">
           {total.toLocaleString()} organisations. Search by name, Sicon ref, or head-office ref.
           {scopedToPulse && (
-            <Badge variant="outline" className="ml-2 text-[10px] bg-blue-50 text-blue-700 border-blue-200" data-testid="desk-scope-pulse-badge">
+            <Badge variant="outline" className="ml-2 text-[10px] bg-cyan-50 text-cyan-700 border-cyan-200" data-testid="desk-scope-pulse-badge">
               Pulse customers only
             </Badge>
           )}

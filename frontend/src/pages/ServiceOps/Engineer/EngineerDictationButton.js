@@ -152,7 +152,7 @@ export default function EngineerDictationButton({ caseId, hint, onResult, disabl
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4" data-testid="dictation-card">
       <div className="flex items-center gap-2 mb-2">
-        <Sparkles size={14} className="text-blue-600" />
+        <Sparkles size={14} className="text-cyan-600" />
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500">
           Or dictate your summary (AI will polish it)
         </p>
@@ -163,7 +163,7 @@ export default function EngineerDictationButton({ caseId, hint, onResult, disabl
           disabled={disabled || processing}
           onClick={recording ? stop : start}
           className={`relative inline-flex items-center justify-center w-14 h-14 rounded-full text-white font-bold shadow-md transition-transform active:scale-95 disabled:opacity-50 ${
-            recording ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700'
+            recording ? 'bg-rose-600 hover:bg-rose-700' : 'bg-cyan-600 hover:bg-cyan-700'
           }`}
           aria-label={recording ? 'Stop dictation' : 'Start dictation'}
           data-testid="dictation-mic-btn"

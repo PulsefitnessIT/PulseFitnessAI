@@ -30,7 +30,7 @@ const ROW_PX = 64; // engineer row height
 const HOURS_PER_DAY = 10; // 08:00–18:00 (display); engineers actually work outside this too — UI clamps for readability
 const DAY_START_HOUR = 8;
 
-const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#1d4ed8', p4: '#6b7280' };
+const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#0891b2', p4: '#6b7280' };
 
 function startOfDay(d) {
   const x = new Date(d);
@@ -55,7 +55,7 @@ function slotIsoFor(dayStart, dayIndex, hourSlot) {
 }
 
 function CaseCard({ c, onDragStart, onClick, compact = false }) {
-  const colour = PRIORITY_COLOUR[c.priority] || '#1d4ed8';
+  const colour = PRIORITY_COLOUR[c.priority] || '#0891b2';
   const slaMs = c.sla_resolve_at ? new Date(c.sla_resolve_at).getTime() - Date.now() : 0;
   const breached = c.sla_resolve_at && slaMs < 0;
   const atRisk = c.sla_resolve_at && !breached && slaMs < 2 * 3600 * 1000;
@@ -252,7 +252,7 @@ export default function ServiceScheduler() {
                 onClick={() => autoAssign(c, true)}
                 disabled={autoFor === c.id}
                 className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold py-1 rounded-md text-white disabled:opacity-60"
-                style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+                style={{ background: '#0891b2' }}
                 data-testid={`scheduler-auto-${c.reference}`}
               >
                 {autoFor === c.id ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />} Auto-assign
@@ -318,7 +318,7 @@ export default function ServiceScheduler() {
                             key={s}
                             onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
                             onDrop={() => onDropOnSlot(eng, dayIndex, s)}
-                            className="border-l hover:bg-blue-50/40"
+                            className="border-l hover:bg-cyan-50/40"
                             style={{ borderColor: 'var(--theme-border)', width: SLOT_PX, height: ROW_PX }}
                             data-testid={`scheduler-slot-${eng.id}-${dayIndex}-${s}`}
                           />

@@ -155,7 +155,7 @@ export default function PartsCatalogue() {
                   {data.show_cost && <p className="text-[11px] text-slate-400">cost {formatMoney(p.cost || 0, loc)}</p>}
                 </div>
                 {data.can_manage && (
-                  <button onClick={() => setEdit(p)} className="p-2 text-slate-400 hover:text-blue-600" data-testid={`catalogue-edit-${p.sku}`} aria-label="Edit">
+                  <button onClick={() => setEdit(p)} className="p-2 text-slate-400 hover:text-cyan-600" data-testid={`catalogue-edit-${p.sku}`} aria-label="Edit">
                     <Pencil className="w-4 h-4" />
                   </button>
                 )}
@@ -255,7 +255,7 @@ const EditDrawer = ({ part, showCost, onClose, onSaved }) => {
           <p className="text-[10px] text-slate-400 mt-1">Decides whether this part is covered by a contract or chargeable when used on a job.</p>
         </div>
         <button onClick={save} disabled={busy} data-testid="edit-save"
-                className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+                className="w-full h-12 rounded-xl bg-cyan-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : null} Save changes
         </button>
       </div>

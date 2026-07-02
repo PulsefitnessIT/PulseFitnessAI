@@ -7,7 +7,7 @@ import { RefreshCw } from 'lucide-react';
 import { authConfig } from './authConfig';
 
 const ACTION_COLOURS = {
-  'org.update': 'bg-blue-50 text-blue-700 border-blue-200',
+  'org.update': 'bg-cyan-50 text-cyan-700 border-cyan-200',
   'org.impersonate': 'bg-red-50 text-red-700 border-red-200',
   'site.update': 'bg-teal-50 text-teal-700 border-teal-200',
   'desk.grant': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -84,7 +84,7 @@ export default function DeskAuditLog({ API }) {
                       {r.action}
                     </Badge>
                     {r.actor_role === 'master_admin' && (
-                      <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">Master Admin</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">Master Admin</Badge>
                     )}
                   </div>
                   <div className="text-sm text-zinc-900 mt-1 dark:text-zinc-100">{r.summary}</div>

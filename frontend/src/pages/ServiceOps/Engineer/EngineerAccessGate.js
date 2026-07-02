@@ -49,7 +49,7 @@ export default function EngineerAccessGate({ detail }) {
   const Icon = config.icon;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-zinc-50 via-white to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-purple-950/40"
+    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-zinc-50 via-white to-teal-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-teal-950/40"
       data-testid={`engineer-access-gate-${reason}`}>
       <div className="max-w-md w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
         <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider mb-4" style={{ color: config.color }}>

@@ -397,7 +397,7 @@ export default function EngineerQuoteBuilder() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness Quote</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Pulse Fitness Quote</p>
               <h1 className="text-xl font-extrabold text-slate-900 truncate">
                 {isNew ? 'New quote' : form.quote_number}
               </h1>
@@ -481,7 +481,7 @@ export default function EngineerQuoteBuilder() {
               <button
                 type="button"
                 onClick={handleConvert}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-cyan-200 bg-cyan-50 text-cyan-700 text-xs font-bold"
                 data-testid="quote-builder-convert-to-job"
               >
                 <Briefcase size={12} /> Convert to job
@@ -507,7 +507,7 @@ export default function EngineerQuoteBuilder() {
               </span>
             )}
             {form.converted_case_id && (
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs font-bold">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-teal-200 bg-teal-50 text-teal-700 text-xs font-bold">
                 <Briefcase size={12} /> Converted → {form.converted_case_reference}
               </span>
             )}
@@ -589,7 +589,7 @@ export default function EngineerQuoteBuilder() {
         {/* Description */}
         <Section title="Description of work">
           <textarea
-            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-900 placeholder-slate-400 focus:border-blue-400 focus:outline-none"
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
             rows={3}
             placeholder="What work is being quoted for?"
             value={form.description_of_work}
@@ -752,7 +752,7 @@ export default function EngineerQuoteBuilder() {
                 <span>{loc.tax_label} ({form.vat_rate}%)</span><span className="tabular-nums">{fmtGBP(totals.vatAmount)}</span>
               </div>
               <div className="border-t border-slate-200 pt-2 flex justify-between text-lg font-extrabold text-slate-900">
-                <span>Total</span><span className="tabular-nums text-blue-700">{fmtGBP(totals.total)}</span>
+                <span>Total</span><span className="tabular-nums text-cyan-700">{fmtGBP(totals.total)}</span>
               </div>
             </div>
           </div>
@@ -787,7 +787,7 @@ export default function EngineerQuoteBuilder() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4" data-testid="qb-email-modal">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl border border-slate-200">
             <div className="flex items-center gap-2 mb-3">
-              <Mail size={18} className="text-blue-600" />
+              <Mail size={18} className="text-cyan-600" />
               <h3 className="text-base font-bold text-slate-900">Email this quote</h3>
             </div>
             <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">To</label>
@@ -846,7 +846,7 @@ const TextField = ({ label, value, onChange, type = 'text', testid, readOnly, fu
     <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">{label}</label>
     <input
       type={type}
-      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-900 placeholder-slate-400 focus:border-blue-400 focus:outline-none disabled:bg-slate-50"
+      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none disabled:bg-slate-50"
       value={value || ''}
       readOnly={readOnly}
       onChange={e => onChange(e.target.value)}
@@ -933,7 +933,7 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => q.length >= 2 && setOpen(true)}
             placeholder="Search saved customers…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-blue-400 focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-cyan-400 focus:outline-none"
             data-testid="qb-customer-search"
           />
         </div>
@@ -972,11 +972,11 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
       ) : null}
       {showSuggestion ? (
         <div
-          className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50"
+          className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-cyan-200 bg-cyan-50"
           data-testid="qb-customer-suggest"
         >
-          <p className="text-xs text-blue-900 flex items-center gap-2">
-            <BookmarkPlus size={14} className="text-blue-600" />
+          <p className="text-xs text-cyan-900 flex items-center gap-2">
+            <BookmarkPlus size={14} className="text-cyan-600" />
             <span>
               Save <b>{name}</b> to your Lite CRM so you can reuse them later?
             </span>
@@ -994,7 +994,7 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
                 }
               }}
               disabled={suggestState.saving}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
               data-testid="qb-customer-suggest-save"
             >
               {suggestState.saving ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
@@ -1003,7 +1003,7 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
             <button
               type="button"
               onClick={() => setSuggestState((s) => ({ ...s, dismissed: true }))}
-              className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-blue-200 bg-white hover:bg-blue-100 text-blue-700"
+              className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-cyan-200 bg-white hover:bg-cyan-100 text-cyan-700"
               data-testid="qb-customer-suggest-dismiss"
               aria-label="Dismiss"
               title="Dismiss"

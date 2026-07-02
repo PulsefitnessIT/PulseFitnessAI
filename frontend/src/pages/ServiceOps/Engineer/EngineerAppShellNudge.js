@@ -145,15 +145,15 @@ export default function EngineerAppShellNudge() {
   return (
     <>
       <div
-        className="rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-blue-50 border border-indigo-200 p-3"
+        className="rounded-2xl bg-gradient-to-br from-teal-50 via-white to-cyan-50 border border-teal-200 p-3"
         data-testid="engineer-shell-nudge"
       >
         <div className="flex items-start gap-2">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center flex-shrink-0">
             <Bell size={14} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-700">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-700">
               Get the full experience
             </p>
             <p className="text-xs text-slate-700 leading-snug">
@@ -180,7 +180,7 @@ export default function EngineerAppShellNudge() {
               type="button"
               onClick={subscribe}
               disabled={busyPush}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold disabled:opacity-50"
               data-testid="engineer-shell-nudge-push"
             >
               {busyPush ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />}
@@ -192,7 +192,7 @@ export default function EngineerAppShellNudge() {
               type="button"
               onClick={install}
               disabled={busyInstall}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
               data-testid="engineer-shell-nudge-install"
             >
               {busyInstall ? <Loader2 size={12} className="animate-spin" />
@@ -237,7 +237,7 @@ function IosGuide({ onClose }) {
         <button
           type="button"
           onClick={onClose}
-          className="w-full px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold"
+          className="w-full px-3 py-2 rounded-xl bg-cyan-600 text-white text-sm font-bold"
           data-testid="engineer-shell-nudge-ios-close"
         >
           Got it

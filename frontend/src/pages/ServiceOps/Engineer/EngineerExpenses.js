@@ -35,7 +35,7 @@ const STATUS_STYLE = {
   needs_details: 'bg-orange-100 text-orange-700',
   approved: 'bg-emerald-100 text-emerald-700',
   rejected: 'bg-red-100 text-red-700',
-  exported: 'bg-blue-100 text-blue-700',
+  exported: 'bg-cyan-100 text-cyan-700',
   reimbursed: 'bg-emerald-600 text-white',
   cancelled: 'bg-slate-200 text-slate-400 line-through',
 };

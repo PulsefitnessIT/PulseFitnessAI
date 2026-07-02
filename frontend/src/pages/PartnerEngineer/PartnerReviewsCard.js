@@ -68,8 +68,8 @@ function ReviewItem({ review, onRespond }) {
           {review.title && <p className="mt-1 text-[13px] font-bold text-zinc-900">{review.title}</p>}
           <p className="mt-0.5 text-[13px] text-zinc-700 whitespace-pre-wrap">{review.body}</p>
           {review.engineer_response && (
-            <div className="mt-2 pl-3 border-l-2 border-blue-200 bg-blue-50/50 rounded-r p-2">
-              <p className="text-[11px] font-semibold text-blue-900 mb-0.5 inline-flex items-center gap-1">
+            <div className="mt-2 pl-3 border-l-2 border-cyan-200 bg-cyan-50/50 rounded-r p-2">
+              <p className="text-[11px] font-semibold text-cyan-900 mb-0.5 inline-flex items-center gap-1">
                 <Reply size={11} /> Your response
               </p>
               <p className="text-[12px] text-zinc-800 whitespace-pre-wrap">{review.engineer_response}</p>
@@ -79,7 +79,7 @@ function ReviewItem({ review, onRespond }) {
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="mt-2 text-[11px] font-bold text-blue-700 hover:underline inline-flex items-center gap-1"
+              className="mt-2 text-[11px] font-bold text-cyan-700 hover:underline inline-flex items-center gap-1"
               data-testid={`review-respond-${review.id}`}
             >
               <Reply size={10} /> {review.engineer_response ? 'Edit response' : 'Respond'}

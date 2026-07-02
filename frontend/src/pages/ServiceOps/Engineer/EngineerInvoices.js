@@ -19,7 +19,7 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 
 const STATUS_BADGES = {
   draft:    { label: 'Draft',    bg: 'bg-slate-100 text-slate-700 border-slate-200',     icon: FileText },
-  sent:     { label: 'Sent',     bg: 'bg-blue-50 text-blue-700 border-blue-200',          icon: Send },
+  sent:     { label: 'Sent',     bg: 'bg-cyan-50 text-cyan-700 border-cyan-200',          icon: Send },
   paid:     { label: 'Paid',     bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
   overdue:  { label: 'Overdue',  bg: 'bg-amber-50 text-amber-700 border-amber-200',       icon: AlertTriangle },
   void:     { label: 'Void',     bg: 'bg-rose-50 text-rose-700 border-rose-200',          icon: XCircle },
@@ -80,7 +80,7 @@ export default function EngineerInvoices() {
               <ArrowLeft size={16} />
             </button>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Pulse Fitness</p>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-extrabold text-slate-900">Invoices</h1>
                 <OutboxStatusPill />
@@ -120,7 +120,7 @@ export default function EngineerInvoices() {
               key={f.id}
               onClick={() => setParams({ status: f.id })}
               className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                filter === f.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'
+                filter === f.id ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-slate-600 border-slate-200'
               }`}
               data-testid={`engineer-invoices-filter-${f.id}`}
             >

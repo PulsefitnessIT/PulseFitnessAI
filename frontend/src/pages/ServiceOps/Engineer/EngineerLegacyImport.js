@@ -90,7 +90,7 @@ function Stepper({ step }) {
           <div key={label} className="flex items-center gap-1.5">
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
-                active ? 'bg-blue-600 text-white'
+                active ? 'bg-cyan-600 text-white'
                   : done ? 'bg-emerald-100 text-emerald-700'
                     : 'bg-slate-100 text-slate-400'
               }`}
@@ -118,7 +118,7 @@ function Field({ label, value, onChange, placeholder, testid, type = 'text' }) {
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-blue-400 focus:outline-none"
+        className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-cyan-400 focus:outline-none"
         data-testid={testid}
       />
     </label>
@@ -345,7 +345,7 @@ export default function EngineerLegacyImport() {
             <ArrowLeft size={16} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness · Import</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Pulse Fitness · Import</p>
             <h1 className="text-lg font-extrabold text-slate-900 truncate">Legacy report import</h1>
           </div>
           <Stepper step={step} />
@@ -355,9 +355,9 @@ export default function EngineerLegacyImport() {
       <main className="max-w-3xl mx-auto px-4 py-5 pb-32 space-y-5">
         {/* Intro / saved reports toggle (step 1 only) */}
         {step === 1 && (
-          <div className="rounded-2xl bg-gradient-to-br from-blue-50 via-white to-indigo-50/50 border border-blue-200 p-4">
+          <div className="rounded-2xl bg-gradient-to-br from-cyan-50 via-white to-teal-50/50 border border-cyan-200 p-4">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center flex-shrink-0">
                 <Wand2 size={16} />
               </div>
               <div className="flex-1 min-w-0">
@@ -372,7 +372,7 @@ export default function EngineerLegacyImport() {
               <button
                 type="button"
                 onClick={() => setShowSaved((s) => !s)}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-cyan-700 hover:text-cyan-800"
                 data-testid="legacy-toggle-saved"
               >
                 <History size={13} /> {savedList.length} saved report{savedList.length === 1 ? '' : 's'}
@@ -383,7 +383,7 @@ export default function EngineerLegacyImport() {
               <div className="mt-3 space-y-2" data-testid="legacy-saved-list">
                 {savedList.map((rep) => (
                   <div key={rep.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <FileText size={15} className="text-blue-600 flex-shrink-0" />
+                    <FileText size={15} className="text-cyan-600 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-slate-900 truncate">{rep.title || rep.customer?.name}</p>
                       <p className="text-[10px] text-slate-500">
@@ -424,7 +424,7 @@ export default function EngineerLegacyImport() {
                 type="button"
                 onClick={() => { setCustMode('search'); setSelected(null); }}
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                  custMode === 'search' ? 'bg-blue-600 text-white border-transparent' : 'bg-white text-slate-700 border-slate-200'
+                  custMode === 'search' ? 'bg-cyan-600 text-white border-transparent' : 'bg-white text-slate-700 border-slate-200'
                 }`}
                 data-testid="legacy-cust-mode-search"
               >
@@ -434,7 +434,7 @@ export default function EngineerLegacyImport() {
                 type="button"
                 onClick={() => { setCustMode('new'); setSelected(null); }}
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                  custMode === 'new' ? 'bg-blue-600 text-white border-transparent' : 'bg-white text-slate-700 border-slate-200'
+                  custMode === 'new' ? 'bg-cyan-600 text-white border-transparent' : 'bg-white text-slate-700 border-slate-200'
                 }`}
                 data-testid="legacy-cust-mode-new"
               >
@@ -450,7 +450,7 @@ export default function EngineerLegacyImport() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search your customers…"
-                    className="w-full text-sm border border-slate-200 rounded-lg pl-9 pr-3 py-2 focus:border-blue-400 focus:outline-none"
+                    className="w-full text-sm border border-slate-200 rounded-lg pl-9 pr-3 py-2 focus:border-cyan-400 focus:outline-none"
                     data-testid="legacy-cust-search-input"
                   />
                 </div>
@@ -462,7 +462,7 @@ export default function EngineerLegacyImport() {
                       type="button"
                       onClick={() => setSelected(c)}
                       className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
-                        selected?.id === c.id ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
+                        selected?.id === c.id ? 'border-cyan-400 bg-cyan-50' : 'border-slate-200 hover:bg-slate-50'
                       }`}
                       data-testid={`legacy-cust-result-${c.id}`}
                     >
@@ -473,7 +473,7 @@ export default function EngineerLegacyImport() {
                           <p className="text-[11px] text-slate-500 truncate">{c.site_name || c.address}</p>
                         )}
                       </div>
-                      {selected?.id === c.id && <CheckCircle2 size={16} className="text-blue-600" />}
+                      {selected?.id === c.id && <CheckCircle2 size={16} className="text-cyan-600" />}
                     </button>
                   ))}
                   {!searching && results.length === 0 && (
@@ -511,11 +511,11 @@ export default function EngineerLegacyImport() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="w-full rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 px-4 py-6 flex flex-col items-center gap-2 transition-colors"
+              className="w-full rounded-xl border-2 border-dashed border-cyan-200 bg-cyan-50/50 hover:bg-cyan-50 px-4 py-6 flex flex-col items-center gap-2 transition-colors"
               data-testid="legacy-upload-btn"
             >
-              <Upload size={22} className="text-blue-600" />
-              <span className="text-sm font-bold text-blue-700">Choose files</span>
+              <Upload size={22} className="text-cyan-600" />
+              <span className="text-sm font-bold text-cyan-700">Choose files</span>
               <span className="text-[11px] text-slate-500">PDF · CSV · XLSX — up to 15 MB each</span>
             </button>
             <input
@@ -538,7 +538,7 @@ export default function EngineerLegacyImport() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">{v.filename}</p>
                         {v.status === 'extracting' && (
-                          <p className="text-[11px] text-blue-600 flex items-center gap-1"><Loader2 size={11} className="animate-spin" /> Reading with AI…</p>
+                          <p className="text-[11px] text-cyan-600 flex items-center gap-1"><Loader2 size={11} className="animate-spin" /> Reading with AI…</p>
                         )}
                         {v.status === 'done' && (
                           <p className="text-[11px] text-emerald-600 flex items-center gap-1"><Check size={11} /> {v.machines.length} machine{v.machines.length === 1 ? '' : 's'} found</p>
@@ -577,7 +577,7 @@ export default function EngineerLegacyImport() {
             {doneVisits.map((v) => (
               <div key={v.id} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid={`legacy-review-visit-${v.id}`}>
                 <div className="flex items-center gap-2">
-                  <FileText size={15} className="text-blue-600" />
+                  <FileText size={15} className="text-cyan-600" />
                   <p className="text-xs font-bold text-slate-700 truncate flex-1">{v.filename}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -601,7 +601,7 @@ export default function EngineerLegacyImport() {
                   <button
                     type="button"
                     onClick={() => updateVisit(v.id, { machines: [...v.machines, { _id: uid(), name: 'New machine', custom_fields: [], _open: true }] })}
-                    className="w-full text-xs font-bold text-blue-700 border border-dashed border-blue-200 rounded-lg py-2 hover:bg-blue-50"
+                    className="w-full text-xs font-bold text-cyan-700 border border-dashed border-cyan-200 rounded-lg py-2 hover:bg-cyan-50"
                     data-testid={`legacy-add-machine-${v.id}`}
                   >
                     <Plus size={12} className="inline mr-1" /> Add machine
@@ -613,7 +613,7 @@ export default function EngineerLegacyImport() {
             {/* Report comments */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2" data-testid="legacy-comments-card">
               <div className="flex items-center gap-2">
-                <MessageSquare size={15} className="text-blue-600" />
+                <MessageSquare size={15} className="text-cyan-600" />
                 <p className="text-sm font-bold text-slate-900">Additional comments</p>
               </div>
               <textarea
@@ -622,7 +622,7 @@ export default function EngineerLegacyImport() {
                 rows={3}
                 maxLength={4000}
                 placeholder="Any overall notes for this report — recommendations, follow-ups, parts on order…"
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-blue-400 focus:outline-none"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-cyan-400 focus:outline-none"
                 data-testid="legacy-comments-input"
               />
             </div>
@@ -630,7 +630,7 @@ export default function EngineerLegacyImport() {
             {/* Sign-off */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="legacy-signoff-card">
               <div className="flex items-center gap-2">
-                <PenLine size={15} className="text-blue-600" />
+                <PenLine size={15} className="text-cyan-600" />
                 <p className="text-sm font-bold text-slate-900">Sign-off</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -667,7 +667,7 @@ export default function EngineerLegacyImport() {
               <button
                 type="button"
                 onClick={() => downloadPdf(savedReport.id)}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold"
                 data-testid="legacy-done-view-pdf"
               >
                 <Download size={15} /> View branded PDF
@@ -694,7 +694,7 @@ export default function EngineerLegacyImport() {
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/customers')}
-              className="text-xs font-semibold text-blue-700 hover:text-blue-800"
+              className="text-xs font-semibold text-cyan-700 hover:text-cyan-800"
               data-testid="legacy-done-customers"
             >
               Go to my customers →
@@ -723,7 +723,7 @@ export default function EngineerLegacyImport() {
                 type="button"
                 disabled={!canLeaveCustomer}
                 onClick={() => setStep(2)}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-bold"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 text-white text-sm font-bold"
                 data-testid="legacy-next-upload"
               >
                 Next <ArrowRight size={15} />
@@ -742,7 +742,7 @@ export default function EngineerLegacyImport() {
                   })));
                   setStep(3);
                 }}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-bold"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 text-white text-sm font-bold"
                 data-testid="legacy-next-review"
               >
                 {extracting ? <><Loader2 size={15} className="animate-spin" /> Reading…</> : <>Review {doneVisits.length > 0 ? `(${totalMachines})` : ''} <ArrowRight size={15} /></>}
@@ -811,7 +811,7 @@ function MachineEditor({ machine, onChange, onRemove, index }) {
               value={machine.work_done || ''}
               onChange={(e) => onChange({ work_done: e.target.value })}
               rows={2}
-              className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-blue-400 focus:outline-none"
+              className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-cyan-400 focus:outline-none"
               data-testid={`legacy-m-work-${machine._id}`}
             />
           </label>
@@ -851,7 +851,7 @@ function MachineEditor({ machine, onChange, onRemove, index }) {
             <button
               type="button"
               onClick={addCf}
-              className="mt-1.5 text-[11px] font-bold text-blue-700 hover:text-blue-800"
+              className="mt-1.5 text-[11px] font-bold text-cyan-700 hover:text-cyan-800"
               data-testid={`legacy-cf-add-${machine._id}`}
             >
               <Plus size={11} className="inline mr-0.5" /> Add field
@@ -939,7 +939,7 @@ function MachinePhotos({ photos, onChange, machineId }) {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className="w-20 h-20 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 flex flex-col items-center justify-center gap-1 text-blue-600 disabled:opacity-50"
+            className="w-20 h-20 rounded-lg border-2 border-dashed border-cyan-200 bg-cyan-50/50 hover:bg-cyan-50 flex flex-col items-center justify-center gap-1 text-cyan-600 disabled:opacity-50"
             data-testid={`legacy-photo-add-${machineId}`}
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
@@ -1036,14 +1036,14 @@ function SignaturePad({ title, who, value, onChange }) {
           value={value.name || ''}
           onChange={(e) => onChange({ name: e.target.value })}
           placeholder={who === 'customer' ? 'Customer name' : 'Name'}
-          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:border-blue-400 focus:outline-none"
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:border-cyan-400 focus:outline-none"
           data-testid={`legacy-sig-name-${who}`}
         />
         <input
           type="date"
           value={value.signed_date || ''}
           onChange={(e) => onChange({ signed_date: e.target.value })}
-          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:border-blue-400 focus:outline-none"
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:border-cyan-400 focus:outline-none"
           data-testid={`legacy-sig-date-${who}`}
         />
       </div>

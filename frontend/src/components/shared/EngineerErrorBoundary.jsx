@@ -49,7 +49,9 @@ export default class EngineerErrorBoundary extends Component {
   reset = () => this.setState({ error: null, info: null, reported: false });
 
   render() {
-    if (!this.state.error) return this.props.children;
+    if (!this.state.error) {
+      return <div className="pulse-font" style={{ display: 'contents' }}>{this.props.children}</div>;
+    }
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-6"
            data-testid="engineer-error-boundary">

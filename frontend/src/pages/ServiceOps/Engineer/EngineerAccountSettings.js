@@ -182,7 +182,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
       >
         <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700" data-testid="engineer-settings-brand">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700" data-testid="engineer-settings-brand">
               {orgBrand.label}
             </p>
             <h2 className="text-base font-extrabold text-slate-900">Account settings</h2>
@@ -280,7 +280,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               testid="engineer-settings-partner-row"
               right={
                 partnerLoading
-                  ? <Loader2 size={16} className="animate-spin text-purple-500 flex-shrink-0" />
+                  ? <Loader2 size={16} className="animate-spin text-teal-500 flex-shrink-0" />
                   : subscription?.status === 'active'
                     ? <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
                     : partner && partner.status !== 'approved'
@@ -334,7 +334,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
                 testid="engineer-settings-import-row"
                 right={
                   importing
-                    ? <Loader2 size={16} className="animate-spin text-blue-600 flex-shrink-0" />
+                    ? <Loader2 size={16} className="animate-spin text-cyan-600 flex-shrink-0" />
                     : <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />
                 }
               />
@@ -655,7 +655,7 @@ function RatesEditor({ partner, onSaved }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
           data-testid="engineer-rates-save"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : null}
@@ -730,7 +730,7 @@ function VatToggle({ partner, onSaved }) {
           type="checkbox"
           checked={registered}
           onChange={(e) => setRegistered(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
           data-testid="engineer-vat-registered-checkbox"
         />
         <div className="flex-1 min-w-0">
@@ -763,7 +763,7 @@ function VatToggle({ partner, onSaved }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
           data-testid="engineer-vat-save"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : null}

@@ -130,7 +130,7 @@ const ReplenishModal = ({ open, part, defaultQty, onClose, onDone }) => {
               <button key={u} onClick={() => setUrgency(u)}
                       data-testid={`replenish-urgency-${u}`}
                       className={`h-10 rounded-xl border text-sm font-semibold capitalize transition-colors ${
-                        urgency === u ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'}`}>
+                        urgency === u ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-slate-600 border-slate-200'}`}>
                 {u}
               </button>
             ))}
@@ -144,7 +144,7 @@ const ReplenishModal = ({ open, part, defaultQty, onClose, onDone }) => {
           <button onClick={onClose} className="flex-1 h-12 rounded-xl border border-slate-200 font-semibold text-slate-600"
                   data-testid="replenish-cancel">Cancel</button>
           <button onClick={submit} disabled={busy || !qty || Number(qty) < 1}
-                  className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="flex-1 h-12 rounded-xl bg-cyan-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60"
                   data-testid="replenish-submit">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PackagePlus className="w-5 h-5" />}
             Send request
@@ -221,7 +221,7 @@ export default function EngineerStock() {
             <h1 className="text-lg font-extrabold text-slate-900 leading-none">My Stock</h1>
             <p className="text-xs text-slate-500 mt-0.5">Van inventory &amp; replenishment</p>
           </div>
-          <button onClick={() => navigate('/svc/engineer/catalogue')} className="px-2.5 h-9 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 flex items-center gap-1"
+          <button onClick={() => navigate('/svc/engineer/catalogue')} className="px-2.5 h-9 rounded-lg text-xs font-bold text-cyan-700 bg-cyan-50 border border-cyan-100 flex items-center gap-1"
                   data-testid="stock-catalogue-btn">
             <Package className="w-4 h-4" /> Catalogue
           </button>
@@ -247,7 +247,7 @@ export default function EngineerStock() {
               <button key={t.k} onClick={() => setTab(t.k)}
                       data-testid={`stock-tab-${t.k}`}
                       className={`flex-1 flex flex-col items-center gap-0.5 py-2 border-b-2 transition-colors ${
-                        active ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400'}`}>
+                        active ? 'border-cyan-600 text-cyan-700' : 'border-transparent text-slate-400'}`}>
                 <div className="relative">
                   <Icon className="w-5 h-5" />
                   {badge ? (
@@ -328,7 +328,7 @@ export default function EngineerStock() {
                 </div>
                 <button onClick={() => openReplenish(p, p.reorder_qty || 1)}
                         data-testid={`van-request-${p.part_sku}`}
-                        className="shrink-0 px-3 h-9 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 flex items-center gap-1">
+                        className="shrink-0 px-3 h-9 rounded-xl bg-cyan-50 text-cyan-700 text-xs font-bold border border-cyan-100 flex items-center gap-1">
                   <PackagePlus className="w-4 h-4" /> Request
                 </button>
               </div>
@@ -354,7 +354,7 @@ export default function EngineerStock() {
               </div>
               <button onClick={() => openReplenish(r, r.suggested_qty)}
                       data-testid={`low-request-${r.part_sku}`}
-                      className="shrink-0 px-3 h-9 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center gap-1">
+                      className="shrink-0 px-3 h-9 rounded-xl bg-cyan-600 text-white text-xs font-bold flex items-center gap-1">
                 <PackagePlus className="w-4 h-4" /> Request
               </button>
             </div>
@@ -453,7 +453,7 @@ const Empty = ({ icon: Icon, title, body }) => (
 const MOVE_STYLE = {
   consume:    { cls: 'bg-rose-50 text-rose-600', icon: TrendingUp },
   receive:    { cls: 'bg-emerald-50 text-emerald-600', icon: PackagePlus },
-  allocate:   { cls: 'bg-blue-50 text-blue-600', icon: ChevronRight },
+  allocate:   { cls: 'bg-cyan-50 text-cyan-600', icon: ChevronRight },
   deallocate: { cls: 'bg-slate-100 text-slate-500', icon: RefreshCw },
   adjust:     { cls: 'bg-amber-50 text-amber-600', icon: RefreshCw },
 };

@@ -8,11 +8,11 @@ import {
 import { authConfig } from './authConfig';
 
 const ACCENT = {
-  blue: 'bg-blue-50 text-blue-600',
+  blue: 'bg-cyan-50 text-cyan-600',
   orange: 'bg-orange-50 text-orange-600',
   red: 'bg-red-50 text-red-600',
   amber: 'bg-amber-50 text-amber-600',
-  violet: 'bg-violet-50 text-violet-600',
+  violet: 'bg-teal-50 text-teal-600',
   emerald: 'bg-emerald-50 text-emerald-600',
 };
 

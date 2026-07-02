@@ -87,7 +87,7 @@ export default function PartnerCollateralCard() {
               data-testid={`partner-collateral-${k.key}`}
             >
               <div className="flex items-center gap-2 mb-1">
-                <Icon size={14} className="text-blue-600" />
+                <Icon size={14} className="text-cyan-600" />
                 <p className="text-[13px] font-bold text-zinc-900">{k.label}</p>
                 {isBusy && <Loader2 size={11} className="animate-spin text-zinc-400 ml-auto" />}
               </div>

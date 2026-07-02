@@ -101,7 +101,7 @@ export default function AdminStock() {
           {tabs.map((t) => (
             <button key={t.k} onClick={() => setTab(t.k)} data-testid={`admin-stock-tab-${t.k}`}
                     className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-bold border-b-2 transition-colors ${
-                      (tab === t.k || (tab === 'detail' && t.k === 'overview')) ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>
+                      (tab === t.k || (tab === 'detail' && t.k === 'overview')) ? 'border-cyan-600 text-cyan-700' : 'border-transparent text-slate-500'}`}>
               <t.icon className="w-4 h-4" /> {t.label}
             </button>
           ))}
@@ -142,8 +142,8 @@ const OverviewTab = ({ overview, onDrill }) => {
 
       <button onClick={() => onDrill({ location: 'warehouse', name: 'Warehouse' })}
               data-testid="overview-warehouse-card"
-              className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-3 hover:border-blue-300 transition-colors">
-        <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><Warehouse className="w-5 h-5" /></div>
+              className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-3 hover:border-cyan-300 transition-colors">
+        <div className="w-11 h-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center"><Warehouse className="w-5 h-5" /></div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-slate-900">Warehouse</p>
           <p className="text-xs text-slate-500">{num(warehouse.lines)} lines · {num(warehouse.units)} units{warehouse.low ? ` · ${warehouse.low} low` : ''}{warehouse.zero ? ` · ${warehouse.zero} out` : ''}</p>
@@ -169,7 +169,7 @@ const OverviewTab = ({ overview, onDrill }) => {
             {engineers.map((e) => (
               <button key={e.engineer_id} onClick={() => onDrill({ location: 'van', engineer_id: e.engineer_id, name: e.name })}
                       data-testid={`overview-engineer-${e.engineer_id}`}
-                      className="w-full text-left rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-3 hover:border-blue-300 transition-colors">
+                      className="w-full text-left rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-3 hover:border-cyan-300 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Truck className="w-5 h-5" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-slate-900 truncate">{e.name}</p>
@@ -215,7 +215,7 @@ const DetailTab = ({ detail, showCost, onBack }) => {
 
   return (
     <div className="space-y-3" data-testid="admin-stock-detail">
-      <button onClick={onBack} className="text-sm font-bold text-blue-700 flex items-center gap-1" data-testid="detail-back">
+      <button onClick={onBack} className="text-sm font-bold text-cyan-700 flex items-center gap-1" data-testid="detail-back">
         <ArrowLeft className="w-4 h-4" /> Overview
       </button>
       <div className="flex items-center gap-2">
@@ -381,9 +381,9 @@ const TransferTab = ({ locations, onDone }) => {
         <div className="border-t border-slate-100 pt-3 space-y-2.5">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Add parts</label>
           {picked ? (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-2.5 space-y-1.5" data-testid="transfer-picked">
+            <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-2.5 space-y-1.5" data-testid="transfer-picked">
               <div className="flex items-center gap-2">
-                <PackageCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                <PackageCheck className="w-4 h-4 text-cyan-600 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900 truncate">{picked.name}</p>
                   <p className="text-[11px] font-mono text-slate-500">{picked.sku}</p>
@@ -392,7 +392,7 @@ const TransferTab = ({ locations, onDone }) => {
                        data-testid="transfer-qty"
                        className="w-16 h-9 px-2 rounded-lg border border-slate-200 text-sm text-right tabular-nums" />
                 <button onClick={addToCart} data-testid="transfer-add-line"
-                        className="px-3 h-9 rounded-lg bg-blue-600 text-white text-sm font-bold">Add</button>
+                        className="px-3 h-9 rounded-lg bg-cyan-600 text-white text-sm font-bold">Add</button>
                 <button onClick={() => { setPicked(null); setSku(''); }} className="text-xs font-bold text-slate-400">✕</button>
               </div>
               <p className={`text-[11px] font-semibold ${avail[picked.sku] === undefined ? 'text-slate-400' : (Number(qty) > avail[picked.sku] ? 'text-rose-600' : 'text-emerald-600')}`}
@@ -465,7 +465,7 @@ const TransferTab = ({ locations, onDone }) => {
           </p>
         )}
         <button onClick={submit} disabled={busy || cart.length === 0 || hasShortfall} data-testid="transfer-submit"
-                className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+                className="w-full h-12 rounded-xl bg-cyan-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />} Transfer {cart.length || ''} {cart.length === 1 ? 'part' : 'parts'}
         </button>
       </div>
@@ -579,7 +579,7 @@ const StockTakeTab = ({ locations, onDone }) => {
 
       <div className="sticky bottom-4 z-[210]">
         <button onClick={post} disabled={busy || dirty.length === 0} data-testid="stocktake-post"
-                className="w-full h-12 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+                className="w-full h-12 rounded-xl bg-cyan-600 text-white font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}
           Post {dirty.length} adjustment{dirty.length === 1 ? '' : 's'}
         </button>
@@ -675,7 +675,7 @@ const ReportsTab = ({ locations, showCost }) => {
             </button>
             <button onClick={() => downloadFile(`/svc/admin/stock/report.pdf?${qs}&period=${period}`, `stock-report-${p.type}-${stamp}.pdf`)}
                     data-testid="reports-export-pdf"
-                    className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-xl bg-blue-600 text-white text-sm font-bold">
+                    className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-xl bg-cyan-600 text-white text-sm font-bold">
               <FileText className="w-4 h-4" /> PDF report
             </button>
           </div>
@@ -718,7 +718,7 @@ const ReportsTab = ({ locations, showCost }) => {
                     </div>
                     <span className={`text-right text-sm font-bold tabular-nums ${it.zero ? 'text-rose-600' : 'text-amber-600'}`}>{num(it.qty)}</span>
                     <span className="text-right text-sm tabular-nums text-slate-500">{num(it.min_qty)}</span>
-                    <span className="text-right text-sm font-extrabold tabular-nums text-blue-700">{num(it.suggested_order)}</span>
+                    <span className="text-right text-sm font-extrabold tabular-nums text-cyan-700">{num(it.suggested_order)}</span>
                   </div>
                 ))}
                 {reorder.items.length > 100 && (

@@ -91,7 +91,7 @@ export default function EngineerSyncPanel() {
               <ChevronLeft size={22} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
                 {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -114,7 +114,7 @@ export default function EngineerSyncPanel() {
               type="button"
               onClick={onSync}
               disabled={!online || syncing || ops.length === 0}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg"
+              className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg"
               data-testid="sync-now-btn"
             >
               {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
@@ -164,7 +164,7 @@ export default function EngineerSyncPanel() {
                   data-testid={`sync-op-${op.id}`}
                 >
                   <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    op.last_error ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                    op.last_error ? 'bg-red-100 text-red-700' : 'bg-cyan-100 text-cyan-700'
                   }`}>
                     {op.last_error ? <AlertTriangle size={16} /> : <RefreshCw size={16} />}
                   </span>

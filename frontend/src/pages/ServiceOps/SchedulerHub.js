@@ -52,13 +52,13 @@ export default function SchedulerHub() {
               key={v.id}
               onClick={() => setView(v.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                active ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                active ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
               data-testid={`scheduler-hub-tab-${v.id}`}
             >
               <Icon size={15} /> {v.label}
               {v.id === 'ai' && pendingCount > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[10px] font-semibold" data-testid="ai-pending-badge">
+                <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-semibold" data-testid="ai-pending-badge">
                   {pendingCount}
                 </span>
               )}

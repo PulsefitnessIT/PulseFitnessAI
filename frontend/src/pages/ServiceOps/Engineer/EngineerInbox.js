@@ -28,7 +28,7 @@ const auth = () => ({
 const PRIO = {
   P1: 'bg-red-100 text-red-700',
   P2: 'bg-amber-100 text-amber-700',
-  P3: 'bg-blue-100 text-blue-700',
+  P3: 'bg-cyan-100 text-cyan-700',
   P4: 'bg-slate-100 text-slate-700',
 };
 
@@ -107,7 +107,7 @@ const AcceptModal = ({ req, onClose, onAccept }) => {
                 estimated_minutes: Number(mins) || 60,
               })
             }
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold"
+            className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg py-2 text-sm font-semibold"
             data-testid="accept-modal-submit"
           >
             Accept & assign to me
@@ -255,7 +255,7 @@ const CardShareBox = () => {
           <button
             type="button"
             onClick={share}
-            className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5"
+            className="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold flex items-center gap-1.5"
             data-testid="inbox-share-share"
           >
             <Share2 size={12} /> Share
@@ -295,7 +295,7 @@ const CardShareBox = () => {
           data-testid="inbox-inbound-email"
         >
           <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            inbound.enabled ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
+            inbound.enabled ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-500'
           }`}>
             <MailIcon size={18} />
           </span>
@@ -366,7 +366,7 @@ const Row = ({ r, onAccept, onDecline }) => {
         <button
           type="button"
           onClick={() => onAccept(r)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
           data-testid={`inbox-accept-${r.id}`}
         >
           <CheckCircle2 size={12} /> Accept
@@ -461,7 +461,7 @@ export default function EngineerInbox() {
               <ChevronLeft size={22} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
                 {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -496,7 +496,7 @@ export default function EngineerInbox() {
               type="button"
               onClick={() => setStatus(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${
-                status === s ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                status === s ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`}
               data-testid={`inbox-filter-${s}`}
             >

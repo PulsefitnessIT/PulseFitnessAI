@@ -21,10 +21,10 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 
 const STATUS_BADGES = {
   draft:     { label: 'Draft',     bg: 'bg-slate-100 text-slate-700 border-slate-200',     icon: FileText },
-  sent:      { label: 'Sent',      bg: 'bg-blue-50 text-blue-700 border-blue-200',          icon: Send },
+  sent:      { label: 'Sent',      bg: 'bg-cyan-50 text-cyan-700 border-cyan-200',          icon: Send },
   accepted:  { label: 'Accepted',  bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
   declined:  { label: 'Declined',  bg: 'bg-rose-50 text-rose-700 border-rose-200',          icon: XCircle },
-  invoiced:  { label: 'Invoiced',  bg: 'bg-violet-50 text-violet-700 border-violet-200',    icon: Receipt },
+  invoiced:  { label: 'Invoiced',  bg: 'bg-teal-50 text-teal-700 border-teal-200',    icon: Receipt },
   expired:   { label: 'Expired',   bg: 'bg-slate-50 text-slate-500 border-slate-200',       icon: XCircle },
 };
 
@@ -89,7 +89,7 @@ export default function EngineerQuotes() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Pulse Fitness</p>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-extrabold text-slate-900">Quotes</h1>
                 <OutboxStatusPill />
@@ -145,7 +145,7 @@ export default function EngineerQuotes() {
               onClick={() => setParams({ status: f.id })}
               className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                 filter === f.id
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-cyan-600 text-white border-cyan-600'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
               data-testid={`engineer-quotes-filter-${f.id}`}
@@ -170,7 +170,7 @@ export default function EngineerQuotes() {
               <button
                 type="button"
                 onClick={() => navigate('/svc/engineer/quotes/new')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 text-white text-sm font-bold"
                 data-testid="engineer-quotes-empty-new-btn"
               >
                 <Plus size={14} /> New quote
@@ -189,8 +189,8 @@ export default function EngineerQuotes() {
                     className="w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors flex items-center gap-4"
                     data-testid={`engineer-quote-row-${q.quote_number}`}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      <FileText size={20} className="text-blue-600" />
+                    <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center flex-shrink-0">
+                      <FileText size={20} className="text-cyan-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">

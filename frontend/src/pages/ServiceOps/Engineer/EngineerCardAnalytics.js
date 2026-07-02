@@ -146,7 +146,7 @@ export default function EngineerCardAnalytics() {
                 label="Requests received"
                 value={data.totals.requests}
                 sub={`Last ${data.window_days} days`}
-                accent="text-blue-500"
+                accent="text-cyan-500"
                 testid="card-analytics-tile-requests"
               />
               <Tile
@@ -162,14 +162,14 @@ export default function EngineerCardAnalytics() {
                 label="Revenue attributed"
                 value={fmtMoney(data.totals.revenue)}
                 sub="Invoiced + approved"
-                accent="text-violet-500"
+                accent="text-teal-500"
                 testid="card-analytics-tile-revenue"
               />
             </div>
 
             {/* Your card spotlight */}
             {myRow ? (
-              <div className="bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-2xl p-4 shadow-sm"
+              <div className="bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-2xl p-4 shadow-sm"
                    data-testid="card-analytics-my-row">
                 <p className="text-[11px] uppercase tracking-wider font-bold opacity-80 flex items-center gap-1">
                   <Crown size={12} /> Your card · /{mySlug}
@@ -228,7 +228,7 @@ export default function EngineerCardAnalytics() {
                         return (
                           <tr
                             key={row.slug}
-                            className={isMe ? 'bg-blue-50/50' : ''}
+                            className={isMe ? 'bg-cyan-50/50' : ''}
                             data-testid={`card-analytics-row-${row.slug}`}
                           >
                             <td className="px-3 py-2 tabular-nums font-bold text-slate-400">
@@ -238,7 +238,7 @@ export default function EngineerCardAnalytics() {
                               <p className="font-semibold text-slate-900">
                                 {row.engineer_name || '(unnamed)'}
                                 {isMe ? (
-                                  <span className="ml-2 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded">
+                                  <span className="ml-2 text-[10px] bg-cyan-600 text-white px-1.5 py-0.5 rounded">
                                     You
                                   </span>
                                 ) : null}

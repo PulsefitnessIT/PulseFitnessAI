@@ -61,7 +61,7 @@ const Field = ({ label, children, required }) => (
   </label>
 );
 
-const inputCls = 'w-full border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-lg px-3 py-2 text-sm focus:outline-none';
+const inputCls = 'w-full border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 rounded-lg px-3 py-2 text-sm focus:outline-none';
 
 export default function EngineerNewJob() {
   const orgBrand = useEngineerOrgBrand();
@@ -272,7 +272,7 @@ export default function EngineerNewJob() {
             <ChevronLeft size={22} />
           </button>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
               {orgBrand.label}
             </p>
             <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -450,7 +450,7 @@ export default function EngineerNewJob() {
                             className="w-full text-left inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-amber-200 hover:border-amber-300 text-xs"
                             data-testid={`newjob-open-case-${c.id}`}
                           >
-                            <span className="font-bold text-blue-700 tabular-nums">{c.reference || c.id?.slice(0, 8)}</span>
+                            <span className="font-bold text-cyan-700 tabular-nums">{c.reference || c.id?.slice(0, 8)}</span>
                             <span className="flex-1 truncate text-slate-700">{c.title || '(untitled)'}</span>
                             {c.priority && (
                               <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{c.priority}</span>
@@ -575,7 +575,7 @@ export default function EngineerNewJob() {
                 checked={saveAsCustomer}
                 onChange={(e) => setSaveAsCustomer(e.target.checked)}
               />
-              <BookmarkPlus size={12} className="text-blue-600" />
+              <BookmarkPlus size={12} className="text-cyan-600" />
               Save <b className="mx-0.5">{form.customer_name.trim()}</b> to my customers so I don't have to retype next time
             </label>
           )}
@@ -587,7 +587,7 @@ export default function EngineerNewJob() {
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm font-bold flex items-center gap-2"
+              className="px-5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-300 text-white text-sm font-bold flex items-center gap-2"
               data-testid="newjob-submit"
             >
               {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
@@ -597,13 +597,13 @@ export default function EngineerNewJob() {
         </form>
 
         {/* Right — AI assist */}
-        <aside className="lg:col-span-2 bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-200 rounded-2xl p-5">
+        <aside className="lg:col-span-2 bg-gradient-to-br from-teal-50 to-cyan-50 border border-cyan-200 rounded-2xl p-5">
           <div className="flex items-start gap-3 mb-3">
-            <span className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+            <span className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center">
               <Wand2 size={18} />
             </span>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">AI helper</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-700">AI helper</p>
               <h3 className="text-base font-extrabold text-slate-900">Pasted from an email?</h3>
               <p className="text-xs text-slate-600 mt-0.5">
                 Drop the email body below and we'll pre-fill the form. GPT‑5.2 extracts customer, site, fault and priority.
@@ -651,7 +651,7 @@ export default function EngineerNewJob() {
               type="button"
               onClick={aiParse}
               disabled={aiBusy || !emailText.trim()}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-bold"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-300 text-white text-xs font-bold"
               data-testid="newjob-ai-run"
             >
               {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -775,7 +775,7 @@ function CustomerTypeahead({ onPick }) {
                 key={`${r.id || 'h'}-${idx}`}
                 onClick={() => pick(r)}
                 onMouseEnter={() => setActiveIdx(idx)}
-                className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-b-0 flex items-start gap-2 ${idx === activeIdx ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-b-0 flex items-start gap-2 ${idx === activeIdx ? 'bg-cyan-50' : 'hover:bg-slate-50'}`}
                 data-testid={`newjob-customer-result-${idx}`}
               >
                 <span className="mt-0.5">
@@ -854,7 +854,7 @@ function SmartSchedulingPanel({ postcode, currentScheduledAt, onPick }) {
   if (!postcode || postcode.trim().length < 5) return null;
   if (loading) {
     return (
-      <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-2 text-xs text-blue-900" data-testid="smart-sched-loading">
+      <div className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50 p-3 flex items-center gap-2 text-xs text-cyan-900" data-testid="smart-sched-loading">
         <Loader2 size={12} className="animate-spin" />
         Checking your diary for nearby jobs…
       </div>

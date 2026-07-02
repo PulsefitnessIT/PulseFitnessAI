@@ -88,11 +88,11 @@ export default function PartnerWallShareCard() {
 
   return (
     <div
-      className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-blue-50/60 via-white to-purple-50/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 overflow-hidden"
+      className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-cyan-50/60 via-white to-teal-50/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 overflow-hidden"
       data-testid="partner-wall-share-card"
     >
       <div className="px-5 py-4 flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800">
-        <span className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+        <span className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center">
           <Share2 size={16} />
         </span>
         <div className="flex-1 min-w-0">
@@ -127,7 +127,7 @@ export default function PartnerWallShareCard() {
             href={data.public_url}
             target="_blank"
             rel="noreferrer noopener"
-            className="flex-1 truncate text-sm text-blue-700 dark:text-blue-300 hover:underline font-medium"
+            className="flex-1 truncate text-sm text-cyan-700 dark:text-cyan-300 hover:underline font-medium"
             data-testid="partner-wall-share-url"
           >
             {data.public_url.replace(/^https?:\/\//, '')}
@@ -150,7 +150,7 @@ export default function PartnerWallShareCard() {
             href={data.public_url}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 hover:border-blue-400 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 hover:border-cyan-400 transition-colors"
             data-testid="partner-wall-share-open-btn"
           >
             <ExternalLink size={12} /> Open my wall
@@ -167,7 +167,7 @@ export default function PartnerWallShareCard() {
           <button
             type="button"
             onClick={() => setShowQr((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 hover:border-blue-400 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 hover:border-cyan-400 transition-colors"
             data-testid="partner-wall-share-qr-toggle"
           >
             <QrCode size={12} /> {showQr ? 'Hide QR' : 'Show QR'}
@@ -207,7 +207,7 @@ export default function PartnerWallShareCard() {
                 type="button"
                 onClick={downloadQr}
                 disabled={!qrUrl}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 transition-colors"
                 data-testid="partner-wall-share-qr-download-btn"
               >
                 <Download size={12} /> Download PNG

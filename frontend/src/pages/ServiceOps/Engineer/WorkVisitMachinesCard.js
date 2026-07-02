@@ -232,7 +232,7 @@ export default function WorkVisitMachinesCard({ caseId }) {
           spaced 3-up grid with clear labels. */}
       <div className="p-4 border-b border-slate-100">
         <div className="flex items-start gap-2 mb-3">
-          <Wrench size={14} className="text-blue-600 mt-0.5 shrink-0" />
+          <Wrench size={14} className="text-cyan-600 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-slate-900">
               Machines on this visit
@@ -252,7 +252,7 @@ export default function WorkVisitMachinesCard({ caseId }) {
           <button
             type="button"
             onClick={() => setSitePickerOpen(true)}
-            className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-extrabold hover:bg-blue-100"
+            className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 text-xs font-extrabold hover:bg-cyan-100"
             data-testid="machines-load-from-site-btn"
             title="Show all equipment for this site and pick which ones to work on"
           >
@@ -448,7 +448,7 @@ function SiteEquipmentPicker({ caseId, onClose, onImported }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Filter by name, serial, manufacturer…"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
               data-testid="site-equipment-picker-search"
             />
           </div>
@@ -502,14 +502,14 @@ function SiteEquipmentPicker({ caseId, onClose, onImported }) {
                         disabled
                           ? 'opacity-50 cursor-not-allowed'
                           : ticked
-                            ? 'bg-blue-50'
+                            ? 'bg-cyan-50'
                             : 'hover:bg-slate-50'
                       }`}
                       data-testid={`site-equipment-item-${it.id}`}
                     >
                       <span className="w-5 h-5 flex-shrink-0">
                         {ticked
-                          ? <CheckSquare size={20} className="text-blue-600" />
+                          ? <CheckSquare size={20} className="text-cyan-600" />
                           : <Square size={20} className="text-slate-400" />}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -547,7 +547,7 @@ function SiteEquipmentPicker({ caseId, onClose, onImported }) {
             type="button"
             disabled={submitting || selected.size === 0}
             onClick={onAttach}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl py-2.5 text-sm font-bold inline-flex items-center justify-center gap-1.5"
+            className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-300 text-white rounded-xl py-2.5 text-sm font-bold inline-flex items-center justify-center gap-1.5"
             data-testid="site-equipment-picker-attach"
           >
             {submitting
@@ -604,7 +604,7 @@ function MachineRowPartsPickerInline({ onPick, onCancel, busy }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search parts by name or SKU…"
-              className="w-full pl-7 pr-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+              className="w-full pl-7 pr-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
               data-testid="machine-parts-search-input"
             />
           </div>
@@ -623,7 +623,7 @@ function MachineRowPartsPickerInline({ onPick, onCancel, busy }) {
                   <button
                     type="button"
                     onClick={() => setPicked(p)}
-                    className="w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-blue-50"
+                    className="w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-cyan-50"
                     data-testid={`machine-parts-pick-${p.sku}`}
                   >
                     <div className="min-w-0 flex-1">
@@ -684,7 +684,7 @@ function MachineRowPartsPickerInline({ onPick, onCancel, busy }) {
               type="button"
               onClick={() => onPick(picked, qty)}
               disabled={busy}
-              className="flex-1 px-2 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-extrabold uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 px-2 py-1.5 rounded-lg bg-cyan-600 text-white text-[11px] font-extrabold uppercase tracking-wider hover:bg-cyan-700 disabled:opacity-50"
               data-testid="machine-parts-picker-confirm"
             >
               {busy ? 'Saving…' : 'Add'}
@@ -753,7 +753,7 @@ function MachineRowPartsUsed({ row, caseId, onChange }) {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+            className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100"
             data-testid={`machine-parts-used-add-${row.id}`}
           >
             <Plus size={10} /> Tag part
@@ -1012,7 +1012,7 @@ function MachineRow({
   // full row width and read cleanly on a 412 px phone.
   const labelChip = (
     <div className="flex items-start gap-2.5 min-w-0 flex-1">
-      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-extrabold flex-shrink-0 mt-0.5">
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-100 text-cyan-700 text-xs font-extrabold flex-shrink-0 mt-0.5">
         {index + 1}
       </span>
       <div className="min-w-0 flex-1">
@@ -1138,7 +1138,7 @@ function MachineRow({
               <button
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
-                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 px-2 py-1 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100"
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-700 px-2 py-1 rounded-full border border-cyan-200 bg-cyan-50 hover:bg-cyan-100"
                 data-testid={`machine-photo-add-${row.id}`}
               >
                 <Camera size={10} /> Add photo
@@ -1184,7 +1184,7 @@ function MachineRow({
                   <button
                     type="button"
                     onClick={() => onCopyDown(['serviced', 'cleaned', 'notes'])}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 px-2 py-1 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100"
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-700 px-2 py-1 rounded-full border border-cyan-200 bg-cyan-50 hover:bg-cyan-100"
                     data-testid={`machine-copy-down-${row.id}`}
                     title="Apply Serviced/Cleaned/Notes to every row below"
                   >

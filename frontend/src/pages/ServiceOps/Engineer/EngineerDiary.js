@@ -63,10 +63,10 @@ const fmtTime = (iso) => {
 const fmtRange = (s, e) => `${fmtTime(s)} – ${fmtTime(e)}`;
 
 const KIND_STYLE = {
-  job: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900',
-         dot: 'bg-blue-600', icon: Wrench },
-  ppm: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-900',
-         dot: 'bg-purple-600', icon: ShieldCheck },
+  job: { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-900',
+         dot: 'bg-cyan-600', icon: Wrench },
+  ppm: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-900',
+         dot: 'bg-teal-600', icon: ShieldCheck },
   block: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700',
            dot: 'bg-slate-500', icon: Coffee },
   holiday: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900',
@@ -191,7 +191,7 @@ const SlotDrawer = ({ slot, onClose, onReschedule, onDeleteBlock }) => {
         {slot.deeplink ? (
           <a
             href={slot.deeplink}
-            className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg mb-3"
+            className="block w-full text-center bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2.5 rounded-lg mb-3"
             data-testid="slot-drawer-open"
           >
             Open job detail
@@ -231,7 +231,7 @@ const SlotDrawer = ({ slot, onClose, onReschedule, onDeleteBlock }) => {
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold"
+                className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg py-2 text-sm font-semibold"
                 data-testid="slot-drawer-reschedule-submit"
               >
                 Save
@@ -363,7 +363,7 @@ const NewBlockModal = ({ open, onClose, onCreate }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold"
+              className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg py-2 text-sm font-semibold"
               data-testid="new-block-submit"
             >
               Create
@@ -495,7 +495,7 @@ export default function EngineerDiary() {
               <ChevronLeft size={22} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
                 {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -516,7 +516,7 @@ export default function EngineerDiary() {
             <button
               type="button"
               onClick={() => setShowNew(true)}
-              className="hidden sm:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold"
+              className="hidden sm:flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-2 rounded-lg text-sm font-semibold"
               data-testid="diary-add-block"
             >
               <Plus size={16} /> Block
@@ -619,7 +619,7 @@ export default function EngineerDiary() {
                   <div key={i} className="min-h-[260px] flex flex-col">
                     <div
                       className={`px-2 py-2 text-center border-b border-slate-200 ${
-                        isToday ? 'bg-blue-50' : 'bg-slate-50'
+                        isToday ? 'bg-cyan-50' : 'bg-slate-50'
                       }`}
                     >
                       <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
@@ -627,7 +627,7 @@ export default function EngineerDiary() {
                       </p>
                       <p
                         className={`text-base font-bold tabular-nums ${
-                          isToday ? 'text-blue-700' : 'text-slate-900'
+                          isToday ? 'text-cyan-700' : 'text-slate-900'
                         }`}
                       >
                         {d.getDate()}
@@ -664,7 +664,7 @@ export default function EngineerDiary() {
         <button
           type="button"
           onClick={() => setShowNew(true)}
-          className="sm:hidden fixed bottom-6 right-6 z-30 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center"
+          className="sm:hidden fixed bottom-6 right-6 z-30 bg-cyan-600 hover:bg-cyan-700 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center"
           data-testid="diary-add-block-fab"
           aria-label="Add block"
         >

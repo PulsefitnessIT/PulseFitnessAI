@@ -47,7 +47,7 @@ const STATUS_LABEL = {
 const SICON_SYNC_META = {
   synced: { label: 'Sicon ✓', bg: '#ecfdf5', fg: '#047857', title: 'In sync with the Sicon Service Desk' },
   queued: { label: 'Sicon · queued', bg: '#fffbeb', fg: '#b45309', title: 'Updates queued for Sicon — the worker will push them on the next drain' },
-  dry_run: { label: 'Sicon · dry-run', bg: '#eff6ff', fg: '#1d4ed8', title: 'Pushed in dry-run mode — goes live the moment Sicon credentials are configured' },
+  dry_run: { label: 'Sicon · dry-run', bg: '#eff6ff', fg: '#0891b2', title: 'Pushed in dry-run mode — goes live the moment Sicon credentials are configured' },
   error: { label: 'Sicon · error', bg: '#fef2f2', fg: '#b91c1c', title: 'Some updates failed to reach Sicon — check the Integrations console' },
 };
 
@@ -169,7 +169,7 @@ function LiveEngineerRow({ eng, onCaseClick }) {
             type="button"
             onClick={() => onCaseClick && onCaseClick(eng.live_case.id)}
             className="text-[11px] mt-0.5 inline-flex items-center gap-1 hover:underline text-left"
-            style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}
+            style={{ color: '#0891b2' }}
             data-testid={`live-case-link-${eng.id}`}
           >
             <MapPin size={10} />
@@ -511,8 +511,8 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
                           title={c.recommended_engineer_reason || 'AI suggestion'}
                           data-testid={`case-recommended-${c.reference}`}
                         >
-                          <Sparkles size={11} style={{ color: '#1d4ed8' }} />
-                          <span style={{ color: '#1d4ed8' }}>Suggest: {c.recommended_engineer_name}</span>
+                          <Sparkles size={11} style={{ color: '#0891b2' }} />
+                          <span style={{ color: '#0891b2' }}>Suggest: {c.recommended_engineer_name}</span>
                         </span>
                       ) : (
                         <span className="italic" style={{ opacity: 0.6 }}>unassigned</span>

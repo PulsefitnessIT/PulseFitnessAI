@@ -155,7 +155,7 @@ export default function EngineerWorkReportFields() {
           </button>
           <button
             onClick={() => setShowTemplates(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-bold hover:bg-indigo-100"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 text-teal-700 text-sm font-bold hover:bg-teal-100"
             data-testid="wrf-templates-btn"
             title="Pick a starter template (e.g. Treadmill PPM) to seed common fields in one tap"
           >
@@ -171,7 +171,7 @@ export default function EngineerWorkReportFields() {
           </button>
           <button
             onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700"
             data-testid="wrf-new-btn"
           >
             <Plus size={14} /> New field
@@ -220,14 +220,14 @@ export default function EngineerWorkReportFields() {
             </p>
             <button
               onClick={() => setCreating(true)}
-              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
+              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-sm font-bold"
               data-testid="wrf-empty-create-btn"
             >
               <Plus size={14} /> Create first field
             </button>
             <button
               onClick={() => setShowTemplates(true)}
-              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-bold hover:bg-indigo-100"
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 text-teal-700 text-sm font-bold hover:bg-teal-100"
               data-testid="wrf-empty-templates-btn"
             >
               <Sparkles size={14} /> Or pick a starter template
@@ -333,13 +333,13 @@ function FieldCard({ row, onEdit, onArchive, onRestore, jobTypeOptions = JOB_TYP
           {/* Iter 220du — Job-type chips (empty = all). */}
           {(row.job_types || []).length ? (
             <p
-              className="text-[11px] text-indigo-700 mt-1 flex flex-wrap gap-1"
+              className="text-[11px] text-teal-700 mt-1 flex flex-wrap gap-1"
               data-testid={`wrf-row-${row.id}-job-types`}
             >
               {row.job_types.map((jt) => (
                 <span
                   key={jt}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-bold uppercase"
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-[10px] font-bold uppercase"
                 >
                   {jobTypeOptions.find((o) => o.id === jt)?.label || jt}
                 </span>
@@ -458,7 +458,7 @@ export function FieldEditor({ mode, row, onCancel, onSaved, jobTypeOptions = JOB
   };
 
   return (
-    <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 space-y-3" data-testid={`wrf-editor-${isEdit ? row.id : 'new'}`}>
+    <div className="rounded-2xl border border-cyan-200 bg-cyan-50/40 p-4 space-y-3" data-testid={`wrf-editor-${isEdit ? row.id : 'new'}`}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-900">
           {isEdit ? `Edit "${row.name}"` : 'New custom field'}
@@ -556,7 +556,7 @@ export function FieldEditor({ mode, row, onCancel, onSaved, jobTypeOptions = JOB
                 onClick={() => toggleJobType(j.id)}
                 className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
                   on
-                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    ? 'bg-teal-600 text-white border-teal-600'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
                 data-testid={`wrf-editor-job-${j.id}`}
@@ -617,7 +617,7 @@ export function FieldEditor({ mode, row, onCancel, onSaved, jobTypeOptions = JOB
           type="button"
           onClick={save}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-bold disabled:opacity-50"
           data-testid="wrf-editor-save-btn"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
@@ -694,8 +694,8 @@ function FieldTemplatesModal({ onClose, onApplied }) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-            <Sparkles size={18} className="text-indigo-700" />
+          <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
+            <Sparkles size={18} className="text-teal-700" />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-extrabold text-slate-900">
@@ -747,14 +747,14 @@ function FieldTemplatesModal({ onClose, onApplied }) {
                             {t.field_count} field{t.field_count === 1 ? '' : 's'}
                           </span>
                           {t.scope_kind !== 'global' && t.scope_value && (
-                            <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
                               {t.scope_value}
                             </span>
                           )}
                           {(t.job_types || []).map((jt) => (
                             <span
                               key={jt}
-                              className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                              className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200"
                             >
                               {jt}
                             </span>
@@ -790,7 +790,7 @@ function FieldTemplatesModal({ onClose, onApplied }) {
                         className={`shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-extrabold transition-colors ${
                           isApplied
                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'
+                            : 'bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50'
                         }`}
                         data-testid={`wrf-template-apply-${t.id}`}
                       >
@@ -1066,7 +1066,7 @@ function ShareImportModal({ fieldCount, initialToken, onClose, onImported }) {
                   <button
                     onClick={doImport}
                     disabled={importing}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold disabled:opacity-50"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-cyan-600 text-white text-sm font-bold disabled:opacity-50"
                     data-testid="wrf-import-confirm"
                   >
                     {importing ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}

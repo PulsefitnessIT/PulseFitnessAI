@@ -463,7 +463,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/modservice" element={<Navigate to="/MODService" replace />} />
 
       {/* ─── Public utility ─── */}
-      <Route path="/supplier/case/:token" element={<SupplierCasePage />} />
+      <Route path="/supplier/case/:token" element={<div className="pulse-font" style={{ display: 'contents' }}><SupplierCasePage /></div>} />
       <Route path="/scan/:equipmentId" element={<QRScanPage />} />
       <Route path="/r/eq/:equipmentId" element={<EngineerFaultReportPage />} />
       <Route path="/r/c/:code" element={<EngineerFaultReportPage />} />
@@ -488,7 +488,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/gym-floor" element={<MODForbidden><GymFloorPage /></MODForbidden>} />
 
       {/* ─── Service Desk (unified — iter 216h53 full merge of Service Ops) ─── */}
-      <Route path="/service-desk" element={can(user, 'view_service_desk') ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
+      <Route path="/service-desk" element={can(user, 'view_service_desk') ? <div className="pulse-font" style={{ display: 'contents' }}><ServiceDeskPage /></div> : <Navigate to="/login" replace />} />
       {/* Iter 253 — self-serve Service Provider funnel: public signup +
           post-signup setup wizard (branding → SLA → first engineer). */}
       <Route path="/service-provider/signup" element={<ServiceProviderSignup />} />

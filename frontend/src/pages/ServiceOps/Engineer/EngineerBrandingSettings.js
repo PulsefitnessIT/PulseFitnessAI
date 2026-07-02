@@ -24,8 +24,8 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const DEFAULT_PRIMARY = '#0055FF';
-const DEFAULT_ACCENT = '#7C3AED';
+const DEFAULT_PRIMARY = '#19cdff';
+const DEFAULT_ACCENT = '#0e7490';
 
 function _absLogo(url) {
   if (!url) return '';
@@ -130,7 +130,7 @@ export default function EngineerBrandingSettings() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50" data-testid="branding-loading">
-        <Loader2 size={20} className="animate-spin text-blue-600" />
+        <Loader2 size={20} className="animate-spin text-cyan-600" />
       </div>
     );
   }
@@ -159,7 +159,7 @@ export default function EngineerBrandingSettings() {
       <main className="max-w-2xl mx-auto px-4 py-4 pb-24 space-y-5">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <ImageIcon size={14} className="text-blue-600" />
+            <ImageIcon size={14} className="text-cyan-600" />
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">Logo</p>
           </div>
           <div className="flex items-center gap-4">
@@ -175,7 +175,7 @@ export default function EngineerBrandingSettings() {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
                 data-testid="branding-upload-btn"
               >
                 {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
@@ -196,7 +196,7 @@ export default function EngineerBrandingSettings() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Sparkles size={14} className="text-purple-600" />
+            <Sparkles size={14} className="text-teal-600" />
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">Colours</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -215,7 +215,7 @@ export default function EngineerBrandingSettings() {
                   value={draft.primary_color || ''}
                   onChange={(e) => setDraft((d) => ({ ...d, primary_color: e.target.value }))}
                   className="flex-1 text-xs font-mono border border-slate-200 rounded px-2 py-1.5"
-                  placeholder="#0055FF"
+                  placeholder="#19cdff"
                   data-testid="branding-primary-input"
                 />
               </div>
@@ -235,7 +235,7 @@ export default function EngineerBrandingSettings() {
                   value={draft.accent_color || ''}
                   onChange={(e) => setDraft((d) => ({ ...d, accent_color: e.target.value }))}
                   className="flex-1 text-xs font-mono border border-slate-200 rounded px-2 py-1.5"
-                  placeholder="#7C3AED"
+                  placeholder="#0e7490"
                   data-testid="branding-accent-input"
                 />
               </div>
@@ -265,7 +265,7 @@ export default function EngineerBrandingSettings() {
             type="button"
             onClick={save}
             disabled={saving}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold disabled:opacity-50"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold disabled:opacity-50"
             data-testid="branding-save"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}

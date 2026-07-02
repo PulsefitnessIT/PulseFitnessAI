@@ -116,12 +116,12 @@ export default function TrialFeedback() {
 
             <Label>What worked well?</Label>
             <textarea value={worked} onChange={(e) => setWorked(e.target.value)} rows={3}
-              className="w-full rounded-lg bg-[#0E142E] border border-white/10 px-3 py-2 text-sm mb-5 focus:outline-none focus:border-blue-400"
+              className="w-full rounded-lg bg-[#0E142E] border border-white/10 px-3 py-2 text-sm mb-5 focus:outline-none focus:border-cyan-400"
               placeholder="The bits you'd miss if we took them away…" data-testid="trial-feedback-worked" />
 
             <Label>What's missing or frustrating?</Label>
             <textarea value={missing} onChange={(e) => setMissing(e.target.value)} rows={3}
-              className="w-full rounded-lg bg-[#0E142E] border border-white/10 px-3 py-2 text-sm mb-6 focus:outline-none focus:border-blue-400"
+              className="w-full rounded-lg bg-[#0E142E] border border-white/10 px-3 py-2 text-sm mb-6 focus:outline-none focus:border-cyan-400"
               placeholder="Be honest — this is how we improve." data-testid="trial-feedback-missing" />
 
             {error && <p className="text-amber-400 text-sm mb-3" data-testid="trial-feedback-inline-error">{error}</p>}

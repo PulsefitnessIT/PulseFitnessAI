@@ -32,7 +32,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const SWATCHES = ['#dc2626', '#ea580c', '#d97706', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777', '#475569'];
+const SWATCHES = ['#dc2626', '#ea580c', '#d97706', '#16a34a', '#0891b2', '#0284c7', '#0d9488', '#db2777', '#475569'];
 
 export default function EngineerCaseTypes() {
   const navigate = useNavigate();
@@ -118,7 +118,7 @@ export default function EngineerCaseTypes() {
           </button>
           <button
             onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700"
             data-testid="case-types-new-btn"
           >
             <Plus size={14} /> New type
@@ -127,7 +127,7 @@ export default function EngineerCaseTypes() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-5 pb-24 space-y-3">
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 text-xs text-indigo-800">
+        <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-3 text-xs text-teal-800">
           Each case type can have its own report questions — set them up under
           <button onClick={() => navigate('/svc/engineer/work-report-fields')} className="font-bold underline mx-1">Questions</button>
           and pick the job type(s) a question applies to. A PPM checklist will then differ from a Repair report.
@@ -239,7 +239,7 @@ function CaseTypeEditor({ mode, row, onCancel, onSaved }) {
   };
 
   return (
-    <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 space-y-3" data-testid={`case-type-editor-${isEdit ? row.slug : 'new'}`}>
+    <div className="rounded-2xl border border-cyan-200 bg-cyan-50/40 p-4 space-y-3" data-testid={`case-type-editor-${isEdit ? row.slug : 'new'}`}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-900">{isEdit ? `Edit "${row.label}"` : 'New case type'}</p>
         <button type="button" onClick={onCancel} className="p-1 rounded-lg hover:bg-white/60" data-testid="case-type-editor-cancel">
@@ -288,7 +288,7 @@ function CaseTypeEditor({ mode, row, onCancel, onSaved }) {
         <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700" data-testid="case-type-editor-cancel-btn">
           Cancel
         </button>
-        <button type="button" onClick={save} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold disabled:opacity-50" data-testid="case-type-editor-save-btn">
+        <button type="button" onClick={save} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-bold disabled:opacity-50" data-testid="case-type-editor-save-btn">
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           {isEdit ? 'Save changes' : 'Create type'}
         </button>

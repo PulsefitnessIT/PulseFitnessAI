@@ -20,8 +20,8 @@ const API = process.env.REACT_APP_BACKEND_URL;
 
 const STATUS_FLOW = [
  { value: 'pending', label: 'Pending', color: 'bg-white/10 text-zinc-500', icon: Clock },
- { value: 'acknowledged', label: 'Acknowledged', color: 'bg-blue-500/20 text-blue-400', icon: CheckCircle },
- { value: 'engineer_scheduled', label: 'Engineer Scheduled', color: 'bg-purple-500/20 text-purple-400', icon: Calendar },
+ { value: 'acknowledged', label: 'Acknowledged', color: 'bg-cyan-500/20 text-cyan-400', icon: CheckCircle },
+ { value: 'engineer_scheduled', label: 'Engineer Scheduled', color: 'bg-teal-500/20 text-teal-400', icon: Calendar },
  { value: 'in_progress', label: 'In Progress', color: 'bg-yellow-500/20 text-yellow-400', icon: Wrench },
  { value: 'parts_ordered', label: 'Parts Ordered', color: 'bg-orange-500/20 text-orange-400', icon: FileText },
  { value: 'completed', label: 'Completed', color: 'bg-green-500/20 text-green-400', icon: CheckCircle },
@@ -274,7 +274,7 @@ function CommentsSection({ token, comments, onRefresh, caseData, isGymViewer }) 
  >
  <span
  className="text-[10px]"
- style={{ color: isSeenByRecipient ? 'var(--color-blue-100)' : 'rgba(255,255,255,0.55)' }}
+ style={{ color: isSeenByRecipient ? 'var(--color-cyan-100)' : 'rgba(255,255,255,0.55)' }}
  title={isSeenByRecipient ? `Seen by the site ${new Date(c.read_at_gym).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'Delivered — not yet seen by the site'}
  >
  {isSeenByRecipient ? 'Seen ✓✓' : 'Sent ✓'}
@@ -399,15 +399,15 @@ function ScheduleVisit({ token, caseData, onRefresh }) {
 
  if (caseData.scheduled_date && caseData.current_status !== 'completed') {
  return (
- <Card className="bg-purple-500/5 border-purple-500/20 p-5" data-testid="scheduled-visit-card">
+ <Card className="bg-teal-500/5 border-teal-500/20 p-5" data-testid="scheduled-visit-card">
  <div className="flex items-center gap-3">
- <Calendar size={20} className="text-purple-400" />
+ <Calendar size={20} className="text-teal-400" />
  <div>
- <p className="text-purple-400 font-semibold text-sm">Engineer Visit Scheduled</p>
+ <p className="text-teal-400 font-semibold text-sm">Engineer Visit Scheduled</p>
  <p className="text-zinc-900 font-medium">{new Date(caseData.scheduled_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
  {caseData.engineer_name && <p className="text-zinc-500 text-xs mt-0.5">Engineer: {caseData.engineer_name}</p>}
  </div>
- <Button variant="outline" size="sm" className="ml-auto border-purple-500/30 text-purple-400 text-xs" onClick={() => setShowForm(true)} data-testid="reschedule-btn">
+ <Button variant="outline" size="sm" className="ml-auto border-teal-500/30 text-teal-400 text-xs" onClick={() => setShowForm(true)} data-testid="reschedule-btn">
  Reschedule
  </Button>
  </div>
@@ -418,10 +418,10 @@ function ScheduleVisit({ token, caseData, onRefresh }) {
  if (!showForm) {
  return (
  <Card className="bg-white border-zinc-200 p-5 text-center" data-testid="schedule-prompt">
- <Calendar size={28} className="mx-auto mb-2 text-purple-400" />
+ <Calendar size={28} className="mx-auto mb-2 text-teal-400" />
  <p className="text-zinc-900 font-medium mb-1">Schedule an Engineer Visit</p>
  <p className="text-zinc-500 text-xs mb-3">Select a date and assign an engineer</p>
- <Button onClick={() => setShowForm(true)} className="bg-purple-600 hover:bg-purple-500 text-white" data-testid="schedule-visit-btn">
+ <Button onClick={() => setShowForm(true)} className="bg-teal-600 hover:bg-teal-500 text-white" data-testid="schedule-visit-btn">
  <Calendar size={15} className="mr-1.5" /> Schedule Visit
  </Button>
  </Card>
@@ -430,7 +430,7 @@ function ScheduleVisit({ token, caseData, onRefresh }) {
 
  return (
  <Card className="bg-white border-zinc-200 p-5" data-testid="schedule-form">
- <h3 className="text-zinc-900 font-semibold mb-3 flex items-center gap-2"><Calendar size={16} className="text-purple-400" /> Schedule Engineer Visit</h3>
+ <h3 className="text-zinc-900 font-semibold mb-3 flex items-center gap-2"><Calendar size={16} className="text-teal-400" /> Schedule Engineer Visit</h3>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <Label className="text-zinc-800 text-xs">Visit Date *</Label>
@@ -449,7 +449,7 @@ function ScheduleVisit({ token, caseData, onRefresh }) {
  </div>
  </div>
  <div className="flex gap-2 mt-3">
- <Button onClick={handleSubmit} disabled={saving || !form.scheduled_date} className="bg-purple-600 text-white flex-1" data-testid="confirm-schedule-btn">
+ <Button onClick={handleSubmit} disabled={saving || !form.scheduled_date} className="bg-teal-600 text-white flex-1" data-testid="confirm-schedule-btn">
  {saving ? <Loader2 size={14} className="animate-spin mr-1" /> : <Calendar size={14} className="mr-1" />}
  {saving ? 'Scheduling...' : 'Confirm Schedule'}
  </Button>
@@ -678,8 +678,8 @@ const SupplierCasePage = () => {
  <p className="text-zinc-800 text-sm leading-relaxed whitespace-pre-wrap">{issue.issue_description}</p>
  </div>
  {issue.ai_triage?.likely_cause && (
- <div className="mt-3 p-4 bg-blue-500/5 rounded-lg border border-blue-500/20" data-testid="sup-case-ai-triage">
- <p className="text-blue-300 text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1">
+ <div className="mt-3 p-4 bg-cyan-500/5 rounded-lg border border-cyan-500/20" data-testid="sup-case-ai-triage">
+ <p className="text-cyan-300 text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1">
  <AlertTriangle size={11} /> AI Triage
  </p>
  <p className="text-zinc-800 text-sm leading-relaxed"><strong>Likely cause:</strong> {issue.ai_triage.likely_cause}</p>
@@ -760,7 +760,7 @@ const SupplierCasePage = () => {
  {equipment.name && <div><p className="text-zinc-500 text-[10px] uppercase">Name</p><p className="text-zinc-900">{equipment.name}</p></div>}
  {equipment.manufacturer && <div><p className="text-zinc-500 text-[10px] uppercase">Manufacturer</p><p className="text-zinc-900">{equipment.manufacturer}</p></div>}
  {equipment.model && <div><p className="text-zinc-500 text-[10px] uppercase">Model</p><p className="text-zinc-900">{equipment.model}</p></div>}
- {equipment.supplier && <div data-testid="sup-case-equip-supplier"><p className="text-zinc-500 text-[10px] uppercase">Supplier</p><p className="text-indigo-400">{equipment.supplier}</p></div>}
+ {equipment.supplier && <div data-testid="sup-case-equip-supplier"><p className="text-zinc-500 text-[10px] uppercase">Supplier</p><p className="text-teal-400">{equipment.supplier}</p></div>}
  {equipment.location && <div className="col-span-2"><p className="text-zinc-500 text-[10px] uppercase flex items-center gap-1"><MapPin size={10} /> Location</p><p className="text-zinc-900">{equipment.location}</p></div>}
  </div>
  </Card>
@@ -806,7 +806,7 @@ const SupplierCasePage = () => {
  <div className="flex-1">
  <div className="flex items-center gap-2 mb-0.5">{getStatusBadge(entry.status)} <span className="text-zinc-400 text-[10px]">{entry.updated_at ? new Date(entry.updated_at).toLocaleString('en-GB') : ''}</span></div>
  {entry.engineer_name && <p className="text-zinc-800 text-xs">Engineer: {entry.engineer_name}</p>}
- {entry.scheduled_date && <p className="text-purple-400 text-xs">Scheduled: {new Date(entry.scheduled_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
+ {entry.scheduled_date && <p className="text-teal-400 text-xs">Scheduled: {new Date(entry.scheduled_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
  {entry.notes && <p className="text-[#888] text-xs mt-0.5">{entry.notes}</p>}
  </div>
  </div>

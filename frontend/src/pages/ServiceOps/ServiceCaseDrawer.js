@@ -775,7 +775,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
             {trackingUrl ? (
               <span
                 className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                style={{ background: '#dbeafe', color: '#1d4ed8' }}
+                style={{ background: '#dbeafe', color: '#0891b2' }}
                 data-testid="drawer-tracking-link-active"
               >
                 Link active

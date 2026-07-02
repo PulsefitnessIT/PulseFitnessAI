@@ -64,7 +64,7 @@ export default function PartnerEngineerReferralCard() {
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden"
          data-testid="partner-engineer-referral-card">
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-blue-50/40 to-white dark:from-zinc-900 dark:to-zinc-900">
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-cyan-50/40 to-white dark:from-zinc-900 dark:to-zinc-900">
         <UserPlus size={16} className="text-zinc-500" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Recruit a fellow engineer</p>

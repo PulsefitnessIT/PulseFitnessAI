@@ -220,7 +220,7 @@ export default function SafetyTemplateAdmin() {
                 <button
                   type="button"
                   onClick={addItem}
-                  className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                  className="inline-flex items-center gap-1.5 text-sm text-cyan-600 hover:underline"
                   data-testid="safety-add"
                 >
                   <Plus size={13} /> Add item

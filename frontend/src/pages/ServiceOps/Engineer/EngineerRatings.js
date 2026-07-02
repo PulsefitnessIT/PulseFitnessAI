@@ -71,7 +71,7 @@ export default function EngineerRatings() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50" data-testid="ratings-loading">
-        <Loader2 size={20} className="animate-spin text-blue-600" />
+        <Loader2 size={20} className="animate-spin text-cyan-600" />
       </div>
     );
   }

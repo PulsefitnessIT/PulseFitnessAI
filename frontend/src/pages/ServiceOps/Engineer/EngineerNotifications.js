@@ -35,10 +35,10 @@ const auth = () => ({
 });
 
 const KIND_META = {
-  job_assigned:     { icon: Wrench,         color: 'bg-blue-100 text-blue-700' },
+  job_assigned:     { icon: Wrench,         color: 'bg-cyan-100 text-cyan-700' },
   job_rescheduled:  { icon: Calendar,       color: 'bg-amber-100 text-amber-700' },
   job_unassigned:   { icon: AlertTriangle,  color: 'bg-slate-200 text-slate-700' },
-  job_due_soon:     { icon: Calendar,       color: 'bg-purple-100 text-purple-700' },
+  job_due_soon:     { icon: Calendar,       color: 'bg-teal-100 text-teal-700' },
   ppm_due:          { icon: ShieldCheck,    color: 'bg-emerald-100 text-emerald-700' },
   test:             { icon: Bell,           color: 'bg-pink-100 text-pink-700' },
   default:          { icon: Bell,           color: 'bg-slate-100 text-slate-700' },
@@ -155,7 +155,7 @@ const PushSubscribeButton = () => {
       type="button"
       onClick={subscribe}
       disabled={busy}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold"
       data-testid="push-subscribe"
     >
       {busy ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />}
@@ -172,7 +172,7 @@ const Row = ({ n, onOpen, onRead, onDelete }) => {
   return (
     <li
       className={`relative px-3 py-3 flex items-start gap-3 ${
-        unread ? 'bg-blue-50/50' : 'bg-white'
+        unread ? 'bg-cyan-50/50' : 'bg-white'
       }`}
       data-testid={`notif-row-${n.id}`}
     >
@@ -186,7 +186,7 @@ const Row = ({ n, onOpen, onRead, onDelete }) => {
         data-testid={`notif-open-${n.id}`}
       >
         <div className="flex items-center gap-2 mb-0.5">
-          {unread ? <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" /> : null}
+          {unread ? <span className="w-1.5 h-1.5 rounded-full bg-cyan-600 flex-shrink-0" /> : null}
           <p className={`text-sm truncate ${unread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
             {n.title}
           </p>
@@ -361,7 +361,7 @@ const NotificationPrefsPanel = ({ open, onClose }) => {
             <button
               type="button"
               onClick={clearSnooze}
-              className="text-xs font-semibold text-blue-600 hover:underline"
+              className="text-xs font-semibold text-cyan-600 hover:underline"
               data-testid="notif-prefs-clear-snooze"
             >
               Clear
@@ -545,7 +545,7 @@ export default function EngineerNotifications() {
               <ChevronLeft size={22} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
                 {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -562,7 +562,7 @@ export default function EngineerNotifications() {
             <button
               type="button"
               onClick={() => setPrefsOpen((v) => !v)}
-              className={`p-2 rounded-lg ${prefsOpen ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-100 text-slate-500'}`}
+              className={`p-2 rounded-lg ${prefsOpen ? 'bg-cyan-50 text-cyan-700' : 'hover:bg-slate-100 text-slate-500'}`}
               data-testid="notif-prefs-toggle"
               aria-label="Preferences"
               title="Notification preferences"
@@ -619,7 +619,7 @@ export default function EngineerNotifications() {
               onClick={() => setFilter(opt.k)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 filter === opt.k
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-cyan-600 text-white'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
               data-testid={`notif-filter-${opt.k}`}

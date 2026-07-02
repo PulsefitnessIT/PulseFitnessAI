@@ -261,7 +261,7 @@ export default function EngineerJobDetailV2() {
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-blue-700">{job.reference}</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-cyan-700">{job.reference}</p>
             <h1 className="text-base font-extrabold text-slate-900 truncate">{job.title}</h1>
             <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
               <p className="text-xs text-slate-500 truncate" data-testid="job-meta">
@@ -318,11 +318,11 @@ export default function EngineerJobDetailV2() {
             const active = activeTab === t.id;
             return (
               <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
-                className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide ${active ? 'text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide ${active ? 'text-cyan-700' : 'text-slate-500 hover:text-slate-700'}`}
                 data-testid={`job-tab-${t.id}`}>
                 <Icon size={14} />
                 {t.label}
-                {active && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-700 rounded-t" />}
+                {active && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-cyan-700 rounded-t" />}
               </button>
             );
           })}
@@ -694,12 +694,12 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
 
 const STATUS_TONE = {
   new:              { label: 'New',              cls: 'bg-slate-100 text-slate-700 border-slate-300', dot: 'bg-slate-400' },
-  scheduled:        { label: 'Scheduled',        cls: 'bg-indigo-100 text-indigo-800 border-indigo-300', dot: 'bg-indigo-500' },
+  scheduled:        { label: 'Scheduled',        cls: 'bg-teal-100 text-teal-800 border-teal-300', dot: 'bg-teal-500' },
   en_route:         { label: 'En route',         cls: 'bg-sky-100 text-sky-800 border-sky-300', dot: 'bg-sky-500' },
-  in_progress:      { label: 'In progress',      cls: 'bg-blue-100 text-blue-800 border-blue-300', dot: 'bg-blue-500 animate-pulse' },
+  in_progress:      { label: 'In progress',      cls: 'bg-cyan-100 text-cyan-800 border-cyan-300', dot: 'bg-cyan-500 animate-pulse' },
   on_hold:          { label: 'On hold',          cls: 'bg-amber-100 text-amber-900 border-amber-300', dot: 'bg-amber-500' },
   awaiting_parts:   { label: 'Awaiting parts',   cls: 'bg-amber-100 text-amber-900 border-amber-300', dot: 'bg-amber-500' },
-  awaiting_sign_off:{ label: 'Awaiting sign-off',cls: 'bg-violet-100 text-violet-800 border-violet-300', dot: 'bg-violet-500' },
+  awaiting_sign_off:{ label: 'Awaiting sign-off',cls: 'bg-teal-100 text-teal-800 border-teal-300', dot: 'bg-teal-500' },
   repaired:         { label: 'Repaired',         cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
   closed:           { label: 'Closed',           cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
   invoiced:         { label: 'Invoiced',         cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
@@ -825,7 +825,7 @@ function SummaryStatusPill({ job, cover }) {
           knows up-front what kind of visit this is. */}
       {caseTypeLabel && (
         <span
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 border-teal-200"
           data-testid="summary-case-type-pill"
           title={`Job type · ${caseTypeLabel}`}
         >
@@ -900,7 +900,7 @@ function SummaryActionRow({ job: _job, phone, email, mapsHref, onJumpToTab: _onJ
       label: 'Call',
       icon: Phone,
       href: phone ? `tel:${String(phone).replace(/\s+/g, '')}` : null,
-      tone: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+      tone: 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100',
       testid: 'jaag-call',
     },
     {
@@ -1502,12 +1502,12 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
     if (visibleNotes.length === 0) return null;
     return (
       <div
-        className="mx-3 mb-2 p-2 rounded-lg border bg-blue-50/60 text-slate-800 border-blue-200"
+        className="mx-3 mb-2 p-2 rounded-lg border bg-cyan-50/60 text-slate-800 border-cyan-200"
         data-testid="jaag-handoff-panel"
       >
         <div className="flex items-center gap-2 mb-1">
-          <MessageSquare size={14} className="text-blue-700" />
-          <p className="text-[10px] font-bold uppercase tracking-wide text-blue-800">
+          <MessageSquare size={14} className="text-cyan-700" />
+          <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-800">
             From the previous engineer
           </p>
         </div>
@@ -1515,7 +1515,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
           {visibleNotes.slice().reverse().map((n) => (
             <li
               key={n.id || `${n.at}-${n.engineer_id}`}
-              className="text-xs bg-white border border-blue-100 rounded px-2 py-1"
+              className="text-xs bg-white border border-cyan-100 rounded px-2 py-1"
               data-testid={`jaag-handoff-${n.id || 'item'}`}
             >
               <p className="text-slate-800 leading-snug whitespace-pre-wrap">{n.note}</p>
@@ -1546,12 +1546,12 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
   }
   return (
     <div
-      className="mx-3 mb-2 p-2 rounded-lg border bg-blue-50/60 text-slate-800 border-blue-200"
+      className="mx-3 mb-2 p-2 rounded-lg border bg-cyan-50/60 text-slate-800 border-cyan-200"
       data-testid="jaag-handoff-panel"
     >
       <div className="flex items-center gap-2 mb-1">
-        <MessageSquare size={14} className="text-blue-700" />
-        <p className="text-[10px] font-bold uppercase tracking-wide text-blue-800">
+        <MessageSquare size={14} className="text-cyan-700" />
+        <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-800">
           Handoff notes
         </p>
       </div>
@@ -1560,7 +1560,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
           {list.slice().reverse().map((n) => (
             <li
               key={n.id || `${n.at}-${n.engineer_id}`}
-              className="text-xs bg-white border border-blue-100 rounded px-2 py-1"
+              className="text-xs bg-white border border-cyan-100 rounded px-2 py-1"
               data-testid={`jaag-handoff-${n.id || 'item'}`}
             >
               <p className="text-slate-800 leading-snug whitespace-pre-wrap">{n.note}</p>
@@ -1579,7 +1579,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
             onChange={(e) => setText(e.target.value)}
             rows={2}
             placeholder="What does the next engineer need to know?"
-            className="w-full text-xs px-2 py-1 rounded border border-blue-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+            className="w-full text-xs px-2 py-1 rounded border border-cyan-200 bg-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
             data-testid="jaag-handoff-input"
             maxLength={2000}
           />
@@ -1596,7 +1596,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
               type="button"
               onClick={submit}
               disabled={busy}
-              className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
               data-testid="jaag-handoff-submit"
             >
               {busy ? 'Saving…' : 'Save note'}
@@ -1607,7 +1607,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="text-[10px] font-bold uppercase tracking-wide text-blue-700 hover:text-blue-900 inline-flex items-center gap-1"
+          className="text-[10px] font-bold uppercase tracking-wide text-cyan-700 hover:text-cyan-900 inline-flex items-center gap-1"
           data-testid="jaag-handoff-add"
         >
           <Plus size={11} /> Add another handoff note
@@ -1752,7 +1752,7 @@ function EtaUpdateChip({ caseId, lastSentAt, lastMinutes, onChange }) {
 function DraftStatusPill({ saving, lastSavedAt, dirty }) {
   if (saving) {
     return (
-      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-blue-700" data-testid="draft-status-saving">
+      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-cyan-700" data-testid="draft-status-saving">
         <Loader2 size={10} className="animate-spin" /> Saving…
       </span>
     );
@@ -1791,7 +1791,7 @@ function SyncStatusChip() {
     label = pending > 0 ? `Offline · ${pending} queued` : 'Offline';
     testid = 'sync-status-offline';
   } else if (pending > 0) {
-    cls   = 'bg-blue-50 text-blue-800 border-blue-200';
+    cls   = 'bg-cyan-50 text-cyan-800 border-cyan-200';
     icon  = <CloudUpload size={11} className="animate-pulse" />;
     label = `Syncing · ${pending}`;
     testid = 'sync-status-syncing';
@@ -1938,7 +1938,7 @@ function TimeTab({ job, busy, setBusy, onChange }) {
               to on-site + admin so engineers can't pick between two
               competing travel timers. */}
           <div className="grid grid-cols-2 gap-2">
-            <button disabled={busy} onClick={() => start('on_site')} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 disabled:opacity-50" data-testid="time-start-on_site">
+            <button disabled={busy} onClick={() => start('on_site')} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 disabled:opacity-50" data-testid="time-start-on_site">
               <Play size={16} /><span className="text-xs font-bold">On site</span>
             </button>
             <button disabled={busy} onClick={() => start('admin')} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 disabled:opacity-50" data-testid="time-start-admin">
@@ -2221,7 +2221,7 @@ function TravelTab({ job, mileage, onChange }) {
           <ul className="divide-y divide-slate-100">
             {mileage.items.map(m => (
               <li key={m.id} className="py-2 flex items-center gap-3" data-testid={`mileage-row-${m.id}`}>
-                <Car size={16} className="text-indigo-500" />
+                <Car size={16} className="text-teal-500" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900">{m.miles} mi · {fmtGBP(m.amount_gbp)}</p>
                   <p className="text-[11px] text-slate-500 truncate">
@@ -2359,7 +2359,7 @@ function PhotosTab({ job, onChange }) {
         <div className="flex gap-1 mb-3" data-testid="photo-stage-toggle">
           {['before', 'progress', 'after'].map(s => (
             <button key={s} type="button" onClick={() => setStage(s)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize border ${stage === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'}`}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize border ${stage === s ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-slate-600 border-slate-200'}`}
               data-testid={`photo-stage-${s}`}>
               {s}
             </button>
@@ -2386,7 +2386,7 @@ function PhotosTab({ job, onChange }) {
             </div>
             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
               <div
-                className="h-full bg-blue-600 transition-[width] duration-150"
+                className="h-full bg-cyan-600 transition-[width] duration-150"
                 style={{ width: `${uploadPct}%` }}
                 data-testid="photo-upload-bar"
               />
@@ -2619,10 +2619,10 @@ function EquipmentTab({ job, onChange }) {
 
       {(customerSummary || customerPhotos.length || customerFiles.length || job?.asset_name) ? (
         <div
-          className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3"
+          className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-3"
           data-testid="equipment-customer-context"
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-700">
             What the customer logged
           </p>
           {job?.asset_name ? (
@@ -2663,7 +2663,7 @@ function EquipmentTab({ job, onChange }) {
                   href={p.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block aspect-square rounded-lg overflow-hidden border border-blue-200 bg-white"
+                  className="block aspect-square rounded-lg overflow-hidden border border-cyan-200 bg-white"
                   data-testid={`equipment-customer-photo-${idx}`}
                 >
                   <img
@@ -2684,7 +2684,7 @@ function EquipmentTab({ job, onChange }) {
                     href={f.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-semibold text-blue-700 hover:underline inline-flex items-center gap-1"
+                    className="text-xs font-semibold text-cyan-700 hover:underline inline-flex items-center gap-1"
                   >
                     <Download size={12} /> {f.filename || f.name || 'Attachment'}
                   </a>
@@ -2868,24 +2868,24 @@ function PartsTab({ job, onChange }) {
 
       {incomingRequests.length > 0 && (
         <div
-          className="bg-white rounded-2xl border border-blue-200 bg-blue-50 p-4"
+          className="bg-white rounded-2xl border border-cyan-200 bg-cyan-50 p-4"
           data-testid="parts-incoming-requests"
         >
-          <p className="text-[11px] uppercase font-bold tracking-wide text-blue-700 mb-2">
+          <p className="text-[11px] uppercase font-bold tracking-wide text-cyan-700 mb-2">
             On the way ({incomingRequests.length})
           </p>
-          <ul className="divide-y divide-blue-100">
+          <ul className="divide-y divide-cyan-100">
             {incomingRequests.map(r => (
               <li
                 key={r.id}
                 className="py-2 flex items-start gap-3"
                 data-testid={`parts-incoming-${r.id}`}
               >
-                <Package size={14} className="text-blue-600 mt-0.5 shrink-0" />
+                <Package size={14} className="text-cyan-600 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-blue-900">
+                  <p className="text-sm font-semibold text-cyan-900">
                     {r.qty} × {r.part_sku}
-                    {r.part_name ? <span className="text-blue-700 font-normal"> · {r.part_name}</span> : null}
+                    {r.part_name ? <span className="text-cyan-700 font-normal"> · {r.part_name}</span> : null}
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {r.backordered ? (
@@ -2898,7 +2898,7 @@ function PartsTab({ job, onChange }) {
                     ) : null}
                     {r.eta_date ? (
                       <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 text-[10px] font-bold uppercase tracking-wide"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-200 text-[10px] font-bold uppercase tracking-wide"
                         data-testid={`parts-eta-${r.id}`}
                       >
                         <Clock size={9} /> ETA {r.eta_date}
@@ -2911,7 +2911,7 @@ function PartsTab({ job, onChange }) {
                     ) : null}
                   </div>
                   {r.eta_notes ? (
-                    <p className="text-[11px] text-blue-700 mt-1">{r.eta_notes}</p>
+                    <p className="text-[11px] text-cyan-700 mt-1">{r.eta_notes}</p>
                   ) : null}
                 </div>
               </li>
@@ -2959,7 +2959,7 @@ function PartsTab({ job, onChange }) {
                   <p className="text-sm font-semibold text-slate-900">{p.sku}</p>
                   <p className="text-[11px] text-slate-500 truncate">{p.name} · {fmtGBP(p.list_price)}</p>
                 </div>
-                <button onClick={() => addPartUsage(p.sku, 1)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-use-${p.sku}`}>
+                <button onClick={() => addPartUsage(p.sku, 1)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-cyan-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-use-${p.sku}`}>
                   <Plus size={12} /> Use
                 </button>
                 <button onClick={() => setShowRequest({ sku: p.sku, name: p.name })} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50" data-testid={`parts-request-${p.sku}`}>
@@ -3085,7 +3085,7 @@ function PartsRequestModal({ sku, name, machines = [], onCancel, onSubmit, busy 
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4" data-testid="parts-request-modal">
       <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl border border-slate-200">
         <div className="flex items-center gap-2 mb-3">
-          <Send size={16} className="text-blue-600" />
+          <Send size={16} className="text-cyan-600" />
           <h3 className="text-base font-bold text-slate-900">Request a part</h3>
         </div>
         <p className="text-xs text-slate-500 mb-3">
@@ -3133,7 +3133,7 @@ function PartsRequestModal({ sku, name, machines = [], onCancel, onSubmit, busy 
                   className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize border ${urgency === u ? (
                     u === 'critical' ? 'bg-rose-600 text-white border-rose-600'
                     : u === 'urgent' ? 'bg-amber-500 text-white border-amber-500'
-                    : 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-cyan-600 text-white border-cyan-600'
                   ) : 'bg-white text-slate-600 border-slate-200'}`}
                   data-testid={`parts-request-urgency-${u}`}>
                   {u}
@@ -3525,7 +3525,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         <ReportActionsCard job={job} />
 
         {job.invoice_draft_id ? (
-          <button onClick={() => navigate(`/svc/engineer/invoices/${job.invoice_draft_id}`)} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold" data-testid="complete-open-invoice">
+          <button onClick={() => navigate(`/svc/engineer/invoices/${job.invoice_draft_id}`)} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-600 text-white text-sm font-bold" data-testid="complete-open-invoice">
             <Receipt size={14} /> Open invoice {job.invoice_draft_number}
           </button>
         ) : null}
@@ -3651,7 +3651,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
             },
           ].map(o => (
             <button key={o.id} type="button" onClick={() => setTarget(o.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border ${target === o.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border ${target === o.id ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-slate-700 border-slate-200'}`}
               data-testid={`complete-target-${o.id}`}>
               {o.label}
             </button>
@@ -3828,7 +3828,7 @@ function ReportActionsCard({ job }) {
         value={overrideEmail}
         onChange={(e) => setOverrideEmail(e.target.value)}
         placeholder={`Customer email (default: ${job.customer_email || '—'})`}
-        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-400"
+        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-cyan-400"
         data-testid="complete-report-email-to"
       />
       <textarea
@@ -3836,7 +3836,7 @@ function ReportActionsCard({ job }) {
         onChange={(e) => setNote(e.target.value)}
         placeholder="Optional cover note for the customer…"
         rows={2}
-        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-400"
+        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-cyan-400"
         data-testid="complete-report-note"
       />
       <div className="flex flex-wrap gap-2">
@@ -3854,7 +3854,7 @@ function ReportActionsCard({ job }) {
           type="button"
           onClick={email}
           disabled={emailing}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold bg-blue-600 text-white disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold bg-cyan-600 text-white disabled:opacity-50"
           data-testid="complete-report-email"
         >
           {emailing ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}

@@ -181,7 +181,7 @@ export default function EngineerPayouts() {
 
 const ExplainerRow = ({ icon: Icon, text }) => (
   <li className="flex items-start gap-2">
-    <Icon size={16} className="text-blue-600 mt-0.5 shrink-0" />
+    <Icon size={16} className="text-cyan-600 mt-0.5 shrink-0" />
     <span>{text}</span>
   </li>
 );
@@ -210,7 +210,7 @@ function StatusCard({ status, onConnect, onContinue, onDashboard, onboarding, da
           type="button"
           onClick={onConnect}
           disabled={onboarding}
-          className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-blue-700 text-sm font-bold hover:bg-slate-100 disabled:opacity-60"
+          className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-cyan-700 text-sm font-bold hover:bg-slate-100 disabled:opacity-60"
           data-testid="payouts-connect-stripe-btn"
         >
           {onboarding ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}

@@ -154,8 +154,8 @@ const QuoteRow = ({ quote, onClick }) => {
     className="w-full text-left flex items-center gap-3 py-3 px-1 hover:bg-slate-50 rounded-lg transition-colors"
     data-testid={`home-pending-quote-${quote.quote_number}`}
   >
-    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-      <FileText size={16} className="text-blue-600" />
+    <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center flex-shrink-0">
+      <FileText size={16} className="text-cyan-600" />
     </div>
     <div className="flex-1 min-w-0">
       <p className="text-sm font-semibold text-slate-900 truncate">{quote.quote_number}</p>
@@ -245,7 +245,7 @@ export default function EngineerHomeV2() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700" data-testid="engineer-home-brand">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700" data-testid="engineer-home-brand">
               {orgBrand.label}
             </p>
             <h1 className="text-xl font-extrabold text-slate-900 truncate" data-testid="engineer-home-greeting">
@@ -270,7 +270,7 @@ export default function EngineerHomeV2() {
               data-testid="engineer-home-open-workspace"
               title="Open desktop workspace"
             >
-              <PlayCircle size={14} className="text-blue-600" /> Workspace
+              <PlayCircle size={14} className="text-cyan-600" /> Workspace
             </button>
             <button
               type="button"
@@ -412,7 +412,7 @@ export default function EngineerHomeV2() {
                 imports historical reports via Settings instead. */}
             {!legacyTileHidden && !orgBrand.internal && (
               <div
-                className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-blue-50/40 p-4 flex items-center gap-3"
+                className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 via-white to-cyan-50/40 p-4 flex items-center gap-3"
                 data-testid="engineer-home-legacy-tile"
               >
                 <button
@@ -421,11 +421,11 @@ export default function EngineerHomeV2() {
                   className="flex items-center gap-3 flex-1 min-w-0 text-left"
                   data-testid="engineer-home-legacy-open"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center flex-shrink-0">
                     <Wand2 size={18} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-700">New</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-700">New</p>
                     <p className="text-sm font-bold text-slate-900 truncate">Import legacy reports</p>
                     <p className="text-xs text-slate-500 truncate">Old PDFs &amp; spreadsheets → branded Pulse Fitness PDFs.</p>
                   </div>
@@ -513,7 +513,7 @@ export default function EngineerHomeV2() {
               <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-today-list">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-bold text-slate-900">Today's jobs</p>
-                  <button onClick={() => navigate('/svc/engineer')} className="text-xs font-semibold text-blue-600 hover:text-blue-700" data-testid="today-jobs-view-all">
+                  <button onClick={() => navigate('/svc/engineer')} className="text-xs font-semibold text-cyan-600 hover:text-cyan-700" data-testid="today-jobs-view-all">
                     View all →
                   </button>
                 </div>
@@ -535,7 +535,7 @@ export default function EngineerHomeV2() {
               <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-pending-quotes-list">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-bold text-slate-900">Pending quotes</p>
-                  <button onClick={() => navigate('/svc/engineer/quotes')} className="text-xs font-semibold text-blue-600 hover:text-blue-700" data-testid="pending-quotes-view-all">
+                  <button onClick={() => navigate('/svc/engineer/quotes')} className="text-xs font-semibold text-cyan-600 hover:text-cyan-700" data-testid="pending-quotes-view-all">
                     View all →
                   </button>
                 </div>
@@ -670,7 +670,7 @@ function NearestJobChip({ navigate }) {
         type="button"
         onClick={find}
         disabled={busy}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200 disabled:opacity-50"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-xs font-bold border border-cyan-200 disabled:opacity-50"
         data-testid="nearest-job-find"
       >
         {busy ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
@@ -697,14 +697,14 @@ function MyDayBriefing({ briefing, navigate }) {
   const total = briefing.jobs_today_total || 0;
   return (
     <div
-      className="rounded-2xl bg-gradient-to-br from-blue-50 via-white to-emerald-50/40 border border-blue-200 p-4 flex items-start gap-3"
+      className="rounded-2xl bg-gradient-to-br from-cyan-50 via-white to-emerald-50/40 border border-cyan-200 p-4 flex items-start gap-3"
       data-testid="engineer-home-my-day"
     >
-      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+      <div className="w-9 h-9 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center flex-shrink-0">
         <Sun size={16} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
           Your day
         </p>
         {total > 0 ? (
@@ -746,7 +746,7 @@ function MyDayBriefing({ briefing, navigate }) {
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/quotes')}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold uppercase tracking-wide"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold uppercase tracking-wide"
               data-testid="my-day-pending-quotes"
             >
               <FileText size={9} /> {briefing.pending_quotes_count} quote{briefing.pending_quotes_count === 1 ? '' : 's'} pending
@@ -822,7 +822,7 @@ function NotInvoicedAlert({ cases, navigate }) {
                   className="w-full inline-flex items-center gap-2 text-left px-2 py-1 rounded-lg bg-white border border-amber-200 hover:border-amber-300 text-xs"
                   data-testid={`not-invoiced-case-${c.id}`}
                 >
-                  <span className="font-bold text-blue-700 tabular-nums">
+                  <span className="font-bold text-cyan-700 tabular-nums">
                     {c.reference || c.id?.slice(0, 8)}
                   </span>
                   <span className="flex-1 truncate text-slate-700">

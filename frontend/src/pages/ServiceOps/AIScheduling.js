@@ -35,9 +35,9 @@ const SLA_STYLE = {
 };
 
 const CHANGE_STYLE = {
-  move: { label: 'Moved', cls: 'bg-blue-100 text-blue-700' },
-  insert: { label: 'Inserted', cls: 'bg-violet-100 text-violet-700' },
-  reassign: { label: 'Reassigned', cls: 'bg-indigo-100 text-indigo-700' },
+  move: { label: 'Moved', cls: 'bg-cyan-100 text-cyan-700' },
+  insert: { label: 'Inserted', cls: 'bg-teal-100 text-teal-700' },
+  reassign: { label: 'Reassigned', cls: 'bg-teal-100 text-teal-700' },
   defer: { label: 'Deferred', cls: 'bg-amber-100 text-amber-700' },
   unchanged: { label: 'Unchanged', cls: 'bg-slate-100 text-slate-600' },
   protected: { label: 'Protected', cls: 'bg-slate-200 text-slate-700' },
@@ -48,7 +48,7 @@ const RISK_DOT = { high: 'bg-rose-500', medium: 'bg-amber-500', low: 'bg-emerald
 function StatCard({ icon: Icon, label, value, tone = 'slate', testid }) {
   const tones = {
     slate: 'text-slate-700', rose: 'text-rose-600', amber: 'text-amber-600',
-    emerald: 'text-emerald-600', blue: 'text-blue-600',
+    emerald: 'text-emerald-600', blue: 'text-cyan-600',
   };
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-center gap-3" data-testid={testid}>
@@ -270,13 +270,13 @@ export default function AIScheduling() {
   return (
     <div className="space-y-6" data-testid="ai-scheduling-page">
       {/* Hero */}
-      <div className="rounded-2xl bg-slate-900 bg-gradient-to-br from-slate-900 to-indigo-900 text-white p-6">
+      <div className="rounded-2xl bg-slate-900 bg-gradient-to-br from-slate-900 to-teal-900 text-white p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-white/10 p-2"><Sparkles size={22} /></div>
             <div>
               <div className="text-2xl font-semibold text-white">AI Scheduling</div>
-              <p className="text-sm text-indigo-200">The AI recommends. Your planner decides.</p>
+              <p className="text-sm text-teal-200">The AI recommends. Your planner decides.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -326,8 +326,8 @@ export default function AIScheduling() {
 
       {/* Pending AI suggestions inbox */}
       {pending.length > 0 && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4" data-testid="pending-suggestions">
-          <div className="flex items-center gap-2 mb-2 text-indigo-800 font-semibold text-sm">
+        <div className="rounded-xl border border-teal-200 bg-teal-50 p-4" data-testid="pending-suggestions">
+          <div className="flex items-center gap-2 mb-2 text-teal-800 font-semibold text-sm">
             <Inbox size={16} /> Pending AI suggestions ({pending.length})
           </div>
           <div className="space-y-2">
@@ -335,7 +335,7 @@ export default function AIScheduling() {
               const proactive = String(p.trigger || '').startsWith('priority_job') || String(p.trigger || '').includes('priority');
               return (
                 <div key={p.id}
-                  className="w-full rounded-lg bg-white border border-indigo-100 hover:border-indigo-400 p-3 transition-colors flex items-center justify-between gap-2"
+                  className="w-full rounded-lg bg-white border border-teal-100 hover:border-teal-400 p-3 transition-colors flex items-center justify-between gap-2"
                   data-testid={`pending-${p.id}`}>
                   <button onClick={() => openProposal(p.id)} className="text-left min-w-0 flex-1" data-testid={`pending-open-${p.id}`}>
                     <div className="text-sm font-medium text-slate-800 flex items-center gap-2">
@@ -345,7 +345,7 @@ export default function AIScheduling() {
                     <div className="text-[11px] text-slate-500">{p.date} · {p.trigger?.replace(/_/g, ' ')} · {new Date(p.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   </button>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => openProposal(p.id)} className="text-xs text-indigo-600 font-medium px-2 py-1 hover:bg-indigo-50 rounded" data-testid={`pending-review-${p.id}`}>Review →</button>
+                    <button onClick={() => openProposal(p.id)} className="text-xs text-teal-600 font-medium px-2 py-1 hover:bg-teal-50 rounded" data-testid={`pending-review-${p.id}`}>Review →</button>
                     <button onClick={() => dismissPending(p.id)} title="Dismiss" className="text-slate-400 hover:text-rose-600 p-1 rounded" data-testid={`pending-dismiss-${p.id}`}>
                       <X size={15} />
                     </button>
@@ -479,7 +479,7 @@ export default function AIScheduling() {
               {unassigned.map((j) => (
                 <button
                   key={j.id} onClick={() => generate('add_priority_job', { priority_case_id: j.id })}
-                  className="w-full text-left rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 p-3 transition-colors"
+                  className="w-full text-left rounded-lg border border-slate-200 hover:border-teal-400 hover:bg-teal-50 p-3 transition-colors"
                   data-testid={`priority-job-${j.id}`}
                 >
                   <div className="flex items-center justify-between">
@@ -530,7 +530,7 @@ export default function AIScheduling() {
                         </div>
                         <button
                           onClick={() => toggleLock(j)}
-                          className={`shrink-0 p-1.5 rounded-md ${locked ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-slate-700'}`}
+                          className={`shrink-0 p-1.5 rounded-md ${locked ? 'text-teal-600 bg-teal-50' : 'text-slate-400 hover:text-slate-700'}`}
                           title={locked ? 'Unlock' : 'Lock (protect from AI)'}
                           data-testid={`lock-toggle-${j.id}`}
                         >
@@ -557,21 +557,21 @@ export default function AIScheduling() {
           ) : (
             <>
               {/* proposal summary */}
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4" data-testid="proposal-summary">
+              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4" data-testid="proposal-summary">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-indigo-700 uppercase tracking-wide">{proposal.mode.replace(/_/g, ' ')}</span>
+                  <span className="text-xs font-medium text-teal-700 uppercase tracking-wide">{proposal.mode.replace(/_/g, ' ')}</span>
                   {proposalIsSim
                     ? <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200" data-testid="simulation-badge">Simulation — not applied</Badge>
                     : <Badge variant="outline" data-testid="proposal-status">{proposal.status.replace(/_/g, ' ')}</Badge>}
                 </div>
                 <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  <div><div className="text-lg font-semibold text-blue-700">{(summary.jobs_moved || 0) + (summary.jobs_inserted || 0)}</div><div className="text-[10px] text-slate-500">changes</div></div>
+                  <div><div className="text-lg font-semibold text-cyan-700">{(summary.jobs_moved || 0) + (summary.jobs_inserted || 0)}</div><div className="text-[10px] text-slate-500">changes</div></div>
                   <div><div className="text-lg font-semibold text-slate-700">{summary.jobs_protected || 0}</div><div className="text-[10px] text-slate-500">protected</div></div>
                   <div><div className="text-lg font-semibold text-emerald-700">{summary.sla_saved || 0}</div><div className="text-[10px] text-slate-500">SLA saved</div></div>
                   <div><div className="text-lg font-semibold text-amber-700">{summary.jobs_deferred || 0}</div><div className="text-[10px] text-slate-500">deferred</div></div>
                 </div>
                 <div className="mt-2 flex items-center justify-between flex-wrap gap-1">
-                  <div className="text-[11px] text-indigo-700 flex items-center gap-1">
+                  <div className="text-[11px] text-teal-700 flex items-center gap-1">
                     <Gauge size={12} /> Confidence {Math.round((proposal.confidence || 0) * 100)}%
                   </div>
                   {(summary.travel_saved_minutes ?? 0) !== 0 && (
@@ -581,7 +581,7 @@ export default function AIScheduling() {
                   )}
                 </div>
                 {proposal.narrative && (
-                  <p className="mt-2 text-[12px] text-slate-700 bg-white/70 rounded-lg p-2 border border-indigo-100" data-testid="proposal-narrative">
+                  <p className="mt-2 text-[12px] text-slate-700 bg-white/70 rounded-lg p-2 border border-teal-100" data-testid="proposal-narrative">
                     {proposal.narrative}
                   </p>
                 )}

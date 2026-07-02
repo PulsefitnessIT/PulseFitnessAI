@@ -34,7 +34,7 @@ const auth = () => ({
 const PRIO = {
   P1: 'bg-red-500',
   P2: 'bg-amber-500',
-  P3: 'bg-blue-500',
+  P3: 'bg-cyan-500',
   P4: 'bg-slate-400',
 };
 
@@ -174,7 +174,7 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
                 estimated_minutes: Math.max(15, Math.min(600, totalMins)),
               })
             }
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg py-2 text-sm font-bold flex items-center justify-center gap-2"
+            className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-300 text-white rounded-lg py-2 text-sm font-bold flex items-center justify-center gap-2"
             data-testid="claim-submit"
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Hand size={14} />}
@@ -376,7 +376,7 @@ const PreviewModal = ({ job, onClose, onClaim }) => {
           <button
             type="button"
             onClick={() => onClaim?.(job)}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 text-sm font-bold inline-flex items-center justify-center gap-1.5"
+            className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl py-2 text-sm font-bold inline-flex items-center justify-center gap-1.5"
             data-testid="queue-preview-allocate"
           >
             <Hand size={12} /> Allocate to me
@@ -426,7 +426,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode,
         {job.from_referred_gym ? (
           <span
             className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 border"
-            style={{ background: 'rgba(157,76,221,0.08)', borderColor: 'rgba(157,76,221,0.3)', color: '#7C3AED' }}
+            style={{ background: 'rgba(14,116,144,0.08)', borderColor: 'rgba(14,116,144,0.3)', color: '#0e7490' }}
             data-testid={`queue-row-referred-${rowKey}`}
             title="From a gym you referred. You're their primary auto-dispatched supplier."
           >
@@ -478,7 +478,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode,
         href={job.supplier_case_token ? `/supplier/case/${job.supplier_case_token}` : '#'}
         target="_blank"
         rel="noreferrer"
-        className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 flex-shrink-0"
+        className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 flex-shrink-0"
         data-testid={`queue-open-supplier-case-${rowKey}`}
       >
         Open ticket
@@ -488,7 +488,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode,
         <button
           type="button"
           onClick={() => onClaim && onClaim(job)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"
           data-testid={`queue-claim-${rowKey}`}
         >
           <Hand size={12} /> Allocate to me
@@ -496,7 +496,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode,
         <button
           type="button"
           onClick={() => onPreview && onPreview(job)}
-          className="text-blue-700 hover:bg-blue-50 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+          className="text-cyan-700 hover:bg-cyan-50 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
           data-testid={`queue-preview-${rowKey}`}
         >
           View details →
@@ -690,7 +690,7 @@ export default function EngineerQueue() {
               <ChevronLeft size={22} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">
                 {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
@@ -755,7 +755,7 @@ export default function EngineerQueue() {
               My gyms{myGyms.total ? ` · ${myGyms.total}` : ''}
               {myGyms.gyms_count ? (
                 <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                  viewMode === 'my-gyms' ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-700'
+                  viewMode === 'my-gyms' ? 'bg-white/20 text-white' : 'bg-teal-50 text-teal-700'
                 }`}>
                   {myGyms.gyms_count} gym{myGyms.gyms_count === 1 ? '' : 's'}
                 </span>
@@ -776,7 +776,7 @@ export default function EngineerQueue() {
               type="button"
               onClick={() => setFilter(opt.k)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                filter === opt.k ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                filter === opt.k ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`}
               data-testid={`queue-filter-${opt.k}`}
             >
@@ -870,7 +870,7 @@ export default function EngineerQueue() {
         )}
 
         {/* Footer hint */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 text-xs text-cyan-900 flex items-start gap-2">
           <ShieldCheck size={14} className="mt-0.5 flex-shrink-0" />
           <p>
             Two engineers can't grab the same job — first tap wins. If you see "already claimed",

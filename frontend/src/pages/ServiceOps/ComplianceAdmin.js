@@ -38,7 +38,7 @@ export default function ComplianceAdmin() {
     <div className="p-6 max-w-6xl space-y-5" data-testid="compliance-admin">
       <header>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <ShieldCheck size={22} className="text-blue-600" /> Compliance register
+          <ShieldCheck size={22} className="text-cyan-600" /> Compliance register
         </h1>
         <p className="text-sm text-slate-500 max-w-2xl">
           Permit-to-Work templates and COSHH chemicals used by every
@@ -78,7 +78,7 @@ function TabButton({ active, onClick, icon: Icon, label, testId }) {
       data-testid={testId}
       className={`inline-flex items-center gap-2 px-4 py-2 -mb-px border-b-2 text-sm font-bold transition-colors ${
         active
-          ? 'border-blue-600 text-blue-700'
+          ? 'border-cyan-600 text-cyan-700'
           : 'border-transparent text-slate-500 hover:text-slate-700'
       }`}
     >
@@ -212,7 +212,7 @@ function PtwAdmin() {
             type="button"
             onClick={submit}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold disabled:opacity-50"
             data-testid="ptw-draft-submit"
           >
             {saving ? <Loader2 size={14} className="animate-spin inline mr-1" /> : <Plus size={14} className="inline mr-1" />}
@@ -232,7 +232,7 @@ function PtwAdmin() {
           <ul className="divide-y divide-slate-100" data-testid="ptw-list">
             {rows.map((r) => (
               <li key={r.id} className="p-3 flex items-start gap-3" data-testid={`ptw-row-${r.id}`}>
-                <ShieldCheck size={14} className="text-blue-600 mt-1" />
+                <ShieldCheck size={14} className="text-cyan-600 mt-1" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900">{r.name}</p>
                   <p className="text-xs text-slate-500">
@@ -303,7 +303,7 @@ function DraftListEditor({ label, items, setItem, addItem, removeItem, testIdPre
       <button
         type="button"
         onClick={addItem}
-        className="mt-1 text-[10px] font-bold uppercase tracking-wide text-blue-600 hover:text-blue-800"
+        className="mt-1 text-[10px] font-bold uppercase tracking-wide text-cyan-600 hover:text-cyan-800"
         data-testid={`${testIdPrefix}-add`}
       >
         + Add {label.slice(0, -1).toLowerCase()}
@@ -471,7 +471,7 @@ function CoshhAdmin() {
                       href={r.sds_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] text-blue-600 underline"
+                      className="text-[11px] text-cyan-600 underline"
                       data-testid={`coshh-sds-${r.id}`}
                     >
                       View SDS

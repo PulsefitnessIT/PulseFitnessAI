@@ -33,7 +33,7 @@ const TABS = [
 ];
 
 const PO_STATUS_COLOUR = {
-  draft: '#6b7280', submitted: '#1d4ed8', received: '#10b981', cancelled: '#ef4444',
+  draft: '#6b7280', submitted: '#0891b2', received: '#10b981', cancelled: '#ef4444',
 };
 
 function gbp(n) { return formatMoneySync(n); }
@@ -159,7 +159,7 @@ function CatalogueTab() {
           onClick={create}
           disabled={busy}
           className="col-span-1 sm:col-span-1 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1 disabled:opacity-60"
-          style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+          style={{ background: '#0891b2' }}
           data-testid="catalogue-add-submit"
         >
           <Plus size={11} /> Add
@@ -217,7 +217,7 @@ function CatalogueTab() {
               />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setImporting(false)} className="px-3 py-1.5 rounded-md border text-xs font-bold" style={{ borderColor: 'var(--theme-border)' }}>Cancel</button>
-                <button type="button" onClick={sicon} disabled={busy} className="px-3 py-1.5 rounded-md text-xs font-bold text-white" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="sicon-import-submit">Run import</button>
+                <button type="button" onClick={sicon} disabled={busy} className="px-3 py-1.5 rounded-md text-xs font-bold text-white" style={{ background: '#0891b2' }} data-testid="sicon-import-submit">Run import</button>
               </div>
             </div>
           </div>
@@ -330,7 +330,7 @@ function StockTab() {
           <Field className="col-span-1 sm:col-span-1" label="Min"><input type="number" min={0} value={draftRule.min_qty} onChange={(e) => setDraftRule({ ...draftRule, min_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-min" /></Field>
           <Field className="col-span-1 sm:col-span-1" label="Max"><input type="number" min={0} value={draftRule.max_qty} onChange={(e) => setDraftRule({ ...draftRule, max_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-max" /></Field>
           <Field className="col-span-1 sm:col-span-3" label="Supplier"><input value={draftRule.supplier} onChange={(e) => setDraftRule({ ...draftRule, supplier: e.target.value })} className="ip" data-testid="rule-add-supplier" /></Field>
-          <button type="button" onClick={submitRule} className="col-span-2 sm:col-span-2 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="rule-add-submit"><Plus size={11} /> Save rule</button>
+          <button type="button" onClick={submitRule} className="col-span-2 sm:col-span-2 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1" style={{ background: '#0891b2' }} data-testid="rule-add-submit"><Plus size={11} /> Save rule</button>
         </div>
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -428,7 +428,7 @@ function POTab() {
           <option value="received">Received</option>
           <option value="cancelled">Cancelled</option>
         </select>
-        <button type="button" onClick={() => setCreating(true)} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="po-create-open"><Plus size={12} /> Create PO</button>
+        <button type="button" onClick={() => setCreating(true)} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: '#0891b2' }} data-testid="po-create-open"><Plus size={12} /> Create PO</button>
         <div className="ml-auto flex items-center gap-1.5">
           <input value={supplierForLowStock} onChange={(e) => setSupplierForLowStock(e.target.value)} placeholder="Supplier or ALL" className="px-2 py-1.5 rounded-md border text-xs bg-transparent" style={{ borderColor: 'var(--theme-border)' }} data-testid="po-low-stock-supplier" />
           <button type="button" onClick={fromLowStock} className="px-3 py-1.5 rounded-md border text-xs font-bold inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="po-from-low-stock"><AlertTriangle size={12} /> Generate from low-stock</button>
@@ -491,7 +491,7 @@ function POTab() {
             </div>
             <div className="px-4 py-3 border-t flex justify-end gap-2" style={{ borderColor: 'var(--theme-border)' }}>
               <button type="button" onClick={() => setCreating(false)} className="px-3 py-1.5 rounded-md border text-xs font-bold" style={{ borderColor: 'var(--theme-border)' }}>Cancel</button>
-              <button type="button" onClick={create} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="po-create-submit"><CheckCircle size={11} /> Create draft PO</button>
+              <button type="button" onClick={create} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: '#0891b2' }} data-testid="po-create-submit"><CheckCircle size={11} /> Create draft PO</button>
             </div>
           </div>
         </div>

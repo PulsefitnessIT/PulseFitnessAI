@@ -127,7 +127,7 @@ export default function PartsImportWizard({ onClose, onComplete }) {
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-1 flex-1 last:flex-none">
               <span className={`shrink-0 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
-                i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
                 {i < step ? '✓' : i + 1}
               </span>
               <span className={`text-xs font-semibold ${i === step ? 'text-slate-900' : 'text-slate-400'}`}>{s}</span>
@@ -142,8 +142,8 @@ export default function PartsImportWizard({ onClose, onComplete }) {
             <div className="space-y-4">
               <button onClick={() => fileRef.current?.click()} disabled={busy}
                       data-testid="import-dropzone"
-                      className="w-full border-2 border-dashed border-slate-300 rounded-2xl py-12 flex flex-col items-center gap-2 text-slate-500 hover:border-blue-400 hover:bg-blue-50/40 transition-colors">
-                {busy ? <Loader2 className="w-9 h-9 animate-spin text-blue-500" /> : <Upload className="w-9 h-9" />}
+                      className="w-full border-2 border-dashed border-slate-300 rounded-2xl py-12 flex flex-col items-center gap-2 text-slate-500 hover:border-cyan-400 hover:bg-cyan-50/40 transition-colors">
+                {busy ? <Loader2 className="w-9 h-9 animate-spin text-cyan-500" /> : <Upload className="w-9 h-9" />}
                 <p className="font-bold text-slate-700">{busy ? 'Reading file…' : 'Tap to choose a file'}</p>
                 <p className="text-xs">CSV or Excel (.xlsx) · up to 10,000 rows</p>
               </button>
@@ -151,8 +151,8 @@ export default function PartsImportWizard({ onClose, onComplete }) {
                      data-testid="import-file-input"
                      onChange={(e) => doParse(e.target.files?.[0])} />
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer" data-testid="import-ai-toggle">
-                <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} className="w-4 h-4 accent-blue-600" />
-                <Sparkles className="w-4 h-4 text-violet-500" />
+                <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} className="w-4 h-4 accent-cyan-600" />
+                <Sparkles className="w-4 h-4 text-teal-500" />
                 Use AI to auto-map columns &amp; flag duplicates
               </label>
             </div>
@@ -196,10 +196,10 @@ export default function PartsImportWizard({ onClose, onComplete }) {
               </div>
 
               {validation.ai_duplicates?.length > 0 && (
-                <div className="rounded-xl border border-violet-200 bg-violet-50 p-3" data-testid="import-ai-dupes">
-                  <p className="text-xs font-bold text-violet-700 flex items-center gap-1 mb-1"><Sparkles className="w-3.5 h-3.5" /> AI flagged possible duplicates</p>
+                <div className="rounded-xl border border-teal-200 bg-teal-50 p-3" data-testid="import-ai-dupes">
+                  <p className="text-xs font-bold text-teal-700 flex items-center gap-1 mb-1"><Sparkles className="w-3.5 h-3.5" /> AI flagged possible duplicates</p>
                   {validation.ai_duplicates.slice(0, 4).map((g, i) => (
-                    <p key={i} className="text-[11px] text-violet-600">Rows {g.rows?.map((r) => r + 1).join(', ')} — {g.reason}</p>
+                    <p key={i} className="text-[11px] text-teal-600">Rows {g.rows?.map((r) => r + 1).join(', ')} — {g.reason}</p>
                   ))}
                 </div>
               )}
@@ -290,13 +290,13 @@ export default function PartsImportWizard({ onClose, onComplete }) {
           <div className="flex-1" />
           {step === 1 && (
             <button onClick={doValidate} disabled={busy} data-testid="import-validate-btn"
-                    className="px-5 h-11 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 disabled:opacity-60">
+                    className="px-5 h-11 rounded-xl bg-cyan-600 text-white font-bold flex items-center gap-2 disabled:opacity-60">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Validate
             </button>
           )}
           {step === 2 && (
             <button onClick={doCommit} disabled={busy} data-testid="import-commit-btn"
-                    className="px-5 h-11 rounded-xl bg-blue-600 text-white font-bold flex items-center gap-2 disabled:opacity-60">
+                    className="px-5 h-11 rounded-xl bg-cyan-600 text-white font-bold flex items-center gap-2 disabled:opacity-60">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Import {sum.valid || 0} parts
             </button>
@@ -314,7 +314,7 @@ export default function PartsImportWizard({ onClose, onComplete }) {
 const Mini = ({ label, value, tone }) => {
   const t = {
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    blue: 'bg-blue-50 text-blue-700 border-blue-100',
+    blue: 'bg-cyan-50 text-cyan-700 border-cyan-100',
     rose: 'bg-rose-50 text-rose-700 border-rose-100',
     slate: 'bg-slate-50 text-slate-600 border-slate-100',
   }[tone] || 'bg-slate-50 text-slate-600 border-slate-100';
@@ -337,7 +337,7 @@ const Seg = ({ value, set, opts, tid }) => (
   <div className="flex rounded-xl border border-slate-200 overflow-hidden" data-testid={tid}>
     {opts.map(([v, label]) => (
       <button key={v} onClick={() => set(v)}
-              className={`px-2.5 h-9 text-xs font-semibold ${value === v ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'}`}>
+              className={`px-2.5 h-9 text-xs font-semibold ${value === v ? 'bg-cyan-600 text-white' : 'bg-white text-slate-600'}`}>
         {label}
       </button>
     ))}

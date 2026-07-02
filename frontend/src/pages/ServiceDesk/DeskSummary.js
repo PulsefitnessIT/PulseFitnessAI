@@ -93,7 +93,7 @@ export default function DeskSummary({ API, onNavigate }) {
         { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700', goto: 'cases', nav: { status: 'open' } },
         { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'cases', nav: { status: '' } },
         { label: 'Engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'engineers' },
-        { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-blue-50 text-blue-700', goto: 'customers' },
+        { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-cyan-50 text-cyan-700', goto: 'customers' },
       ]
     : [
         { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700', goto: 'customers', status: '' },

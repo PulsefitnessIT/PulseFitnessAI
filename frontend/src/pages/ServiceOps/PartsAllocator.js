@@ -223,7 +223,7 @@ export default function PartsAllocator({ value = [], onChange, caseId, engineerI
               onClick={submit}
               disabled={busy}
               className="col-span-2 px-2 py-1 rounded text-xs font-bold text-white disabled:opacity-50"
-              style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+              style={{ background: '#0891b2' }}
               data-testid="parts-allocate"
             >
               {busy ? '…' : 'Allocate'}

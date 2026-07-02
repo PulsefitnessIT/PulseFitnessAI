@@ -240,7 +240,7 @@ export default function EngineerInvoiceBuilder() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">Pulse Fitness Invoice</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Pulse Fitness Invoice</p>
               <h1 className="text-xl font-extrabold text-slate-900 truncate">{isNew ? 'New invoice' : form.invoice_number}</h1>
               {!isNew && <p className="text-xs text-slate-500 capitalize">{form.status}{form.due_date ? ` · Due ${form.due_date}` : ''}</p>}
             </div>
@@ -292,7 +292,7 @@ export default function EngineerInvoiceBuilder() {
               <XCircle size={12} /> Void
             </button>
             {form.linked_quote_number && (
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-cyan-200 bg-cyan-50 text-cyan-700 text-xs font-bold">
                 <Copy size={12} /> From quote {form.linked_quote_number}
               </span>
             )}
@@ -427,7 +427,7 @@ export default function EngineerInvoiceBuilder() {
                 <div className="flex justify-between text-rose-600"><span>Discount ({form.discount_pct}%)</span><span className="tabular-nums">-{fmt(totals.discountAmount)}</span></div>
               )}
               <div className="flex justify-between text-slate-600"><span>{loc.tax_label} ({form.vat_rate}%)</span><span className="tabular-nums">{fmt(totals.vatAmount)}</span></div>
-              <div className="border-t border-slate-200 pt-2 flex justify-between text-lg font-extrabold text-slate-900"><span>Total due</span><span className="tabular-nums text-blue-700">{fmt(totals.total)}</span></div>
+              <div className="border-t border-slate-200 pt-2 flex justify-between text-lg font-extrabold text-slate-900"><span>Total due</span><span className="tabular-nums text-cyan-700">{fmt(totals.total)}</span></div>
             </div>
           </div>
         </Section>
@@ -455,7 +455,7 @@ export default function EngineerInvoiceBuilder() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4" data-testid="ib-email-modal">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl border border-slate-200">
             <div className="flex items-center gap-2 mb-3">
-              <Mail size={18} className="text-blue-600" />
+              <Mail size={18} className="text-cyan-600" />
               <h3 className="text-base font-bold text-slate-900">Email this invoice</h3>
             </div>
             {connect && !connect.ready ? (
@@ -578,7 +578,7 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => q.length >= 2 && setOpen(true)}
             placeholder="Search saved customers…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-blue-400 focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-cyan-400 focus:outline-none"
             data-testid="ib-customer-search"
           />
         </div>
@@ -617,11 +617,11 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
       ) : null}
       {showSuggestion ? (
         <div
-          className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50"
+          className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-cyan-200 bg-cyan-50"
           data-testid="ib-customer-suggest"
         >
-          <p className="text-xs text-blue-900 flex items-center gap-2">
-            <BookmarkPlus size={14} className="text-blue-600" />
+          <p className="text-xs text-cyan-900 flex items-center gap-2">
+            <BookmarkPlus size={14} className="text-cyan-600" />
             <span>
               Save <b>{name}</b> to your Lite CRM so you can reuse them later?
             </span>
@@ -639,7 +639,7 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
                 }
               }}
               disabled={suggestState.saving}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
               data-testid="ib-customer-suggest-save"
             >
               {suggestState.saving ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
@@ -648,7 +648,7 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
             <button
               type="button"
               onClick={() => setSuggestState((s) => ({ ...s, dismissed: true }))}
-              className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-blue-200 bg-white hover:bg-blue-100 text-blue-700"
+              className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-cyan-200 bg-white hover:bg-cyan-100 text-cyan-700"
               data-testid="ib-customer-suggest-dismiss"
               aria-label="Dismiss"
               title="Dismiss"

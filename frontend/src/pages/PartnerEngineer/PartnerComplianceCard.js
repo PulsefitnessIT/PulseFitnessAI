@@ -254,7 +254,7 @@ export default function PartnerComplianceCard() {
         </div>
         <p className={`text-xs font-bold ${verifiedColor}`} data-testid="compliance-summary">
           {status.verified_count}/{status.total} verified
-          {grace?.active && <span className="ml-2 text-blue-700">· {grace.days_left}d left to upload</span>}
+          {grace?.active && <span className="ml-2 text-cyan-700">· {grace.days_left}d left to upload</span>}
           {!grace?.active && status.blocked && <span className="ml-2 text-rose-700">· action needed (expired doc)</span>}
         </p>
       </div>
@@ -262,9 +262,9 @@ export default function PartnerComplianceCard() {
       {/* Iter 220ea·47 — trial grace banner: engineers can work right away;
           the deadline nudges them to upload DBS / RTW before grace lapses. */}
       {grace?.active ? (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 flex items-start gap-2" data-testid="compliance-grace-banner">
-          <Clock size={14} className="text-blue-600 mt-0.5 shrink-0" />
-          <div className="text-[12px] text-blue-900 leading-relaxed">
+        <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 flex items-start gap-2" data-testid="compliance-grace-banner">
+          <Clock size={14} className="text-cyan-600 mt-0.5 shrink-0" />
+          <div className="text-[12px] text-cyan-900 leading-relaxed">
             <span className="font-bold">You can start taking jobs right away.</span>{' '}
             Upload your <strong>{claimLabels}</strong> within{' '}
             <strong>{grace.days_left} day{grace.days_left === 1 ? '' : 's'}</strong>

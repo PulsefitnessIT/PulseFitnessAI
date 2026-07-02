@@ -364,6 +364,14 @@
     @apply border-border;
   }
   
+  /* Pulse Fitness brand font scope — applied to Service Desk / Engineer /
+     Supplier surfaces so they follow the brand guideline (Proxima Nova
+     primary, Maax Rounded display fallback) instead of the app default. */
+  .pulse-font,
+  .pulse-font :where(h1,h2,h3,h4,h5,h6,p,span,div,button,input,textarea,select,label,a,td,th,li) {
+    font-family: 'Proxima Nova', 'Maax Rounded', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
   body {
     background: var(--theme-bg);
     color: var(--theme-text-muted);

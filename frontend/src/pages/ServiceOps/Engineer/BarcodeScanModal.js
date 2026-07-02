@@ -188,7 +188,7 @@ export default function BarcodeScanModal({ open, onClose, onMatch, onCode, onMac
     >
       <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-          <Camera size={16} className="text-blue-600" />
+          <Camera size={16} className="text-cyan-600" />
           <p className="text-sm font-bold text-slate-900 flex-1">Scan equipment</p>
           <button
             type="button"
@@ -234,7 +234,7 @@ export default function BarcodeScanModal({ open, onClose, onMatch, onCode, onMac
                     value={manualValue}
                     onChange={(e) => setManualValue(e.target.value)}
                     placeholder="e.g. GA-12345"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     data-testid="barcode-scan-manual-input"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && manualValue.trim()) lookup(manualValue.trim());
@@ -245,7 +245,7 @@ export default function BarcodeScanModal({ open, onClose, onMatch, onCode, onMac
                   type="button"
                   onClick={() => manualValue.trim() && lookup(manualValue.trim())}
                   disabled={busy || !manualValue.trim()}
-                  className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold disabled:opacity-50"
+                  className="px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-bold disabled:opacity-50"
                   data-testid="barcode-scan-manual-submit"
                 >
                   {busy ? <Loader2 size={12} className="animate-spin" /> : 'Look up'}

@@ -83,8 +83,8 @@ export default function PartnerActivationChecklist({ onCopyLink, onSubscribeClic
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden" data-testid="partner-activation-checklist">
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100 bg-gradient-to-r from-blue-50/60 to-white">
-        <Sparkles size={16} className="text-blue-600 shrink-0" />
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100 bg-gradient-to-r from-cyan-50/60 to-white">
+        <Sparkles size={16} className="text-cyan-600 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-zinc-900">Your first 7 days</p>
           <p className="text-[11px] text-zinc-500">
@@ -93,7 +93,7 @@ export default function PartnerActivationChecklist({ onCopyLink, onSubscribeClic
         </div>
         <div className="h-1.5 w-24 sm:w-40 bg-zinc-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all duration-500"
             style={{ width: `${pct}%` }}
             data-testid="partner-activation-progress"
           />

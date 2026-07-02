@@ -201,7 +201,7 @@ export default function NotificationSettings({ onClose }) {
                 <div className="text-xs text-slate-700 mb-2" data-testid="notif-snooze-active">
                   Snoozed until {new Date(prefs.prefs.dnd_until).toLocaleTimeString('en-GB')}.
                   <button onClick={wake} disabled={busy} data-testid="notif-snooze-wake-btn"
-                          className="ml-2 text-[11px] font-semibold text-blue-600">Wake</button>
+                          className="ml-2 text-[11px] font-semibold text-cyan-600">Wake</button>
                 </div>
               ) : (
                 <div className="flex gap-1.5">
