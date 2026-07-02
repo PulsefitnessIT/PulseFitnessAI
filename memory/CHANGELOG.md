@@ -801,3 +801,6 @@ Two in-progress tasks completed and verified via curl (CRM login owner@isodemo.c
 - `export_report` uses `inspect.signature` to pass only the date params each report accepts (consent-overview takes user only).
 - Frontend `pages/CRM/CRMReports.js`: `exportable: true` set on all 7 standard reports → renders existing XLSX/PDF download buttons.
 - Verified: all 11 reports return HTTP 200 valid xlsx+pdf files.
+
+## Backlog change (Jun 2026)
+- CANCELLED: Proactive weekly "Comms brief" (P3) — dropped per user request; do not re-propose.
