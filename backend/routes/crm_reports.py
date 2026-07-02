@@ -443,3 +443,124 @@ async def list_reports(user=Depends(get_crm_user)) -> dict:
             {"id": "consent-overview",      "label": "GDPR Consent",          "category": "Compliance"},
         ],
     }
+
+
+
+# ── Pre-Install Site Survey reports (Iter 2026-07) ──────────────────
+from utils.site_scope import effective_site_filter  # noqa: E402
+from routes.crm_site_surveys_schema import SURVEY_STATUSES, READINESS_STATUSES  # noqa: E402
+
+_SURVEYS = "pre_install_site_surveys"
+_STATUS_LABEL = {s["key"]: s["label"] for s in SURVEY_STATUSES}
+_READY_LABEL = {s["key"]: s["label"] for s in READINESS_STATUSES}
+_INSTALLED_STATUSES = {"approved_for_installation", "completed"}
+
+
+def _survey_of(user: dict) -> dict:
+    return {"organization_id": user.get("organization_id"), **effective_site_filter()}
+
+
+def _survey_high_risk(doc: dict):
+    """Return the worst risk severity ('critical'/'high') or None."""
+    worst = None
+    for r in ((doc.get("data") or {}).get("risks") or []):
+        lvl = (r.get("risk_level") or r.get("severity") or "").lower()
+        if lvl == "critical":
+            return "critical"
+        if lvl == "high":
+            worst = "high"
+    return worst
+
+
+async def _load_surveys(user, from_iso, to_iso, dated=True):
+    q = {**_survey_of(user), "is_current": True}
+    if dated:
+        start, end = _date_range(from_iso, to_iso, 365)
+        q["created_at"] = {"$gte": start, "$lte": end}
+        rng = {"from": start, "to": end}
+    else:
+        rng = {}
+    docs = await db[_SURVEYS].find(q, {"_id": 0}).to_list(5000)
+    return docs, rng
+
+
+@router.get("/site-surveys-status")
+async def rpt_surveys_status(from_iso: str = None, to_iso: str = None, user=Depends(get_crm_user)):
+    docs, rng = await _load_surveys(user, from_iso, to_iso)
+    counts = {}
+    for d in docs:
+        counts[d.get("status")] = counts.get(d.get("status"), 0) + 1
+    rows = [{"status": _STATUS_LABEL.get(k, k), "count": v}
+            for k, v in sorted(counts.items(), key=lambda x: -x[1])]
+    open_count = sum(v for k, v in counts.items() if k not in {"completed", "archived", "superseded"})
+    return {"rows": rows,
+            "totals": {"total_surveys": len(docs), "open": open_count,
+                       "awaiting_customer_info": counts.get("awaiting_customer_information", 0),
+                       **rng},
+            "generated_at": _now_iso()}
+
+
+@router.get("/site-surveys-manager")
+async def rpt_surveys_manager(from_iso: str = None, to_iso: str = None, user=Depends(get_crm_user)):
+    docs, rng = await _load_surveys(user, from_iso, to_iso)
+    by = {}
+    for d in docs:
+        m = d.get("completed_by_name") or "Unassigned"
+        row = by.setdefault(m, {"manager": m, "surveys": 0, "ready_for_install": 0, "installed": 0, "high_risk": 0})
+        row["surveys"] += 1
+        if d.get("readiness_status") in ("ready_for_installation", "installation_approved"):
+            row["ready_for_install"] += 1
+        if d.get("status") in _INSTALLED_STATUSES:
+            row["installed"] += 1
+        if _survey_high_risk(d):
+            row["high_risk"] += 1
+    rows = sorted(by.values(), key=lambda r: -r["surveys"])
+    return {"rows": rows, "totals": {"managers": len(rows), "total_surveys": len(docs), **rng},
+            "generated_at": _now_iso()}
+
+
+@router.get("/site-surveys-high-risk")
+async def rpt_surveys_high_risk(from_iso: str = None, to_iso: str = None, user=Depends(get_crm_user)):
+    docs, rng = await _load_surveys(user, from_iso, to_iso)
+    rows = []
+    crit = 0
+    for d in docs:
+        sev = _survey_high_risk(d)
+        if not sev:
+            continue
+        if sev == "critical":
+            crit += 1
+        risks = (d.get("data") or {}).get("risks") or []
+        rows.append({
+            "reference": d.get("reference"),
+            "company": d.get("company_name"),
+            "site": d.get("site_name") or "—",
+            "top_severity": sev.capitalize(),
+            "open_risks": len(risks),
+            "status": _STATUS_LABEL.get(d.get("status"), d.get("status")),
+            "target_install_date": (d.get("target_install_date") or "—"),
+        })
+    rows.sort(key=lambda r: (r["top_severity"] != "Critical", r["reference"]))
+    return {"rows": rows, "totals": {"high_risk_surveys": len(rows), "critical": crit, **rng},
+            "generated_at": _now_iso()}
+
+
+@router.get("/site-surveys-conversion")
+async def rpt_surveys_conversion(from_iso: str = None, to_iso: str = None, user=Depends(get_crm_user)):
+    docs, rng = await _load_surveys(user, from_iso, to_iso)
+    total = len(docs)
+    approved_quote = sum(1 for d in docs if d.get("status") in
+                         {"approved_for_quote", "approved_for_installation", "completed"})
+    approved_install = sum(1 for d in docs if d.get("status") in _INSTALLED_STATUSES)
+    completed = sum(1 for d in docs if d.get("status") == "completed")
+    pct = lambda n: (round(n / total * 100, 1) if total else 0.0)  # noqa: E731
+    rows = [
+        {"stage": "Surveys created", "count": total, "conversion_%": 100.0 if total else 0.0},
+        {"stage": "Approved for quote+", "count": approved_quote, "conversion_%": pct(approved_quote)},
+        {"stage": "Approved for installation", "count": approved_install, "conversion_%": pct(approved_install)},
+        {"stage": "Completed", "count": completed, "conversion_%": pct(completed)},
+    ]
+    return {"rows": rows,
+            "totals": {"total_surveys": total, "converted_to_install": approved_install,
+                       "survey_to_install_rate_%": pct(approved_install), **rng},
+            "generated_at": _now_iso()}

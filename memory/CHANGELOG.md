@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 2, 2026 — Pre-Install Site Survey: Reporting dashboard + exports (within CRM Reports)
+- Added a new **"Site Surveys"** category to the existing CRM Reports suite (`CRMReports.js`) — reuses the standard ReportPanel (date-range chips, totals strip, **CSV export**), zero new UI framework.
+- Four report endpoints on the CRM reports router (`crm_reports.py`, org + site-scoped, dateable on created_at): `site-surveys-status` (by status, open/awaiting-customer counts), `site-surveys-manager` (per manager: surveys/ready/installed/high-risk), `site-surveys-high-risk` (one row per survey with a High/Critical risk, critical-first), `site-surveys-conversion` (funnel: created → approved-for-quote → approved-for-install → completed + survey-to-install rate %).
+- **Verified**: backend via curl (status/manager/high-risk/conversion all return correct aggregations on seeded data — e.g. 33.3% conversion, 2 high-risk incl. 1 critical); frontend via screenshot (all 4 render under the Site Surveys category with date filters + CSV export). Fixed a `_date_range` returns-strings bug during testing.
+- Note: CSV export is provided by ReportPanel; Excel/PDF exports remain backlog.
+
+
+
 ## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 4/4): Offline mobile drafts — PHASE 2 COMPLETE
 - Frontend-only (`PreInstallSurveys.js`, SurveyEditor). Every edit is cached to `localStorage` (`pis_survey_draft_<id>` = {data, savedAt, dirty}) so work survives reload / poor signal. Header sync badge cycles Synced → Unsaved → Offline·saved-on-device → Syncing. When a Save fails offline, the draft is kept locally with a "Saved on device — will sync when back online" toast (no error). `online`/`offline` listeners auto-sync the pending draft on reconnect (toast "Reconnected — your draft has been synced") and clear the local cache. On reopen, a dirty local draft raises a Restore/Discard banner. Attachment uploads are guarded offline (uploads require connectivity).
 - **Verified**: testing agent 7/7 offline-behaviour checks (localStorage persist, dirty→synced, offline save, restore prompt, reconnect auto-sync, offline upload guard) — 100%, zero issues.

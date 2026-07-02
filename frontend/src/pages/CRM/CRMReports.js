@@ -12,7 +12,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   BarChart3, PieChart, TrendingUp, AlertTriangle, Users, ShieldCheck, Layers,
-  Download, RefreshCw, Calendar,
+  Download, RefreshCw, Calendar, ClipboardList, ShieldAlert,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -27,6 +27,10 @@ const REPORTS = [
   { id: 'lost-reasons',          label: 'Lost Reasons',            category: 'Sales',      icon: AlertTriangle, dateable: true },
   { id: 'salesperson',           label: 'Salesperson Performance', category: 'Team',       icon: Users,        dateable: true },
   { id: 'consent-overview',      label: 'GDPR Consent',            category: 'Compliance', icon: ShieldCheck,  dateable: false },
+  { id: 'site-surveys-status',     label: 'Surveys by Status',        category: 'Site Surveys', icon: ClipboardList, dateable: true },
+  { id: 'site-surveys-manager',    label: 'Surveys by Manager',       category: 'Site Surveys', icon: Users,         dateable: true },
+  { id: 'site-surveys-high-risk',  label: 'High-Risk Installations',  category: 'Site Surveys', icon: ShieldAlert,   dateable: true },
+  { id: 'site-surveys-conversion', label: 'Survey → Install Conversion', category: 'Site Surveys', icon: TrendingUp, dateable: true },
 ];
 
 function downloadCSV(filename, rows) {
