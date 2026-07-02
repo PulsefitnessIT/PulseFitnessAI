@@ -262,7 +262,7 @@ const CardShareBox = () => {
           </button>
           <button
             type="button"
-            onClick={() => downloadAsset(svgUrl, `gymaxis-qr-${info.slug}.svg`)}
+            onClick={() => downloadAsset(svgUrl, `pulse-fitness-qr-${info.slug}.svg`)}
             className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5"
             data-testid="inbox-download-svg"
           >
@@ -270,7 +270,7 @@ const CardShareBox = () => {
           </button>
           <button
             type="button"
-            onClick={() => downloadAsset(pdfUrl, `gymaxis-card-${info.slug}.pdf`)}
+            onClick={() => downloadAsset(pdfUrl, `pulse-fitness-card-${info.slug}.pdf`)}
             className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5"
             data-testid="inbox-download-pdf"
           >
