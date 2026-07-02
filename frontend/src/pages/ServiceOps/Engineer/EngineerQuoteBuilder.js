@@ -423,7 +423,7 @@ export default function EngineerQuoteBuilder() {
                 <button
                   type="button"
                   onClick={() => setShowEmail(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold shadow"
                   data-testid="quote-builder-send-btn"
                 >
                   <Send size={14} /> Send
@@ -820,7 +820,7 @@ export default function EngineerQuoteBuilder() {
                 type="button"
                 onClick={handleSend}
                 disabled={sending || !emailBody.to}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50"
                 data-testid="qb-email-send"
               >
                 {sending ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}

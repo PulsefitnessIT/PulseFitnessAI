@@ -261,7 +261,7 @@ export default function EngineerInvoiceBuilder() {
                       setConnect({ ready: false, connected: false });
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold shadow"
                   data-testid="invoice-builder-send-btn"
                 >
                   <Send size={14} /> Send
@@ -482,7 +482,7 @@ export default function EngineerInvoiceBuilder() {
             <textarea className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white mb-4" rows={3} value={emailBody.message} onChange={e => setEmailBody(b => ({ ...b, message: e.target.value }))} data-testid="ib-email-message" />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowEmail(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-bold" data-testid="ib-email-cancel">Cancel</button>
-              <button onClick={handleSend} disabled={sending || !emailBody.to} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="ib-email-send">
+              <button onClick={handleSend} disabled={sending || !emailBody.to} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50" data-testid="ib-email-send">
                 {sending ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
                 Send
               </button>

@@ -193,7 +193,7 @@ function DocRow({ kind, blob, onUpload }) {
             <p className="text-[10px] text-zinc-500">Files run an AI check on upload — but a human always signs off before you're listed as verified.</p>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => { setOpen(false); setFields({}); setFile(null); }} className="px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 rounded" data-testid={`compliance-cancel-${kind}`}>Cancel</button>
-              <button type="submit" disabled={busy} className="px-3 py-1.5 text-xs font-bold text-white rounded inline-flex items-center gap-1.5 disabled:opacity-50" style={{ background: 'var(--color-brand-blue, #0055FF)' }} data-testid={`compliance-save-${kind}`}>
+              <button type="submit" disabled={busy} className="px-3 py-1.5 text-xs font-bold text-white rounded inline-flex items-center gap-1.5 disabled:opacity-50" style={{ background: '#0891b2' }} data-testid={`compliance-save-${kind}`}>
                 {busy ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                 {busy ? 'Uploading…' : 'Save'}
               </button>

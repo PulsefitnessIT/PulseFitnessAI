@@ -529,7 +529,7 @@ export default function EngineerCustomers() {
           <button
             type="button"
             onClick={openNew}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-xs font-bold shadow"
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-xs font-bold shadow"
             data-testid="customers-new-btn"
           >
             <Plus size={14} /> New
@@ -564,7 +564,7 @@ export default function EngineerCustomers() {
             <button
               type="button"
               onClick={openNew}
-              className="mt-4 inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold"
+              className="mt-4 inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold"
               data-testid="customers-empty-cta"
             >
               <Plus size={14} /> Add customer
@@ -714,7 +714,7 @@ export default function EngineerCustomers() {
                       <button
                         type="button"
                         onClick={() => handleUseInQuote(row)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-xs font-bold"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-xs font-bold"
                         data-testid={`customer-use-quote-${row.id}`}
                       >
                         <FileText size={12} /> Use in quote
@@ -1009,7 +1009,7 @@ export default function EngineerCustomers() {
                   type="button"
                   onClick={save}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50"
                   data-testid="customer-form-save"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}

@@ -25,7 +25,7 @@ import EngineerAccessGate from './EngineerAccessGate';
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
-const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#1d4ed8', p4: '#6b7280' };
+const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#0891b2', p4: '#6b7280' };
 
 function fmtRelative(iso) {
   if (!iso) return '—';
@@ -159,7 +159,7 @@ export default function EngineerHome() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>Service Ops · Engineer</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#0891b2' }}>Service Ops · Engineer</p>
             <h1 className="text-xl font-extrabold truncate" style={{ color: 'var(--theme-text)' }} data-testid="engineer-greeting">
               {me?.engineer?.full_name ? `Hi, ${me.engineer.full_name.split(' ')[0]}` : 'Field engineer'}
             </h1>
@@ -204,9 +204,9 @@ export default function EngineerHome() {
               onClick={() => setTab(t.id)}
               className="px-3 py-1.5 rounded-full text-xs font-bold"
               style={{
-                background: tab === t.id ? 'var(--color-brand-blue, #1d4ed8)' : 'transparent',
+                background: tab === t.id ? '#0891b2' : 'transparent',
                 color: tab === t.id ? '#fff' : 'var(--theme-text)',
-                border: `1px solid ${tab === t.id ? 'var(--color-brand-blue, #1d4ed8)' : 'var(--theme-border)'}`,
+                border: `1px solid ${tab === t.id ? '#0891b2' : 'var(--theme-border)'}`,
               }}
               data-testid={`engineer-tab-${t.id}`}
             >
@@ -306,7 +306,7 @@ export default function EngineerHome() {
               </div>
               <div className="mt-3 flex items-center justify-between text-[11px] opacity-60">
                 <span>{j.estimated_minutes ? `~${j.estimated_minutes} min` : 'unsized'}</span>
-                <span className="inline-flex items-center gap-1 font-bold" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>
+                <span className="inline-flex items-center gap-1 font-bold" style={{ color: '#0891b2' }}>
                   Open <ChevronRight size={12} />
                 </span>
               </div>

@@ -197,7 +197,7 @@ function StatusCard({ status, onConnect, onContinue, onDashboard, onboarding, da
     return (
       <div
         className="rounded-2xl p-6 text-white shadow-md"
-        style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #6366f1 60%, #8b5cf6 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 60%, #0e7490 100%)' }}
         data-testid="payouts-state-not-connected"
       >
         <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">Stripe · Not connected</p>

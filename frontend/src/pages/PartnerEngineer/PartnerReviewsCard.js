@@ -103,7 +103,7 @@ function ReviewItem({ review, onRespond }) {
                   onClick={save}
                   disabled={busy || !text.trim()}
                   className="px-2.5 py-1 text-[11px] font-bold text-white rounded disabled:opacity-50"
-                  style={{ background: 'var(--color-brand-blue, #0055FF)' }}
+                  style={{ background: '#0891b2' }}
                   data-testid={`review-save-response-${review.id}`}
                 >
                   {busy ? 'Saving…' : 'Save response'}

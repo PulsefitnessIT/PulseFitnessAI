@@ -12,7 +12,7 @@ import {
 
 const REASON_CONFIG = {
   needs_application: {
-    icon: ClipboardEdit, color: '#7c3aed',
+    icon: ClipboardEdit, color: '#0e7490',
     title: 'Apply to the Partner Engineer Network',
     sub:   'Take jobs through the Engineer App and earn commission on every gym you refer.',
     cta:   { label: 'Apply now', to: '/partners/engineers/apply' },
@@ -36,7 +36,7 @@ const REASON_CONFIG = {
     cta:   null,
   },
   needs_subscription: {
-    icon: CreditCard, color: '#7c3aed',
+    icon: CreditCard, color: '#0e7490',
     title: 'Activate the Engineer App',
     sub:   'Start the £30/mo Partner Engineer Plan to unlock the Engineer App. Auto-discounts: £15/mo at 5 active referrals · free at 10+.',
     cta:   { label: 'Start subscription', to: '/partner-engineer' },

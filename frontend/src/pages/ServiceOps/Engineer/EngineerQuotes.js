@@ -109,7 +109,7 @@ export default function EngineerQuotes() {
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/quotes/new')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow hover:shadow-md transition-shadow"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold shadow hover:shadow-md transition-shadow"
               data-testid="engineer-quotes-new-btn"
             >
               <Plus size={16} /> New quote

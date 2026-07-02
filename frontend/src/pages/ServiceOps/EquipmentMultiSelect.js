@@ -68,7 +68,7 @@ export default function EquipmentMultiSelect({ value = [], onChange }) {
           <span
             key={`${e.id || 'manual'}-${i}`}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
-            style={{ background: 'var(--color-brand-blue-tint, #dbeafe)', color: 'var(--color-brand-blue, #1d4ed8)' }}
+            style={{ background: '#cffafe', color: '#0891b2' }}
             data-testid={`equipment-chip-${i}`}
           >
             {e.name || 'Equipment'}{e.serial ? ` · ${e.serial}` : ''}

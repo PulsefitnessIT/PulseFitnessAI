@@ -38,7 +38,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#1d4ed8', testid, right, disabled, danger }) => (
+const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#0891b2', testid, right, disabled, danger }) => (
   <button
     type="button"
     onClick={onClick}
@@ -252,7 +252,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Partner Engineer</p>
             <Row
               icon={Sparkles}
-              accent="#7c3aed"
+              accent="#0e7490"
               title={
                 partnerLoading
                   ? 'Loading your plan…'
@@ -295,7 +295,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Payouts</p>
             <Row
               icon={CreditCard}
-              accent="#7c3aed"
+              accent="#0e7490"
               title={
                 stripeReady
                   ? 'Stripe connected'
@@ -326,7 +326,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <div className="space-y-2">
               <Row
                 icon={Upload}
-                accent="#1d4ed8"
+                accent="#0891b2"
                 title={importing ? 'Importing customers…' : 'Import customers from CSV'}
                 subtitle="Bulk-add or merge customer records from a CSV file."
                 onClick={handleImportClick}
@@ -406,7 +406,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               />
               <Row
                 icon={Upload}
-                accent="#1d4ed8"
+                accent="#0891b2"
                 title="Import parts"
                 subtitle="Bulk-add or update parts from a CSV / Excel spreadsheet."
                 onClick={() => { onClose(); navigate('/svc/engineer/catalogue?import=1'); }}
@@ -424,7 +424,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Tools</p>
             <Row
               icon={Wand2}
-              accent="#7c3aed"
+              accent="#0e7490"
               title="Import legacy reports"
               subtitle="Turn old PDFs/spreadsheets into branded service reports with AI."
               onClick={() => { onClose(); navigate('/svc/engineer/legacy-import'); }}
@@ -446,7 +446,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             />
             <Row
               icon={Sliders}
-              accent="#7c3aed"
+              accent="#0e7490"
               title="Custom report fields"
               subtitle="Add machine-specific questions (e.g. Drag Factor, Current Software)."
               onClick={() => { onClose(); navigate('/svc/engineer/work-report-fields'); }}

@@ -14,20 +14,20 @@
 .svc-root,
 .svc-drawer-overlay,
 .svc-modal-overlay {
-  /* Brand gradient end-stops used in headers, KPIs, hover states */
-  --svc-gradient-from: var(--color-brand-blue, #0055ff);
-  --svc-gradient-to:   var(--color-accent-violet, #8b5cf6);
-  --svc-accent:        var(--color-brand-blue, #0055ff);
-  --svc-accent-soft:   rgba(0, 85, 255, 0.10);
+  /* Pulse Fitness brand — Core Blue cyan + subtle deep-cyan/teal secondary */
+  --svc-gradient-from: #19CDFF;
+  --svc-gradient-to:   #0BB0DD;
+  --svc-accent:        #19CDFF;
+  --svc-accent-soft:   rgba(25, 205, 255, 0.10);
   --svc-success:       var(--color-success, #10b981);
   --svc-warn:          var(--color-warning, #f59e0b);
   --svc-danger:        var(--color-danger, #ef4444);
-  --svc-violet:        var(--color-accent-violet, #8b5cf6);
+  --svc-violet:        #0891b2;
 
   --svc-card:          var(--theme-surface, #ffffff);
   --svc-card-elev:     var(--theme-surface-hover, #f4f4f5);
   --svc-border:        var(--theme-border, #e4e4e7);
-  --svc-border-strong: rgba(0, 85, 255, 0.18);
+  --svc-border-strong: rgba(25, 205, 255, 0.18);
   --svc-text:          var(--theme-text, #18181b);
   --svc-muted:         var(--theme-text-muted, #52525b);
 
@@ -35,7 +35,7 @@
   --svc-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
   --svc-shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.10);
 
-  font-family: 'Proxima Nova', 'Satoshi', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Proxima Nova', 'Maax Rounded', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--svc-text);
 }
 
@@ -77,7 +77,7 @@
   padding: 22px 24px;
   border: 1px solid var(--svc-border);
   background:
-    linear-gradient(135deg, rgba(0, 85, 255, 0.08) 0%, rgba(139, 92, 246, 0.06) 60%, transparent 100%),
+    linear-gradient(135deg, rgba(25, 205, 255, 0.08) 0%, rgba(11, 176, 221, 0.06) 60%, transparent 100%),
     var(--svc-card);
   box-shadow: var(--svc-shadow-sm);
 }
@@ -92,7 +92,7 @@
 [data-theme="dark"] .svc-hero {
   background:
     radial-gradient(80% 120% at 0% 0%, rgba(102, 204, 255, 0.10) 0%, transparent 50%),
-    radial-gradient(60% 100% at 100% 0%, rgba(153, 102, 255, 0.10) 0%, transparent 50%),
+    radial-gradient(60% 100% at 100% 0%, rgba(11, 176, 221, 0.10) 0%, transparent 50%),
     var(--svc-card);
 }
 
@@ -112,7 +112,7 @@
 }
 
 .svc-h1 {
-  font-family: 'Proxima Nova', 'Satoshi', 'Inter', system-ui, sans-serif;
+  font-family: 'Proxima Nova', 'Maax Rounded', 'Inter', system-ui, sans-serif;
   font-size: clamp(22px, 2.4vw, 30px);
   line-height: 1.15;
   font-weight: 900;
@@ -180,7 +180,7 @@
 .svc-nav-pill--active {
   color: #fff;
   background: linear-gradient(135deg, var(--svc-gradient-from), var(--svc-gradient-to));
-  box-shadow: 0 6px 20px -8px rgba(0, 85, 255, 0.55);
+  box-shadow: 0 6px 20px -8px rgba(25, 205, 255, 0.55);
 }
 .svc-nav-pill--active:hover { color: #fff; }
 .svc-nav-pill--cta {
@@ -261,7 +261,7 @@
   color: var(--svc-muted);
 }
 .svc-kpi-value {
-  font-family: 'Proxima Nova', 'Satoshi', 'Inter', system-ui, sans-serif;
+  font-family: 'Proxima Nova', 'Maax Rounded', 'Inter', system-ui, sans-serif;
   font-size: 28px;
   font-weight: 900;
   line-height: 1.1;
@@ -337,11 +337,11 @@
 .svc-btn-primary {
   color: #fff;
   background: linear-gradient(135deg, var(--svc-gradient-from), var(--svc-gradient-to));
-  box-shadow: 0 8px 22px -10px rgba(0, 85, 255, 0.55);
+  box-shadow: 0 8px 22px -10px rgba(25, 205, 255, 0.55);
 }
 .svc-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px -10px rgba(0, 85, 255, 0.7);
+  box-shadow: 0 12px 28px -10px rgba(25, 205, 255, 0.7);
 }
 /* Iter 216az — reset the hover lift while pressed so the click target
  * doesn't shift out from under the cursor mid-click. */
@@ -455,14 +455,14 @@
 .svc-pill--good   { background: rgba(16, 185, 129, 0.12); color: #047857; }
 .svc-pill--warn   { background: rgba(245, 158, 11, 0.14); color: #b45309; }
 .svc-pill--danger { background: rgba(239, 68, 68, 0.13); color: #b91c1c; }
-.svc-pill--info   { background: rgba(0, 85, 255, 0.12);  color: #1d4ed8; }
-.svc-pill--violet { background: rgba(139, 92, 246, 0.13); color: #6d28d9; }
+.svc-pill--info   { background: rgba(25, 205, 255, 0.12);  color: #0E7490; }
+.svc-pill--violet { background: rgba(11, 176, 221, 0.13); color: #0E7490; }
 
 [data-theme="dark"] .svc-pill--good   { color: #34d399; }
 [data-theme="dark"] .svc-pill--warn   { color: #fbbf24; }
 [data-theme="dark"] .svc-pill--danger { color: #f87171; }
 [data-theme="dark"] .svc-pill--info   { color: #60a5fa; }
-[data-theme="dark"] .svc-pill--violet { color: #a78bfa; }
+[data-theme="dark"] .svc-pill--violet { color: #66CCFF; }
 
 /* Priority chips */
 .svc-prio {
@@ -473,7 +473,7 @@
 }
 .svc-prio--p1 { background: rgba(239, 68, 68, 0.14); color: #b91c1c; }
 .svc-prio--p2 { background: rgba(245, 158, 11, 0.16); color: #b45309; }
-.svc-prio--p3 { background: rgba(0, 85, 255, 0.14);  color: #1d4ed8; }
+.svc-prio--p3 { background: rgba(25, 205, 255, 0.14);  color: #0E7490; }
 .svc-prio--p4 { background: rgba(82, 82, 91, 0.14);  color: #52525b; }
 [data-theme="dark"] .svc-prio--p1 { color: #fca5a5; }
 [data-theme="dark"] .svc-prio--p2 { color: #fcd34d; }
@@ -597,7 +597,7 @@
   padding: 18px 22px;
   border-bottom: 1px solid var(--svc-border);
   background:
-    linear-gradient(135deg, rgba(0, 85, 255, 0.06) 0%, rgba(139, 92, 246, 0.05) 60%, transparent 100%),
+    linear-gradient(135deg, rgba(25, 205, 255, 0.06) 0%, rgba(11, 176, 221, 0.05) 60%, transparent 100%),
     var(--svc-card);
 }
 .svc-drawer-head::before {
@@ -709,7 +709,7 @@
   border-radius: 12px;
   padding: 14px 14px 12px;
   background:
-    linear-gradient(135deg, rgba(0, 85, 255, 0.07) 0%, rgba(139, 92, 246, 0.06) 100%),
+    linear-gradient(135deg, rgba(25, 205, 255, 0.07) 0%, rgba(11, 176, 221, 0.06) 100%),
     var(--svc-card);
   overflow: hidden;
 }

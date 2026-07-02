@@ -67,11 +67,11 @@ function SiteContactCard({ reporter, site, organizationName, token, jobRef, issu
  if (!value) return null;
  return (
  <div className="flex items-start gap-2.5 py-1.5" data-testid={testId}>
- <Icon size={13} className="text-[var(--color-brand-blue)] flex-shrink-0 mt-0.5" />
+ <Icon size={13} className="text-[#0891b2] flex-shrink-0 mt-0.5" />
  <div className="flex-1 min-w-0">
  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{label}</p>
  {href ? (
- <a href={href} className="text-zinc-900 text-sm hover:text-[var(--color-brand-blue)] break-words">{value}</a>
+ <a href={href} className="text-zinc-900 text-sm hover:text-[#0891b2] break-words">{value}</a>
  ) : (
  <p className="text-zinc-800 text-sm break-words">{value}</p>
  )}
@@ -83,7 +83,7 @@ function SiteContactCard({ reporter, site, organizationName, token, jobRef, issu
  return (
  <Card className="bg-white border-zinc-200 p-5" data-testid="site-contact-card">
  <h2 className="text-zinc-900 font-semibold text-lg mb-3 flex items-center gap-2">
- <ContactRound size={18} className="text-[var(--color-brand-blue)]" /> Gym &amp; Reporter Contact
+ <ContactRound size={18} className="text-[#0891b2]" /> Gym &amp; Reporter Contact
  </h2>
 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -143,7 +143,7 @@ function SiteContactCard({ reporter, site, organizationName, token, jobRef, issu
  <div className="flex flex-wrap gap-2">
  <Button
  size="sm" onClick={handleCopyTicket} disabled={copying}
- className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-alt2)] text-white h-8 text-xs"
+ className="bg-[#0891b2] hover:bg-[#0e7490] text-white h-8 text-xs"
  data-testid="sup-case-copy-summary"
  >
  {copying ? <Loader2 size={12} className="animate-spin mr-1" /> : <Copy size={12} className="mr-1" />}
@@ -227,7 +227,7 @@ function CommentsSection({ token, comments, onRefresh, caseData, isGymViewer }) 
  return (
  <Card className="bg-white border-zinc-200 p-0 overflow-hidden" data-testid="comments-section">
  <div className="px-6 py-4 border-b border-zinc-100 flex items-center gap-2">
- <MessageCircle size={18} className="text-[var(--color-brand-blue)]" />
+ <MessageCircle size={18} className="text-[#0891b2]" />
  <h2 className="text-zinc-900 font-semibold text-lg">Messages</h2>
  <span className="text-zinc-500 text-sm ml-1">({comments.length})</span>
  </div>
@@ -564,7 +564,7 @@ const SupplierCasePage = () => {
  return 'text-green-400 bg-green-500/10 border-green-500/30';
  };
 
- if (loading) return <div className="min-h-screen bg-zinc-50 flex items-center justify-center"><Loader2 size={32} className="text-[var(--color-brand-blue)] animate-spin" /></div>;
+ if (loading) return <div className="min-h-screen bg-zinc-50 flex items-center justify-center"><Loader2 size={32} className="text-[#0891b2] animate-spin" /></div>;
 
  if (error) {
  return (
@@ -586,7 +586,7 @@ const SupplierCasePage = () => {
  const isGymViewer = typeof window !== 'undefined' && Boolean(localStorage.getItem('token'));
 
  // Build a custom gradient from the org brand colour (falls back to the default Pulse/Pulse Fitness blue)
- const primary = brand_color || 'var(--color-brand-blue)';
+ const primary = brand_color || '#0891b2';
  const shade = (hex, amt) => {
  try {
  const h = hex.replace('#', '');
@@ -657,7 +657,7 @@ const SupplierCasePage = () => {
  {/* Fault Details */}
  <Card className="bg-white border-zinc-200 p-5" data-testid="fault-details-card">
  <h2 className="text-zinc-900 font-semibold text-lg mb-4 flex items-center gap-2">
- <Wrench size={18} className="text-[var(--color-brand-blue)]" /> Fault Details
+ <Wrench size={18} className="text-[#0891b2]" /> Fault Details
  {job_ref && (
  <span
  className="ml-2 inline-flex items-center text-[11px] font-mono tracking-wider px-2 py-0.5 rounded border border-zinc-200 bg-zinc-50 text-zinc-500"
@@ -755,7 +755,7 @@ const SupplierCasePage = () => {
  {/* Equipment */}
  {equipment && (
  <Card className="bg-white border-zinc-200 p-5" data-testid="equipment-info-card">
- <h2 className="text-zinc-900 font-semibold text-lg mb-3 flex items-center gap-2"><Shield size={18} className="text-[var(--color-brand-blue)]" /> Equipment</h2>
+ <h2 className="text-zinc-900 font-semibold text-lg mb-3 flex items-center gap-2"><Shield size={18} className="text-[#0891b2]" /> Equipment</h2>
  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
  {equipment.name && <div><p className="text-zinc-500 text-[10px] uppercase">Name</p><p className="text-zinc-900">{equipment.name}</p></div>}
  {equipment.manufacturer && <div><p className="text-zinc-500 text-[10px] uppercase">Manufacturer</p><p className="text-zinc-900">{equipment.manufacturer}</p></div>}
@@ -769,7 +769,7 @@ const SupplierCasePage = () => {
  {/* Photos & Videos from fault */}
  {media && media.length > 0 && (
  <Card className="bg-white border-zinc-200 p-5" data-testid="media-card">
- <h2 className="text-zinc-900 font-semibold text-lg mb-3 flex items-center gap-2"><Image size={18} className="text-[var(--color-brand-blue)]" /> Fault Photos & Videos</h2>
+ <h2 className="text-zinc-900 font-semibold text-lg mb-3 flex items-center gap-2"><Image size={18} className="text-[#0891b2]" /> Fault Photos & Videos</h2>
  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
  {media.map((item, idx) => (
  <div key={idx} className="rounded-lg overflow-hidden bg-zinc-50 border border-zinc-200">
@@ -794,7 +794,7 @@ const SupplierCasePage = () => {
  <Card className="bg-white border-zinc-200 p-5" data-testid="status-history-card">
  <button className="w-full flex items-center justify-between text-left" onClick={() => setShowHistory(!showHistory)}>
  <h2 className="text-zinc-900 font-semibold text-base flex items-center gap-2">
- <Clock size={16} className="text-[var(--color-brand-blue)]" /> Status History ({status_history.length})
+ <Clock size={16} className="text-[#0891b2]" /> Status History ({status_history.length})
  </h2>
  {showHistory ? <ChevronUp size={16} className="text-zinc-500" /> : <ChevronDown size={16} className="text-zinc-500" />}
  </button>
@@ -802,7 +802,7 @@ const SupplierCasePage = () => {
  <div className="mt-3 space-y-2">
  {status_history.map((entry, idx) => (
  <div key={idx} className="flex gap-3 p-3 bg-zinc-50 rounded-lg border border-zinc-100">
- <div className="w-2 h-2 rounded-full bg-[var(--color-brand-blue)] mt-1.5 flex-shrink-0" />
+ <div className="w-2 h-2 rounded-full bg-[#0891b2] mt-1.5 flex-shrink-0" />
  <div className="flex-1">
  <div className="flex items-center gap-2 mb-0.5">{getStatusBadge(entry.status)} <span className="text-zinc-400 text-[10px]">{entry.updated_at ? new Date(entry.updated_at).toLocaleString('en-GB') : ''}</span></div>
  {entry.engineer_name && <p className="text-zinc-800 text-xs">Engineer: {entry.engineer_name}</p>}
@@ -821,7 +821,7 @@ const SupplierCasePage = () => {
  <Card className="bg-white border-zinc-200 p-5" data-testid="update-status-card">
  {!showUpdateForm ? (
  <div className="text-center">
- <Button onClick={() => setShowUpdateForm(true)} className="bg-[var(--color-brand-blue)] text-white px-8" data-testid="show-update-btn">
+ <Button onClick={() => setShowUpdateForm(true)} className="bg-[#0891b2] text-white px-8" data-testid="show-update-btn">
  Update Case Status
  </Button>
  </div>
@@ -842,7 +842,7 @@ const SupplierCasePage = () => {
  )}
  <div><Label className="text-zinc-800 text-sm">Notes</Label><Textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} placeholder="Additional notes..." rows={2} className="bg-zinc-50 border-zinc-200 text-zinc-900 mt-1" data-testid="notes-input" /></div>
  <div className="flex gap-3">
- <Button onClick={handleUpdate} disabled={updating || !formData.status} className="bg-[var(--color-brand-blue)] text-white flex-1" data-testid="submit-update-btn">
+ <Button onClick={handleUpdate} disabled={updating || !formData.status} className="bg-[#0891b2] text-white flex-1" data-testid="submit-update-btn">
  {updating ? <Loader2 size={16} className="animate-spin mr-2" /> : null}{updating ? 'Updating...' : 'Submit Update'}
  </Button>
  <Button variant="outline" onClick={() => setShowUpdateForm(false)} className="border-zinc-200 text-zinc-500">Cancel</Button>

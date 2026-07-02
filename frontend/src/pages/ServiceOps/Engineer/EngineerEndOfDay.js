@@ -34,7 +34,7 @@ function Stat({ icon: Icon, label, value, sub, accent, testid }) {
       data-testid={testid}
     >
       <div className="flex items-center justify-between mb-2">
-        <Icon size={14} style={{ color: accent || '#1d4ed8' }} />
+        <Icon size={14} style={{ color: accent || '#0891b2' }} />
       </div>
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
         {label}
@@ -128,14 +128,14 @@ export default function EngineerEndOfDay() {
                 label="Hours total"
                 value={`${data.hours_total}h`}
                 sub={`On-site ${data.hours_on_site}h · Travel ${data.hours_travel}h · Admin ${data.hours_admin}h`}
-                accent="#1d4ed8"
+                accent="#0891b2"
                 testid="eod-hours"
               />
               <Stat
                 icon={MapPin}
                 label="Miles driven"
                 value={`${data.miles} mi`}
-                accent="#6366f1"
+                accent="#0e7490"
                 testid="eod-miles"
               />
               <Stat
@@ -178,8 +178,8 @@ export default function EngineerEndOfDay() {
               </p>
               <div className="space-y-2">
                 {[
-                  { k: 'on_site', label: 'On site',    accent: '#1d4ed8' },
-                  { k: 'travel',  label: 'Travel',     accent: '#6366f1' },
+                  { k: 'on_site', label: 'On site',    accent: '#0891b2' },
+                  { k: 'travel',  label: 'Travel',     accent: '#0e7490' },
                   { k: 'admin',   label: 'Admin',      accent: '#64748b' },
                 ].map(({ k, label, accent }) => {
                   const mins = data.minutes_by_category?.[k] || 0;

@@ -95,7 +95,7 @@ export default function PartnerEngineerReferralCard() {
                 data-testid="eref-share-link">{share_link}</span>
           <button type="button" onClick={copy}
                   className="px-2 py-1 text-[11px] font-bold text-white rounded inline-flex items-center gap-1"
-                  style={{ background: 'var(--color-brand-blue, #0055FF)' }}
+                  style={{ background: '#0891b2' }}
                   data-testid="eref-copy-btn">
             <Copy size={11} /> Copy
           </button>

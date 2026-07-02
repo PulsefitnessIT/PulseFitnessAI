@@ -745,8 +745,8 @@ export default function EngineerQueue() {
                   : 'bg-white border text-slate-700 hover:bg-slate-50'
               }`}
               style={viewMode === 'my-gyms'
-                ? { background: 'linear-gradient(135deg, #2563EB 0%, #9D4CDD 100%)' }
-                : { borderColor: '#9D4CDD33' }
+                ? { background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' }
+                : { borderColor: '#0e749033' }
               }
               data-testid="queue-view-my-gyms"
               title="Faults from gyms where you're the auto-dispatched supplier"

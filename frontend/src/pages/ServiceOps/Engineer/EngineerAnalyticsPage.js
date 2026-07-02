@@ -131,7 +131,7 @@ export default function EngineerAnalyticsPage() {
                   key={r.id}
                   onClick={() => setRange(r.id)}
                   className={`px-3 py-2 rounded-lg text-xs font-bold transition ${
-                    on ? 'bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white' : 'text-slate-600 hover:bg-slate-50'
+                    on ? 'bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white' : 'text-slate-600 hover:bg-slate-50'
                   }`}
                   data-testid={`analytics-range-${r.id}`}
                 >

@@ -80,7 +80,7 @@ export default function AssetReadingSparkline({ points, currentValue, testid }) 
             cx={x}
             cy={y}
             r={i === pts.length - 1 && live !== null ? 2.5 : 1.5}
-            fill={i === pts.length - 1 && live !== null ? '#1d4ed8' : stroke}
+            fill={i === pts.length - 1 && live !== null ? '#0891b2' : stroke}
           />
         ))}
       </svg>

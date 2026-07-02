@@ -135,7 +135,7 @@ export default function PartnerAvailabilityCard({ partner, onChanged }) {
                 onClick={() => save()}
                 disabled={busy}
                 className="px-2.5 py-1 text-[11px] font-bold text-white rounded disabled:opacity-50 inline-flex items-center gap-1"
-                style={{ background: 'var(--color-brand-blue, #0055FF)' }}
+                style={{ background: '#0891b2' }}
                 data-testid="partner-availability-save"
               >
                 {busy ? <Loader2 size={11} className="animate-spin" /> : <AlertTriangle size={11} />} Save details

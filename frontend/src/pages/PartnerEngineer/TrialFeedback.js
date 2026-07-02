@@ -129,7 +129,7 @@ export default function TrialFeedback() {
             <div className="space-y-2.5">
               <button type="button" onClick={() => submit(true)} disabled={submitting}
                 className="w-full rounded-xl py-3 font-black text-white inline-flex items-center justify-center gap-2 disabled:opacity-60"
-                style={{ background: 'linear-gradient(90deg,#2563EB,#9D4CDD)' }}
+                style={{ background: 'linear-gradient(90deg,#0891b2,#0e7490)' }}
                 data-testid="trial-feedback-continue">
                 {submitting && decision === 'accept' ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />}
                 Continue on the plan
