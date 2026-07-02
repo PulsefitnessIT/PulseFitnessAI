@@ -1,6 +1,15 @@
 # Changelog
 
 
+## Jul 2, 2026 — Pre-Install Site Survey (CRM Corporate) — Phase 1
+Structured pre-installation survey built into the CRM, attached to EXISTING company + site records (no duplication), linking to opportunity/quote/project/service-job.
+- **Backend** (`routes/crm_site_surveys.py` + `_schema.py`, `utils/survey_pdf.py`): schema-driven survey (22 sections incl. rooms/access/power/network/flooring/walls/ceiling/equipment/risks etc.), 15 types, 12 statuses + history, 15-point Installation Readiness check with **manager-override guard** on "Approved for Installation", version supersede (no deletes), immutable audit trail, attachments (upload/download/delete), and a **branded Installation Handover PDF** (Core Blue/Soft Black). Collections: `pre_install_site_surveys` (+ attachments/versions/audit/settings).
+- **Frontend** (`pages/CRM/PreInstallSurveys.js`): list + full schema-driven editor (section nav, repeatable rooms/risks/equipment, live readiness panel, status workflow w/ override modal, attachments, handover-PDF download, audit modal). **Replaces** the old Company "Site Surveys" file-upload tab.
+- **Verified**: testing agent backend 8/8 (100%) + frontend Playwright (100%), zero issues. Creds: CRM owner@isodemo.com / IsoDemo123!.
+- **Phase 2+ (deferred):** AI summaries/risk-flagging, customer portal, offline mobile, version-diff UI, email notifications, calendar/tasks, reporting dashboard, Master-Admin template builder, dedicated Site-record page tab, deep-link surfacing in Opportunities/Quotes/Projects/Service Desk/Engineer app. Attachments are base64-in-Mongo (flag for object storage).
+
+
+
 ## Jul 2, 2026 — Branded favicon/OG image + Operations site-scope migration
 - **Brand assets:** regenerated favicon (Pulse mark on Soft Black `#1B1C1D`, Core Blue `#19CDFF`) at all sizes + `favicon.ico`/`apple-touch-icon`, and a new 1200×630 OG social image (`brand/og-cover.jpg`) with the real Pulse logo + Proxima Nova. Aligned `theme-color`/manifests/PWA data-URI icons to brand. Regen script: `scripts/gen_brand_assets.py`. Both verified rendering on preview.
 - **Operations site-scope migration (P3):** retired legacy `apply_site_lock` for routes — Operations/Equipment now use the same ContextVar `build_site_filter` engine as Memberships/CRM/Marketing (via `mod_scope.resolve_mod_query_filter`'s non-MOD branch; MOD-HQ branch unchanged). Managers with `allowed_site_ids` are now correctly site-locked in Operations. Migrated `issues.py`, `reports.py`. Verified via curl e2e (owner sees both sites; manager sees only Site A; 403 on disallowed site for equipment + reports). `apply_site_lock` unit test 11/11 green.

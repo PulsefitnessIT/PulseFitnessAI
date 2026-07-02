@@ -1,3 +1,49 @@
+# ═══ 2026-07-02 · FEATURE (PHASE 1) · Pre-Install Site Survey in CRM Corporate (VERIFIED 100% backend + frontend) ═══
+User: build a structured Pre-Install Site Survey inside the existing CRM against company + site records — no
+duplicate records, link to existing company/site/opportunity/quote/project/service-job. User confirmed: Phase 1
+backbone now (AI/portal/notifications/reporting = Phase 2+); REPLACE the old Company "Site Surveys" file tab;
+link to existing records; Pulse branding for the handover PDF.
+
+DELIVERED & VERIFIED (testing agent: backend 8/8 pytest 100%, frontend Playwright 100%, zero issues):
+- Backend `routes/crm_site_surveys.py` (prefix `/api/crm/site-surveys`, auth `get_crm_user`, org+site RBAC via
+  `_of`/effective_site_filter). Collections: `pre_install_site_surveys` (one doc, nested section data),
+  `pre_install_survey_attachments` (base64), `pre_install_survey_versions`, `pre_install_survey_audit`,
+  `pre_install_survey_settings`. Endpoints: GET /schema, GET/PUT /settings, GET /summary, GET/POST (list/create),
+  GET/PUT /{id}, POST /{id}/status, POST /{id}/supersede, GET /{id}/readiness, GET /{id}/audit, GET /{id}/versions,
+  attachments (POST/GET/download/DELETE), GET /{id}/handover (JSON) + /{id}/handover.pdf (branded PDF).
+- Schema-driven: `routes/crm_site_surveys_schema.py` holds SURVEY_SCHEMA (22 sections incl. all 25 spec areas,
+  repeatable rooms/equipment/risks/site_contacts/existing_equipment), 15 survey types, 12 statuses, 15 readiness
+  checks, CRITICAL_READINESS_KEYS, attachment categories. Frontend renders the form generically from this — add
+  fields here, no UI change.
+- Readiness engine + status guard: "Approved for Installation" is BLOCKED (400 critical_fields_missing) unless all
+  critical fields present OR a manager (approver role) records an override WITH a reason. High/Critical risk →
+  readiness "risks_need_review". Status history + immutable audit trail on every action. Supersede snapshots the
+  old version (never deletes) and opens a fresh v(n+1) draft.
+- Branded Installation Handover PDF `utils/survey_pdf.py` (reportlab, Core Blue #19CDFF / Soft Black #1B1C1D):
+  overview, actions-required, site/access, parking, power, network, flooring/walls/ceiling, rooms table, equipment
+  table, risks table, customer requirements, install notes, attachments list.
+- Frontend `pages/CRM/PreInstallSurveys.js` (list + SurveyEditor): create modal (site picker via /api/sites which
+  accepts the CRM token, survey type, priority, target date), section nav, schema-driven fields (text/textarea/
+  number+unit/select/boolean/date), repeatable-section add/remove, live Installation Readiness panel, status
+  change modal with override, attachments upload/list/download/delete, Handover-PDF download, Audit modal.
+  Registered in `route_registry/crm.py`. Wired into `CRMCompanies.js` (CompanyDetail "surveys" tab) — REPLACES the
+  old CompanyFileTab file uploader.
+- Test creds: CRM owner@isodemo.com / IsoDemo123!; linked records company_id=iso-cA, site_id=iso-demo-site-a.
+  Report: /app/test_reports/iteration_pre_install_surveys_jan2026.json.
+
+NOT in Phase 1 (accurate status): (a) There is NO dedicated CRM "Site record" detail page today (sites render as a
+list inside the company's Sites & Equipment tab), so the per-Site-record "Site Surveys" tab has nowhere to attach
+yet — the component already takes a `siteId` prop and the backend supports `?site_id=` scoping for when that page
+exists. (b) Deep-link surfacing in Opportunities/Quotes/Projects/Service Desk/Engineer app, customer portal input,
+offline mobile, version-diff UI, email notifications, calendar/task auto-creation, reporting dashboard + exports,
+and the Master-Admin template builder UI are all Phase 2+ (backend settings singleton + allow_pdf_export flag exist
+but have no settings UI yet). Attachments are base64-in-Mongo (25MB cap) — flag for object-storage migration.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-07-02 · BRAND ASSETS + REFACTOR · Branded favicon/OG image + Operations site-scope migration (VERIFIED) ═══
 Two user-approved items delivered this session.
 
