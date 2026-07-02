@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only e2e test of Phase 2 Pre-Install Site Survey AI Assist modal on public URL. Verified full flow: CRM login (owner@isodemo.com) → Companies → AlphaCo (Site A) → Site Surveys tab → Create survey (PIS-00002) → editor opens. Filled field-site_name (Site Details), field-delivery_entrance (Access), added a Room and a Risk with risk_level=High, clicked Save. Clicked survey-ai-btn → survey-ai-modal opened, showed loading spinner, then survey-ai-analyse-result (5.4KB) with Summary, Recommendation (\"not ready\"), Flagged risks and Missing information sections rendered correctly. survey-ai-tab-email → survey-ai-email-result rendered with Subject + Body + survey-ai-copy-email button. survey-ai-tab-briefing → survey-ai-briefing-result rendered with survey-ai-copy-briefing + survey-ai-insert-briefing buttons. 'advisory only' badge present in modal. Status badge remained 'Draft' before AND after AI interactions — AI is advisory-only and never mutated survey status. No non-CSP console errors. AI calls returned in <30s each. Note: initial run hit a transient 502 Cloudflare and a rate-limit-induced empty AlphaCo list on 2nd attempt within 5min window; passed cleanly on retry.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/ai_final.png"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PreInstallSurveys.js is now 545 lines with SurveyEditor + list + AI modal inline — consider splitting SurveyEditor and the AI modal into separate files/components for maintainability.",
+    "runAI() re-POSTs to the backend every time a tab is clicked (analyse/email/briefing switches all call runAI(mode)) even when the user re-clicks the currently-active tab — a small memoization keyed on {surveyId, mode} would avoid unnecessary LLM calls and cost.",
+    "insertBriefingToNotes() mutates local data via setData(merged) BEFORE the PUT resolves and doesn't revert on failure — a network failure will leave the UI showing notes the server didn't accept. Consider optimistic-with-rollback or wait for PUT then update.",
+    "runAI catch block returns {available:false, error: ...} but if backend returns a structured error (e.g., 403 with {detail:{message:...}}), the current `typeof aiResult.error === 'string'` guard falls back to 'AI is unavailable.' — user won't see the underlying reason (e.g., 'allow_ai_summaries disabled').",
+    "The AI modal's tab click currently re-triggers runAI even mid-load, which could stack requests. Consider disabling tab buttons while aiLoading is true."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! — 5 logins/5min IP rate limit (reuse token/session).",
+  "seed_data_creation": "Created survey PIS-00002 on AlphaCo (Site A) / iso-cA with 1 room, 1 High risk, site_name='TEST AI Site', delivery_entrance filled. Cleanup not required.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "AI Assist end-to-end flow verified in browser. Backend AI endpoints (/api/crm/site-surveys/{id}/ai/analyse|follow-up-email|briefing) return valid grounded JSON. Status badge is not modified by AI actions (advisory-only enforced). If retesting, note login rate limit (5/5min per IP) — reuse token; AI responses take ~5–15s each so use 60s timeouts on survey-ai-*-result selectors.",
+  "rca of the issue": "N/A — no bugs found in the AI Assist flow."
+}

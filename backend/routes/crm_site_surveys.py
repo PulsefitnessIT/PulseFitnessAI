@@ -669,3 +669,48 @@ async def get_handover_pdf(survey_id: str, user=Depends(get_crm_user)):
     fname = f"Installation_Handover_{doc.get('reference', 'survey')}.pdf"
     return Response(content=pdf_bytes, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+
+# ── AI assistant (advisory only — never writes to the survey) ───────
+
+async def _ai_enabled(user: dict):
+    settings = await _get_settings(user.get("organization_id"))
+    if not settings.get("allow_ai_summaries", True):
+        raise HTTPException(403, "AI summaries are disabled for this organisation")
+
+
+@router.post("/{survey_id}/ai/analyse")
+async def ai_analyse(survey_id: str, user=Depends(get_crm_user)):
+    await _ai_enabled(user)
+    doc = await _load(survey_id, user)
+    from utils.survey_ai import analyse_survey
+    result = await analyse_survey(doc, compute_readiness(doc))
+    if result.get("available"):
+        await _log_audit(survey_id, user, "ai_analysis_run",
+                         new={"missing": len(result.get("missing_information") or []),
+                              "risks": len(result.get("risks") or [])})
+    return result
+
+
+@router.post("/{survey_id}/ai/follow-up-email")
+async def ai_follow_up_email(survey_id: str, user=Depends(get_crm_user)):
+    await _ai_enabled(user)
+    doc = await _load(survey_id, user)
+    missing = compute_readiness(doc).get("critical_missing") or []
+    from utils.survey_ai import draft_follow_up_email
+    result = await draft_follow_up_email(doc, missing)
+    if result.get("available"):
+        await _log_audit(survey_id, user, "ai_followup_drafted")
+    return result
+
+
+@router.post("/{survey_id}/ai/briefing")
+async def ai_briefing(survey_id: str, user=Depends(get_crm_user)):
+    await _ai_enabled(user)
+    doc = await _load(survey_id, user)
+    from utils.survey_ai import draft_briefing
+    result = await draft_briefing(doc)
+    if result.get("available"):
+        await _log_audit(survey_id, user, "ai_briefing_drafted")
+    return result

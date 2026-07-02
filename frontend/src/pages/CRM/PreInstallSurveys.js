@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import {
   Plus, ArrowLeft, FileText, Upload, Download, Trash2, ShieldAlert,
   CheckCircle2, Circle, ClipboardList, History, AlertTriangle, Loader2, X,
+  Sparkles, ClipboardCopy,
 } from 'lucide-react';
 
 const REPEATABLE = { site_contacts: 'Contact', rooms: 'Room / Area', equipment: 'Equipment', existing_equipment: 'Existing item', risks: 'Risk' };
@@ -90,6 +91,10 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
   const [statusForm, setStatusForm] = useState({ status: '', reason: '', override: false });
   const [showAudit, setShowAudit] = useState(false);
   const [audit, setAudit] = useState([]);
+  const [showAI, setShowAI] = useState(false);
+  const [aiMode, setAiMode] = useState('analyse');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
 
   const load = useCallback(async () => {
     const res = await axios.get(`${API}/crm/site-surveys/${surveyId}`, { headers: headers() });
@@ -162,6 +167,26 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
     const res = await axios.get(`${API}/crm/site-surveys/${surveyId}/audit`, { headers: headers() });
     setAudit(res.data.events || []); setShowAudit(true);
   };
+  const runAI = async (mode) => {
+    setAiMode(mode); setShowAI(true); setAiLoading(true); setAiResult(null);
+    const ep = mode === 'analyse' ? 'ai/analyse' : (mode === 'email' ? 'ai/follow-up-email' : 'ai/briefing');
+    try {
+      const res = await axios.post(`${API}/crm/site-surveys/${surveyId}/${ep}`, {}, { headers: headers() });
+      setAiResult(res.data);
+    } catch (e) {
+      setAiResult({ available: false, error: e?.response?.data?.detail || 'AI request failed' });
+    } finally { setAiLoading(false); }
+  };
+  const insertBriefingToNotes = async (text) => {
+    const merged = { ...data, installation_notes: { ...(data.installation_notes || {}), notes: text } };
+    setData(merged);
+    try {
+      await axios.put(`${API}/crm/site-surveys/${surveyId}`, { data: merged }, { headers: headers() });
+      toast.success('Inserted into Installation Notes');
+      setShowAI(false); await load();
+    } catch (e) { toast.error('Insert failed'); }
+  };
+  const copyText = (t) => { navigator.clipboard?.writeText(t); toast.success('Copied'); };
 
   if (!survey) return <div className="py-10 text-center"><Loader2 className="animate-spin inline" size={20} /></div>;
   const readiness = survey.readiness || { checks: [], critical_missing: [] };
@@ -183,6 +208,7 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
         </span>
         <button onClick={openStatus} disabled={isReadonly} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-change-status">Change status</button>
         <button onClick={loadAudit} className="px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-audit-btn"><History size={12} /> Audit</button>
+        <button onClick={() => runAI('analyse')} className="px-3 py-1.5 text-xs font-semibold rounded-md border inline-flex items-center gap-1" style={{ borderColor: 'var(--color-info-ios)', color: 'var(--color-info-ios)' }} data-testid="survey-ai-btn"><Sparkles size={12} /> AI Assist</button>
         <button onClick={downloadPdf} className="px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-handover-pdf"><Download size={12} /> Handover PDF</button>
         <button onClick={() => save(false)} disabled={saving || isReadonly} className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white inline-flex items-center gap-1" data-testid="survey-save">
           {saving ? <Loader2 className="animate-spin" size={12} /> : <CheckCircle2 size={12} />} Save
@@ -326,11 +352,77 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
           </div>
         </div>
       )}
+      {/* AI Assist modal */}
+      {showAI && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowAI(false)}>
+          <div className="w-full max-w-2xl rounded-xl border p-5 max-h-[85vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: c.border }} onClick={(e) => e.stopPropagation()} data-testid="survey-ai-modal">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold inline-flex items-center gap-1.5" style={{ color: c.text }}><Sparkles size={15} style={{ color: 'var(--color-info-ios)' }} /> AI Assist <span className="text-[10px] font-normal px-1.5 py-0.5 rounded" style={{ background: 'var(--color-info-ios)20', color: 'var(--color-info-ios)' }}>advisory only</span></h3>
+              <button onClick={() => setShowAI(false)}><X size={16} style={{ color: c.textMuted }} /></button>
+            </div>
+            <div className="flex gap-1 mb-4">
+              {[['analyse', 'Analyse & risks'], ['email', 'Follow-up email'], ['briefing', 'Team briefing']].map(([m, lbl]) => (
+                <button key={m} onClick={() => runAI(m)} data-testid={`survey-ai-tab-${m}`}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all"
+                  style={aiMode === m ? { background: 'var(--color-info-ios)', color: '#fff', borderColor: 'var(--color-info-ios)' } : { borderColor: c.border, color: c.textMuted }}>{lbl}</button>
+              ))}
+            </div>
+
+            {aiLoading ? (
+              <div className="py-10 text-center"><Loader2 className="animate-spin inline" size={22} style={{ color: 'var(--color-info-ios)' }} /><p className="text-xs mt-2" style={{ color: c.textDim }}>Reviewing the survey…</p></div>
+            ) : !aiResult ? null : aiResult.available === false ? (
+              <p className="text-sm py-6 text-center" style={{ color: c.textDim }}>{typeof aiResult.error === 'string' ? aiResult.error : 'AI is unavailable.'}</p>
+            ) : aiMode === 'analyse' ? (
+              <div className="space-y-4 text-sm" style={{ color: c.text }} data-testid="survey-ai-analyse-result">
+                {aiResult.summary && <div><p className="text-[11px] font-bold uppercase mb-1" style={{ color: c.textDim }}>Summary</p><p>{aiResult.summary}</p></div>}
+                {aiResult.readiness_recommendation && (
+                  <div className="p-2 rounded-md" style={{ background: 'var(--color-info-ios)12' }}>
+                    <span className="text-[11px] font-bold uppercase" style={{ color: 'var(--color-info-ios)' }}>Recommendation: {aiResult.readiness_recommendation.recommendation?.replace(/_/g, ' ')}</span>
+                    <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{aiResult.readiness_recommendation.reasoning}</p>
+                  </div>
+                )}
+                {(aiResult.risks || []).length > 0 && (
+                  <div><p className="text-[11px] font-bold uppercase mb-1" style={{ color: c.textDim }}>Flagged risks</p>
+                    <div className="space-y-1">{aiResult.risks.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs">
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: ['high', 'critical'].includes((r.severity || '').toLowerCase()) ? 'var(--color-accent-amber)20' : 'var(--color-info-ios)15', color: ['high', 'critical'].includes((r.severity || '').toLowerCase()) ? 'var(--color-accent-amber)' : 'var(--color-info-ios)' }}>{r.severity} · {r.area}</span>
+                        <span>{r.description}</span>
+                      </div>))}</div>
+                  </div>
+                )}
+                {(aiResult.missing_information || []).length > 0 && (
+                  <div><p className="text-[11px] font-bold uppercase mb-1" style={{ color: c.textDim }}>Missing information</p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-xs" style={{ color: c.textDim }}>{aiResult.missing_information.map((m, i) => <li key={i}>{m}</li>)}</ul></div>
+                )}
+                {(aiResult.suggested_questions || []).length > 0 && (
+                  <div><p className="text-[11px] font-bold uppercase mb-1" style={{ color: c.textDim }}>Questions to ask</p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-xs" style={{ color: c.textDim }}>{aiResult.suggested_questions.map((q, i) => <li key={i}>{q}</li>)}</ul></div>
+                )}
+                <p className="text-[10px] pt-2 border-t" style={{ color: c.textDim, borderColor: c.border }}>AI is advisory and cannot approve a site for installation. Review before acting.</p>
+              </div>
+            ) : aiMode === 'email' ? (
+              <div className="text-sm" data-testid="survey-ai-email-result">
+                <p className="text-[11px] font-bold uppercase mb-1" style={{ color: c.textDim }}>Subject</p>
+                <p className="mb-2" style={{ color: c.text }}>{aiResult.subject}</p>
+                <p className="text-[11px] font-bold uppercase mb-1" style={{ color: c.textDim }}>Body</p>
+                <pre className="whitespace-pre-wrap text-xs p-2 rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.text }}>{aiResult.body}</pre>
+                <button onClick={() => copyText(`${aiResult.subject}\n\n${aiResult.body}`)} className="mt-3 px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-ai-copy-email"><ClipboardCopy size={12} /> Copy email</button>
+              </div>
+            ) : (
+              <div className="text-sm" data-testid="survey-ai-briefing-result">
+                <pre className="whitespace-pre-wrap text-xs p-2 rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.text }}>{aiResult.briefing}</pre>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => copyText(aiResult.briefing)} className="px-3 py-1.5 text-xs font-medium rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-ai-copy-briefing"><ClipboardCopy size={12} /> Copy</button>
+                  <button onClick={() => insertBriefingToNotes(aiResult.briefing)} disabled={isReadonly} className="px-3 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white inline-flex items-center gap-1" data-testid="survey-ai-insert-briefing"><CheckCircle2 size={12} /> Insert into Installation Notes</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ── List + create ────────────────────────────────────────────────────
 export default function PreInstallSurveys({ companyId, companyName, siteId, API, headers, c, isDark }) {
   const [meta, setMeta] = useState(null);
   const [surveys, setSurveys] = useState([]);
