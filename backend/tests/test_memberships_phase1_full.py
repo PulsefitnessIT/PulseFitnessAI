@@ -16,7 +16,7 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://admin-portal-fix-37.preview.emergentagent.com")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://comms-email-hub.preview.emergentagent.com")
 API = f"{BASE_URL.rstrip('/')}/api"
 
 OPERATOR = {

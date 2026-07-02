@@ -6,7 +6,7 @@
 > URLs since the doc was written:
 >
 > - Production: `https://gymaxisai.com`
-> - Preview: `https://admin-portal-fix-37.preview.emergentagent.com`
+> - Preview: `https://comms-email-hub.preview.emergentagent.com`
 >
 > The `admin@gymaxisai.com` master-admin credentials in
 > `memory/test_credentials.md` are valid for both environments.

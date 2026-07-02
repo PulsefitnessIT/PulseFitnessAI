@@ -14,7 +14,7 @@ import requests
 import os
 import io
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://admin-portal-fix-37.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://comms-email-hub.preview.emergentagent.com").rstrip("/")
 RATE_LIMIT_BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "test-bypass-secret-for-ci-runs-only-2026")
 
 # Test credentials from tests.test_credentials (env-var override supported)

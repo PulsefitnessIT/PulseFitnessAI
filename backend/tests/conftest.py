@@ -44,7 +44,7 @@ def drive_async(coro):
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
 
-API_BASE_URL = os.environ.get("TEST_API_URL", "https://admin-portal-fix-37.preview.emergentagent.com")
+API_BASE_URL = os.environ.get("TEST_API_URL", "https://comms-email-hub.preview.emergentagent.com")
 
 MASTER_ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 MASTER_ADMIN_PASSWORD = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")

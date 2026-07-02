@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 class PulseFitnessProductionTest:
-    def __init__(self, base_url="https://admin-portal-fix-37.preview.emergentagent.com"):
+    def __init__(self, base_url="https://comms-email-hub.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.token = None

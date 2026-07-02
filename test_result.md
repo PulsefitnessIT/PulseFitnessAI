@@ -401,7 +401,7 @@ frontend:
           comment: "User requested comprehensive validation of login flow and recent bug fixes: (1) Default landing page shows Pulse Fitness portal, (2) Login modal close button positioning, (3) Login flow + session persistence (no 'session expired' banner), (4) Reload loop count (should be 1-2 max), (5) Master Admin audit log shows login events with details, (6) No console errors or broken images."
         - working: false
           agent: "testing"
-          comment: "❌ CRITICAL ISSUE FOUND: Excessive reload loop detected. Test results: (1) ✅ PASS - Default landing page correctly shows Pulse Fitness Self-Service Portal with hero 'Maintain your gym. In one place.', badge, and logo. Tab title: 'Pulse Fitness AI | Fitness Operations Platform'. (2) ✅ PASS - Login modal close (X) button is positioned INSIDE the modal card at top-right (x=1135, y=340.8), not escaping borders. Modal shows 'Welcome back / Sign in to your Pulse Fitness portal'. (3) ⚠️ PARTIAL - Login succeeds with admin@pulsefitness.com / MasterAdmin123! and lands on /master-admin. NO 'session expired' banner appears immediately after login. Session persists for ~10 seconds and navigation to /dashboard works. HOWEVER, session expires after a few minutes (401 Unauthorized in backend logs). (4) ❌ FAIL - RELOAD LOOP BUG: 7 full page navigations/reloads detected to the same URL (https://admin-portal-fix-37.preview.emergentagent.com/master-admin) during and after login. Expected: 1-2 navigations max. This is excessive and indicates a reload loop issue. (5) ❌ CANNOT VERIFY - Audit log not accessible. Session expired before reaching audit log section. Could not find 'Login from' events or Settings & Compliance → Audit log navigation. (6) ✅ PASS - Only CSP warnings for external scripts (PostHog, Emergent, Cloudflare) in console, no critical errors. No broken images. No visible 'GymAxis' text found. CRITICAL BUG: The 7-navigation reload loop is the primary issue that needs immediate attention."
+          comment: "❌ CRITICAL ISSUE FOUND: Excessive reload loop detected. Test results: (1) ✅ PASS - Default landing page correctly shows Pulse Fitness Self-Service Portal with hero 'Maintain your gym. In one place.', badge, and logo. Tab title: 'Pulse Fitness AI | Fitness Operations Platform'. (2) ✅ PASS - Login modal close (X) button is positioned INSIDE the modal card at top-right (x=1135, y=340.8), not escaping borders. Modal shows 'Welcome back / Sign in to your Pulse Fitness portal'. (3) ⚠️ PARTIAL - Login succeeds with admin@pulsefitness.com / MasterAdmin123! and lands on /master-admin. NO 'session expired' banner appears immediately after login. Session persists for ~10 seconds and navigation to /dashboard works. HOWEVER, session expires after a few minutes (401 Unauthorized in backend logs). (4) ❌ FAIL - RELOAD LOOP BUG: 7 full page navigations/reloads detected to the same URL (https://comms-email-hub.preview.emergentagent.com/master-admin) during and after login. Expected: 1-2 navigations max. This is excessive and indicates a reload loop issue. (5) ❌ CANNOT VERIFY - Audit log not accessible. Session expired before reaching audit log section. Could not find 'Login from' events or Settings & Compliance → Audit log navigation. (6) ✅ PASS - Only CSP warnings for external scripts (PostHog, Emergent, Cloudflare) in console, no critical errors. No broken images. No visible 'GymAxis' text found. CRITICAL BUG: The 7-navigation reload loop is the primary issue that needs immediate attention."
         - working: false
           agent: "user"
           comment: "User requested RE-TEST after fixes to service-worker reload loop and session handling. Focus on: (1) RELOAD LOOP - count full page navigations during/after login (expected 0-1, NOT 7-8), (2) SESSION PERSISTENCE - no 401 errors on /api/auth/me or /api/auth/refresh after 20-30s wait + navigation, (3) MASTER ADMIN AUDIT LOG - verify it shows login events with details (IP, actor email). Use FRESH browser context (no pre-existing cookies/localStorage)."
@@ -413,7 +413,7 @@ frontend:
           comment: "User requested TARGETED RE-TEST of ONLY the reload-loop fix after service-worker forced-reload removal. Expected: 0-1 full page navigations (definitely not 3-8). Test with FRESH browser context using app's configured base URL (NOT localhost). Steps: (1) Go to homepage (/), (2) Click LOG IN, enter admin@pulsefitness.com / MasterAdmin123!, submit, (3) Count FULL PAGE navigations/reloads (main-frame framenavigated events) during login and for ~15 seconds afterward, (4) Confirm landing on /master-admin with page rendering and NO 'session expired' banner within 20 seconds."
         - working: false
           agent: "testing"
-          comment: "TARGETED RE-TEST RESULTS: ❌ RELOAD LOOP STILL NOT FIXED (3 navigations, requirement is 0-1). Detailed findings: (1) ❌ RELOAD LOOP: 3 full page navigations to /master-admin detected during/after login. Expected: 0-1 navigations. Status: FAIL - The reload loop persists at the same level as previous test (7→3→3). No improvement from the service-worker forced-reload removal. Navigation pattern: Nav #1 after login success → Nav #2 full reload → Nav #3 full reload. All 3 navigations to the same URL: https://admin-portal-fix-37.preview.emergentagent.com/master-admin. (2) ✅ LOGIN SUCCESS: Login API called and returned 200. Successfully authenticated with admin@pulsefitness.com / MasterAdmin123!. All 36 API calls returned 200 (no errors). (3) ✅ FINAL STATE: Landed on /master-admin page, page renders correctly, NO 'session expired' banner found. (4) ✅ SESSION: No 401 errors detected. CRITICAL: The service-worker forced-reload removal did NOT fix the reload loop. The issue persists with 3 full page navigations (same as previous test). The root cause is likely in React Router navigation logic, App.js routing, or component re-mounting logic that triggers multiple navigations to /master-admin after login."
+          comment: "TARGETED RE-TEST RESULTS: ❌ RELOAD LOOP STILL NOT FIXED (3 navigations, requirement is 0-1). Detailed findings: (1) ❌ RELOAD LOOP: 3 full page navigations to /master-admin detected during/after login. Expected: 0-1 navigations. Status: FAIL - The reload loop persists at the same level as previous test (7→3→3). No improvement from the service-worker forced-reload removal. Navigation pattern: Nav #1 after login success → Nav #2 full reload → Nav #3 full reload. All 3 navigations to the same URL: https://comms-email-hub.preview.emergentagent.com/master-admin. (2) ✅ LOGIN SUCCESS: Login API called and returned 200. Successfully authenticated with admin@pulsefitness.com / MasterAdmin123!. All 36 API calls returned 200 (no errors). (3) ✅ FINAL STATE: Landed on /master-admin page, page renders correctly, NO 'session expired' banner found. (4) ✅ SESSION: No 401 errors detected. CRITICAL: The service-worker forced-reload removal did NOT fix the reload loop. The issue persists with 3 full page navigations (same as previous test). The root cause is likely in React Router navigation logic, App.js routing, or component re-mounting logic that triggers multiple navigations to /master-admin after login."
         - working: true
           agent: "user"
           comment: "User requested FINAL FOCUSED CHECK to distinguish TRUE full page reloads (document re-parsed, load event) from client-side SPA navigations. Expected: 0-1 FULL PAGE RELOADS (not just navigation events). Steps: (1) Open homepage (/), click LOG IN, enter admin@pulsefitness.com / MasterAdmin123!, submit, (2) Count main-frame FULL-PAGE RELOADS during + ~12s after login, (3) Confirm lands on /master-admin, content renders, NO 'session expired' banner within 15s, page is interactive."
@@ -453,7 +453,7 @@ agent_communication:
         
         4. RELOAD LOOP: ❌ FAIL - CRITICAL BUG
            - Navigation count: 7 full page reloads/navigations
-           - All 7 navigations to same URL: https://admin-portal-fix-37.preview.emergentagent.com/master-admin
+           - All 7 navigations to same URL: https://comms-email-hub.preview.emergentagent.com/master-admin
            - Expected: 1-2 navigations (login submit + redirect)
            - This is EXCESSIVE and indicates a reload loop bug
            - Navigation events:
@@ -510,7 +510,7 @@ agent_communication:
         
         1. ❌ RELOAD LOOP - IMPROVED BUT STILL FAILING
            - Full page navigations during/after login: 3 (down from 7)
-           - All 3 navigations to: https://admin-portal-fix-37.preview.emergentagent.com/master-admin
+           - All 3 navigations to: https://comms-email-hub.preview.emergentagent.com/master-admin
            - Expected: 0-1 navigations
            - Status: The reload loop has IMPROVED significantly (57% reduction) but still does NOT meet the 0-1 requirement
            - Navigation URLs captured:
@@ -575,7 +575,7 @@ agent_communication:
              * Navigation #1: After login success, navigate to /master-admin
              * Navigation #2: Full page reload of /master-admin (duplicate API calls start)
              * Navigation #3: Another full page reload of /master-admin (duplicate API calls again)
-           - All 3 navigations to same URL: https://admin-portal-fix-37.preview.emergentagent.com/master-admin
+           - All 3 navigations to same URL: https://comms-email-hub.preview.emergentagent.com/master-admin
            - Evidence: Dashboard API calls (stats, organizations, users, ai-usage, etc.) are made 3 times
         
         2. ✅ LOGIN SUCCESS
@@ -585,7 +585,7 @@ agent_communication:
            - API calls include: organization, sites, assistant/chat, master-admin/* endpoints
         
         3. ✅ FINAL STATE
-           - Current URL: https://admin-portal-fix-37.preview.emergentagent.com/master-admin ✓
+           - Current URL: https://comms-email-hub.preview.emergentagent.com/master-admin ✓
            - Page renders correctly (Dashboard Overview visible) ✓
            - NO "session expired" banner found ✓
            - Session valid (no 401 errors detected) ✓
@@ -682,7 +682,7 @@ agent_communication:
         
         Comprehensive frontend regression testing completed for pre-launch validation.
         Test credentials: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg
-        Base URL: https://admin-portal-fix-37.preview.emergentagent.com
+        Base URL: https://comms-email-hub.preview.emergentagent.com
         Database: Clean Pulse Fitness state (empty lists expected)
         
         ═══════════════════════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ agent_communication:
         
         Comprehensive frontend regression testing completed for authenticated journeys using EXACT login steps.
         Test credentials: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg
-        Base URL: https://admin-portal-fix-37.preview.emergentagent.com
+        Base URL: https://comms-email-hub.preview.emergentagent.com
         Database: Clean Pulse Fitness state (empty lists expected)
         
         ═══════════════════════════════════════════════════════════════════════════════

@@ -12,7 +12,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from utils.auth import create_token
 
-API = (os.environ.get("REACT_APP_BACKEND_URL") or "https://admin-portal-fix-37.preview.emergentagent.com").rstrip("/")
+API = (os.environ.get("REACT_APP_BACKEND_URL") or "https://comms-email-hub.preview.emergentagent.com").rstrip("/")
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 
