@@ -838,3 +838,10 @@ Operators can now add a part to a Parts Request directly from a drawing.
 - Master admin (`ExplodedDrawingsPanel.js`): "Parts (n)" button opens an editor modal to add/edit/save the parts list per drawing.
 - Operator (`PartsRequestsPage.js` DrawingsModal): opening a drawing shows its parts list with "Add" buttons that append the part to the current machine's request.
 - Verified via curl: master sets parts → operator in another org sees drawing + parts. Frontend compiles.
+
+## Deployment fix: backend crash-loop (readiness timeout) — Jun 2026
+Production deploy failed: uvicorn crash-looped, /health "connection refused", k8s readiness timeout.
+- Root cause: `_full_boot()` (deferred startup task in `server.py`) called `init_storage()` — a SYNCHRONOUS `requests.post(timeout=30)` to the external object-storage service — directly on the event loop. During a fresh deploy this could block the loop (and /health) long enough for the wrapper to keep restarting uvicorn → crash loop.
+- Fix: offloaded to `await run_in_threadpool(init_storage)` so the event loop stays free to serve /health during boot; storage still inits lazily on first put/get, so a boot-time failure is harmless (non-fatal, logged).
+- Verified by testing_agent (6/6): /health + /api/health fast 200, /api/health/deep mongo=ok, parts-request attachment + exploded-drawing object-storage round-trips, authed list works. No regression.
+- Note: deployment_agent's only finding was a CORS_ORIGINS='*' recommendation — ruled out as the crash cause (resolve_cors_origins ignores '*' in prod and preview works with the current allowlist).
