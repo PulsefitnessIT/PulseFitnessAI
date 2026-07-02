@@ -237,12 +237,36 @@ async def upload_drawing(
         "title": title.strip() or (f"{manufacturer} {model}".strip() or file.filename),
         "original_filename": file.filename, "content_type": ct, "size": len(content),
         "storage_path": result.get("path", path), "is_global": bool(org is None),
+        "parts": [],
         "is_deleted": False, "created_by": user.get("id"),
         "created_by_name": _actor_name(user), "created_at": _now(),
     }
     await db[DRAWINGS].insert_one(dict(doc))
     doc.pop("storage_path", None)
     return doc
+
+
+@router.put("/exploded-drawings/{drawing_id}/parts")
+async def update_drawing_parts(drawing_id: str, body: dict, user=Depends(get_current_user)):
+    """Set the searchable parts list (part_number + description) on a drawing.
+    Master admin may edit any drawing; operators may edit their own org's."""
+    org = user.get("organization_id")
+    is_master = bool(user.get("is_master_admin") or user.get("is_pulse_admin"))
+    q = {"id": drawing_id, "is_deleted": {"$ne": True}}
+    if not is_master:
+        q["organization_id"] = org
+    doc = await db[DRAWINGS].find_one(q, {"_id": 0, "id": 1})
+    if not doc:
+        raise HTTPException(404, "Drawing not found")
+    parts = []
+    for p in (body.get("parts") or []):
+        pn = (p.get("part_number") or "").strip()
+        desc = (p.get("description") or "").strip()
+        if not (pn or desc):
+            continue
+        parts.append({"part_number": pn, "description": desc, "notes": (p.get("notes") or "").strip()})
+    await db[DRAWINGS].update_one({"id": drawing_id}, {"$set": {"parts": parts, "updated_at": _now()}})
+    return {"success": True, "parts": parts}
 
 
 @router.get("/exploded-drawings/{drawing_id}/file")

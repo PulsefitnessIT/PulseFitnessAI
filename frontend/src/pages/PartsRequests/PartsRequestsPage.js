@@ -55,9 +55,10 @@ function StatusBadge({ status }) {
 }
 
 // ── Exploded drawings modal ─────────────────────────────────────────
-function DrawingsModal({ machine, onClose }) {
+function DrawingsModal({ machine, onClose, onAddPart }) {
   const [drawings, setDrawings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
   const [viewingUrl, setViewingUrl] = useState(null);
 
   useEffect(() => {
@@ -73,7 +74,8 @@ function DrawingsModal({ machine, onClose }) {
     })();
   }, [machine]);
 
-  const view = async (d) => {
+  const open = async (d) => {
+    setSelected(d);
     try {
       const res = await axios.get(`${API}/exploded-drawings/${d.id}/file`, { ...auth(), responseType: 'blob' });
       setViewingUrl(URL.createObjectURL(res.data));
@@ -88,10 +90,27 @@ function DrawingsModal({ machine, onClose }) {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700" data-testid="drawings-close"><X size={20} /></button>
         </div>
         {loading ? <div className="py-10 text-center text-slate-400"><Loader2 className="animate-spin inline" /></div>
-          : viewingUrl ? (
+          : selected ? (
             <div>
-              <button onClick={() => setViewingUrl(null)} className="text-sm text-blue-600 mb-2">← Back to list</button>
-              <img src={viewingUrl} alt="Exploded drawing" className="w-full rounded-lg border" />
+              <button onClick={() => { setSelected(null); setViewingUrl(null); }} className="text-sm text-blue-600 mb-2">← Back to list</button>
+              {viewingUrl && <img src={viewingUrl} alt="Exploded drawing" className="w-full rounded-lg border mb-3" />}
+              <p className="text-sm font-semibold text-slate-700 mb-2">Parts in this drawing</p>
+              {(selected.parts || []).length === 0 ? (
+                <p className="text-sm text-slate-400">No parts list attached to this drawing — read the part number off the diagram and add it manually.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {selected.parts.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between border rounded-lg px-3 py-2" data-testid={`drawing-part-${i}`}>
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-800 truncate">{p.description || p.part_number}</p>
+                        {p.part_number && <p className="text-xs text-slate-500 font-mono">{p.part_number}</p>}
+                      </div>
+                      <button onClick={() => { onAddPart({ part_name: p.description || '', part_number: p.part_number || '', qty: 1, notes: p.notes || '' }); toast.success('Added to request'); }}
+                        className="text-sm font-medium text-blue-600 inline-flex items-center gap-1 shrink-0" data-testid={`drawing-add-part-${i}`}><Plus size={14} /> Add</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : drawings.length === 0 ? (
             <p className="text-sm text-slate-500 py-8 text-center">No exploded drawings found for this make/model yet. Ask your admin to upload one, or type the part details manually.</p>
@@ -101,9 +120,9 @@ function DrawingsModal({ machine, onClose }) {
                 <div key={d.id} className="flex items-center justify-between border rounded-lg px-3 py-2" data-testid={`drawing-row-${d.id}`}>
                   <div>
                     <p className="text-sm font-medium text-slate-900">{d.title}</p>
-                    <p className="text-xs text-slate-500">{d.manufacturer} {d.model} {d.equipment_type ? `· ${d.equipment_type}` : ''}</p>
+                    <p className="text-xs text-slate-500">{d.manufacturer} {d.model} {d.equipment_type ? `· ${d.equipment_type}` : ''}{(d.parts || []).length ? ` · ${d.parts.length} part(s)` : ''}</p>
                   </div>
-                  <button onClick={() => view(d)} className="text-sm font-medium text-blue-600 inline-flex items-center gap-1" data-testid={`drawing-view-${d.id}`}><ImageIcon size={14} /> View</button>
+                  <button onClick={() => open(d)} className="text-sm font-medium text-blue-600 inline-flex items-center gap-1" data-testid={`drawing-view-${d.id}`}><ImageIcon size={14} /> Open</button>
                 </div>
               ))}
             </div>
@@ -177,6 +196,9 @@ function Editor({ requestId, onDone, onCancel }) {
   const addPart = (idx) => {
     const next = machines.map((m, i) => i === idx ? { ...m, parts: [...(m.parts || []), { part_name: '', part_number: '', qty: 1, notes: '' }] } : m);
     setMachines(next);
+  };
+  const addFilledPart = (idx, part) => {
+    setMachines((prev) => prev.map((m, i) => i === idx ? { ...m, parts: [...(m.parts || []), part] } : m));
   };
   const updatePart = (mi, pi, field, value) => {
     setMachines(machines.map((m, i) => i === mi ? { ...m, parts: m.parts.map((p, j) => j === pi ? { ...p, [field]: value } : p) } : m));
@@ -293,7 +315,7 @@ function Editor({ requestId, onDone, onCancel }) {
 
             <div className="flex flex-wrap gap-2 mt-3">
               <button onClick={() => addPart(mi)} className="text-sm font-medium text-blue-600 inline-flex items-center gap-1" data-testid={`add-part-${mi}`}><Plus size={14} /> Add part</button>
-              <button onClick={() => setDrawingFor(m)} className="text-sm font-medium text-slate-600 inline-flex items-center gap-1" data-testid={`find-drawing-${mi}`}><ImageIcon size={14} /> Find in exploded drawing</button>
+              <button onClick={() => setDrawingFor({ machine: m, index: mi })} className="text-sm font-medium text-slate-600 inline-flex items-center gap-1" data-testid={`find-drawing-${mi}`}><ImageIcon size={14} /> Find in exploded drawing</button>
               <label className="text-sm font-medium text-slate-600 inline-flex items-center gap-1 cursor-pointer" data-testid={`upload-photo-${mi}`}>
                 <Upload size={14} /> Add photo
                 <input ref={(el) => (fileRefs.current[mi] = el)} type="file" accept="image/*" className="hidden" onChange={(e) => uploadPhoto(mi, e.target.files?.[0])} />
@@ -340,7 +362,7 @@ function Editor({ requestId, onDone, onCancel }) {
         </div>
       </div>
 
-      {drawingFor && <DrawingsModal machine={drawingFor} onClose={() => setDrawingFor(null)} />}
+      {drawingFor && <DrawingsModal machine={drawingFor.machine} onClose={() => setDrawingFor(null)} onAddPart={(part) => addFilledPart(drawingFor.index, part)} />}
     </div>
   );
 }

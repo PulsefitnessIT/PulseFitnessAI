@@ -831,3 +831,10 @@ Added a new "Exploded Drawings" tab inside Master Admin → Catalogue & Library 
 - Master admin uploads drawings (manufacturer/model/type/title + image/PDF) as platform-GLOBAL; search, view (blob), delete.
 - Backend (existing `routes/parts_requests.py` exploded-drawings endpoints): converted POST params to `Form(...)` for multipart. Verified via curl: master uploads global (org=None), lists, another org's operator sees the global drawing (feeds the Parts Request "Find in exploded drawing" picker), delete works.
 - Note: screenshot harness could not complete this SPA's login; validated backend via curl + frontend compiles (reuses proven pattern).
+
+## Enhancement: parts list on exploded drawings (Jun 2026)
+Operators can now add a part to a Parts Request directly from a drawing.
+- Backend (`routes/parts_requests.py`): drawings get a `parts` list ([{part_number, description, notes}]); new `PUT /api/exploded-drawings/{id}/parts` (master admin any, operator own-org). Parts included in list responses.
+- Master admin (`ExplodedDrawingsPanel.js`): "Parts (n)" button opens an editor modal to add/edit/save the parts list per drawing.
+- Operator (`PartsRequestsPage.js` DrawingsModal): opening a drawing shows its parts list with "Add" buttons that append the part to the current machine's request.
+- Verified via curl: master sets parts → operator in another org sees drawing + parts. Frontend compiles.

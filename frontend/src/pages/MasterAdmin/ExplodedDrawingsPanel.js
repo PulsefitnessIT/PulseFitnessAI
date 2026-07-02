@@ -15,13 +15,59 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
-import { Image as ImageIcon, Trash2, Search, Loader2, Layers, Globe, UploadCloud } from 'lucide-react';
+import { Image as ImageIcon, Trash2, Search, Loader2, Layers, Globe, UploadCloud, ListChecks, Plus, X, Save } from 'lucide-react';
+
+function PartsEditorModal({ drawing, onClose, onSaved }) {
+  const [rows, setRows] = useState((drawing.parts || []).map((p) => ({ ...p })));
+  const [saving, setSaving] = useState(false);
+  const addRow = () => setRows((r) => [...r, { part_number: '', description: '', notes: '' }]);
+  const update = (i, k, v) => setRows((r) => r.map((row, j) => j === i ? { ...row, [k]: v } : row));
+  const del = (i) => setRows((r) => r.filter((_, j) => j !== i));
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await api.put(`/exploded-drawings/${drawing.id}/parts`, { parts: rows });
+      notify.success('Parts list saved');
+      onSaved(r.data?.parts || []);
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Failed to save'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onClose} data-testid="drawing-parts-modal">
+      <div className="bg-[var(--theme-surface)] rounded-xl max-w-2xl w-full max-h-[85vh] overflow-auto p-5 border border-[var(--theme-border)]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-bold text-[var(--theme-text)]">Parts list — {drawing.title}</h3>
+          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--theme-text)]" data-testid="drawing-parts-close"><X size={18} /></button>
+        </div>
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">Operators can add these straight to a Parts Request from the drawing.</p>
+        <div className="space-y-2">
+          {rows.map((p, i) => (
+            <div key={i} className="grid grid-cols-12 gap-2 items-center" data-testid={`drawing-part-edit-${i}`}>
+              <input value={p.part_number} onChange={(e) => update(i, 'part_number', e.target.value)} placeholder="Part no." className="col-span-3 px-2 py-1.5 rounded border text-sm bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)]" data-testid={`drawing-part-number-${i}`} />
+              <input value={p.description} onChange={(e) => update(i, 'description', e.target.value)} placeholder="Description" className="col-span-5 px-2 py-1.5 rounded border text-sm bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)]" data-testid={`drawing-part-desc-${i}`} />
+              <input value={p.notes} onChange={(e) => update(i, 'notes', e.target.value)} placeholder="Notes" className="col-span-3 px-2 py-1.5 rounded border text-sm bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)]" />
+              <button onClick={() => del(i)} className="col-span-1 text-[var(--color-text-muted)] hover:text-red-500 flex justify-center"><X size={15} /></button>
+            </div>
+          ))}
+          {rows.length === 0 && <p className="text-sm text-[var(--color-text-muted)] py-2">No parts yet. Add the key spares shown on this diagram.</p>}
+        </div>
+        <div className="flex items-center justify-between mt-3">
+          <button onClick={addRow} className="text-sm font-medium text-[var(--color-brand-blue)] inline-flex items-center gap-1" data-testid="drawing-part-add-row"><Plus size={14} /> Add part</button>
+          <button onClick={save} disabled={saving} className="px-4 py-1.5 rounded-md text-sm font-semibold bg-[var(--color-brand-blue)] text-white inline-flex items-center gap-1.5 disabled:opacity-60" data-testid="drawing-parts-save">
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save parts list
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ExplodedDrawingsPanel() {
   const [drawings, setDrawings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [partsFor, setPartsFor] = useState(null);
   const [form, setForm] = useState({ manufacturer: '', model: '', equipment_type: '', title: '' });
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -147,6 +193,7 @@ export default function ExplodedDrawingsPanel() {
                   <td className="px-3 py-2 text-[var(--color-text-muted)]">{d.manufacturer} · {d.model}</td>
                   <td className="px-3 py-2 text-[var(--color-text-muted)]">{d.equipment_type || '—'}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <button onClick={() => setPartsFor(d)} className="h-7 px-2 rounded text-[var(--theme-text)] hover:bg-[var(--theme-surface-2)] inline-flex items-center gap-1 text-[11px] font-medium" title="Parts list" data-testid={`drawing-parts-${d.id}`}><ListChecks size={12} /> Parts{(d.parts || []).length ? ` (${d.parts.length})` : ''}</button>
                     <button onClick={() => view(d)} className="h-7 px-2 rounded text-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue)]/10 inline-flex items-center gap-1 text-[11px] font-medium" title="View" data-testid={`drawing-view-${d.id}`}><ImageIcon size={12} /> View</button>
                     <button onClick={() => remove(d)} disabled={busyId === d.id} className="h-7 w-7 rounded text-[var(--color-text-muted)] hover:text-red-500 inline-flex items-center justify-center disabled:opacity-50" title="Delete" data-testid={`drawing-delete-${d.id}`}>
                       {busyId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={13} />}
@@ -157,6 +204,17 @@ export default function ExplodedDrawingsPanel() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {partsFor && (
+        <PartsEditorModal
+          drawing={partsFor}
+          onClose={() => setPartsFor(null)}
+          onSaved={(parts) => {
+            setDrawings((prev) => prev.map((x) => x.id === partsFor.id ? { ...x, parts } : x));
+            setPartsFor(null);
+          }}
+        />
       )}
     </div>
   );
