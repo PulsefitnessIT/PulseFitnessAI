@@ -1,78 +1,129 @@
 {
-  "theme": "Light/Pulse Branded (Dark/Light variants)",
-  "archetype": "Archetype 2: Performance Pro",
-  "typography": {
-    "headings": {
-      "family": "Geometric Sans (e.g., Plus Jakarta Sans, Manrope, or system sans-serif)",
-      "weights": ["bold"],
-      "tracking": "tracking-tight"
+  "theme_and_archetype": "Swiss & High-Contrast / Performance Pro Hybrid (Functional, Flat, Accessible)",
+  "brand_colors": {
+    "core_blue": "#19CDFF",
+    "soft_black": "#1B1C1D",
+    "onyx": "#393E41",
+    "slate": "#6E7476",
+    "silver": "#E0E0E0"
+  },
+  "tailwind_hue_collapse": {
+    "instruction": "Alias `blue`, `sky`, `cyan`, `indigo`, `violet`, and `purple` in your tailwind.config.js theme.colors to this exact scale to collapse all legacy colors into the single brand accent hue.",
+    "scale": {
+      "50": "#e4f9ff",
+      "100": "#cff1ff",
+      "200": "#9ce4ff",
+      "300": "#5cd3ff",
+      "400": "#19CDFF",
+      "500": "#00b8f0",
+      "600": "#0091ca",
+      "700": "#0073a4",
+      "800": "#00608b",
+      "900": "#044f74",
+      "950": "#033350"
+    }
+  },
+  "semantic_colors_recommendation": {
+    "instruction": "The brand guidelines define no semantic colors. To maintain the brand's aesthetic without fighting the vibrant Core Blue, use desaturated/muted tones for semantics.",
+    "success": "#2E856E",
+    "warning": "#D9943B",
+    "error": "#C94A4A",
+    "info": "#19CDFF"
+  },
+  "css_custom_properties": {
+    "light": {
+      "--background": "#FFFFFF",
+      "--foreground": "#1B1C1D",
+      "--card": "#FFFFFF",
+      "--card-foreground": "#1B1C1D",
+      "--popover": "#FFFFFF",
+      "--popover-foreground": "#1B1C1D",
+      "--primary": "#19CDFF",
+      "--primary-foreground": "#1B1C1D",
+      "--secondary": "#1B1C1D",
+      "--secondary-foreground": "#FFFFFF",
+      "--muted": "#E0E0E0",
+      "--muted-foreground": "#6E7476",
+      "--accent": "#E0E0E0",
+      "--accent-foreground": "#1B1C1D",
+      "--destructive": "#C94A4A",
+      "--destructive-foreground": "#FFFFFF",
+      "--border": "#E0E0E0",
+      "--input": "#6E7476",
+      "--ring": "#19CDFF",
+      "--radius": "0.375rem"
     },
-    "body": {
-      "family": "Inter, system-ui",
-      "weights": ["medium", "normal"]
+    "dark": {
+      "--background": "#1B1C1D",
+      "--foreground": "#FFFFFF",
+      "--card": "#393E41",
+      "--card-foreground": "#FFFFFF",
+      "--popover": "#393E41",
+      "--popover-foreground": "#FFFFFF",
+      "--primary": "#19CDFF",
+      "--primary-foreground": "#1B1C1D",
+      "--secondary": "#393E41",
+      "--secondary-foreground": "#FFFFFF",
+      "--muted": "#393E41",
+      "--muted-foreground": "#E0E0E0",
+      "--accent": "#6E7476",
+      "--accent-foreground": "#FFFFFF",
+      "--destructive": "#C94A4A",
+      "--destructive-foreground": "#FFFFFF",
+      "--border": "#6E7476",
+      "--input": "#E0E0E0",
+      "--ring": "#19CDFF",
+      "--radius": "0.375rem"
     }
   },
-  "colors": {
-    "strategy": "Strictly utilize provided CSS variables to ensure seamless toggling between 'theme-gymaxis' (light) and 'pulse' (branded) themes.",
-    "variables": [
-      "--theme-text",
-      "--theme-text-muted",
-      "--theme-surface",
-      "--theme-border",
-      "--color-brand-blue"
-    ],
-    "branding_treatments": {
-      "neutral_gymaxis": "Apply the 'gx-grad-text' class to the Tenant Name to provide a premium, white-labeled gradient accent.",
-      "pulse_branded": "Apply 'text-[var(--color-brand-blue)]' to the Tenant Name for strong, brand-specific coloring."
+  "typography": {
+    "font_family": "Proxima Nova",
+    "instruction": "These classes represent the scaled-down dashboard equivalents while preserving the weight and 0.1em tracking intent from the marketing guidelines.",
+    "scale": {
+      "h1": "text-3xl md:text-4xl font-extrabold tracking-[0.1em] leading-tight",
+      "h2": "text-2xl md:text-3xl font-light tracking-[0.1em] leading-snug",
+      "h3": "text-xl md:text-2xl font-bold tracking-[0.1em] leading-snug",
+      "h4": "text-lg md:text-xl font-semibold tracking-[0.1em] leading-normal",
+      "h5": "text-base md:text-lg font-semibold leading-normal",
+      "body": "text-sm font-normal leading-relaxed",
+      "button": "text-sm font-light tracking-[0.1em]"
     }
   },
-  "layout_and_spacing": {
-    "philosophy": "Tactical Minimalism. Dense but clear, prioritizing information hierarchy.",
-    "container": "pb-6 mb-6 border-b border-[var(--theme-border)]",
-    "responsive_reflow": {
-      "mobile": "flex flex-col gap-4 items-start",
-      "desktop": "md:flex-row md:justify-between md:items-start"
-    }
+  "component_recipes": {
+    "primary_button": "bg-[#19CDFF] text-[#1B1C1D] hover:bg-[#00b8f0] active:bg-[#0091ca] font-light tracking-[0.1em] rounded-md transition-colors px-4 py-2 border-none shadow-none disabled:opacity-50 disabled:cursor-not-allowed data-testid=\"btn-primary\"",
+    "secondary_button": "bg-[#1B1C1D] text-white hover:bg-[#393E41] font-light tracking-[0.1em] rounded-md transition-colors px-4 py-2 border-none shadow-none data-testid=\"btn-secondary\"",
+    "ghost_button": "bg-transparent text-[#1B1C1D] hover:bg-[#E0E0E0] dark:text-white dark:hover:bg-[#393E41] font-light tracking-[0.1em] rounded-md transition-colors px-4 py-2 data-testid=\"btn-ghost\"",
+    "input": "bg-white border border-[#6E7476] text-[#1B1C1D] focus:border-[#19CDFF] focus:ring-1 focus:ring-[#19CDFF] focus:outline-none rounded-md transition-all px-3 py-2 dark:bg-[#1B1C1D] dark:border-[#E0E0E0] dark:text-white data-testid=\"input-field\"",
+    "active_tab": "border-b-2 border-[#19CDFF] text-[#0073a4] dark:text-[#19CDFF] font-semibold tracking-wide data-testid=\"tab-active\"",
+    "inactive_tab": "text-[#6E7476] hover:text-[#1B1C1D] dark:text-[#E0E0E0] dark:hover:text-white border-b-2 border-transparent transition-colors data-testid=\"tab-inactive\"",
+    "badge_primary": "bg-[#19CDFF] text-[#1B1C1D] px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wider uppercase data-testid=\"badge-primary\"",
+    "badge_secondary": "bg-[#1B1C1D] text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wider uppercase dark:bg-[#393E41] data-testid=\"badge-secondary\"",
+    "link": "text-[#0073a4] dark:text-[#19CDFF] hover:text-[#044f74] dark:hover:text-[#9ce4ff] underline-offset-4 hover:underline transition-all data-testid=\"link\"",
+    "card": "bg-white border border-[#E0E0E0] text-[#1B1C1D] rounded-lg p-6 dark:bg-[#1B1C1D] dark:border-[#393E41] dark:text-white data-testid=\"card\"",
+    "focus_ring": "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#19CDFF] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#1B1C1D]"
   },
-  "components": {
-    "ModulePageHeader": {
-      "description": "Unified page-header system for Operations, Memberships, CRM, Marketing, and Comms Centre.",
-      "structure": {
-        "LeftRegion": {
-          "layout": "flex flex-col gap-1.5",
-          "TitleRow": {
-            "layout": "flex flex-wrap items-center gap-x-3 gap-y-1",
-            "ModuleIcon": "Optional Lucide-react icon (size 28 or 32, strokeWidth 2). Color: text-[var(--theme-text)]",
-            "ModuleName": "text-3xl md:text-4xl font-bold tracking-tight text-[var(--theme-text)]",
-            "Separator": "text-[var(--theme-text-muted)] text-3xl font-light (using '·')",
-            "TenantName": "text-2xl md:text-3xl font-semibold. Color treatment depends on active brand (see branding_treatments)."
-          },
-          "Subtitle": "text-sm md:text-base font-medium text-[var(--theme-text-muted)] max-w-2xl"
-        },
-        "RightRegion": {
-          "layout": "flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start w-full md:w-auto gap-4 md:gap-2",
-          "Date": "text-sm font-semibold text-[var(--theme-text-muted)] uppercase tracking-wider",
-          "ActionSlot": "Slot for module-specific controls like 'Studio Mode' toggle. Rendered right-aligned on desktop, inline or right-aligned on mobile."
-        }
-      },
-      "naming_rules": {
-        "operations_override": "If the module is 'Operations', the ModuleName displayed MUST be 'Dashboard'."
-      },
-      "testing_attributes": {
-        "container": "data-testid='module-page-header'",
-        "title": "data-testid='module-title'",
-        "tenant": "data-testid='tenant-name'",
-        "date": "data-testid='module-date'",
-        "action_slot": "data-testid='module-action-slot'"
-      }
-    }
+  "charts_palette": [
+    "#19CDFF",
+    "#393E41",
+    "#6E7476",
+    "#E0E0E0",
+    "#1B1C1D",
+    "#0091ca",
+    "#9ce4ff"
+  ],
+  "gradient_replacement_strategy": {
+    "instruction": "All existing gradients (e.g., bg-gradient-to-r) must be removed entirely.",
+    "hero_headers": "Use solid bg-[#1B1C1D] (Soft Black) with #FFFFFF text and #19CDFF accents.",
+    "gradient_text": "Replace with solid text-[#0073a4] in light mode, text-[#19CDFF] in dark mode.",
+    "gradient_buttons": "Replace with solid primary_button recipe."
   },
-  "instructions_to_main_agent": [
-    "Create a reusable 'ModulePageHeader.js' functional component.",
-    "The component should accept props: moduleName (string), tenantName (string), subtitle (string), date (string), actionSlot (node), icon (node), and brandMode ('gymAxis' | 'pulse').",
-    "Implement the 'Operations' -> 'Dashboard' renaming logic internally within the component.",
-    "Use only the specified CSS variables for colors (no hardcoded tailwind colors except for the gradient class).",
-    "Ensure all data-testid attributes are applied according to the guidelines.",
-    "Ensure the component uses a <header> HTML5 tag as its root element."
+  "prioritised_implementation_checklist": [
+    "1. tailwind.config.js Update: Collapse `blue`, `sky`, `cyan`, `indigo`, `violet`, and `purple` into the single brand cyan scale. Inject the 5 brand hex colors as variables.",
+    "2. Global CSS Injection: Apply the provided light/dark `--...` css custom properties in globals.css/index.css.",
+    "3. Typography Standardization: Apply `font-family: 'Proxima Nova'` globally. Update utility classes for H1-H5 across components to enforce specific letter-spacing (tracking-[0.1em]) and weights.",
+    "4. Component Refactoring (Buttons): Purge ALL `bg-blue-600 text-white` classes. Map primary buttons to `bg-[#19CDFF] text-[#1B1C1D]` and secondary to `bg-[#1B1C1D] text-white`.",
+    "5. Gradient Eradication: Search and replace `bg-gradient-*` and `bg-clip-text` utilities across the codebase. Replace with flat brand colors.",
+    "6. Chart Palette Update: Reconfigure default Recharts/ChartJS color arrays to the specific 7-color scale.",
+    "7. Automated Testing Preparation: Ensure all updated UI elements include `data-testid` attributes."
   ]
 }
