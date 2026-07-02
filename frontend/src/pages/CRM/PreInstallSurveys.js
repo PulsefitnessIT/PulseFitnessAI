@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Plus, ArrowLeft, FileText, Upload, Download, Trash2, ShieldAlert,
   CheckCircle2, Circle, ClipboardList, History, AlertTriangle, Loader2, X,
-  Sparkles, ClipboardCopy, GitCompare, Layers,
+  Sparkles, ClipboardCopy, GitCompare, Layers, WifiOff, CloudOff, RefreshCw, Cloud,
 } from 'lucide-react';
+
+const draftKey = (id) => `pis_survey_draft_${id}`;
 
 const REPEATABLE = { site_contacts: 'Contact', rooms: 'Room / Area', equipment: 'Equipment', existing_equipment: 'Existing item', risks: 'Risk' };
 const UNITS = ['m', 'cm', 'mm', 'ft/in'];
@@ -110,25 +112,80 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
   const [diffTo, setDiffTo] = useState('');
   const [diffResult, setDiffResult] = useState(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine !== false);
+  const [pendingSync, setPendingSync] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [restore, setRestore] = useState(null);
+  const skipPersist = useRef(true);
+  const pendingRef = useRef(false);
+  const dataRef = useRef(data);
+  useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { pendingRef.current = pendingSync; }, [pendingSync]);
+
+  const persistLocal = useCallback((d, isDirty) => {
+    try { localStorage.setItem(draftKey(surveyId), JSON.stringify({ data: d, savedAt: Date.now(), dirty: isDirty })); } catch { /* quota */ }
+  }, [surveyId]);
+  const clearLocal = useCallback(() => { try { localStorage.removeItem(draftKey(surveyId)); } catch { /* noop */ } }, [surveyId]);
 
   const load = useCallback(async () => {
     const res = await axios.get(`${API}/crm/site-surveys/${surveyId}`, { headers: headers() });
     setSurvey(res.data);
+    // Offline draft recovery: if a dirty local draft exists, offer to restore.
+    let localDraft = null;
+    try { localDraft = JSON.parse(localStorage.getItem(draftKey(surveyId)) || 'null'); } catch { localDraft = null; }
+    skipPersist.current = true;
     setData(res.data.data || {});
+    setTimeout(() => { skipPersist.current = false; }, 0);
+    if (localDraft && localDraft.dirty && JSON.stringify(localDraft.data) !== JSON.stringify(res.data.data || {})) {
+      setRestore(localDraft);
+    } else if (localDraft && !localDraft.dirty) {
+      clearLocal();
+    }
     const a = await axios.get(`${API}/crm/site-surveys/${surveyId}/attachments`, { headers: headers() });
     setAttachments(a.data.attachments || []);
-  }, [surveyId, API, headers]);
+  }, [surveyId, API, headers, clearLocal]);
 
   useEffect(() => { load(); }, [load]);
 
-  const save = async (silent = false) => {
+  // Persist every edit to device (survives reload / poor signal).
+  useEffect(() => {
+    if (skipPersist.current) return;
+    persistLocal(data, true);
+    setDirty(true);
+  }, [data, persistLocal]);
+
+  const save = useCallback(async (silent = false) => {
     setSaving(true);
     try {
-      const res = await axios.put(`${API}/crm/site-surveys/${surveyId}`, { data }, { headers: headers() });
-      setSurvey((s) => ({ ...s, ...res.data, data }));
+      const res = await axios.put(`${API}/crm/site-surveys/${surveyId}`, { data: dataRef.current }, { headers: headers() });
+      setSurvey((s) => ({ ...s, ...res.data, data: dataRef.current }));
+      setDirty(false); setPendingSync(false); clearLocal();
       if (!silent) toast.success('Survey saved');
-    } catch (e) { toast.error('Save failed'); } finally { setSaving(false); }
-  };
+      return true;
+    } catch (e) {
+      const isNetwork = (typeof navigator !== 'undefined' && !navigator.onLine) || e?.code === 'ERR_NETWORK' || !e?.response;
+      if (isNetwork) {
+        persistLocal(dataRef.current, true); setPendingSync(true); setOnline(false);
+        if (!silent) toast('Saved on device — will sync when back online', { icon: '📴' });
+      } else if (!silent) { toast.error('Save failed'); }
+      return false;
+    } finally { setSaving(false); }
+  }, [API, surveyId, headers, persistLocal, clearLocal]);
+
+  // Online/offline detection + auto-sync of pending drafts on reconnect.
+  useEffect(() => {
+    const goOnline = async () => {
+      setOnline(true);
+      if (pendingRef.current) {
+        const ok = await save(true);
+        if (ok) toast.success('Reconnected — your draft has been synced');
+      }
+    };
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
+  }, [save]);
 
   const setSectionField = (secId, key, val) => {
     setData((d) => ({ ...d, [secId]: { ...(d[secId] || {}), [key]: val } }));
@@ -145,6 +202,10 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
 
   const upload = async (file) => {
     if (!file) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast("You're offline — photos & floor plans upload once you're back online", { icon: '📴' });
+      return;
+    }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -230,12 +291,30 @@ function SurveyEditor({ surveyId, schema, statuses, readinessStatuses, attachmen
 
   return (
     <div data-testid="survey-editor">
+      {restore && (
+        <div className="mb-3 p-3 rounded-lg border flex items-center gap-3 flex-wrap" style={{ background: 'var(--color-accent-amber)12', borderColor: 'var(--color-accent-amber)' }} data-testid="survey-restore-banner">
+          <CloudOff size={16} style={{ color: 'var(--color-accent-amber)' }} />
+          <span className="text-xs flex-1" style={{ color: c.text }}>Unsynced changes were saved on this device (possibly from an offline session). Restore them?</span>
+          <button onClick={() => { skipPersist.current = true; setData(restore.data); setTimeout(() => { skipPersist.current = false; setDirty(true); }, 0); setRestore(null); toast.success('Local draft restored'); }} className="px-3 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white" data-testid="survey-restore-confirm">Restore draft</button>
+          <button onClick={() => { clearLocal(); setRestore(null); }} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-restore-discard">Discard</button>
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={onBack} className="p-1.5 rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="survey-editor-back"><ArrowLeft size={16} /></button>
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold" style={{ color: c.text }}>{survey.reference} · {survey.company_name}</h2>
           <p className="text-xs" style={{ color: c.textDim }}>{survey.site_name || 'No site'} · {survey.survey_type?.replace(/_/g, ' ')}</p>
         </div>
+        {/* Offline / sync status */}
+        {!online ? (
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded inline-flex items-center gap-1" style={{ background: 'var(--color-accent-amber)20', color: 'var(--color-accent-amber)' }} data-testid="survey-sync-offline"><WifiOff size={11} /> Offline · saved on device</span>
+        ) : pendingSync ? (
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded inline-flex items-center gap-1" style={{ background: 'var(--color-accent-amber)20', color: 'var(--color-accent-amber)' }} data-testid="survey-sync-pending"><RefreshCw size={11} /> Syncing…</span>
+        ) : dirty ? (
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded inline-flex items-center gap-1" style={{ background: 'var(--color-info-ios)15', color: 'var(--color-info-ios)' }} data-testid="survey-sync-dirty"><CloudOff size={11} /> Unsaved</span>
+        ) : (
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded inline-flex items-center gap-1" style={{ background: 'var(--color-success-alt)15', color: 'var(--color-success-alt)' }} data-testid="survey-sync-synced"><Cloud size={11} /> Synced</span>
+        )}
         <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: `${statusColor(survey.status)}20`, color: statusColor(survey.status) }} data-testid="survey-status-badge">
           {statuses.find((s) => s.key === survey.status)?.label || survey.status}
         </span>
