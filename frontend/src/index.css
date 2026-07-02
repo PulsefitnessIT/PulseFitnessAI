@@ -376,7 +376,7 @@
     background: var(--theme-bg);
     color: var(--theme-text-muted);
     -webkit-font-smoothing: antialiased;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Proxima Nova', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     transition: background-color 0.3s ease, color 0.3s ease;
     /* Iter 215ak — prevent accidental horizontal scroll on mobile when a
        deep child overflows slightly (e.g. fixed-width inputs). Inner
@@ -386,7 +386,7 @@
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Proxima Nova', 'Inter', system-ui, sans-serif;
   }
 }
 
