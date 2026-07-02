@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jul 2, 2026 — Site Survey reports: Excel + PDF export (CSV already live)
+- **Backend**: generic exporters `utils/report_export.py` (`build_report_xlsx` via openpyxl, `build_report_pdf` via reportlab, Pulse-branded, landscape). New endpoint `GET /api/crm/reports/{report_id}/export?fmt=xlsx|pdf&from_iso=&to_iso=` dispatches to the 4 survey reports (`_EXPORTABLE_REPORTS`); 404 for non-exportable reports. Columns derived from row keys; totals rendered as a summary strip.
+- **Frontend** (`CRMReports.js`): added `exportable:true` to the 4 survey reports + Excel/PDF buttons (data-testid `report-xlsx-*` / `report-pdf-*`) next to CSV, downloading via blob with the panel's current date range (disabled when no rows).
+- **Verified via curl**: XLSX (valid zip, correct content-type, 5KB), PDF (`%PDF-`, correct content-type), unknown report → 404. Frontend compiles.
+
+
+
 ## Jul 2, 2026 — Pre-Install Site Survey: Reporting dashboard + exports (within CRM Reports)
 - Added a new **"Site Surveys"** category to the existing CRM Reports suite (`CRMReports.js`) — reuses the standard ReportPanel (date-range chips, totals strip, **CSV export**), zero new UI framework.
 - Four report endpoints on the CRM reports router (`crm_reports.py`, org + site-scoped, dateable on created_at): `site-surveys-status` (by status, open/awaiting-customer counts), `site-surveys-manager` (per manager: surveys/ready/installed/high-risk), `site-surveys-high-risk` (one row per survey with a High/Critical risk, critical-first), `site-surveys-conversion` (funnel: created → approved-for-quote → approved-for-install → completed + survey-to-install rate %).

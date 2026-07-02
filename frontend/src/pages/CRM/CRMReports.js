@@ -27,10 +27,10 @@ const REPORTS = [
   { id: 'lost-reasons',          label: 'Lost Reasons',            category: 'Sales',      icon: AlertTriangle, dateable: true },
   { id: 'salesperson',           label: 'Salesperson Performance', category: 'Team',       icon: Users,        dateable: true },
   { id: 'consent-overview',      label: 'GDPR Consent',            category: 'Compliance', icon: ShieldCheck,  dateable: false },
-  { id: 'site-surveys-status',     label: 'Surveys by Status',        category: 'Site Surveys', icon: ClipboardList, dateable: true },
-  { id: 'site-surveys-manager',    label: 'Surveys by Manager',       category: 'Site Surveys', icon: Users,         dateable: true },
-  { id: 'site-surveys-high-risk',  label: 'High-Risk Installations',  category: 'Site Surveys', icon: ShieldAlert,   dateable: true },
-  { id: 'site-surveys-conversion', label: 'Survey → Install Conversion', category: 'Site Surveys', icon: TrendingUp, dateable: true },
+  { id: 'site-surveys-status',     label: 'Surveys by Status',        category: 'Site Surveys', icon: ClipboardList, dateable: true, exportable: true },
+  { id: 'site-surveys-manager',    label: 'Surveys by Manager',       category: 'Site Surveys', icon: Users,         dateable: true, exportable: true },
+  { id: 'site-surveys-high-risk',  label: 'High-Risk Installations',  category: 'Site Surveys', icon: ShieldAlert,   dateable: true, exportable: true },
+  { id: 'site-surveys-conversion', label: 'Survey → Install Conversion', category: 'Site Surveys', icon: TrendingUp, dateable: true, exportable: true },
 ];
 
 function downloadCSV(filename, rows) {
@@ -45,6 +45,23 @@ function downloadCSV(filename, rows) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+async function downloadExport(reportId, fmt, range) {
+  try {
+    const params = new URLSearchParams({ fmt });
+    if (range?.from) params.set('from_iso', range.from);
+    if (range?.to) params.set('to_iso', range.to);
+    const res = await axios.get(`${API}/crm/reports/${reportId}/export?${params.toString()}`, { ...auth(), responseType: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(res.data);
+    a.download = `${reportId}.${fmt}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    toast.error('Export failed');
+  }
+}
+
 
 // Today / 7d / 30d / 90d / 365d / All quick-pick presets.
 const PRESETS = [
@@ -224,6 +241,28 @@ function ReportPanel({ report }) {
           >
             <Download size={13} /> CSV
           </button>
+          {report.exportable && (
+            <>
+              <button
+                onClick={() => downloadExport(report.id, 'xlsx', range)}
+                disabled={!data?.rows?.length}
+                className="h-8 px-2 rounded-full border border-[color:var(--theme-border)] inline-flex items-center gap-1 text-xs font-bold disabled:opacity-40"
+                data-testid={`report-xlsx-${report.id}`}
+                type="button"
+              >
+                <Download size={13} /> Excel
+              </button>
+              <button
+                onClick={() => downloadExport(report.id, 'pdf', range)}
+                disabled={!data?.rows?.length}
+                className="h-8 px-2 rounded-full border border-[color:var(--theme-border)] inline-flex items-center gap-1 text-xs font-bold disabled:opacity-40"
+                data-testid={`report-pdf-${report.id}`}
+                type="button"
+              >
+                <Download size={13} /> PDF
+              </button>
+            </>
+          )}
         </div>
       </header>
 

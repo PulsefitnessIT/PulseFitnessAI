@@ -24,7 +24,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
@@ -564,3 +565,36 @@ async def rpt_surveys_conversion(from_iso: str = None, to_iso: str = None, user=
             "totals": {"total_surveys": total, "converted_to_install": approved_install,
                        "survey_to_install_rate_%": pct(approved_install), **rng},
             "generated_at": _now_iso()}
+
+
+# ── Excel / PDF export for Site Survey reports ──────────────────────
+_EXPORTABLE_REPORTS = {
+    "site-surveys-status": ("Surveys by Status", rpt_surveys_status),
+    "site-surveys-manager": ("Surveys by Manager", rpt_surveys_manager),
+    "site-surveys-high-risk": ("High-Risk Installations", rpt_surveys_high_risk),
+    "site-surveys-conversion": ("Survey → Install Conversion", rpt_surveys_conversion),
+}
+
+
+@router.get("/{report_id}/export")
+async def export_report(report_id: str, fmt: str = "xlsx", from_iso: str = None,
+                        to_iso: str = None, user=Depends(get_crm_user)):
+    entry = _EXPORTABLE_REPORTS.get(report_id)
+    if not entry:
+        raise HTTPException(404, "This report does not support Excel/PDF export")
+    title, fn = entry
+    result = await fn(from_iso=from_iso, to_iso=to_iso, user=user)
+    rows = result.get("rows") or []
+    totals = result.get("totals") or {}
+    if fmt == "pdf":
+        from utils.report_export import build_report_pdf
+        data = build_report_pdf(title, rows, totals)
+        mt, ext = "application/pdf", "pdf"
+    else:
+        from utils.report_export import build_report_xlsx
+        data = build_report_xlsx(title, rows, totals)
+        mt = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ext = "xlsx"
+    fname = f"{report_id}.{ext}"
+    return Response(content=data, media_type=mt,
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
