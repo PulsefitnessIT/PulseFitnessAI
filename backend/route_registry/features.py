@@ -16,6 +16,7 @@ from routes.suppliers import router as suppliers_router
 from routes.suppliers_catalogue import router as suppliers_catalogue_router
 from routes.digest import router as digest_router
 from routes.onboarding import router as onboarding_router
+from routes.survey_portal import router as survey_portal_router
 from routes.gym_layouts import router as gym_layouts_router
 from routes.health_score import router as health_score_router
 from routes.supplier_portal import router as supplier_portal_router
@@ -237,7 +238,7 @@ _UNGATED_ROUTERS = (
     suppliers_catalogue_router,
     machine_manuals_router, membership_dunning_router,
     revenue_autopilot_router, gdpr_router,
-    digest_router, onboarding_router, gym_layouts_router,
+    digest_router, onboarding_router, survey_portal_router, gym_layouts_router,
     health_score_router, supplier_portal_router, qr_codes_router,
     svc_engineer_qr_router, svc_engineer_qr_public_router,
     svc_access_requests_router,

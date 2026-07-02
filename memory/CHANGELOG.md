@@ -1,6 +1,15 @@
 # Changelog
 
 
+## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 2/4): Customer portal input
+- **Home:** Account Settings → Onboarding (per user choice), for the org's own users (customer/site contact). Uses platform JWT (`get_current_user`), scoped to the caller's organisation. Gated per-org by the `allow_customer_portal_input` survey setting (default OFF).
+- **Backend** (`routes/survey_portal.py`, prefix `/api/survey-portal`): GET `/surveys` (only portal-enabled + actionable statuses, customer-safe view), GET `/surveys/{id}` (+ customer schema), PUT `/surveys/{id}` (whitelisted fields only — non-whitelisted keys silently stripped), attachments upload/list (customer uploads forced `visible_to_installer/customer=true`, `source=customer_portal`). Whitelist + `customer_portal_schema()` live in `crm_site_surveys_schema.py` (`CUSTOMER_PORTAL_FIELDS`, `CUSTOMER_UPLOAD_CATEGORIES`). Customer can edit: site contacts, subset of access/parking/network(IT contact)/customer requirements/site rules; can upload floor plan + photos. Contributions audit-logged (`customer_information_received`, `customer_file_uploaded`).
+- **Frontend** (`AccountSettings/onboarding.js`): `SurveyPortalPanel` + `SurveyPortalDetail` — panel hidden unless enabled surveys exist; detail renders the whitelisted sections (Yes/No toggles, repeatable Site Contacts), floor-plan/photo upload, and "Send to installation team".
+- **Verified**: backend via curl (whitelist enforced, forbidden field stripped, no internal-data leak — only 3 safe sections returned, uploads reach internal CRM with `has_floor_plan`, disabled → 403); frontend via screenshot (panel + detail render clean/on-brand inside the forced-light modal).
+- **Remaining Phase-2:** 3) version-diff UI, 4) offline mobile drafts.
+
+
+
 ## Jul 2, 2026 — Account Settings modal: force clean light theme (match reference)
 - Root cause: the Account Settings modal inherited the app's dark/light toggle, so in dark mode it rendered black — nothing like the intended clean light design (GymAxis reference the user shared). Its docstring even claimed it never inherits the toggle.
 - Fix: scoped the modal shell with `data-theme="light"` in `AccountSettingsModal.js` so all `--theme-*` vars + the light-mode Tailwind overrides resolve to the light palette regardless of app theme. One-line, low-risk.

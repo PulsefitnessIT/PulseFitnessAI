@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Check, Loader2, Rocket, ChevronDown } from 'lucide-react';
+import { Check, Loader2, Rocket, ChevronDown, ClipboardList, Upload, ArrowLeft } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 import { useNavigate } from 'react-router-dom';
 import EquipmentImportInline from './EquipmentImportInline';
@@ -104,6 +104,206 @@ function CustomerPortalPanel() {
     </div>
   );
 }
+
+// ── Pre-Install Site Survey customer portal ─────────────────────────
+function PortalField({ f, value, onChange }) {
+  const label = (
+    <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--theme-text-muted)' }}>{f.label}</div>
+  );
+  if (f.type === 'boolean') {
+    return (
+      <label className="block">{label}
+        <div className="flex gap-2">
+          {[['Yes', true], ['No', false]].map(([lbl, val]) => (
+            <button key={lbl} type="button" onClick={() => onChange(val)}
+              className="px-3 py-1.5 text-xs font-medium rounded-md border"
+              style={value === val
+                ? { background: 'var(--brand-color, var(--color-brand-blue))', color: '#fff', borderColor: 'transparent' }
+                : { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid={`survey-portal-field-${f.key}-${lbl.toLowerCase()}`}>{lbl}</button>
+          ))}
+        </div>
+      </label>
+    );
+  }
+  if (f.type === 'select') {
+    return (
+      <label className="block">{label}
+        <select className="account-input" value={value || ''} onChange={(e) => onChange(e.target.value)} data-testid={`survey-portal-field-${f.key}`}>
+          <option value="">—</option>
+          {(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </label>
+    );
+  }
+  if (f.type === 'textarea') {
+    return (<label className="block">{label}<textarea className="account-input" style={{ height: 64, padding: 8 }} value={value || ''} onChange={(e) => onChange(e.target.value)} data-testid={`survey-portal-field-${f.key}`} /></label>);
+  }
+  const t = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+  return (<label className="block">{label}<input className="account-input" type={t} value={value ?? ''} onChange={(e) => onChange(e.target.value)} data-testid={`survey-portal-field-${f.key}`} /></label>);
+}
+
+function SurveyPortalDetail({ survey, onBack, headers }) {
+  const [data, setData] = useState(survey.data || {});
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [cat, setCat] = useState('floor_plans');
+  const schema = survey.schema || [];
+  const uploadCats = survey.upload_categories || [];
+
+  const loadAtt = async () => {
+    try {
+      const { data: r } = await axios.get(`${API}/survey-portal/surveys/${survey.id}/attachments`, { headers: headers() });
+      setAttachments(r.attachments || []);
+    } catch { /* ignore */ }
+  };
+  useEffect(() => { loadAtt(); /* eslint-disable-next-line */ }, []);
+
+  const setField = (sec, key, val) => setData((d) => ({ ...d, [sec]: { ...(d[sec] || {}), [key]: val } }));
+  const setContact = (idx, key, val) => setData((d) => { const a = [...(d.site_contacts || [])]; a[idx] = { ...(a[idx] || {}), [key]: val }; return { ...d, site_contacts: a }; });
+  const addContact = () => setData((d) => ({ ...d, site_contacts: [...(d.site_contacts || []), {}] }));
+  const removeContact = (idx) => setData((d) => ({ ...d, site_contacts: (d.site_contacts || []).filter((_, i) => i !== idx) }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await axios.put(`${API}/survey-portal/surveys/${survey.id}`, { data }, { headers: headers() });
+      toast.success('Thank you — your information has been sent to the installation team');
+      onBack(true);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not save'); } finally { setSaving(false); }
+  };
+  const upload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      await axios.post(`${API}/survey-portal/surveys/${survey.id}/attachments?category=${cat}`, fd, { headers: { ...headers() } });
+      toast.success('File uploaded'); await loadAtt();
+    } catch (e) { toast.error(e?.response?.status === 413 ? 'File too large (max 25MB)' : 'Upload failed'); } finally { setUploading(false); }
+  };
+
+  return (
+    <div className="space-y-4" data-testid="survey-portal-detail">
+      <button onClick={() => onBack(false)} className="account-btn-secondary" data-testid="survey-portal-back"><ArrowLeft size={13} /> Back to surveys</button>
+      <div>
+        <h3 className="account-section-title">{survey.reference} — {survey.site_name || 'Your site'}</h3>
+        <p className="account-section-sub">Please confirm the details below and upload a floor plan or site photos to help our installation team prepare.</p>
+      </div>
+
+      {schema.map((sec) => (
+        <div key={sec.id} className="account-card rounded-lg p-3" data-testid={`survey-portal-section-${sec.id}`}>
+          <p className="text-xs font-bold mb-2" style={{ color: 'var(--theme-text)' }}>{sec.title}</p>
+          {sec.repeatable ? (
+            <div className="space-y-3">
+              {(data[sec.id] || []).map((item, idx) => (
+                <div key={idx} className="rounded-md border p-2.5" style={{ borderColor: 'var(--theme-border)' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {sec.fields.map((f) => <PortalField key={f.key} f={f} value={item[f.key]} onChange={(v) => setContact(idx, f.key, v)} />)}
+                  </div>
+                  <button onClick={() => removeContact(idx)} className="mt-2 text-[11px]" style={{ color: 'var(--color-error-ios, #ef4444)' }}>Remove</button>
+                </div>
+              ))}
+              <button onClick={addContact} className="account-btn-secondary" data-testid="survey-portal-add-contact">+ Add contact</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {sec.fields.map((f) => <PortalField key={f.key} f={f} value={(data[sec.id] || {})[f.key]} onChange={(v) => setField(sec.id, f.key, v)} />)}
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="account-card rounded-lg p-3" data-testid="survey-portal-uploads">
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <p className="text-xs font-bold" style={{ color: 'var(--theme-text)' }}>Floor plan / photos</p>
+          <div className="flex items-center gap-2">
+            <select className="account-input account-input-sm" style={{ width: 160 }} value={cat} onChange={(e) => setCat(e.target.value)} data-testid="survey-portal-upload-cat">
+              {uploadCats.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
+            </select>
+            <label className="account-btn-secondary cursor-pointer" data-testid="survey-portal-upload-btn">
+              {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} Upload
+              <input type="file" className="hidden" accept="image/*,.pdf,.dwg,.dxf" onChange={(e) => upload(e.target.files?.[0])} />
+            </label>
+          </div>
+        </div>
+        {attachments.length === 0 ? <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No files uploaded yet.</p> : (
+          <div className="space-y-1">
+            {attachments.map((a) => (
+              <div key={a.id} className="text-xs flex items-center gap-2" style={{ color: 'var(--theme-text)' }}>
+                <Check size={12} style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} /> {a.original_filename}
+                <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>({a.category?.replace(/_/g, ' ')})</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={save} disabled={saving} className="account-btn-primary" data-testid="survey-portal-save">
+          {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Send to installation team
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SurveyPortalPanel() {
+  const headers = useAuthHeaders();
+  const [surveys, setSurveys] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openSurvey, setOpenSurvey] = useState(null);
+
+  const load = async () => {
+    try {
+      const { data } = await axios.get(`${API}/survey-portal/surveys`, { headers: headers() });
+      setSurveys(data.enabled ? (data.surveys || []) : []);
+    } catch { setSurveys([]); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const openOne = async (id) => {
+    try {
+      const { data } = await axios.get(`${API}/survey-portal/surveys/${id}`, { headers: headers() });
+      setOpenSurvey(data);
+    } catch (e) { toast.error('Could not open survey'); }
+  };
+
+  if (loading || surveys.length === 0) return null;
+
+  if (openSurvey) {
+    return (
+      <div className="pb-5 mb-5 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+        <SurveyPortalDetail survey={openSurvey} headers={headers}
+          onBack={(refresh) => { setOpenSurvey(null); if (refresh) load(); }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 pb-5 mb-5 border-b" style={{ borderColor: 'var(--theme-border)' }} data-testid="survey-portal-panel">
+      <div className="flex items-center gap-2">
+        <ClipboardList size={16} style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} />
+        <div>
+          <h3 className="account-section-title">Pre-Install Site Surveys</h3>
+          <p className="account-section-sub">Your installer needs a few site details. Please review and add any missing information.</p>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {surveys.map((s) => (
+          <button key={s.id} onClick={() => openOne(s.id)} className="account-card rounded-lg p-3 w-full text-left flex items-center gap-2" data-testid={`survey-portal-row-${s.id}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate" style={{ color: 'var(--theme-text)' }}>{s.reference} — {s.site_name || 'Your site'}</p>
+              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Information requested{s.target_install_date ? ` · target install ${String(s.target_install_date).slice(0, 10)}` : ''}</p>
+            </div>
+            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--brand-color, #0055FF) 15%, transparent)', color: 'var(--brand-color, var(--color-brand-blue))' }}>Action needed</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const headers = useAuthHeaders();
@@ -237,6 +437,7 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const pct = data?.percent ?? 0;
   return (
     <div className="space-y-5" data-testid="account-section-onboarding">
+      <SurveyPortalPanel />
       <CustomerPortalPanel />
       <div>
         <h3 className="account-section-title">Setup checklist</h3>

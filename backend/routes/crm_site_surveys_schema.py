@@ -389,4 +389,49 @@ SURVEY_SCHEMA = [
 __all__ = [
     "SURVEY_SCHEMA", "SURVEY_TYPES", "SURVEY_STATUSES", "READINESS_CHECKS",
     "READINESS_STATUSES", "ATTACHMENT_CATEGORIES", "CRITICAL_READINESS_KEYS", "UNITS",
+    "CUSTOMER_PORTAL_FIELDS", "CUSTOMER_UPLOAD_CATEGORIES", "customer_portal_schema",
 ]
+
+# ── Customer portal (Account Settings → Onboarding) ─────────────────
+# What the customer/site contact may VIEW+EDIT. Everything else
+# (risks, layout notes, installation notes, internal review, readiness
+# scoring) stays internal-only. Value "*" = the whole repeatable section.
+CUSTOMER_PORTAL_FIELDS = {
+    "site_contacts": "*",
+    "access": ["delivery_entrance", "main_entrance_usable", "loading_bay_available",
+               "stairs", "lift_available", "out_of_hours_delivery", "induction_required",
+               "permit_required", "security_signin_required"],
+    "parking": ["parking_available", "parking_location", "parking_permit_required",
+                "delivery_time_restrictions", "distance_to_entrance"],
+    "network": ["it_contact"],
+    "customer_requirements": ["customer_goal", "preferred_install_date", "launch_date",
+                              "must_have_equipment", "nice_to_have_equipment", "special_requests"],
+    "site_rules": ["site_induction_required", "rams_required", "ppe_required",
+                   "signing_in_process", "working_hours_restrictions", "emergency_contact"],
+}
+
+CUSTOMER_UPLOAD_CATEGORIES = [
+    {"key": "floor_plans", "label": "Floor plan"},
+    {"key": "room_photos", "label": "Room / area photos"},
+    {"key": "access_route_photos", "label": "Access route photos"},
+    {"key": "loading_parking_photos", "label": "Loading / parking photos"},
+    {"key": "other", "label": "Other"},
+]
+
+
+def customer_portal_schema():
+    """Subset of SURVEY_SCHEMA limited to customer-editable fields."""
+    out = []
+    by_id = {s["id"]: s for s in SURVEY_SCHEMA}
+    for sec_id, allowed in CUSTOMER_PORTAL_FIELDS.items():
+        base = by_id.get(sec_id)
+        if not base:
+            continue
+        sec = {"id": base["id"], "title": base["title"], "help": base.get("help"),
+               "repeatable": base.get("repeatable", False)}
+        if allowed == "*":
+            sec["fields"] = base["fields"]
+        else:
+            sec["fields"] = [f for f in base["fields"] if f["key"] in allowed]
+        out.append(sec)
+    return out
