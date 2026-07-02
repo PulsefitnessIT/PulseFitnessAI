@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
@@ -26,6 +27,7 @@ const LiteFaultsTab = ({
   getSeverityStyle, getSeverityLabel, getStatusColor
 }) => {
   const [faultView, setFaultView] = useState('reactive');
+  const navigate = useNavigate();
   // Iter 216d — multi-machine fault jobs collapse into a single
   // expandable parent row by default; the user clicks to fan out.
   const [expandedJobs, setExpandedJobs] = useState({});
@@ -137,6 +139,11 @@ const LiteFaultsTab = ({
             <Calendar size={14} /> {t('faults.ppm', 'Planned Maintenance (PPM)')}
           </button>
         )}
+        <button type="button"
+          className="subtab-pill"
+          onClick={() => navigate('/parts-requests')} data-testid="lite-faults-view-request-part">
+          <Package size={14} /> {t('faults.request_part', 'Request a Part')}
+        </button>
       </div>
 
       {faultView === 'ppm' && ppmEnabled && <PPMSubTab />}

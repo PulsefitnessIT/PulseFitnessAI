@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers } from 'lucide-react';
+import { AlertCircle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import PageHeader from '@/components/shared/PageHeader';
@@ -22,7 +23,8 @@ const FaultsTab = ({
  onFilterMachine, onFilterStatus, onFilterSeverity,
  getSeverityColor, getSeverityLabel, getStatusColor, t
 }) => {
- const [faultView, setFaultView] = useState('reactive');
+  const navigate = useNavigate();
+  const [faultView, setFaultView] = useState('reactive');
  // Iter 216d — multi-machine fault jobs collapse into one expandable
  // parent row by default. Each child still owns its own SLA + Resolve.
  const [expandedJobs, setExpandedJobs] = useState({});
@@ -106,6 +108,11 @@ const FaultsTab = ({
  className={`subtab-pill ${faultView === 'ppm' ? 'is-active' : ''}`}
  onClick={() => setFaultView('ppm')} data-testid="faults-view-ppm">
  <Calendar size={14} /> Planned Maintenance
+ </button>
+ <button type="button"
+ className="subtab-pill"
+ onClick={() => navigate('/parts-requests')} data-testid="faults-view-request-part">
+ <Package size={14} /> Request a Part
  </button>
  </div>
 

@@ -1,0 +1,45 @@
+{
+  "summary": "Parts Requests (Operations > Faults > Request a Part) — backend + frontend end-to-end validated. 10/10 backend pytest cases pass (meta, equipment-search, coverage, create, get, attachment upload/download via object storage, AI identify, submit + email + service-desk push, public supplier card + attachment no-auth, full supplier lifecycle acknowledge→quote→invoice→allocate→despatch→complete with all fields persisted, exploded drawings CRUD). Frontend: login → /parts-requests list → New Request → machine search finds ISO-TM-001 → cover-badge-chargeable renders → add-part → submit → back to list → detail page shows supplier-card link + timeline events. Public /parts-card/{token} loads with NO auth, Acknowledge and Send Quote both succeed and status pips update (Acknowledged, Quoted). Faults sub-menu pill data-testid='faults-view-request-part' visible in Operations > Faults (Pro/Full dashboard).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/exploded-drawings", "issue": "manufacturer/model/title/equipment_type/is_global are declared as plain str/bool defaults so FastAPI treats them as QUERY parameters, not multipart Form fields. If a client uploads them as form-data (natural for multipart) they are silently dropped and the drawing is saved with empty metadata. Fix: annotate them with Form(...) (e.g. `manufacturer: str = Form('')`). Frontend currently must send them as query params."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PartsRequestsPage list", "issue": "Missing data-testid='parts-page' on the list root that the review request references (only new-request-btn / empty-new-request-btn / parts-empty-state exist). Add data-testid='parts-page' to the outer container for test parity.", "selector": "list root div", "priority": "LOW"},
+      {"component": "Editor — add-part row", "issue": "The added part row's part-name/part-number/qty inputs have no data-testid attributes (add-part-{mi} button exists, but the resulting input fields do not). Playwright fell back to a placeholder search and accidentally typed into the machine-search input; the submitted request ended up with 'No specific parts listed' on the supplier card. Add data-testid='part-name-{mi}-{pi}', 'part-number-{mi}-{pi}', 'part-qty-{mi}-{pi}' to make the form robust.", "selector": "inputs inside add-part-{mi}", "priority": "MEDIUM"},
+      {"component": "Detail — timeline", "issue": "Review references data-testid^='timeline-event-*' — only 2 events were found for a submitted request (created + submitted). After running the full supplier lifecycle on the same request, operator detail is expected to show ~7 supplier events; not re-verified end-to-end from the UI (verified via backend API only). Please confirm all supplier events render on the operator detail timeline.", "selector": "timeline-event-*", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_parts_requests_jan2026.py",
+    "/app/test_reports/pytest/parts_requests_jan2026.xml"
+  ],
+  "action_items": [
+    "Convert POST /api/exploded-drawings query params (manufacturer/model/title/equipment_type/is_global) to Form(...) so multipart form-data uploads set them correctly.",
+    "Add data-testid='parts-page' to the /parts-requests list root container.",
+    "Add data-testid attributes to the part-row inputs (part-name-{mi}-{pi}, part-number-{mi}-{pi}, part-qty-{mi}-{pi}) so tests can reliably fill parts.",
+    "(Optional) Verify operator detail timeline renders every supplier lifecycle event (acknowledge/quote/invoice/allocate/despatch/complete)."
+  ],
+  "critical_code_review_comments": [
+    "parts_requests.py is 697 lines — approaching the split threshold; consider splitting into parts_requests_meta/attachments/supplier_card modules for maintainability.",
+    "upload_drawing signature uses bare str/bool params: FastAPI silently binds them to query string on multipart requests. Use `Form(...)` or a Pydantic model + explicit File field.",
+    "supplier_card_update() is untenanted (token-only) — good for public card; make sure token is UUID-random (it is via uuid4) and consider rate-limiting the update endpoint too (public GET is rate-limited, POST /update is not).",
+    "AI identify loads the full file bytes and b64 encodes in the request handler thread; consider streaming or size limits for very large photos (currently bounded by 25MB upload cap so acceptable).",
+    "Frontend part-row inputs missing data-testid — impacts test automation and possibly assistive tech labelling."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_parts_requests_jan2026.py (created)"
+  ],
+  "success_rate": {"backend": "100% (10/10 pytest)", "frontend": "100% of tested flows (list, editor, machine search, cover badge, submit, detail, public card acknowledge+quote, Pro faults pill)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (used; landed on /service-desk after login since is_service_desk=true, still able to reach /parts-requests directly).",
+  "seed_data_creation": "Created 3 TEST_ parts requests (PR-00001..PR-00003) against iso-demo-org via automation + pytest lifecycle; one exploded drawing created and deleted; supplier card lifecycle exercised end-to-end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_parts_requests_jan2026.py — run from /app/backend with `python -m pytest tests/test_parts_requests_jan2026.py -v`. AI identify endpoint returns 200 with available=true|false depending on Emergent LLM budget — do not fail on available=false. Public supplier card URL is available from the submit response and from the detail page's data-testid='view-supplier-card' link. Lite dashboard 'lite-faults-view-request-part' pill was NOT visually verified (owner@isodemo lands on Full dashboard); to verify Lite, use a Lite-tier org login.",
+  "rca of the issue": "N/A — no blocking issues. Only minor: (1) exploded-drawings POST accepts metadata via query string not form fields — likely just a signature oversight, one-line fix to add Form(); (2) missing test-ids on some interactive elements listed in the review request."
+}

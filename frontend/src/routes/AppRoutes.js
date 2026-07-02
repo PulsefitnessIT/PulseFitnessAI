@@ -68,6 +68,8 @@ const JoinSuccess = lazy(() => import('@/pages/PublicSignup/JoinSuccess'));
 const LoginRedirectPage = lazy(() => import('@/pages/LoginRedirectPage'));
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 const SupplierCasePage = lazy(() => import('@/pages/SupplierCasePage'));
+const PartsRequestsPage = lazy(() => import('@/pages/PartsRequests/PartsRequestsPage'));
+const PartsCardPage = lazy(() => import('@/pages/PartsRequests/PartsCardPage'));
 const CustomerOnboardingForm = lazy(() => import('@/pages/CustomerOnboardingForm'));
 const QRScanPage = lazy(() => import('@/pages/QRScanPage'));
 const EngineerFaultReportPage = lazy(() => import('@/pages/EngineerFaultReportPage'));
@@ -464,6 +466,8 @@ export default function AppRoutes({ user, login }) {
 
       {/* ─── Public utility ─── */}
       <Route path="/supplier/case/:token" element={<div className="pulse-font" style={{ display: 'contents' }}><SupplierCasePage /></div>} />
+      <Route path="/parts-card/:token" element={<div className="pulse-font" style={{ display: 'contents' }}><PartsCardPage /></div>} />
+      <Route path="/parts-requests" element={user ? <div className="pulse-font" style={{ display: 'contents' }}><PartsRequestsPage /></div> : <Navigate to="/login?next=/parts-requests" replace />} />
       <Route path="/scan/:equipmentId" element={<QRScanPage />} />
       <Route path="/r/eq/:equipmentId" element={<EngineerFaultReportPage />} />
       <Route path="/r/c/:code" element={<EngineerFaultReportPage />} />

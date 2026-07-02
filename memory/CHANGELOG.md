@@ -804,3 +804,24 @@ Two in-progress tasks completed and verified via curl (CRM login owner@isodemo.c
 
 ## Backlog change (Jun 2026)
 - CANCELLED: Proactive weekly "Comms brief" (P3) — dropped per user request; do not re-propose.
+
+---
+## NEW FEATURE: Operations → Request a Part (Jun 2026)
+Operator-facing spare-parts request workflow for Lite + Pro + Full, mirroring Log-a-Fault.
+Backend verified end-to-end via curl; frontend compiles.
+
+**Backend** (`routes/parts_requests.py`, `utils/parts_ai.py`, registered in `route_registry/core.py`):
+- Collections: `parts_requests`, `parts_request_events` (timeline), `parts_request_attachments` (object storage), `parts_request_supplier_cards` (token), `exploded_drawings`.
+- Machine picker + per-machine cover (warranty/contract/chargeable) via reused `_resolve_coverage_for_issue`.
+- Multi-machine, multi-part requests; photo upload to object storage; AI part identification from photo (`utils/parts_ai.identify_part`, Emergent LLM key gpt-5.2 multimodal).
+- Exploded drawings: admin/master upload (global if master), operator search by manufacturer/model + view (decision 2A: view + manual entry).
+- Submit → branded Supplier Parts Card emailed (default parts@pulsefitness.com, editable; decision 3B) via Resend; optional Service Desk case (reuses `svc.intake._create_case`, case_type=parts).
+- Public token card (`/api/parts-card/{token}`) with supplier lifecycle actions: acknowledge → quote → invoice → allocate → despatch → complete, all on the shared timeline (decision 4).
+- Operator detail page shows full timeline + quote/invoice/despatch (like fault detail).
+
+**Frontend**:
+- `pages/PartsRequests/PartsRequestsPage.js` (list + draft editor + detail) at authed route `/parts-requests`.
+- `pages/PartsRequests/PartsCardPage.js` public supplier card at `/parts-card/:token`.
+- "Request a Part" sub-menu pill added to Operations Faults in BOTH `pages/Dashboard/FaultsTab.js` (Pro/Full) and `pages/LiteDashboard/LiteFaultsTab.js` (Lite) → navigates to `/parts-requests`.
+
+Design decisions (from user): cover=1A (reuse existing data), drawings=2A (interactive hotspots deferred to later roadmap), supplier default=3B, service-desk=4 full supplier lifecycle, AI=yes.
