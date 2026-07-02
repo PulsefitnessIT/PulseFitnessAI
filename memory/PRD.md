@@ -1,3 +1,24 @@
+# ═══ 2026-07-02 · BRANDING (FLAT-COLOUR) · Removed brand gradients → solid Core Blue, de-navied shadows (VERIFIED 100%) ═══
+Enforced the Pulse guideline "no gradients — flat solid colours only" on top of the platform-wide sweep.
+
+DONE & VERIFIED (retest /app/test_reports/iteration_pulse_flat_solid_no_gradient_retest_jan2026.json = 100%,
+0 banned colours across /dashboard,/crm,/memberships,/marketing,/comms,/service-desk INCLUDING box-shadows):
+- index.css: collapsed --gx-brand-from/mid/to all to #19CDFF (every .gx-* linear-gradient now renders flat cyan).
+  .gx-btn-primary → flat #19CDFF + Soft Black #1B1C1D text (was gradient + white). .gx-grad-text → solid deep-cyan
+  #0073a4 (was gradient-clipped). shadcn active tab + subtab-pill active → flat #19CDFF + dark ink + cyan shadow
+  (was gradient + white text + navy shadow). --rgb-brand-blue + .ai-glow de-navied to cyan.
+- Swept ALL hardcoded off-brand rgba() literals → cyan rgba(25,205,255,*) across 23 files (navy 37,99,235 /
+  purple 157,76,221 & 147,51,234 & 168,85,247 / violet 124,58,237 / indigo 79,70,229). Landing page excluded.
+- Unified the active-pill activeStyle ternaries in MembershipsConsole / CRMApp / MarketingSuite / CommsCentre to
+  a single flat cyan + var(--color-ink) dark-text style (the legacy else-branch shipped white text on flat cyan +
+  navy shadow → illegible + off-brand). Fixed.
+NOTE: Service Desk _serviceops.css still uses subtle single-hue cyan→deep-cyan gradients (on-brand hue, white
+text tuned) — left intact; can be flattened if pixel-strict "no gradient" is required there too.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-02 · BRANDING (PLATFORM-WIDE) · Pulse brand guidelines swept across the whole app (VERIFIED 100%) ═══
 User: "Pulse Brand guidelines - Have a sweep across the platform to ensure guidelines are being followed - Ignore
 the landing page as this is perfect." Then clarified: NO purple/violet/indigo exist in Pulse guidelines; landing =
