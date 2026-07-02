@@ -461,7 +461,7 @@ export default function PartsRequestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pulse-font">
+    <div className="min-h-screen bg-slate-50 pulse-font" data-testid="parts-page">
       <div className="max-w-5xl mx-auto px-4 py-6">
         {view === 'list' && (
           <>

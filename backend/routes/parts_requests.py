@@ -27,7 +27,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, Form, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -216,8 +216,8 @@ async def list_drawings(manufacturer: str = "", model: str = "", q: str = "",
 
 @router.post("/exploded-drawings")
 async def upload_drawing(
-    manufacturer: str = "", model: str = "", equipment_type: str = "",
-    title: str = "", is_global: bool = False,
+    manufacturer: str = Form(""), model: str = Form(""), equipment_type: str = Form(""),
+    title: str = Form(""), is_global: bool = Form(False),
     file: UploadFile = FastAPIFile(...), user=Depends(get_current_user),
 ):
     content = await file.read()
