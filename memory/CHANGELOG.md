@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 3/4): Version-diff UI
+- **Backend** (`crm_site_surveys.py`): `GET /{id}/diff?compare_to={otherId}` — field-level diff between two versions in the same lineage (`root_id`), labelled via SURVEY_SCHEMA. Compares meta (status/type/target date/priority/links), all non-repeatable section fields, and repeatable sections (rooms/equipment/risks/site_contacts/existing_equipment) per index. Auto-orders lower version as "from"; 400 if versions aren't from the same lineage.
+- **Frontend** (`PreInstallSurveys.js`): "Versions" button in the editor → modal listing the version chain (status chips + current badge) with two version selectors and a Compare action → side-by-side diff table (Field | vA | vB) with old struck-through / new highlighted. Guards against comparing a version with itself.
+- **Verified**: backend via curl (5 changes across meta + room + access); frontend testing agent 100% (v1/v2 listed, defaults correct, "4 changes" table rendered). Minor cosmetic console warning noted (not from these selects; no functional impact).
+- **Remaining Phase-2:** 4) offline mobile drafts.
+
+
+
 ## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 2/4): Customer portal input
 - **Home:** Account Settings → Onboarding (per user choice), for the org's own users (customer/site contact). Uses platform JWT (`get_current_user`), scoped to the caller's organisation. Gated per-org by the `allow_customer_portal_input` survey setting (default OFF).
 - **Backend** (`routes/survey_portal.py`, prefix `/api/survey-portal`): GET `/surveys` (only portal-enabled + actionable statuses, customer-safe view), GET `/surveys/{id}` (+ customer schema), PUT `/surveys/{id}` (whitelisted fields only — non-whitelisted keys silently stripped), attachments upload/list (customer uploads forced `visible_to_installer/customer=true`, `source=customer_portal`). Whitelist + `customer_portal_schema()` live in `crm_site_surveys_schema.py` (`CUSTOMER_PORTAL_FIELDS`, `CUSTOMER_UPLOAD_CATEGORIES`). Customer can edit: site contacts, subset of access/parking/network(IT contact)/customer requirements/site rules; can upload floor plan + photos. Contributions audit-logged (`customer_information_received`, `customer_file_uploaded`).
