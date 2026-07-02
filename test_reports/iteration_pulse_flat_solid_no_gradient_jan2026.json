@@ -1,0 +1,75 @@
+{
+  "summary": "Frontend-only visual/computed-style audit of the flat-solid Pulse brand polish. Logged in as owner@isodemo.com (IsoDemo123!) and swept /dashboard, /crm, /memberships, /service-desk. Verified (a) active shadcn tab pills render flat solid Core Blue rgb(25,205,255) with dark Soft Black-ish text rgb(10,12,16) and NO background-image (no gradient), (b) .gx-grad-text renders solid rgb(0,115,164) deep-cyan with no background-image (no gradient), (c) banned palette scan (navy 37,99,235 / violet 124,58,237 / purple 147,51,234 / indigo 79,70,229 / teal 20,184,166) returns ZERO hits on /dashboard, /crm, /service-desk. ONE violation found on /memberships: the MembershipsConsole sub-tab active pill still has an inline box-shadow with navy rgba(37,99,235,0.35). Pages render, no app-level JS errors, tabs remain clickable, active-tab dark text (rgb 10,12,16) is legible on cyan.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MembershipsConsole desktop PillTabBar active pill",
+        "issue": "Active sub-tab pill (e.g. 'Start' on /memberships) still emits banned navy box-shadow 'rgba(37, 99, 235, 0.35) 0px 6px 16px -6px'. Pill visual is flat cyan (tailwind alias flattens the gradient) but the shadow literal rgba(37,99,235,0.35) is still present in the inline style — violates the 'no navy box-shadow' rule.",
+        "selector": "[data-testid^='mbr-tab-'] (button.flex-shrink-0.rounded-full inside .pill-tab-bar__track on /memberships)",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "computed_style_evidence": {
+    "/dashboard active tab pill (shadcn TabsList data-state=active — 'Dashboard'/'Start')": {
+      "backgroundColor": "rgb(25, 205, 255)",
+      "backgroundImage": "none",
+      "color": "rgb(10, 12, 16)",
+      "boxShadow": "rgba(25, 205, 255, 0.4) 0px 6px 16px -6px",
+      "verdict": "PASS — flat solid Core Blue, dark legible text, cyan shadow (not navy)"
+    },
+    "/dashboard .gx-grad-text ('Operations')": {"color": "rgb(0, 115, 164)", "webkitTextFillColor": "rgb(0, 115, 164)", "backgroundImage": "none", "verdict": "PASS — solid deep-cyan"},
+    "/crm .gx-grad-text ('CRM')":        {"color": "rgb(0, 115, 164)", "backgroundImage": "none", "verdict": "PASS"},
+    "/memberships .gx-grad-text ('Memberships')": {"color": "rgb(0, 115, 164)", "backgroundImage": "none", "verdict": "PASS"},
+    "Banned-color totals per route (navy/violet/purple/indigo/teal)": {
+      "/dashboard":    "0 / 0 / 0 / 0 / 0",
+      "/crm":          "0 / 0 / 0 / 0 / 0",
+      "/memberships":  "1 (navy box-shadow only) / 0 / 0 / 0 / 0",
+      "/service-desk": "0 / 0 / 0 / 0 / 0"
+    }
+  },
+  "root_cause_of_navy_shadow_on_/memberships": {
+    "file": "/app/frontend/src/pages/Memberships/MembershipsConsole.js",
+    "line": 260,
+    "snippet": "activeStyle = isPulseBrandedMbr ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { backgroundImage: 'linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)', color: '#FFFFFF', boxShadow: '0 6px 16px -6px rgba(37,99,235,0.35)' };",
+    "explanation": "On this route/tenant the ternary falls into the ELSE branch, which still applies the legacy inline linear-gradient AND a navy rgba(37,99,235,0.35) box-shadow. Because tailwind now aliases the gradient stops to Core Blue, the background collapses to flat cyan visually — but the inline navy shadow literal is unchanged, so the scan flags it. Same pattern exists at /app/frontend/src/pages/CRM/CRMApp.js line 1019 (didn't trip on /crm today because that branch didn't render, but is latent).",
+    "grep_of_remaining_literal_rgba(37,99,235)": [
+      "src/pages/Memberships/MembershipsConsole.js:260",
+      "src/pages/CRM/CRMApp.js:1019",
+      "src/pages/MasterAdmin/AdminOrganizations.js:735",
+      "src/pages/MasterAdmin/AdminOverview.js:37",
+      "src/pages/MasterAdmin/OperationsOverview.js:28",
+      "src/pages/MasterAdmin/UnifiedTrialsCard.js:28",
+      "src/pages/Marketing/marketing.css (multiple)",
+      "src/pages/Marketing/PricingMarketingPage.js:184, 280",
+      "src/pages/Marketing/ContactsTab.js:152",
+      "src/pages/Marketing/AxisOrbit.js:171",
+      "src/pages/PartnerEngineer/TrialFeedback.js:67",
+      "src/pages/Memberships/RevenueAutopilotPanel.js:181",
+      "src/pages/PulseLandingPage.js:572, 721",
+      "src/index.css:1307 (--rgb-pulse-primary: 37,99,235)"
+    ]
+  },
+  "js_errors_observed": "Only CSP-blocked third-party analytics scripts (emergent-main.js, posthog, cloudflareinsights) — NOT app code. No React/render errors on any of the 4 tested routes.",
+  "action_items": [
+    "Replace the literal 'rgba(37,99,235,0.35)' box-shadow in the else-branch of MembershipsConsole.js line 260 (and CRMApp.js line 1019) with a cyan shadow using var(--rgb-brand-blue) e.g. boxShadow: '0 6px 16px -6px rgba(25,205,255,0.35)' — or simply drop the else branch and always render the flat Pulse-branded style since the palette is now uniformly Core Blue.",
+    "Optional sweep: replace remaining rgba(37,99,235,*) literals across Marketing/*, MasterAdmin/*, PulseLandingPage.js, RevenueAutopilotPanel.js, ContactsTab.js, AxisOrbit.js, TrialFeedback.js, PricingMarketingPage.js, and index.css --rgb-pulse-primary token. These didn't render on today's owner routes but are latent violations.",
+    "No fix needed for active-tab dark text — rgb(10,12,16) on rgb(25,205,255) is high-contrast and legible."
+  ],
+  "critical_code_review_comments": [
+    "Palette drift: 20+ files still embed literal rgba(37,99,235,*) — the 'no navy' rule should be enforced at the token layer (make --rgb-pulse-primary and --rgb-brand-blue both point to 25 205 255) rather than hunting each hard-coded literal.",
+    "Ternary dead-branch smell: activeStyle ternaries in MembershipsConsole.js and CRMApp.js still ship the legacy gradient/navy path. Since Pulse is now the only brand and gradients are banned, delete the else branch to prevent future regressions.",
+    "MembershipsConsole.js is 1774 lines — exceeds the 700-line guideline; consider splitting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~95% — 3 of 4 routes fully compliant; 1 navy box-shadow remains on /memberships sub-tab active pill"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (used — lands on /service-desk, navigated to /dashboard,/crm,/memberships successfully).",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login as owner@isodemo.com/IsoDemo123!. On /memberships, inspect the sub-tab active pill (e.g. click 'Start' — data-testid mbr-tab-start): computed boxShadow should NOT contain '37, 99, 235'. Also re-run the palette scan across /dashboard,/crm,/memberships,/service-desk expecting all-zero banned-color totals. Reference: MembershipsConsole.js:260 and CRMApp.js:1019 for the remaining literal-navy inline styles.",
+  "rca of the issue": "MembershipsConsole active-pill inline-style else-branch (line 260) predates the flat-solid sweep. Its background gradient collapses to flat cyan due to the tailwind alias, but the boxShadow literal 'rgba(37,99,235,0.35)' is unaffected by the alias (it's a raw CSS value, not a tailwind class). Fix: change the literal to cyan or unify branches to the Pulse-branded style."
+}

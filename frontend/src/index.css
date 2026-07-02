@@ -76,8 +76,8 @@
      of the legacy blue→purple fallback. The .theme-gymaxis scope still
      overrides these to the old palette if that (now-unused) theme mounts. */
   --gx-brand-from: #19CDFF;
-  --gx-brand-mid:  #0FB5E0;
-  --gx-brand-to:   #0E7490;
+  --gx-brand-mid:  #19CDFF;
+  --gx-brand-to:   #19CDFF;
 
   --color-ink:               #0A0C10;
   --color-ink-alt:           #0A0A0A;
@@ -193,8 +193,8 @@
      only operates on real colour values, not `var(--foo)`). */
   --rgb-brand-cyan:          25 205 255;
   --rgb-brand-cyan-hover:    102 204 255;
-  --rgb-brand-blue:          0 85 255;
-  --rgb-brand-blue-hover:    0 68 204;
+  --rgb-brand-blue:          25 205 255;
+  --rgb-brand-blue-hover:    0 145 202;
   --rgb-ink:                 10 12 16;
   --rgb-ink-alt:             10 10 10;
   --rgb-text-muted:          161 161 170;
@@ -1065,7 +1065,7 @@
   }
   
   .ai-glow {
-    box-shadow: 0 0 15px rgba(0, 85, 255, 0.3);
+    box-shadow: 0 0 15px rgba(25, 205, 255, 0.3);
   }
   
   .glass {
@@ -1395,9 +1395,9 @@ html[data-brand="gymaxis"] {
   /* ── Pulse Fitness palette — this legacy "premium theme" scope is applied
      to master-admin / full-account surfaces, so its brand tokens now resolve
      to Pulse CYAN (not the old navy→purple) for a consistent Pulse identity. ── */
-  --gx-brand-from: #19CDFF;     /* Pulse cyan */
-  --gx-brand-to:   #0E7490;     /* deep cyan */
-  --gx-brand-mid:  #0FB5E0;     /* cyan midpoint */
+  --gx-brand-from: #19CDFF;     /* Pulse cyan (flat — no gradient per brand) */
+  --gx-brand-to:   #19CDFF;     /* flat */
+  --gx-brand-mid:  #19CDFF;     /* flat */
   --gx-bg:         #F8FAFC;     /* slate-50 — page bg in light mode */
   --gx-bg-paper:   #FFFFFF;     /* card / panel surfaces */
   --gx-bg-soft:    #F1F5F9;     /* hover / input backdrops */
@@ -1443,41 +1443,36 @@ html[data-brand="gymaxis"] {
    tokens are inherited from the nearest .theme-gymaxis ancestor or fall
    back to the explicit hex values below. */
 .gx-grad-text {
-  background-image: linear-gradient(90deg, var(--gx-brand-from, #19CDFF) 0%, var(--gx-brand-mid, #0FB5E0) 50%, var(--gx-brand-to, #0E7490) 100%);
-  -webkit-background-clip: text;
-          background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: #0073a4;
+  -webkit-text-fill-color: #0073a4;
 }
 
 .theme-gymaxis .gx-grad-text {
-  background-image: linear-gradient(90deg, var(--gx-brand-from) 0%, var(--gx-brand-mid) 50%, var(--gx-brand-to) 100%);
-  -webkit-background-clip: text;
-          background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: #0073a4;
+  -webkit-text-fill-color: #0073a4;
 }
 
-/* ── Premium CTA button — solid brand gradient, white text ── */
+/* ── Primary CTA button — flat Core Blue, Soft Black text (brand: no gradients) ── */
 .theme-gymaxis .gx-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  background-image: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
-  color: #fff !important;
+  background: #19CDFF;
+  color: #1B1C1D !important;
   font-weight: 600;
   font-size: 0.8125rem;
   letter-spacing: 0.01em;
   border: 0;
-  box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .35);
-  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+  box-shadow: 0 6px 16px -6px rgba(25, 205, 255, .40);
+  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, background-color .18s ease;
   cursor: pointer;
 }
 .theme-gymaxis .gx-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px -6px rgba(157, 76, 221, .45);
+  background: #00b8f0;
+  box-shadow: 0 10px 22px -6px rgba(25, 205, 255, .50);
 }
 /* Iter 216az — reset the hover lift while pressed so the click target
  * doesn't shift out from under the cursor mid-click. */
@@ -1596,8 +1591,8 @@ html[data-brand="gymaxis"] {
 }
 .theme-gymaxis .subtab-pill[data-active="true"],
 .theme-gymaxis .subtab-pill.is-active {
-  background-image: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
-  color: #fff;
+  background: #19CDFF;
+  color: #0A0C10;
 }
 .theme-gymaxis .pill-tab-bar {
   background: var(--gx-bg-paper);
@@ -1625,10 +1620,10 @@ html[data-brand="gymaxis"] {
    shadow so it matches Memberships / CRM / Master Admin. */
 .theme-gymaxis [data-state="active"][role="tab"],
 .theme-gymaxis [role="tablist"] [data-state="active"] {
-  background-image: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%) !important;
-  background-color: transparent !important;
-  color: #FFFFFF !important;
-  box-shadow: 0 6px 16px -6px rgba(37, 99, 235, 0.35) !important;
+  background-image: none !important;
+  background-color: #19CDFF !important;
+  color: #0A0C10 !important;
+  box-shadow: 0 6px 16px -6px rgba(25, 205, 255, 0.40) !important;
 }
 .theme-gymaxis [role="tablist"] {
   background: var(--gx-bg-paper);
