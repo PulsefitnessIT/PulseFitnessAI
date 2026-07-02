@@ -825,3 +825,9 @@ Backend verified end-to-end via curl; frontend compiles.
 - "Request a Part" sub-menu pill added to Operations Faults in BOTH `pages/Dashboard/FaultsTab.js` (Pro/Full) and `pages/LiteDashboard/LiteFaultsTab.js` (Lite) → navigates to `/parts-requests`.
 
 Design decisions (from user): cover=1A (reuse existing data), drawings=2A (interactive hotspots deferred to later roadmap), supplier default=3B, service-desk=4 full supplier lifecycle, AI=yes.
+
+## Master Admin → Catalogue → Exploded Drawings section (Jun 2026)
+Added a new "Exploded Drawings" tab inside Master Admin → Catalogue & Library (`CataloguePanel.js`) via new `pages/MasterAdmin/ExplodedDrawingsPanel.js` (mirrors the machine-manuals panel).
+- Master admin uploads drawings (manufacturer/model/type/title + image/PDF) as platform-GLOBAL; search, view (blob), delete.
+- Backend (existing `routes/parts_requests.py` exploded-drawings endpoints): converted POST params to `Form(...)` for multipart. Verified via curl: master uploads global (org=None), lists, another org's operator sees the global drawing (feeds the Parts Request "Find in exploded drawing" picker), delete works.
+- Note: screenshot harness could not complete this SPA's login; validated backend via curl + frontend compiles (reuses proven pattern).
