@@ -1,3 +1,37 @@
+# ═══ 2026-07-02 · BRANDING + FIX · Pulse Fitness brand applied to Service Desk / Engineer / Supplier + Resend key fixed (VERIFIED 100%) ═══
+User: apply Pulse Fitness brand guidelines (colours, fonts, logos) to the Service Desk, Engineer App AND Supplier portal.
+User choices: primary accent = Pulse Core Blue cyan #19CDFF + subtle darker-cyan/teal secondary; fonts per brand
+guideline (Proxima Nova primary, Maax Rounded display fallback); scope includes Supplier portal.
+
+DONE & VERIFIED (testing agent, frontend, 100% — retest report
+/app/test_reports/iteration_pulse_cyan_branding_frontend_retest_jan2026.json):
+- COLOURS: swept the OLD GymAxis navy/violet palette → Pulse cyan/teal across ServiceDesk/**, ServiceOps/** (incl.
+  Engineer/**), PartnerEngineer/** and SupplierCasePage.js. Two passes were needed:
+  (1) hex literals: #2563eb/#1d4ed8/#0055ff → #0891b2 (cyan-600) / #19CDFF; #6366f1/#9D4CDD/#8b5cf6/#4338ca/#7c3aed →
+      #0e7490 (cyan-700). Note: Tailwind cyan-600=#0891b2 and cyan-700=#0e7490 map exactly to the chosen hexes.
+  (2) Tailwind utility classes (the bulk, missed on first pass): bg/text/border/from/to/ring -blue-* → cyan-*,
+      and -purple-*/-violet-*/-indigo-* → teal-*.
+  Also neutralised var(--color-brand-blue…) fallbacks (they resolve to navy #2563EB under the active theme) to
+  literal cyan, and the EngineerCaseTypes colour-picker + EngineerBranding default accent were de-navied.
+  Runtime computed-style scan: ZERO rgb(37,99,235)/rgb(124,58,237)/rgb(147,51,234)/rgb(168,85,247)/rgb(79,70,229)
+  on all three surfaces.
+- FONTS: _serviceops.css font chain 'Proxima Nova','Maax Rounded','Inter'. New `.pulse-font` scope in index.css
+  (Proxima Nova) applied via: AppRoutes wraps /service-desk + /supplier/case/:token in a display:contents
+  .pulse-font div, and EngineerErrorBoundary.render() wraps ALL /svc/engineer routes the same way. Global body font
+  intentionally left Manrope for the rest of the operator app (scoped, low-risk). Verified Proxima Nova on headings
+  + buttons inside the scope.
+- LOGOS: ServiceDeskPage already renders /brand/pulse-mark.svg; no GymAxis logo/SVG references remain (the
+  `gymaxis:` localStorage key in useJobDraft.js is internal/non-visible — left intact by prior decision).
+- RESEND EMAIL KEY (was P1 blocker): user supplied a NEW valid key re_GxWGi4VM_… — verified against Resend API
+  (domains verified, test send → HTTP 200 + message id). Updated backend/.env RESEND_API_KEY. Email now works.
+
+REMAINING / BACKLOG: File uploads HTTP 415 in Prod (missing libmagic, container-level); Stripe (awaiting pricing +
+key); Sicon customer/equipment auto-import; CRM "promote to register"; weekly Comms brief; Operations site-scope migration.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-30 · BUGFIX (UX) · Role dropdown didn't reflect Master Admin promotion (VERIFIED) ═══
 SYMPTOM (production, deploy now succeeded): promoting Lee Somers to "Master Admin" → "User updated" toast,
 but the role dropdown still showed "Owner".
