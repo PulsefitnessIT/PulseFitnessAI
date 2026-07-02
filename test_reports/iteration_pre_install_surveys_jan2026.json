@@ -1,0 +1,23 @@
+{
+  "summary": "Full e2e test of Pre-Install Site Survey feature (CRM Corporate). Backend: 8/8 pytest passing incl. schema, create+404 bogus company, update+readiness, status guard (block/override-no-reason/override+reason), handover JSON+PDF, audit trail, attachments upload/list/delete + has_floor_plan flag, and supersede (v2 draft, old marked superseded+is_current=false). Frontend: full UI flow verified via Playwright on public URL — CRM login, Companies list, AlphaCo (Site A) → Site Surveys tab renders <PreInstallSurveys> (data-testid=pre-install-surveys), old file uploader replaced; Create modal → confirm → editor opens; section nav works; fields fill (site_name, delivery_entrance); repeatable rooms & risks add; Save triggers 'Survey created' toast and readiness recomputes to 'Information Missing'; Change status → 'Approved for Installation' initially blocked (backend 400 in console) — override + reason then succeeds with 'Status updated' toast + badge flip to APPROVED FOR INSTALLATION; Audit modal opens.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter_pre_install_surveys.py",
+    "/app/test_reports/pytest/pre_install_surveys.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PreInstallSurveys.js renders fine but is a single 453-line file; consider splitting SurveyEditor + list into separate files if it grows.",
+    "Attachment stored as base64 inside Mongo — OK for Phase 1 but flag for future object-storage migration (25MB per file × many surveys will bloat the DB).",
+    "compute_readiness reads unit fields (room_length/width) via truthy check; numeric 0 counts as unfilled, which is fine but may be surprising if UI supports 0 as a valid value.",
+    "Handover PDF endpoint disables via allow_pdf_export flag but toggling is not currently surfaced in the settings UI (backend-only; likely Phase 2)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter_pre_install_surveys.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! (5/5min login rate limit — reuse token)",
+  "seed_data_creation": "Created ~4 surveys (PIS-00001..PIS-00004 and a v2) on AlphaCo/iso-cA + Demo Head Office/iso-demo-site-a during backend + frontend runs; cleanup not required per request.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints all under /api/crm/site-surveys are stable. Frontend integration in CRMCompanies.js Site Surveys tab renders <PreInstallSurveys/> successfully. Login rate limit 5/5min — reuse token. Frontend disk space was cleaned (removed /app/frontend/node_modules/.cache — 6.4GB) to allow writing tests; /app volume was at 100%. Handover PDF download button was not click-tested from UI (endpoint verified via backend pytest) — the button exists (data-testid=survey-handover-pdf) and hits GET /api/crm/site-surveys/{id}/handover.pdf. Upload button (survey-upload-btn) exists as <label> for hidden <input type=file>; not exercised via UI but attachments endpoint verified in backend."
+}

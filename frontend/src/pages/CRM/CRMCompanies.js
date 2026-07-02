@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
+import PreInstallSurveys from './PreInstallSurveys';
 import { CrossModuleTimeline, EnrichFromWebsiteButton } from './CRMPhase3Panels';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import Button from '@/components/shared/Button';
@@ -1631,9 +1632,9 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
           <CompanyFileTab companyId={companyId} category="drawings" label="CAD Drawings & Plans" accept=".pdf,.dwg,.dxf" API={API} headers={headers} c={c} isDark={isDark} />
         )}
 
-        {/* Site Surveys tab */}
+        {/* Pre-Install Site Surveys tab (structured feature) */}
         {activeSection === 'surveys' && (
-          <CompanyFileTab companyId={companyId} category="surveys" label="Site Survey Files" accept="*" API={API} headers={headers} c={c} isDark={isDark} />
+          <PreInstallSurveys companyId={companyId} companyName={company.name} API={API} headers={headers} c={c} isDark={isDark} />
         )}
 
         {/* Invoices tab */}
