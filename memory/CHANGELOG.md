@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 1/4): AI summaries + risk-flagging
+- **Backend** (`utils/survey_ai.py` + 3 endpoints in `crm_site_surveys.py`): OpenAI `gpt-5.2` via Emergent LLM key (mirrors verified `comms_ai.py`). `POST /{id}/ai/analyse` (grounded summary, missing-info list, flagged risks w/ severity, suggested questions, electrical/network/access concerns, readiness *recommendation*), `POST /{id}/ai/follow-up-email` (customer draft), `POST /{id}/ai/briefing` (installer briefing). Gated by `allow_ai_summaries` setting (403 when off). **Advisory only** — never writes to the survey; audit events logged (`ai_analysis_run` etc.).
+- **Frontend** (`PreInstallSurveys.js`): "AI Assist" button + modal with 3 tabs (Analyse & risks / Follow-up email / Team briefing), "advisory only" badge, copy actions, and an explicit user-confirmed "Insert into Installation Notes" for the briefing.
+- **Verified**: backend via curl (all 3 endpoints + toggle 403); frontend testing agent 100%, zero issues. Report: `/app/test_reports/iteration_pre_install_surveys_ai_jan2026.json`.
+- **Remaining Phase-2 sequence (agreed):** 2) customer-portal input inside Account Settings → Onboarding (customer can confirm site contact, answer access/parking, confirm install date, provide IT/electrical contact, **upload floor plan + photos**, review summary; never sees internal notes/risk scoring), 3) version-diff UI, 4) offline mobile drafts.
+
+
+
 ## Jul 2, 2026 — Pre-Install Site Survey (CRM Corporate) — Phase 1
 Structured pre-installation survey built into the CRM, attached to EXISTING company + site records (no duplication), linking to opportunity/quote/project/service-job.
 - **Backend** (`routes/crm_site_surveys.py` + `_schema.py`, `utils/survey_pdf.py`): schema-driven survey (22 sections incl. rooms/access/power/network/flooring/walls/ceiling/equipment/risks etc.), 15 types, 12 statuses + history, 15-point Installation Readiness check with **manager-override guard** on "Approved for Installation", version supersede (no deletes), immutable audit trail, attachments (upload/download/delete), and a **branded Installation Handover PDF** (Core Blue/Soft Black). Collections: `pre_install_site_surveys` (+ attachments/versions/audit/settings).
