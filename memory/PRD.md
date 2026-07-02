@@ -1,3 +1,38 @@
+# ═══ 2026-07-02 · BRANDING (PLATFORM-WIDE) · Pulse brand guidelines swept across the whole app (VERIFIED 100%) ═══
+User: "Pulse Brand guidelines - Have a sweep across the platform to ensure guidelines are being followed - Ignore
+the landing page as this is perfect." Then clarified: NO purple/violet/indigo exist in Pulse guidelines; landing =
+the first page at pulsefitness.ai; switch fonts to the brand font.
+
+OFFICIAL PALETTE (from user's Style Guidelines.pdf — the ONLY 5 colours): Core Blue #19CDFF (primary),
+Soft Black #1B1C1D, Onyx #393E41, Slate #6E7476, Silver #E0E0E0. Font: Proxima Nova everywhere. No gradients
+(flat colour). Design blueprint saved to /app/design_guidelines.json (via design_agent).
+
+ROOT CAUSE of off-brand surfaces: the CSS brand *variables* were already cyan, but ~200 files use hardcoded
+Tailwind utility classes (bg-blue-*, text-purple-*, bg-indigo-*, bg-violet-*, teal-*) which render Tailwind's
+DEFAULT navy/violet — that was the visible off-brand colour.
+
+FIX (clean, single-point, low-risk):
+1. TAILWIND HUE-COLLAPSE (frontend/tailwind.config.js): defined a PULSE_ACCENT scale (50–950 centred on
+   #19CDFF) and aliased blue/sky/cyan/indigo/violet/purple/teal ALL to it. One config change flips every
+   utility usage across the whole app to the Core Blue family — and fixed the teal I'd introduced in the
+   earlier Service Desk pass.
+2. FONTS (frontend/src/index.css): body + h1–h6 defaults changed Manrope/Outfit → Proxima Nova. The public
+   landing's own [data-portal="pulse"] Montserrat/Nunito type classes were LEFT untouched (landing preserved).
+3. Earlier same-day: Service Desk / Engineer / Supplier hex + Tailwind sweep (now consistent with the global collapse).
+
+VERIFIED (testing agent, full Playwright, runtime computed-style scan ~24k node-samples across Operations/CRM/
+Memberships/Marketing/Comms/Service Desk): ZERO banned colours (rgb 37,99,235 navy / 124,58,237 violet /
+147,51,234 purple / 168,85,247 / 79,70,229 indigo / 20,184,166 teal) on 6/6 modules; Core Blue cyan present
+everywhere; Proxima Nova on body+H1+buttons on 6/6; no blank screens / JS errors; PUBLIC LANDING PAGE intact.
+
+NOTE / backlog: "no gradients" rule not fully enforced — remaining .gx-* brand gradients are cyan→deep-cyan
+(on-brand hue, not flat). Flattening every gradient app-wide is a separate optional pass. Chart --chart-* HSL
+tokens left as-is (already cyan + semantic).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-02 · DEPLOY FIX · File uploads HTTP 415 in Prod (missing libmagic) ═══
 SYMPTOM: file/image uploads (equipment photos, fault attachments, CSV imports, CRM docs) returned HTTP 415 in
 PRODUCTION. Root cause: the prod container has no `libmagic` → `python-magic` fails to import, and
