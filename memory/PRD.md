@@ -1,3 +1,23 @@
+# ═══ 2026-07-02 · DEPLOY FIX · File uploads HTTP 415 in Prod (missing libmagic) ═══
+SYMPTOM: file/image uploads (equipment photos, fault attachments, CSV imports, CRM docs) returned HTTP 415 in
+PRODUCTION. Root cause: the prod container has no `libmagic` → `python-magic` fails to import, and
+`utils/file_validation.py::validate_upload()` guards every upload endpoint. (Confirmed: `import magic` also fails
+in PREVIEW — the pure-Python fallback sniffer is what keeps preview working.)
+
+FIX (two layers, both belt-and-suspenders):
+1. Added `libmagic1` + `file` to `backend/packages.txt` (the deployment apt-package manifest — previously only
+   `poppler-utils`). On next redeploy the prod container gets libmagic, restoring it as the PRIMARY MIME sniffer.
+2. Verified the existing pure-Python fallback (`_sniff_mime_fallback`, already in the current code) correctly
+   classifies every accepted type WITHOUT libmagic — tested PNG→image/png, JPEG→image/jpeg, PDF→application/pdf,
+   CSV→text/csv, XLSX→…spreadsheetml.sheet. So uploads succeed even if libmagic is ever missing again.
+
+ACTION (production): REDEPLOY pulsefitness.ai. The redeploy (a) installs libmagic1 via packages.txt and (b) ships
+the current fallback validator — either alone fixes the 415, together they're resilient. Backend health = 200 in preview.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-02 · BRANDING + FIX · Pulse Fitness brand applied to Service Desk / Engineer / Supplier + Resend key fixed (VERIFIED 100%) ═══
 User: apply Pulse Fitness brand guidelines (colours, fonts, logos) to the Service Desk, Engineer App AND Supplier portal.
 User choices: primary accent = Pulse Core Blue cyan #19CDFF + subtle darker-cyan/teal secondary; fonts per brand

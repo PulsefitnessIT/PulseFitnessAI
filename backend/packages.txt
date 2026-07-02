@@ -1,1 +1,3 @@
 poppler-utils
+libmagic1
+file
