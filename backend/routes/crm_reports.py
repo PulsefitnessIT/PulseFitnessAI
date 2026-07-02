@@ -567,8 +567,17 @@ async def rpt_surveys_conversion(from_iso: str = None, to_iso: str = None, user=
             "generated_at": _now_iso()}
 
 
-# ── Excel / PDF export for Site Survey reports ──────────────────────
+# ── Excel / PDF export for ALL CRM reports ──────────────────────────
+import inspect  # noqa: E402
+
 _EXPORTABLE_REPORTS = {
+    "pipeline-by-stage": ("Pipeline by Stage", pipeline_by_stage),
+    "pipeline-by-territory": ("Pipeline by Territory", pipeline_by_territory),
+    "quote-conversion": ("Quote Conversion", quote_conversion),
+    "margin": ("Margin Analysis", margin_analysis),
+    "lost-reasons": ("Lost Reasons", lost_reasons),
+    "salesperson": ("Salesperson Performance", salesperson_performance),
+    "consent-overview": ("GDPR Consent Overview", consent_overview),
     "site-surveys-status": ("Surveys by Status", rpt_surveys_status),
     "site-surveys-manager": ("Surveys by Manager", rpt_surveys_manager),
     "site-surveys-high-risk": ("High-Risk Installations", rpt_surveys_high_risk),
@@ -583,7 +592,14 @@ async def export_report(report_id: str, fmt: str = "xlsx", from_iso: str = None,
     if not entry:
         raise HTTPException(404, "This report does not support Excel/PDF export")
     title, fn = entry
-    result = await fn(from_iso=from_iso, to_iso=to_iso, user=user)
+    # Only pass date params the target report actually accepts.
+    params = inspect.signature(fn).parameters
+    kwargs = {"user": user}
+    if "from_iso" in params:
+        kwargs["from_iso"] = from_iso
+    if "to_iso" in params:
+        kwargs["to_iso"] = to_iso
+    result = await fn(**kwargs)
     rows = result.get("rows") or []
     totals = result.get("totals") or {}
     if fmt == "pdf":

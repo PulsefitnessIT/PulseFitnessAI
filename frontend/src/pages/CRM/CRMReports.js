@@ -20,13 +20,13 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 
 // `dateable: true` → the backend honours from_iso / to_iso on this report.
 const REPORTS = [
-  { id: 'pipeline-by-stage',     label: 'Pipeline by Stage',       category: 'Pipeline',   icon: BarChart3,    dateable: true },
-  { id: 'pipeline-by-territory', label: 'Pipeline by Territory',   category: 'Pipeline',   icon: Layers,       dateable: true },
-  { id: 'quote-conversion',      label: 'Quote Conversion',        category: 'Sales',      icon: TrendingUp,   dateable: true },
-  { id: 'margin',                label: 'Margin Analysis',         category: 'Sales',      icon: PieChart,     dateable: true },
-  { id: 'lost-reasons',          label: 'Lost Reasons',            category: 'Sales',      icon: AlertTriangle, dateable: true },
-  { id: 'salesperson',           label: 'Salesperson Performance', category: 'Team',       icon: Users,        dateable: true },
-  { id: 'consent-overview',      label: 'GDPR Consent',            category: 'Compliance', icon: ShieldCheck,  dateable: false },
+  { id: 'pipeline-by-stage',     label: 'Pipeline by Stage',       category: 'Pipeline',   icon: BarChart3,    dateable: true, exportable: true },
+  { id: 'pipeline-by-territory', label: 'Pipeline by Territory',   category: 'Pipeline',   icon: Layers,       dateable: true, exportable: true },
+  { id: 'quote-conversion',      label: 'Quote Conversion',        category: 'Sales',      icon: TrendingUp,   dateable: true, exportable: true },
+  { id: 'margin',                label: 'Margin Analysis',         category: 'Sales',      icon: PieChart,     dateable: true, exportable: true },
+  { id: 'lost-reasons',          label: 'Lost Reasons',            category: 'Sales',      icon: AlertTriangle, dateable: true, exportable: true },
+  { id: 'salesperson',           label: 'Salesperson Performance', category: 'Team',       icon: Users,        dateable: true, exportable: true },
+  { id: 'consent-overview',      label: 'GDPR Consent',            category: 'Compliance', icon: ShieldCheck,  dateable: false, exportable: true },
   { id: 'site-surveys-status',     label: 'Surveys by Status',        category: 'Site Surveys', icon: ClipboardList, dateable: true, exportable: true },
   { id: 'site-surveys-manager',    label: 'Surveys by Manager',       category: 'Site Surveys', icon: Users,         dateable: true, exportable: true },
   { id: 'site-surveys-high-risk',  label: 'High-Risk Installations',  category: 'Site Surveys', icon: ShieldAlert,   dateable: true, exportable: true },

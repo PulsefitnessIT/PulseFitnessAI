@@ -29,7 +29,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File a
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from utils.database import db
+from starlette.concurrency import run_in_threadpool
+
+from utils.database import db, put_object, get_object, APP_NAME
 from routes.crm_auth import get_crm_user
 from utils.site_scope import effective_site_filter
 from routes.crm_site_surveys_schema import (
@@ -614,7 +616,7 @@ async def diff_versions(survey_id: str, compare_to: str, user=Depends(get_crm_us
 async def list_attachments(survey_id: str, user=Depends(get_crm_user)):
     await _load(survey_id, user)
     items = await db[ATTACH].find(
-        {"survey_id": survey_id}, {"_id": 0, "data_b64": 0}
+        {"survey_id": survey_id}, {"_id": 0, "data_b64": 0, "storage_path": 0}
     ).sort("created_at", -1).to_list(500)
     return {"attachments": items, "total": len(items)}
 
@@ -634,17 +636,23 @@ async def upload_attachment(
     content = await file.read()
     if len(content) > _MAX_ATTACH_BYTES:
         raise HTTPException(413, "File too large (max 25MB)")
+    att_id = _id()
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "bin"
+    storage_path = f"{APP_NAME}/surveys/{survey_id}/{att_id}.{ext}"
+    content_type = file.content_type or "application/octet-stream"
+    result = await run_in_threadpool(put_object, storage_path, content, content_type)
     att = {
-        "id": _id(),
+        "id": att_id,
         "survey_id": survey_id,
         "organization_id": user.get("organization_id"),
         "category": category,
         "description": description,
         "room_id": room_id or None,
         "original_filename": file.filename,
-        "content_type": file.content_type,
+        "content_type": content_type,
         "size": len(content),
-        "data_b64": base64.b64encode(content).decode("utf-8"),
+        "storage_path": result.get("path", storage_path),
+        "is_deleted": False,
         "visible_to_installer": visible_to_installer,
         "visible_to_customer": visible_to_customer,
         "uploaded_by": user.get("id"),
@@ -659,7 +667,6 @@ async def upload_attachment(
     await db[SURVEYS].update_one({"id": survey_id}, {"$set": set_fields})
     await _log_audit(survey_id, user, "file_uploaded",
                      new={"filename": file.filename, "category": category})
-    att.pop("data_b64", None)
     return att
 
 
@@ -669,8 +676,12 @@ async def download_attachment(survey_id: str, attachment_id: str, user=Depends(g
     att = await db[ATTACH].find_one({"id": attachment_id, "survey_id": survey_id}, {"_id": 0})
     if not att:
         raise HTTPException(404, "Attachment not found")
-    data = base64.b64decode(att.get("data_b64", ""))
-    return Response(content=data, media_type=att.get("content_type", "application/octet-stream"),
+    if att.get("storage_path"):
+        data, ct = await run_in_threadpool(get_object, att["storage_path"])
+    else:
+        data = base64.b64decode(att.get("data_b64", ""))
+        ct = att.get("content_type", "application/octet-stream")
+    return Response(content=data, media_type=att.get("content_type") or ct,
                     headers={"Content-Disposition": f'inline; filename="{att.get("original_filename", "file")}"'})
 
 

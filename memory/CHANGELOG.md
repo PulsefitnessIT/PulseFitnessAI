@@ -784,3 +784,20 @@ End-user E2E audit (testing agent + manual verification):
 
 ## 2026-07-01 — Enhancement: import progress bar + percentage
 - Import modal now shows a size-based progress bar (data-testid='import-progress-bar') + percentage (import-progress-pct) that eases toward ~92% over an estimated duration derived from file size (8-60s), giving responsive feedback on large newsletter imports. Completes on response. Self-verified via compile (additive UI on the busy state).
+
+---
+## Survey attachments → Object Storage + full CRM report exports (Jun 2026)
+Two in-progress tasks completed and verified via curl (CRM login owner@isodemo.com).
+
+**A. Attachment storage migration (base64-in-Mongo → Emergent Object Storage)**
+- `routes/crm_site_surveys.py` + `routes/survey_portal.py`: `upload_attachment` / `upload_portal_attachment` now stream files to object storage (`put_object`, path `gymaxis-ai/surveys/{survey_id}/{uuid}.{ext}`) via `run_in_threadpool` (non-blocking). DB stores `storage_path` + `is_deleted`, no more `data_b64`.
+- `download_attachment` fetches via `get_object(storage_path)`, with legacy base64 fallback for any pre-existing rows.
+- `storage_path` excluded from list/handover projections (not leaked to clients). Storage helpers (`init_storage/put_object/get_object`, APP_NAME=`gymaxis-ai`) already existed in `utils/database.py` and init at startup.
+- Per user: no migration of existing dev/test base64 rows — new uploads only.
+- Verified: upload→download roundtrip byte-match, no data_b64 in response, storage_path not in list keys.
+
+**B. Excel/PDF export extended to ALL CRM reports**
+- `routes/crm_reports.py`: `_EXPORTABLE_REPORTS` now includes the 7 standard reports (pipeline-by-stage, pipeline-by-territory, quote-conversion, margin, lost-reasons, salesperson, consent-overview) in addition to the 4 site-survey reports, all routed through `build_report_xlsx` / `build_report_pdf`.
+- `export_report` uses `inspect.signature` to pass only the date params each report accepts (consent-overview takes user only).
+- Frontend `pages/CRM/CRMReports.js`: `exportable: true` set on all 7 standard reports → renders existing XLSX/PDF download buttons.
+- Verified: all 11 reports return HTTP 200 valid xlsx+pdf files.

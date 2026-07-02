@@ -11,14 +11,15 @@ Gated per-org by the `allow_customer_portal_input` survey setting.
 """
 from __future__ import annotations
 
-import base64
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile
 from pydantic import BaseModel
 
-from utils.database import db
+from starlette.concurrency import run_in_threadpool
+
+from utils.database import db, put_object, APP_NAME
 from utils.auth import get_current_user
 from routes.crm_site_surveys_schema import (
     CUSTOMER_PORTAL_FIELDS, CUSTOMER_UPLOAD_CATEGORIES, customer_portal_schema,
@@ -162,7 +163,7 @@ async def update_portal_survey(survey_id: str, payload: PortalUpdate, user=Depen
 async def list_portal_attachments(survey_id: str, user=Depends(get_current_user)):
     await _load(survey_id, user)
     items = await db[ATTACH].find(
-        {"survey_id": survey_id, "visible_to_customer": True}, {"_id": 0, "data_b64": 0}
+        {"survey_id": survey_id, "visible_to_customer": True}, {"_id": 0, "data_b64": 0, "storage_path": 0}
     ).sort("created_at", -1).to_list(200)
     return {"attachments": items}
 
@@ -181,16 +182,22 @@ async def upload_portal_attachment(
     content = await file.read()
     if len(content) > _MAX_ATTACH_BYTES:
         raise HTTPException(413, "File too large (max 25MB)")
+    att_id = str(uuid.uuid4())
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "bin"
+    storage_path = f"{APP_NAME}/surveys/{survey_id}/{att_id}.{ext}"
+    content_type = file.content_type or "application/octet-stream"
+    result = await run_in_threadpool(put_object, storage_path, content, content_type)
     att = {
-        "id": str(uuid.uuid4()),
+        "id": att_id,
         "survey_id": survey_id,
         "organization_id": user.get("organization_id"),
         "category": category,
         "description": description,
         "original_filename": file.filename,
-        "content_type": file.content_type,
+        "content_type": content_type,
         "size": len(content),
-        "data_b64": base64.b64encode(content).decode("utf-8"),
+        "storage_path": result.get("path", storage_path),
+        "is_deleted": False,
         "visible_to_installer": True,
         "visible_to_customer": True,
         "uploaded_by": user.get("id"),
@@ -206,5 +213,4 @@ async def upload_portal_attachment(
     await db[SURVEYS].update_one({"id": survey_id}, {"$set": set_fields})
     await _log(survey_id, user, "customer_file_uploaded",
                new={"filename": file.filename, "category": category})
-    att.pop("data_b64", None)
     return att
