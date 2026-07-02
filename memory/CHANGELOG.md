@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jul 2, 2026 — Account Settings modal: force clean light theme (match reference)
+- Root cause: the Account Settings modal inherited the app's dark/light toggle, so in dark mode it rendered black — nothing like the intended clean light design (GymAxis reference the user shared). Its docstring even claimed it never inherits the toggle.
+- Fix: scoped the modal shell with `data-theme="light"` in `AccountSettingsModal.js` so all `--theme-*` vars + the light-mode Tailwind overrides resolve to the light palette regardless of app theme. One-line, low-risk.
+- Verified via screenshots (app in DARK mode → modal renders LIGHT): Profile + Team & Roles sections both clean (white surface, soft nav, Core-Blue accents, near-black text), no dark bleed. Layout/sections already matched the reference (Profile, Onboarding, Security, Preferences, Plan & Billing, Organisation, Suppliers, Team & Roles, Data export).
+
+
+
 ## Jul 2, 2026 — Pre-Install Site Survey Phase 2 (item 1/4): AI summaries + risk-flagging
 - **Backend** (`utils/survey_ai.py` + 3 endpoints in `crm_site_surveys.py`): OpenAI `gpt-5.2` via Emergent LLM key (mirrors verified `comms_ai.py`). `POST /{id}/ai/analyse` (grounded summary, missing-info list, flagged risks w/ severity, suggested questions, electrical/network/access concerns, readiness *recommendation*), `POST /{id}/ai/follow-up-email` (customer draft), `POST /{id}/ai/briefing` (installer briefing). Gated by `allow_ai_summaries` setting (403 when off). **Advisory only** — never writes to the survey; audit events logged (`ai_analysis_run` etc.).
 - **Frontend** (`PreInstallSurveys.js`): "AI Assist" button + modal with 3 tabs (Analyse & risks / Follow-up email / Team briefing), "advisory only" badge, copy actions, and an explicit user-confirmed "Insert into Installation Notes" for the briefing.

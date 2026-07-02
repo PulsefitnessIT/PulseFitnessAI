@@ -6,7 +6,10 @@
  * Seven sections in a left rail:
  *   Profile · Onboarding · Security · Preferences · Plan & Billing · Organisation · Team & Roles
  *
- * Forced dark theme — never inherits the in-app light/dark toggle.
+ * Forced LIGHT theme — the modal always renders in the clean light
+ * style (matching the Pulse/GymAxis Account Settings reference) via a
+ * `data-theme="light"` scope on the shell, so it never inherits the
+ * in-app light/dark toggle (a dark modal here looked off-brand).
  *
  * Iter 216h72 — sections extracted to `./AccountSettings/*.js` so each
  * concern lives in its own file. This file now just owns:
@@ -149,6 +152,7 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
       `}</style>
       <div
         onClick={(e) => e.stopPropagation()}
+        data-theme="light"
         className="account-modal-shell relative w-[920px] max-w-full h-[640px] max-h-[92vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col sm:rounded-2xl max-sm:rounded-none max-sm:h-full max-sm:max-h-full"
         data-testid="account-settings-modal"
       >
