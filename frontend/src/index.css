@@ -537,6 +537,18 @@
   scrollbar-width: none;
 }
 .subtab-bar::-webkit-scrollbar { display: none; }
+
+/* Embedded "Request a Part" panel — inherit dashboard theme so form
+   fields match light/dark mode instead of rendering white on dark. */
+[data-testid="parts-page"] input,
+[data-testid="parts-page"] textarea {
+  background-color: var(--theme-surface);
+  color: var(--theme-text);
+}
+[data-testid="parts-page"] input::placeholder,
+[data-testid="parts-page"] textarea::placeholder {
+  color: var(--theme-text-muted);
+}
 .subtab-pill {
   display: inline-flex;
   align-items: center;

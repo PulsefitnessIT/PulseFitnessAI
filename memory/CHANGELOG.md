@@ -1,11 +1,11 @@
 # Changelog
 
 
-## Jul 3, 2026 — Request a Part: inline sub-tab + mobile-scrollable sub-tab bar
+## Jul 3, 2026 — Request a Part: inline sub-tab + mobile-scrollable sub-tab bar + theme parity
 - **Continuity fix**: "Request a Part" no longer navigates to a separate `/parts-requests` screen. It now renders INLINE as a third sub-tab under Operations → Faults, matching the Reactive Faults / Planned Maintenance pattern. `PartsRequestsPage` gained an `embedded` prop (drops the full-screen shell + top back button); wired into both Pro `FaultsTab.js` and `LiteFaultsTab.js` via `faultView === 'parts'`. The standalone `/parts-requests` route still works for deep links.
 - **Mobile scroll fix**: `.subtab-bar` (index.css) is now `max-width:100%; overflow-x:auto` with hidden scrollbar and `.subtab-pill{flex-shrink:0}`, so the pill row scrolls horizontally on narrow screens instead of clipping the last option.
-- **Verified** on mobile viewport (390px) as owner@isodemo.com: sub-tab bar scrolls to reveal "Request a Part"; clicking it renders the Parts Requests panel inline (URL stays `/dashboard`, no navigation). Removed now-unused `useNavigate` from both faults tabs.
-- Note: the embedded parts panel keeps its light card styling (looks consistent in light mode; would show light cards in dark mode — optional future re-theme to `--theme-*` tokens).
+- **Theme parity**: converted the whole Parts panel from hardcoded slate/white classes to `--theme-*` tokens (surface/text/border/bg) + scoped input/textarea theming CSS, so it renders correctly in BOTH light and dark mode (previously light-only). Semantic status/cover badges kept as colored chips.
+- **Verified** (390px) as owner@isodemo.com in light AND dark mode: sub-tab bar scrolls to reveal "Request a Part"; clicking it renders the Parts Requests list + New Request editor inline (URL stays `/dashboard`); all cards/inputs match the active theme. Removed now-unused `useNavigate` from both faults tabs.
 
 
 ## Jul 3, 2026 — PRODUCTION DEPLOY BLOCKER FIXED (root cause: blocking sync MongoClient at import)
