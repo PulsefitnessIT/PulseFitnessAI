@@ -9,7 +9,7 @@ import io
 
 from utils.database import db, APP_NAME, EMERGENT_LLM_KEY, put_object
 from utils.auth import get_current_user
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/master-admin/documents", tags=["Admin Documents"])
@@ -51,6 +51,7 @@ async def _ai_detect_supplier(filename: str, text_content: str) -> str:
     """Use AI to detect the supplier/manufacturer from file content."""
     try:
         session_id = f"supplier_detect_{datetime.now().timestamp()}"
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=session_id,
@@ -315,6 +316,7 @@ async def ai_scan_duplicates(user: dict = Depends(get_current_user)):
 
     try:
         session_id = f"dup_scan_{datetime.now().timestamp()}"
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY, session_id=session_id,
             system_message="You identify duplicate or near-duplicate gym equipment documents. Return ONLY valid JSON.",
@@ -369,6 +371,7 @@ async def _ai_extract(file_id: str, filename: str, supplier_name: str):
     """Background AI extraction for a document."""
     try:
         session_id = f"doc_extract_{file_id}_{datetime.now().timestamp()}"
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=_AI_EXTRACT_SYSTEM_MSG,
         ).with_model("openai", "gpt-5.2")

@@ -31,7 +31,10 @@ import os
 import re
 from typing import Optional
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from emergentintegrations.llm.chat import LlmChat  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,7 @@ def _chat(system: str, session_id: str) -> Optional[LlmChat]:
     if not k:
         return None
     try:
+        from emergentintegrations.llm.chat import LlmChat
         return LlmChat(
             api_key=k, session_id=session_id, system_message=system,
         ).with_model("anthropic", "claude-sonnet-4-6")
@@ -131,6 +135,7 @@ async def summarise_incident(incident: dict) -> Optional[str]:
         f"Context: {' '.join(facts) if facts else '(none provided)'}"
     )
     try:
+        from emergentintegrations.llm.chat import UserMessage
         response = await chat.send_message(UserMessage(text=prompt))
         text = (response or "").strip()
         # Strip wrapping quotes / code fences if the model added them
@@ -165,6 +170,7 @@ async def suggest_root_causes(incident: dict) -> Optional[list[str]]:
         'Reply with JSON like: {"root_causes": ["equipment_failure", "maintenance_issue"]}'
     )
     try:
+        from emergentintegrations.llm.chat import UserMessage
         raw = await chat.send_message(UserMessage(text=prompt))
         data = _extract_json(raw or "") or {}
         causes = data.get("root_causes") or []
@@ -214,6 +220,7 @@ async def hint_riddor_qualification(incident: dict) -> Optional[dict]:
         '"reasoning": "Slip on wet floor; person not transported to hospital."}'
     )
     try:
+        from emergentintegrations.llm.chat import UserMessage
         raw = await chat.send_message(UserMessage(text=prompt))
         data = _extract_json(raw or "") or {}
         answers: dict[str, Optional[bool]] = {}

@@ -9,7 +9,7 @@ import json as json_module
 from utils.database import db, EMERGENT_LLM_KEY
 from utils.auth import get_current_user
 from models.schemas import GymLayoutCreate
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -277,6 +277,7 @@ async def _call_detection_ai(b64_image: str, user_annotations: list[dict], user_
     system_msg = _build_detect_system_msg(_build_annotation_context(user_annotations))
     hint = " The user has marked specific equipment examples on this image — use those as anchors." if user_annotations else ""
 
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=f"gym_detect_{user_id}_{datetime.now().timestamp()}",

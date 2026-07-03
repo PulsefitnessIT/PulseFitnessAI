@@ -9,7 +9,7 @@ import logging
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object
 from utils.auth import get_current_user, get_organization_filter
 from models.schemas import RiskAssessmentCreate
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -89,6 +89,7 @@ async def ai_generate_risk_assessment(data: Dict[str, Any], user: dict = Depends
     focus = data.get('specific_focus', '') or (', '.join(equipment_types) if equipment_types else 'General gym equipment')
 
     try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"risk_{datetime.now().timestamp()}", system_message=_RISK_SYSTEM_MSG).with_model("openai", "gpt-5.2")
         prompt = (
             f"Generate a risk assessment for:\nSite: {site_name}\n"
@@ -156,6 +157,7 @@ async def analyze_photo_for_risk(
         raise HTTPException(status_code=400, detail="No valid photos provided")
 
     try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"ra_photo_{datetime.now().timestamp()}",

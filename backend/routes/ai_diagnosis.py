@@ -9,7 +9,7 @@ from utils.auth import get_current_user
 from utils.ai_access import require_ai_access
 from utils.email import send_report_notification
 from models.schemas import ChatMessage, AuditRequest
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -210,6 +210,7 @@ async def diagnose_fault(message: ChatMessage, user: dict = Depends(require_ai_a
     knowledge_context = _build_diagnosis_context(knowledge_docs)
     system_message = DIAGNOSIS_SYSTEM + knowledge_context
 
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system_message
     ).with_model("openai", "gpt-5.2")
@@ -315,6 +316,7 @@ async def generate_audit(request: AuditRequest, user: dict = Depends(get_current
     prompt = _build_audit_prompt(request, equip_details, _build_audit_context(audit_knowledge))
 
     session_id = f"audit_{user['id']}_{datetime.now().timestamp()}"
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=AUDIT_SYSTEM,
     ).with_model("openai", "gpt-5.2")

@@ -3287,7 +3287,7 @@ async def delete_kb_item(item_id: str, user=Depends(get_crm_user)):
 # ═══════════════════════════════════════════
 
 import os
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 
@@ -3304,6 +3304,7 @@ async def _ai_call(system_msg, user_msg, model_pref: str = "gpt"):
     Both use the Emergent universal key via the same emergentintegrations
     interface.
     """
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     chat = LlmChat(
         api_key=LLM_KEY,
         session_id=f"tender-{_id()[:8]}",
@@ -3538,7 +3539,7 @@ async def ocr_tender_doc(tender_id: str, doc_id: str, user=Depends(get_crm_user)
     if not doc.get("data_b64"):
         raise HTTPException(422, "No file bytes available for this document")
 
-    from emergentintegrations.llm.chat import FileContent
+    from emergentintegrations.llm.chat import FileContent, LlmChat, UserMessage
     fc = FileContent(content_type=(doc.get("content_type") or "application/pdf"), file_content_base64=doc["data_b64"])
     chat = LlmChat(
         api_key=LLM_KEY,

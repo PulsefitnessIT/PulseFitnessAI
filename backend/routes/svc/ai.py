@@ -31,6 +31,8 @@ Robustness:
   • Every call is logged in `svc_ai_calls` with prompt/response sizes
     and latency for observability.
 """
+from __future__ import annotations
+
 __integration_fields__ = {
     # AI outputs feed downstream Sicon/Sage payloads but the AI layer
     # itself is Pulse Fitness-internal — Claude calls + observability logs only.
@@ -61,6 +63,7 @@ __integration_fields__ = {
     "tiebreak.reasoning":          "gymaxis_only: operator UX",
 }
 
+
 from datetime import datetime, timezone
 from typing import Any
 import base64
@@ -75,7 +78,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from utils.database import db
 from utils.auth import get_current_user
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from emergentintegrations.llm.chat import ImageContent  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc/ai", tags=["Service Ops · AI Assistant"])
@@ -132,6 +137,7 @@ async def _chat(*, system: str, user_text: str,
                 images: list[ImageContent] | None = None,
                 session_id: str | None = None) -> str:
     """Wrap the emergentintegrations chat with our model + key."""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     chat = LlmChat(
         api_key=_key(),
         session_id=session_id or f"svc-ai-{uuid.uuid4()}",
@@ -307,6 +313,7 @@ async def photo_classify(data: dict, user=Depends(get_current_user)):
         raise HTTPException(400, "image_base64 or photo_id required")
 
     payload, _mime = _b64_from_data_url(image_b64)
+    from emergentintegrations.llm.chat import ImageContent
     image = ImageContent(image_base64=payload)
     t0 = time.monotonic()
     try:

@@ -9,7 +9,7 @@ import json
 from utils.database import db, APP_NAME, EMERGENT_LLM_KEY, put_object, get_object
 from utils.auth import get_current_user, get_organization_filter, verify_token
 from utils.ai_access import require_ai_access
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -193,6 +193,7 @@ def _clean_ai_json(raw: str) -> dict:
 
 async def _run_ai_extraction(file_doc: dict) -> dict:
     """Run AI extraction on a file document and return parsed JSON."""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=f"doc_extract_{file_doc['id']}_{datetime.now().timestamp()}",
@@ -446,6 +447,7 @@ async def ask_documents(body: DocumentQuestion, user: dict = Depends(require_ai_
         return {"answer": "No documents have been uploaded yet. Upload equipment manuals to enable document Q&A.", "sources": []}
 
     try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"doc_qa_{user['id']}_{datetime.now(timezone.utc).timestamp()}",

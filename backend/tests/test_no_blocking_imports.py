@@ -49,6 +49,44 @@ BLOCKING_CALLS = {
 
 OPT_OUT = "noqa: import-blocking"
 
+# Module-scope imports that pull heavy/network-risky packages at APP BOOT.
+# ``emergentintegrations.llm.chat`` transitively imports ``litellm`` (multi-
+# second load + potential network on some paths). Importing it at module scope
+# in a route file forces litellm to load before uvicorn binds :8001 → slow/
+# hanging boot in the egress-restricted prod rollout container → k8s readiness
+# crash-loop. These must be imported lazily INSIDE the handler/function, or
+# guarded behind ``if TYPE_CHECKING:`` (which this scanner ignores since it
+# only inspects the module's direct top-level statements).
+HEAVY_IMPORT_PREFIXES = (
+    "emergentintegrations.llm",
+    "litellm",
+)
+
+
+def _scan_heavy_imports(path: Path) -> list[str]:
+    src = path.read_text(encoding="utf-8")
+    lines = src.splitlines()
+    tree = ast.parse(src, filename=str(path))
+    violations: list[str] = []
+    # Only DIRECT top-level statements run unconditionally at import and are
+    # NOT inside a function/class or an ``if TYPE_CHECKING:`` block.
+    for stmt in tree.body:
+        mod = None
+        if isinstance(stmt, ast.ImportFrom):
+            mod = stmt.module or ""
+        elif isinstance(stmt, ast.Import):
+            mod = ",".join(a.name for a in stmt.names)
+        if not mod:
+            continue
+        if any(mod.startswith(p) for p in HEAVY_IMPORT_PREFIXES):
+            lineno = getattr(stmt, "lineno", 0)
+            line_text = lines[lineno - 1] if 0 < lineno <= len(lines) else ""
+            if OPT_OUT in line_text:
+                continue
+            rel = path.relative_to(BACKEND)
+            violations.append(f"{rel}:{lineno} — heavy import '{mod}' at module scope")
+    return violations
+
 
 def _dotted_name(node: ast.AST) -> str:
     """Best-effort dotted name for a Call's func (e.g. 'requests.get')."""
@@ -133,6 +171,24 @@ def test_no_blocking_calls_at_import_scope():
         "readiness crash-loops. Move them into a function/handler, use the "
         "shared async motor `db` from utils.database, or (if truly required) "
         "append '# noqa: import-blocking'.\n  - " + "\n  - ".join(all_violations)
+    )
+
+
+def test_no_heavy_llm_imports_at_module_scope():
+    all_violations: list[str] = []
+    for base in SCAN_DIRS:
+        if not base.exists():
+            continue
+        for py in base.rglob("*.py"):
+            all_violations.extend(_scan_heavy_imports(py))
+
+    assert not all_violations, (
+        "Heavy LLM import(s) (emergentintegrations.llm / litellm) at module "
+        "scope. litellm loads for seconds and can attempt network at import, "
+        "so importing it before uvicorn binds :8001 causes slow/hanging prod "
+        "boot → k8s readiness crash-loop. Import them lazily INSIDE the "
+        "handler/function, or behind 'if TYPE_CHECKING:'.\n  - "
+        + "\n  - ".join(all_violations)
     )
 
 

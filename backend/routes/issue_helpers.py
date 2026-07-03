@@ -1,4 +1,5 @@
 """Issue route helpers — extracted from triage_issue() and create_issue() for maintainability."""
+from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 import asyncio
@@ -6,7 +7,9 @@ import logging
 
 from utils.database import db, RESEND_API_KEY, SENDER_EMAIL
 from utils.security_plus import safe_regex
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage  # noqa: F401
 import json as json_module
 import os
 

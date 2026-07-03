@@ -33,7 +33,7 @@ def _public_photo_gallery_url(equipment_id: str, photo_id: str) -> str:
     return f"{base}/api/public/equipment/{equipment_id}/photos/{photo_id}"
 from utils.helpers import get_equipment_stats, get_bulk_equipment_stats
 from models.schemas import EquipmentCreate
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -910,6 +910,7 @@ async def get_predictive_maintenance(equipment_id: str, user: dict = Depends(get
     stats = await get_equipment_stats(equipment_id, user['id'])
 
     session_id = f"predictive_{equipment_id}_{datetime.now().timestamp()}"
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=session_id,

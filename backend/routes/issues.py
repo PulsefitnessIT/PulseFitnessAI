@@ -9,7 +9,7 @@ from utils.database import db, EMERGENT_LLM_KEY, RESEND_API_KEY, SENDER_EMAIL, A
 from utils.auth import get_current_user, get_organization_filter
 from utils.ai_access import require_ai_access
 from models.schemas import IssueCreate, IssueBatchCreate, ServiceRequest
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 from routes.issue_helpers import (
     build_triage_system_message, build_triage_prompt, append_past_fixes,
@@ -83,6 +83,7 @@ async def triage_issue(issue: IssueCreate, user: dict = Depends(require_ai_acces
         if in_warranty:
             system_message += WARRANTY_TRIAGE_ADDENDUM
 
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"triage_{datetime.now().timestamp()}",

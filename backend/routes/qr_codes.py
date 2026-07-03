@@ -12,7 +12,7 @@ import os
 
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object
 from utils.auth import get_current_user, get_organization_filter
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -513,6 +513,7 @@ async def _upload_fault_photo(photo: UploadFile, org_id: str) -> tuple[str | Non
 async def _run_qr_triage(equipment: dict, description: str, severity: str, photo_base64: str | None, issue_id: str) -> dict | None:
     """Run AI triage on a QR-reported fault."""
     try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"qr_triage_{issue_id}_{datetime.now().timestamp()}",

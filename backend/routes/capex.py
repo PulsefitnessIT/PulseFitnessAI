@@ -11,7 +11,7 @@ from utils.auth import get_current_user, get_organization_filter
 from utils.helpers import get_bulk_equipment_stats
 from utils.aggregate_cache import cache_aggregate
 from utils.safe_paginate import safe_to_list, BULK_CAP
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -701,6 +701,7 @@ def _build_justification_prompt(flagged: list[dict]) -> str:
 async def _call_ai_justifications(prompt: str, org_id: str | None, flagged: list[dict]) -> dict:
     """Send prompt to LLM and parse JSON response, falling back to templates on failure."""
     try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"capex-{org_id or 'default'}",
