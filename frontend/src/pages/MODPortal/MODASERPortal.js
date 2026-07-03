@@ -316,7 +316,7 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
         )}
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-          <input value={eqQuery} onChange={(e) => setEqQuery(e.target.value)} placeholder="Search asset no., serial, model, type…" className="input pl-9" data-testid="aser-eq-search" disabled={!form.site_id} />
+          <input value={eqQuery} onChange={(e) => setEqQuery(e.target.value)} placeholder="Search asset no., serial, model, type…" className="input pl-9" data-testid="aser-equipment-search" disabled={!form.site_id} />
         </div>
         <div className="max-h-56 overflow-auto space-y-1.5 mt-2">
           {equipment.length === 0 ? (
