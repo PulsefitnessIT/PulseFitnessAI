@@ -910,3 +910,9 @@ MOD Service Portal → Reports → ASER. Lets MOD site users document equipment-
 - **Verified**: backend 18/18 pytest (test_aser_jan2026.py); frontend 8/8 acceptance criteria (iteration_mod_aser_reports_fe_jan2026.json). Test login: aser.qa@army.mod.test / AserQA123! (ZZ QA MOD ARMY, 2 seeded QA assets).
 - PREVIEW only — redeploy to push to production.
 - Phase 2 backlog: charts/trend analytics, exports (PDF/Excel/CSV) + ASER Replacement Evidence Report, configurable notifications, Master Admin ASER settings, AI summaries (current app LLM).
+
+## ASER Phase 2 — Charts / trend analytics (Jul 3, 2026)
+- Backend: GET /api/mod/aser/analytics?months=12 (site-scoped) — monthly trend buckets (entries, high/critical, removed-from-use, sessions impacted, rehab-impacted), by_event_type, by_risk, by_site, by_equipment_type, top_assets + repeated_assets. Route ordered before /{entry_id}.
+- Frontend: MODASERPortal Register/Analytics header toggle (aser-view-toggle) + AnalyticsView (recharts): trend LineChart, rehab-impact BarChart, events-by-type/equipment-type/site bar charts, risk PieChart, repeated-issue equipment evidence list (red-highlighted for replacement labels).
+- Fixed overlay z-index to z-[100] (was bleeding under dashboard sticky header).
+- Verified: backend aggregation via curl; frontend 100% (iteration_mod_aser_analytics_fe_jan2026.json — all 7 chart cards render). Test data reset clean. PREVIEW only — redeploy for production.

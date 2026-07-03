@@ -75,7 +75,7 @@ export default function MODASERPortal({ onClose }) {
   useEffect(() => { if (view === 'register') loadRegister(); }, [view, loadRegister]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-[var(--color-ink-deep)] text-white overflow-y-auto" data-testid="mod-aser-portal">
+    <div className="fixed inset-0 z-[100] bg-[var(--color-ink-deep)] text-white overflow-y-auto" data-testid="mod-aser-portal">
       <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
