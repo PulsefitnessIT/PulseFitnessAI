@@ -1,3 +1,24 @@
+# ═══ 2026-07-03 · BUGFIX · Password-reset email link used Emergent deploy host, not pulsefitness.ai (VERIFIED) ═══
+SYMPTOM (production): reset-password email link rendered
+`https://fitness-ai-migrate.emergent.host/reset-password?token=…` instead of `https://pulsefitness.ai`.
+ROOT CAUSE: `utils/brand_urls.py::app_url_for` let `FRONTEND_URL` (set to the deploy-platform host in the
+prod env) OVERRIDE the pulsefitness.ai brand default — contradicting its own documented resolution order
+(brand default should beat the FRONTEND_URL last-resort).
+FIX: resolution is now: (1) explicit `BRAND_URL_PULSE`/`BRAND_URL_GYMAXIS` override → (2) in production
+(`APP_ENV=production` / `ENVIRONMENT` startswith `prod`) the live brand default `https://pulsefitness.ai`
+(FRONTEND_URL IGNORED so the deploy host never leaks into customer emails) → (3) non-production: FRONTEND_URL
+if set (preview links stay testable), else brand default. auth.py reset link (app_url_for_org) inherits this.
+VERIFIED (testing agent): unit suite tests/test_brand_urls_reset_link.py 4/4 (prod ignores FRONTEND_URL →
+pulsefitness.ai for pulse+non-pulse; explicit BRAND_URL_* still wins; preview uses FRONTEND_URL; fallback to
+brand default). POST /api/auth/forgot-password → 200 for known + unknown emails, no 500. Reset URL is
+server-side/anti-enumeration (not returned by API), so prod domain is asserted via the unit test.
+ACTION: redeploy pulsefitness.ai to push live. (No prod env change needed — the fix is code-side; setting
+APP_ENV=production also activates it. An explicit BRAND_URL_PULSE=https://pulsefitness.ai would also work.)
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-03 · P0 DEPLOY FIX · Prod crash-loop — litellm loaded at import scope (VERIFIED 15/15) ═══
 SYMPTOM: Production k8s deploy failed repeatedly — backend never bound :8001, nginx GET /health →
 "connection refused", readiness probe timed out → crash-loop. Prod logs showed the startup banner
