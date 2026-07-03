@@ -1739,6 +1739,14 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : t('pulse.sign_in', 'Sign In')}
           </Button>
+          <button
+            type="button"
+            onClick={() => { onOpenChange(false); navigate('/reset-password'); }}
+            className="w-full text-center text-xs font-semibold text-[var(--color-text-slate)] hover:opacity-80 transition-opacity"
+            data-testid="pulse-login-forgot"
+          >
+            {t('pulse.lm_forgot', 'Forgot password?')}
+          </button>
           <p className="text-[11px] text-[var(--color-slate-400)] text-center pt-1">
             {t('pulse.lm_note', 'Access level (Lite or Pro) is determined by your account')}
           </p>
