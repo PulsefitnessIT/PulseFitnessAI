@@ -537,6 +537,106 @@ async def aser_dashboard(user: dict = Depends(get_current_user)):
     }
 
 
+@router.get("/mod/aser/analytics")
+async def aser_analytics(
+    months: int = Query(12, ge=3, le=24),
+    user: dict = Depends(get_current_user),
+):
+    """Trend + breakdown analytics for the ASER register (site-scoped)."""
+    org = await _require_mod(user)
+    site_ids = await _sites_in_scope(user, org)
+    entries = await db.aser_entries.find({"site_id": {"$in": site_ids}}, {"_id": 0}).to_list(10000)
+
+    now = datetime.now(timezone.utc)
+    # Build the last `months` month buckets (YYYY-MM), oldest → newest.
+    buckets: list[str] = []
+    y, m = now.year, now.month
+    for _ in range(months):
+        buckets.append(f"{y:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    buckets.reverse()
+    bset = set(buckets)
+
+    trend = {b: {"month": b, "entries": 0, "high_risk": 0, "sessions_impacted": 0,
+                 "removed_from_use": 0, "rehab_impacted": 0} for b in buckets}
+    repeated_labels = {
+        "repeated_issue", "escalation_recommended",
+        "replacement_evidence_building", "replacement_strongly_recommended",
+    }
+
+    def acc(d: dict, k):
+        if k:
+            d[k] = d.get(k, 0) + 1
+
+    by_event_type: dict = {}
+    by_risk: dict = {}
+    by_site: dict = {}
+    by_equipment_type: dict = {}
+    asset_counts: dict = {}
+
+    for e in entries:
+        mkey = (e.get("created_at") or "")[:7]
+        if mkey in bset:
+            t = trend[mkey]
+            t["entries"] += 1
+            rating = (e.get("risk") or {}).get("rating")
+            if rating in ("high", "critical"):
+                t["high_risk"] += 1
+            ai = e.get("activity_impact") or {}
+            t["sessions_impacted"] += ai.get("sessions_affected", 0) or 0
+            if ai.get("impacted_rehab"):
+                t["rehab_impacted"] += 1
+            if e.get("equipment_status") in REMOVAL_FLAG_STATUSES:
+                t["removed_from_use"] += 1
+        acc(by_event_type, e.get("event_type"))
+        acc(by_risk, (e.get("risk") or {}).get("rating"))
+        acc(by_site, e.get("site_name"))
+        acc(by_equipment_type, (e.get("equipment_snapshot") or {}).get("equipment_type"))
+        eid = e.get("equipment_id")
+        if eid:
+            snap = e.get("equipment_snapshot") or {}
+            a = asset_counts.setdefault(eid, {
+                "equipment_id": eid,
+                "name": snap.get("name"),
+                "serial_number": snap.get("serial_number"),
+                "equipment_type": snap.get("equipment_type"),
+                "aser_count": 0, "high_risk": 0, "removed": 0, "capex": 0,
+                "label": (e.get("repeated_issue") or {}).get("label"),
+            })
+            a["aser_count"] += 1
+            if (e.get("risk") or {}).get("rating") in ("high", "critical"):
+                a["high_risk"] += 1
+            if e.get("equipment_status") in REMOVAL_FLAG_STATUSES:
+                a["removed"] += 1
+            if e.get("capex_flagged"):
+                a["capex"] += 1
+            lbl = (e.get("repeated_issue") or {}).get("label")
+            if lbl:
+                a["label"] = lbl
+
+    top_assets = sorted(asset_counts.values(), key=lambda x: x["aser_count"], reverse=True)[:10]
+    repeated_assets = [a for a in top_assets if a.get("label") in repeated_labels]
+
+    def to_list(d):
+        return [{"name": k, "value": v} for k, v in sorted(d.items(), key=lambda kv: kv[1], reverse=True)]
+
+    return {
+        "trend": [trend[b] for b in buckets],
+        "by_event_type": to_list(by_event_type),
+        "by_risk": to_list(by_risk),
+        "by_site": to_list(by_site),
+        "by_equipment_type": to_list(by_equipment_type),
+        "top_assets": top_assets,
+        "repeated_assets": repeated_assets,
+        "total_entries": len(entries),
+        "scope_sites": len(site_ids),
+    }
+
+
+
 @router.get("/mod/aser/{entry_id}")
 async def aser_detail(entry_id: str, user: dict = Depends(get_current_user)):
     org = await _require_mod(user)

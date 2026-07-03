@@ -11,7 +11,12 @@ import axios from 'axios';
 import {
   X, Plus, Search, ShieldAlert, AlertTriangle, Loader2, Upload, Trash2,
   PoundSterling, Wrench, CheckCircle2, ArrowLeft, ClipboardList, Ban, Link2,
+  BarChart3, LayoutList,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, Cell, PieChart, Pie,
+} from 'recharts';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 
@@ -89,6 +94,16 @@ export default function MODASERPortal({ onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {(view === 'register' || view === 'analytics') && (
+              <div className="hidden sm:flex items-center rounded-lg border border-white/10 overflow-hidden mr-1" data-testid="aser-view-toggle">
+                <button onClick={() => setView('register')} className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${view === 'register' ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'}`} data-testid="aser-view-register">
+                  <LayoutList size={14} /> Register
+                </button>
+                <button onClick={() => setView('analytics')} className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${view === 'analytics' ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'}`} data-testid="aser-view-analytics">
+                  <BarChart3 size={14} /> Analytics
+                </button>
+              </div>
+            )}
             {view === 'register' && (
               <button onClick={() => setView('new')} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold rounded-lg bg-[var(--color-brand-cyan)] text-black hover:opacity-90" data-testid="aser-new-btn">
                 <Plus size={14} /> New ASER Entry
@@ -108,6 +123,9 @@ export default function MODASERPortal({ onClose }) {
             filters={filters} setFilters={setFilters} onReload={loadRegister}
             onOpen={(id) => { setActiveId(id); setView('detail'); }}
           />
+        )}
+        {view === 'analytics' && (
+          <AnalyticsView API={API} headers={headers} />
         )}
         {view === 'new' && (
           <NewEntryWizard
@@ -212,6 +230,173 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Analytics / trends ──────────────────────────────────────────────
+const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#fb923c', critical: '#ef4444' };
+const CHART_PALETTE = ['#22d3ee', '#818cf8', '#f472b6', '#fbbf24', '#34d399', '#fb923c', '#a78bfa', '#f87171', '#2dd4bf', '#60a5fa'];
+const REP_LABELS = {
+  monitor: 'Monitor', repeated_issue: 'Repeated Issue', escalation_recommended: 'Escalation Recommended',
+  replacement_evidence_building: 'Replacement Evidence Building', replacement_strongly_recommended: 'Replacement Strongly Recommended',
+};
+
+function AnalyticsView({ API, headers }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try { const { data } = await axios.get(`${API}/mod/aser/analytics?months=12`, { headers }); setData(data); }
+      catch { setData(null); }
+      setLoading(false);
+    })();
+  }, [API, headers]);
+
+  if (loading) return <div className="py-16 text-center text-white/50"><Loader2 className="animate-spin inline" /></div>;
+  if (!data || data.total_entries === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-white/15 py-16 text-center" data-testid="aser-analytics-empty">
+        <BarChart3 className="mx-auto text-white/40 mb-3" size={40} />
+        <p className="text-white/60 font-medium">No data to chart yet</p>
+        <p className="text-sm text-white/40">Analytics appear once ASER entries are logged.</p>
+      </div>
+    );
+  }
+
+  const eventTypeData = (data.by_event_type || []).map((d) => ({ ...d, name: titleCase(d.name) }));
+  const equipTypeData = (data.by_equipment_type || []).filter((d) => d.name);
+  const riskData = (data.by_risk || []).map((d) => ({ ...d, key: d.name, name: titleCase(d.name) }));
+  const tooltipStyle = { background: '#0b1220', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: 12 };
+
+  return (
+    <div className="space-y-4" data-testid="aser-analytics">
+      {/* Trend over time */}
+      <ChartCard title="ASER trend over time (last 12 months)" testid="aser-chart-trend">
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={data.trend} margin={{ top: 5, right: 12, left: -18, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+            <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Line type="monotone" dataKey="entries" name="Entries" stroke="#22d3ee" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="high_risk" name="High/critical" stroke="#ef4444" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="removed_from_use" name="Removed from use" stroke="#fb923c" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Rehab delivery impact over time */}
+      <ChartCard title="Rehab delivery impact over time" testid="aser-chart-rehab-impact">
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={data.trend} margin={{ top: 5, right: 12, left: -18, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+            <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar dataKey="sessions_impacted" name="Rehab sessions impacted" fill="#818cf8" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="rehab_impacted" name="Entries impacting rehab" fill="#2dd4bf" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* By event type */}
+        <ChartCard title="Events by type" testid="aser-chart-event-type">
+          <ResponsiveContainer width="100%" height={Math.max(180, eventTypeData.length * 30)}>
+            <BarChart data={eventTypeData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
+              <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" width={150} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+              <Bar dataKey="value" name="Entries" radius={[0, 3, 3, 0]}>
+                {eventTypeData.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* By risk (pie) */}
+        <ChartCard title="Events by risk rating" testid="aser-chart-risk">
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={riskData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e) => `${e.name}: ${e.value}`} labelLine={false}>
+                {riskData.map((d, i) => <Cell key={i} fill={RISK_COLORS[d.key] || CHART_PALETTE[i]} />)}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* By equipment type */}
+        {equipTypeData.length > 0 && (
+          <ChartCard title="Events by equipment type" testid="aser-chart-equip-type">
+            <ResponsiveContainer width="100%" height={Math.max(180, equipTypeData.length * 30)}>
+              <BarChart data={equipTypeData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                <Bar dataKey="value" name="Entries" fill="#22d3ee" radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {/* By site */}
+        {(data.by_site || []).length > 0 && (
+          <ChartCard title="Events by site" testid="aser-chart-site">
+            <ResponsiveContainer width="100%" height={Math.max(180, data.by_site.length * 30)}>
+              <BarChart data={data.by_site} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                <Bar dataKey="value" name="Entries" fill="#a78bfa" radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+      </div>
+
+      {/* Repeated / rundown equipment evidence */}
+      <ChartCard title="Repeated-issue equipment (replacement evidence)" testid="aser-chart-top-assets">
+        {(data.top_assets || []).length === 0 ? (
+          <p className="text-sm text-white/40 py-4">No repeated-issue equipment yet.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {data.top_assets.map((a) => {
+              const rep = ['escalation_recommended', 'replacement_evidence_building', 'replacement_strongly_recommended'].includes(a.label);
+              return (
+                <div key={a.equipment_id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${rep ? 'border-red-500/40 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`} data-testid={`aser-asset-${a.equipment_id}`}>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-white truncate">{a.name} <span className="text-white/40 text-xs">· {a.serial_number || 'no serial'}</span></div>
+                    <div className="text-[11px] text-white/50">{a.equipment_type || '—'}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 text-[11px]">
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/70">{a.aser_count} ASER</span>
+                    {a.high_risk > 0 && <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300">{a.high_risk} high</span>}
+                    {a.capex > 0 && <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">CAPEX</span>}
+                    {a.label && a.label !== 'monitor' && <span className={`px-2 py-0.5 rounded-full ${rep ? 'bg-red-600 text-white font-bold' : 'bg-amber-500/20 text-amber-300'}`}>{REP_LABELS[a.label]}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ChartCard>
+    </div>
+  );
+}
+
+function ChartCard({ title, testid, children }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4" data-testid={testid}>
+      <h3 className="text-xs font-extrabold uppercase tracking-wider text-white/60 mb-3">{title}</h3>
+      {children}
     </div>
   );
 }
