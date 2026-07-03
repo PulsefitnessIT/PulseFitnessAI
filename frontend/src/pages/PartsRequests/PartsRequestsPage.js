@@ -460,7 +460,7 @@ function Detail({ requestId, onBack }) {
 }
 
 // ── List + page shell ───────────────────────────────────────────────
-export default function PartsRequestsPage() {
+export default function PartsRequestsPage({ embedded = false }) {
   const navigate = useNavigate();
   const [view, setView] = useState('list');
   const [activeId, setActiveId] = useState(null);
@@ -483,12 +483,12 @@ export default function PartsRequestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pulse-font" data-testid="parts-page">
-      <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className={embedded ? 'pulse-font' : 'min-h-screen bg-slate-50 pulse-font'} data-testid="parts-page">
+      <div className={embedded ? '' : 'max-w-5xl mx-auto px-4 py-6'}>
         {view === 'list' && (
           <>
             <div className="flex items-center gap-3 mb-5">
-              <button onClick={() => navigate(-1)} className="text-slate-500 hover:text-slate-800" data-testid="parts-page-back"><ArrowLeft size={20} /></button>
+              {!embedded && <button onClick={() => navigate(-1)} className="text-slate-500 hover:text-slate-800" data-testid="parts-page-back"><ArrowLeft size={20} /></button>}
               <div className="flex items-center gap-2">
                 <Package className="text-blue-600" size={22} />
                 <div>

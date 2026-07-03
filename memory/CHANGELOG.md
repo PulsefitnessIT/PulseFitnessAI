@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jul 3, 2026 — Request a Part: inline sub-tab + mobile-scrollable sub-tab bar
+- **Continuity fix**: "Request a Part" no longer navigates to a separate `/parts-requests` screen. It now renders INLINE as a third sub-tab under Operations → Faults, matching the Reactive Faults / Planned Maintenance pattern. `PartsRequestsPage` gained an `embedded` prop (drops the full-screen shell + top back button); wired into both Pro `FaultsTab.js` and `LiteFaultsTab.js` via `faultView === 'parts'`. The standalone `/parts-requests` route still works for deep links.
+- **Mobile scroll fix**: `.subtab-bar` (index.css) is now `max-width:100%; overflow-x:auto` with hidden scrollbar and `.subtab-pill{flex-shrink:0}`, so the pill row scrolls horizontally on narrow screens instead of clipping the last option.
+- **Verified** on mobile viewport (390px) as owner@isodemo.com: sub-tab bar scrolls to reveal "Request a Part"; clicking it renders the Parts Requests panel inline (URL stays `/dashboard`, no navigation). Removed now-unused `useNavigate` from both faults tabs.
+- Note: the embedded parts panel keeps its light card styling (looks consistent in light mode; would show light cards in dark mode — optional future re-theme to `--theme-*` tokens).
+
+
 ## Jul 3, 2026 — PRODUCTION DEPLOY BLOCKER FIXED (root cause: blocking sync MongoClient at import)
 - **True root cause of the k8s readiness crash-loop**: `routes/admin_analytics.py` created a SYNCHRONOUS `pymongo.MongoClient(os.environ["MONGO_URL"])` at MODULE IMPORT time. On the production Atlas `mongodb+srv://` URI, pymongo performs a BLOCKING DNS SRV lookup during client construction — this hung app import so uvicorn never bound `:8001`, nginx got connection-refused on `/health`, and the pod crash-looped. Preview never hit it (local `mongodb://` has no SRV lookup). This is why the earlier threadpool/secrets-audit fixes didn't resolve it.
 - **Fix**: `admin_analytics.py` now uses the shared async motor `db` (`from utils.database import db`); all 5 handlers (dashboard/equipment/faults/checksheets/ai) converted from sync `list(db…find())` to `await db…find().to_list(None)`.

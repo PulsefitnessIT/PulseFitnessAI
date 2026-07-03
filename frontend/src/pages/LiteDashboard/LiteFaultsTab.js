@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,7 @@ import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
+import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from './groupIssuesByJob';
 
 const STATUS_BORDER_COLOR = {
@@ -27,7 +27,6 @@ const LiteFaultsTab = ({
   getSeverityStyle, getSeverityLabel, getStatusColor
 }) => {
   const [faultView, setFaultView] = useState('reactive');
-  const navigate = useNavigate();
   // Iter 216d — multi-machine fault jobs collapse into a single
   // expandable parent row by default; the user clicks to fan out.
   const [expandedJobs, setExpandedJobs] = useState({});
@@ -140,8 +139,8 @@ const LiteFaultsTab = ({
           </button>
         )}
         <button type="button"
-          className="subtab-pill"
-          onClick={() => navigate('/parts-requests')} data-testid="lite-faults-view-request-part">
+          className={`subtab-pill ${faultView === 'parts' ? 'is-active' : ''}`}
+          onClick={() => setFaultView('parts')} data-testid="lite-faults-view-request-part">
           <Package size={14} /> {t('faults.request_part', 'Request a Part')}
         </button>
       </div>
@@ -273,6 +272,7 @@ const LiteFaultsTab = ({
       </div>
       </>
       )}
+      {faultView === 'parts' && <PartsRequestsPage embedded />}
     </div>
   );
 };
