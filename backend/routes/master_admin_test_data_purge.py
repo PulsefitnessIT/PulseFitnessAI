@@ -37,6 +37,18 @@ _TEST_ORG_NAME_PATTERNS = [
     r"demo\s*fitness",
 ]
 
+# Sites left behind by test onboarding (e.g. "TESTONB5-… Org Head Office")
+# or demo seeds ("Demo Branch B"). These get wrongly attached to a real org
+# and linger in the org drawer's Sites tab after the test org is deleted.
+_TEST_SITE_NAME_PATTERNS = [
+    r"testonb",             # "TESTONB5-67edff Org Head Office"
+    r"\(test\)",
+    r"—\s*somers",
+    r"^iso\s*demo",
+    r"demo\s*branch",       # "Demo Branch B"
+    r"demo\s*head\s*office",
+]
+
 _SKIP_COLLECTIONS = {
     "organizations", "admin_activity_log", "org_cleanup_audit",
     "test_data_purge_audit", "system.indexes", "system.views",
@@ -58,6 +70,33 @@ async def _detect_test_orgs() -> list[dict]:
 async def _detect_test_users() -> list[dict]:
     email_regex = {"$regex": "|".join(re.escape(e) for e in _TEST_USER_EMAILS), "$options": "i"}
     return await db.users.find({"email": email_regex}, {"_id": 0, "password": 0}).to_list(200)
+
+
+async def _detect_test_sites() -> list[dict]:
+    """Sites that are either (a) named like test/demo fixtures or (b) orphaned
+    — their organization_id no longer exists in `organizations`. Each is
+    annotated with a `reason` and the owning org name (if any)."""
+    org_ids = {o["id"] async for o in db.organizations.find({}, {"_id": 0, "id": 1})}
+    org_names = {}
+    async for o in db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}):
+        org_names[o["id"]] = o.get("name")
+    name_regex = re.compile("|".join(_TEST_SITE_NAME_PATTERNS), re.IGNORECASE)
+    out = []
+    async for s in db.sites.find({}, {"_id": 0}):
+        name = s.get("name") or ""
+        oid = s.get("organization_id")
+        is_named = bool(name_regex.search(name))
+        is_orphan = oid not in org_ids
+        if not (is_named or is_orphan):
+            continue
+        out.append({
+            "id": s.get("id"),
+            "name": name,
+            "organization_id": oid,
+            "org_name": org_names.get(oid),
+            "reason": "orphaned (org deleted)" if is_orphan else "test/demo name",
+        })
+    return out
 
 
 @router.get("/master-admin/test-data/candidates")
@@ -83,7 +122,8 @@ async def test_data_candidates(user: dict = Depends(get_current_user)) -> dict:
         "full_name": u.get("full_name"), "organization_id": u.get("organization_id"),
         "is_master_admin": bool(u.get("is_master_admin")),
     } for u in users]
-    return {"organizations": org_items, "users": user_items}
+    sites = await _detect_test_sites()
+    return {"organizations": org_items, "users": user_items, "sites": sites}
 
 
 @router.post("/master-admin/test-data/purge")
@@ -98,6 +138,7 @@ async def purge_test_data(body: dict = Body(default={}), user: dict = Depends(ge
     dry_run = bool(body.get("dry_run", True))
     only_org_ids = set(body.get("org_ids") or [])
     only_user_ids = set(body.get("user_ids") or [])
+    only_site_ids = set(body.get("site_ids") or [])
 
     orgs = await _detect_test_orgs()
     users = await _detect_test_users()
@@ -162,4 +203,40 @@ async def purge_test_data(body: dict = Body(default={}), user: dict = Depends(ge
                 )
             user_results.append({"user_id": uid, "email": u.get("email"), "deleted": bool(still)})
 
-    return {"dry_run": dry_run, "organizations": org_results, "users": user_results}
+    # Test / orphaned sites (e.g. "TESTONB5-… Head Office", "Demo Branch B")
+    # that lingered under a real org after their test org was deleted.
+    sites = await _detect_test_sites()
+    if only_site_ids:
+        sites = [s for s in sites if s.get("id") in only_site_ids]
+    site_results = []
+    for s in sites:
+        sid = s.get("id")
+        if dry_run:
+            site_results.append({
+                "site_id": sid, "name": s.get("name"), "org_name": s.get("org_name"),
+                "reason": s.get("reason"), "would_delete": True,
+            })
+            continue
+        # Remove the site + its site-scoped equipment/issues so nothing dangles.
+        eq = (await db.equipment.delete_many({"site_id": sid})).deleted_count
+        iss = (await db.issues.delete_many({"site_id": sid})).deleted_count
+        deleted = (await db.sites.delete_one({"id": sid})).deleted_count > 0
+        await db.test_data_purge_audit.insert_one({
+            "id": str(uuid.uuid4()), "action": "purge_test_site",
+            "site_snapshot": s, "removed_equipment": eq, "removed_issues": iss,
+            "admin_email": user.get("email", ""),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        await log_activity(
+            "test_data_purge",
+            f"Purged {s.get('reason')} site '{s.get('name')}' (eq={eq}, issues={iss})",
+            user.get("email", ""), "site", sid,
+        )
+        site_results.append({
+            "site_id": sid, "name": s.get("name"), "org_name": s.get("org_name"),
+            "reason": s.get("reason"), "deleted": deleted,
+            "removed_equipment": eq, "removed_issues": iss,
+        })
+
+    return {"dry_run": dry_run, "organizations": org_results,
+            "users": user_results, "sites": site_results}

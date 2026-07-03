@@ -20,6 +20,7 @@ export default function AdminTestDataPurge() {
 
   const [orgs, setOrgs] = useState([]);
   const [users, setUsers] = useState([]);
+  const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -31,6 +32,7 @@ export default function AdminTestDataPurge() {
       const r = await axios.get(`${API}/api/master-admin/test-data/candidates`, auth);
       setOrgs(r.data.organizations || []);
       setUsers(r.data.users || []);
+      setSites(r.data.sites || []);
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Failed to load test-data candidates');
     } finally { setLoading(false); }
@@ -48,7 +50,8 @@ export default function AdminTestDataPurge() {
       } else {
         const delOrgs = r.data.organizations.filter(o => !o.skipped).length;
         const delUsers = r.data.users.filter(u => u.deleted).length;
-        toast.success(`Purged ${delOrgs} test org(s) and ${delUsers} test user(s)`);
+        const delSites = (r.data.sites || []).filter(s => s.deleted).length;
+        toast.success(`Purged ${delOrgs} test org(s), ${delUsers} user(s) and ${delSites} site(s)`);
         setPreview(null); setConfirmText('');
         await load();
       }
@@ -59,7 +62,7 @@ export default function AdminTestDataPurge() {
 
   const deletableOrgs = orgs.filter(o => !o.protected);
   const deletableUsers = users.filter(u => !u.is_master_admin);
-  const nothingToPurge = deletableOrgs.length === 0 && deletableUsers.length === 0;
+  const nothingToPurge = deletableOrgs.length === 0 && deletableUsers.length === 0 && sites.length === 0;
   const canDelete = confirmText.trim().toUpperCase() === 'DELETE' && !nothingToPurge;
 
   return (
@@ -128,6 +131,14 @@ export default function AdminTestDataPurge() {
                     </td>
                   </tr>
                 ))}
+                {sites.map((s) => (
+                  <tr key={s.id} data-testid={`test-site-row-${s.id}`} className="border-t border-zinc-100">
+                    <td className="px-4 py-3 font-medium">{s.name}</td>
+                    <td className="px-4 py-3 text-zinc-500">Site</td>
+                    <td className="px-4 py-3 text-xs text-zinc-400">{s.reason}{s.org_name ? ` · under ${s.org_name}` : ''}</td>
+                    <td className="px-4 py-3 text-center"><span className="text-xs text-red-600">will delete</span></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -136,8 +147,7 @@ export default function AdminTestDataPurge() {
             <div className="flex items-start gap-2 text-sm text-red-800">
               <AlertTriangle className="w-5 h-5 shrink-0" />
               <div>
-                Permanently deletes <b>{deletableOrgs.length}</b> org(s) (and all their org-scoped data) and{' '}
-                <b>{deletableUsers.length}</b> user(s). Snapshots are archived to <code>test_data_purge_audit</code>.
+                Permanently deletes <b>{deletableOrgs.length}</b> org(s) (and all their org-scoped data), <b>{deletableUsers.length}</b> user(s) and <b>{sites.length}</b> test/orphaned site(s). Snapshots are archived to <code>test_data_purge_audit</code>.
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -172,6 +182,11 @@ export default function AdminTestDataPurge() {
                 {preview.users.map((r) => (
                   <div key={r.user_id} className="mb-1">
                     <b>{r.email}</b>: {r.skipped ? `skipped (${r.skipped})` : r.would_delete ? 'would delete' : 'not found'}
+                  </div>
+                ))}
+                {(preview.sites || []).map((r) => (
+                  <div key={r.site_id} className="mb-1">
+                    <b>{r.name}</b> (site): would delete — {r.reason}{r.org_name ? ` · under ${r.org_name}` : ''}
                   </div>
                 ))}
               </div>
