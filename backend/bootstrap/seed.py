@@ -25,6 +25,15 @@ from utils.database import db
 logger = logging.getLogger(__name__)
 
 
+def _is_production() -> bool:
+    """True when the process is flagged as production. Test/demo seeds are
+    hard-gated off here so regression fixtures never leak into the live DB."""
+    return (
+        (os.environ.get("APP_ENV") or "").lower() == "production"
+        or (os.environ.get("ENVIRONMENT", "development") or "").lower().startswith("prod")
+    )
+
+
 async def seed_master_admin() -> None:
     """Seed/heal master admin account on every startup.
 
@@ -216,8 +225,8 @@ async def seed_services() -> None:
             "CRM picklists / stakeholder / products seed failed (non-fatal): %s",
             e,
         )
-    # MOD demo tree (idempotent) — disabled in fresh-platform mode
-    if os.environ.get("ENABLE_DEMO_SEED", "0") == "1":
+    # MOD demo tree (idempotent) — disabled in fresh-platform mode + prod
+    if os.environ.get("ENABLE_DEMO_SEED", "0") == "1" and not _is_production():
         try:
             from utils.mod_seed import seed_mod_demo, ensure_mod_indexes
             await ensure_mod_indexes()
@@ -258,7 +267,7 @@ async def seed_services() -> None:
         await ensure_triage_attempts_indexes()
     except Exception as e:  # pragma: no cover
         logger.warning("Pricing / billing index ensure failed: %s", e)
-    if os.environ.get("ENABLE_DEMO_SEED", "0") == "1":
+    if os.environ.get("ENABLE_DEMO_SEED", "0") == "1" and not _is_production():
         try:
             from utils.memberships_seed import seed_memberships_demo
             from utils.memberships_analytics_seed import seed_memberships_analytics_demo
@@ -340,7 +349,15 @@ async def seed_test_accounts() -> None:
     the support assistant + conversation export.
 
     Gate with ``SEED_TEST_ACCOUNTS=0`` to skip entirely.
+
+    HARD-GATED OFF IN PRODUCTION: regardless of ``SEED_TEST_ACCOUNTS``, this
+    never runs when the process is flagged as production
+    (``APP_ENV=production`` or ``ENVIRONMENT`` starting with ``prod``). This is
+    the single fix that stops regression fixtures leaking into the live DB.
     """
+    if _is_production():
+        logger.info("Skipping test-account seed (production environment)")
+        return
     if os.environ.get("SEED_TEST_ACCOUNTS", "1") == "0":
         return
     from utils.auth import hash_password

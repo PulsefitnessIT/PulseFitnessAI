@@ -1,3 +1,34 @@
+# ═══ 2026-06 · P0 BUGFIX · Test/demo data leaking into PRODUCTION DB (backend VERIFIED) ═══
+ROOT CAUSE: `bootstrap/seed.py::seed_test_accounts()` ran on EVERY backend boot (gated only by the
+opt-out `SEED_TEST_ACCOUNTS=0`) and upserted the regression fixture user `lee.somers@pulsefitness.com`
++ its org "Pulse Fitness — Somers (test)". Production never set that flag → test data seeded into the
+live DB. (Demo seeds via `ENABLE_DEMO_SEED=1` were already off-by-default.)
+
+FIX (two parts, both verified):
+1. HARD-GATE (bootstrap/seed.py): new `_is_production()` (APP_ENV=production OR ENVIRONMENT startswith
+   'prod'). `seed_test_accounts()` now returns immediately in production REGARDLESS of SEED_TEST_ACCOUNTS.
+   The two `ENABLE_DEMO_SEED` branches in `seed_services()` also now require `not _is_production()`.
+   Verified: `APP_ENV=production python -c "...seed_test_accounts()"` → "Skipping test-account seed".
+2. PURGE TOOL (Master Admin → Organisations → "Purge test data"):
+   - Backend `routes/master_admin_test_data_purge.py` (registered in route_registry/admin.py):
+     GET  /api/master-admin/test-data/candidates — auto-detects test orgs (name ~ "(test)" / "— Somers"
+          / "^iso demo" / "demo fitness") + test users (lee.somers@…).
+     POST /api/master-admin/test-data/purge {dry_run, org_ids?, user_ids?} — deletes detected orgs +
+          all their org-scoped rows (dynamic collection scan on organization_id/org_id) + test users.
+          Guards: skips system orgs (own a master admin), pinned operator company, master-admin users.
+          Snapshots every delete to `test_data_purge_audit` + admin_activity_log. Master-admin gated.
+   - Frontend `pages/MasterAdmin/AdminTestDataPurge.js` — candidate table, dry-run preview, typed
+     DELETE confirmation. Sidebar leaf `test-data-purge` + MasterAdminPage render case.
+VERIFIED (curl @ external URL, admin@pulsefitness.com): candidates lists detected orgs; dry-run shows
+per-collection counts; real purge (org_ids-scoped) hard-deleted a throwaway "QA Zeta (test)" org + its
+equipment, wrote 1 audit doc, and left the iso-demo fixture untouched. 401 without auth. Frontend
+compiles clean. NOTE: master-admin SPA UI not screenshot-harness testable (documented CSP limitation);
+backend fully verified.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-02 · FEATURE (PHASE 1) · Pre-Install Site Survey in CRM Corporate (VERIFIED 100% backend + frontend) ═══
 User: build a structured Pre-Install Site Survey inside the existing CRM against company + site records — no
 duplicate records, link to existing company/site/opportunity/quote/project/service-job. User confirmed: Phase 1
