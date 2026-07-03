@@ -922,3 +922,10 @@ MOD Service Portal → Reports → ASER. Lets MOD site users document equipment-
 - Frontend MODASERPortal: downloadBlob() helper (axios blob + auth header), CSV/Excel/PDF export button group in Register filters (aser-export-csv/xlsx/pdf), and 'Replacement Evidence Report' button in entry detail (aser-replacement-evidence).
 - Verified: backend curl (valid %PDF / PK-zip / CSV signatures); frontend 100% — all 4 downloads return 200 with correct content-types (iteration_mod_aser_exports_fe_jan2026.json). Test data reset. PREVIEW only — redeploy for production.
 - Note: MODASERPortal.js now ~789 lines — candidate for future split (RegisterView/DetailView/AnalyticsView modules).
+
+## ASER Phase 2 — Master Admin settings + configurable notifications (Jul 3, 2026)
+- Backend `routes/mod_aser.py`: singleton `aser_settings` (DEFAULT_SETTINGS + deep-merge). GET/PUT /api/master-admin/aser/settings (master-admin only). _require_mod now enforces settings.enabled (except master admin); high/critical review status gated by require_manager_review_high_critical.
+- Notifications: _notify_aser_created() fires on ASER submit — emails site managers (org owner/manager users + owner_email), a configurable service desk email, and account manager email, per per-group rules (on_new/high_critical/removed/repeated/capex/fault_link). Sent via Resend (utils.email.send_email, kind=mod_aser_alert). Verified with real Resend sends (site manager + service desk both delivered on a critical entry).
+- Frontend: AserSettingsPanel added to AdminMODConsole (general toggles + repeated-issue threshold + 3 notification groups). Wired AdminMODConsole into Master Admin → Overview → MoD → 'MOD Console & ASER' inner tab (was orphaned).
+- Verified: backend curl (settings CRUD + real email dispatch); frontend 100% (iteration_mod_aser_settings_fe_retest_jan2026.json — load/edit/save/persist). Settings reset to defaults. PREVIEW only — redeploy for production.
+- Remaining Phase 2: AI summaries (app's current LLM).
