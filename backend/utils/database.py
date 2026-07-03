@@ -26,8 +26,63 @@ for _k, _v in _env_file.items():
 
 # MongoDB
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+_db_name = os.environ['DB_NAME']
+
+
+# ─── Deploy-safety: lazy Motor client for Atlas SRV URIs ──────────────
+# Constructing ``AsyncIOMotorClient('mongodb+srv://…')`` performs a
+# SYNCHRONOUS, BLOCKING DNS SRV+TXT lookup at construction time. At module
+# import scope (this file is imported by server.py before uvicorn binds
+# :8001) that DNS call can hang during early k8s pod boot → uvicorn never
+# binds → nginx /health connection-refused → readiness timeout → crash-loop.
+# Preview/tests use a plain ``mongodb://`` URI (no SRV lookup), so we keep
+# the original EAGER construction there for zero behaviour change. For an
+# Atlas ``mongodb+srv://`` URI we defer construction to first use (which
+# happens inside the running event loop, AFTER the port is bound), via a
+# transparent proxy that forwards every attribute/item access to the real
+# Motor client/database.
+class _LazyMotorClient:
+    def __init__(self, uri: str):
+        object.__setattr__(self, "_uri", uri)
+        object.__setattr__(self, "_real", None)
+
+    def _resolve(self):
+        real = object.__getattribute__(self, "_real")
+        if real is None:
+            real = AsyncIOMotorClient(object.__getattribute__(self, "_uri"))
+            object.__setattr__(self, "_real", real)
+        return real
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+    def __getitem__(self, name):
+        return self._resolve()[name]
+
+
+class _LazyMotorDatabase:
+    def __init__(self, client_proxy: "_LazyMotorClient", name: str):
+        object.__setattr__(self, "_client_proxy", client_proxy)
+        object.__setattr__(self, "_name", name)
+
+    def _resolve(self):
+        return object.__getattribute__(self, "_client_proxy")._resolve()[
+            object.__getattribute__(self, "_name")
+        ]
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+    def __getitem__(self, name):
+        return self._resolve()[name]
+
+
+if mongo_url.startswith("mongodb+srv://"):
+    client = _LazyMotorClient(mongo_url)
+    db = _LazyMotorDatabase(client, _db_name)
+else:
+    client = AsyncIOMotorClient(mongo_url)  # noqa: import-blocking (non-srv URI: no DNS SRV lookup, cannot hang)
+    db = client[_db_name]
 
 # Environment variables
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')

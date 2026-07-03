@@ -1,0 +1,50 @@
+{
+  "summary": "Regression pass for the Jan-2026 _LazyMotorClient/_LazyMotorDatabase refactor in backend/utils/database.py. In PREVIEW MONGO_URL is plain mongodb:// so the EAGER (unchanged) path is exercised. All 14 tests passed against REACT_APP_BACKEND_URL — confirming the refactor did NOT regress core flows sharing the db/client object across auth, master-admin, operator, CRM (separate auth), and a write path.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/analytics/dashboard", "issue": "Not mounted (404). The review request suggested this as an example; used /api/memberships/analytics/overview instead which returned 200 for owner@isodemo.com. Consider adding an /api/analytics/dashboard alias or updating docs."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verification_results": {
+    "GET /api/health": "PASS (200)",
+    "GET /health (unprefixed)": "PASS (200, k8s liveness OK)",
+    "GET /api/health/deep": "PASS (200, mongo check ok — proves shared db proxy works)",
+    "POST /api/auth/login master admin": "PASS (200, JWT returned)",
+    "GET /api/auth/me": "PASS (200, is_master_admin=true, email matches)",
+    "GET /api/master-admin/organizations (admin)": "PASS (200 via shared db)",
+    "GET /api/master-admin/organizations (anon)": "PASS (401)",
+    "POST /api/auth/login operator (owner@isodemo.com)": "PASS (200, JWT)",
+    "GET /api/sites (operator JWT)": "PASS (200, list)",
+    "GET /api/equipment (operator JWT)": "PASS (200)",
+    "operator analytics read (/api/memberships/analytics/overview)": "PASS (200) — /api/analytics/dashboard is not mounted (404)",
+    "POST /api/crm/auth/login owner@isodemo.com": "PASS (200, CRM token)",
+    "CRM read (/api/crm/companies)": "PASS (200) — confirms db proxy on CRM auth path",
+    "Write path (POST /api/ui-errors + GET summary)": "PASS — insert + aggregate readback both 200 via shared db"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_lazy_motor_regression_jan2026.py",
+    "/app/test_reports/pytest/lazy_motor_regression_jan2026.xml"
+  ],
+  "action_items": [
+    "Safe to advise redeploy — lazy motor proxy refactor does not regress preview EAGER path.",
+    "(Optional) Add /api/analytics/dashboard alias or update docs so review-request example is 200 out of the box.",
+    "SRV lazy-proxy path was NOT exercised at runtime here (preview uses plain mongodb://). It was verified separately per the request; if further prod validation is desired, run this suite against the SRV deployment."
+  ],
+  "critical_code_review_comments": [
+    "Because the lazy proxies only activate on mongodb+srv:// URIs, all preview regression on the plain-URI path exercises the unchanged code — good defensive design.",
+    "Recommend a small runtime unit test importing utils.database with MONGO_URL forced to a mongodb+srv://... value and asserting client/db are proxy instances until first await; this locks in the lazy contract without needing a real SRV DNS.",
+    "Consider adding a strict __getattr__ passthrough test on _LazyMotorDatabase for common motor methods (find, insert_one, aggregate, command) to prevent silent regressions if new motor APIs are used."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_lazy_motor_regression_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "n/a (skipped per request)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg  ·  owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "One transient TEST_lazy_motor_<uuid> doc via POST /api/ui-errors to prove write-through-proxy.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression suite at /app/backend/tests/test_lazy_motor_regression_jan2026.py. Run with: cd /app/backend && python -m pytest tests/test_lazy_motor_regression_jan2026.py -v. Covers health (incl. /api/health/deep mongo check), master-admin auth + orgs, operator sites/equipment/analytics, CRM separate-auth path (POST /api/crm/auth/login), and a write+aggregate read on ui-errors. /api/analytics/dashboard is not mounted — used /api/memberships/analytics/overview instead. Preview MONGO_URL is mongodb:// so only the EAGER path was exercised; SRV lazy-proxy path must be validated against a real SRV deployment.",
+  "rca of the issue": "N/A for this iteration — verifying non-regression of a previously-shipped fix. Original P0 RCA (recorded in prior iterations): AsyncIOMotorClient('mongodb+srv://…') performed a blocking DNS SRV lookup at construction, and utils/database.py did that at module-import scope, so uvicorn never bound :8001 → k8s readiness timeout → crash-loop. Fix: for SRV URIs, expose `db` and `client` as transparent _LazyMotorClient/_LazyMotorDatabase proxies that construct the real motor client on first attribute access; plain mongodb:// (preview + tests) stays eager and unchanged."
+}

@@ -23,12 +23,24 @@ from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent
 # Modules imported during app boot (register_routes + server import chain).
-SCAN_DIRS = [BACKEND / "routes", BACKEND / "route_registry"]
+SCAN_DIRS = [
+    BACKEND / "routes",
+    BACKEND / "route_registry",
+    BACKEND / "utils",
+    BACKEND / "bootstrap",
+]
 
 # Dotted call targets that block the event loop / hang on network I/O.
+# NOTE: AsyncIOMotorClient('mongodb+srv://…') ALSO does a blocking DNS SRV
+# lookup at construction (motor wraps pymongo's parse_uri) — so constructing
+# it at import scope hangs prod boot on Atlas exactly like sync MongoClient.
+# The canonical shared client (utils/database.py) defers this via a lazy
+# proxy for srv URIs and opts the eager non-srv branch out with the noqa tag.
 BLOCKING_CALLS = {
     "MongoClient",              # pymongo — SYNC, does SRV DNS lookup at construction
     "pymongo.MongoClient",
+    "AsyncIOMotorClient",       # motor — SYNC SRV DNS lookup at construction
+    "motor.motor_asyncio.AsyncIOMotorClient",
     "requests.get", "requests.post", "requests.put", "requests.patch",
     "requests.delete", "requests.head", "requests.request", "requests.Session",
     "urllib.request.urlopen",
