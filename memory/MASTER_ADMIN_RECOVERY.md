@@ -6,7 +6,7 @@
 > URLs since the doc was written:
 >
 > - Production: `https://gymaxisai.com`
-> - Preview: `https://ops-parts-request.preview.emergentagent.com`
+> - Preview: `https://rbac-modules.preview.emergentagent.com`
 >
 > The `admin@gymaxisai.com` master-admin credentials in
 > `memory/test_credentials.md` are valid for both environments.

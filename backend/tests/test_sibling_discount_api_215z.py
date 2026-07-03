@@ -12,7 +12,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://ops-parts-request.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://rbac-modules.preview.emergentagent.com").rstrip("/")
 
 # Test credentials from test_credentials.md
 OPERATOR_EMAIL = "lee.somers@pulsefitness.com"

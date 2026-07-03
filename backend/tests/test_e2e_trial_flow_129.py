@@ -7,7 +7,7 @@ import pytest
 import requests
 import secrets
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://ops-parts-request.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://rbac-modules.preview.emergentagent.com')
 
 # Test credentials (loaded from env with local-dev fallbacks)
 MASTER_ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")

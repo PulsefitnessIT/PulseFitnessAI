@@ -1,28 +1,37 @@
-<analysis>**original_problem_statement**: PRODUCT REQUIREMENTS: Robust Operations management, Lite/Pro tiering, and seamless Multi-Module RBAC. Features requested: Request a Part module inside Operations > Faults (Lite/Pro dashboard), upload exploded drawings inside Master Admin catalogue, allow users to select parts from drawings, and fix a recurring production deployment crash-loop (k8s health check timeout). Recently added: Ensure 'Request a Part' UI renders inline (like other sub-tabs) and the sub-tab bar scrolls horizontally on mobile.
+<analysis>**original_problem_statement**: PRODUCT REQUIREMENTS: Robust Operations management, Lite/Pro tiering, and seamless Multi-Module RBAC. Features requested: Request a Part module inside Operations, upload exploded drawings, and fix a recurring production deployment crash-loop (k8s health check timeout). Recently added: Ensure 'Request a Part' UI renders inline, fix missing Forgot password? option on the sign-in modal, and investigate/fix test data leaking into the live production database.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in the user's preferred language only)
 
-**what currently exists?**: A fully functional CRM with Pre-Install Site Surveys, reporting, and file exports. An end-to-end Request a Part flow added to Operations > Faults for both Lite and Pro users. Parts request UI renders inline with proper mobile scrolling and dark mode support. Production crash loops due to synchronous DB imports have been patched and verified. Master Admin Catalogue supports Exploded Drawings with mapped interactive part lists.
+**what currently exists?** A fully functional CRM with Site Surveys and a robust Request a Part flow. Master Admin Catalogue supports Exploded Drawings with mapped interactive part lists. The production K8s crash-loop issue is completely resolved via a lazy-loaded Motor DB proxy. The 'Forgot Password' flow has been implemented end-to-end and connected to the Pulse Landing Page modal. 
 
 **Last working item**: 
-    - Last item agent was working: Themed the Request a Part panel to fully utilize dashboard  tokens for perfect Light/Dark mode parity. The agent proposed a final enhancement to align the pastel status badges to translucent badge styles ().
+    - Last item agent was working: Investigating why preview/test data appeared in the live production database. The agent fetched architecture details from the support agent, explaining that preview and prod use separate DBs, but a backend boot-seed script likely ran on the prod server. The agent proposed auditing the seed logic to hard-gate test data off in production, or adding a one-click purge test orgs helper to the Master Admin UI.
     - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y 
-    - Which testing method agent to use? screenshot tool
+    - Agent Testing Done: N
+    - Which testing method agent to use? backend testing agent (Once seed logic is audited/fixed)
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  Issue 1: Stripe Module Subscription Checkout Blocked (P2)
-     - Attempted fixes: Previously built, but blocked by expired key.
-     - Next debug checklist: Wait for user to provide pricing and valid Stripe API key.
+  Issue 1: Production database containing preview/test data (P0)
+     - Attempted fixes: Investigated cause via support_agent. Explained to the user that it's likely a seed script running on startup.
+     - Next debug checklist: Await user confirmation, then audit backend boot-seeding scripts (, ) to ensure test/regression data is strictly gated via . Potentially add a purge helper in Master Admin UI.
+     - Why fix this issue and what will be achieved with the fix?: Prevents fake regression data from cluttering the live production environment.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix?: Backend
+     - Blocked on other issue: Waiting for user to confirm the proposed remediation plan.
+
+  Issue 2: Stripe Module Subscription Checkout Blocked (P2)
+     - Attempted fixes: Previously built, but blocked by an expired Stripe key.
+     - Next debug checklist: Wait for user to provide pricing and a valid Stripe API key.
      - Why fix this issue and what will be achieved with the fix?: Enables revenue collection.
      - Status: BLOCKED
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix?: Backend
      - Blocked on other issue: Expired Stripe Key & finalized pricing.
 
-  Issue 2: SEO Audit Subagent Timeout (P2)
-     - Attempted fixes: Subagent timed out twice previously.
+  Issue 3: SEO Audit Subagent Timeout (P2)
+     - Attempted fixes: Subagent timed out multiple times previously.
      - Next debug checklist: Needs to be re-run and logs monitored.
      - Why fix this issue and what will be achieved with the fix?: Fulfills previous user request.
      - Status: NOT STARTED
@@ -36,7 +45,7 @@
 **Upcoming and Future Tasks**
     Upcoming Tasks:
     - Task 1: Sicon Customer Auto-Import via Sage Core / CRM API (P2)
-    - Task 2: Sicon Equipment API Auto-Import (P2)
+    - Task 2: Sicon Equipment API Auto-Import (P2 - BLOCKED, needs Sicon equipment API doc)
     - Task 3: CRM-only assets Promote to register action (P2)
     - Task 4: Update 'Request a Part' status badges to use dashboard's translucent badge style (e.g. bg-emerald-500/20) for dark mode visual parity (Proposed Enhancement - Pending Approval)
     
@@ -44,56 +53,48 @@
     - Task 1: Interactive-hotspot version for exploded drawings (Requested as a later roadmap item).
 
 **Completed work in this session**
-- Verified P0 Crash-loop fix from previous session. (DONE)
-- Discovered TRUE root cause of prod crash-loop: Synchronous  import in  causing DNS SRV blocking. Refactored to async  client. (DONE)
-- Fixed Mongo TTL index conflicts in  and . (DONE)
-- Added AST regression test () to prevent import-scope blocking calls in routes. (DONE)
-- Fixed mobile horizontal scroll bug on  in . (DONE)
-- Refactored Request a Part to render inline without navigating away in  and . (DONE)
-- Re-themed Request a Part panel () to use dashboard  tokens for light/dark mode parity. (DONE)
+- Identified and fixed the root cause of the prod crash-loop:  parses DNS SRV records synchronously, blocking the import thread. Implemented a lazy proxy () in  to defer instantiation until the event loop runs. (DONE)
+- Hardened AST regression test () to scan  and  for eager motor client construction. (DONE)
+- Built the frontend UI for Forgot Password requesting a reset link ( without token) and wired it up to the existing backend. (DONE)
+- Added the missing Forgot password? link to the  login modal. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
    Issue 1: SEO Audit Subagent Timeout
-   - Debug checklist: Subagent timed out twice previously. Needs to be re-run and logs monitored.
+   - Debug checklist: Needs to be re-run and logs monitored.
    - Why to solve this issue and what will be achieved with this?: Fulfills previous user request.
    - Should Test frontend/backend/both after fix: NA
    - Is recurring issue? Y
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Production Deployment Crash-loop Verification (Initially thought fixed via threadpool patches, but k8s timeout recurred due to synchronous MongoDB connection at module import time blocking the event loop).
-  - Recurrence count: 1
-  - Status: RESOLVED (Confirmed via deployment_agent and testing_agent)
+  - Issue recurrence in previous fork: Production Deployment Crash-loop Verification (k8s timeout). Initially patched with async Motor refactor, but it recurred because the  Atlas URI inherently blocks on DNS lookups during client instantiation at module import scope. 
+  - Recurrence count: 2
+  - Status: RESOLVED (Fixed via transparent lazy DB proxy; successfully deployed to prod).
 
 **Code Architecture**
 /app
 ├── backend/
 │   ├── routes/
-│   │   ├── admin_analytics.py      # Refactored to async motor
-│   │   ├── email_health.py         # TTL index conflict fixed
-│   │   ├── ui_errors.py
+│   │   ├── auth.py                 # Handles /auth/forgot-password and /auth/reset-password
 │   ├── utils/
-│   │   ├── file_validation.py      # libmagic sniffer
+│   │   ├── database.py             # Contains  logic to prevent SRV blocking
 │   ├── tests/
-│   │   ├── test_no_blocking_imports.py  # AST guard for blocking imports
+│   │   ├── test_no_blocking_imports.py  # AST guard for blocking imports (now scans utils & bootstrap)
 ├── frontend/
 │   ├── src/
-│   │   ├── index.css               # Added horizontal scroll to .subtab-bar
-│   │   ├── pages/Dashboard/FaultsTab.js # Inline parts request
-│   │   ├── pages/LiteDashboard/LiteFaultsTab.js # Inline parts request
-│   │   ├── pages/PartsRequests/PartsRequestsPage.js  # Embedded mode, theme token migration
+│   │   ├── pages/
+│   │   │   ├── ResetPasswordPage.js  # Updated to include initial email request state
+│   │   │   ├── PulseLandingPage.js   # Updated login modal with Forgot Password link
 
 **Key Technical Concepts**
-React, FastAPI, MongoDB (Motor Async), Tailwind CSS, Threadpools, Pytest, AST (Abstract Syntax Trees for code validation).
+React, FastAPI, MongoDB (Motor Async with Lazy Proxies), Tailwind CSS, Threadpools, Pytest, AST Guards.
 
 **key DB schema**
   - : {id, company_id, site_id, sections, readiness, status}
 
 **changes in tech stack**
-  - Removed synchronous  usage in backend routes, fully replaced with async  to prevent event-loop blocking during k8s deployment.
+  - Database Initialization: Motor connections MUST use the custom lazy proxy in  when using  to avoid event-loop blocking during k8s deployment.
 
 **All files of reference** 
-  - 
-  - 
   - 
   - 
   - 
@@ -106,27 +107,24 @@ React, FastAPI, MongoDB (Motor Async), Tailwind CSS, Threadpools, Pytest, AST (A
 **key api endpoints**
   -  and 
   - 
+  - 
 
 **Critical Info for New Agent** 
-  - The k8s production deployment timeout issue was thoroughly fixed by removing a synchronous  instantiation at the module level in . **Never use synchronous DB or network calls at the module scope in FastAPI routes.**
-  - A new pytest AST guard () is in place to prevent blocking imports.
-  -  is set to  to satisfy deployment health checks.
-  - Frontend Request a Part now uses an embedded layout (no routing) and  CSS tokens. Avoid hardcoded  colors for new components in this view.
+  - **Database Connection Blocking:** Never use synchronous network or DB constructor calls at the module scope in FastAPI. Specifically,  URIs execute synchronous DNS SRV resolution upon object instantiation. A lazy proxy () is handling this now—do not alter this behavior.
+  - **Separate Databases:** Production and Preview use strictly isolated MongoDB databases. 
+  - **Data Leakage:** Test data leaked into the live production database. It is highly likely that test-seeding scripts in  or  executed unconditionally on startup. This must be strictly gated using .
 
 **documents and test reports created in this job** 
   - 
   - 
-  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *[User]*: Continue
  - *[User (System)]*: Deployment FAILED AGAIN (timeout).
- - *[User (System)]*: Deployment FAILED AGAIN (timeout).
- - *[User]*: Sharing build error logs when trying to deploy... Please analyze...
- - *[User]*: Continue potential improvement (Agent added AST test to prevent sync imports)
- - *[User]*: Request a part - Sub options don't scroll on vertical mobile screen. Once the button is pressed it opens up a new screen? It needs to stay in the same screen...
- - *[User]*: Continue potential improvement (Agent applied theme tokens to the Parts panel).
- - **Pending Human Message**: None. (Wait for user to accept/reject the final enhancement suggestion regarding translucent badge styling).
+ - *[User (System)]*: The user reported a bug. After applying the fix you MUST call the testing_agent...
+ - *[User (System)]*: The user has deployed this app to production. There are now TWO environments...
+ - *[User]*: Sign in - There's no forgot password option
+ - *[User]*: Database - How has the preview database been copied over to production?
+ - **Pending Human Message**: Waiting for the user to confirm whether the agent should (a) audit the backend boot-seeding script to block test data in prod, and/or (b) add a one-click purge tool to the Master Admin UI to clean up the spilled test data.
 
 **Project Health Check:**
   - Broken: None. 
@@ -142,10 +140,13 @@ React, FastAPI, MongoDB (Motor Async), Tailwind CSS, Threadpools, Pytest, AST (A
   - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: 
+    - 
+    - 
   - Known regressions: None
 
 **Credentials to test flow:**
   - Master Admin:  (Check  for password)
+  - Test User: 
 
 **What agent forgot to execute**
-None. Agent completed and verified all steps correctly.</analysis>
+None. All tasks were addressed and executed according to constraints.</analysis>

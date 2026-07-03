@@ -24,7 +24,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://ops-parts-request.preview.emergentagent.com",
+    "https://rbac-modules.preview.emergentagent.com",
 )
 
 

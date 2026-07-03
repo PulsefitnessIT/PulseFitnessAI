@@ -21,7 +21,7 @@ import requests
 import pytest
 
 # Use the public URL from environment
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://ops-parts-request.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://rbac-modules.preview.emergentagent.com").rstrip("/")
 
 # Test credentials sourced from the central conftest (env-var overridable
 # via TEST_MASTER_ADMIN_EMAIL / TEST_PULSE_PRO_EMAIL / TEST_REGULAR_USER_EMAIL).

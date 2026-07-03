@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://ops-parts-request.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://rbac-modules.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "admin@pulsefitness.com"
 ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 
