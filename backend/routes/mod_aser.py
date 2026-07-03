@@ -89,11 +89,57 @@ async def _org_of(user: dict) -> dict:
     return org
 
 
+# ── Settings (singleton, Master Admin controlled) ─────────────────────
+DEFAULT_SETTINGS = {
+    "id": "global",
+    "enabled": True,
+    "restrict_to_mod": True,
+    "require_equipment_selection": True,
+    "allow_without_equipment": False,
+    "enable_capex_linking": True,
+    "enable_fault_linking": True,
+    "require_manager_review_high_critical": True,
+    "repeated_issue_threshold": 2,
+    "patient_pii_warning": True,
+    "ai_summaries": True,
+    "notifications": {
+        "site_manager": {"on_new": True, "on_high_critical": True, "on_removed": True,
+                         "on_repeated": True, "on_capex": True},
+        "service_desk": {"enabled": False, "email": "", "on_high_critical": True,
+                         "on_fault_link": True, "on_repeated": True},
+        "account_manager": {"enabled": False, "email": "", "on_repeated": True, "on_capex": True},
+    },
+}
+
+
+def _merge_settings(doc: Optional[dict]) -> dict:
+    out = {**DEFAULT_SETTINGS}
+    if doc:
+        for k, v in doc.items():
+            if k == "notifications" and isinstance(v, dict):
+                merged = {grp: {**DEFAULT_SETTINGS["notifications"][grp], **(v.get(grp) or {})}
+                          for grp in DEFAULT_SETTINGS["notifications"]}
+                out["notifications"] = merged
+            else:
+                out[k] = v
+    return out
+
+
+async def _load_settings() -> dict:
+    doc = await db.aser_settings.find_one({"id": "global"}, {"_id": 0})
+    return _merge_settings(doc)
+
+
+
 async def _require_mod(user: dict) -> dict:
     """Caller must belong to a MOD organisation (site or PRO)."""
     org = await _org_of(user)
     if org.get("account_type") not in MOD_ACCOUNT_TYPES and not user.get("is_master_admin"):
         raise HTTPException(403, "ASER is available to MOD organisations only")
+    if not user.get("is_master_admin"):
+        settings = await _load_settings()
+        if not settings.get("enabled", True):
+            raise HTTPException(403, "ASER is currently disabled by the platform administrator")
     return org
 
 
@@ -364,10 +410,11 @@ async def aser_create(payload: ASERCreate, request: Request, user: dict = Depend
     now = datetime.now(timezone.utc)
     ref = _next_ref()
     entry_id = str(uuid.uuid4())
+    settings = await _load_settings()
 
-    # High/critical risk requires review — set status accordingly.
+    # High/critical risk requires review — set status accordingly (gated by settings).
     status = "draft" if not payload.submit else "submitted"
-    if payload.submit and payload.risk.rating in ("high", "critical"):
+    if payload.submit and payload.risk.rating in ("high", "critical") and settings.get("require_manager_review_high_critical", True):
         status = "under_review"
     if payload.linked_fault_id and payload.submit:
         status = "linked_to_fault"
@@ -440,6 +487,8 @@ async def aser_create(payload: ASERCreate, request: Request, user: dict = Depend
                  equipment_status=payload.equipment_status, capex_flagged=payload.capex_flagged)
 
     doc.pop("_id", None)
+    if payload.submit:
+        await _notify_aser_created(doc, settings)
     return {"ok": True, "aser_ref": ref, "entry": doc}
 
 
@@ -865,3 +914,119 @@ async def _audit(site_id: str, user: dict, action: str, *, target_id: Optional[s
                           target_type="aser", target_id=target_id, payload=payload, ip=ip, user_agent=ua)
     except Exception as e:  # pragma: no cover
         logger.warning("ASER audit failed: %s", e)
+
+
+# ══════════════════════════════════════════════════════════════════
+#                 NOTIFICATIONS
+# ══════════════════════════════════════════════════════════════════
+async def _site_manager_emails(site_id: str) -> list[str]:
+    users = await db.users.find(
+        {"organization_id": site_id, "role": {"$in": ["owner", "manager"]}, "active": {"$ne": False}},
+        {"_id": 0, "email": 1},
+    ).to_list(50)
+    emails = [u["email"] for u in users if u.get("email")]
+    org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "owner_email": 1})
+    if org and org.get("owner_email"):
+        emails.append(org["owner_email"])
+    return emails
+
+
+async def _notify_aser_created(entry: dict, settings: dict) -> None:
+    """Fire configurable email notifications for a new ASER entry. Never
+    blocks the request — failures are swallowed and logged."""
+    try:
+        from utils.email import send_email
+        notif = settings.get("notifications") or {}
+        sm = notif.get("site_manager") or {}
+        sd = notif.get("service_desk") or {}
+        am = notif.get("account_manager") or {}
+
+        rating = (entry.get("risk") or {}).get("rating")
+        is_high = rating in ("high", "critical")
+        is_removed = entry.get("equipment_status") in REMOVAL_FLAG_STATUSES
+        rep = (entry.get("repeated_issue") or {}).get("label") in {
+            "repeated_issue", "escalation_recommended",
+            "replacement_evidence_building", "replacement_strongly_recommended"}
+        aser_90 = (entry.get("repeated_issue") or {}).get("aser_90d", 0) or 0
+        is_repeated = rep and aser_90 >= (settings.get("repeated_issue_threshold", 2) or 2)
+        is_capex = bool(entry.get("capex_flagged"))
+
+        recipients: set[str] = set()
+        # Site managers
+        if sm.get("on_new") or (is_high and sm.get("on_high_critical")) or \
+           (is_removed and sm.get("on_removed")) or (is_repeated and sm.get("on_repeated")) or \
+           (is_capex and sm.get("on_capex")):
+            for e in await _site_manager_emails(entry["site_id"]):
+                recipients.add(e)
+        # Service desk
+        if sd.get("enabled") and sd.get("email") and (
+                (is_high and sd.get("on_high_critical")) or (is_repeated and sd.get("on_repeated"))):
+            recipients.add(sd["email"])
+        # Account manager
+        if am.get("enabled") and am.get("email") and (
+                (is_repeated and am.get("on_repeated")) or (is_capex and am.get("on_capex"))):
+            recipients.add(am["email"])
+
+        if not recipients:
+            return
+
+        snap = entry.get("equipment_snapshot") or {}
+        ai = entry.get("activity_impact") or {}
+        flags = []
+        if is_high:
+            flags.append(f"<b>{rating.title()} risk</b>")
+        if is_removed:
+            flags.append("<b style='color:#b91c1c'>Equipment flagged for removal</b>")
+        if is_repeated:
+            flags.append("<b>Repeated issue</b>")
+        if is_capex:
+            flags.append("CAPEX evidence flagged")
+        subject = f"[ASER {entry['aser_ref']}] {entry.get('title')}" + (" — HIGH RISK" if is_high else "")
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:560px">
+          <h2 style="color:#0F1419;margin:0 0 4px">ASER — Activity Safety Event</h2>
+          <p style="color:#6b7280;font-size:13px;margin:0 0 12px">{entry.get('site_name')} · {entry['aser_ref']}</p>
+          <table style="font-size:13px;border-collapse:collapse;width:100%">
+            <tr><td style="padding:4px 8px;color:#6b7280">Equipment</td><td style="padding:4px 8px"><b>{snap.get('name') or '-'}</b> ({snap.get('serial_number') or '-'})</td></tr>
+            <tr><td style="padding:4px 8px;color:#6b7280">Event</td><td style="padding:4px 8px">{(entry.get('event_type') or '').replace('_',' ').title()}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6b7280">Risk</td><td style="padding:4px 8px">{(rating or '').title()}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6b7280">Rehab sessions impacted</td><td style="padding:4px 8px">{ai.get('sessions_affected', 0)}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6b7280">Equipment status</td><td style="padding:4px 8px">{(entry.get('equipment_status') or '').replace('_',' ').title()}</td></tr>
+          </table>
+          <p style="font-size:13px;color:#111827;margin:12px 0">{entry.get('description','')}</p>
+          {('<p style="font-size:13px">' + ' · '.join(flags) + '</p>') if flags else ''}
+          <p style="font-size:11px;color:#9ca3af;margin-top:16px">MOD Service Portal · ASER register. Do not reply — manage this entry in the portal.</p>
+        </div>"""
+        for rcpt in sorted(recipients):
+            try:
+                await send_email(rcpt, subject, html, kind="mod_aser_alert",
+                                 organization_id=entry.get("site_id"))
+            except Exception as e:
+                logger.warning("ASER notify send failed for %s: %s", rcpt, e)
+    except Exception as e:  # pragma: no cover
+        logger.warning("ASER notify failed: %s", e)
+
+
+# ══════════════════════════════════════════════════════════════════
+#                 MASTER ADMIN — SETTINGS
+# ══════════════════════════════════════════════════════════════════
+def _require_master_admin(user: dict) -> None:
+    if not user.get("is_master_admin"):
+        raise HTTPException(403, "Master admin only")
+
+
+@router.get("/master-admin/aser/settings")
+async def aser_get_settings(user: dict = Depends(get_current_user)):
+    _require_master_admin(user)
+    return await _load_settings()
+
+
+@router.put("/master-admin/aser/settings")
+async def aser_put_settings(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    _require_master_admin(user)
+    merged = _merge_settings(body)
+    merged["id"] = "global"
+    merged["updated_at"] = datetime.now(timezone.utc).isoformat()
+    merged["updated_by"] = user.get("email")
+    await db.aser_settings.update_one({"id": "global"}, {"$set": merged}, upsert=True)
+    return {"ok": True, "settings": merged}

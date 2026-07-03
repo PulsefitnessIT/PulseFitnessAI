@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock } from 'lucide-react';
+import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock, ShieldAlert, Save, Loader2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
@@ -138,6 +138,9 @@ export default function AdminMODConsole({ API }) {
 
  return (
  <div className="space-y-6" data-testid="admin-mod-console">
+ {/* ASER settings */}
+ <AserSettingsPanel API={API} headers={headers} />
+
  {/* Header tiles */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
  <KpiTile icon={Building2} label="MOD sites" value={sites.length} color="indigo" />
@@ -428,4 +431,95 @@ function formatDuration(seconds) {
  const h = Math.floor(seconds / 3600);
  const m = Math.round((seconds % 3600) / 60);
  return `${h}h ${m}m`;
+}
+
+
+function AserSettingsPanel({ API, headers }) {
+  const [s, setS] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try { const { data } = await axios.get(`${API}/master-admin/aser/settings`, { headers }); setS(data); }
+      catch { /* ignore */ } finally { setLoading(false); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { data } = await axios.put(`${API}/master-admin/aser/settings`, s, { headers });
+      setS(data.settings); notify.success('ASER settings saved');
+    } catch { notify.error('Save failed'); } finally { setSaving(false); }
+  };
+
+  const set = (k, v) => setS({ ...s, [k]: v });
+  const setN = (grp, k, v) => setS({ ...s, notifications: { ...s.notifications, [grp]: { ...s.notifications[grp], [k]: v } } });
+
+  if (loading) return <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500">Loading ASER settings…</div>;
+  if (!s) return null;
+
+  const Toggle = ({ label, val, onChange, testid }) => (
+    <label className="flex items-center justify-between gap-3 py-1.5 cursor-pointer">
+      <span className="text-sm text-zinc-700">{label}</span>
+      <input type="checkbox" checked={!!val} onChange={(e) => onChange(e.target.checked)} className="accent-red-600 w-4 h-4" data-testid={testid} />
+    </label>
+  );
+
+  return (
+    <div className="rounded-xl border border-red-200 bg-white overflow-hidden" data-testid="aser-settings-panel">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-red-50 hover:bg-red-100 transition-colors" data-testid="aser-settings-toggle">
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={16} className="text-red-600" />
+          <span className="font-extrabold text-sm text-zinc-800">ASER — Activity Safety Events Register · Settings</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-500'}`}>{s.enabled ? 'ENABLED' : 'DISABLED'}</span>
+        </div>
+        <ChevronRight size={16} className={`text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="p-4 grid md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-500 mb-2">General</h4>
+            <Toggle label="ASER enabled for MOD" val={s.enabled} onChange={(v) => set('enabled', v)} testid="aser-set-enabled" />
+            <Toggle label="Require equipment selection" val={s.require_equipment_selection} onChange={(v) => set('require_equipment_selection', v)} testid="aser-set-require-equip" />
+            <Toggle label="Enable CAPEX linking" val={s.enable_capex_linking} onChange={(v) => set('enable_capex_linking', v)} testid="aser-set-capex" />
+            <Toggle label="Enable fault linking" val={s.enable_fault_linking} onChange={(v) => set('enable_fault_linking', v)} testid="aser-set-fault" />
+            <Toggle label="Require manager review for high/critical" val={s.require_manager_review_high_critical} onChange={(v) => set('require_manager_review_high_critical', v)} testid="aser-set-review" />
+            <Toggle label="Patient-identifiable info warning" val={s.patient_pii_warning} onChange={(v) => set('patient_pii_warning', v)} testid="aser-set-pii" />
+            <Toggle label="AI summaries" val={s.ai_summaries} onChange={(v) => set('ai_summaries', v)} testid="aser-set-ai" />
+            <label className="flex items-center justify-between gap-3 py-1.5">
+              <span className="text-sm text-zinc-700">Repeated-issue threshold (ASER / 90 days)</span>
+              <input type="number" min="1" max="20" value={s.repeated_issue_threshold} onChange={(e) => set('repeated_issue_threshold', parseInt(e.target.value || '2', 10))} className="w-16 rounded border border-zinc-300 px-2 py-1 text-sm text-right" data-testid="aser-set-threshold" />
+            </label>
+          </div>
+
+          <div>
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-500 mb-2">Notifications — Site manager</h4>
+            <Toggle label="On new entry" val={s.notifications.site_manager.on_new} onChange={(v) => setN('site_manager', 'on_new', v)} testid="aser-set-sm-new" />
+            <Toggle label="On high/critical risk" val={s.notifications.site_manager.on_high_critical} onChange={(v) => setN('site_manager', 'on_high_critical', v)} testid="aser-set-sm-high" />
+            <Toggle label="On removed from use" val={s.notifications.site_manager.on_removed} onChange={(v) => setN('site_manager', 'on_removed', v)} testid="aser-set-sm-removed" />
+            <Toggle label="On repeated issue" val={s.notifications.site_manager.on_repeated} onChange={(v) => setN('site_manager', 'on_repeated', v)} testid="aser-set-sm-repeated" />
+
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-500 mt-4 mb-2">Notifications — Service desk</h4>
+            <Toggle label="Enable service desk alerts" val={s.notifications.service_desk.enabled} onChange={(v) => setN('service_desk', 'enabled', v)} testid="aser-set-sd-enabled" />
+            <input type="email" placeholder="service-desk@example.mod.uk" value={s.notifications.service_desk.email || ''} onChange={(e) => setN('service_desk', 'email', e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm mb-1" data-testid="aser-set-sd-email" />
+
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-500 mt-4 mb-2">Notifications — Account manager</h4>
+            <Toggle label="Enable account manager alerts" val={s.notifications.account_manager.enabled} onChange={(v) => setN('account_manager', 'enabled', v)} testid="aser-set-am-enabled" />
+            <input type="email" placeholder="account-manager@pulsefitness.com" value={s.notifications.account_manager.email || ''} onChange={(e) => setN('account_manager', 'email', e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm" data-testid="aser-set-am-email" />
+          </div>
+
+          <div className="md:col-span-2 flex justify-end border-t border-zinc-100 pt-3">
+            <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-60" data-testid="aser-settings-save">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save ASER settings
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
