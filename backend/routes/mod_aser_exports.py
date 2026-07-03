@@ -171,6 +171,12 @@ async def export_summary_pdf(
     site_id: Optional[str] = Query(None), start: Optional[str] = Query(None),
     end: Optional[str] = Query(None), user: dict = Depends(get_current_user),
 ):
+    content, fn = await _build_summary_pdf(user, site_id=site_id, start=start, end=end)
+    return Response(content=content, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+async def _build_summary_pdf(user: dict, *, site_id=None, start=None, end=None):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib import colors
@@ -276,12 +282,17 @@ async def export_summary_pdf(
     doc.build(story)
     buf.seek(0)
     fn = f"ASER_Summary_{datetime.now(timezone.utc):%Y%m%d}.pdf"
-    return Response(content=buf.getvalue(), media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+    return buf.getvalue(), fn
 
 
 @router.get("/mod/aser/export/replacement-evidence/{equipment_id}")
 async def replacement_evidence_pdf(equipment_id: str, user: dict = Depends(get_current_user)):
+    content, fn = await _build_replacement_pdf(user, equipment_id)
+    return Response(content=content, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+async def _build_replacement_pdf(user: dict, equipment_id: str):
     """Per-asset evidence report supporting replacement of old/unreliable PTE."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -397,5 +408,108 @@ async def replacement_evidence_pdf(equipment_id: str, user: dict = Depends(get_c
     buf.seek(0)
     safe = (equipment.get("serial_number") or equipment_id)[:20]
     fn = f"ASER_Replacement_Evidence_{safe}.pdf"
-    return Response(content=buf.getvalue(), media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+    return buf.getvalue(), fn
+
+
+# ══════════════════════════════════════════════════════════════════
+#                 EMAIL THE REPORT
+# ══════════════════════════════════════════════════════════════════
+import base64 as _b64
+from pydantic import BaseModel, Field
+
+
+def _valid_emails(raw: list[str]) -> list[str]:
+    import re
+    rx = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    out = []
+    for e in raw or []:
+        e = (e or "").strip()
+        if e and rx.match(e):
+            out.append(e)
+    return sorted(set(out))
+
+
+async def _resolve_recipients(user: dict, site_id: Optional[str], emails: list[str],
+                              to_managers: bool, to_service_desk: bool, to_account_manager: bool) -> list[str]:
+    from routes.mod_aser import _site_manager_emails, _load_settings
+    rcpts = set(_valid_emails(emails))
+    settings = await _load_settings()
+    notif = settings.get("notifications") or {}
+    if to_managers and site_id:
+        for e in await _site_manager_emails(site_id):
+            rcpts.add(e)
+    if to_service_desk and (notif.get("service_desk") or {}).get("email"):
+        rcpts.add(notif["service_desk"]["email"])
+    if to_account_manager and (notif.get("account_manager") or {}).get("email"):
+        rcpts.add(notif["account_manager"]["email"])
+    return _valid_emails(list(rcpts))
+
+
+class EmailReportBody(BaseModel):
+    emails: list[str] = Field(default_factory=list, max_length=10)
+    to_managers: bool = False
+    to_service_desk: bool = False
+    to_account_manager: bool = False
+    message: Optional[str] = Field(default=None, max_length=2000)
+    site_id: Optional[str] = None
+    start: Optional[str] = None
+    end: Optional[str] = None
+
+
+def _report_email_html(title: str, note: Optional[str]) -> str:
+    body = f'<p style="font-size:13px;color:#111827">{note}</p>' if note else ""
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px">
+      <h2 style="color:#0F1419;margin:0 0 4px">{title}</h2>
+      <p style="color:#6b7280;font-size:13px;margin:0 0 12px">MOD Service Portal · ASER register</p>
+      {body}
+      <p style="font-size:13px;color:#111827">The report is attached as a PDF. It evidences equipment safety events
+      and their impact on rehab / activity delivery, and may support replacement / CAPEX review. It does not guarantee funding approval.</p>
+      <p style="font-size:11px;color:#9ca3af;margin-top:16px">Generated from the Pulse Fitness MOD Service Portal.</p>
+    </div>"""
+
+
+@router.post("/mod/aser/email/summary")
+async def email_summary(body: EmailReportBody, user: dict = Depends(get_current_user)):
+    from utils.email import send_email
+    content, fn = await _build_summary_pdf(user, site_id=body.site_id, start=body.start, end=body.end)
+    rcpts = await _resolve_recipients(user, body.site_id, body.emails, body.to_managers,
+                                      body.to_service_desk, body.to_account_manager)
+    if not rcpts:
+        raise HTTPException(400, "No valid recipients — add an email address or select a role")
+    attach = [{"filename": fn, "content": _b64.b64encode(content).decode("ascii")}]
+    html = _report_email_html("ASER Summary Report", body.message)
+    sent = 0
+    for r in rcpts:
+        try:
+            await send_email(r, "ASER Summary Report", html, attachments=attach,
+                             kind="mod_aser_report", organization_id=body.site_id)
+            sent += 1
+        except Exception as e:
+            logger.warning("ASER summary email failed for %s: %s", r, e)
+    return {"ok": True, "sent": sent, "recipients": rcpts}
+
+
+@router.post("/mod/aser/email/replacement-evidence/{equipment_id}")
+async def email_replacement_evidence(equipment_id: str, body: EmailReportBody,
+                                     user: dict = Depends(get_current_user)):
+    from utils.email import send_email
+    content, fn = await _build_replacement_pdf(user, equipment_id)
+    # site_id for role-resolution: derive from equipment's org
+    eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0, "organization_id": 1})
+    site_id = body.site_id or (eq or {}).get("organization_id")
+    rcpts = await _resolve_recipients(user, site_id, body.emails, body.to_managers,
+                                      body.to_service_desk, body.to_account_manager)
+    if not rcpts:
+        raise HTTPException(400, "No valid recipients — add an email address or select a role")
+    attach = [{"filename": fn, "content": _b64.b64encode(content).decode("ascii")}]
+    html = _report_email_html("ASER Replacement Evidence Report", body.message)
+    sent = 0
+    for r in rcpts:
+        try:
+            await send_email(r, "ASER Replacement Evidence Report", html, attachments=attach,
+                             kind="mod_aser_report", organization_id=site_id)
+            sent += 1
+        except Exception as e:
+            logger.warning("ASER RE email failed for %s: %s", r, e)
+    return {"ok": True, "sent": sent, "recipients": rcpts}

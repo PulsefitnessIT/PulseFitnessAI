@@ -11,7 +11,7 @@ import axios from 'axios';
 import {
   X, Plus, Search, ShieldAlert, AlertTriangle, Loader2, Upload, Trash2,
   PoundSterling, Wrench, CheckCircle2, ArrowLeft, ClipboardList, Ban, Link2,
-  BarChart3, LayoutList, Download, FileText, FileSpreadsheet,
+  BarChart3, LayoutList, Download, FileText, FileSpreadsheet, Mail, Send,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -60,6 +60,7 @@ export default function MODASERPortal({ onClose }) {
   const [dash, setDash] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null);
+  const [emailModal, setEmailModal] = useState(null); // {mode:'summary'|'evidence', equipmentId, siteId, label}
   const [filters, setFilters] = useState({ q: '', risk: '', status: '', event_type: '' });
 
   const loadConfig = useCallback(async () => {
@@ -136,6 +137,7 @@ export default function MODASERPortal({ onClose }) {
             filters={filters} setFilters={setFilters} onReload={loadRegister}
             onOpen={(id) => { setActiveId(id); setView('detail'); }}
             API={API} token={token}
+            onEmailSummary={() => setEmailModal({ mode: 'summary', label: 'Email ASER Summary Report' })}
           />
         )}
         {view === 'analytics' && (
@@ -153,15 +155,22 @@ export default function MODASERPortal({ onClose }) {
             entryId={activeId} config={config} API={API} headers={headers}
             onBack={() => { setView('register'); setActiveId(null); }}
             onChanged={loadRegister}
+            onEmailEvidence={(entry) => setEmailModal({ mode: 'evidence', equipmentId: entry.equipment_id, siteId: entry.site_id, label: 'Email Replacement Evidence Report' })}
           />
         )}
       </main>
+      {emailModal && (
+        <EmailReportModal
+          API={API} token={token} {...emailModal}
+          onClose={() => setEmailModal(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Register + dashboard ────────────────────────────────────────────
-function RegisterView({ config, dash, entries, loading, filters, setFilters, onOpen, API, token }) {
+function RegisterView({ config, dash, entries, loading, filters, setFilters, onOpen, API, token, onEmailSummary }) {
   const cards = dash?.cards || {};
   const exportQuery = () => {
     const p = new URLSearchParams();
@@ -213,6 +222,7 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
           <button onClick={() => downloadBlob(API, token, `/mod/aser/export/csv${exportQuery()}`, `ASER_Register_${stamp}.csv`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-csv" title="Export CSV"><Download size={13} /> CSV</button>
           <button onClick={() => downloadBlob(API, token, `/mod/aser/export/xlsx${exportQuery()}`, `ASER_Register_${stamp}.xlsx`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-xlsx" title="Export Excel"><FileSpreadsheet size={13} /> Excel</button>
           <button onClick={() => downloadBlob(API, token, `/mod/aser/export/pdf${exportQuery()}`, `ASER_Summary_${stamp}.pdf`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-pdf" title="Export PDF summary"><FileText size={13} /> PDF</button>
+          <button onClick={onEmailSummary} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[var(--color-brand-cyan)]/40 bg-[var(--color-brand-cyan)]/10 text-[var(--color-brand-cyan)] text-xs font-bold hover:bg-[var(--color-brand-cyan)]/20" data-testid="aser-email-summary" title="Email the summary report"><Mail size={13} /> Email</button>
         </div>
       </div>
 
@@ -691,7 +701,7 @@ function Field({ label, children }) {
 }
 
 // ── Detail view ─────────────────────────────────────────────────────
-function DetailView({ entryId, config, API, headers, onBack, onChanged }) {
+function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailEvidence }) {
   const [entry, setEntry] = useState(null);
   const [busy, setBusy] = useState(false);
   const isManager = config?.is_manager;
@@ -773,6 +783,7 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged }) {
           <button onClick={() => { if (window.confirm('Dispose of this machine? It will be marked disposed and removed from the active register.')) act('dispose', 'Equipment disposed'); }} disabled={busy} className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 inline-flex items-center gap-1.5" data-testid="aser-dispose"><Ban size={14} /> Dispose machine</button>
         )}
         <button onClick={() => downloadBlob(API, (headers.Authorization || '').replace('Bearer ', ''), `/mod/aser/export/replacement-evidence/${entry.equipment_id}`, `ASER_Replacement_Evidence_${entry.equipment_snapshot?.serial_number || entry.equipment_id}.pdf`)} className="px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm hover:bg-amber-500/20 inline-flex items-center gap-1.5" data-testid="aser-replacement-evidence"><FileText size={14} /> Replacement Evidence Report</button>
+        <button onClick={() => onEmailEvidence?.(entry)} className="px-3 py-2 rounded-lg border border-[var(--color-brand-cyan)]/40 bg-[var(--color-brand-cyan)]/10 text-[var(--color-brand-cyan)] text-sm hover:bg-[var(--color-brand-cyan)]/20 inline-flex items-center gap-1.5" data-testid="aser-email-evidence"><Mail size={14} /> Email report</button>
       </div>
     </div>
   );
@@ -783,6 +794,85 @@ function InfoBlock({ title, children }) {
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
       <h3 className="text-xs font-bold uppercase tracking-wider text-white/50 mb-2">{title}</h3>
       <p className="text-sm text-white/80 whitespace-pre-line">{children}</p>
+    </div>
+  );
+}
+
+// ── Email report modal ──────────────────────────────────────────────
+function EmailReportModal({ API, token, mode, equipmentId, siteId, label, onClose }) {
+  const [emailInput, setEmailInput] = useState('');
+  const [emails, setEmails] = useState([]);
+  const [toManagers, setToManagers] = useState(true);
+  const [toServiceDesk, setToServiceDesk] = useState(false);
+  const [toAccountManager, setToAccountManager] = useState(false);
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const addEmail = () => {
+    const e = emailInput.trim();
+    if (e && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !emails.includes(e)) {
+      setEmails([...emails, e]); setEmailInput('');
+    } else if (e) { notify.error('Enter a valid email'); }
+  };
+
+  const send = async () => {
+    if (emails.length === 0 && !toManagers && !toServiceDesk && !toAccountManager) {
+      return notify.error('Add a recipient email or select a role');
+    }
+    setSending(true);
+    try {
+      const path = mode === 'evidence'
+        ? `/mod/aser/email/replacement-evidence/${equipmentId}`
+        : `/mod/aser/email/summary`;
+      const { data } = await axios.post(`${API}${path}`, {
+        emails, to_managers: toManagers, to_service_desk: toServiceDesk,
+        to_account_manager: toAccountManager, message, site_id: siteId,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      notify.success(`Report emailed to ${data.sent} recipient${data.sent === 1 ? '' : 's'}`);
+      onClose();
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Email failed'); }
+    finally { setSending(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-black/60 grid place-items-center p-4" onClick={onClose} data-testid="aser-email-modal">
+      <div className="w-full max-w-md bg-[var(--color-surface-darker)] border border-white/10 rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
+          <Mail size={16} className="text-[var(--color-brand-cyan)]" />
+          <h3 className="text-white font-extrabold text-sm">{label || 'Email report'}</h3>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-white/50 mb-1">Recipients</label>
+            <div className="flex gap-2">
+              <input value={emailInput} onChange={(e) => setEmailInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEmail())}
+                placeholder="email@example.mod.uk" className="flex-1 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30" data-testid="aser-email-input" />
+              <button onClick={addEmail} className="px-3 py-2 rounded-lg border border-white/10 text-white/80 text-sm hover:bg-white/5" data-testid="aser-email-add">Add</button>
+            </div>
+            {emails.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {emails.map((e) => (
+                  <span key={e} className="inline-flex items-center gap-1 text-[11px] bg-white/10 rounded-full px-2 py-0.5 text-white/80">
+                    {e}<button onClick={() => setEmails(emails.filter((x) => x !== e))} className="text-white/40 hover:text-rose-400">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 text-sm text-white/80"><input type="checkbox" checked={toManagers} onChange={(e) => setToManagers(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-managers" /> Site managers</label>
+            <label className="flex items-center gap-2 text-sm text-white/80"><input type="checkbox" checked={toServiceDesk} onChange={(e) => setToServiceDesk(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-desk" /> Service desk (configured email)</label>
+            <label className="flex items-center gap-2 text-sm text-white/80"><input type="checkbox" checked={toAccountManager} onChange={(e) => setToAccountManager(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-am" /> Account manager (configured email)</label>
+          </div>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} placeholder="Optional message…" className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30" data-testid="aser-email-message" />
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-white/10 text-sm text-white/80 hover:bg-white/5">Cancel</button>
+            <button onClick={send} disabled={sending} className="px-4 py-2 rounded-lg bg-[var(--color-brand-cyan)] text-black text-sm font-extrabold inline-flex items-center gap-2 disabled:opacity-60" data-testid="aser-email-send">
+              {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Send report
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
