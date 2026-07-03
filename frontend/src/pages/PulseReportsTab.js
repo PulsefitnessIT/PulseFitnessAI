@@ -9,11 +9,12 @@ import {
 import axios from 'axios';
 import {
   BarChart3, TrendingUp, Wrench, AlertTriangle, CheckCircle,
-  PoundSterling, RefreshCw, Shield, Mail
+  PoundSterling, RefreshCw, Shield, Mail, ShieldAlert, ArrowUpRight
 } from 'lucide-react';
 import RiskAssessmentTab from './RiskAssessmentTab';
 import CapexIntelligenceTab from './CapexIntelligenceTab';
 import IncidentsTab from './IncidentsTab';
+import MODASERPortal from './MODPortal/MODASERPortal';
 import KpiTile from '@/components/shared/KpiTile';
 import PageHeader from '@/components/shared/PageHeader';
 
@@ -26,6 +27,8 @@ const PulseReportsTab = () => {
   const [period, setPeriod] = useState('30d');
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState('performance');
+  const [aserOpen, setAserOpen] = useState(false);
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type) || user?.is_mod_user;
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -71,6 +74,25 @@ const PulseReportsTab = () => {
         icon={BarChart3}
         testId="pulse-reports-header"
       />
+
+      {/* MOD-only — ASER (Activity Safety Events Register) launcher */}
+      {isMOD && (
+        <button
+          onClick={() => setAserOpen(true)}
+          className="w-full rounded-2xl border border-red-500/40 bg-red-500/10 hover:bg-red-500/15 transition-colors p-4 flex items-center justify-between gap-3 text-left"
+          data-testid="mod-reports-aser-open"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-red-500/20 grid place-items-center text-red-500 shrink-0"><ShieldAlert size={20} /></div>
+            <div>
+              <div className="font-bold text-sm" style={{ color: 'var(--theme-text)' }}>ASER — Activity Safety Events Register</div>
+              <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Log &amp; track equipment safety events impacting rehab / activity delivery</div>
+            </div>
+          </div>
+          <ArrowUpRight size={18} style={{ color: 'var(--theme-text-muted)' }} />
+        </button>
+      )}
+      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
 
       {/* Iter 216h62 — scope badge tells the operator exactly which
           slice of data they're looking at. Switch via the navbar
