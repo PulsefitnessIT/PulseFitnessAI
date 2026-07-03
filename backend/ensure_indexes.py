@@ -337,12 +337,24 @@ INDEXES: Sequence[Tuple[str, Sequence[Sequence[Tuple[str, int]]]]] = [
 
 async def _ensure_one(db, collection: str, specs: Iterable[Sequence[Tuple[str, int]]]) -> int:
     """Create every spec on ``collection``; return how many were created."""
+    from pymongo.errors import OperationFailure
     created = 0
     col = db[collection]
     for spec in specs:
         try:
             await col.create_index(list(spec), background=True)
             created += 1
+        except OperationFailure as exc:
+            # 85 IndexOptionsConflict / 86 IndexKeySpecsConflict — a
+            # compatible index already exists under a different name or
+            # options (common on Atlas across redeploys). Not an error.
+            if exc.code in (85, 86):
+                logger.info(
+                    "Index on %s %s already satisfied by an existing index (code %s)",
+                    collection, spec, exc.code,
+                )
+            else:
+                logger.warning("Index create failed on %s %s: %s", collection, spec, exc)
         except Exception as exc:  # noqa: BLE001 — single failure must not stop bootstrap
             logger.warning("Index create failed on %s %s: %s", collection, spec, exc)
     return created

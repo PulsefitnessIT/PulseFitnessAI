@@ -488,20 +488,19 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"iter_216d migrations failed (non-fatal): {e}")
 
-    # File-validation self-check — fails loudly so libmagic regressions
-    # (e.g. libmagic1 missing from the container image) cannot ship silently.
-    # The file_validation module fails closed on every upload if libmagic
-    # isn't loaded, which is invisible until a user tries to upload a file.
+    # File-validation self-check. libmagic gives the strongest sniffing, but
+    # the module falls back to a curated pure-Python magic-byte sniffer when
+    # libmagic1 is absent from the container image, so uploads keep working.
     try:
         from utils.file_validation import selftest as _file_validation_selftest
         _fv = _file_validation_selftest()
         if _fv.get("enabled"):
             logger.info("[security] file validation: ENABLED (libmagic ok, detected=%s)", _fv.get("detected"))
         else:
-            logger.error(
-                "[security] file validation: DISABLED — uploads will fail with HTTP 415. "
-                "Reason: %s. Fix: %s",
-                _fv.get("reason"), _fv.get("fix"),
+            logger.warning(
+                "[security] file validation: libmagic unavailable — using pure-Python "
+                "signature sniffer fallback (uploads still validated). Reason: %s",
+                _fv.get("reason"),
             )
     except Exception as e:
         logger.error(f"file validation self-check crashed: {e}")

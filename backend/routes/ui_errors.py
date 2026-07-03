@@ -179,12 +179,10 @@ async def ui_errors_recent(
 
 async def ensure_indexes() -> None:
     """Module-level index setup — called from server startup."""
+    from utils.mongo_indexes import ensure_ttl_index
     try:
-        await db.ui_error_events.create_index("created_at")
         await db.ui_error_events.create_index("fingerprint")
-        # 30-day TTL — keeps the collection bounded without manual cleanup
-        await db.ui_error_events.create_index(
-            "created_at", name="ui_error_events_ttl", expireAfterSeconds=60 * 60 * 24 * 30,
-        )
     except Exception as e:
-        logger.warning("ui_error_events index setup failed: %s", e)
+        logger.warning("ui_error_events fingerprint index setup failed: %s", e)
+    # 30-day TTL — keeps the collection bounded without manual cleanup.
+    await ensure_ttl_index(db.ui_error_events, "created_at", "ui_error_events_ttl", 60 * 60 * 24 * 30)

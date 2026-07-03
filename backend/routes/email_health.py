@@ -412,13 +412,9 @@ def _classify(sent: int, failed: int, last_error: str | None) -> tuple[str, str]
 
 async def ensure_email_send_events_indexes() -> None:
     """30-day TTL on `email_send_events` so the collection stays small."""
+    from utils.mongo_indexes import ensure_ttl_index
+    await ensure_ttl_index(db.email_send_events, "created_at", "email_send_events_ttl", 30 * 86400)
     try:
-        await db.email_send_events.create_index("created_at")
         await db.email_send_events.create_index("id", unique=False, sparse=True)
-        await db.email_send_events.create_index(
-            [("created_at", 1)],
-            name="email_send_events_ttl",
-            expireAfterSeconds=30 * 86400,
-        )
     except Exception:
-        logger.exception("ensure_email_send_events_indexes failed (non-fatal)")
+        logger.warning("email_send_events id index setup failed (non-fatal)")

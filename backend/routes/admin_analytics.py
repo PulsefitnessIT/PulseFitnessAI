@@ -1,14 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone, timedelta
 from collections import Counter, defaultdict
-import os
-from pymongo import MongoClient
 from utils.auth import get_current_user
+from utils.database import db
 
 router = APIRouter(prefix="/master-admin/analytics", tags=["Admin Analytics"])
-
-client = MongoClient(os.environ.get("MONGO_URL"))
-db = client[os.environ.get("DB_NAME", "gymfix")]
 
 
 def require_admin(user):
@@ -201,10 +197,10 @@ async def analytics_dashboard(user: dict = Depends(get_current_user)):
     """Global gym leaderboard and KPIs."""
     require_admin(user)
 
-    orgs = list(db.organizations.find({}, {"_id": 0}))
-    all_equipment = list(db.equipment.find({}, {"_id": 0}))
-    all_issues = list(db.issues.find({}, {"_id": 0}))
-    all_checks = list(db.check_sheets.find({}, {"_id": 0}))
+    orgs = await db.organizations.find({}, {"_id": 0}).to_list(None)
+    all_equipment = await db.equipment.find({}, {"_id": 0}).to_list(None)
+    all_issues = await db.issues.find({}, {"_id": 0}).to_list(None)
+    all_checks = await db.check_sheets.find({}, {"_id": 0}).to_list(None)
     now = datetime.now(timezone.utc)
     thirty_days_ago = now - timedelta(days=30)
 
@@ -242,8 +238,8 @@ async def analytics_equipment(user: dict = Depends(get_current_user)):
     """Equipment fleet intelligence across all gyms."""
     require_admin(user)
 
-    all_equipment = list(db.equipment.find({}, {"_id": 0}))
-    orgs = {o["id"]: o["name"] for o in db.organizations.find({}, {"_id": 0, "id": 1, "name": 1})}
+    all_equipment = await db.equipment.find({}, {"_id": 0}).to_list(None)
+    orgs = {o["id"]: o["name"] for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(None)}
     now = datetime.now(timezone.utc)
 
     by_manufacturer = _count_top_field(
@@ -373,8 +369,8 @@ async def analytics_faults(user: dict = Depends(get_current_user)) -> dict:
     """Cross-gym fault breakdown analysis."""
     require_admin(user)
 
-    all_issues = list(db.issues.find({}, {"_id": 0}))
-    orgs_map = {o["id"]: o["name"] for o in db.organizations.find({}, {"_id": 0, "id": 1, "name": 1})}
+    all_issues = await db.issues.find({}, {"_id": 0}).to_list(None)
+    orgs_map = {o["id"]: o["name"] for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(None)}
 
     problem_machines, by_severity, by_gym = _build_fault_aggregate_breakdowns(all_issues, orgs_map)
     code_counter = Counter(i.get("fault_code") for i in all_issues if i.get("fault_code"))
@@ -431,10 +427,10 @@ async def analytics_checksheets(user: dict = Depends(get_current_user)):
     """Check sheet compliance leaderboard."""
     require_admin(user)
 
-    all_checks = list(db.check_sheets.find({}, {"_id": 0}))
-    all_issues = list(db.issues.find({}, {"_id": 0}))
-    orgs = {o["id"]: o["name"] for o in db.organizations.find({}, {"_id": 0, "id": 1, "name": 1})}
-    all_equipment = list(db.equipment.find({}, {"_id": 0}))
+    all_checks = await db.check_sheets.find({}, {"_id": 0}).to_list(None)
+    all_issues = await db.issues.find({}, {"_id": 0}).to_list(None)
+    orgs = {o["id"]: o["name"] for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(None)}
+    all_equipment = await db.equipment.find({}, {"_id": 0}).to_list(None)
     org_equip_count = Counter(e.get("organization_id") for e in all_equipment)
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
@@ -473,11 +469,11 @@ async def analytics_ai(user: dict = Depends(get_current_user)):
     """AI learning and usage report."""
     require_admin(user)
 
-    chats = list(db.chat_history.find({}, {"_id": 0}))
-    audits = list(db.audits.find({}, {"_id": 0}))
-    fixes = list(db.fix_history.find({}, {"_id": 0}))
-    knowledge = list(db.equipment_knowledge.find({}, {"_id": 0}))
-    all_issues = list(db.issues.find({}, {"_id": 0}))
+    chats = await db.chat_history.find({}, {"_id": 0}).to_list(None)
+    audits = await db.audits.find({}, {"_id": 0}).to_list(None)
+    fixes = await db.fix_history.find({}, {"_id": 0}).to_list(None)
+    knowledge = await db.equipment_knowledge.find({}, {"_id": 0}).to_list(None)
+    all_issues = await db.issues.find({}, {"_id": 0}).to_list(None)
 
     usage_trend = [
         {"month": label.split()[0],
