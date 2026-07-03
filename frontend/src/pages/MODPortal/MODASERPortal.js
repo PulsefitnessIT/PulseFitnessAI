@@ -11,7 +11,7 @@ import axios from 'axios';
 import {
   X, Plus, Search, ShieldAlert, AlertTriangle, Loader2, Upload, Trash2,
   PoundSterling, Wrench, CheckCircle2, ArrowLeft, ClipboardList, Ban, Link2,
-  BarChart3, LayoutList,
+  BarChart3, LayoutList, Download, FileText, FileSpreadsheet,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -35,6 +35,19 @@ const REPEATED_LABELS = {
 };
 const REMOVAL_STATUSES = ['removed_from_use', 'awaiting_replacement', 'replacement_recommended'];
 const titleCase = (s) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+async function downloadBlob(API, token, path, filename) {
+  try {
+    const res = await axios.get(`${API}${path}`, {
+      headers: { Authorization: `Bearer ${token}` }, responseType: 'blob',
+    });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+    notify.success('Export downloaded');
+  } catch { notify.error('Export failed'); }
+}
 
 export default function MODASERPortal({ onClose }) {
   const { API } = useAuth();
@@ -122,6 +135,7 @@ export default function MODASERPortal({ onClose }) {
             config={config} dash={dash} entries={entries} loading={loading}
             filters={filters} setFilters={setFilters} onReload={loadRegister}
             onOpen={(id) => { setActiveId(id); setView('detail'); }}
+            API={API} token={token}
           />
         )}
         {view === 'analytics' && (
@@ -147,8 +161,17 @@ export default function MODASERPortal({ onClose }) {
 }
 
 // ── Register + dashboard ────────────────────────────────────────────
-function RegisterView({ config, dash, entries, loading, filters, setFilters, onOpen }) {
+function RegisterView({ config, dash, entries, loading, filters, setFilters, onOpen, API, token }) {
   const cards = dash?.cards || {};
+  const exportQuery = () => {
+    const p = new URLSearchParams();
+    if (filters.event_type) p.set('event_type', filters.event_type);
+    if (filters.risk) p.set('risk', filters.risk);
+    if (filters.status) p.set('status', filters.status);
+    const s = p.toString();
+    return s ? `?${s}` : '';
+  };
+  const stamp = new Date().toISOString().slice(0, 10);
   const card = (label, value, testid, tone = 'neutral') => (
     <div className={`rounded-xl border p-3.5 ${tone === 'red' ? 'border-red-500/40 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`} data-testid={testid}>
       <div className="text-[10px] uppercase tracking-wider font-bold text-white/50">{label}</div>
@@ -186,6 +209,11 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
           <option value="">All status</option>
           {(config?.entry_statuses || []).map((s) => <option key={s} value={s}>{titleCase(s)}</option>)}
         </select>
+        <div className="flex items-center gap-1 ml-auto" data-testid="aser-export-group">
+          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/csv${exportQuery()}`, `ASER_Register_${stamp}.csv`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-csv" title="Export CSV"><Download size={13} /> CSV</button>
+          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/xlsx${exportQuery()}`, `ASER_Register_${stamp}.xlsx`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-xlsx" title="Export Excel"><FileSpreadsheet size={13} /> Excel</button>
+          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/pdf${exportQuery()}`, `ASER_Summary_${stamp}.pdf`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-pdf" title="Export PDF summary"><FileText size={13} /> PDF</button>
+        </div>
       </div>
 
       {/* Register list */}
@@ -744,6 +772,7 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged }) {
         {isManager && removal && !entry.disposed && (
           <button onClick={() => { if (window.confirm('Dispose of this machine? It will be marked disposed and removed from the active register.')) act('dispose', 'Equipment disposed'); }} disabled={busy} className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 inline-flex items-center gap-1.5" data-testid="aser-dispose"><Ban size={14} /> Dispose machine</button>
         )}
+        <button onClick={() => downloadBlob(API, (headers.Authorization || '').replace('Bearer ', ''), `/mod/aser/export/replacement-evidence/${entry.equipment_id}`, `ASER_Replacement_Evidence_${entry.equipment_snapshot?.serial_number || entry.equipment_id}.pdf`)} className="px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm hover:bg-amber-500/20 inline-flex items-center gap-1.5" data-testid="aser-replacement-evidence"><FileText size={14} /> Replacement Evidence Report</button>
       </div>
     </div>
   );
