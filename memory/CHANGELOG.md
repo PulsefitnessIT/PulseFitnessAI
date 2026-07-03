@@ -916,3 +916,9 @@ MOD Service Portal → Reports → ASER. Lets MOD site users document equipment-
 - Frontend: MODASERPortal Register/Analytics header toggle (aser-view-toggle) + AnalyticsView (recharts): trend LineChart, rehab-impact BarChart, events-by-type/equipment-type/site bar charts, risk PieChart, repeated-issue equipment evidence list (red-highlighted for replacement labels).
 - Fixed overlay z-index to z-[100] (was bleeding under dashboard sticky header).
 - Verified: backend aggregation via curl; frontend 100% (iteration_mod_aser_analytics_fe_jan2026.json — all 7 chart cards render). Test data reset clean. PREVIEW only — redeploy for production.
+
+## ASER Phase 2 — Exports (CSV/Excel/PDF) + Replacement Evidence Report (Jul 3, 2026)
+- Backend `routes/mod_aser_exports.py` (registered in features.py): GET /api/mod/aser/export/csv, /xlsx (openpyxl), /pdf (reportlab summary: counts, repeated-issue equipment table, entries table, disclaimer), and /replacement-evidence/{equipment_id} (per-asset PDF: equipment details+age, total ASER/faults/near-misses/incidents/sessions/group+individual impacted, event history, recommendation). All MOD-only + site-scoped (reuses mod_aser scope helpers); honors register filters + date range. Heavy libs imported lazily.
+- Frontend MODASERPortal: downloadBlob() helper (axios blob + auth header), CSV/Excel/PDF export button group in Register filters (aser-export-csv/xlsx/pdf), and 'Replacement Evidence Report' button in entry detail (aser-replacement-evidence).
+- Verified: backend curl (valid %PDF / PK-zip / CSV signatures); frontend 100% — all 4 downloads return 200 with correct content-types (iteration_mod_aser_exports_fe_jan2026.json). Test data reset. PREVIEW only — redeploy for production.
+- Note: MODASERPortal.js now ~789 lines — candidate for future split (RegisterView/DetailView/AnalyticsView modules).
