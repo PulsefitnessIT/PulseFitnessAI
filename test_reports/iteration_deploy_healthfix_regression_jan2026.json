@@ -1,0 +1,26 @@
+{
+  "summary": "Regression pass for the Jan-2026 P0 deploy healthfix (sync-pymongo -> async-motor refactor of admin_analytics, TTL index reconciliation, libmagic log level, deferred _full_boot). All 22 backend tests passed against the external REACT_APP_BACKEND_URL. Backend boots cleanly, GET /health + /api/health return 200, master admin login works, all 5 refactored analytics endpoints return 200 for admin and 401 for anonymous / 403 for non-admin, email-health + ui-errors (TTL-reconciled collections) work, /api/master-admin/organizations + /api/auth/me still work, and the LATEST boot section of the backend log is clean (no pymongo OperationFailure traceback, 'already satisfied' entries are INFO, libmagic message is WARNING with pure-Python fallback — no ERROR claiming uploads will fail).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_deploy_healthfix_regression_jan2026.py",
+    "/app/test_reports/pytest/deploy_healthfix_regression_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note: get_current_user resolves the session via cookies as well as Authorization header. Tests must use a fresh requests.Session() when asserting 401 to avoid leaking the admin cookie from a prior login on the same session (already accounted for in the new regression file).",
+    "/api/auth/register requires 'full_name' (not 'name'); the field name is inconsistent with UI convention — worth flagging for FE consumers.",
+    "/api/ui-errors accepts 'title' as the required field (not 'message'); documenting this in the schema (or accepting both) would prevent client-side breakage.",
+    "Historical backend.err.log still contains ERROR-level libmagic + pymongo OperationFailure lines from PRE-FIX boots — this is expected and not a regression, but log-rotation on redeploy is worth considering to avoid confusion during future triage."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_deploy_healthfix_regression_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "n/a (skipped per request)"},
+  "test_credentials": "Master Admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "One transient TEST_ ui-error doc + one throwaway non-admin user (random UUID email) created via /api/auth/register for the RBAC negative test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression suite lives at /app/backend/tests/test_deploy_healthfix_regression_jan2026.py — covers boot health, master-admin login, all 5 refactored analytics endpoints (auth + unauth + non-admin), email-health, ui-errors POST/summary, organizations, /auth/me, and latest-boot log-hygiene checks (pymongo OperationFailure absence, TTL 'already satisfied' logged as INFO, libmagic downgraded to WARNING). Log tests scope to the section AFTER the last 'Application startup complete.' so old crash-loop errors are ignored.",
+  "rca of the issue": "Original P0: routes/admin_analytics.py created a synchronous MongoClient at module import time. On Kubernetes Atlas SRV DNS was slow enough that uvicorn never bound :8001, causing nginx readiness probe to fail with connection-refused and the pod to crash-loop. Fix: replaced with async motor `db` import and awaited handlers; TTL index reconciliation helper (ensure_ttl_index) added to prevent duplicate-key index creation (code 85/86) from raising during boot; libmagic self-check downgraded to WARNING since pure-Python signature sniffer validates uploads. Regression verified end-to-end via the new pytest suite."
+}
