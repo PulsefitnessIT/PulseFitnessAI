@@ -1,3 +1,22 @@
+# ═══ 2026-07-03 · UI · Moved "Cleanup & operator" + "Purge test data" → Compliance & Security (VERIFIED screenshot) ═══
+Per user: relocated the `org-cleanup` and `test-data-purge` sub-tabs OUT of the Organisations group and
+INTO Compliance & Security, positioned right after the existing "Archive" sub-tab
+(frontend/src/pages/MasterAdmin/SidebarConfig.js; added FlaskConical icon import; SECTION_TO_GROUP is
+auto-derived so grouping updates automatically; renderSection switch + section ids unchanged). Verified via
+screenshot: sidebar highlights Compliance & Security; sub-tab bar = Audit & compliance · Login events ·
+Access matrix · Data Subject Erasure · Documents · Archive · Cleanup & operator · Purge test data; both
+pages render.
+
+PENDING (from prior user message, awaiting answers): CRM Company tab consolidation — (1) merge Sites &
+Equipment + Portal Equipment + CRM Assets into one tab; (2) Drawings → into Site Surveys tab; (3) Support
+Cases → into Service & Engineers; plus Master Admin org-list "owner not showing" fix (add owner_email
+fallback chain in master_admin_orgs.py). Operations: move "Request a Part" sub-tab next to "Reactive Faults"
+in Dashboard/FaultsTab.js + LiteDashboard/LiteFaultsTab.js.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-03 · BUGFIX · Password-reset email link used Emergent deploy host, not pulsefitness.ai (VERIFIED) ═══
 SYMPTOM (production): reset-password email link rendered
 `https://fitness-ai-migrate.emergent.host/reset-password?token=…` instead of `https://pulsefitness.ai`.

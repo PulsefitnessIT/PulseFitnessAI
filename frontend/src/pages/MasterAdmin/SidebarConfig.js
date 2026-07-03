@@ -5,7 +5,7 @@ import {
   Wallet, Megaphone, Lock, FolderArchive, AlertCircle,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
   Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText, Globe,
-  ShieldOff, Share2,
+  ShieldOff, Share2, FlaskConical,
 } from 'lucide-react';
 
 /**
@@ -62,8 +62,6 @@ export const SIDEBAR_ITEMS = [
     id: 'organizations', label: 'Organisations', icon: Building, group: 'main',
     subTabs: [
       { id: 'organizations',     label: 'List',                  icon: Building },
-      { id: 'org-cleanup',       label: 'Cleanup & operator',    icon: ShieldCheck },
-      { id: 'test-data-purge',   label: 'Purge test data',       icon: ShieldCheck },
       { id: 'all-sites',         label: 'All sites',             icon: MapPin },
       { id: 'onboarding',        label: 'Onboarding',            icon: Rocket },
       { id: 'estate-rollup',     label: 'Module subscriptions',  icon: BarChart3 },
@@ -168,6 +166,8 @@ export const SIDEBAR_ITEMS = [
       { id: 'gdpr-erasure',       label: 'Data Subject Erasure', icon: ShieldOff },
       { id: 'documents',          label: 'Documents',           icon: FolderArchive },
       { id: 'archive',            label: 'Archive',             icon: FolderArchive },
+      { id: 'org-cleanup',        label: 'Cleanup & operator',  icon: ShieldCheck },
+      { id: 'test-data-purge',    label: 'Purge test data',     icon: FlaskConical },
     ],
   },
   // 12. Platform Tools — internal support, data, maintenance + brand config.
