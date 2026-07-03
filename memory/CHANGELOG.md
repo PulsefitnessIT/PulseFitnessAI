@@ -889,3 +889,13 @@ Production deploy failed: uvicorn crash-looped, /health "connection refused", k8
 - Fix: offloaded to `await run_in_threadpool(init_storage)` so the event loop stays free to serve /health during boot; storage still inits lazily on first put/get, so a boot-time failure is harmless (non-fatal, logged).
 - Verified by testing_agent (6/6): /health + /api/health fast 200, /api/health/deep mongo=ok, parts-request attachment + exploded-drawing object-storage round-trips, authed list works. No regression.
 - Note: deployment_agent's only finding was a CORS_ORIGINS='*' recommendation — ruled out as the crash cause (resolve_cors_origins ignores '*' in prod and preview works with the current allowlist).
+
+---
+## MOD-only module enforcement (Edit Org) + 4 UI refinements (Jul 3, 2026)
+1. **MOD Edit-Org enforcement** — MOD orgs (is_mod OR account_type in mod_site/mod_branch/mod_org) run the Operations portal ONLY.
+   - Backend: `master_admin_orgs.update_org_features` (PUT /api/master-admin/organizations/{id}/features) now forces enabled=false (and business_enabled/leisure_enabled=false) for crm/memberships/marketing on MOD orgs; enabled_modules stays operations-only. Verified 2/2 pytest (test_mod_features_enforcement_jan2026.py). Non-MOD regression passes.
+   - Frontend: `FeatureControlPanel.js` — isMod detection; module matrix renders LOCKED tiles (data-testid module-{key}-mod-locked-{orgId}) for crm/memberships/marketing; those feature groups hidden for MOD.
+2. **CRM Company sub-tabs reordered** (`CRMCompanies.js` sections): Overview, Contacts, Deals, Quotes, Tenders, Invoices, Equipment & Assets, Service & Engineers, Site Surveys, Activity.
+3. **Request a Part** (`PartsRequestsPage.js`): embedded view drops the "Parts Requests" sub-header; New Request button now left-aligned matching Reactive Faults.
+4. **Equipment tab** (`EquipmentInfoTab.js`): removed the "Equipment Information Hub" h2 sub-header.
+Verified: backend authoritatively (testing_agent 2/2). Frontend code-verified (UI click-through blocked by /api/auth/login 429 rate-limit; no issues found). Report: /app/test_reports/iteration_mod_ui_refinements_jan2026.json. PREVIEW only — redeploy to push to production.
