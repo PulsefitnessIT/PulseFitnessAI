@@ -131,6 +131,11 @@ const LiteFaultsTab = ({
           onClick={() => setFaultView('reactive')} data-testid="lite-faults-view-reactive">
           <AlertCircle size={14} /> {t('faults.reactive', 'Reactive Faults')}
         </button>
+        <button type="button"
+          className={`subtab-pill ${faultView === 'parts' ? 'is-active' : ''}`}
+          onClick={() => setFaultView('parts')} data-testid="lite-faults-view-request-part">
+          <Package size={14} /> {t('faults.request_part', 'Request a Part')}
+        </button>
         {ppmEnabled && (
           <button type="button"
             className={`subtab-pill ${faultView === 'ppm' ? 'is-active' : ''}`}
@@ -138,11 +143,6 @@ const LiteFaultsTab = ({
             <Calendar size={14} /> {t('faults.ppm', 'Planned Maintenance (PPM)')}
           </button>
         )}
-        <button type="button"
-          className={`subtab-pill ${faultView === 'parts' ? 'is-active' : ''}`}
-          onClick={() => setFaultView('parts')} data-testid="lite-faults-view-request-part">
-          <Package size={14} /> {t('faults.request_part', 'Request a Part')}
-        </button>
       </div>
 
       {faultView === 'ppm' && ppmEnabled && <PPMSubTab />}

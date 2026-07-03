@@ -224,9 +224,24 @@ async def get_all_organizations(
         ]
         return {d["_id"]: d async for d in db.users.aggregate(pipe)}
 
+    async def _crm_owners():
+        # CRM-only orgs keep their owner in `crm_users`, not `users`. Fall
+        # back to any CRM user when none is explicitly role=owner so the
+        # list still shows a contact.
+        pipe = [
+            {"$match": {"organization_id": {"$in": org_ids}}},
+            {"$sort": {"role": 1}},  # 'owner' sorts before others
+            {"$group": {
+                "_id": "$organization_id",
+                "email": {"$first": "$email"},
+                "full_name": {"$first": "$full_name"},
+            }},
+        ]
+        return {d["_id"]: d async for d in db.crm_users.aggregate(pipe)}
+
     (
         sp_user_map, crm_user_map, equip_map, issue_map, open_issue_map,
-        file_map, ai_map, owner_map,
+        file_map, ai_map, owner_map, crm_owner_map,
     ) = await asyncio.gather(
         _group(db.users),
         _group(db.crm_users),
@@ -236,12 +251,33 @@ async def get_all_organizations(
         _group(db.files),
         _group(db.issues, {"ai_triage": {"$exists": True, "$ne": None}}),
         _owners(),
+        _crm_owners(),
     )
 
     enriched = []
     for org in orgs:
         oid = org["id"]
         owner = owner_map.get(oid) or {}
+        crm_owner = crm_owner_map.get(oid) or {}
+        # Iter (Jul 2026) fix — the org row showed "No owner" whenever the
+        # org had no `users` doc with role=owner, even though an owner WAS
+        # set another way. Fall back through: users-role-owner → org's own
+        # owner_email → CRM owner → primary contact → admin_email.
+        owner_email = (
+            owner.get("email")
+            or org.get("owner_email")
+            or crm_owner.get("email")
+            or org.get("primary_contact_email")
+            or org.get("admin_email")
+            or ""
+        )
+        owner_name = (
+            owner.get("full_name")
+            or org.get("owner_name")
+            or crm_owner.get("full_name")
+            or org.get("primary_contact_name")
+            or ""
+        )
         enriched.append({
             **org,
             "status": org.get("status", "active"),
@@ -251,8 +287,8 @@ async def get_all_organizations(
             "open_issues": open_issue_map.get(oid, 0),
             "file_count": file_map.get(oid, 0),
             "ai_calls": ai_map.get(oid, 0),
-            "owner_email": owner.get("email", ""),
-            "owner_name": owner.get("full_name", ""),
+            "owner_email": owner_email,
+            "owner_name": owner_name,
             "features": org.get("features", {}),
             "is_test": org.get("is_test", False),
             "account_type": org.get("account_type", "full"),

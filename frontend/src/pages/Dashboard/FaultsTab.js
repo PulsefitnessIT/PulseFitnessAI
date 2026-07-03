@@ -104,14 +104,14 @@ const FaultsTab = ({
  <AlertCircle size={14} /> Reactive Faults
  </button>
  <button type="button"
- className={`subtab-pill ${faultView === 'ppm' ? 'is-active' : ''}`}
- onClick={() => setFaultView('ppm')} data-testid="faults-view-ppm">
- <Calendar size={14} /> Planned Maintenance
- </button>
- <button type="button"
  className={`subtab-pill ${faultView === 'parts' ? 'is-active' : ''}`}
  onClick={() => setFaultView('parts')} data-testid="faults-view-request-part">
  <Package size={14} /> Request a Part
+ </button>
+ <button type="button"
+ className={`subtab-pill ${faultView === 'ppm' ? 'is-active' : ''}`}
+ onClick={() => setFaultView('ppm')} data-testid="faults-view-ppm">
+ <Calendar size={14} /> Planned Maintenance
  </button>
  </div>
 

@@ -10,7 +10,7 @@ import {
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
 import PreInstallSurveys from './PreInstallSurveys';
-import { CrossModuleTimeline, EnrichFromWebsiteButton } from './CRMPhase3Panels';
+import { EnrichFromWebsiteButton } from './CRMPhase3Panels';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
@@ -1242,38 +1242,54 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     setSavingEdit(false);
   };
 
+  // Iter (Jul 2026) — company tabs consolidated to a single source of truth.
+  // Support Cases → Service & Engineers; Sites+Portal Equipment+CRM Assets →
+  // "Equipment & Assets"; Drawings → Site Surveys; Activity+Timeline+Audit →
+  // "Activity". Each merged tab keeps ALL original features behind an inner
+  // sub-nav — the child ids below still drive the existing render blocks, so
+  // no feature is lost, only regrouped.
+  const hasService = !!company.has_service_ops;
   const sections = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'contacts', label: `Contacts (${company.contacts?.length || 0})` },
-    { id: 'opportunities', label: `Deals (${company.opportunities?.length || 0})` },
-    { id: 'cases', label: `Support Cases (${company.cases?.length || 0})` },
-    // Iter 291 — Service & Engineers: surfaces live Service Desk activity
-    // (open cases, assigned engineers + where they are now, next PPM) so a
-    // CRM sales manager sees the whole Pulse team working as one. Hidden
-    // for orgs that don't run the Service Desk.
-    ...(company.has_service_ops ? [{ id: 'service', label: 'Service & Engineers' }] : []),
-    // Iter 216h266 — dedicated Activities tab (data already loaded by
-    // /companies/{id} timeline). Customer feedback: needed all
-    // related activities in one 360° place.
-    { id: 'activities', label: `Activity (${company.activities?.length || 0})` },
-    // Iter 220bv — Unified Timeline (activities + quotes + cases +
-    // tender events). The legacy "Activity" tab above is kept for
-    // ops who prefer the focused view; this one is the 360° feed.
-    { id: 'timeline', label: 'Timeline' },
-    // Iter 216h196 — Phase 1 of the Ops↔CRM↔ServiceDesk linkage:
-    // surfaces the company's linked-org sites + machines with live
-    // contract-coverage badges, and lets operators attach aftersales
-    // contracts directly from this view.
-    { id: 'sites_equipment', label: 'Sites & Equipment' },
-    { id: 'assets', label: `Assets (${company.assets?.length || 0})` },
-    { id: 'quotes', label: `Quotes (${company.quotes?.length || 0})` },
-    { id: 'tenders', label: `Tenders (${company.tenders?.length || 0})` },
-    { id: 'drawings', label: 'Drawings' },
-    { id: 'surveys', label: 'Site Surveys' },
-    { id: 'invoices', label: 'Invoices' },
-    { id: 'equipment', label: 'Equipment' },
-    { id: 'audit', label: 'Audit' },
+    { id: 'overview',         label: 'Overview' },
+    { id: 'contacts',         label: `Contacts (${company.contacts?.length || 0})` },
+    { id: 'opportunities',    label: `Deals (${company.opportunities?.length || 0})` },
+    { id: 'service_hub',      label: 'Service & Engineers' },
+    { id: 'activity',         label: 'Activity' },
+    { id: 'equipment_assets', label: 'Equipment & Assets' },
+    { id: 'quotes',           label: `Quotes (${company.quotes?.length || 0})` },
+    { id: 'tenders',          label: `Tenders (${company.tenders?.length || 0})` },
+    { id: 'site_surveys',     label: 'Site Surveys' },
+    { id: 'invoices',         label: 'Invoices' },
   ];
+
+  // Merged parent tab → inner sub-nav. Child ids match the existing render
+  // blocks (cases/service, activities/timeline/audit, sites_equipment/
+  // equipment/assets, surveys/drawings).
+  const PARENT_SUBTABS = {
+    service_hub: [
+      ...(hasService ? [{ id: 'service', label: 'Service & engineers' }] : []),
+      { id: 'cases', label: `Support cases (${company.cases?.length || 0})` },
+    ],
+    activity: [
+      { id: 'activities', label: `Activity (${company.activities?.length || 0})` },
+      { id: 'timeline',   label: 'Timeline' },
+      { id: 'audit',      label: 'Audit' },
+    ],
+    equipment_assets: [
+      { id: 'sites_equipment', label: 'Register' },
+      { id: 'equipment',       label: 'Portal equipment' },
+      { id: 'assets',          label: `CRM assets (${company.assets?.length || 0})` },
+    ],
+    site_surveys: [
+      { id: 'surveys',  label: 'Site surveys' },
+      { id: 'drawings', label: 'Drawings' },
+    ],
+  };
+  const CHILD_TO_PARENT = {};
+  for (const [p, kids] of Object.entries(PARENT_SUBTABS)) for (const k of kids) CHILD_TO_PARENT[k.id] = p;
+  const defaultChildFor = (pid) => (PARENT_SUBTABS[pid] ? PARENT_SUBTABS[pid][0].id : pid);
+  const activeParent = CHILD_TO_PARENT[activeSection] || activeSection;
+  const innerTabs = PARENT_SUBTABS[activeParent] || [];
 
   const _actIcons = { note: FileText, call: Phone, email: Mail, meeting: Calendar, task: CheckCircle, system: Activity, visit: MapPin };
 
@@ -1326,13 +1342,35 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
       {/* Tab Bar */}
       <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-        {sections.map(s => (
-          <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${activeSection === s.id ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
-            style={activeSection !== s.id ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}>
-            {s.label}
-          </button>
-        ))}
+        {sections.map(s => {
+          const isActive = activeParent === s.id;
+          return (
+            <button key={s.id} data-testid={`company-tab-${s.id}`} onClick={() => setActiveSection(defaultChildFor(s.id))}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${isActive ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
+              style={!isActive ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}>
+              {s.label}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Inner sub-nav for merged tabs (keeps every original feature) */}
+      {innerTabs.length > 1 && (
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1" data-testid={`company-subnav-${activeParent}`}>
+          {innerTabs.map(t => {
+            const on = activeSection === t.id;
+            return (
+              <button key={t.id} data-testid={`company-subtab-${t.id}`} onClick={() => setActiveSection(t.id)}
+                className="px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap border transition-all"
+                style={on
+                  ? { background: 'var(--color-info-ios)', borderColor: 'var(--color-info-ios)', color: '#fff' }
+                  : { background: 'transparent', borderColor: c.border, color: c.textDim }}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Section Content */}
       <div className="rounded-lg border p-5" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
@@ -1649,10 +1687,6 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
         {activeSection === 'equipment' && (
           <PortalEquipmentTab companyId={companyId} API={API} headers={headers} c={c} isDark={isDark} />
-        )}
-
-        {activeSection === 'timeline' && (
-          <CrossModuleTimeline companyId={companyId} />
         )}
 
         {activeSection === 'audit' && (

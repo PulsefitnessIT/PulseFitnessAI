@@ -1,0 +1,22 @@
+{
+  "summary": "Verified all 4 changes end-to-end: (1) Master-admin org list returns owner_email with fallback and iso-demo-org resolves owner@isodemo.com. (2) Pulse operator dashboard Faults sub-tabs order = Reactive → Request a Part → Planned Maintenance (data-testids faults-view-reactive/faults-view-request-part/faults-view-ppm). (3) Lite operator dashboard order identical (lite-faults-view-*). (4) CRM Company detail top tabs consolidated exactly as spec — Overview, Contacts, Deals, Service & Engineers, Activity, Equipment & Assets, Quotes, Tenders, Site Surveys, Invoices; every merged parent's inner sub-nav (equipment_assets, site_surveys, service_hub, activity) renders and every child (sites_equipment/equipment/assets, surveys/drawings, cases/service, activities/timeline/audit) is clickable and renders content without console crashes. All old standalone top-level tabs (assets, equipment, sites_equipment, drawings, cases, timeline, audit) are gone.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_master_admin_org_owner.py",
+    "/app/test_reports/pytest/pytest_owner.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PARENT_SUBTABS.service_hub renders only 1 child (cases) when has_service_ops=false, and the innerTabs.length>1 gate hides the subnav in that case — this is intentional per spec but worth noting: users of non-service orgs will see the parent tab jump straight to 'cases' with no subnav (acceptable)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_master_admin_org_owner.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Master admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg · Operator/CRM owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Created and then deleted a TEST CRM company via API to prove the flow; existing seeded AlphaCo (Site A) was used for the actual UI verification of the consolidated tabs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "For /crm testing, session sharing from the main /login form doesn't cross-authenticate to the CRM app — grab the CRM token via POST /api/crm/auth/login and inject into localStorage as 'crm_token' (see script in this iteration). iso-demo-org is seeded with AlphaCo (Site A) + BravoCo (Site B), so no need to create a company. Faults path: Pulse Pro dashboard at /dashboard uses faults-view-* testids; the /pulse Lite dashboard uses lite-faults-view-*."
+}
