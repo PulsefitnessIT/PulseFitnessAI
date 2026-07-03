@@ -1,6 +1,16 @@
 # Changelog
 
 
+## Jul 3, 2026 — Sign-in: added the missing "Forgot password?" flow (frontend gap)
+- **Reported (production pulsefitness.ai):** the Pulse portal sign-in modal had no "Forgot password?" option. **Root cause:** the modal had no link at all, AND `/reset-password` only handled the `?token=` case (set-new-password) — with NO token it dead-ended on an "Invalid Reset Link" screen. So there was NO UI anywhere to *request* a reset email; the backend `POST /api/auth/forgot-password` (already present, rate-limited, anti-enumeration) had zero frontend callers. The existing "Forgot password?" link on `/login` therefore also dead-ended.
+- **Fix (frontend only — backend auth endpoints unchanged):**
+  - `pages/ResetPasswordPage.js`: no-token branch now renders a "Forgot your password?" request form (email → `POST /auth/forgot-password` → generic "Check your email" success, 15-min link note). Token branch unchanged (set-new-password). Removed the dead "Invalid Reset Link" screen + unused `XCircle` import.
+  - `pages/PulseLandingPage.js`: added a "Forgot password?" button (`data-testid pulse-login-forgot`) under Sign In → closes modal + navigates to `/reset-password`.
+- **Auth note:** consulted integration_expert before touching auth. Captcha on `/auth/forgot-password` fails **open** in this env + production (no `CAPTCHA_SECRET`, `ENVIRONMENT` not `prod`), matching how `/auth/login` already works — so no captcha widget is needed for the request to succeed.
+- **Verified:** backend `POST /auth/forgot-password` returns the generic 200 for known + unknown emails and mints a reset token server-side for known emails; all three frontend states render (request form, token set-password form, Pulse-modal link). Testing agent: **100% backend + 100% frontend, zero issues.** Report: `/app/test_reports/iteration_forgot_password_pulse_jan2026.json`.
+- **Status:** fix in preview — REDEPLOY to push to production.
+
+
 ## Jul 3, 2026 — PRODUCTION DEPLOY CRASH-LOOP FIXED (true root cause: blocking DNS SRV at Motor client construction)
 - **Symptom (recurring):** production k8s rollout timed out — backend never bound `:8001`, nginx logged `connect() failed (111: Connection refused)` on `/health`, uvicorn restarted ~4× and never printed its startup banner. Deploy logs showed only the import-time prints (`[captcha]…`, `python-magic unavailable…`) but NEVER "Uvicorn running on…" → module import never completed in prod.
 - **TRUE root cause (finally):** `AsyncIOMotorClient('mongodb+srv://…')` performs a SYNCHRONOUS, BLOCKING DNS SRV+TXT lookup at CONSTRUCTION (motor wraps pymongo `parse_uri`). This client is built at **module-import scope** in `utils/database.py` (line ~29). On the production Atlas `mongodb+srv://` URI, that DNS lookup hung during early pod boot → app import blocked → uvicorn never bound the port → readiness crash-loop. Preview/tests use a plain `mongodb://` URI (no SRV lookup) so it never surfaced. Confirmed empirically: `AsyncIOMotorClient('mongodb+srv://bogus…')` raises a DNS error AT CONSTRUCTION. (Prior fixes — admin_analytics async refactor, deferred `_full_boot`, secrets-audit non-abort — were necessary but did NOT address this shared-client construction.)
