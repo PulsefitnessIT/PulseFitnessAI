@@ -929,3 +929,9 @@ MOD Service Portal → Reports → ASER. Lets MOD site users document equipment-
 - Frontend: AserSettingsPanel added to AdminMODConsole (general toggles + repeated-issue threshold + 3 notification groups). Wired AdminMODConsole into Master Admin → Overview → MoD → 'MOD Console & ASER' inner tab (was orphaned).
 - Verified: backend curl (settings CRUD + real email dispatch); frontend 100% (iteration_mod_aser_settings_fe_retest_jan2026.json — load/edit/save/persist). Settings reset to defaults. PREVIEW only — redeploy for production.
 - Remaining Phase 2: AI summaries (app's current LLM).
+
+## ASER Phase 2 — Email the report (Jul 3, 2026)
+- Backend `routes/mod_aser_exports.py`: refactored PDF generation into _build_summary_pdf / _build_replacement_pdf (bytes). New POST /api/mod/aser/email/summary and POST /api/mod/aser/email/replacement-evidence/{equipment_id} — build the PDF, base64-attach, and send via Resend (utils.email.send_email, kind=mod_aser_report). _resolve_recipients merges typed emails + role targets (site managers via org owners/managers, service desk + account manager from ASER settings). Verified with real Resend deliveries; empty recipients → 400.
+- Frontend MODASERPortal: EmailReportModal (recipient chips + role checkboxes + optional message). 'Email' button in Register export group (aser-email-summary) and 'Email report' button in entry detail (aser-email-evidence).
+- Verified: backend curl (real sends + validation); frontend 100% (iteration_mod_aser_email_fe_jan2026.json — summary + evidence + client validation). Test data reset. PREVIEW only — redeploy for production.
+- Remaining Phase 2: AI summaries (app's current LLM).
