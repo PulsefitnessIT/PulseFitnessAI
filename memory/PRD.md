@@ -1,3 +1,29 @@
+# ═══ 2026-07-03 · 2 BUGFIXES · leftover test sites + operator-preview module gating (VERIFIED 100%) ═══
+BUG 1 — Deleted test ORGS cleared from the org list but their SITES ("TESTONB5-… Head Office",
+"Demo Branch B") lingered under a real org's Sites tab (org delete/cleanup never cascaded to `sites`).
+FIX: extended the Master Admin "Purge test data" tool — `master_admin_test_data_purge.py` now
+`_detect_test_sites()` (name patterns testonb/(test)/somers/iso demo/demo branch/demo head office + ORPHAN
+detection: organization_id no longer in organizations); GET /candidates returns `sites`; POST /purge accepts
+`site_ids` and deletes site + its site-scoped equipment/issues with a `test_data_purge_audit` snapshot.
+Frontend AdminTestDataPurge.js lists sites (data-testid test-site-row-<id>) in dry-run + confirm flow.
+
+BUG 2 — Modules toggled OFF for an org still showed in the operator dashboard. ROOT CAUSE:
+ModuleSwitcher `hasAccess` returns true for ANY master admin (full-access bypass), so the ?as=operator
+PREVIEW ignored per-org toggles. USER CHOICE = option A (preview mirrors the org; console keeps full access).
+FIX: backend `auth.py` now returns `org_module_access` (= `utils.module_access.org_module_access(org)`,
+the customer-visible flags WITHOUT the master bypass, applying account_type defaults + trials) in BOTH the
+login and /auth/me payloads. Frontend `ModuleSwitcher.js`: when `?as=operator` AND master user, module
+pills are gated by `user.org_module_access` instead of the bypass (Comms Centre needs marketing+crm);
+everywhere else the full-access bypass is retained.
+VERIFIED (testing agent, 100%: backend 6/6, frontend 3/3): candidates/purge sites scoped-deletion + audit,
+401 anon; /auth/me shows module_access all-true but org_module_access flips with the Features toggle;
+operator preview hides Marketing (and Comms) when toggled off and restores when on; normal console keeps all pills.
+Report: /app/test_reports/iteration_purge_sites_org_modules_jan2026.json.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-03 · UI · Moved "Cleanup & operator" + "Purge test data" → Compliance & Security (VERIFIED screenshot) ═══
 Per user: relocated the `org-cleanup` and `test-data-purge` sub-tabs OUT of the Organisations group and
 INTO Compliance & Security, positioned right after the existing "Archive" sub-tab
