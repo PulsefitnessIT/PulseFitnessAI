@@ -23,15 +23,15 @@ const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
 const STATUS_STYLES = {
-  draft: 'bg-[var(--theme-surface-hover)] text-[var(--theme-text-muted)]',
-  submitted: 'bg-blue-100 text-blue-700',
-  acknowledged: 'bg-indigo-100 text-indigo-700',
-  quoted: 'bg-amber-100 text-amber-800',
-  invoiced: 'bg-purple-100 text-purple-700',
-  allocated: 'bg-cyan-100 text-cyan-800',
-  despatched: 'bg-teal-100 text-teal-800',
-  completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-rose-100 text-rose-700',
+  draft: 'bg-white/10 text-[var(--theme-text-muted)]',
+  submitted: 'bg-blue-500/20 text-blue-400',
+  acknowledged: 'bg-indigo-500/20 text-indigo-400',
+  quoted: 'bg-amber-500/20 text-amber-400',
+  invoiced: 'bg-purple-500/20 text-purple-400',
+  allocated: 'bg-cyan-500/20 text-cyan-400',
+  despatched: 'bg-teal-500/20 text-teal-400',
+  completed: 'bg-emerald-500/20 text-emerald-400',
+  cancelled: 'bg-rose-500/20 text-rose-400',
 };
 const STATUS_LABEL = {
   draft: 'Draft', submitted: 'Sent to Supplier', acknowledged: 'Acknowledged',
