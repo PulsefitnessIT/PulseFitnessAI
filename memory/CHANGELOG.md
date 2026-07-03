@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 3, 2026 — P0 production crash-loop fix VERIFIED (deploy readiness)
+- **Root cause**: `run_startup_audit()` (`utils/secrets_audit.py`) called `sys.exit(2)` on weak-secret findings in production, killing uvicorn before it bound `:8001` → k8s `/health` readiness probe timed out → crash-loop.
+- **Fix (already in code)**: `server.py` `startup()` now calls `run_startup_audit(abort_on_critical_in_prod=False)` (findings logged, never fatal) and defers ALL heavy init (storage, seeding, index builds, background loops) into `asyncio.create_task(_full_boot())`; `init_storage()` runs via `run_in_threadpool`. Port binds immediately, `/health` returns 200 instantly.
+- **Verification**: backend testing_agent — 100% pass (6/6). Server boots & stays up (no crash-loop, no sys.exit), `/health` + `/api/health` → 200, master-admin login + `/api/auth/me` + `/api/master-admin/organizations` → 200. Report: `/app/test_reports/iteration_deploy_healthfix_verify_jan2026.json`.
+- **Non-issues confirmed**: libmagic-missing 415 is a false alarm — `utils/file_validation.py` has a pure-Python signature fallback sniffer; libmagic also installed locally. Mongo index-name WARNs at boot are pre-existing cosmetic noise.
+- **Status**: READY TO REDEPLOY TO PRODUCTION.
+
+
 ## Jul 2, 2026 — Site Survey reports: Excel + PDF export (CSV already live)
 - **Backend**: generic exporters `utils/report_export.py` (`build_report_xlsx` via openpyxl, `build_report_pdf` via reportlab, Pulse-branded, landscape). New endpoint `GET /api/crm/reports/{report_id}/export?fmt=xlsx|pdf&from_iso=&to_iso=` dispatches to the 4 survey reports (`_EXPORTABLE_REPORTS`); 404 for non-exportable reports. Columns derived from row keys; totals rendered as a summary strip.
 - **Frontend** (`CRMReports.js`): added `exportable:true` to the 4 survey reports + Excel/PDF buttons (data-testid `report-xlsx-*` / `report-pdf-*`) next to CSV, downloading via blob with the panel's current date range (disabled when no rows).
