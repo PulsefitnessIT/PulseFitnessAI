@@ -10,11 +10,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Activity, AlertTriangle, Building2, LogOut, Gauge, Wrench, Shield, ArrowUpRight,
-  ClipboardList, FileText, PoundSterling, KeyRound, Copy, Check, Loader2, Mail, X,
+  ClipboardList, FileText, PoundSterling, KeyRound, Copy, Check, Loader2, Mail, X, ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import GymFloorManagerTab from '../LiteDashboard/GymFloorManagerTab';
+import MODASERPortal from './MODASERPortal';
 
 export default function MODProDashboard() {
   const { _user, logout, API } = useAuth();
@@ -28,6 +29,7 @@ export default function MODProDashboard() {
   const [activePillar, setActivePillar] = useState('operations');
   const [capex, setCapex] = useState(null);
   const [reports, setReports] = useState(null);
+  const [aserOpen, setAserOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -206,9 +208,24 @@ export default function MODProDashboard() {
 
         {/* Iter 216h110 — Reports pillar */}
         {activePillar === 'reports' && (
-          <ReportsPanel reports={reports} />
+          <>
+            <div className="mb-4">
+              <button onClick={() => setAserOpen(true)} className="w-full rounded-xl border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 transition-colors p-4 flex items-center justify-between gap-3" data-testid="mod-pro-aser-open">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-500/15 grid place-items-center text-red-300"><ShieldAlert size={18} /></div>
+                  <div className="text-left">
+                    <div className="font-bold text-white text-sm">ASER — Activity Safety Events Register</div>
+                    <div className="text-xs text-white/60">Equipment safety events impacting rehab / activity delivery across your sites</div>
+                  </div>
+                </div>
+                <ArrowUpRight size={16} className="text-white/60" />
+              </button>
+            </div>
+            <ReportsPanel reports={reports} />
+          </>
         )}
       </main>
+      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
     </div>
   );
 }

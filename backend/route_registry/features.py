@@ -41,6 +41,7 @@ from routes.contact import router as contact_router
 from routes.mod_portal import router as mod_portal_router
 from routes.mod_compliance import router as mod_compliance_router
 from routes.mod_incidents import router as mod_incidents_router
+from routes.mod_aser import router as mod_aser_router
 from routes.memberships import router as memberships_router
 from routes.memberships_payments import router as memberships_payments_router
 from routes.instructor_portal import router as instructor_portal_router
@@ -247,6 +248,7 @@ _UNGATED_ROUTERS = (
     capex_router, financial_ops_router, equipment_import_router, sites_import_router, mod_sites_bulk_import_router, invoice_wizard_parse_router,
     spec_sheets_router, compliance_router,
     pulse_upgrade_router, contact_router, mod_portal_router, mod_compliance_router, mod_incidents_router,
+    mod_aser_router,
     # Iter 215bm — phase3 router MUST be registered BEFORE the main
     # memberships_router. Phase3 owns `/memberships/instructors/performance`
     # which would otherwise be eaten by `/memberships/instructors/{instructor_id}`

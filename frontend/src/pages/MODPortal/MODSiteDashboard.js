@@ -59,6 +59,7 @@ function DrillBanner({ drill, onAcknowledge, acked }) {
 import MODFaultWizard from './MODFaultWizard';
 import MODIncidentWizard from './MODIncidentWizard';
 import MODStaffModal from './MODStaffModal';
+import MODASERPortal from './MODASERPortal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -70,6 +71,7 @@ export default function MODSiteDashboard() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
   const [incidentOpen, setIncidentOpen] = useState(false);
+  const [aserOpen, setAserOpen] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
   const [activeDrill, setActiveDrill] = useState(null);
 
@@ -192,6 +194,9 @@ export default function MODSiteDashboard() {
             >
               <QrCode size={13} /> QR sheet
             </button>
+            <button onClick={() => setAserOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-aser">
+              <ShieldAlert size={13} /> Reports · ASER
+            </button>
             <button onClick={() => setStaffOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-staff">
               <Users size={13} /> Staff
             </button>
@@ -304,6 +309,7 @@ export default function MODSiteDashboard() {
         />
       )}
       {staffOpen && <MODStaffModal onClose={() => setStaffOpen(false)} />}
+      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
       {incidentOpen && (
         <MODIncidentWizard
           onClose={() => setIncidentOpen(false)}

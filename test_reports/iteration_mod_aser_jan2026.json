@@ -1,0 +1,38 @@
+{
+  "summary": "Backend ASER feature is fully working (18/19 pytest passed, 1 skipped for missing commercial creds). Frontend has a CRITICAL integration gap: the ASER entry buttons (data-testid mod-nav-aser and mod-pro-aser-open) live on MODSiteDashboard/MODProDashboard components that are imported as _MODSiteDashboard/_MODProDashboard in AppRoutes.js and never rendered. MOD site users log in and land on /pulse (regular DashboardPage / LiteDashboardPage / PulseLandingPage), which has no ASER trigger anywhere. So the entire ASER portal is currently unreachable via the UI for the target MOD user.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MODSiteDashboard header", "issue": "Component is imported as `_MODSiteDashboard` (unused prefix) in /app/frontend/src/routes/AppRoutes.js line 199 and never rendered. The mod-nav-aser button is therefore unreachable for MOD site users who are redirected to /pulse.", "selector": "[data-testid='mod-nav-aser']", "priority": "CRITICAL"},
+      {"component": "MODProDashboard Reports pillar", "issue": "Also imported as _MODProDashboard (unused) — the mod-pro-aser-open button never renders for MOD branch/org users.", "selector": "[data-testid='mod-pro-aser-open']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "MOD user → ASER portal", "issue": "No path exists for a MOD user to open the ASER portal. AppRoutes lines 262-264 redirect all mod_site/mod_branch/mod_org users to /pulse where no ASER trigger is present. MODASERPortal is only mounted inside the two unreachable dashboards.", "affected_selectors": ["[data-testid='mod-nav-aser']", "[data-testid='mod-pro-aser-open']", "[data-testid='mod-aser-portal']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_aser_jan2026.py",
+    "/app/test_reports/pytest/aser_jan2026.xml"
+  ],
+  "action_items": [
+    "P0: Wire MODASERPortal into the dashboard(s) that MOD users actually see. Two options: (a) restore MODSiteDashboard/MODProDashboard rendering for mod_site/mod_branch/mod_org account types in AppRoutes (drop the underscore, add a conditional render before Navigate to /pulse), OR (b) surface the Reports · ASER button inside the regular /pulse dashboard (LiteDashboardPage / PulseLandingPage / DashboardPage) behind an is_mod check.",
+    "Optional: add a direct route (e.g. /mod/aser) rendering MODASERPortal so deep-links work even without the header button.",
+    "Add a commercial-user credential to test_credentials.md so the non-MOD 403 test can execute (currently skipped)."
+  ],
+  "critical_code_review_comments": [
+    "backend/routes/mod_aser.py — implementation is solid: MOD-only gating via _require_mod, site-scoping via _sites_in_scope, red-flag propagation via _apply_equipment_removal_flag, and dispose only allowed after aser_removed_from_use is set. Audit hooks fire on every mutating action.",
+    "Status precedence in POST /mod/aser is: linked_to_fault > capex_review > under_review > submitted. Confirmed via tests.",
+    "aser_dispose correctly refuses (400) when equipment is not flagged for removal.",
+    "Frontend MODASERPortal.js exposes all required data-testids (mod-aser-portal, aser-dashboard-cards, aser-new-btn, aser-wizard, aser-privacy-note, aser-equip-status, aser-removal-warn, aser-submit, aser-row-*, aser-detail). Logic looks correct — it's just orphaned from the routing tree.",
+    "route_registry/features.py correctly registers mod_aser_router in _UNGATED_ROUTERS (line 251)."
+  ],
+  "updated_files": ["/app/backend/tests/test_aser_jan2026.py"],
+  "success_rate": {"backend": "100% (18/18 executed, 1 skipped due to missing commercial creds)", "frontend": "0% — entry point unreachable"},
+  "test_credentials": "aser.qa@army.mod.test / AserQA123! (works, lands on /pulse). admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (works).",
+  "seed_data_creation": "Created 2 TEST_ ASER entries and 1 linked fault at ARMY QA MOD site (abfdabd9-ae11-4877-a44d-a36fea7f1f4e). Equipment was flagged aser_removed_from_use=true — main agent may want to reset if desired.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend is complete. Once main agent wires the ASER entry button into the dashboard MOD users actually see (currently /pulse route → DashboardPage/LiteDashboardPage/PulseLandingPage — none of which reference ASER or MODASERPortal), retest the UI flow: login as aser.qa@army.mod.test → find and click mod-nav-aser (or new location) → wizard → equipment picker → equipment_status=removed_from_use → verify red warning + submit → row in register RED → detail actions visible.",
+  "rca of the issue": "MODSiteDashboard and MODProDashboard components exist and are complete, but AppRoutes.js imports them with underscore-prefixed names (`_MODSiteDashboard`, `_MODProDashboard`) and never places them in any <Route> or conditional render. Since Iter 216h113, MOD account_types are unconditionally redirected to /pulse (AppRoutes lines 262-264), which renders the standard Pulse dashboard — that dashboard has no ASER integration. Net effect: ASER portal has no reachable trigger."
+}
