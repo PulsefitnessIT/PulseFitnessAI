@@ -935,3 +935,10 @@ MOD Service Portal → Reports → ASER. Lets MOD site users document equipment-
 - Frontend MODASERPortal: EmailReportModal (recipient chips + role checkboxes + optional message). 'Email' button in Register export group (aser-email-summary) and 'Email report' button in entry detail (aser-email-evidence).
 - Verified: backend curl (real sends + validation); frontend 100% (iteration_mod_aser_email_fe_jan2026.json — summary + evidence + client validation). Test data reset. PREVIEW only — redeploy for production.
 - Remaining Phase 2: AI summaries (app's current LLM).
+
+## ASER Phase 2 — AI summaries (Jul 3, 2026) — PHASE 2 COMPLETE
+- Backend `routes/mod_aser_ai.py`: POST /api/mod/aser/{entry_id}/ai-summary (review-ready entry summary) and POST /api/mod/aser/ai/asset-evidence/{equipment_id} (CAPEX/replacement evidence draft, stored on equipment.aser_ai_summary). Uses emergentintegrations LlmChat (openai gpt-5.2, EMERGENT_LLM_KEY, lazy import). Gated by settings.ai_summaries + MOD scope. Guardrails in system prompt: no PII, no clinical judgement, no funding guarantee, labelled 'AI-generated for review'.
+- Replacement Evidence PDF (_build_replacement_pdf) now embeds the stored AI executive summary when present → flows into the emailed report too.
+- config endpoint returns ai_summaries flag; frontend DetailView shows 'AI summary' + 'Draft AI replacement evidence' buttons (violet, Sparkles) → aser-ai-result panel.
+- Verified: backend curl (real LLM output; RE PDF grew + valid); frontend 100% (iteration_mod_aser_ai_fe_jan2026.json). Test data reset. PREVIEW only — redeploy for production.
+- ASER PHASE 2 COMPLETE: analytics, exports (CSV/XLSX/PDF), Replacement Evidence Report, email-the-report, Master Admin settings, configurable notifications, AI summaries.
