@@ -1,3 +1,26 @@
+# ═══ 2026-07-03 · MOD portal + Master Admin polish (VERIFIED: backend 5/5, FE tasks 1/2/4 full) ═══
+1) MODService login header (/modservice) → black (#000 + white/10 border) to match the pulsefitness.ai
+   landing header; Ministry of Defence logo inverted white via CSS `filter: brightness(0) invert(1)`
+   (MODServiceLogin.js). Screenshot-verified.
+2) Master Admin "Create Organisation" — MOD orgs now set up differently (AdminOrganizations.js):
+   selecting the MOD platform type forces `enabled_modules: ['operations']` ONLY (multi-module picker
+   hidden → locked "MOD Operations portal only" note, data-testid org-form-mod-modules-locked), and
+   Industry is auto-derived + locked from the MOD force via MOD_FORCE_INDUSTRY {army→'Defence — British
+   Army', raf→'Defence — Royal Air Force', navy→'Defence — Royal Navy'} (data-testid org-form-industry-mod);
+   changing the force updates the industry. Standard orgs unchanged. Backend persists enabled_modules +
+   industry (verified).
+3) Removed AI Triage from the MODService portal (MODFaultWizard.js): deleted runTriagePreview(), triage
+   state, the StepReview AI-triage card + props, goNext no longer calls triage, submit no longer sends
+   ai_triage_accepted/ai_triage_preview; MODSiteDashboard copy no longer says "AI-triaged". (Full wizard
+   flow not exercised by tester — no MOD site login seedable — but code fully removed + compiles.)
+4) Removed the "Pulse Fitness Self-Service Portal" banner from Master Admin Overview (AdminPulse.js header
+   Card; rendered via OverviewSection.js) now that Pulse is a standalone platform.
+Report: /app/test_reports/iteration_mod_org_phase3_jan2026.json.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-03 · 2 BUGFIXES · leftover test sites + operator-preview module gating (VERIFIED 100%) ═══
 BUG 1 — Deleted test ORGS cleared from the org list but their SITES ("TESTONB5-… Head Office",
 "Demo Branch B") lingered under a real org's Sites tab (org delete/cleanup never cascaded to `sites`).
