@@ -10,6 +10,7 @@ const AdminOverview = lazy(() => import('./AdminOverview'));
 const OperationsOverview = lazy(() => import('./OperationsOverview'));
 const AdminPulse = lazy(() => import('./AdminPulse'));
 const AdminOrganizations = lazy(() => import('./AdminOrganizations'));
+const AdminMODConsole = lazy(() => import('./AdminMODConsole'));
 const AdminAiUsage = lazy(() => import('./AdminAiUsage'));
 const AdminActivity = lazy(() => import('./AdminActivity'));
 const AdminCRMAnalytics = lazy(() => import('./AdminCRMAnalytics'));
@@ -60,6 +61,7 @@ const OverviewSection = ({
 
  const modTabs = [
  { id: 'organisations', label: 'Organisations' },
+ { id: 'console', label: 'MOD Console & ASER' },
  ];
 
  const renderTabBar = (tabs, activeId, setActiveId, testIdPrefix) => (
@@ -181,6 +183,11 @@ const OverviewSection = ({
            accountTypesIn={modTypeFilter ? [modTypeFilter] : ['mod_site', 'mod_branch', 'mod_org']}
          />
        </>
+     )}
+     {modInnerTab === 'console' && (
+       <Suspense fallback={<div className="py-10 text-center text-sm text-zinc-500">Loading MOD Console…</div>}>
+         <AdminMODConsole API={API} />
+       </Suspense>
      )}
    </div>
    );
