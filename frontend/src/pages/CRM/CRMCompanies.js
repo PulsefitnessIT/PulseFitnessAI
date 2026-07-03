@@ -1253,13 +1253,13 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'overview',         label: 'Overview' },
     { id: 'contacts',         label: `Contacts (${company.contacts?.length || 0})` },
     { id: 'opportunities',    label: `Deals (${company.opportunities?.length || 0})` },
-    { id: 'service_hub',      label: 'Service & Engineers' },
-    { id: 'activity',         label: 'Activity' },
-    { id: 'equipment_assets', label: 'Equipment & Assets' },
     { id: 'quotes',           label: `Quotes (${company.quotes?.length || 0})` },
     { id: 'tenders',          label: `Tenders (${company.tenders?.length || 0})` },
-    { id: 'site_surveys',     label: 'Site Surveys' },
     { id: 'invoices',         label: 'Invoices' },
+    { id: 'equipment_assets', label: 'Equipment & Assets' },
+    { id: 'service_hub',      label: 'Service & Engineers' },
+    { id: 'site_surveys',     label: 'Site Surveys' },
+    { id: 'activity',         label: 'Activity' },
   ];
 
   // Merged parent tab → inner sub-nav. Child ids match the existing render

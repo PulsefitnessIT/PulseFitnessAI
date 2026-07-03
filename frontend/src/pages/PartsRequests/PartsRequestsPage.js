@@ -487,17 +487,23 @@ export default function PartsRequestsPage({ embedded = false }) {
       <div className={embedded ? '' : 'max-w-5xl mx-auto px-4 py-6'}>
         {view === 'list' && (
           <>
-            <div className="flex items-center gap-3 mb-5">
-              {!embedded && <button onClick={() => navigate(-1)} className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]" data-testid="parts-page-back"><ArrowLeft size={20} /></button>}
-              <div className="flex items-center gap-2">
-                <Package className="text-blue-600" size={22} />
-                <div>
-                  <h1 className="text-2xl font-bold text-[var(--theme-text)]">Parts Requests</h1>
-                  <p className="text-sm text-[var(--theme-text-muted)]">Request spare parts from your suppliers and track them to delivery.</p>
-                </div>
+            {embedded ? (
+              <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch sm:items-center">
+                <button onClick={newRequest} className="btn-primary" data-testid="new-request-btn"><Plus size={14} /> New Request</button>
               </div>
-              <button onClick={newRequest} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold inline-flex items-center gap-2" data-testid="new-request-btn"><Plus size={16} /> New Request</button>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 mb-5">
+                <button onClick={() => navigate(-1)} className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]" data-testid="parts-page-back"><ArrowLeft size={20} /></button>
+                <div className="flex items-center gap-2">
+                  <Package className="text-blue-600" size={22} />
+                  <div>
+                    <h1 className="text-2xl font-bold text-[var(--theme-text)]">Parts Requests</h1>
+                    <p className="text-sm text-[var(--theme-text-muted)]">Request spare parts from your suppliers and track them to delivery.</p>
+                  </div>
+                </div>
+                <button onClick={newRequest} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold inline-flex items-center gap-2" data-testid="new-request-btn"><Plus size={16} /> New Request</button>
+              </div>
+            )}
 
             {loading ? <div className="py-16 text-center text-[var(--theme-text-muted)]"><Loader2 className="animate-spin inline" /></div>
               : requests.length === 0 ? (

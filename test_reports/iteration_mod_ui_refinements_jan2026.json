@@ -1,0 +1,29 @@
+{
+  "summary": "Verified MOD-only module enforcement on PUT /api/master-admin/organizations/{id}/features (backend) and code-reviewed the 4 associated frontend refinements. Backend pytest tests both pass. Frontend UI could not be exercised end-to-end because /api/auth/login hit HTTP 429 rate-limits mid-run, so drawer / Modules tab expansion could not be repeatedly re-opened via browser — code-level verification recorded instead.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mod_features_enforcement_jan2026.py",
+    "/app/test_reports/pytest/mod_features_jan2026.xml"
+  ],
+  "action_items": [
+    "None — all 6 review items appear correctly implemented at code + API level.",
+    "If further UI proof is needed, wait for /api/auth/login rate-limit window to clear (60s) between runs."
+  ],
+  "critical_code_review_comments": [
+    "master_admin_orgs.update_org_features correctly forces enabled=False and business_enabled/leisure_enabled=False for CRM/Memberships/Marketing/Staffing/Reporting on any is_mod org or account_type in {mod_site, mod_branch, mod_org}, and rebuilds enabled_modules + portal_type via the derived list, so the persisted org state stays consistent.",
+    "FeatureControlPanel.js lines 91–208: isMod detection (is_mod OR account_type in mod_*), groupedFeatures filter drops memberships/marketing/crm groups for MOD, and the module matrix renders a locked tile with data-testid=module-{key}-mod-locked-{orgId} and 'Not available for MOD organisations' — matches spec.",
+    "CRMCompanies.js sections order (line 1252) exactly matches requested order: Overview, Contacts, Deals, Quotes, Tenders, Invoices, Equipment & Assets, Service & Engineers, Site Surveys, Activity.",
+    "PartsRequestsPage.js embedded branch (lines 488-493): title/subtitle header is only rendered in the non-embedded path; embedded mode shows just the New Request button on the left — matches Reactive Faults 'Log New Fault' alignment.",
+    "EquipmentInfoTab.js: data-testid=equipment-info-tab wrapper is retained; grep confirmed no 'Equipment Information Hub' h2 remains."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mod_features_enforcement_jan2026.py (new)"
+  ],
+  "success_rate": {"backend": "100% (2/2 tests passed)", "frontend": "code-level only — UI drawer test blocked by 429 rate-limit"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (used); owner@isodemo.com / IsoDemo123! (available)",
+  "seed_data_creation": "None. Reused existing seeded MOD orgs (ZZ QA MOD ARMY, ZZ QA MOD RAF) and iso-demo-org for regression.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend enforcement is authoritatively verified. For UI verification of the MOD-locked tiles, click the pencil icon on org-card (org-edit-{id}) for the MOD org and then click the 'Modules' tab in the drawer — expect data-testid=module-crm-mod-locked-{orgId}, module-memberships-mod-locked-{orgId}, module-marketing-mod-locked-{orgId} to appear. Login endpoint has an aggressive rate limit (429 after ~4 rapid logins) — space out browser sessions or reuse the same page context."
+}

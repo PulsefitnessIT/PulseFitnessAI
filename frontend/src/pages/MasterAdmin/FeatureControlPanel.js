@@ -88,6 +88,9 @@ const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('toke
 
 const FeatureControlPanel = ({ org, allOrgs, onClose, onUpdateFeatures }) => {
  const isGymaxis = (org.account_type || 'full') === 'full';
+ // MOD organisations run the Operations portal ONLY — CRM / Memberships /
+ // Marketing are never available (mirrors the locked create-org form).
+ const isMod = org.is_mod === true || ['mod_site', 'mod_branch', 'mod_org'].includes(org.account_type || '');
  const [presets, setPresets] = useState([]);
  const [presetKey, setPresetKey] = useState(org.features_preset || '');
  const [copyFromId, setCopyFromId] = useState('');
@@ -154,7 +157,9 @@ const FeatureControlPanel = ({ org, allOrgs, onClose, onUpdateFeatures }) => {
  }
  };
 
- const groupedFeatures = [...FEATURE_LIST].sort((a, b) => GROUP_META[a.group].order - GROUP_META[b.group].order);
+ const groupedFeatures = [...FEATURE_LIST]
+ .filter(f => !(isMod && ['memberships', 'marketing', 'crm'].includes(f.group)))
+ .sort((a, b) => GROUP_META[a.group].order - GROUP_META[b.group].order);
  const groups = [...new Set(groupedFeatures.map(f => f.group))];
 
  const otherOrgs = (allOrgs || []).filter(o => o.id !== org.id);
@@ -188,6 +193,22 @@ const FeatureControlPanel = ({ org, allOrgs, onClose, onUpdateFeatures }) => {
  { key: 'crm', label: 'CRM', tip: 'Pipeline, quotes, tenders, leads' },
  ].map((m) => {
  const cfg = ((org.modules || {})[m.key]) || { enabled: m.key === 'operations', tier: 'pro' };
+ const modLocked = isMod && m.key !== 'operations';
+ if (modLocked) {
+ return (
+ <div key={m.key} className="p-2.5 bg-zinc-100/70 rounded-md border border-dashed border-zinc-200 space-y-1.5 opacity-70"
+ data-testid={`module-${m.key}`}>
+ <div className="flex items-center justify-between">
+ <div>
+ <p className="text-xs font-bold text-zinc-500">{m.label}</p>
+ <p className="text-[10px] text-zinc-400">{m.tip}</p>
+ </div>
+ <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-500" data-testid={`module-${m.key}-mod-locked-${org.id}`}>MOD</span>
+ </div>
+ <p className="text-[10px] text-zinc-400">Not available for MOD organisations</p>
+ </div>
+ );
+ }
  return (
  <div key={m.key} className="p-2.5 bg-zinc-50 rounded-md border border-zinc-100 space-y-1.5"
  data-testid={`module-${m.key}`}>

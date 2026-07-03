@@ -416,10 +416,13 @@ async def update_org_subscription(org_id: str, body: dict = Body(...), user: dic
 async def update_org_features(org_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)):
     require_master_admin(user)
     await assert_org_in_pulse_scope(user, org_id)
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "modules": 1, "account_type": 1})
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "modules": 1, "account_type": 1, "is_mod": 1})
     old_features = (org or {}).get("features") or {}
     old_modules = (org or {}).get("modules") or {}
     is_lite = (org or {}).get("account_type") == "lite"
+    # MOD organisations run the Operations portal ONLY — CRM / Memberships /
+    # Marketing can never be enabled for them (mirrors the create-org lock).
+    is_mod = bool((org or {}).get("is_mod")) or (org or {}).get("account_type") in {"mod_site", "mod_branch", "mod_org"}
     _BOLT_ON_MODULES = {"crm", "memberships", "marketing", "staffing", "reporting"}
 
     set_doc: dict = {}
@@ -449,6 +452,9 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             # Lite orgs cannot enable bolt-on modules — Pro only.
             if is_lite and m_key in _BOLT_ON_MODULES:
                 enabled = False
+            # MOD orgs are Operations-only — force every other module off.
+            if is_mod and m_key != "operations":
+                enabled = False
             entry = {"enabled": enabled, "tier": tier}
             # Preserve any legacy/extension keys (e.g. business_enabled)
             for k, v in existing.items():
@@ -471,6 +477,10 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
                     entry["enabled"] = True
             if is_lite and m_key in _BOLT_ON_MODULES:
                 entry["enabled"] = False
+            if is_mod and m_key != "operations":
+                entry["enabled"] = False
+                entry["business_enabled"] = False
+                entry["leisure_enabled"] = False
             merged[m_key] = entry
             if old_modules.get(m_key) != entry:
                 changes[f"module:{m_key}"] = {"from": old_modules.get(m_key), "to": entry}

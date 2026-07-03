@@ -459,15 +459,6 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  return (
  <div className="space-y-6" data-testid="equipment-info-tab">
  {equipBanner && <div>{equipBanner}</div>}
- <div className="flex items-center justify-between flex-wrap gap-4">
- <div>
- <h2 className="text-2xl font-semibold text-white">Equipment Information Hub</h2>
- <p className="text-[var(--color-text-muted)]">Comprehensive view of all machines, manuals, and maintenance history</p>
- </div>
- {/* Equipment management actions (Add / AI Invoice Import / Export CSV / All QR
-     Codes) were moved into the Onboarding setup flow — after initial onboarding
-     gyms don't use these day-to-day, so the hub stays a clean read-only view. */}
- </div>
 
  {/* Expiry Filter Banner */}
  {expiryFilterIds && expiryFilterIds.length > 0 && (
