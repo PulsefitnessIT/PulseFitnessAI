@@ -1,6 +1,16 @@
 # Changelog
 
 
+## Jul 3, 2026 — PRODUCTION DEPLOY BLOCKER FIXED (root cause: blocking sync MongoClient at import)
+- **True root cause of the k8s readiness crash-loop**: `routes/admin_analytics.py` created a SYNCHRONOUS `pymongo.MongoClient(os.environ["MONGO_URL"])` at MODULE IMPORT time. On the production Atlas `mongodb+srv://` URI, pymongo performs a BLOCKING DNS SRV lookup during client construction — this hung app import so uvicorn never bound `:8001`, nginx got connection-refused on `/health`, and the pod crash-looped. Preview never hit it (local `mongodb://` has no SRV lookup). This is why the earlier threadpool/secrets-audit fixes didn't resolve it.
+- **Fix**: `admin_analytics.py` now uses the shared async motor `db` (`from utils.database import db`); all 5 handlers (dashboard/equipment/faults/checksheets/ai) converted from sync `list(db…find())` to `await db…find().to_list(None)`.
+- **Atlas index conflicts made idempotent**: new `utils/mongo_indexes.py::ensure_ttl_index()` reconciles pre-existing same-key indexes then creates the named TTL index; wired into `email_health.py` and `ui_errors.py` (removed the redundant plain `created_at` index that caused IndexOptionsConflict/code 85). `ensure_indexes.py::_ensure_one` now treats codes 85/86 as "already satisfied" (INFO, not WARNING) — fixes seo_articles slug (code 86) noise.
+- **libmagic**: boot self-check log downgraded ERROR→WARNING — the pure-Python signature sniffer in `file_validation.py` validates uploads when libmagic1 is absent (uploads do NOT fail).
+- **CORS**: `backend/.env` `CORS_ORIGINS="*"` (prod still ignores wildcard and uses brand defaults + platform regex via `resolve_cors_origins`).
+- **Verified**: deployment_agent → PASS (no blockers). Backend regression testing_agent → 100% (22/22): boot clean, `/health`+`/api/health` 200, master-admin login, all 5 analytics endpoints (admin 200 / anon 401 / non-admin 403), email-health, ui-errors, organizations, /auth/me. Reports: `iteration_deploy_healthfix_regression_jan2026.json`.
+- **Status**: READY TO REDEPLOY TO PRODUCTION.
+
+
 ## Jul 3, 2026 — P0 production crash-loop fix VERIFIED (deploy readiness)
 - **Root cause**: `run_startup_audit()` (`utils/secrets_audit.py`) called `sys.exit(2)` on weak-secret findings in production, killing uvicorn before it bound `:8001` → k8s `/health` readiness probe timed out → crash-loop.
 - **Fix (already in code)**: `server.py` `startup()` now calls `run_startup_audit(abort_on_critical_in_prod=False)` (findings logged, never fatal) and defers ALL heavy init (storage, seeding, index builds, background loops) into `asyncio.create_task(_full_boot())`; `init_storage()` runs via `run_in_threadpool`. Port binds immediately, `/health` returns 200 instantly.
