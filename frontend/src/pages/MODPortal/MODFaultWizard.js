@@ -71,8 +71,6 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
     reporter_staff_id: '',
   });
 
-  const [triageLoading, setTriageLoading] = useState(false);
-  const [triage, setTriage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null); // {ticket_ref, priority, duplicate_of}
 
@@ -132,38 +130,10 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
       notify.error(whyInvalid(step, form));
       return;
     }
-    if (step === 5) {
-      await runTriagePreview();
-      setStep(6);
-      return;
-    }
     setStep((s) => Math.min(6, s + 1));
   };
 
   const goBack = () => setStep((s) => Math.max(1, s - 1));
-
-  async function runTriagePreview() {
-    setTriageLoading(true);
-    try {
-      if (!navigator.onLine) {
-        setTriage({ priority: 'medium', ai: { skipped: true, offline: true } });
-        return;
-      }
-      const { data } = await axios.post(`${API}/mod/site/faults/triage-preview`, {
-        equipment_id: form.equipment_id,
-        fault_type: form.fault_type,
-        description: form.description,
-        onset: form.onset,
-        usable: form.usable,
-        safe_in_service: form.safe_in_service,
-      }, { headers });
-      setTriage(data);
-    } catch (e) {
-      setTriage({ priority: 'medium', ai: { skipped: true } });
-    } finally {
-      setTriageLoading(false);
-    }
-  }
 
   async function submitFault() {
     setSubmitting(true);
@@ -183,14 +153,12 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
             usable: form.usable,
             safe_in_service: form.safe_in_service,
             reporter_staff_id: form.reporter_staff_id,
-            ai_triage_accepted: true,
-            ai_triage_preview: triage?.ai,
           },
           attachments: (form.attachment_urls || []).filter((a) => a && a.offline),
         });
         setConfirmation({
           ticket_ref: 'QUEUED',
-          priority: triage?.priority || 'medium',
+          priority: 'medium',
           offline: true,
           queued_id: id,
         });
@@ -206,8 +174,6 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
           if (typeof a === 'string') return a;
           return a.path || a.url;
         }),
-        ai_triage_accepted: true,
-        ai_triage_preview: triage?.ai,
       }, { headers });
       setConfirmation(data);
       notify.success(`Fault logged — ${data.ticket_ref}`);
@@ -286,9 +252,6 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
               form={form}
               equipment={selectedEquipment}
               staff={selectedStaff}
-              triage={triage}
-              triageLoading={triageLoading}
-              onRerunTriage={runTriagePreview}
             />
           )}
         </div>
@@ -311,7 +274,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
               style={{ background: canNext ? 'var(--color-brand-cyan)' : '#2a3340', color: canNext ? 'var(--color-surface-darker)' : '#7a8796' }}
               data-testid="mod-wizard-next"
             >
-              {step === 5 ? (triageLoading ? 'Analysing…' : 'Preview & AI triage') : 'Continue'}
+              Continue
               <ChevronRight size={15} />
             </button>
           ) : (
@@ -854,37 +817,10 @@ function StepReporter({ staff, selected, onPick, onAddNew }) {
 }
 
 
-function StepReview({ form, equipment, staff, triage, triageLoading, onRerunTriage }) {
-  const priority = triage?.priority || 'medium';
-  const toneMap = {
-    urgent: 'bg-red-500/15 border-red-500/40 text-red-200',
-    high:   'bg-orange-500/15 border-orange-500/40 text-orange-200',
-    medium: 'bg-amber-500/15 border-amber-500/40 text-amber-200',
-    low:    'bg-emerald-500/15 border-emerald-500/40 text-emerald-200',
-  };
-  const ai = triage?.ai || {};
+function StepReview({ form, equipment, staff }) {
   return (
     <div className="space-y-3" data-testid="mod-step-review">
       <StepTitle eyebrow="Step 6" title="Review & submit" />
-      {triageLoading ? (
-        <div className="rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.3)] bg-[rgb(var(--rgb-brand-cyan)/0.05)] p-5 text-center text-white/80 text-sm flex items-center justify-center gap-2">
-          <Loader2 size={16} className="animate-spin text-[var(--color-brand-cyan)]" />
-          AI engineer analysing…
-        </div>
-      ) : (
-        <div className={`rounded-xl border p-4 ${toneMap[priority] || toneMap.medium}`} data-testid="mod-ai-triage-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles size={15} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">AI triage</span>
-            <span className="ml-auto text-[10px] font-extrabold uppercase">{priority}</span>
-          </div>
-          {ai.cause && <div className="text-sm font-semibold mb-1">Likely cause: <span className="font-normal">{ai.cause}</span></div>}
-          {ai.quick_fix && <div className="text-sm font-semibold mb-1">Quick fix: <span className="font-normal">{ai.quick_fix}</span></div>}
-          {ai.confidence_pct && <div className="text-xs opacity-70">Confidence {ai.confidence_pct}%</div>}
-          {ai.skipped && <div className="text-xs opacity-70">AI not available — engineer will triage on receipt.</div>}
-          <button onClick={onRerunTriage} className="mt-2 text-[10px] font-bold uppercase tracking-wider underline opacity-80 hover:opacity-100" data-testid="mod-triage-rerun">Re-run triage</button>
-        </div>
-      )}
 
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-2">
         <ReviewRow label="Machine" value={`${equipment?.name} · ${equipment?.serial_number}`} />

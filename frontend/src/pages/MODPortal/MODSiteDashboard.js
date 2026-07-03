@@ -226,7 +226,7 @@ export default function MODSiteDashboard() {
           </div>
           <div className="flex-1">
             <div className="text-lg sm:text-2xl font-extrabold tracking-tight">Log a Fault</div>
-            <div className="text-sm font-semibold opacity-80">6-step guided wizard — AI-triaged in seconds</div>
+            <div className="text-sm font-semibold opacity-80">Guided wizard — reported to your engineers in seconds</div>
           </div>
           <ChevronRight size={22} />
         </button>

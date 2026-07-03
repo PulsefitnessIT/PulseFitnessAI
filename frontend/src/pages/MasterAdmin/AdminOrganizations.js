@@ -51,6 +51,15 @@ const modulesFromPortalType = (pt) => {
   return ['operations'];
 };
 
+// MOD orgs run ONLY the MOD Operations portal (no CRM/memberships/marketing/etc).
+const isModAccount = (at) => ['mod_site', 'mod_branch', 'mod_org'].includes(at);
+// Industry is derived from the MOD service/force so the record self-describes.
+const MOD_FORCE_INDUSTRY = {
+  army: 'Defence — British Army',
+  raf: 'Defence — Royal Air Force',
+  navy: 'Defence — Royal Navy',
+};
+
 /** Six-checkbox module picker. Always keeps at least one module selected. */
 const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules', isLite = false }) => {
   const selected = Array.isArray(value) && value.length ? value : modulesFromPortalType(value);
@@ -1602,13 +1611,23 @@ useEffect(() => {
  </div>
  <div className="col-span-2">
  <Label className="text-zinc-600 text-xs">Modules</Label>
- <ModulesPicker
+ {isModAccount(orgForm.account_type) ? (
+   <div className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5" data-testid="org-form-mod-modules-locked">
+     <Shield size={15} className="text-zinc-500" />
+     <span className="text-sm text-zinc-700 font-medium">MOD Operations portal only</span>
+     <span className="text-[10px] text-zinc-400 ml-auto">MOD organisations have no other modules</span>
+   </div>
+ ) : (
+   <>
+     <ModulesPicker
                 value={orgForm.enabled_modules || modulesFromPortalType(orgForm.portal_type || 'service_portal')}
                 onChange={(mods) => setOrgForm({ ...orgForm, enabled_modules: mods })}
                 testIdPrefix="org-form-modules"
                 isLite={orgForm.account_type === 'lite' || orgForm.subscription_tier === 'lite'}
               />
               <p className="text-[10px] text-zinc-400 mt-1.5">Pick every module the new organisation should have access to.</p>
+   </>
+ )}
  </div>
  <div>
  <Label className="text-zinc-600 text-xs">Platform</Label>
@@ -1623,7 +1642,7 @@ useEffect(() => {
      if (v === 'pulse') {
        setOrgForm({ ...orgForm, account_type: 'lite', subscription_tier: 'lite', enabled_modules: ['operations'], is_mod: false, mod_force: '' });
      } else if (v === 'mod') {
-       setOrgForm({ ...orgForm, account_type: 'mod_site', subscription_tier: 'mod_site', is_mod: true, mod_force: orgForm.mod_force || 'army' });
+       setOrgForm({ ...orgForm, account_type: 'mod_site', subscription_tier: 'mod_site', is_mod: true, mod_force: orgForm.mod_force || 'army', enabled_modules: ['operations'], industry: MOD_FORCE_INDUSTRY[orgForm.mod_force || 'army'] });
      } else {
        setOrgForm({ ...orgForm, account_type: 'full', subscription_tier: 'starter', is_mod: false, mod_force: '' });
      }
@@ -1691,7 +1710,7 @@ useEffect(() => {
  {['mod_site','mod_branch','mod_org'].includes(orgForm.account_type) && (
    <div>
      <Label className="text-zinc-600 text-xs">MOD service</Label>
-     <Select value={orgForm.mod_force || 'army'} onValueChange={v => setOrgForm({ ...orgForm, mod_force: v })}>
+     <Select value={orgForm.mod_force || 'army'} onValueChange={v => setOrgForm({ ...orgForm, mod_force: v, industry: MOD_FORCE_INDUSTRY[v] })}>
        <SelectTrigger className="mt-1" data-testid="org-form-mod-force"><SelectValue /></SelectTrigger>
        <SelectContent className="bg-white border-zinc-200">
          <SelectItem value="army">British Army</SelectItem>
@@ -1704,6 +1723,9 @@ useEffect(() => {
  )}
  <div>
  <Label className="text-zinc-600 text-xs">Industry</Label>
+ {isModAccount(orgForm.account_type) ? (
+ <Input value={orgForm.industry || MOD_FORCE_INDUSTRY[orgForm.mod_force || 'army']} disabled className="mt-1 bg-zinc-50 text-zinc-600" data-testid="org-form-industry-mod" />
+ ) : (
  <Select value={orgForm.industry || '_none'} onValueChange={v => setOrgForm({ ...orgForm, industry: v === '_none' ? '' : v })}>
  <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
@@ -1711,6 +1733,7 @@ useEffect(() => {
  {INDUSTRY_OPTIONS.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
  </SelectContent>
  </Select>
+ )}
  </div>
  <div>
  <Label className="text-zinc-600 text-xs">Employees</Label>

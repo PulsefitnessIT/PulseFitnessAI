@@ -180,17 +180,18 @@ export default function MODServiceLogin() {
         fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      {/* Top brand bar — MOD logo top-left */}
+      {/* Top brand bar — matches pulsefitness.ai landing header (black) with
+          the MoD logo inverted to white so it stands out. */}
       <header
         className="relative z-10 flex items-center justify-between px-5 sm:px-10 py-4 gap-4"
-        style={{ background: PULSE.surface, borderBottom: `1px solid ${PULSE.border}` }}
+        style={{ background: '#000000', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
       >
         <div className="flex items-center gap-3 min-w-0" data-testid="mod-brand-mod">
           <img
             src={MOD_LOGO}
             alt="UK Ministry of Defence"
             className="h-12 sm:h-14 w-auto object-contain"
-            style={{ objectPosition: 'left center', maxWidth: '260px', background: 'var(--theme-surface, #FFFFFF)' }}
+            style={{ objectPosition: 'left center', maxWidth: '260px', background: 'transparent', filter: 'brightness(0) invert(1)' }}
             data-testid="mod-logo-image"
           />
         </div>

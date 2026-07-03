@@ -33,24 +33,6 @@ const AdminPulse = ({ pulseData, onRefresh, organizations, onSelectOrg, onUpgrad
 
   return (
     <div className="space-y-6">
-      {/* Pulse Branding Header */}
-      <Card className="border-0 shadow-md p-6" style={{ background: `linear-gradient(135deg, ${PULSE_BLUE} 0%, #0052CC 100%)` }} data-testid="pulse-admin-header">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center">
-              <Wrench size={24} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">Pulse Fitness Self-Service Portal</h2>
-              <p className="text-blue-200 text-sm mt-0.5">White-label partner management · {total_sites} active site{total_sites !== 1 ? 's' : ''}</p>
-            </div>
-          </div>
-          <a href="/pulse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white hover:bg-white text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors" data-testid="pulse-view-portal">
-            View Portal <ArrowUpRight size={14} />
-          </a>
-        </div>
-      </Card>
-
       {/* Sub-tabs (Sites only — Spec Sheets & Equipment Images live in Image Catalogue) */}
       <div className="flex gap-1 border-b border-zinc-200" data-testid="pulse-sub-tabs">
         <button
