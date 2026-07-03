@@ -399,6 +399,10 @@ async def _build_replacement_pdf(user: dict, equipment_id: str):
            "<b>replacement of this equipment is recommended for review.</b>") if recommend else \
           ("This asset is currently under monitoring. Continued ASER events may build a "
            "replacement case.")
+    ai_summary = equipment.get("aser_ai_summary")
+    if ai_summary:
+        story += [Spacer(1, 10), Paragraph("AI-DRAFTED EXECUTIVE SUMMARY (FOR REVIEW)", st["section"]),
+                  Paragraph(ai_summary.replace("\n", "<br/>"), st["body"])]
     story += [Spacer(1, 10), Paragraph("RECOMMENDATION", st["section"]), Paragraph(rec, st["body"]),
               Spacer(1, 6), Paragraph(
                   "This report evidences repeated PTE issues impacting rehab / activity delivery and may "

@@ -235,6 +235,7 @@ async def _repeated_issue_for(equipment_id: str, site_id: str) -> dict:
 async def aser_config(user: dict = Depends(get_current_user)):
     org = await _require_mod(user)
     site_ids = await _sites_in_scope(user, org)
+    settings = await _load_settings()
     sites = await db.organizations.find(
         {"id": {"$in": site_ids}}, {"_id": 0, "id": 1, "name": 1, "site_code": 1, "mod_branch": 1},
     ).sort("name", 1).to_list(2000)
@@ -248,6 +249,7 @@ async def aser_config(user: dict = Depends(get_current_user)):
         "entry_statuses": ENTRY_STATUSES,
         "sites": sites,
         "is_manager": _is_manager(user),
+        "ai_summaries": bool(settings.get("ai_summaries", True)),
         "account_type": org.get("account_type"),
     }
 

@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend UI test for MOD ASER AI summary + AI replacement evidence buttons on entry detail. Both real LLM calls succeed, panel renders with 'AI-generated for review' label, buttons disable during loading, toast mentions Replacement Evidence Report.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "aser.qa@army.mod.test / AserQA123!",
+  "seed_data_creation": "None - used seeded ASER entry (Repeated Fault, Concept2 Rower ROW-QA-001)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "AI summary + AI evidence buttons on aser-detail work end-to-end. LLM (openai gpt-5.2) returns real content in ~5-15s. aser-ai-result panel updates in place. Buttons correctly disabled while pending. Cookie/install-app overlays present at bottom but do not block AI interaction. No console errors related to AI flow.",
+  "rca of the issue": "N/A - no bugs found",
+  "verification_details": {
+    "aser-ai-actions": "present",
+    "aser-ai-summary": "clicked, disabled while loading, result panel appeared, contains 'AI-generated for review'",
+    "aser-ai-evidence": "clicked, disabled while loading, panel updated with evidence draft, body mentions 'Replacement Evidence Report'",
+    "double-click": "no crash, button was disabled after first click"
+  }
+}

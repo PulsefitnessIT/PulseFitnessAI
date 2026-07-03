@@ -11,7 +11,7 @@ import axios from 'axios';
 import {
   X, Plus, Search, ShieldAlert, AlertTriangle, Loader2, Upload, Trash2,
   PoundSterling, Wrench, CheckCircle2, ArrowLeft, ClipboardList, Ban, Link2,
-  BarChart3, LayoutList, Download, FileText, FileSpreadsheet, Mail, Send,
+  BarChart3, LayoutList, Download, FileText, FileSpreadsheet, Mail, Send, Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -704,7 +704,11 @@ function Field({ label, children }) {
 function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailEvidence }) {
   const [entry, setEntry] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const [aiTitle, setAiTitle] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
   const isManager = config?.is_manager;
+  const aiEnabled = config?.ai_summaries;
 
   const load = useCallback(async () => {
     try { const { data } = await axios.get(`${API}/mod/aser/${entryId}`, { headers }); setEntry(data); }
@@ -717,6 +721,19 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
     try { await axios.post(`${API}/mod/aser/${entryId}/${path}`, body, { headers }); notify.success(label); await load(); onChanged?.(); }
     catch (e) { notify.error(e?.response?.data?.detail || 'Action failed'); }
     finally { setBusy(false); }
+  };
+
+  const runAi = async (kind) => {
+    setAiBusy(true); setAiText(''); setAiTitle(kind === 'evidence' ? 'AI replacement-evidence draft' : 'AI entry summary');
+    try {
+      const path = kind === 'evidence'
+        ? `/mod/aser/ai/asset-evidence/${entry.equipment_id}`
+        : `/mod/aser/${entryId}/ai-summary`;
+      const { data } = await axios.post(`${API}${path}`, {}, { headers });
+      setAiText(data.summary);
+      if (kind === 'evidence') notify.success('AI evidence drafted — included in the Replacement Evidence Report');
+    } catch (e) { notify.error(e?.response?.data?.detail || 'AI generation failed'); setAiTitle(''); }
+    finally { setAiBusy(false); }
   };
 
   if (!entry) return <div className="py-16 text-center text-white/50"><Loader2 className="animate-spin inline" /></div>;
@@ -741,6 +758,27 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
       </div>
 
       <InfoBlock title="What happened">{entry.description}{entry.immediate_action ? `\n\nImmediate action: ${entry.immediate_action}` : ''}</InfoBlock>
+
+      {aiEnabled && (
+        <div className="flex flex-wrap gap-2" data-testid="aser-ai-actions">
+          <button onClick={() => runAi('summary')} disabled={aiBusy} className="px-3 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 text-sm hover:bg-violet-500/20 inline-flex items-center gap-1.5 disabled:opacity-60" data-testid="aser-ai-summary">
+            {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} AI summary
+          </button>
+          <button onClick={() => runAi('evidence')} disabled={aiBusy} className="px-3 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 text-sm hover:bg-violet-500/20 inline-flex items-center gap-1.5 disabled:opacity-60" data-testid="aser-ai-evidence">
+            {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Draft AI replacement evidence
+          </button>
+        </div>
+      )}
+      {aiText && (
+        <div className="rounded-xl border border-violet-500/40 bg-violet-500/5 p-4" data-testid="aser-ai-result">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles size={14} className="text-violet-300" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-200">{aiTitle}</h3>
+            <span className="text-[10px] text-white/40">AI-generated for review</span>
+          </div>
+          <p className="text-sm text-white/80 whitespace-pre-line">{aiText}</p>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
