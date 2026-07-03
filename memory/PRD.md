@@ -1,3 +1,37 @@
+# ═══ 2026-07-03 · P0 DEPLOY FIX · Prod crash-loop — litellm loaded at import scope (VERIFIED 15/15) ═══
+SYMPTOM: Production k8s deploy failed repeatedly — backend never bound :8001, nginx GET /health →
+"connection refused", readiness probe timed out → crash-loop. Prod logs showed the startup banner
+(captcha + python-magic) then NOTHING (no "Started server process"), i.e. a hang DURING module import.
+Preview was fine (open egress + local mongodb://).
+
+ROOT CAUSE: 13 route/util modules imported `emergentintegrations.llm.chat` (→ transitively loads the
+heavy `litellm` package) at MODULE-IMPORT scope. uvicorn imports `server` (→ all routers) BEFORE binding
+the port, so litellm loaded — and could attempt network — before :8001 opened. In the egress-restricted
+prod rollout container this hung/over-ran the readiness window. Import measured 9.94s locally; litellm
+was ~2.7s of it plus network risk.
+
+FIX: converted every module-scope `emergentintegrations.llm` / `litellm` import to lazy function-local
+imports (TYPE_CHECKING guards for the few type-annotation-only uses; added `from __future__ import
+annotations` to routes/svc/ai.py). Files: routes/{gym_layouts,equipment,ai_diagnosis,qr_codes,files,
+admin_documents,issues,issue_helpers,crm_v2,risk_assessments,capex,svc/ai}.py + utils/incident_ai.py.
+RESULT: `import server` no longer loads litellm; import 9.94s→5.42s, time-to-/health 9s→6s.
+GUARD: new `test_no_heavy_llm_imports_at_module_scope` in tests/test_no_blocking_imports.py (AST scan of
+routes/route_registry/utils/bootstrap top-level statements; TYPE_CHECKING/function-local exempt). Both
+guard tests pass.
+
+VERIFIED (testing agent, backend 15/15 @ external URL): health 200; live LLM endpoints /api/chat/diagnose,
+/api/svc/ai/triage, /api/capex/generate-justifications, /api/risk-assessments/ai-generate all 200 (lazy
+imports resolve at request time); issues-triage import path reached without error; test-data purge tool
+200 (auth) / 401 (anon). NO ImportError/NameError 500s anywhere. Regression suite:
+tests/test_ai_lazy_import_regression_jan2026.py. Report:
+/app/test_reports/iteration_lazy_llm_import_regression_jan2026.json.
+ACTION: SAFE TO REDEPLOY pulsefitness.ai. Non-blocking pre-existing quirks noted (predictive-maintenance
+& ai-scan-duplicates 404 route/id mismatch — unrelated to this fix).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · P0 BUGFIX · Test/demo data leaking into PRODUCTION DB (backend VERIFIED) ═══
 ROOT CAUSE: `bootstrap/seed.py::seed_test_accounts()` ran on EVERY backend boot (gated only by the
 opt-out `SEED_TEST_ACCOUNTS=0`) and upserted the regression fixture user `lee.somers@pulsefitness.com`
