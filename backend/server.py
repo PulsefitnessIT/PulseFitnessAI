@@ -378,11 +378,15 @@ async def _create_indexes() -> None:
 async def startup() -> None:
     # Iter 215ae — surface secret/config misconfiguration at boot. Aborts
     # startup in APP_ENV=production when a critical finding is present.
+    # Never abort startup on audit findings — doing so (sys.exit) prevents
+    # uvicorn from ever binding :8001, so the k8s /health readiness probe
+    # fails and the pod crash-loops. In production the platform injects env
+    # vars and load_dotenv(override=False) will NOT override an injected
+    # blank JWT_SECRET, which the audit would flag critical → sys.exit →
+    # failed rollout. Log findings loudly instead; never kill the process.
     try:
         from utils.secrets_audit import run_startup_audit
-        run_startup_audit()
-    except SystemExit:
-        raise
+        run_startup_audit(abort_on_critical_in_prod=False)
     except Exception as e:
         logger.error(f"Secrets audit failed: {e}")
 
