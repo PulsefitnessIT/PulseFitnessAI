@@ -21,7 +21,7 @@ from pymongo import MongoClient
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://comms-email-hub.preview.emergentagent.com"
+    or "https://ops-parts-request.preview.emergentagent.com"
 ).rstrip("/")
 
 ADMIN_EMAIL = "admin@gymaxisai.com"

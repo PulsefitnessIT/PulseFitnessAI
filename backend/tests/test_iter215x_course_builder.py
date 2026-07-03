@@ -15,7 +15,7 @@ import requests
 import uuid
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://comms-email-hub.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://ops-parts-request.preview.emergentagent.com").rstrip("/")
 
 # Test credentials
 OPERATOR_EMAIL = "lee.somers@pulsefitness.com"

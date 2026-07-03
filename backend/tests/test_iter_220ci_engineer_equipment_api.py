@@ -16,7 +16,7 @@ import uuid
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = 'https://comms-email-hub.preview.emergentagent.com'
+    BASE_URL = 'https://ops-parts-request.preview.emergentagent.com'
 
 
 class TestEngineerEquipmentAPI:

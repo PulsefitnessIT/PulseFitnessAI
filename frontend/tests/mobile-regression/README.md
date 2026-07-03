@@ -43,7 +43,7 @@ PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
 
 # Run the suite against the preview environment
 PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
-E2E_BASE_URL="https://comms-email-hub.preview.emergentagent.com" \
+E2E_BASE_URL="https://ops-parts-request.preview.emergentagent.com" \
   yarn test:mobile-regression
 ```
 
