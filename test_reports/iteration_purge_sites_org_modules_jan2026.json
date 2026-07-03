@@ -1,0 +1,22 @@
+{
+  "summary": "Backend + frontend verification for (BUG 1) purge test-data sites detection/scoped deletion and (BUG 2) org_module_access exposure + operator preview module gating. 6/6 pytest cases pass. Frontend module switcher in ?as=operator preview correctly mirrors org's real modules; normal Master Admin navigation retains full access.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_purge_and_org_module_access.py",
+    "/app/test_reports/pytest/purge_org_module.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "master_admin_test_data_purge.py:_detect_test_sites loads ALL orgs into memory to build id/name maps — fine at current scale but should paginate if org count grows large.",
+    "test_data_candidates return type doesn't include site count metadata; frontend has to length-count. Minor UX concern only."
+  ],
+  "updated_files": ["/app/backend/tests/test_purge_and_org_module_access.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (3/3 scenarios)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created & then deleted throwaway site 'ZZ QA Purge (test) Site' under master-admin org during test_scoped_purge_site_deletion. No residue.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both bugs verified working. Backend: GET /api/master-admin/test-data/candidates returns sites[] with id/name/organization_id/org_name/reason; dry-run purge returns sites with would_delete=true; scoped purge with site_ids deletes only that site and writes audit. /api/auth/me returns both module_access (master bypass, all true) and org_module_access (real org flags). Frontend: ModuleSwitcher hides Marketing + Comms pills when Marketing is OFF for the org and user is in ?as=operator preview; all pills visible in normal /dashboard nav. Marketing left toggled ON as expected.",
+  "rca of the issue": "N/A — verifying fixes, both root causes (missing cascade on org delete for sites + master bypass leaking into operator preview UI) addressed via _detect_test_sites orphan/name detection + org_module_access payload consumed by ModuleSwitcher.previewRespectsOrg guard."
+}

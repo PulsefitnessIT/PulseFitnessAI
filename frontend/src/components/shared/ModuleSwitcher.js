@@ -104,8 +104,24 @@ export default function ModuleSwitcher({ user, current }) {
  // Iter 215d5 — rewrite module paths per brand context so Operations
  // takes Pulse Fitness users to `/dashboard` and Pulse users to `/pulse`.
  const operationsPath = resolveOperationsPath(user, location.pathname);
+ // Iter (Jul 2026) — Master Admin operator PREVIEW (?as=operator) must mirror
+ // exactly what the customer sees, so it respects the org's real module flags
+ // (user.modules — the raw org.modules dict) instead of the blanket
+ // master-admin full-access bypass. Full access is retained everywhere else
+ // (Master Admin console, real navigation).
+ const asOperatorPreview = new URLSearchParams(location.search).get('as') === 'operator';
+ const isMasterUser = user?.is_master_admin === true || user?.role === 'master_admin' || user?.role === 'master';
+ // org_module_access = the org's real customer-visible access (backend, with
+ // account-type defaults + trials, WITHOUT the master-admin bypass).
+ const orgAccess = (user && typeof user.org_module_access === 'object' && user.org_module_access) || null;
+ const previewRespectsOrg = asOperatorPreview && isMasterUser && orgAccess;
+ const moduleOn = (accessKey) => {
+   if (!previewRespectsOrg) return hasAccess(user, accessKey);
+   if (accessKey === 'comms') return !!orgAccess.marketing && !!orgAccess.crm;
+   return !!orgAccess[accessKey];
+ };
  const available = MODULES
-   .filter((m) => hasAccess(user, m.accessKey))
+   .filter((m) => moduleOn(m.accessKey))
    .map((m) => (m.id === 'operations' ? { ...m, path: operationsPath } : m));
 
  // Toggle scrollable state on mount + resize so the edge-fade + chevrons

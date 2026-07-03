@@ -281,7 +281,7 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
 
 def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, features: list | dict) -> dict:
     """Assemble the `user` payload returned on successful login."""
-    from utils.module_access import resolve_module_access
+    from utils.module_access import resolve_module_access, org_module_access
     is_owner_or_mgr = user.get('role') in ['owner', 'manager']
     return {
         "id": user['id'],
@@ -332,6 +332,11 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         # this the CRM / Marketing / Memberships pills don't appear until
         # the user reloads (which triggers `/auth/me`).
         "module_access": resolve_module_access(user, org),
+        # Iter (Jul 2026) — org-level module access IGNORING the master-admin
+        # full-access bypass, so the Master Admin operator PREVIEW can mirror
+        # exactly what a customer of this org sees (applies account_type
+        # defaults + trial windows).
+        "org_module_access": org_module_access(org),
         "modules": (org or {}).get("modules") or {},
         "module_overrides": user.get("module_overrides") or {},
         "timetable_view_only": bool(user.get("timetable_view_only", False)),
@@ -855,7 +860,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
     from utils.trial_lifecycle import compute_trial_state
     from utils.feature_guard import get_enabled_features
     from utils.hardening import password_needs_rotation, PASSWORD_MAX_AGE_DAYS
-    from utils.module_access import resolve_module_access
+    from utils.module_access import resolve_module_access, org_module_access
     trial_state = compute_trial_state(org) if org else {"is_trial": False}
     features = await get_enabled_features(user)
     module_access = resolve_module_access(user, org)
@@ -915,6 +920,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "trial": trial_state,
         "features": features,
         "module_access": module_access,
+        "org_module_access": org_module_access(org),
         "modules": (org or {}).get("modules") or {},
         "module_overrides": user.get("module_overrides") or {},
         "timetable_view_only": bool(user.get("timetable_view_only", False)),
