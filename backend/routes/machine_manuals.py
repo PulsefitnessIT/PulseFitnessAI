@@ -90,9 +90,15 @@ def _strip(doc: dict) -> dict:
         return doc
     out = {k: v for k, v in doc.items() if k not in ("storage", "_id", "text_excerpt")}
     out["linked_count"] = len(doc.get("linked_equipment_ids") or [])
-    out["has_body"] = bool((doc.get("storage") or {}).get("data")) or \
-        bool((doc.get("storage") or {}).get("path"))
+    _storage = doc.get("storage") or {}
+    out["has_body"] = bool(_storage.get("data")) or bool(_storage.get("path")) \
+        or bool(_storage.get("url")) or bool(doc.get("source_url"))
     out["is_global"] = bool(doc.get("is_global"))
+    # Iter 279 — URL-linked manuals (e.g. hosted on pulsefitness.com): no
+    # bytes stored, opened via the external link. Surface both flags so the
+    # UI can render an external-link affordance.
+    out["is_url"] = bool(doc.get("is_url"))
+    out["source_url"] = doc.get("source_url")
     return out
 
 
@@ -482,6 +488,15 @@ async def download_manual(manual_id: str, user: dict = Depends(get_current_user)
     if not user.get("is_master_admin") and not manual.get("is_global") \
             and manual.get("organization_id") != user.get("organization_id"):
         raise HTTPException(404, "Manual not found")
+    # Iter 279 — URL-linked manual → redirect to the external source (e.g. a
+    # PDF hosted on pulsefitness.com). Keeps the same download URL contract.
+    storage = manual.get("storage") or {}
+    if storage.get("kind") == "url" or manual.get("source_url"):
+        from fastapi.responses import RedirectResponse
+        target = manual.get("source_url") or storage.get("url")
+        if not target:
+            raise HTTPException(404, "Manual URL unavailable")
+        return RedirectResponse(url=target)
     try:
         data = _read_body(manual)
     except Exception as exc:
@@ -569,7 +584,55 @@ async def upload_global_manual(
     return {"manual": _strip(doc), "reused": False}
 
 
-@router.post("/master-admin/machine-manuals/{manual_id}/promote-global")
+@router.post("/master-admin/machine-manuals/global/add-url")
+async def add_global_manual_url(payload: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Master Admin registers a platform-global manual by URL (e.g. a PDF
+    hosted on pulsefitness.com) instead of uploading a file. Saves storage
+    and means manual updates on the source are reflected automatically — no
+    re-upload. De-dupes by (global make/model + URL)."""
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
+    manufacturer = (payload.get("manufacturer") or "").strip()
+    model = (payload.get("model") or "").strip()
+    url = (payload.get("url") or "").strip()
+    title = (payload.get("title") or "").strip()
+    if not manufacturer or not model:
+        raise HTTPException(400, "Manufacturer and model are required")
+    if not re.match(r"^https?://", url, flags=re.IGNORECASE):
+        raise HTTPException(400, "Enter a valid manual URL (must start with http:// or https://)")
+
+    existing = await db.machine_manuals.find_one({
+        "organization_id": GLOBAL_ORG, "is_global": True,
+        "make_model_key": _key(manufacturer, model), "source_url": url,
+    })
+    if existing:
+        return {"manual": _strip(existing), "reused": True}
+
+    fname = (url.rsplit("/", 1)[-1].split("?")[0] or "manual")[:160]
+    ct = "application/pdf" if fname.lower().endswith(".pdf") else "text/uri-list"
+    doc = {
+        "id": str(uuid.uuid4()),
+        "organization_id": GLOBAL_ORG,
+        "is_global": True,
+        "is_url": True,
+        "manufacturer": manufacturer[:120],
+        "model": model[:120],
+        "make_model_key": _key(manufacturer, model),
+        "title": (title or fname or "Manual")[:200],
+        "filename": fname,
+        "content_type": ct,
+        "size_bytes": 0,
+        "sha256": hashlib.sha256(url.encode()).hexdigest(),
+        "content_fingerprint": None,
+        "source_url": url,
+        "storage": {"kind": "url", "url": url},
+        "linked_equipment_ids": [],
+        "cloned_from_global": None,
+        "uploaded_by": user.get("id"),
+        "uploaded_at": _now(),
+    }
+    await db.machine_manuals.insert_one(dict(doc))
+    return {"manual": _strip(doc), "reused": False}
 async def promote_to_global(manual_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Promote an org-uploaded manual into the platform-global library (clones
     it; the org's original copy is left untouched)."""

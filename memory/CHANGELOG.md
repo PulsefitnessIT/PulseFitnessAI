@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jul 6, 2026 — Machine manuals by URL (Master Admin → Catalogue & Library)
+- **Feature:** Master Admin can now register a platform-global machine manual by **URL** (e.g. a PDF hosted on pulsefitness.com) instead of uploading a file — saves storage and stays in sync when the source is updated (no re-upload).
+- **Backend (`routes/machine_manuals.py`):** new `POST /master-admin/machine-manuals/global/add-url` ({manufacturer, model, title, url}); stores `storage={kind:'url',url}`, `is_url`, top-level `source_url`. Validates http(s); de-dupes by (global make/model + URL). `download_manual` now 307-redirects URL manuals to the source. `_strip` exposes `is_url`/`source_url`. URL manuals cloned to orgs via the existing global-link flow retain their URL.
+- **Frontend (`MachineManualsDirectoryPanel.js`):** "…or add a manual by URL" row (input + Add URL), a green **URL** badge on URL-linked rows, and an external-link action that opens the source directly.
+- **Verified:** curl (create/dedup/invalid-400/307-redirect) + UI screenshot (URL row + badge render). Status: preview — REDEPLOY to push live.
+
+
 ## Jul 6, 2026 — Blog re-skinned to the Pulse Fitness brand (was legacy "gx"/Gymaxis chrome)
 - **Root cause:** `/blog` (BlogIndex) and `/blog/:slug` (BlogPost) rendered inside the legacy `MarketingShell` (the old "gx-" Gymaxis nav/footer), used the `gx-gradient-text` blue→purple gradient (off-brand "AI slop"), a gymaxis-gradient CTA, and non-Pulse fonts.
 - **Fix:** new reusable `frontend/src/pages/Marketing/PulseMarketingShell.js` wraps pages in the real pulsefitness.ai chrome — the black sticky `PulseHeader` (WHAT YOU CAN DO / AI / HOW IT WORKS / PLANS / SUPPORT + theme/EN/SIGN IN), `PulseFooter`, `LoginModal`, Proxima Nova via `PULSE_LANDING_CSS`, forced light theme. BlogIndex + BlogPost now use it.

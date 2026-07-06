@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
-import { FileText, Download, Trash2, Search, Loader2, Layers, Globe, UploadCloud } from 'lucide-react';
+import { FileText, Download, Trash2, Search, Loader2, Layers, Globe, UploadCloud, Link2, ExternalLink } from 'lucide-react';
 
 export default function MachineManualsDirectoryPanel() {
   const [manuals, setManuals] = useState([]);
@@ -15,7 +15,9 @@ export default function MachineManualsDirectoryPanel() {
   const [q, setQ] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [gForm, setGForm] = useState({ manufacturer: '', model: '', title: '' });
+  const [gUrl, setGUrl] = useState('');
   const [uploadingGlobal, setUploadingGlobal] = useState(false);
+  const [addingUrl, setAddingUrl] = useState(false);
   const gFileRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -36,6 +38,12 @@ export default function MachineManualsDirectoryPanel() {
   }, [manuals, q]);
 
   const download = async (m) => {
+    // URL-linked manuals live on an external source (e.g. pulsefitness.com) —
+    // open the link directly rather than proxying bytes through the API.
+    if (m.is_url && m.source_url) {
+      window.open(m.source_url, '_blank', 'noopener');
+      return;
+    }
     try {
       const r = await api.get(`/machine-manuals/${m.id}/download`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([r.data], { type: m.content_type || 'application/pdf' }));
@@ -81,6 +89,26 @@ export default function MachineManualsDirectoryPanel() {
     } finally { setUploadingGlobal(false); }
   };
 
+  const addGlobalUrl = async () => {
+    if (!gForm.manufacturer.trim() || !gForm.model.trim()) { notify.error('Enter a manufacturer and model first'); return; }
+    if (!/^https?:\/\//i.test(gUrl.trim())) { notify.error('Enter a valid manual URL (http:// or https://)'); return; }
+    setAddingUrl(true);
+    try {
+      const r = await api.post('/master-admin/machine-manuals/global/add-url', {
+        manufacturer: gForm.manufacturer.trim(),
+        model: gForm.model.trim(),
+        title: gForm.title.trim(),
+        url: gUrl.trim(),
+      });
+      notify.success(r.data?.reused ? 'That manual URL already exists' : 'Manual URL added to the global library');
+      setGForm({ manufacturer: '', model: '', title: '' });
+      setGUrl('');
+      await load();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Failed to add manual URL');
+    } finally { setAddingUrl(false); }
+  };
+
   return (
     <div className="space-y-4" data-testid="machine-manuals-directory">
       {/* Upload a platform-curated global manual */}
@@ -97,6 +125,26 @@ export default function MachineManualsDirectoryPanel() {
           <button onClick={() => gFileRef.current?.click()} disabled={uploadingGlobal} className="px-3 py-1.5 rounded-md text-sm font-medium bg-[var(--color-brand-blue)] text-white inline-flex items-center gap-1.5 disabled:opacity-60" data-testid="global-upload-btn">
             {uploadingGlobal ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />} Upload
           </button>
+        </div>
+        {/* Iter 279 — register a manual by URL (e.g. hosted on pulsefitness.com)
+            instead of uploading. Saves storage and stays in sync with source updates. */}
+        <div className="mt-2 pt-2 border-t border-[var(--theme-border)]">
+          <p className="text-xs text-[var(--color-text-muted)] mb-1.5 inline-flex items-center gap-1">
+            <Link2 size={12} /> …or add a manual by <strong>URL</strong> (e.g. hosted on pulsefitness.com) — no file stored, always current.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={gUrl}
+              onChange={(e) => setGUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addGlobalUrl(); }}
+              placeholder="https://pulsefitness.com/…/manual.pdf"
+              className="px-2.5 py-1.5 rounded-md border text-sm bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)] flex-1 min-w-[220px]"
+              data-testid="global-url-input"
+            />
+            <button onClick={addGlobalUrl} disabled={addingUrl} className="px-3 py-1.5 rounded-md text-sm font-medium border border-[var(--color-brand-blue)] text-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue)]/10 inline-flex items-center gap-1.5 disabled:opacity-60" data-testid="global-add-url-btn">
+              {addingUrl ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />} Add URL
+            </button>
+          </div>
         </div>
       </div>
 
@@ -145,6 +193,11 @@ export default function MachineManualsDirectoryPanel() {
                           <Globe size={9} /> Global
                         </span>
                       )}
+                      {m.is_url && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 shrink-0" data-testid={`directory-url-badge-${m.id}`}>
+                          <Link2 size={9} /> URL
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-[var(--color-text-muted)]">{m.manufacturer} · {m.model}</td>
@@ -158,7 +211,7 @@ export default function MachineManualsDirectoryPanel() {
                         {busyId === m.id ? <Loader2 size={12} className="animate-spin" /> : <Globe size={12} />} Make global
                       </button>
                     )}
-                    <button onClick={() => download(m)} className="h-7 w-7 rounded text-[var(--color-text-muted)] hover:text-[var(--theme-text)] inline-flex items-center justify-center" title="Open" data-testid={`directory-download-${m.id}`}><Download size={13} /></button>
+                    <button onClick={() => download(m)} className="h-7 w-7 rounded text-[var(--color-text-muted)] hover:text-[var(--theme-text)] inline-flex items-center justify-center" title={m.is_url ? 'Open manual URL' : 'Open'} data-testid={`directory-download-${m.id}`}>{m.is_url ? <ExternalLink size={13} /> : <Download size={13} />}</button>
                     <button onClick={() => remove(m)} className="h-7 w-7 rounded text-[var(--color-text-muted)] hover:text-red-500 inline-flex items-center justify-center" title="Delete" data-testid={`directory-delete-${m.id}`}><Trash2 size={13} /></button>
                   </td>
                 </tr>
