@@ -87,7 +87,7 @@ export function UploadQueueProvider({ children }) {
   const runTaskRaw = useCallback(async (taskId) => {
     const handler = handlersRef.current.get(taskId);
     if (!handler) return;
-    dispatch({ type: 'patch', id: taskId, patch: { status: STATUS.UPLOADING, progress: 0, error: null } });
+    dispatch({ type: 'patch', id: taskId, patch: { status: STATUS.UPLOADING, progress: 0, error: null, startedAt: Date.now() } });
     try {
       const file = handler.file;
       await handler.fn(file, (pct) => {
@@ -367,10 +367,30 @@ function UploadQueueDrawer() {
   );
 }
 
+function formatEta(seconds) {
+  const s = Math.max(1, Math.round(seconds));
+  if (s < 60) return `~${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem ? `~${m}m ${rem}s` : `~${m}m`;
+}
+
 function UploadTaskRow({ task, onRetry, onRemove }) {
   const isFailed = task.status === STATUS.FAILED;
   const isDone = task.status === STATUS.DONE;
   const isUploading = task.status === STATUS.UPLOADING;
+
+  // Iter 279 — surface a live "time left" estimate + percentage so
+  // operators uploading large equipment manuals can see how long the
+  // transfer will take (Craig: "add a timer or indicator of how long is
+  // left of the upload"). ETA = elapsed × (100 − pct) / pct.
+  const pct = Math.round(task.progress || 0);
+  let etaLabel = '';
+  if (isUploading && task.startedAt && pct > 2 && pct < 100) {
+    const elapsed = (Date.now() - task.startedAt) / 1000;
+    const remaining = (elapsed * (100 - pct)) / pct;
+    if (remaining > 0 && Number.isFinite(remaining)) etaLabel = `${formatEta(remaining)} left`;
+  }
 
   return (
     <div
@@ -391,15 +411,28 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
         {isFailed ? (
           <p className="text-[10px] text-red-500 truncate" title={task.error}>{task.error}</p>
         ) : (
-          <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border-soft, #F4F4F5)' }}>
-            <div
-              className="h-full transition-all"
-              style={{
-                width: `${task.progress || (isUploading ? 30 : 0)}%`,
-                background: isDone ? '#10B981' : 'var(--color-brand-cyan, #00D6E0)',
-              }}
-            />
-          </div>
+          <>
+            <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border-soft, #F4F4F5)' }}>
+              <div
+                className="h-full transition-all"
+                style={{
+                  width: `${task.progress || (isUploading ? 30 : 0)}%`,
+                  background: isDone ? '#10B981' : 'var(--color-brand-cyan, #00D6E0)',
+                }}
+              />
+            </div>
+            <p
+              className="text-[10px] mt-0.5 tabular-nums"
+              style={{ color: 'var(--theme-text-muted, #71717A)' }}
+              data-testid={`upload-task-progress-${task.id}`}
+            >
+              {isDone
+                ? 'Complete'
+                : isUploading
+                  ? `${pct}%${etaLabel ? ` · ${etaLabel}` : ''}`
+                  : 'Waiting…'}
+            </p>
+          </>
         )}
       </div>
       <div className="flex items-center gap-1 shrink-0">

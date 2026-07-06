@@ -14,7 +14,7 @@
  *   searchable. Files without it get a "Index" button that triggers
  *   extraction.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +54,15 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload, isPro
   // Iter 238 — translated category label (kebab-case id → snake_case key)
   const catLabel = (c) => t(`docs.cat_${c.id.replace(/-/g, '_')}`, c.label);
   const [activeDocTab, setActiveDocTab] = useState('manuals');
+  // Iter 279 — explicit "document type" picker for the upload action.
+  // Craig: "When uploading a document it automatically goes into General —
+  // we need to be able to choose what kind of document it is." The upload
+  // now sends whatever category the operator selects here (defaults to the
+  // active tab) rather than being tied to which tab happens to be open.
+  const [uploadCat, setUploadCat] = useState('manuals');
+  useEffect(() => {
+    if (activeDocTab && activeDocTab !== 'other') setUploadCat(activeDocTab);
+  }, [activeDocTab]);
   const [indexing, setIndexing] = useState({}); // { [fileId]: bool }
   // Iter 216h49 — drag-and-drop dropzone matching the spec-sheet pattern.
   // `dragOver` flips the dropzone styling; the dragenter/over/leave/drop
@@ -202,21 +211,37 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload, isPro
           </p>
         </div>
         {onUpload && activeSection.id !== 'other' ? (
-          <label className="cursor-pointer" data-testid={`doc-upload-label-${activeSection.id}`}>
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => onUpload(e, activeSection.id)}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
-              data-testid="doc-upload-input"
-            />
-            <span
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold cursor-pointer transition-opacity hover:opacity-90"
-              style={{ background: 'var(--color-brand-blue)', color: '#fff' }}
+          <div className="flex items-center gap-2">
+            <label className="sr-only" htmlFor="doc-upload-category">Document type</label>
+            <select
+              id="doc-upload-category"
+              value={uploadCat}
+              onChange={(e) => setUploadCat(e.target.value)}
+              className="text-xs px-2 py-1.5 rounded-md border cursor-pointer focus:outline-none"
+              style={{ background: 'var(--theme-surface-2)', color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}
+              data-testid="doc-upload-category-select"
+              title="Choose the document type this file will be filed under"
             >
-              <Upload size={12} /> {t('docs.upload_to', 'Upload to')} {catLabel(activeSection)}
-            </span>
-          </label>
+              {CATEGORY_MAP.map((c) => (
+                <option key={c.id} value={c.id}>{catLabel(c)}</option>
+              ))}
+            </select>
+            <label className="cursor-pointer" data-testid={`doc-upload-label-${uploadCat}`}>
+              <input
+                type="file"
+                className="hidden"
+                onChange={(e) => onUpload(e, uploadCat)}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+                data-testid="doc-upload-input"
+              />
+              <span
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap"
+                style={{ background: 'var(--color-brand-blue)', color: '#fff' }}
+              >
+                <Upload size={12} /> {t('docs.upload_to', 'Upload to')} {catLabel(CATEGORY_MAP.find((c) => c.id === uploadCat) || activeSection)}
+              </span>
+            </label>
+          </div>
         ) : null}
       </div>
 

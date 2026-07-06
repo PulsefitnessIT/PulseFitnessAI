@@ -413,8 +413,57 @@ async def _lookup_user_by_identifier(identifier: str) -> dict | None:
     """
     pattern = {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}
     if "@" in identifier:
-        return await db.users.find_one({"email": pattern}, {"_id": 0})
+        user = await db.users.find_one({"email": pattern}, {"_id": 0})
+        if user:
+            return user
+        # Iter 279 — cross-collection fallback. Accounts created by Master
+        # Admin in a CRM-capable org (e.g. Pulse Fitness) can exist ONLY in
+        # `crm_users`. Standard login previously reported "unknown user" for
+        # them (the CRM login already does the reverse fallback). Both
+        # collections use identical bcrypt hashing, so the password verifies
+        # unchanged. Flag the source so login() can self-heal a `users` row.
+        crm_user = await db.crm_users.find_one({"email": pattern}, {"_id": 0})
+        if crm_user:
+            crm_user["_from_crm"] = True
+        return crm_user
     return await db.users.find_one({"username": pattern}, {"_id": 0})
+
+
+async def _mirror_crm_user_to_users(crm_user: dict, plaintext_password: str) -> dict:
+    """Iter 279 — promote a CRM-only account into the service-portal `users`
+    collection on first standard-portal login, so every downstream operator
+    / session / audit flow has a canonical `users` row. Mirrors the reverse
+    self-heal that `routes/crm_auth.crm_login` already performs. Idempotent:
+    returns the existing `users` row if one is already present."""
+    existing = await db.users.find_one({"id": crm_user["id"]}, {"_id": 0})
+    if not existing:
+        email_lc = (crm_user.get("email") or "").lower()
+        existing = await db.users.find_one(
+            {"email": {"$regex": f"^{re.escape(email_lc)}$", "$options": "i"}},
+            {"_id": 0},
+        )
+    if existing:
+        return existing
+    org = await db.organizations.find_one(
+        {"id": crm_user.get("organization_id")}, {"_id": 0, "account_type": 1},
+    ) or {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+    mirrored = {
+        "id": crm_user["id"],
+        "email": (crm_user.get("email") or "").lower(),
+        "full_name": crm_user.get("full_name") or crm_user.get("name") or "",
+        "password": hash_password(plaintext_password),
+        "organization_id": crm_user.get("organization_id"),
+        "role": crm_user.get("role") or "staff",
+        "account_type": org.get("account_type", "full"),
+        "avatar_url": crm_user.get("avatar_url"),
+        "created_at": crm_user.get("created_at") or now_iso,
+        "password_updated_at": now_iso,
+        "cross_login_provisioned": True,
+        "mirrored_from_crm_at": now_iso,
+    }
+    await db.users.insert_one(dict(mirrored))
+    return mirrored
 
 
 def _enforce_account_status(user: dict) -> None:
@@ -582,6 +631,12 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
         )
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    # Iter 279 — self-heal a CRM-only account into the service-portal
+    # `users` collection on first standard-portal login (password already
+    # verified above). Downstream flows then operate on a canonical row.
+    if user.get("_from_crm"):
+        user = await _mirror_crm_user_to_users(user, credentials.password)
+
     # 3. Account-state checks.
     try:
         _enforce_account_status(user)
@@ -746,6 +801,16 @@ async def forgot_password(body: dict, request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Email is required")
 
     user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1})
+    # Iter 279 — a Master-Admin-created account in a CRM-capable org can
+    # live ONLY in `crm_users`. Without this fallback the reset link was
+    # never issued for them (silent success → "set password link didn't
+    # work"). Match case-insensitively to be safe.
+    if not user:
+        pattern = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+        user = await db.crm_users.find_one(
+            {"email": pattern},
+            {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1},
+        )
 
     # Always return success to prevent email enumeration
     if not user:
@@ -806,13 +871,32 @@ async def reset_password(body: dict, request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Reset token has expired")
 
     hashed = hash_password(new_password)
-    await db.users.update_one(
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # Iter 279 — update the password in BOTH collections keyed by user_id.
+    # CRM-only accounts (created by Master Admin in a CRM-capable org) have
+    # no `users` row until first login, so a `users`-only update silently
+    # did nothing — which is exactly why the emailed reset link "didn't
+    # work" for them. Both collections use identical bcrypt hashing.
+    users_res = await db.users.update_one(
         {"id": reset_doc["user_id"]},
         {"$set": {
             "password": hashed,
-            "password_updated_at": datetime.now(timezone.utc).isoformat(),
+            "password_updated_at": now_iso,
         }},
     )
+    crm_res = await db.crm_users.update_one(
+        {"id": reset_doc["user_id"]},
+        {"$set": {
+            "password": hashed,
+            "password_updated_at": now_iso,
+            "cross_login_provisioned": True,
+        }},
+    )
+    if users_res.matched_count == 0 and crm_res.matched_count == 0:
+        logger.warning(
+            "[PASSWORD RESET] Token valid but no user row found for user_id=%s",
+            reset_doc.get("user_id"),
+        )
     await db.password_reset_tokens.update_one({"token": token}, {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}})
 
     # Iter 216h29 — auto-archive every other still-unused invite token
