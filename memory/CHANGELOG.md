@@ -1,6 +1,22 @@
 # Changelog
 
 
+## Jul 6, 2026 — P0 "Unknown user" login fixed (CRM-only accounts) + Pulse Pro Documents: type picker & upload ETA
+- **Reported (production pulsefitness.ai):** manager Robert Buckley (robert.buckley@pulsefitness.com), created in Master Admin for the CRM-capable "Pulse Fitness Ltd" org, failed standard portal login with "No account matched that email/username", and the set-password/reset link "didn't work".
+- **Root cause:** Master-Admin-created users in a CRM-capable org are stored ONLY in `db.crm_users`. Standard `POST /api/auth/login`, `/auth/forgot-password` and `/auth/reset-password` all queried `db.users` exclusively (the CRM login already did the reverse fallback), so such accounts were "unknown" and the emailed reset silently updated nothing.
+- **Fix (routes/auth.py — consulted integration_expert first; both collections use identical bcrypt):**
+  - `_lookup_user_by_identifier` now falls back to `crm_users` (case-insensitive) when the email isn't in `users`.
+  - On first standard-portal login, `_mirror_crm_user_to_users` self-heals a canonical `users` row (same id, role/org preserved, current password hash).
+  - `forgot_password` also looks up `crm_users`; `reset_password` updates BOTH collections by `user_id`.
+  - No security weakening: non-existent email and wrong password still 401.
+- **P1 Documents (Pulse Pro/Lite — `LiteDocumentsTab.js` + shared `UploadQueue.js`):**
+  - Added an explicit **document-type dropdown** (`doc-upload-category-select`, 8 categories incl General) so uploads file under the chosen type instead of defaulting to the active tab/General.
+  - Upload drawer now shows **percentage + estimated time remaining** (`~Xs left`) per file, then "Complete".
+- **Verified:** scripts/verify_crm_login_fix.py (login/mirror/forgot/reset/login-after-reset all pass) + master-admin regression; testing agent **9/9 backend, 100% frontend, zero issues** — `/app/test_reports/iteration_crm_only_login_p1_docs_jan2026.json`. Seeds: `seed_crm_only_login_demo.py`, `seed_lite_docs_demo.py`.
+- **Status:** fix in preview — REDEPLOY to push to production.
+
+
+
 ## Jul 3, 2026 — Sign-in: added the missing "Forgot password?" flow (frontend gap)
 - **Reported (production pulsefitness.ai):** the Pulse portal sign-in modal had no "Forgot password?" option. **Root cause:** the modal had no link at all, AND `/reset-password` only handled the `?token=` case (set-new-password) — with NO token it dead-ended on an "Invalid Reset Link" screen. So there was NO UI anywhere to *request* a reset email; the backend `POST /api/auth/forgot-password` (already present, rate-limited, anti-enumeration) had zero frontend callers. The existing "Forgot password?" link on `/login` therefore also dead-ended.
 - **Fix (frontend only — backend auth endpoints unchanged):**
