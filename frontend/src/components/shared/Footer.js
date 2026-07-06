@@ -36,6 +36,7 @@ const Footer = () => {
             <div className="space-y-2">
               <FooterLink to="/about" style={{ color: 'var(--theme-text-muted)' }}>{t('footer.about')}</FooterLink>
               <FooterLink to="/pricing" style={{ color: 'var(--theme-text-muted)' }}>{t('nav.pricing')}</FooterLink>
+              <FooterLink to="/blog" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-blog-link">{t('footer.blog', 'Blog')}</FooterLink>
               <FooterLink to="/contact" style={{ color: 'var(--theme-text-muted)' }}>{t('nav.contact')}</FooterLink>
             </div>
           </div>

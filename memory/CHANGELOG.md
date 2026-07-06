@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 6, 2026 — SEO Autopilot reactivated + on-brand fixes + Blog link in site footer
+- **Blog link in footer:** added a **Blog** entry (→ `/blog`) to the COMPANY column of the main-site footer `PulseFooter` (`PulseLandingPage.js`) — the `Col` renderer now treats internal routes (same-tab) vs external links (new tab) correctly. Also added Blog to the shared marketing `Footer.js` (About/Pricing/**Blog**/Contact). testids: `pulse-footer-blog-link`, `footer-blog-link`.
+- **Blogs on-brand for Pulse Fitness:** `routes/marketing/seo_autopilot.py` — rewrote the self-contradictory `DEFAULT_BRAND_BLURB` (it previously told the LLM to "not invent pulsefitness.ai" while pulsefitness.ai IS the canonical domain) into clean Pulse Fitness guidance that forbids the legacy "gymaxis/gym-axis" name. Fixed `_BAD_DOMAINS` which wrongly listed the canonical `pulsefitness.ai` (scrubbing it against itself); it now only rewrites genuine legacy domains. Scrub runs across title/excerpt/body/meta/FAQ/social.
+- **SEO Autopilot reactivated:** set `seo_autopilot_config.enabled=true` (PUT /api/marketing/seo/autopilot/config) — status confirms enabled, ran_today, hour_uk=9. Config is DB-backed **per environment**.
+- **Verified:** scrub keeps pulsefitness.ai + rewrites gymaxis→pulsefitness.ai; footer Blog link renders and `/blog` loads "The Pulse Fitness Blog" with 18 on-brand posts (no gymaxis). 15 published articles.
+- **Status:** in preview — REDEPLOY to push footer + brand fixes. ⚠️ To reactivate autopilot on PRODUCTION (separate DB), toggle it ON in Master Admin → SEO Autopilot after redeploy (or it defaults ON if never configured).
+
+
 ## Jul 6, 2026 — 3 production fixes: master-admin login wait, module toggles not persisting, Pulse Ltd users forced to CRM-only
 - **(1) Master admin no longer rate-limited on login.** `routes/auth.py login()` now detects the master-admin email (`MASTER_ADMIN_EMAIL`) and skips the strict 5/5-min IP gate + account lockout, using a generous 60/5-min bucket instead. Still records failed-login audit and still requires the correct password/MFA. Non-master accounts remain limited (429 after 5).
 - **(2) Org module toggles now persist.** Root cause: legacy orgs stored `modules` as bare booleans (`{operations:true}`); toggling one made `PUT /master-admin/organizations/{id}/features` **500** (`'bool' object has no attribute 'get'`) so the switch silently reverted, and bool entries were dropped from `enabled_modules`. Fix: `routes/master_admin_orgs.py update_org_features()` normalizes legacy boolean module values → `{enabled,tier}` before merging.

@@ -68,13 +68,15 @@ DEFAULT_TONE = (
 DEFAULT_BRAND_BLURB = (
     "Pulse Fitness is an operations + CRM platform for gyms and fitness "
     "operators — service-desk, equipment downtime tracking, member "
-    "lifecycle CRM, and a Partner Engineer network of vetted "
-    "field engineers. The canonical brand URL is "
-    "https://pulsefitness.ai — NEVER use any other domain (in particular "
-    "do not invent 'pulsefitness.ai', 'gym-axis.com', 'gymaxis.co.uk' or "
-    "similar). The marketing site lives at https://pulsefitness.ai, "
-    "the app at https://pulsefitness.ai, and the demo-request "
-    "landing page at https://pulsefitness.ai/demo-request."
+    "lifecycle CRM, and a Partner Engineer network of vetted field "
+    "engineers. Always refer to the brand as 'Pulse Fitness' (never "
+    "'Gymaxis' or 'Gym-Axis' — that is a former name and must NEVER "
+    "appear anywhere in the article). The ONLY valid domain is "
+    "pulsefitness.ai: the marketing site is https://pulsefitness.ai, the "
+    "app is https://pulsefitness.ai, and the demo-request landing page is "
+    "https://pulsefitness.ai/demo-request. Never use any other domain — in "
+    "particular never write gymaxis.co.uk, gym-axis.com, or any "
+    "'gymaxis' / 'gym-axis' variant."
 )
 GYMAXIS_DOMAIN = "pulsefitness.ai"
 GYMAXIS_BASE_URL = "https://pulsefitness.ai"
@@ -86,14 +88,23 @@ TARGET_WORDS = 1500
 # "gym-axis.com" / "gymaxis.co.uk". Rewrite any such mention to the
 # canonical ``pulsefitness.ai``. Operates on Markdown + plain text;
 # preserves the path / fragment portion of the URL where present.
+# Iter 279 — domain-scrub safety net. Even with strong prompt constraints
+# the LLM occasionally hallucinates a legacy "gymaxis" / "gym-axis" domain
+# (the product's former name). Rewrite any such mention to the canonical
+# ``pulsefitness.ai``. NOTE: pulsefitness.ai must NOT be in this list — it
+# is the canonical domain (a previous version wrongly scrubbed it against
+# itself). Operates on Markdown + plain text.
 _BAD_DOMAINS = (
-    "pulsefitness.ai",
     "gym-axis.io",
     "gym-axis.com",
+    "gym-axis.co.uk",
+    "gym-axis.co",
     "gymaxis.co.uk",
+    "gymaxis.com",
     "gymaxis.co",
     "gymaxis.net",
     "gymaxis.app",
+    "gymaxis.io",
 )
 
 

@@ -1557,6 +1557,7 @@ export function PulseFooter() {
     ['Retired Products', 'https://pulsefitness.com/retired-products/'],
   ];
   const COMPANY = [
+    ['Blog', '/blog'],
     ['Careers', 'https://pulsefitness.com/careers/'],
     ['Case Studies', 'https://pulsefitness.com/case-studies/'],
     ['Contact', 'https://pulsefitness.com/contact/'],
@@ -1585,9 +1586,21 @@ export function PulseFooter() {
     <div>
       <h4 className={headCls}>{title}</h4>
       <ul className="space-y-1.5 mt-4">
-        {items.map(([label, href]) => (
-          <li key={label}><a href={href} target="_blank" rel="noopener noreferrer" className={linkCls}>{label}</a></li>
-        ))}
+        {items.map(([label, href]) => {
+          const external = /^https?:\/\//i.test(href);
+          return (
+            <li key={label}>
+              <a
+                href={href}
+                {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className={linkCls}
+                data-testid={label === 'Blog' ? 'pulse-footer-blog-link' : undefined}
+              >
+                {label}
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
