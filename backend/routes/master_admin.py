@@ -380,8 +380,31 @@ async def _create_org_user(org: dict, email: str, full_name: str, password: str,
     """
     now = datetime.now(timezone.utc).isoformat()
     portal_type = org.get("portal_type", "service_portal")
-    is_crm = portal_type in ("crm", "both")
-    is_sp = portal_type in ("service_portal", "both")
+    # Iter 279 — derive the target collection(s) from the org's ACTUAL enabled
+    # modules, not just the legacy `portal_type` field (which drifts stale —
+    # e.g. Pulse Fitness Ltd had portal_type="crm" while running Operations,
+    # so every Master-Admin-created user landed ONLY in crm_users and couldn't
+    # sign into the operator portal). Handles both structured and legacy
+    # boolean module storage.
+    modules = org.get("modules") or {}
+    enabled_list = org.get("enabled_modules")
+    if not enabled_list:
+        enabled_list = [
+            k for k, v in modules.items()
+            if (v.get("enabled") if isinstance(v, dict) else bool(v))
+        ]
+    enabled_set = set(enabled_list or [])
+    _SP_MODULES = {"operations", "memberships", "marketing", "staffing", "reporting"}
+    has_sp_module = bool(enabled_set & _SP_MODULES)
+    has_crm_module = "crm" in enabled_set
+    # Fall back to legacy portal_type only when the org has no module info.
+    is_crm = has_crm_module or (not enabled_set and portal_type in ("crm", "both"))
+    is_sp = has_sp_module or (not enabled_set and portal_type in ("service_portal", "both"))
+    # Guarantee a service-portal row so a created user can always sign into
+    # the standard portal (Craig: "any user created within Master Admin should
+    # automatically be able to use the portal — not just added to CRM").
+    if not is_sp and not is_crm:
+        is_sp = True
 
     if is_crm:
         from routes.crm_auth import crm_hash_password

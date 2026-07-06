@@ -419,6 +419,16 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "modules": 1, "account_type": 1, "is_mod": 1})
     old_features = (org or {}).get("features") or {}
     old_modules = (org or {}).get("modules") or {}
+    # Iter 279 — coerce any LEGACY boolean module values ({"operations": true})
+    # into the structured {"enabled": bool, "tier": …} form BEFORE merging.
+    # Orgs created before the module matrix existed still store bare booleans;
+    # toggling one used to 500 (`'bool' object has no attribute 'get'`) so the
+    # switch silently reverted in the UI, and bool entries were also dropped
+    # from the recomputed `enabled_modules` array.
+    old_modules = {
+        k: (v if isinstance(v, dict) else {"enabled": bool(v), "tier": "pro"})
+        for k, v in old_modules.items()
+    }
     is_lite = (org or {}).get("account_type") == "lite"
     # MOD organisations run the Operations portal ONLY — CRM / Memberships /
     # Marketing can never be enabled for them (mirrors the create-org lock).

@@ -14,7 +14,7 @@ from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
     rate_limit_login, rate_limit_password_reset, validate_password_strength,
     check_account_lockout, record_failed_login, clear_failed_logins,
-    sanitise_string,
+    sanitise_string, rate_limit, _client_ip,
 )
 from models.schemas import UserRegister, UserLogin, InviteStaff
 
@@ -591,23 +591,37 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
 @router.post("/auth/login")
 async def login(credentials: UserLogin, request: Request, response: Response) -> dict:
     """Login orchestrator — see helpers above for each phase."""
+    # Iter 279 — the single master-admin account must never be blocked by the
+    # strict 5-per-5-min IP gate or the account-lockout counter (Craig: "a
+    # master admin shouldn't have to wait to log in"). We still record failed
+    # attempts for audit and still require the correct password / MFA, and we
+    # keep a GENEROUS ceiling so the privileged account isn't a free
+    # brute-force target.
+    import os
+    _master_email = (os.environ.get("MASTER_ADMIN_EMAIL", "") or "").strip().lower()
+    is_master_login = bool(_master_email) and (credentials.email or "").strip().lower() == _master_email
+
     # 1. Anti-abuse gates. Wrap both so a thrown lockout/rate-limit is
     # itself an auditable event (Iter 216h210 — Craig saw "3 failed
     # logins" but no rows when the account had hit the lockout).
     try:
-        rate_limit_login(request)
+        if is_master_login:
+            rate_limit(f"login-master:{_client_ip(request)}", max_requests=60, window_seconds=300)
+        else:
+            rate_limit_login(request)
     except HTTPException:
         await _record_failed_login_with_trust(
             credentials.email, request, reason="rate_limited",
         )
         raise
-    try:
-        check_account_lockout(credentials.email)
-    except HTTPException:
-        await _record_failed_login_with_trust(
-            credentials.email, request, reason="account_locked",
-        )
-        raise
+    if not is_master_login:
+        try:
+            check_account_lockout(credentials.email)
+        except HTTPException:
+            await _record_failed_login_with_trust(
+                credentials.email, request, reason="account_locked",
+            )
+            raise
     from utils.captcha import verify_captcha
     await verify_captcha(request.headers.get("x-captcha-token"), action="login")
 
