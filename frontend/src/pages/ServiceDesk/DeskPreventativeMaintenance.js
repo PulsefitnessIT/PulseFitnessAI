@@ -2,7 +2,8 @@
  * Service Desk → Preventative Maintenance
  *
  * Operators schedule recurring PM visits per piece of customer equipment
- * (quarterly / 6-monthly / annual). Schedules flow through to the
+ * (weekly / fortnightly / monthly / quarterly / 6-monthly / annual). Schedules
+ * flow through to the
  * Operations portal's Preventative Maintenance page automatically. When a
  * PM falls due, the operator confirms it to spawn the engineer job.
  */
@@ -11,7 +12,7 @@ import { CalendarClock, Plus, Trash2, CheckCircle2, Loader2, Wrench, AlertTriang
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
 
-const FREQ_LABEL = { quarterly: 'Quarterly', biannual: '6-monthly', annual: 'Annual' };
+const FREQ_LABEL = { weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly', quarterly: 'Quarterly', biannual: '6-monthly', annual: 'Annual' };
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -208,6 +209,9 @@ function AddPmModal({ equipment, existing, onClose, onCreated }) {
           <div>
             <label className="block text-xs font-semibold text-zinc-500 mb-1">Frequency</label>
             <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm" data-testid="pm-frequency-select">
+              <option value="weekly">Weekly</option>
+              <option value="fortnightly">Fortnightly</option>
+              <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly</option>
               <option value="biannual">6-monthly</option>
               <option value="annual">Annual</option>

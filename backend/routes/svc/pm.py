@@ -7,7 +7,8 @@ Preventative Maintenance page automatically (both read the same
 org-scoped collection). Where the customer is linked to a separate
 Operations org, the schedule is mirrored there too.
 
-Frequencies: quarterly (3mo) · biannual / 6-monthly (6mo) · annual (12mo).
+Frequencies: weekly (1w) · monthly (1mo) · quarterly (3mo) ·
+biannual / 6-monthly (6mo) · annual (12mo).
 
 When a PM falls due the operator CONFIRMS it, which spawns a real
 engineer job (``svc_cases`` of ``case_type="ppm"``) scheduled for the
@@ -30,6 +31,9 @@ router = APIRouter(prefix="/svc/pm", tags=["Service Ops · Preventative Maintena
 
 # Frequency → calendar delta. Accepts a couple of friendly aliases.
 _FREQ = {
+    "weekly": relativedelta(weeks=1),
+    "fortnightly": relativedelta(weeks=2),
+    "monthly": relativedelta(months=1),
     "quarterly": relativedelta(months=3),
     "biannual": relativedelta(months=6),
     "6_monthly": relativedelta(months=6),
@@ -37,6 +41,7 @@ _FREQ = {
     "annual": relativedelta(months=12),
 }
 _FREQ_CANON = {"6_monthly": "biannual", "6month": "biannual"}
+_VALID_FREQ = ("weekly", "fortnightly", "monthly", "quarterly", "biannual", "annual")
 
 
 def _now() -> str:
@@ -57,8 +62,8 @@ def _of(user: dict) -> dict:
 def _canon_freq(freq: str) -> str:
     f = (freq or "annual").strip().lower()
     f = _FREQ_CANON.get(f, f)
-    if f not in ("quarterly", "biannual", "annual"):
-        raise HTTPException(400, "frequency must be quarterly, biannual or annual")
+    if f not in _VALID_FREQ:
+        raise HTTPException(400, "frequency must be weekly, fortnightly, monthly, quarterly, biannual or annual")
     return f
 
 

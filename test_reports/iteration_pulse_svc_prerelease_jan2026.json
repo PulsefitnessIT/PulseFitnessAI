@@ -1,0 +1,36 @@
+{
+  "summary": "Pre-release Service Desk verification: PM frequency extension, Master Admin customers console, and Lifecycle 404-not-500. All 10 backend tests PASS and frontend PM dropdown shows the exact 6 expected options in the required order.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Schedule PM modal (/service-desk maintenance)", "issues": [
+        "Frequency uses native <select> (not shadcn Select) — inconsistent with design system but functionally correct.",
+        "'Next PM date' and 'Previous PM' fields use browser-native date pickers (mm/dd/yyyy) instead of the shadcn calendar component.",
+        "Modal has only a Cancel button visible — no Save/Schedule submit button until an equipment is chosen (verify this is intentional gating vs. missing button)."
+      ]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_svc_pm_and_master.py",
+    "/app/test_reports/pytest/pm_master.xml"
+  ],
+  "action_items": [
+    "Optional: replace native select/date inputs in Schedule PM modal with shadcn equivalents for consistency.",
+    "Verify Schedule PM submit button behaviour when Equipment is chosen (out of scope for this pre-release check)."
+  ],
+  "critical_code_review_comments": [
+    "PM frequency validation (_canon_freq) correctly accepts weekly/fortnightly/monthly/quarterly/biannual/annual and rejects 'daily' with 400 including 'frequency' error message.",
+    "Master Admin service-desk customers endpoint enforces role check (403 for non-master) and returns all 5 seeded SDDEMO_ orgs with summary.total>=5.",
+    "Lifecycle endpoint correctly returns 404 (not 500) for cases not owned by requesting org — org isolation is enforced."
+  ],
+  "updated_files": ["/app/backend/tests/test_svc_pm_and_master.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (PM dropdown verified)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  and  admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg — both valid.",
+  "seed_data_creation": "None. Existing SDDEMO_ seed preserved and verified (5 orgs, SDDEMO_case_LIFECYCLE).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression file /app/backend/tests/test_svc_pm_and_master.py covers PM frequency validation, Master Admin customer console (both admin 200 and owner 403), and Lifecycle 404-for-non-owner. Run via `cd /app/backend && pytest tests/test_svc_pm_and_master.py -v`. Frontend PM dropdown verified via data-testid=pm-frequency-select — options came back exactly ['Weekly','Fortnightly','Monthly','Quarterly','6-monthly','Annual']. Landing page requires clicking a 'Sign in' button to open a login modal; email input has no type=email, use placeholder selector.",
+  "rca_of_the_issue": "N/A — this was a pre-release verification, no bugs found."
+}
