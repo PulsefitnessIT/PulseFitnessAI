@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 6, 2026 — 3 production fixes: master-admin login wait, module toggles not persisting, Pulse Ltd users forced to CRM-only
+- **(1) Master admin no longer rate-limited on login.** `routes/auth.py login()` now detects the master-admin email (`MASTER_ADMIN_EMAIL`) and skips the strict 5/5-min IP gate + account lockout, using a generous 60/5-min bucket instead. Still records failed-login audit and still requires the correct password/MFA. Non-master accounts remain limited (429 after 5).
+- **(2) Org module toggles now persist.** Root cause: legacy orgs stored `modules` as bare booleans (`{operations:true}`); toggling one made `PUT /master-admin/organizations/{id}/features` **500** (`'bool' object has no attribute 'get'`) so the switch silently reverted, and bool entries were dropped from `enabled_modules`. Fix: `routes/master_admin_orgs.py update_org_features()` normalizes legacy boolean module values → `{enabled,tier}` before merging.
+- **(3) Master-Admin-created users for Pulse Fitness Ltd now get operator-portal access.** Root cause: `_create_org_user` routed by a STALE `portal_type='crm'` → users landed only in `crm_users`. Fix (`routes/master_admin.py`): derive target collection(s) from the org's ACTUAL enabled modules (operations/memberships/marketing/staffing/reporting → service portal `users`; crm → `crm_users`), falling back to portal_type only when no module info; always guarantees a `users` row.
+- **Verified:** curl + testing agent — **100% backend, 100% frontend, zero issues** (`/app/test_reports/iteration_master_admin_fixes_jan2026.json`; regression suite `/app/backend/tests/test_master_admin_fixes_jan2026.py`). Master: 8 wrong attempts all 401 (no 429), correct → 200; non-master → 429 after 5. Legacy-bool toggle → 200 + normalized. Operator-org user → `db.users`. UI: Memberships + CRM toggles persist after reload.
+- **Status:** in preview — REDEPLOY to push to production. Note: existing Pulse Ltd users already stuck in crm_users are handled by the earlier CRM login-fallback + the "Repair login access" button; the module normalization heals an org lazily on its next feature save.
+
+
 ## Jul 6, 2026 — P0 "Unknown user" login fixed (CRM-only accounts) + Pulse Pro Documents: type picker & upload ETA
 - **Reported (production pulsefitness.ai):** manager Robert Buckley (robert.buckley@pulsefitness.com), created in Master Admin for the CRM-capable "Pulse Fitness Ltd" org, failed standard portal login with "No account matched that email/username", and the set-password/reset link "didn't work".
 - **Root cause:** Master-Admin-created users in a CRM-capable org are stored ONLY in `db.crm_users`. Standard `POST /api/auth/login`, `/auth/forgot-password` and `/auth/reset-password` all queried `db.users` exclusively (the CRM login already did the reverse fallback), so such accounts were "unknown" and the emailed reset silently updated nothing.
