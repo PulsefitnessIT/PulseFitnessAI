@@ -1,0 +1,33 @@
+{
+  "summary": "Iter 292 GymAxis→Pulse Fitness port regression. Backend pytest 18/18 passing across PM (list/create/invalid-freq/due/confirm), Orbit 4 (get/put/activity/engineer-map + token redaction verified — plaintext api_token never in response), case lifecycle (404 on missing + 200 timeline on real case with 'stages'/'summary'/'cost'/'labour_hours' fields), master-admin service-desk customers (200 for master, 403 for owner), and branding scrub (no 'gymaxis'/'gym-axis' in any of the 5 ported endpoint response bodies). Frontend verified end-to-end on rbac-modules.preview: /service-desk with owner@isodemo shows new 'Maintenance' and 'Integrations' tabs — Preventative Maintenance page renders with 'Schedule PM' CTA, Integrations page shows Orbit 4 setup wizard (webhook URL, secret, API token, ticket URL, Save/Test connection, Cases/engineer mapping panels). Opening a real svc_case drawer exposes the new 'Lifecycle' tab which renders the cost-to-serve timeline (Asset → Fault logged → Engineer dispatched → On-site & labour → Parts fitted → Resolved → Invoiced → Paid). Master admin → Platform Tools → 'Service Desk customers' tab renders the SD-customers console with KPI cards + segment tabs + customer table (empty in preview: 0 service_provider orgs). No visible 'GymAxis'/'Gym-Axis' text anywhere in the ported UIs; 'Pulse Fitness' branding is prominent (42 occurrences on master-admin overview).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pulse_gymaxis_port_iter292.py",
+    "/app/test_reports/pytest/pulse_gymaxis_port_iter292.xml"
+  ],
+  "action_items": [
+    "Sidebar 'Global Dashboard' entry still has data-testid=\"portal-switch-gymaxis\" — not user-visible but a lingering GymAxis reference in HTML source (grep 'gymaxis' in MasterAdmin/SidebarConfig or portal switcher). Rename to portal-switch-global-dashboard for full scrub.",
+    "Spec mentioned PM frequency should include daily/weekly/monthly/quarterly/yearly, but backend routes/svc/pm.py only accepts quarterly/biannual/annual — payloads with any of {daily,weekly,monthly,yearly} return 400. Confirm this is the intended scope or extend _FREQ map.",
+    "Reference spec said master-admin panel is a sidebar section with id 'service-desk-customers' — in reality it's a TAB inside Platform Tools (correctly named 'Service Desk customers'). Not a bug, just a doc mismatch."
+  ],
+  "critical_code_review_comments": [
+    "svc/orbit4.py _public_view correctly runs through redact_secrets_in_dict; confirmed plaintext api_token never leaks in PUT or GET responses.",
+    "master_admin_service_desk.py: require_master_admin imported inside handler — fine, but calling it via `require_master_admin(user)` from a dep that already resolved user is OK; consider promoting to Depends for consistency with other master-admin routes.",
+    "svc/pm.py invalid-frequency returns 400 with clear message — good UX; frontend should hide daily/weekly/monthly/yearly options accordingly if any exist.",
+    "MasterAdmin sidebar testid 'portal-switch-gymaxis' remains — cosmetic legacy identifier."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pulse_gymaxis_port_iter292.py"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% (all ported flows render + integrate)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (master); owner@isodemo.com / IsoDemo123! (service desk owner — flipped is_service_desk=true via mongo in fixture).",
+  "seed_data_creation": "Seeded (idempotent, teardown-safe): equipment doc id=TEST_eq_iter292 and svc_cases doc id=TEST_case_iter292 both scoped to organization_id='iso-demo-org'. PM schedule & task cleaned up on module teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression at /app/backend/tests/test_pulse_gymaxis_port_iter292.py. Fixtures rely on MONGO_URL/DB_NAME from backend/.env — always `set -a && . ./.env && set +a` before pytest. owner@isodemo needs is_service_desk=true; fixture patches it. Master-admin 'Service Desk customers' is a TAB inside Platform Tools (not a sidebar section)."
+}

@@ -89,6 +89,10 @@ from routes.partners import router as partners_router
 from routes.svc.cases import router as svc_cases_router
 from routes.svc.intake import router as svc_intake_router
 from routes.svc.desk import router as svc_desk_router
+# Iter 292 — GymAxis parity port: Preventative Maintenance + Master-Admin service-desk console
+from routes.svc.pm import router as svc_pm_router
+from routes.svc.orbit4 import router as svc_orbit4_router
+from routes.master_admin_service_desk import router as master_admin_service_desk_router
 # Iter 215dp — Phase 2 Engineer Mobile API
 from routes.svc.engineer import router as svc_engineer_router
 from routes.svc.engineers_admin import router as svc_engineers_admin_router
@@ -296,6 +300,8 @@ _UNGATED_ROUTERS = (
     member_app_builder_router,
     # Iter 215dn — Service Ops native routers
     svc_cases_router, svc_intake_router, svc_desk_router,
+    # Iter 292 — GymAxis parity: PM scheduling + Master-Admin desk console
+    svc_pm_router, master_admin_service_desk_router, svc_orbit4_router,
     # Iter 215dp — Phase 2 Engineer Mobile
     svc_engineer_router, svc_engineers_admin_router,
     # Iter 216h129 — Engineer Quote Builder + PDF + Email

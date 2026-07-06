@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, TrendingDown, ScrollText, Loader2,
-  ShieldCheck, Menu, X, BarChart3, UploadCloud, Wallet,
+  ShieldCheck, Menu, X, BarChart3, UploadCloud, Wallet, CalendarClock, Cable,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,9 @@ const DeskImports = lazy(() => import('./ServiceDesk/DeskImports'));
 const DeskProviderCustomers = lazy(() => import('./ServiceDesk/DeskProviderCustomers'));
 // Iter 278 — Expenses approvals / reports / settings (finance cockpit)
 const DeskExpenses = lazy(() => import('./ServiceDesk/DeskExpenses'));
+// Iter 292 — GymAxis parity: Preventative Maintenance + Orbit 4 / integrations
+const DeskPreventativeMaintenance = lazy(() => import('./ServiceDesk/DeskPreventativeMaintenance'));
+const DeskIntegrations = lazy(() => import('./ServiceDesk/DeskIntegrations'));
 import { ServiceOpsEmbeddedContext } from './ServiceOps/ServiceOpsShell';
 
 // Lazy-load the heavier Service Ops pages — keeps the initial shell light.
@@ -60,6 +63,7 @@ const TABS = [
   { id: 'scheduler',  label: 'Scheduler',  icon: Calendar },
   { id: 'customers',  label: 'Customers',  icon: Users },
   { id: 'equipment',  label: 'Equipment',  icon: Wrench },
+  { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'parts',      label: 'Parts',      icon: Package },
   { id: 'billing',    label: 'Billing',    icon: FileText },
   { id: 'engineers',  label: 'Engineers',  icon: HardHat },
@@ -76,6 +80,7 @@ const INSIGHTS_TABS = [
   { id: 'safety',     label: 'H&S checklist',   icon: ShieldCheck },
   { id: 'compliance', label: 'Compliance',      icon: ShieldCheck },
   { id: 'audit',      label: 'Audit log',       icon: ScrollText },
+  { id: 'integrations', label: 'Integrations',  icon: Cable },
 ];
 
 const EmbedFallback = () => (
@@ -159,6 +164,10 @@ export default function ServiceDeskPage() {
         return <Suspense fallback={<EmbedFallback />}><DeskImports API={API} /></Suspense>;
       case 'expenses':
         return <Suspense fallback={<EmbedFallback />}><DeskExpenses API={API} /></Suspense>;
+      case 'maintenance':
+        return <Suspense fallback={<EmbedFallback />}><DeskPreventativeMaintenance /></Suspense>;
+      case 'integrations':
+        return <Suspense fallback={<EmbedFallback />}><DeskIntegrations /></Suspense>;
       // Service Ops embedded pages
       case 'cases':
         return (

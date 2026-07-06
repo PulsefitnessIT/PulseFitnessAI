@@ -22,10 +22,11 @@ import axios from 'axios';
 import {
   X, Loader2, Clock, AlertTriangle, MapPin, Phone, Mail, User as UserIcon,
   Wrench, Activity, Save, Send, ChevronRight, Sparkles, CheckCircle2, History, Bell,
-  FileText, Link as LinkIcon, RefreshCw, Briefcase, Award, TrendingUp,
+  FileText, Link as LinkIcon, RefreshCw, Briefcase, Award, TrendingUp, Route,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import CoverageBanner from '@/components/shared/CoverageBanner';
+import ServiceCaseLifecycleTab from './ServiceCaseLifecycleTab';
 import './_serviceops.css';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -529,6 +530,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           <TabButton id="details" label="Details" icon={Wrench} active={tab === 'details'} onClick={() => setTab('details')} />
           <TabButton id="customer" label="Customer" icon={UserIcon} active={tab === 'customer'} onClick={() => setTab('customer')} />
           <TabButton id="comms" label="Comms" icon={Bell} active={tab === 'comms'} onClick={() => setTab('comms')} />
+          <TabButton id="lifecycle" label="Lifecycle" icon={Route} active={tab === 'lifecycle'} onClick={() => setTab('lifecycle')} />
         </div>
 
         {/* Body */}
@@ -732,6 +734,8 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               </div>
               <div className="sm:col-span-2"><CrmContextCard caseId={caseId} /></div>
             </div>
+          ) : tab === 'lifecycle' ? (
+            <ServiceCaseLifecycleTab caseId={caseId} onNavigate={setTab} />
           ) : (
             <CommsTab
               doc={doc}

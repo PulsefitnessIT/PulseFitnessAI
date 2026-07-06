@@ -181,6 +181,7 @@ export const SIDEBAR_ITEMS = [
       // Pulse Fitness-platform-internal (master-admin only on the backend);
       // hidden for delegated Pulse admins so they don't hit access errors.
       { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles, gymaxisOnly: true },
+      { id: 'service-desk-customers', label: 'Service Desk customers', icon: Headphones, gymaxisOnly: true },
       { id: 'support',            label: 'Support tools',      icon: Headphones, gymaxisOnly: true },
       { id: 'db-viewer',          label: 'Database viewer',    icon: Database, gymaxisOnly: true },
       { id: 'pulse-data',         label: 'Pulse data explorer', icon: Database, pulseOnly: true },
@@ -233,6 +234,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'documents':          'settings-compliance',
   'archive':            'settings-compliance',
   'ask-support':        'settings-compliance',
+  'service-desk-customers': 'settings-compliance',
   'support':            'settings-compliance',
   'db-viewer':          'settings-compliance',
   'pulse-data':         'settings-compliance',

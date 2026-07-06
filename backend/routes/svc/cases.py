@@ -525,3 +525,241 @@ async def next_reference(organization_id: str) -> str:
 
 # Re-export helpers for sibling modules
 __all__ = ["router", "compute_sla_targets", "next_reference"]
+
+
+# ── Iter 292 — GymAxis parity: case lifecycle timeline (cost-to-serve) ──
+_CLOSED_STATES = {"closed", "invoiced", "resolved", "completed"}
+
+
+def _parse_dt(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+@router.get("/cases/{case_id}/lifecycle")
+async def case_lifecycle(case_id: str, user=Depends(get_current_user)):
+    of = _of(user)
+    case = _strip(await db.svc_cases.find_one({"id": case_id, **of}))
+    if not case:
+        raise HTTPException(404, "Case not found")
+
+    # ── Asset ──
+    asset = None
+    if case.get("asset_id"):
+        asset = await db.equipment.find_one(
+            {"id": case["asset_id"]},
+            {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1,
+             "category": 1, "serial_number": 1, "status": 1, "site_name": 1, "location": 1},
+        )
+
+    # ── Labour (svc_time_entries) ──
+    total_mins = on_site_mins = 0
+    async for e in db.svc_time_entries.find({**of, "case_id": case_id}, {"_id": 0, "category": 1, "duration_minutes": 1}):
+        m = int(e.get("duration_minutes") or 0)
+        total_mins += m
+        if (e.get("category") or "on_site") == "on_site":
+            on_site_mins += m
+    labour_hours = round(total_mins / 60.0, 2)
+
+    # ── Mileage (svc_mileage_entries) ──
+    miles = 0.0
+    try:
+        async for mm in db.svc_mileage_entries.find({**of, "case_id": case_id}, {"_id": 0, "miles": 1}):
+            miles += float(mm.get("miles") or 0)
+    except Exception:  # noqa: BLE001
+        miles = 0.0
+
+    # ── Parts (allocated on the case) ──
+    parts = list(case.get("allocated_parts") or [])
+    parts_count = sum(int(p.get("qty") or p.get("quantity") or 1) for p in parts)
+
+    # ── Invoice (latest for this case) ──
+    inv = await db.svc_engineer_invoices.find_one(
+        {"case_id": case_id, **of},
+        {"_id": 0, "id": 1, "reference": 1, "number": 1, "status": 1, "total": 1,
+         "currency": 1, "sent_at": 1, "paid_at": 1, "created_at": 1, "lines": 1},
+        sort=[("created_at", -1)],
+    )
+    inv = inv or {}
+
+    # ── Timestamps & time-to-resolve ──
+    created_at = case.get("created_at")
+    scheduled_at = case.get("scheduled_at")
+    status = case.get("status")
+    resolved = status in _CLOSED_STATES
+    resolved_at = None
+    if resolved:
+        ev = await db.svc_case_events.find_one(
+            {"case_id": case_id, **of, "type": "state_change"},
+            {"_id": 0, "at": 1}, sort=[("at", -1)],
+        )
+        resolved_at = (ev or {}).get("at") or case.get("updated_at")
+    ttr_hours = None
+    c0, c1 = _parse_dt(created_at), _parse_dt(resolved_at)
+    if c0 and c1 and c1 >= c0:
+        ttr_hours = round((c1 - c0).total_seconds() / 3600.0, 1)
+
+    paid = inv.get("status") == "paid"
+    currency = inv.get("currency") or "£"
+
+    # ── Cost-to-serve breakdown (from invoice lines) ──
+    # Invoice lines carry a `kind` (labour / travel / part) + `line_total`,
+    # so we can split the job cost into labour vs parts vs travel without
+    # any rate guessing. Empty when there's no invoice yet.
+    _KIND_BUCKET = {"labour": "labour", "travel": "travel", "part": "parts", "parts": "parts"}
+    cost = {"labour": 0.0, "parts": 0.0, "travel": 0.0, "other": 0.0}
+    for ln in (inv.get("lines") or []):
+        kind = (ln.get("kind") or "other").lower()
+        bucket = _KIND_BUCKET.get(kind, "other")
+        try:
+            cost[bucket] += float(ln.get("line_total") or 0)
+        except (TypeError, ValueError):
+            pass
+    cost = {k: round(v, 2) for k, v in cost.items()}
+    cost_total = round(sum(cost.values()), 2)
+
+    # ── Internal cost basis → margin (best-effort, degrades gracefully) ──
+    # Charge (above) comes from the invoice. Internal cost is sourced from
+    # the parts catalogue (`parts.cost`) and the assigned engineer's pay
+    # rate (`payout.labour_rate_gbp`). Margin is reported ONLY over the
+    # value-add components we actually know the cost of — never faked.
+    part_skus = [(p.get("part_sku") or p.get("sku")) for p in parts]
+    part_skus = [s for s in part_skus if s]
+    sku_cost: dict[str, float] = {}
+    if part_skus:
+        async for pr in db.parts.find({**of, "sku": {"$in": part_skus}}, {"_id": 0, "sku": 1, "cost": 1}):
+            sku_cost[pr["sku"]] = float(pr.get("cost") or 0)
+    parts_cost = 0.0
+    parts_cost_known = False
+    for p in parts:
+        sku = p.get("part_sku") or p.get("sku")
+        if sku in sku_cost:
+            parts_cost += sku_cost[sku] * int(p.get("qty") or p.get("quantity") or 1)
+            parts_cost_known = True
+
+    labour_cost = 0.0
+    labour_cost_known = False
+    eng_id = case.get("assigned_engineer_id")
+    if eng_id and labour_hours > 0:
+        eng = await db.svc_engineers.find_one(
+            {"id": eng_id}, {"_id": 0, "payout": 1, "labour_rate_gbp": 1},
+        ) or {}
+        pay_rate = (eng.get("payout") or {}).get("labour_rate_gbp") or eng.get("labour_rate_gbp")
+        if pay_rate:
+            labour_cost = round(float(pay_rate) * labour_hours, 2)
+            labour_cost_known = True
+
+    # Build margin over known value-add components (labour + parts). Travel
+    # is a reimbursable pass-through (HMRC mileage) — excluded from margin.
+    internal_cost = {
+        "labour": round(labour_cost, 2) if labour_cost_known else None,
+        "parts": round(parts_cost, 2) if parts_cost_known else None,
+    }
+    known_charge = known_cost = 0.0
+    missing_cost: list[str] = []
+    if cost["labour"] > 0:
+        if labour_cost_known:
+            known_charge += cost["labour"]; known_cost += labour_cost
+        else:
+            missing_cost.append("labour")
+    if cost["parts"] > 0:
+        if parts_cost_known:
+            known_charge += cost["parts"]; known_cost += parts_cost
+        else:
+            missing_cost.append("parts")
+    has_basis = labour_cost_known or parts_cost_known
+    margin_total = round(known_charge - known_cost, 2) if has_basis else None
+    margin_pct = round(margin_total / known_charge * 100, 1) if (has_basis and known_charge > 0) else None
+    cost_basis = "none" if not has_basis else ("complete" if not missing_cost else "partial")
+    margin = {
+        "internal_cost": internal_cost,
+        "internal_cost_total": round(known_cost, 2) if has_basis else None,
+        "margin_total": margin_total,
+        "margin_pct": margin_pct,
+        "cost_basis": cost_basis,
+        "missing_cost": missing_cost,
+    }
+
+    def stage(key, label, done, at=None, detail=None, meta=None):
+        return {"key": key, "label": label, "done": bool(done), "at": at, "detail": detail, "meta": meta or {}}
+
+    stages = [
+        stage("asset", "Asset", bool(asset or case.get("asset_name")), None,
+              (asset or {}).get("name") or case.get("asset_name") or "—",
+              {"asset_id": case.get("asset_id"),
+               "manufacturer": (asset or {}).get("manufacturer"), "model": (asset or {}).get("model"),
+               "category": (asset or {}).get("category"), "serial": (asset or {}).get("serial_number"),
+               "site": case.get("site_name")}),
+        stage("fault", "Fault logged", True, created_at,
+              case.get("title") or case.get("fault_code") or "Fault reported",
+              {"fault_code": case.get("fault_code"), "fault_category": case.get("fault_category"),
+               "priority": case.get("priority"), "source": case.get("source")}),
+        stage("dispatch", "Engineer dispatched", bool(case.get("assigned_engineer_id")), scheduled_at,
+              case.get("assigned_engineer_name") or ("Engineer assigned" if case.get("assigned_engineer_id") else "Unassigned"),
+              {"scheduled_at": scheduled_at}),
+        stage("onsite", "On-site & labour", on_site_mins > 0, None,
+              f"{labour_hours} h logged" if total_mins > 0 else "No time logged yet",
+              {"labour_hours": labour_hours, "miles": round(miles, 1)}),
+        stage("parts", "Parts fitted", len(parts) > 0, None,
+              f"{parts_count} part(s)" if parts else "No parts used",
+              {"parts": [{"id": p.get("id"),
+                          "name": (p.get("name") or p.get("part_name") or p.get("sku") or p.get("part_sku") or "Part"),
+                          "sku": p.get("part_sku") or p.get("sku"),
+                          "qty": int(p.get("qty") or p.get("quantity") or 1),
+                          "source": p.get("source"),
+                          "fulfilled": bool(p.get("fulfilled"))} for p in parts][:12]}),
+        stage("resolution", "Resolved", resolved, resolved_at,
+              (f"Resolved in {ttr_hours} h" if ttr_hours is not None else (status or "")),
+              {"status": status, "time_to_resolve_hours": ttr_hours}),
+        stage("invoice", "Invoiced", bool(inv), inv.get("sent_at") or inv.get("created_at"),
+              (f"{currency}{inv.get('total') or 0}" if inv else "Not invoiced"),
+              {"invoice_id": inv.get("id"), "reference": inv.get("reference") or inv.get("number"),
+               "status": inv.get("status"), "total": inv.get("total")}),
+        stage("paid", "Paid", paid, inv.get("paid_at"),
+              "Paid" if paid else (inv.get("status") or "Awaiting invoice"), {}),
+    ]
+
+    return {
+        "case_id": case_id,
+        "reference": case.get("reference"),
+        "status": status,
+        "summary": {
+            "time_to_resolve_hours": ttr_hours,
+            "labour_hours": labour_hours,
+            "miles": round(miles, 1),
+            "parts_count": parts_count,
+            "invoice_id": inv.get("id"),
+            "invoice_total": inv.get("total"),
+            "invoice_currency": currency,
+            "invoice_status": inv.get("status"),
+            "paid": paid,
+            "cost_breakdown": cost,
+            "cost_total": cost_total,
+            "margin": margin,
+        },
+        "stages": stages,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────
+# WRITES
+# ─────────────────────────────────────────────────────────────────
+
+_VALID_PATCH_FIELDS = {
+    "title", "description", "priority", "fault_code", "fault_category",
+    "assigned_engineer_id", "assigned_engineer_name", "scheduled_at",
+    "asset_id", "asset_name", "site_id", "site_name", "site_postcode",
+    "contract_id", "cover_type", "case_type", "customer_name", "customer_email",
+    "customer_phone", "estimated_minutes", "tags",
+    "equipment_ids", "equipment_serials", "required_skills",
+    "comms_auto_notify",
+    # Iter 216h79 — customer rating captured at case sign-off, feeds the
+    # partner performance score.
+    "customer_rating", "customer_rating_comment",
+}
+
+
