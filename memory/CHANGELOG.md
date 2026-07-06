@@ -1,6 +1,14 @@
 # Changelog
 
 
+## Jul 6, 2026 — Blog re-skinned to the Pulse Fitness brand (was legacy "gx"/Gymaxis chrome)
+- **Root cause:** `/blog` (BlogIndex) and `/blog/:slug` (BlogPost) rendered inside the legacy `MarketingShell` (the old "gx-" Gymaxis nav/footer), used the `gx-gradient-text` blue→purple gradient (off-brand "AI slop"), a gymaxis-gradient CTA, and non-Pulse fonts.
+- **Fix:** new reusable `frontend/src/pages/Marketing/PulseMarketingShell.js` wraps pages in the real pulsefitness.ai chrome — the black sticky `PulseHeader` (WHAT YOU CAN DO / AI / HOW IT WORKS / PLANS / SUPPORT + theme/EN/SIGN IN), `PulseFooter`, `LoginModal`, Proxima Nova via `PULSE_LANDING_CSS`, forced light theme. BlogIndex + BlogPost now use it.
+- **Brand pass:** hero accent "run the floor." now Pulse **cyan #19CDFF** (was purple gradient); card image panels are Pulse dark `#1B1C1D` with cyan hover; headings `#1B1C1D`; article CTA restyled to Pulse dark + cyan button linking to `/pulse-pricing` (dropped the gymaxis TrialSignupModal dependency).
+- **Verified:** screenshots — both pages render the pulsefitness.ai header + fonts; nav items confirmed; posts load on-brand.
+- **Status:** in preview — REDEPLOY to push live.
+
+
 ## Jul 6, 2026 — SEO Autopilot reactivated + on-brand fixes + Blog link in site footer
 - **Blog link in footer:** added a **Blog** entry (→ `/blog`) to the COMPANY column of the main-site footer `PulseFooter` (`PulseLandingPage.js`) — the `Col` renderer now treats internal routes (same-tab) vs external links (new tab) correctly. Also added Blog to the shared marketing `Footer.js` (About/Pricing/**Blog**/Contact). testids: `pulse-footer-blog-link`, `footer-blog-link`.
 - **Blogs on-brand for Pulse Fitness:** `routes/marketing/seo_autopilot.py` — rewrote the self-contradictory `DEFAULT_BRAND_BLURB` (it previously told the LLM to "not invent pulsefitness.ai" while pulsefitness.ai IS the canonical domain) into clean Pulse Fitness guidance that forbids the legacy "gymaxis/gym-axis" name. Fixed `_BAD_DOMAINS` which wrongly listed the canonical `pulsefitness.ai` (scrubbing it against itself); it now only rewrites genuine legacy domains. Scrub runs across title/excerpt/body/meta/FAQ/social.
