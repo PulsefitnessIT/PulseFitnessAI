@@ -205,6 +205,94 @@ const ModuleAccessSection = ({ userId, headers }) => {
   );
 };
 
+// Iter 279 — Login-access diagnostics + one-click "Repair login access".
+// Surfaces which portal(s) a person can actually sign into and fixes the
+// "unknown user" class of bug (CRM-only account missing its `users` row)
+// in a single click — mirrors a service-portal row keeping the same
+// password. See routes/master_admin_users.py get/repair endpoints.
+const LoginAccessSection = ({ userId, headers }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setError(false);
+    axios.get(`${API_BASE}/master-admin/users/${userId}/login-access`, { headers })
+      .then(({ data }) => { if (alive) setData(data); })
+      .catch(() => { if (alive) setError(true); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const repair = async () => {
+    setBusy(true);
+    try {
+      const { data: res } = await axios.post(
+        `${API_BASE}/master-admin/users/${userId}/repair-login`, {}, { headers },
+      );
+      setData(res);
+      if (res.result === 'mirrored_crm_to_service_portal') {
+        toast.success('Login access repaired — this user can now sign in on the standard portal.');
+      } else {
+        toast.info('No repair needed — standard-portal access already present.');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Could not repair login access');
+    }
+    setBusy(false);
+  };
+
+  if (loading || error || !data) return null;
+
+  const Row = ({ label, on }) => (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-zinc-600">{label}</span>
+      {on
+        ? <CircleCheck size={16} className="text-emerald-500" />
+        : <CircleSlash size={16} className="text-zinc-300" />}
+    </div>
+  );
+
+  return (
+    <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E4E4E7' }} data-testid="people-drawer-login-access">
+      <div className="flex items-center gap-2">
+        <KeyRound size={14} className="text-zinc-600" />
+        <h3 className="text-sm font-bold text-zinc-900">Login access</h3>
+      </div>
+      <div className="space-y-1.5">
+        <Row label="Standard portal (/login)" on={data.can_standard_login} />
+        <Row label="CRM portal" on={data.can_crm_login} />
+      </div>
+      <p
+        className={`text-[11px] leading-snug ${data.needs_repair ? 'text-amber-700' : 'text-zinc-500'}`}
+        data-testid="login-access-reason"
+      >
+        {data.needs_repair && <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />}
+        {data.reason}
+      </p>
+      {data.needs_repair && (
+        <>
+          <Button
+            variant="primary" size="md" className="w-full" icon={Wand2}
+            onClick={repair} loading={busy} disabled={busy}
+            data-testid="people-drawer-repair-login"
+          >
+            {busy ? 'Repairing…' : 'Repair login access'}
+          </Button>
+          {data.password_placeholder && (
+            <p className="text-[10px] text-zinc-500 leading-snug">
+              This CRM account may not have a known password. After repairing, also issue a reset link below so the user can set one.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 function relativeTime(iso) {
   if (!iso) return '';
   const then = new Date(iso).getTime();
@@ -344,6 +432,8 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
           </div>
 
           <ModuleAccessSection userId={user.id} headers={headers} />
+
+          <LoginAccessSection userId={user.id} headers={headers} />
 
           <div className="rounded-lg border bg-zinc-50/60 p-4 space-y-3" style={{ borderColor: '#E4E4E7' }}>
             <div className="flex items-center gap-2">

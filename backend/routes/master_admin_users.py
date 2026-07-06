@@ -1134,6 +1134,118 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
     return {"success": True, "temp_password": temp_password, "user_email": target_email}
 
 
+# ───────────── Iter 279 — login-access diagnostics + one-click repair ─────────────
+# A user created in a CRM-capable org can end up ONLY in `crm_users`, so the
+# standard portal login reports "unknown user" (the class of bug that locked
+# out Robert Buckley). These endpoints let a master admin SEE which portal a
+# person can actually sign into and REPAIR a CRM-only account in one click by
+# mirroring a `users` row (bcrypt hash copied verbatim — identical algorithm —
+# so the person keeps their existing password).
+
+async def _login_access_payload(user_id: str) -> dict:
+    sp = await db.users.find_one(
+        {"id": user_id},
+        {"_id": 0, "email": 1, "active": 1, "disabled": 1, "archived": 1,
+         "password": 1, "no_password_login": 1},
+    )
+    crm = await db.crm_users.find_one(
+        {"id": user_id},
+        {"_id": 0, "email": 1, "password": 1, "cross_login_provisioned": 1},
+    )
+    email = (sp or crm or {}).get("email", "")
+    in_sp = sp is not None
+    in_crm = crm is not None
+    sp_blocked = bool(sp and (
+        sp.get("active") is False or sp.get("disabled") or sp.get("archived")
+        or sp.get("no_password_login")
+    ))
+    can_standard = in_sp and not sp_blocked and bool(sp.get("password"))
+    needs_repair = in_crm and not in_sp
+    placeholder = bool(crm and crm.get("cross_login_provisioned"))
+
+    if not (in_sp or in_crm):
+        reason = "No account row found for this user."
+    elif needs_repair:
+        reason = ("This account exists only in the CRM portal, so standard "
+                  "sign-in (pulsefitness.ai/login) reports \u201cunknown user\u201d. "
+                  "Repair to enable standard-portal login.")
+    elif can_standard:
+        reason = "Can sign in on the standard portal."
+    elif sp_blocked:
+        reason = "Standard-portal account exists but sign-in is blocked (disabled / archived / no-password)."
+    else:
+        reason = "Account present."
+
+    return {
+        "user_id": user_id,
+        "email": email,
+        "in_service_portal": in_sp,
+        "in_crm": in_crm,
+        "can_standard_login": can_standard,
+        "can_crm_login": in_crm,
+        "needs_repair": needs_repair,
+        "password_placeholder": placeholder,
+        "reason": reason,
+    }
+
+
+@router.get("/master-admin/users/{user_id}/login-access")
+async def get_user_login_access(user_id: str, user: dict = Depends(get_current_user)):
+    """Diagnostics for the People drawer: which portal(s) this person can
+    actually sign into, and whether a CRM-only account needs repair."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+    return await _login_access_payload(user_id)
+
+
+@router.post("/master-admin/users/{user_id}/repair-login")
+async def repair_user_login(user_id: str, user: dict = Depends(get_current_user)):
+    """One-click fix for the "unknown user" login class: if the account
+    lives only in `crm_users`, mirror a `users` row (copying the bcrypt hash
+    verbatim) so standard-portal login works with the SAME password. Returns
+    refreshed diagnostics so the drawer updates in place. Idempotent."""
+    require_master_admin(user)
+    await assert_user_in_pulse_scope(user, user_id)
+
+    sp = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1})
+    crm = await db.crm_users.find_one({"id": user_id}, {"_id": 0})
+    did = "noop"
+    if not sp and crm:
+        org = None
+        if crm.get("organization_id"):
+            org = await db.organizations.find_one(
+                {"id": crm["organization_id"]}, {"_id": 0, "account_type": 1},
+            )
+        now_iso = datetime.now(timezone.utc).isoformat()
+        mirrored = {
+            "id": user_id,
+            "email": (crm.get("email") or "").lower(),
+            "full_name": crm.get("full_name") or crm.get("name") or "",
+            "password": crm.get("password", ""),
+            "organization_id": crm.get("organization_id"),
+            "role": crm.get("role") or "staff",
+            "account_type": (org or {}).get("account_type", "full"),
+            "avatar_url": crm.get("avatar_url"),
+            "created_at": crm.get("created_at") or now_iso,
+            "cross_login_provisioned": True,
+            "mirrored_from_crm_at": now_iso,
+            "login_repaired_by": user.get("email", ""),
+        }
+        await db.users.insert_one(dict(mirrored))
+        did = "mirrored_crm_to_service_portal"
+        await log_activity(
+            "login_access_repaired",
+            f"Repaired standard-portal login for {mirrored['email']} (mirrored crm_users \u2192 users)",
+            user.get("email", ""), "user", user_id,
+        )
+    elif not sp and not crm:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    payload = await _login_access_payload(user_id)
+    payload["result"] = did
+    return payload
+
+
 @router.get("/master-admin/engineers")
 async def list_provisioned_engineers(user: dict = Depends(get_current_user)) -> dict:
     """Iter 227 — engineers a master / Pulse admin can "view as" for

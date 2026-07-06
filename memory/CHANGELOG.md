@@ -15,6 +15,13 @@
 - **Verified:** scripts/verify_crm_login_fix.py (login/mirror/forgot/reset/login-after-reset all pass) + master-admin regression; testing agent **9/9 backend, 100% frontend, zero issues** — `/app/test_reports/iteration_crm_only_login_p1_docs_jan2026.json`. Seeds: `seed_crm_only_login_demo.py`, `seed_lite_docs_demo.py`.
 - **Status:** fix in preview — REDEPLOY to push to production.
 
+## Jul 6, 2026 — Master Admin: "Repair login access" (People drawer) — prevents future "unknown user" lockouts
+- **Enhancement (builds on the CRM-only login fix):** the People drawer (`UserDetailDrawer.js`) now has a **Login access** section showing, per person, whether they can sign in on the **Standard portal (/login)** and the **CRM portal**, plus a plain-English reason. When an account exists ONLY in `crm_users` it flags the "unknown user" risk and offers a one-click **Repair login access** button.
+- **Backend (`routes/master_admin_users.py`):** `GET /master-admin/users/{id}/login-access` (diagnostics) + `POST /master-admin/users/{id}/repair-login` (mirrors a `users` row, copying the bcrypt hash verbatim so the person keeps their existing password). Idempotent (returns `noop` when already fixed); master-admin gated + pulse-scope enforced.
+- **Verified:** curl — diagnostics `needs_repair:true` → repair `mirrored_crm_to_service_portal` → idempotent `noop`; CRM-only user then standard-logs-in with the same password. UI — drawer shows the section + button, toast on repair, both portals flip to green, button hides. Seeds reused: `seed_crm_only_login_demo.py`. testid: `people-drawer-login-access`, `login-access-reason`, `people-drawer-repair-login`.
+- **Status:** in preview — REDEPLOY to push to production.
+
+
 
 
 ## Jul 3, 2026 — Sign-in: added the missing "Forgot password?" flow (frontend gap)
