@@ -31,6 +31,14 @@ VERIFIED (testing agent, backend 10/10 + FE PM dropdown 100%, report
 /app/test_reports/iteration_pulse_svc_prerelease_jan2026.json; regression tests/test_svc_pm_and_master.py).
 Pre-existing non-blocker noted: Schedule PM modal uses native <select>/date inputs (functionally correct;
 could be swapped to shadcn later). Seed: `python scripts/seed_service_desk_demo.py` from /app/backend.
+
+5) UI POLISH (2026-07-06, follow-up): swapped the Schedule PM modal's native <select>/date/<button> for shadcn
+   Select/Input/Button/Label (ServiceDesk/DeskPreventativeMaintenance.js AddPmModal). The modal is a CUSTOM
+   div (not Radix Dialog) so the known "Radix Select dismisses the dialog" bug was a real risk — VERIFIED FIXED
+   (testing agent, report iteration_pm_shadcn_select_jan2026.json): option-click keeps the modal open (React
+   event tree keeps the portaled SelectContent inside the card's stopPropagation), 6 freq options in order,
+   trigger updates, Cancel closes. Save-path e2e skipped only because the isodemo tenant has 0 selectable SD
+   equipment; submit logic unchanged + already covered by the backend PM create test.
 STILL BLOCKED for full GA: Stripe subscription checkout (needs valid key + pricing) if the desk is a paid tier.
 
 ────────────────────────────────────────────────────────────────────────
