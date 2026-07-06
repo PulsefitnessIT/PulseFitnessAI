@@ -1,3 +1,43 @@
+# ═══ 2026-07-06 · SERVICE DESK PRE-RELEASE CHECKLIST (VERIFIED: backend 10/10, FE PM dropdown 100%) ═══
+Founder asked "is the Service Desk ready for release?". Assessment: feature-complete/pre-GA. Closed the
+3-item pre-release checklist that turned "renders correctly" into "verified with real numbers":
+
+1) PM FREQUENCY GAP (functional). The ported PM scheduler only accepted quarterly/biannual/annual — a real
+   limitation for a maintenance product. EXTENDED to weekly/fortnightly/monthly/quarterly/biannual/annual.
+   - Backend routes/svc/pm.py: _FREQ now has weekly(1w)/fortnightly(2w)/monthly(1mo) + existing; _VALID_FREQ
+     tuple; _canon_freq rejects anything else with 400 "frequency must be weekly, fortnightly, monthly,
+     quarterly, biannual or annual". Verified roll-forward deltas for each.
+   - Frontend ServiceDesk/DeskPreventativeMaintenance.js: FREQ_LABEL + pm-frequency-select dropdown now list
+     all 6 (Weekly, Fortnightly, Monthly, Quarterly, 6-monthly, Annual) in that order. Tester confirmed exact
+     option set/order.
+2) MASTER-ADMIN SD CUSTOMERS CONSOLE tested with REAL data (was empty in prior port test). New idempotent seed
+   scripts/seed_service_desk_demo.py creates 5 `service_provider` orgs spanning the whole journey (Peak Service
+   Co=Paying/converted, FitFix=Active trial, GymCare=trial expiring ≤7d, Rundown=Trial lapsed, NewStart=
+   onboarding/no-usage) + 14 svc_cases with spread created_at. GET /api/master-admin/service-desk/customers now
+   returns summary {total 5, new_30d 3, trials_active 3, trials_expiring_7d 1, trials_expired 1, converted 1,
+   active_this_week 3, total_cases 14, conversion_rate 20%} and all segments render. 403 for non-master.
+3) CASE LIFECYCLE (cost-to-serve) tested with a FULLY-WORKED case. Seed builds SDDEMO_case_LIFECYCLE for Peak:
+   equipment + assigned engineer (£32/h pay) + 2 time entries (95m on-site, 40m travel) + 24mi mileage +
+   allocated part (catalogue cost £78) + PAID invoice (labour £118.75 / part £145 / travel £10.80 = £274.55) +
+   resolved state_change event. GET /api/svc/cases/{id}/lifecycle returns all 8 stages done, ttr 24h,
+   labour 2.25h, cost_total £274.55, margin_total £113.75 / 43.1% (cost_basis complete). Org-scoped: 404 (not
+   500) for a non-owning org.
+4) BRANDING SCRUB: renamed the lingering `portal-switch-gymaxis` data-testid → `portal-switch-global-dashboard`
+   in MasterAdmin/AdminSidebar.js. (Remaining `gymaxis` strings are internal keys/props — localStorage key in
+   useJobDraft.js + gymaxisOnly sidebar prop + a DeskCustomers status-map key labelled "Pulse Fitness" — not
+   user-visible, left intact per prior decisions.)
+
+VERIFIED (testing agent, backend 10/10 + FE PM dropdown 100%, report
+/app/test_reports/iteration_pulse_svc_prerelease_jan2026.json; regression tests/test_svc_pm_and_master.py).
+Pre-existing non-blocker noted: Schedule PM modal uses native <select>/date inputs (functionally correct;
+could be swapped to shadcn later). Seed: `python scripts/seed_service_desk_demo.py` from /app/backend.
+STILL BLOCKED for full GA: Stripe subscription checkout (needs valid key + pricing) if the desk is a paid tier.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-07-03 · MOD portal + Master Admin polish (VERIFIED: backend 5/5, FE tasks 1/2/4 full) ═══
 1) MODService login header (/modservice) → black (#000 + white/10 border) to match the pulsefitness.ai
    landing header; Ministry of Defence logo inverted white via CSS `filter: brightness(0) invert(1)`
