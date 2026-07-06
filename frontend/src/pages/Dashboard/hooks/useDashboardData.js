@@ -52,7 +52,7 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
       const [issuesRes, auditsRes, tasksRes, suppliersRes, equipmentRes, healthRes, expiryRes] = await Promise.all([
         axios.get(`${API}/issues`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/audit/history`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/maintenance/tasks`),
+        axios.get(`${API}/maintenance/tasks`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/suppliers${scopeSiteParam}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { suppliers: [] } })),
         axios.get(`${API}/equipment`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { equipment: [] } })),
         axios.get(`${API}/gym-health-score`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
@@ -70,6 +70,14 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }
+  }, [API]);
+
+  const refreshMaintenanceTasks = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API}/maintenance/tasks`, { headers: { Authorization: `Bearer ${token}` } });
+      setMaintenanceTasks(res.data.tasks || []);
+    } catch (e) { console.error('Failed to refresh maintenance tasks:', e); }
   }, [API]);
 
   const checkPaymentStatus = useCallback(async (sessionId, paymentSuccessMessage) => {
@@ -95,6 +103,7 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
     issues, setIssues,
     auditHistory, setAuditHistory,
     maintenanceTasks,
+    refreshMaintenanceTasks,
     suppliers,
     allEquipment,
     healthScore,

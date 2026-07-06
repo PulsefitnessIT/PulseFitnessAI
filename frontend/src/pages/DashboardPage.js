@@ -106,7 +106,7 @@ const DashboardPage = () => {
   const tourRef = React.useRef(null);
 
   const {
-    issues, setIssues, auditHistory, maintenanceTasks, suppliers,
+    issues, setIssues, auditHistory, maintenanceTasks, refreshMaintenanceTasks, suppliers,
     allEquipment, healthScore, urgentExpiryAlerts,
     loadData, checkPaymentStatus,
   } = useDashboardData(API);
@@ -342,6 +342,8 @@ const DashboardPage = () => {
                   maintenanceTasks={maintenanceTasks}
                   taskFrequencyFilter={taskFrequencyFilter}
                   setTaskFrequencyFilter={setTaskFrequencyFilter}
+                  API={API}
+                  onTasksChanged={refreshMaintenanceTasks}
                   t={t}
                 />
               )}

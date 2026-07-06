@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend UI verification of Operator → Check Sheets → Scheduled Maintenance Tasks (MaintenanceTab.js). All acceptance criteria met: Yearly filter pill works; Add Task inline form (title/equipment/frequency select incl. Yearly) creates a custom task with 'Maintenance task added' toast and yearly badge; per-task <select task-frequency-select-{id}> toggles a built-in task (id=1) from Daily → Quarterly and persists across refresh; the Quarterly filter now includes the toggled task; custom tasks show a delete button (task-delete-*) while built-in tasks do NOT; deleting shows 'Task removed' toast and removes the row. Cleanup performed (custom QA task deleted, built-in task 1 reverted to Daily).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MaintenanceTab.js uses window.confirm for delete — works but native dialog is inconsistent with the app's shadcn styling; consider AlertDialog for parity with other destructive actions.",
+    "changeFrequency shows no success toast — silent write. Considering adding a subtle confirmation toast (or optimistic UI) so operators know the change persisted.",
+    "Frequency <select> uses native HTML select — mixes with theme but styling is minimal; acceptable for now."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (backend testing skipped per request)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (rate-limited: wait ~40s between logins)",
+  "seed_data_creation": "Created + deleted 'QA Lubricate Belt' (Yearly) custom task on iso-demo-org. Toggled built-in task id=1 Daily→Quarterly then reverted to Daily.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 6 acceptance points confirmed. Baseline shows 34 tasks. Yearly filter starts empty, +1 after add, -1 after delete. task-frequency-select-1 change persists after list refresh. Note: /api/auth/login is aggressively rate-limited — space browser sessions ~40s apart.",
+  "rca_of_the_issue": "N/A — no bugs found."
+}

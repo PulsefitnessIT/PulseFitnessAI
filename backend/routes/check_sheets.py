@@ -219,9 +219,7 @@ async def delete_maintenance_template(template_id: str, user: dict = Depends(get
     return {"success": True}
 
 
-@router.get("/maintenance/tasks")
-async def get_maintenance_tasks():
-    tasks = [
+DEFAULT_MAINTENANCE_TASKS = [
         {"id": "1", "title": "All Areas Cleaned", "frequency": "daily", "equipment": "Treadmills"},
         {"id": "2", "title": "Hoover Underneath", "frequency": "daily", "equipment": "Treadmills"},
         {"id": "3", "title": "E-Stop Check", "frequency": "daily", "equipment": "Treadmills"},
@@ -256,5 +254,87 @@ async def get_maintenance_tasks():
         {"id": "32", "title": "Wipe down Weight Plates", "frequency": "daily", "equipment": "Free Weights"},
         {"id": "33", "title": "Check Weight Bars for Defects", "frequency": "weekly", "equipment": "Free Weights"},
         {"id": "34", "title": "Lubricate Moving Parts", "frequency": "monthly", "equipment": "Free Weights"},
+]
+
+VALID_FREQUENCIES = {"daily", "weekly", "monthly", "quarterly", "yearly"}
+
+
+@router.get("/maintenance/tasks")
+async def get_maintenance_tasks(user: dict = Depends(get_current_user)):
+    """Scheduled maintenance tasks for the operator's org: built-in defaults
+    (with any per-org frequency overrides applied) plus custom tasks the
+    operator has added."""
+    org_filter = get_organization_filter(user)
+    prefs = await db.maintenance_tasks.find(org_filter, {"_id": 0}).to_list(500)
+    overrides = {p["task_id"]: p["frequency"] for p in prefs if p.get("type") == "override"}
+    custom = [
+        {"id": p["id"], "title": p["title"], "frequency": p["frequency"],
+         "equipment": p.get("equipment") or "General", "is_custom": True}
+        for p in prefs if p.get("type") == "custom"
     ]
+    tasks = []
+    for d in DEFAULT_MAINTENANCE_TASKS:
+        t = dict(d)
+        if d["id"] in overrides:
+            t["frequency"] = overrides[d["id"]]
+        t["is_custom"] = False
+        tasks.append(t)
+    tasks.extend(custom)
     return {"tasks": tasks}
+
+
+@router.post("/maintenance/tasks")
+async def create_maintenance_task(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    title = (data.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Task title is required")
+    freq = (data.get("frequency") or "daily").strip().lower()
+    if freq not in VALID_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Invalid frequency")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "organization_id": user.get("organization_id"),
+        "type": "custom",
+        "title": title[:200],
+        "equipment": (data.get("equipment") or "General").strip()[:120],
+        "frequency": freq,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.maintenance_tasks.insert_one(doc)
+    doc.pop("_id", None)
+    return {"id": doc["id"], "title": doc["title"], "frequency": doc["frequency"],
+            "equipment": doc["equipment"], "is_custom": True}
+
+
+@router.patch("/maintenance/tasks/{task_id}")
+async def update_maintenance_task_frequency(task_id: str, data: Dict[str, Any],
+                                            user: dict = Depends(get_current_user)):
+    freq = (data.get("frequency") or "").strip().lower()
+    if freq not in VALID_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Invalid frequency")
+    org_filter = get_organization_filter(user)
+    # Custom task owned by the org → update it directly.
+    custom = await db.maintenance_tasks.find_one({"id": task_id, "type": "custom", **org_filter})
+    if custom:
+        await db.maintenance_tasks.update_one(
+            {"id": task_id}, {"$set": {"frequency": freq, "updated_at": datetime.now(timezone.utc).isoformat()}})
+        return {"success": True, "id": task_id, "frequency": freq}
+    # Otherwise treat as a built-in default → upsert a per-org frequency override.
+    if not any(d["id"] == task_id for d in DEFAULT_MAINTENANCE_TASKS):
+        raise HTTPException(status_code=404, detail="Task not found")
+    await db.maintenance_tasks.update_one(
+        {"organization_id": user.get("organization_id"), "type": "override", "task_id": task_id},
+        {"$set": {"frequency": freq, "updated_at": datetime.now(timezone.utc).isoformat(),
+                  "organization_id": user.get("organization_id"), "type": "override", "task_id": task_id}},
+        upsert=True)
+    return {"success": True, "id": task_id, "frequency": freq}
+
+
+@router.delete("/maintenance/tasks/{task_id}")
+async def delete_maintenance_task(task_id: str, user: dict = Depends(get_current_user)):
+    org_filter = get_organization_filter(user)
+    result = await db.maintenance_tasks.delete_one({"id": task_id, "type": "custom", **org_filter})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Custom task not found (built-in tasks cannot be deleted)")
+    return {"success": True}
