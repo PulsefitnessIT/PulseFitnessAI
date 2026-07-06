@@ -11,6 +11,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Plus, Trash2, CheckCircle2, Loader2, Wrench, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const FREQ_LABEL = { weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly', quarterly: 'Quarterly', biannual: '6-monthly', annual: 'Annual' };
 
@@ -198,37 +202,46 @@ function AddPmModal({ equipment, existing, onClose, onCreated }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose} data-testid="pm-add-modal">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 mb-3">Schedule preventative maintenance</h2>
-        <label className="block text-xs font-semibold text-zinc-500 mb-1">Equipment</label>
-        <select value={equipmentId} onChange={(e) => setEquipmentId(e.target.value)} className="w-full mb-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm" data-testid="pm-equipment-select">
-          <option value="">Select equipment…</option>
-          {options.map((e) => (
-            <option key={e.id} value={e.id}>{e.name}{e.customer_name ? ` · ${e.customer_name}` : ''}</option>
-          ))}
-        </select>
+        <Label className="block text-xs font-semibold text-zinc-500 mb-1">Equipment</Label>
+        <Select value={equipmentId} onValueChange={setEquipmentId}>
+          <SelectTrigger className="w-full mb-3" data-testid="pm-equipment-select">
+            <SelectValue placeholder="Select equipment…" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((e) => (
+              <SelectItem key={e.id} value={e.id}>{e.name}{e.customer_name ? ` · ${e.customer_name}` : ''}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 mb-1">Frequency</label>
-            <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm" data-testid="pm-frequency-select">
-              <option value="weekly">Weekly</option>
-              <option value="fortnightly">Fortnightly</option>
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="biannual">6-monthly</option>
-              <option value="annual">Annual</option>
-            </select>
+            <Label className="block text-xs font-semibold text-zinc-500 mb-1">Frequency</Label>
+            <Select value={frequency} onValueChange={setFrequency}>
+              <SelectTrigger className="w-full" data-testid="pm-frequency-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="fortnightly">Fortnightly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="biannual">6-monthly</SelectItem>
+                <SelectItem value="annual">Annual</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 mb-1">Next PM date</label>
-            <input type="date" value={nextPm} onChange={(e) => setNextPm(e.target.value)} className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm" data-testid="pm-next-date" />
+            <Label className="block text-xs font-semibold text-zinc-500 mb-1">Next PM date</Label>
+            <Input type="date" value={nextPm} onChange={(e) => setNextPm(e.target.value)} data-testid="pm-next-date" />
           </div>
         </div>
-        <label className="block text-xs font-semibold text-zinc-500 mb-1">Previous PM (optional)</label>
-        <input type="date" value={lastPm} onChange={(e) => setLastPm(e.target.value)} className="w-full mb-4 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm" data-testid="pm-last-date" />
+        <Label className="block text-xs font-semibold text-zinc-500 mb-1">Previous PM (optional)</Label>
+        <Input type="date" value={lastPm} onChange={(e) => setLastPm(e.target.value)} className="mb-4" data-testid="pm-last-date" />
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="text-sm px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700" data-testid="pm-cancel-btn">Cancel</button>
-          <button onClick={submit} disabled={busy} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 disabled:opacity-50" data-testid="pm-save-btn">
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Create schedule
-          </button>
+          <Button variant="outline" onClick={onClose} data-testid="pm-cancel-btn">Cancel</Button>
+          <Button onClick={submit} disabled={busy} data-testid="pm-save-btn">
+            {busy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Plus size={14} className="mr-1.5" />} Create schedule
+          </Button>
         </div>
       </div>
     </div>

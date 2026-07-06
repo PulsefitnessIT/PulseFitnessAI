@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only verification of shadcn Select swap inside the CUSTOM (non-Radix) 'Schedule PM' modal on /service-desk Maintenance. Primary risk (Radix Select option-click dismissing the parent modal) is CONFIRMED FIXED. Logged in as owner@isodemo.com, navigated to PM, opened modal, exercised Frequency + Equipment selects, verified 6 frequency options in correct order, verified modal stays open after each Select interaction, and verified Cancel closes modal.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "pm_page_loads (data-testid=desk-pm-page)": "PASS",
+    "pm_add_btn_opens_modal": "PASS (pm-add-modal present)",
+    "frequency_select_options_order": "PASS - ['Weekly','Fortnightly','Monthly','Quarterly','6-monthly','Annual'] exactly, in order",
+    "modal_stays_open_after_frequency_select": "PASS (critical Radix-in-custom-modal check)",
+    "frequency_trigger_shows_selected_value": "PASS - trigger displays 'Monthly' after selection",
+    "modal_stays_open_after_equipment_select_interaction": "PASS (no equipment options exist for isodemo tenant, but opening/closing the equipment Select did not dismiss the modal)",
+    "create_schedule_flow": "SKIPPED - no selectable equipment for owner@isodemo.com (dropdown returned 0 options). This is expected per request ('If no free equipment exists to select, note that instead of failing — the interaction-does-not-close-modal check is the primary goal.')",
+    "cancel_button_closes_modal": "PASS"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL: If E1 wants full end-to-end verification of the save/toast/table-row path, seed at least one Equipment record (without an existing PM schedule) into the isodemo tenant so the Equipment Select is non-empty. Current SDDEMO_ seed appears to have no free equipment; primary shadcn-Select-in-custom-modal risk is already verified."
+  ],
+  "critical_code_review_comments": [
+    "Implementation is sound: Radix Select portals its content to document.body, but its React parent tree remains inside the card div with onClick stopPropagation, so option clicks do not bubble to the backdrop onClose. Empirically confirmed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested this run)", "frontend": "100% of testable checks (save path skipped due to no seed equipment)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "PM shadcn Select swap verified: Frequency options correct, modal does not close on option click (both Frequency and Equipment Selects tested), Cancel works. Save path not exercised because isodemo tenant has 0 selectable equipment in the Equipment Select. If retesting the create path, ensure at least one equipment without an existing PM schedule is seeded."
+}
