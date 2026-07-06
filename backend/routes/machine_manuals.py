@@ -633,6 +633,114 @@ async def add_global_manual_url(payload: dict, user: dict = Depends(get_current_
     }
     await db.machine_manuals.insert_one(dict(doc))
     return {"manual": _strip(doc), "reused": False}
+
+
+async def _upsert_global_url_manual(
+    *, manufacturer: str, model: str, title: str, url: str,
+    uploaded_by: str | None, document_type: str = "", category: str = "",
+) -> tuple[dict, bool]:
+    """Create (or reuse) a platform-global URL manual. Returns (manual, reused).
+    De-dupes by (global make/model + URL)."""
+    manufacturer = (manufacturer or "").strip()
+    model = (model or "").strip()
+    url = (url or "").strip()
+    title = (title or "").strip()
+    existing = await db.machine_manuals.find_one({
+        "organization_id": GLOBAL_ORG, "is_global": True,
+        "make_model_key": _key(manufacturer, model), "source_url": url,
+    })
+    if existing:
+        return existing, True
+    fname = (url.rsplit("/", 1)[-1].split("?")[0] or "manual")[:160]
+    ct = "application/pdf" if fname.lower().endswith(".pdf") else "text/uri-list"
+    doc = {
+        "id": str(uuid.uuid4()),
+        "organization_id": GLOBAL_ORG,
+        "is_global": True,
+        "is_url": True,
+        "manufacturer": manufacturer[:120],
+        "model": model[:120],
+        "make_model_key": _key(manufacturer, model),
+        "title": (title or fname or "Manual")[:200],
+        "filename": fname,
+        "content_type": ct,
+        "size_bytes": 0,
+        "sha256": hashlib.sha256(url.encode()).hexdigest(),
+        "content_fingerprint": None,
+        "source_url": url,
+        "document_type": (document_type or "")[:80],
+        "category": (category or "")[:120],
+        "storage": {"kind": "url", "url": url},
+        "linked_equipment_ids": [],
+        "cloned_from_global": None,
+        "uploaded_by": uploaded_by,
+        "uploaded_at": _now(),
+    }
+    await db.machine_manuals.insert_one(dict(doc))
+    return doc, False
+
+
+def _load_bundled_catalogue() -> list[dict]:
+    """The Pulse Fitness PDF manual inventory shipped with the app
+    (backend/data/pulse_manual_urls.json). Bundled in the repo so it can be
+    imported in ANY environment (preview + production) with one click, since
+    manual data is DB-backed per environment."""
+    import json
+    import os
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pulse_manual_urls.json")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
+    except FileNotFoundError:
+        return []
+
+
+@router.get("/master-admin/machine-manuals/bundled-catalogue")
+async def bundled_catalogue_status(user: dict = Depends(get_current_user)) -> dict:
+    """How many URLs are in the bundled Pulse Fitness catalogue and how many
+    are already present in this environment (drives the 'Import N' button)."""
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
+    rows = _load_bundled_catalogue()
+    urls = [r.get("url") for r in rows if r.get("url")]
+    present = 0
+    if urls:
+        present = await db.machine_manuals.count_documents(
+            {"organization_id": GLOBAL_ORG, "is_global": True, "source_url": {"$in": urls}}
+        )
+    return {"total": len(rows), "present": present, "missing": max(0, len(rows) - present)}
+
+
+@router.post("/master-admin/machine-manuals/global/import-bundled")
+async def import_bundled_catalogue(user: dict = Depends(get_current_user)) -> dict:
+    """One-click import of the bundled Pulse Fitness PDF manual catalogue
+    (pulsefitness.com URLs) into the platform-global library. Idempotent —
+    re-running only adds the missing ones. Each manual auto-surfaces to any
+    machine sharing its make/model, including machines imported in the
+    future."""
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
+    rows = _load_bundled_catalogue()
+    imported = reused = skipped = 0
+    for r in rows:
+        url = (r.get("url") or "").strip()
+        model = (r.get("model") or "").strip()
+        if not re.match(r"^https?://", url, flags=re.IGNORECASE) or not model:
+            skipped += 1
+            continue
+        _m, was_reused = await _upsert_global_url_manual(
+            manufacturer=(r.get("manufacturer") or "Pulse Fitness"),
+            model=model, title=r.get("title") or "", url=url,
+            uploaded_by=user.get("id"),
+            document_type=r.get("document_type") or "", category=r.get("category") or "",
+        )
+        reused += 1 if was_reused else 0
+        imported += 0 if was_reused else 1
+    return {"imported": imported, "reused": reused, "skipped": skipped, "total": len(rows)}
+
+
+@router.post("/master-admin/machine-manuals/{manual_id}/promote-global")
 async def promote_to_global(manual_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Promote an org-uploaded manual into the platform-global library (clones
     it; the org's original copy is left untouched)."""

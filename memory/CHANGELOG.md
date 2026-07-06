@@ -1,6 +1,15 @@
 # Changelog
 
 
+## Jul 6, 2026 — Imported Pulse Fitness PDF manual catalogue (103 URLs) + one-click bundled importer
+- **Crawled** the uploaded `pulse_fitness_pdf_inventory_partial_103.xlsx` (103 pulsefitness.com PDF URLs) → bundled as `backend/data/pulse_manual_urls.json` (manufacturer="Pulse Fitness", model=Product/Code, title, url, document_type, category).
+- **Backend (`routes/machine_manuals.py`):** `GET …/machine-manuals/bundled-catalogue` (status: total/present/missing) + `POST …/global/import-bundled` (idempotent bulk import via shared `_upsert_global_url_manual`). All 103 imported as global URL manuals (verified; re-run reused 103 / imported 0). **Bug fix:** an earlier edit had dropped the `@router.post(.../promote-global)` decorator — restored (route re-registered).
+- **Frontend (`MachineManualsDirectoryPanel.js`):** import banner "Pulse Fitness manual library — 103 URLs … Import N manuals" with progress; shows "All imported ✓" when done.
+- **Linking to future machines:** manuals are keyed by `make_model_key` (mfr|model); `suggest_manuals` auto-surfaces matching globals to any machine (incl. future imports) as one-click-attach suggestions. NOTE: when the equipment auto-import feature is built it should call the attach/suggest logic to fully auto-link.
+- **Data portability:** manual data is DB-backed **per environment**; the bundled JSON + one-click import means production can be populated after redeploy by clicking "Import" once (importing here only affected preview).
+- **Verified:** curl (import/idempotency/dedup/302-redirect/route registration) + UI screenshot (banner + 103 Global·URL manuals). Status: preview — REDEPLOY, then click Import on production.
+
+
 ## Jul 6, 2026 — Machine manuals by URL (Master Admin → Catalogue & Library)
 - **Feature:** Master Admin can now register a platform-global machine manual by **URL** (e.g. a PDF hosted on pulsefitness.com) instead of uploading a file — saves storage and stays in sync when the source is updated (no re-upload).
 - **Backend (`routes/machine_manuals.py`):** new `POST /master-admin/machine-manuals/global/add-url` ({manufacturer, model, title, url}); stores `storage={kind:'url',url}`, `is_url`, top-level `source_url`. Validates http(s); de-dupes by (global make/model + URL). `download_manual` now 307-redirects URL manuals to the source. `_strip` exposes `is_url`/`source_url`. URL manuals cloned to orgs via the existing global-link flow retain their URL.

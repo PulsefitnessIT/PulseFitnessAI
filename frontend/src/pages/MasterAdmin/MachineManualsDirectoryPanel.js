@@ -18,6 +18,8 @@ export default function MachineManualsDirectoryPanel() {
   const [gUrl, setGUrl] = useState('');
   const [uploadingGlobal, setUploadingGlobal] = useState(false);
   const [addingUrl, setAddingUrl] = useState(false);
+  const [bundled, setBundled] = useState(null);
+  const [importing, setImporting] = useState(false);
   const gFileRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -26,7 +28,23 @@ export default function MachineManualsDirectoryPanel() {
       const r = await api.get('/master-admin/machine-manuals/directory');
       setManuals(r.data?.manuals || []);
     } catch { notify.error('Failed to load manual directory'); } finally { setLoading(false); }
+    try {
+      const b = await api.get('/master-admin/machine-manuals/bundled-catalogue');
+      setBundled(b.data);
+    } catch { /* non-fatal */ }
   }, []);
+
+  const importBundled = async () => {
+    setImporting(true);
+    try {
+      const r = await api.post('/master-admin/machine-manuals/global/import-bundled');
+      const d = r.data || {};
+      notify.success(`Imported ${d.imported} Pulse Fitness manual URL(s)${d.reused ? ` · ${d.reused} already present` : ''}`);
+      await load();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Failed to import manual library');
+    } finally { setImporting(false); }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -111,6 +129,36 @@ export default function MachineManualsDirectoryPanel() {
 
   return (
     <div className="space-y-4" data-testid="machine-manuals-directory">
+      {/* Iter 279 — one-click import of the bundled Pulse Fitness PDF manual
+          catalogue (pulsefitness.com URLs). Idempotent; manuals auto-link to
+          matching machines (incl. future imports) by make/model. */}
+      {bundled && bundled.total > 0 && (
+        <div
+          className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3"
+          style={{ borderColor: 'var(--color-brand-blue)', background: 'color-mix(in srgb, var(--color-brand-blue) 7%, transparent)' }}
+          data-testid="bundled-import-banner"
+        >
+          <div className="flex items-center gap-2 text-sm text-[var(--theme-text)]">
+            <Layers size={16} className="text-[var(--color-brand-blue)]" />
+            <span>
+              <strong>Pulse Fitness manual library</strong> — {bundled.total} manual URLs from pulsefitness.com.{' '}
+              {bundled.missing > 0
+                ? <span className="text-[var(--color-brand-blue)] font-semibold">{bundled.missing} not yet imported.</span>
+                : <span className="text-emerald-600 font-semibold">All imported ✓</span>}
+            </span>
+          </div>
+          <button
+            onClick={importBundled}
+            disabled={importing || bundled.missing === 0}
+            className="px-3 py-1.5 rounded-md text-sm font-semibold bg-[var(--color-brand-blue)] text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+            data-testid="bundled-import-btn"
+          >
+            {importing ? <Loader2 size={13} className="animate-spin" /> : <Layers size={13} />}
+            {bundled.missing > 0 ? `Import ${bundled.missing} manuals` : 'Imported'}
+          </button>
+        </div>
+      )}
+
       {/* Upload a platform-curated global manual */}
       <div className="rounded-lg border border-[var(--theme-border)] p-3 bg-[var(--theme-surface)]" data-testid="global-manual-upload">
         <div className="flex items-center gap-1.5 mb-2 text-sm font-semibold text-[var(--theme-text)]">
