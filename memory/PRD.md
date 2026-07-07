@@ -1,3 +1,35 @@
+# ═══ 2026-07-07 · ONBOARDING → PORTAL EQUIPMENT VISIBILITY (P0, VERIFIED frontend 100%) ═══
+BUG: After onboarding a customer, equipment showed at ORG level (Master Admin "18 equip") but the end-user
+portal Equipment tab showed "No equipment found". Two chained root causes, both fixed:
+
+1) MISSING site_id ON IMPORTED/ONBOARDED EQUIPMENT. The portal per-site Equipment query is
+   {organization_id, site_id} (build_site_filter → site_scope), but onboarded equipment had NO site_id, so it
+   was excluded from every per-site view (only visible under "All sites"). Fixes:
+   - master_admin_pulse.py: onboard_pulse_site now threads the created site_id into _create_onboard_equipment /
+     _create_kit_equipment / _create_manual_equipment (equipment docs carry site_id).
+   - equipment_import.py: new helper _resolve_import_site_id(org_id, explicit) — confirm_import &
+     confirm_bulk_import now default site_id to the org's PRIMARY/first site (old code only inferred when the
+     org had EXACTLY one site, so multi-site/head-office imports got none).
+   - equipment.py GET /equipment: per-site view now also includes site-LESS equipment of the same org
+     ($or: site_id==requested / absent / null) — non-destructive heal so existing/legacy broken data (e.g. the
+     production "18 equip" org) surfaces immediately after deploy without a migration.
+
+2) PORTAL DEFAULTED TO AN EMPTY AUTO-HEAD-OFFICE. GET /sites (sites.py) auto-creates a "Head Office" site when
+   an org has sites but none flagged is_head_office, and sorts HO first → the portal defaulted to the empty HO
+   (0 eq) so the owner still saw "No equipment found" on first load (found by testing agent after fix #1). FIX:
+   onboard_pulse_site now inserts its single site with is_head_office=True → no empty HO is auto-created, the
+   switcher shows ONE site (the one holding the equipment) as default. Later branches attach under it.
+
+VERIFIED: backend E2E via external URL (new-site onboarding → owner sees 3/3 equipment per-site; confirm import
+→ primary site assigned; legacy site-less row surfaces). Frontend E2E (testing agent, 100%,
+iteration_onboarding_equipment_default_site_retest_jan2026.json): brand-new owner logs in → Equipment tab shows
+all items on FIRST load, single Head-Office site, no empty HO chip. Head-office branch mode already passed
+site_id explicitly (unaffected). Reports: iteration_onboarding_equipment_portal_visibility_jan2026.json (+retest).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-06 (pt.2) · MODULE SAVE BUG + PULSE PRO DASHBOARD + INVOICE UPLOAD (all VERIFIED) ═══
 
 1) MASTER ADMIN — MODULE SELECTOR "enable module → Save → it disables" (recurring). ROOT CAUSE: the org
