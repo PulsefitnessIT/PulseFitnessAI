@@ -1,0 +1,22 @@
+{
+  "summary": "Retest of default-site UX bug from previous iteration. Ran full New-Site onboarding wizard as master admin (admin@pulsefitness.com): created site 'QA Retest 1783437831' (Pulse Pro tier, Company Code 200EA3D9) with 3 manually-added equipment items (Treadmill QA A / Bike QA B / Rower QA C, serials SN1783437831A/B/C, £600 total). Logged out, logged in as new owner qaretest1783437831@example.test / OwnerPass123!. On FIRST portal load (/), landing page shows 'Pulse Fitness Pro · QA Retest 1783437831' and Operations → Equipment tab displays ALL 3 equipment items immediately WITHOUT any site switching. No 'No equipment found' message. Site selector shows only ONE site — there is NO separate empty 'Head Office · 0 eq' chip in the header. Bug is FIXED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix verified: onboard_pulse_site now flags the newly-created single site as is_head_office=True so GET /sites does NOT auto-create a second empty Head Office. Result: owner lands on the site holding the equipment and sees it immediately."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% (bug fix verified)"},
+  "test_credentials": "Master Admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg. New owner created: qaretest1783437831@example.test / OwnerPass123! (org 'QA Retest 1783437831', company code 200EA3D9).",
+  "seed_data_creation": "Created org 'QA Retest 1783437831' (Pulse Pro) via onboarding wizard with 3 equipment items (SN1783437831A/B/C). Please purge if not needed. Previous run's org 'QA Onboard Site 1783436133' (FD6D2C45) may also still exist.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Onboarding → owner portal equipment visibility is fully fixed. Wizard flow: Organisations → Onboarding tab (data-testid consolidated-tab-onboarding) → Onboard Site subtab (onboarding-subtab-site) → click 'New Site' card → Next → Continue (skip invoice upload) → fill onboard-site-name + onboard-postcode → onboard-next → fill Users (input placeholders 'John Smith'/'john@gym.com'/'Min 8 characters') → Next → 'Add Item' x N + fill Manufacturer/Description/Serial/Price → Next → 'Create Site' (data-testid onboard-create). Tier is auto Pro for the New-Site path (no visible tier picker in wizard; the previous spec's onboard-tier-pro id only exists on the tier-picker step used by other paths). Backend URL: https://rbac-modules.preview.emergentagent.com. Rate limit: wait ~35s between fresh logins to avoid 429.",
+  "rca of the issue": "Root cause (from previous run): onboard_pulse_site created a child site but GET /sites auto-created an empty Head Office because no site was flagged is_head_office; portal defaulted to that empty HO. Fix (verified this run): onboard_pulse_site now inserts the created site with is_head_office=True, so /api/sites returns exactly one site (the one holding the 3 equipment). Portal owner lands on it and Equipment tab is populated on first load. No manual site switching required. No 'Head Office · 0 eq' entry appears in the header."
+}

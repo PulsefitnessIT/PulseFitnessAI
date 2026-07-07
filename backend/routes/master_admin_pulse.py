@@ -333,6 +333,12 @@ async def onboard_pulse_site(data: dict = Body(...), user: dict = Depends(get_cu
         "county": site_addr["county"],
         "postcode": site_addr["postcode"],
         "country": site_addr["country"],
+        # Iter — a brand-new single-site customer's site IS their head
+        # office. Flagging it prevents GET /sites from auto-creating a
+        # separate empty "Head Office" that the portal would then default
+        # to (showing "No equipment found" even though the equipment is
+        # correctly attached to this site). Later branches attach under it.
+        "is_head_office": True,
         "created_at": now,
     })
 
