@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only verification of three fixes: (1) Pulse Pro dashboard trend cards, (2) full Ops dashboard regression after shared KpiTrend helper refactor, (3) invoice upload progress shows only ONE percentage. All three PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "test1_pulse_pro_dashboard": {
+      "status": "PASS",
+      "credential": "lite.docs@pulsedemo.test",
+      "route": "/pulse -> Dashboard tab",
+      "observations": "pro-trend-cards rendered. pro-stat-open-faults: value=8, badge=▲25%, sparkline SVG present. pro-stat-audits: value=10, badge=▼25%, sparkline present. pro-stat-maintenance: value=34, badge=–0%, sparkline present. lite-kpi-resolved-week correctly NOT rendered for Pro (count=0)."
+    },
+    "test2_full_ops_dashboard_regression": {
+      "status": "PASS",
+      "credential": "owner@isodemo.com",
+      "route": "/dashboard -> Dashboard sub-tab",
+      "observations": "No blank screen or crash after KpiTrend shared-helper refactor. Gym Health Score card renders (currently 'Awaiting data'/'Score not available yet' as expected for an empty demo org). Three sparkline KPI cards present: Open Faults (–0%), Audits Completed (–0%), Maintenance Tasks (–0%). kpi-sparkline count=3, kpi-trend-badge count=3. No 'Something went wrong' error boundary."
+    },
+    "test3_invoice_progress_single_pct": {
+      "status": "PASS",
+      "credential": "admin@pulsefitness.com (Master Admin)",
+      "route": "/master-admin?section=onboarding -> Onboard Site -> New Site -> Next (Upload Invoice)",
+      "file_uploaded": "/tmp/tiny_invoice.pdf (534 bytes)",
+      "observations": "During upload phase, invoice-parse-progress-label = 'Uploading PDF…' with NO numeric % in the label. invoice-parse-progress-pct badge = '13%'. Regex extraction of digits followed by % in the whole progress container consistently returned a single value (['13']) across 8 polled ticks — never two conflicting percentages. Bug is FIXED. On completion label reads 'Extracted 0 machine(s) from invoice' and the pct badge is correctly hidden."
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "InvoiceParseProgress: clean implementation — % badge is only rendered when phase != 'error' && phase != 'done', so exactly one percentage is on-screen at any time.",
+    "KpiTrend.js: shared helper is small, deterministic, and correctly bucketed to last 3 months. Reused by both Dashboard/OverviewTab.js and LiteDashboard/LiteOverviewTab.js without duplication.",
+    "LiteOverviewTab gating uses isPulsePro && equipment.length > 0 — correct per PRD."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only run)", "frontend": "100%"},
+  "test_credentials": "As provided in review request.",
+  "seed_data_creation": "None. Reused existing PRODEMO_/SDDEMO_ seed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All three fixes verified end-to-end via Playwright against the public preview URL. Login modal uses text input (placeholder 'you@gym.com or kiosk username') — not type=email. For the master-admin onboarding wizard: /master-admin?section=onboarding -> click 'Onboard Site' -> click 'New Site' card -> click 'Next' to land on onboard-step-invoice. Use onboard-invoice-input to set files directly (dropzone bypass)."
+}

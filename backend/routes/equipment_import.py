@@ -634,6 +634,11 @@ async def _run_invoice_extraction(data: bytes, filename: str, content_type: str 
 # ── Chunked invoice upload (bypasses the 2MB ingress body limit) ──────────
 _CHUNK_DIR = "/tmp/pulse_invoice_chunks"
 _INVOICE_ALLOWED = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
+# Large multi-page leisure-centre invoices can be big scanned PDFs. Chunked
+# upload (1.5MB slices) means this cap is only checked on the reassembled
+# file server-side; the AI extraction itself is bounded (first ~120k chars /
+# 8 rendered pages), so a high ceiling is safe for memory/latency.
+_INVOICE_MAX_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
 @router.post("/parse-invoice/chunk")
@@ -695,7 +700,7 @@ async def parse_invoice_finalize(
     # Reassembled — drop the chunk docs immediately.
     await db.invoice_upload_chunks.delete_many({"upload_id": safe_id})
     # Validate synchronously so the user gets immediate feedback on bad files.
-    validate_upload(file_bytes=data, filename=filename, allowed=_INVOICE_ALLOWED, max_size=30 * 1024 * 1024)
+    validate_upload(file_bytes=data, filename=filename, allowed=_INVOICE_ALLOWED, max_size=_INVOICE_MAX_SIZE)
 
     job_id = str(uuid.uuid4())
     await db.invoice_parse_jobs.insert_one({
@@ -752,7 +757,7 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
     PDFs and image uploads via the smart extractor (vision fallback)."""
     from utils.file_validation import validate_upload
     data = await file.read()
-    validate_upload(file_bytes=data, filename=file.filename, allowed=_INVOICE_ALLOWED, max_size=30 * 1024 * 1024)
+    validate_upload(file_bytes=data, filename=file.filename, allowed=_INVOICE_ALLOWED, max_size=_INVOICE_MAX_SIZE)
     return await _run_invoice_extraction(data, file.filename, file.content_type, user)
 
 

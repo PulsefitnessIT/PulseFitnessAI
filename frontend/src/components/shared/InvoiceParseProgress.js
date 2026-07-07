@@ -79,7 +79,7 @@ const InvoiceParseProgress = ({ state }) => {
 
   if (state.phase === 'upload') {
     pct = Math.min(15, (state.pct || 0) * 0.15);
-    label = `Uploading PDF… ${Math.round(state.pct || 0)}%`;
+    label = 'Uploading PDF…';
     Icon = FileText;
     iconClass = 'text-[var(--color-brand-blue)]';
   } else if (state.phase === 'extract') {

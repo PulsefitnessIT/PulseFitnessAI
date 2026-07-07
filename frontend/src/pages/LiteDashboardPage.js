@@ -944,6 +944,7 @@ const LiteDashboardPage = () => {
                 openFaults={openFaults}
                 operational={operational}
                 outOfOrder={outOfOrder}
+                issues={issues}
                 onLogFault={() => { setActiveTab('faults'); setShowFaultDialog(true); }}
                 onViewFault={(f) => { setActiveTab('faults'); setSelectedIssue(f); }}
                 getSeverityStyle={getSeverityStyle}

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import KpiTile from '../../components/shared/KpiTile';
 import PulseScoreCard from '../../components/PulseScoreCard';
+import { Sparkline, TrendBadge, monthlySeries } from '@/components/shared/KpiTrend';
 import { useAuth } from '@/App';
 
 // Iter 216h192 — Lee's ask: when the score is "Fair" or lower, surface a
@@ -27,14 +28,20 @@ import { useAuth } from '@/App';
 // PulseScoreCard (the single score surface on the Dashboard tab).
 
 const LiteOverviewTab = ({
-  equipment, openFaults, operational, outOfOrder,
+  equipment, openFaults, operational, outOfOrder, issues,
   onLogFault, onViewFault,
   getSeverityStyle, getSeverityLabel,
 }) => {
-  const { API, activeSite, sites } = useAuth();
+  const { API, activeSite, sites, user } = useAuth();
   const { t } = useTranslation();
   const [health, setHealth] = useState(null);
   const [, setHealthLoading] = useState(true);
+  // Pulse Pro gets the richer GymAxis-style trend cards (Open Faults /
+  // Audits Completed / Maintenance Tasks with live sparklines). Lite keeps
+  // the simpler KPI tiles.
+  const isPulsePro = (user?.account_type || '').toLowerCase() === 'pulse_pro';
+  const [auditHistory, setAuditHistory] = useState([]);
+  const [maintenanceTasks, setMaintenanceTasks] = useState([]);
 
   // Iter 216h62 / 216h65 — scope to the active site for multi-site
   // tenants. All-sites mode clears activeSite and we get the aggregate.
@@ -60,6 +67,27 @@ const LiteOverviewTab = ({
     load();
     return () => { cancelled = true; };
   }, [API, scopeSiteId]);
+
+  // Pulse Pro — pull audits + maintenance tasks so the trend cards have live
+  // series (Lite skips this fetch entirely).
+  useEffect(() => {
+    if (!isPulsePro) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const [a, m] = await Promise.all([
+          axios.get(`${API}/audit/history`, { headers }).catch(() => ({ data: {} })),
+          axios.get(`${API}/maintenance/tasks`, { headers }).catch(() => ({ data: {} })),
+        ]);
+        if (cancelled) return;
+        setAuditHistory(a.data?.audits || []);
+        setMaintenanceTasks(m.data?.tasks || []);
+      } catch { /* non-blocking */ }
+    })();
+    return () => { cancelled = true; };
+  }, [API, isPulsePro]);
 
   // Derived KPI: resolved-this-week
   const weekAgo = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
@@ -125,7 +153,58 @@ const LiteOverviewTab = ({
         <KpiTile icon={Clock}         label={t('dashboard.open_faults', 'Open Faults')}    value={openFaults.length}    tone="warning" testId="lite-kpi-open" />
       </div>
 
-      {/* Secondary KPIs */}
+      {/* Secondary KPIs — Pulse Pro gets the GymAxis-style sparkline trend
+          cards once the org has equipment (empty state stays until then);
+          Lite keeps the simpler KPI tiles. */}
+      {isPulsePro && (equipment?.length || 0) > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="pro-trend-cards">
+          <Card
+            className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6 cursor-pointer hover:border-[rgb(var(--rgb-brand-blue)/0.5)] transition-colors"
+            data-testid="pro-stat-open-faults"
+            onClick={onLogFault}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[var(--color-text-muted)] text-sm">{t('dashboard.open_faults', 'Open Faults')}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-3xl font-bold" style={{ color: 'var(--theme-text)' }}>{openFaults.length}</p>
+                  <TrendBadge pct={monthlySeries(issues || []).pct} invert />
+                </div>
+              </div>
+              <AlertCircle className="text-[var(--color-brand-blue)]" size={32} />
+            </div>
+            <Sparkline points={monthlySeries(issues || []).points} color="var(--color-brand-blue)" />
+          </Card>
+
+          <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6" data-testid="pro-stat-audits">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[var(--color-text-muted)] text-sm">{t('dashboard.audits_completed', 'Audits Completed')}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-3xl font-bold" style={{ color: 'var(--theme-text)' }}>{auditHistory.length || (health?.stats?.total_audits ?? 0)}</p>
+                  <TrendBadge pct={monthlySeries(auditHistory).pct} />
+                </div>
+              </div>
+              <ShieldCheck className="text-[var(--color-brand-blue)]" size={32} />
+            </div>
+            <Sparkline points={monthlySeries(auditHistory).points} color="var(--color-brand-blue)" />
+          </Card>
+
+          <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6" data-testid="pro-stat-maintenance">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[var(--color-text-muted)] text-sm">{t('dashboard.maintenance_tasks', 'Maintenance Tasks')}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-3xl font-bold" style={{ color: 'var(--theme-text)' }}>{maintenanceTasks.length}</p>
+                  <TrendBadge pct={monthlySeries(maintenanceTasks).pct} />
+                </div>
+              </div>
+              <Clock className="text-[var(--color-brand-blue)]" size={32} />
+            </div>
+            <Sparkline points={monthlySeries(maintenanceTasks).points} color="var(--color-brand-blue)" />
+          </Card>
+        </div>
+      ) : (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile
           icon={TrendingUp}
@@ -156,6 +235,7 @@ const LiteOverviewTab = ({
           testId="lite-kpi-top-supplier"
         />
       </div>
+      )}
 
       {/* Recent Faults — Iter 237: theme-var colours (was hardcoded
           text-white, invisible in light mode + leaking in dark). */}
