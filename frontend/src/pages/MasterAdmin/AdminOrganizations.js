@@ -1390,6 +1390,13 @@ useEffect(() => {
  setSaveError('');
  try {
  const { id, ...updates } = editingOrg;
+ // The Details tab does NOT own modules — the Modules tab (Feature
+ // Control) is the single source of truth. A stale enabled_modules /
+ // portal_type snapshot taken when this panel opened would otherwise
+ // clobber modules the admin just toggled → the recurring "enable a
+ // module, press Save, it disables" bug. Strip them from the payload.
+ delete updates.enabled_modules;
+ delete updates.portal_type;
  const API = process.env.REACT_APP_BACKEND_URL;
  const token = localStorage.getItem('token');
  const res = await fetch(`${API}/api/master-admin/organizations/${id}/details`, {
