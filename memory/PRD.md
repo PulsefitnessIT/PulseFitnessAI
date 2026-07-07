@@ -1,3 +1,43 @@
+# ═══ 2026-07-06 (pt.2) · MODULE SAVE BUG + PULSE PRO DASHBOARD + INVOICE UPLOAD (all VERIFIED) ═══
+
+1) MASTER ADMIN — MODULE SELECTOR "enable module → Save → it disables" (recurring). ROOT CAUSE: the org
+   **Details** tab's "Save Details" button sent the WHOLE editingOrg snapshot (incl. a stale `enabled_modules`
+   + `portal_type` captured when the panel opened) to PUT /master-admin/organizations/{id}/details; the backend
+   rebuilds the entire `modules` dict from `enabled_modules` (master_admin_orgs.py ~line 596), clobbering
+   modules just toggled in the Modules tab. FIX (AdminOrganizations.js, Save Details handler): `delete
+   updates.enabled_modules; delete updates.portal_type;` — the Details tab no longer owns modules (Modules tab
+   / Feature Control is the single source of truth). VERIFIED via curl: enable CRM+Memberships → profile-only
+   Save Details → modules persist (old stale-payload path proven to clobber). Org list already returns `modules`
+   (projection only excludes _id + features_audit), so the matrix itself was fine.
+
+2) OPERATIONS DASHBOARD — Pulse Pro looked "basic" vs the rich GymAxis-style layout. CAUSE: dashboard is chosen
+   by account_type — full → /dashboard (Dashboard/OverviewTab, rich sparkline cards); lite AND pulse_pro →
+   /pulse (LiteDashboard/LiteOverviewTab, simpler tiles). User decision: **Pulse Pro ONLY** gets the rich
+   cards; Lite stays simple; empty-state kept until there's data. IMPLEMENTED:
+   - Extracted Sparkline/TrendBadge/monthlySeries into components/shared/KpiTrend.js (shared, DRY); OverviewTab
+     now imports from it (regression-tested, no crash).
+   - LiteOverviewTab: when `account_type==='pulse_pro' && equipment.length>0`, renders 3 trend cards
+     (Open Faults / Audits Completed / Maintenance Tasks) each with a live sparkline + % trend badge; fetches
+     /audit/history + /maintenance/tasks; otherwise keeps the existing Lite KPI tiles. `issues` now threaded
+     from LiteDashboardPage.
+   - Seed: scripts/seed_pulse_pro_dashboard_demo.py (8 equipment / 12 issues / 10 audits for lite.docs org).
+   VERIFIED (testing agent, frontend 100%): Pro cards render (Open Faults 8 ▲25% / Audits 10 ▼25% / Maint 34),
+   Lite tiles hidden for Pro; Full dashboard unaffected.
+
+3) MASTER ADMIN — INVOICE UPLOAD. (a) "bigger PDF file size": raised cap 30MB→100MB via new module const
+   `_INVOICE_MAX_SIZE = 100*1024*1024` in equipment_import.py (used by /parse-invoice/finalize AND
+   /parse-invoice). Chunked upload (1.5MB slices) unchanged; AI extraction stays bounded (~120k chars / 8
+   rendered pages) so 100MB is memory/latency-safe. VERIFIED via curl through the external URL: a 48.7MB PDF
+   → 33 chunks OK → finalize 200 + job_id (was 413 "File exceeds 31457280 bytes") → worker completes to 'done'.
+   (b) "2 fake %'s": InvoiceParseProgress upload-phase label showed the RAW upload pct ("Uploading PDF… 85%")
+   while the right badge showed the rescaled overall-bar pct (min(15, 85*0.15)≈13%). FIX: dropped the number
+   from the upload label → single canonical % (the right-side badge). VERIFIED (testing agent): only one
+   percentage on screen at any tick; label = "Uploading PDF…" with no number.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-06 · SERVICE DESK PRE-RELEASE CHECKLIST (VERIFIED: backend 10/10, FE PM dropdown 100%) ═══
 Founder asked "is the Service Desk ready for release?". Assessment: feature-complete/pre-GA. Closed the
 3-item pre-release checklist that turned "renders correctly" into "verified with real numbers":
