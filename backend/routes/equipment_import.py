@@ -641,6 +641,26 @@ _INVOICE_ALLOWED = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 _INVOICE_MAX_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
+async def _resolve_import_site_id(org_id: str | None, explicit: str | None) -> str | None:
+    """Pick the site to tag imported equipment with. An explicit body value
+    wins; otherwise default to the org's primary (or earliest active) site so
+    the equipment is immediately visible in the per-site portal view — the
+    old logic only inferred a site when the org had EXACTLY one, so multi-site
+    / head-office imports landed with no site_id and showed 'No equipment
+    found' on every per-site view."""
+    explicit = (explicit or "").strip() or None
+    if explicit or not org_id:
+        return explicit
+    sites = await db.sites.find(
+        {"organization_id": org_id, "status": {"$ne": "archived"}},
+        {"_id": 0, "id": 1, "is_primary": 1, "created_at": 1},
+    ).sort("created_at", 1).to_list(100)
+    if not sites:
+        return None
+    primary = next((s for s in sites if s.get("is_primary")), None)
+    return (primary or sites[0]).get("id")
+
+
 @router.post("/parse-invoice/chunk")
 async def parse_invoice_chunk(
     upload_id: str = Form(...),
@@ -882,17 +902,9 @@ async def confirm_import(import_id: str, body: dict = None, user: dict = Depends
     body = body or {}
     target_org_id, target_user_id = await _resolve_target_user(body, user)
 
-    # Iter 216h194 — tag imported equipment with active site so per-site
-    # filters surface it immediately. Body can override; else infer for
-    # single-site orgs.
-    target_site_id = (body.get("site_id") or "").strip() or None
-    if not target_site_id and target_org_id:
-        org_sites = await db.sites.find(
-            {"organization_id": target_org_id, "status": {"$ne": "archived"}},
-            {"_id": 0, "id": 1},
-        ).to_list(2)
-        if len(org_sites) == 1:
-            target_site_id = org_sites[0].get("id")
+    # Iter — tag imported equipment with a concrete site (body override, else
+    # the org's primary/first site) so per-site portal filters surface it.
+    target_site_id = await _resolve_import_site_id(target_org_id, body.get("site_id"))
 
     extracted = imp.get("extracted_data", {})
     supplier = extracted.get("supplier_name", "")
@@ -1075,18 +1087,9 @@ async def confirm_bulk_import(batch_id: str, body: dict = None, user: dict = Dep
     body = body or {}
     target_org_id, target_user_id = await _resolve_target_user(body, user)
 
-    # Iter 216h194 — same fix as the single-confirm and onboarding wizard:
-    # tag imported equipment with the active site so per-site filters
-    # pick it up immediately. Body can override; else infer if the
-    # target org has exactly one active site.
-    target_site_id = (body.get("site_id") or "").strip() or None
-    if not target_site_id and target_org_id:
-        org_sites = await db.sites.find(
-            {"organization_id": target_org_id, "status": {"$ne": "archived"}},
-            {"_id": 0, "id": 1},
-        ).to_list(2)
-        if len(org_sites) == 1:
-            target_site_id = org_sites[0].get("id")
+    # Iter — tag imported equipment with a concrete site (body override, else
+    # the org's primary/first site) so per-site portal filters surface it.
+    target_site_id = await _resolve_import_site_id(target_org_id, body.get("site_id"))
 
     total_created = 0
     for import_id in batch.get("import_ids", []):

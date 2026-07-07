@@ -175,6 +175,19 @@ async def get_all_equipment(
                 {"$set": {"site_id": site_id, "site_id_backfilled_at": datetime.now(timezone.utc).isoformat()}},
             )
 
+    # Iter — surface site-less equipment (legacy rows, or multi-site / head
+    # office imports created before the site_id fix) on a per-site view too;
+    # otherwise it is invisible everywhere except "All sites". Non-destructive
+    # widening of the concrete-site filter to include the org's unassigned
+    # equipment.
+    if site_id and not user.get("_mod_scope_ids") and org_filter.get("site_id") == site_id:
+        org_filter.pop("site_id")
+        org_filter["$or"] = [
+            {"site_id": site_id},
+            {"site_id": {"$exists": False}},
+            {"site_id": None},
+        ]
+
     equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(2000)
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     for equip in equipment_list:

@@ -212,7 +212,7 @@ async def _create_onboard_users(data: dict, config: dict) -> list[dict]:
     return created
 
 
-async def _create_kit_equipment(kit: dict, org_id: str, owner_id: str, location: str, now: str) -> int:
+async def _create_kit_equipment(kit: dict, org_id: str, owner_id: str, location: str, now: str, site_id: str | None = None) -> int:
     """Create equipment from a predefined kit. Returns count created."""
     count = 0
     for item in kit["items"]:
@@ -225,13 +225,14 @@ async def _create_kit_equipment(kit: dict, org_id: str, owner_id: str, location:
                 "model": item.get("model"), "serial_number": None,
                 "location": location,
                 "manuals": [], "photos": [], "created_at": now, "updated_at": now,
+                **({"site_id": site_id} if site_id else {}),
             }
             await db.equipment.insert_one(equip_doc)
             count += 1
     return count
 
 
-async def _create_manual_equipment(eq_list: list, org_id: str, owner_id: str, default_location: str, now: str) -> int:
+async def _create_manual_equipment(eq_list: list, org_id: str, owner_id: str, default_location: str, now: str, site_id: str | None = None) -> int:
     """Create equipment from a manual list. Returns count created."""
     count = 0
     for eq in eq_list:
@@ -252,20 +253,21 @@ async def _create_manual_equipment(eq_list: list, org_id: str, owner_id: str, de
             "sla_level": eq.get("sla_name", "") or eq.get("sla_level", ""),
             "status": "operational", "condition": "excellent",
             "manuals": [], "photos": [], "created_at": now, "updated_at": now,
+            **({"site_id": site_id} if site_id else {}),
         }
         await db.equipment.insert_one(equip_doc)
         count += 1
     return count
 
 
-async def _create_onboard_equipment(data: dict, org_id: str, owner_id: str, now: str) -> int:
+async def _create_onboard_equipment(data: dict, org_id: str, owner_id: str, now: str, site_id: str | None = None) -> int:
     """Create equipment from kit and/or manual list. Returns count created."""
     count = 0
     default_location = data.get("default_location", "Main Floor")
     equipment_kit = data.get("equipment_kit")
     if equipment_kit and equipment_kit in PULSE_EQUIPMENT_KITS:
-        count += await _create_kit_equipment(PULSE_EQUIPMENT_KITS[equipment_kit], org_id, owner_id, default_location, now)
-    count += await _create_manual_equipment(data.get("equipment", []), org_id, owner_id, default_location, now)
+        count += await _create_kit_equipment(PULSE_EQUIPMENT_KITS[equipment_kit], org_id, owner_id, default_location, now, site_id)
+    count += await _create_manual_equipment(data.get("equipment", []), org_id, owner_id, default_location, now, site_id)
     return count
 
 
@@ -339,7 +341,7 @@ async def onboard_pulse_site(data: dict = Body(...), user: dict = Depends(get_cu
         "owner_name": owner_name, "owner_password": owner_password,
         "now": now, "account_type": account_type,
     })
-    created_equipment = await _create_onboard_equipment(data, org_id, owner_id, now)
+    created_equipment = await _create_onboard_equipment(data, org_id, owner_id, now, site_id)
 
     await log_activity("pulse_site_onboarded", f"Onboarded Pulse {tier.upper()} site: {site_name}", user.get("email", ""), "organization", org_id)
     return {

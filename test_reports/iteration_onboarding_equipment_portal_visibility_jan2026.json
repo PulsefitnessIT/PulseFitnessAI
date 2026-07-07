@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend E2E of Master Admin Onboarding → owner portal Equipment tab. New Site (Pulse Pro) wizard completed with 3 manually-added equipment items; site created successfully (Company Code FD6D2C45, Users=1, Equipment=3). Logged in as new owner (qaowner1783436133@example.test / OwnerPass123!) at /pulse and verified Operations → Equipment. The 3 equipment items (Treadmill QA A, Bike QA B, Rower QA C with SN1783436133A/B/C, TestMfr) DO appear once the correct site is selected in the site selector. The backend site_id fix is working: /api/equipment?site_id=<child_site> returns the equipment. Spreadsheet-import and Existing-Customer flows were NOT exercised (per request they were optional; existing-customer already verified by main agent).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PulsePortal site selector / default landing site",
+        "issue": "After 'New Site' onboarding for a Pulse Pro customer, the wizard provisions TWO sites for the new org: a Head Office site (0 equipment) AND the actual child site (3 equipment). When the owner first logs in, the portal defaults to the Head Office site, so Operations → Equipment shows 'No equipment found' until the user manually opens the site selector and switches to the child site. This reproduces the user-visible symptom the original bug report describes even though the underlying site_id linkage is now correct. Site selector shows: 'QA Onboard Site 1783436133… Head Office · 0 eq' (default) and 'QA Onboard Site 1783436133 · 3 eq'.",
+        "selector": "header site selector button:has-text('QA Onboard Site')",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Onboarding wizard tier selector",
+        "issue": "Original request/spec mentioned 'Pulse Pro' tier data-testid 'onboard-tier-pulse_pro' but actual DOM emits 'onboard-tier-pro' (also 'lite', 'gymaxis'). Not a functional bug, just an id/naming mismatch that broke my first attempt.",
+        "selector": "[data-testid='onboard-tier-pro']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix default landing site for new-site onboarding so the owner lands on the actual site (with equipment) rather than the auto-created Head Office. Either: (a) do not create a Head Office site in single-site 'New Site' mode, or (b) mark the child site as the primary/default site for the owner, or (c) make the per-site GET /api/equipment for a Head Office site fall back to include child-site equipment (or aggregate view).",
+    "Verify wizard 'New Site' mode intent: is a Head Office really required for a brand-new single-site customer? If not, drop it — otherwise the user's 'equipment count OK at org, empty in portal' bug regresses in perception."
+  ],
+  "critical_code_review_comments": [
+    "PulseOnboardingWizard: onboard-tier ids differ from the spec ('pro' vs 'pulse_pro'); align docs/tests with implementation.",
+    "onboard_pulse_site for 'new' mode appears to create a Head Office + child site pair even for a single-site customer, which causes portal to default to the empty HO site. Backend equipment fix (site_id threading) is correct in isolation but this org-shape choice re-exposes the same symptom to the user."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested)", "frontend": "80% (core flow works, default-site UX issue found)"},
+  "test_credentials": "Master Admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg. Test owner created: qaowner1783436133@example.test / OwnerPass123! (org 'QA Onboard Site 1783436133', company code FD6D2C45).",
+  "seed_data_creation": "Created new customer org via wizard: site 'QA Onboard Site 1783436133' (Pulse Pro tier) with 3 equipment (Treadmill QA A / Bike QA B / Rower QA C, SN1783436133A-C). Not cleaned up — no UI delete available. Please note & purge if not needed.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend site_id fix confirmed working — child-site equipment IS returned by /api/equipment?site_id=<child>. The remaining UX gap is that the Pulse portal defaults to the auto-provisioned Head Office site on first load; user sees 'No equipment found' until they switch sites via the top-right site selector. Spreadsheet-import and existing-customer onboarding modes NOT tested here.",
+  "rca of the issue": "Original bug (equipment created without site_id -> filtered out by per-site query) IS fixed. New residual UX symptom: 'New Site' wizard now provisions a Head Office (0 eq) alongside the actual child site (3 eq); the owner's portal default site is the empty Head Office, so Equipment tab appears empty on first load. Repro: log in as newly onboarded owner → /pulse → Equipment tab (empty). Mitigation: open header site selector → pick the non-HO site → all 3 equipment appear. Long-term fix: skip HO creation for single-site 'New' mode OR make the owner default site the actual operations site OR merge HO+site view."
+}
