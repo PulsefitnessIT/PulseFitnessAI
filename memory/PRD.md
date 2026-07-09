@@ -1,3 +1,22 @@
+# ═══ 2026-07-09 · CUSTOMER PO SURFACED ON INVOICE + SERVICE DESK QUEUE/HEADER (VERIFIED 100%) ═══
+Follow-on to the Customer PO feature — surface case.customer_po_number so finance can reconcile chargeable
+jobs against the customer's purchase order:
+
+A) ENGINEER INVOICE / QUOTE. engineer_invoices.py: _build_invoice_payload now carries customer_po_number
+   (from body or case snapshot); create_invoice case projection includes it; invoice-prefill returns it;
+   InvoiceCreate + InvoiceUpdate accept it (editable). utils/engineer_invoice_pdf.py renders
+   "Customer PO / ref: <po>" in the FROM/meta block. Verified: prefill returns PO-4471 + PDF text contains
+   "Customer PO / ref: PO-4471".
+B) SERVICE DESK. Backend already returned customer_po_number in both /svc/cases list (exclude-projection) and
+   GET /cases/{id}. Frontend: ServiceDeskPage.js queue row shows a "PO: <po>" sub-line under the reference
+   (data-testid=case-po-<ref>); ServiceCaseDrawer.js header shows a cyan "PO / Ref: <po>" pill
+   (data-testid=drawer-customer-po). Verified (testing agent 100%, iteration_svc_po_frontend_jan2026.json):
+   queue row + drawer chip render for demo case SVC-00001 (dca2dfb9…, PO-4471), layout intact.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-07 (pt.2) · ENGINEER/SERVICE DESK — CUSTOMER PO + FULL FAULT CONTEXT & AI TRIAGE (VERIFIED 100%) ═══
 Feature (3 parts), all VERIFIED (backend E2E + frontend testing agent 12/12,
 iteration_engineer_po_and_triage_jan2026.json):
