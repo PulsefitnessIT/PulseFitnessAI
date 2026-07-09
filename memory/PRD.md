@@ -1,3 +1,36 @@
+# ═══ 2026-07-07 (pt.2) · ENGINEER/SERVICE DESK — CUSTOMER PO + FULL FAULT CONTEXT & AI TRIAGE (VERIFIED 100%) ═══
+Feature (3 parts), all VERIFIED (backend E2E + frontend testing agent 12/12,
+iteration_engineer_po_and_triage_jan2026.json):
+
+1) CUSTOMER REFERENCE / PO on the engineer "Log a new job" form. Single field → case.customer_po_number
+   (the field that already maps to Sage SLInvoice.SecondReference/CustomerPONumber).
+   - independence.py: SelfCreateIn.customer_po_number + doc.
+   - EngineerNewJob.js: form state + field (data-testid=newjob-customer-po); flows via {...form} payload.
+
+2) OPERATIONS PO → SERVICE DESK auto-link. Operations "Log a fault" already raises a PO for chargeable/
+   uncovered faults (stored in db.purchase_orders keyed by issue_id via POST /purchase-orders). The
+   fault→case bridge (issues.py _mirror_issue_to_svc_case, single + multi-machine) now calls new helper
+   _lookup_issue_po(issue_ids) and stamps case.customer_po_number, so a PO raised at fault-log time flows
+   straight to the engineer's case (and on to Sage). Verified: bridge pulled 'PO-TEST-99'.
+
+3) FULL FAULT CONTEXT + AI TRIAGE visible to the engineer (compact). intake._create_case now stores
+   ai_triage + fault_severity on the case; the bridge forwards issue.ai_triage + severity + fault_code +
+   reporter details. Engineer detail (EngineerJobDetailV2.js) has a new FaultContextCard on Summary:
+   compact chips (PO / fault code / severity) + a short triage summary + a "View AI Triage" button opening a
+   modal (TriageBody: diagnosis, numbered repair steps, likely parts, est. time). Kept behind a button per
+   user's request so it doesn't crowd the modal. Test-ids: jaag-fault-context, jaag-customer-po,
+   jaag-fault-code, jaag-fault-severity, jaag-triage-summary, jaag-view-triage-btn, jaag-triage-modal,
+   jaag-triage-diagnosis, jaag-triage-close.
+
+Demo left in place for the user to view: engineer job /svc/engineer/jobs/dca2dfb9-e5b7-4d63-8e19-64cf8746f3e1
+(PO-4471, fault E12-BELT, severity out_of_order, full triage) — assigned to admin@pulsefitness (master admin
+bypasses the assigned-engineer check). Non-blocker: pre-existing dev-only React warning about visual-editor
+<span> inside <option> in an unrelated select (not from this change).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-07 · ONBOARDING → PORTAL EQUIPMENT VISIBILITY (P0, VERIFIED frontend 100%) ═══
 BUG: After onboarding a customer, equipment showed at ORG level (Master Admin "18 equip") but the end-user
 portal Equipment tab showed "No equipment found". Two chained root causes, both fixed:
