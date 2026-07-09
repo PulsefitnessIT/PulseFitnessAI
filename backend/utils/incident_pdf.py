@@ -120,18 +120,23 @@ def _header_factory(title: str, subtitle: str, brand: str = "Pulse Fitness"):
     return _on_page
 
 
-def _build_doc(buf: BytesIO, title: str, subtitle: str) -> BaseDocTemplate:
-    doc = BaseDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=14 * mm, rightMargin=14 * mm,
-        topMargin=34 * mm, bottomMargin=18 * mm,
-        title=title,
+def _build_doc(buf: BytesIO, title: str, subtitle: str) -> tuple:
+    """Return (doc, intro_flowables) on the shared Pulse shell. The intro
+    carries the standard Pulse header + document title/subtitle so every
+    incident export matches the rest of the platform's PDFs."""
+    from utils.pulse_doc_template import (
+        pulse_styles, pulse_header, make_pulse_doc,
     )
-    frame = Frame(doc.leftMargin, doc.bottomMargin,
-                  doc.width, doc.height, id="body")
-    doc.addPageTemplates([PageTemplate(id="main", frames=[frame],
-                                       onPage=_header_factory(title, subtitle))])
-    return doc
+    from reportlab.platypus import Spacer as _Spacer
+    ps = pulse_styles()
+    doc = make_pulse_doc(buf, title)
+    intro = [
+        pulse_header(ps), _Spacer(1, 6 * mm),
+        Paragraph(_esc(title), ps["title"]),
+        Paragraph(_esc(subtitle), ps["muted"]),
+        _Spacer(1, 4 * mm),
+    ]
+    return doc, intro
 
 
 def _kv_table(rows: list[tuple[str, str]], st) -> Table:
@@ -166,7 +171,7 @@ def _pill(label: str, color, st) -> Table:
 def _signature_block(sig: dict, st) -> list:
     """Embed a captured signature (data URL or raw PNG bytes) plus the
     typed name / role / timestamp legal-line."""
-    flow: list = []
+    flow: list = list(_intro)
     flow.append(Paragraph(_esc(f"{sig.get('role','').title() or 'Signed by'}: {sig.get('name','')}"),
                           st["value"]))
     img = sig.get("image_data_url") or sig.get("image_b64")
@@ -211,13 +216,13 @@ def accident_report_pdf(incident: dict, org_name: str = "", actions: list | None
     """Single incident, full detail. Used as the legally defensible
     record of an accident."""
     buf = BytesIO()
-    doc = _build_doc(
+    doc, _intro = _build_doc(
         buf,
         title=f"Accident Report · {incident.get('reference', '')}",
         subtitle=f"{org_name or 'Pulse Fitness'} · {incident.get('kind', 'incident').replace('_',' ').title()}",
     )
     st = _styles()
-    flow: list = []
+    flow: list = list(_intro)
     # Status pills row
     sev = incident.get("severity", "minor")
     rid = (incident.get("riddor") or {}).get("status", "not_assessed")
@@ -304,10 +309,10 @@ def accident_report_pdf(incident: dict, org_name: str = "", actions: list | None
 
 def witness_statement_pdf(incident: dict, witness: dict, org_name: str = "") -> bytes:
     buf = BytesIO()
-    doc = _build_doc(buf, title=f"Witness Statement · {incident.get('reference','')}",
+    doc, _intro = _build_doc(buf, title=f"Witness Statement · {incident.get('reference','')}",
                      subtitle=f"{org_name or 'Pulse Fitness'} · {witness.get('name','')}")
     st = _styles()
-    flow: list = []
+    flow: list = list(_intro)
     flow.append(Paragraph("WITNESS", st["section"]))
     flow.append(_kv_table([
         ("Name", witness.get("name")),
@@ -336,11 +341,11 @@ def witness_statement_pdf(incident: dict, witness: dict, org_name: str = "") -> 
 
 def investigation_report_pdf(incident: dict, actions: list | None = None, org_name: str = "") -> bytes:
     buf = BytesIO()
-    doc = _build_doc(buf, title=f"Investigation Report · {incident.get('reference','')}",
+    doc, _intro = _build_doc(buf, title=f"Investigation Report · {incident.get('reference','')}",
                      subtitle=f"{org_name or 'Pulse Fitness'}")
     st = _styles()
     inv = incident.get("investigation") or {}
-    flow: list = []
+    flow: list = list(_intro)
     flow.append(Paragraph("INVESTIGATION", st["section"]))
     flow.append(_kv_table([
         ("Investigator", inv.get("investigator_name")),
@@ -373,11 +378,11 @@ def riddor_report_pdf(incident: dict, org_name: str = "") -> bytes:
     so the manager has a defensible record alongside the HSE submission."""
     buf = BytesIO()
     rid = incident.get("riddor") or {}
-    doc = _build_doc(buf,
+    doc, _intro = _build_doc(buf,
                      title=f"RIDDOR Report · {incident.get('reference','')}",
                      subtitle=f"{rid.get('form') or 'F2508'} · {org_name or 'Pulse Fitness'}")
     st = _styles()
-    flow: list = []
+    flow: list = list(_intro)
     flow.append(_pill(rid.get("status", "not_assessed").replace("_", " "),
                       RIDDOR_COLOR.get(rid.get("status", "not_assessed"), MUTED), st))
     flow.append(Spacer(1, 6))
@@ -414,9 +419,9 @@ def riddor_report_pdf(incident: dict, org_name: str = "") -> bytes:
 
 def corrective_action_log_pdf(actions: list[dict], org_name: str = "", period_label: str = "All time") -> bytes:
     buf = BytesIO()
-    doc = _build_doc(buf, title="Corrective Action Log", subtitle=f"{org_name} · {period_label}")
+    doc, _intro = _build_doc(buf, title="Corrective Action Log", subtitle=f"{org_name} · {period_label}")
     st = _styles()
-    flow: list = []
+    flow: list = list(_intro)
     rows = [["Ref", "Action", "Priority", "Status", "Due", "Assigned to"]]
     for a in actions:
         rows.append([
@@ -448,10 +453,10 @@ def corrective_action_log_pdf(actions: list[dict], org_name: str = "", period_la
 def management_summary_pdf(stats: dict, org_name: str = "", period_label: str = "Last 30 days") -> bytes:
     """Period dashboard — what's been happening, what needs attention."""
     buf = BytesIO()
-    doc = _build_doc(buf, title="H&S Management Summary",
+    doc, _intro = _build_doc(buf, title="H&S Management Summary",
                      subtitle=f"{org_name} · {period_label}")
     st = _styles()
-    flow: list = []
+    flow: list = list(_intro)
     flow.append(Paragraph("HEADLINE", st["section"]))
     headline_rows = [[
         Paragraph("<b>Total incidents</b>", st["value"]),

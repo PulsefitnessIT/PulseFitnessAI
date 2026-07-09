@@ -141,6 +141,36 @@ def section_label(s: dict, text: str) -> Paragraph:
     return Paragraph(_esc(text), s["sectlabel"])
 
 
+def make_pulse_doc(buf, title: str, *, is_mod: bool = False,
+                   left_mm: float = 18, right_mm: float = 18,
+                   top_mm: float = 16, bottom_mm: float = 28):
+    """Return a BaseDocTemplate wired with a single full-width frame and the
+    standard Pulse footer (registered office / Co Reg / VAT / page number) on
+    every page. Callers prepend ``pulse_header(pulse_styles())`` to the story."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
+
+    doc = BaseDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=left_mm * mm, rightMargin=right_mm * mm,
+        topMargin=top_mm * mm, bottomMargin=bottom_mm * mm,
+        title=title, author="Pulse Fitness",
+    )
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
+                  id="pulse-body", showBoundary=0)
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame],
+                                       onPage=pulse_footer_factory(is_mod))])
+    return doc
+
+
+def pulse_title(s: dict, title: str, subtitle: str | None = None) -> list:
+    """Standard document title (navy) + optional muted subtitle line."""
+    flow = [Paragraph(_esc(title), s["title"])]
+    if subtitle:
+        flow.append(Paragraph(subtitle, s["muted"]))
+    return flow
+
+
 def pulse_footer_factory(is_mod: bool = False, primary_line: str | None = None):
     """on_page callback drawing the standard Pulse registered-office / compliance
     footer at the bottom of every page."""
@@ -178,5 +208,5 @@ def pulse_footer_factory(is_mod: bool = False, primary_line: str | None = None):
 __all__ = [
     "PULSE", "PULSE_NAVY", "PULSE_BLUE", "PULSE_TEXT", "PULSE_MUTED",
     "PULSE_LIGHT", "PULSE_BORDER", "pulse_styles", "pulse_header",
-    "section_label", "pulse_footer_factory",
+    "section_label", "pulse_footer_factory", "make_pulse_doc", "pulse_title",
 ]

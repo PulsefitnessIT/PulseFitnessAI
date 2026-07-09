@@ -1,213 +1,148 @@
-"""Branded CRM Quote → PDF builder (Iter 216h224).
+"""Branded CRM Quote → PDF builder.
 
-Uses reportlab (already in requirements) to render a branded quote PDF
-with header (org logo + address), customer block, line-item table
-including subtotals, totals/tax/grand-total, payment terms + notes.
-
-This is a CRM-CPQ-specific renderer — the engineer quote PDF
-(`utils/engineer_quote_pdf.py`) has a different shape (visit-based,
-labour bands) and isn't reusable here.
+Rebuilt onto the shared Pulse document shell (``utils/pulse_doc_template``)
+so CRM quotes share the exact header / footer / palette as Pulse invoices,
+engineer quotes, contracts, tenders, incident reports and site-survey
+handovers.
 """
 from __future__ import annotations
 
 import io
 from datetime import datetime
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
+    KeepTogether, Paragraph, Spacer, Table, TableStyle,
+)
+
+from utils.pulse_doc_template import (
+    PULSE, PULSE_NAVY, PULSE_LIGHT, PULSE_BORDER,
+    pulse_styles, pulse_header, section_label, pulse_title, make_pulse_doc,
 )
 
 
-def _hex_to_color(hex_str: str, fallback: str = "#0F172A"):
-    """Forgiving #RRGGBB → reportlab Color. Falls back to slate-900."""
-    h = (hex_str or "").lstrip("#")
-    if len(h) != 6:
-        h = fallback.lstrip("#")
-    try:
-        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-        return colors.Color(r / 255, g / 255, b / 255)
-    except Exception:
-        return colors.HexColor(fallback)
+def _esc(t) -> str:
+    if t is None:
+        return ""
+    return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
-    """Render the quote into a PDF byte string."""
+    """Render the quote into a PDF byte string on the Pulse shell."""
+    s = pulse_styles()
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=20 * mm, bottomMargin=20 * mm,
-    )
+    doc = make_pulse_doc(buf, f"Quote {quote.get('quote_number') or ''}")
 
-    brand = _hex_to_color(org.get("primary_color") or "#1D4ED8")
-    muted = colors.Color(0.45, 0.50, 0.58)
-    border = colors.Color(0.88, 0.91, 0.95)
-
-    base = getSampleStyleSheet()
-    H1 = ParagraphStyle("H1", parent=base["Heading1"], fontSize=22, leading=26, textColor=brand, spaceAfter=2)
-    H2 = ParagraphStyle("H2", parent=base["Heading2"], fontSize=11, leading=14, textColor=muted, spaceAfter=6, fontName="Helvetica-Bold")
-    Body = ParagraphStyle("Body", parent=base["BodyText"], fontSize=9, leading=12)
-    Right = ParagraphStyle("Right", parent=Body, alignment=TA_RIGHT)
-    Bold = ParagraphStyle("Bold", parent=Body, fontName="Helvetica-Bold")
-    BoldRight = ParagraphStyle("BoldRight", parent=Bold, alignment=TA_RIGHT)
-    Small = ParagraphStyle("Small", parent=Body, fontSize=8, textColor=muted)
-
-    story = []
-
-    # ── Header (org name/address left, QUOTE meta right) ──────────
-    org_name = org.get("name", "") or "Pulse Fitness"
-    org_addr = "<br/>".join(filter(None, [
-        org.get("address_line1"), org.get("address_line2"),
-        org.get("city"), org.get("postcode"), org.get("country"),
-    ])) or "—"
-    org_contact = "<br/>".join(filter(None, [
-        org.get("phone"), org.get("primary_contact_email"), org.get("website"),
-    ]))
-    header_left = [
-        Paragraph(org_name, H1),
-        Paragraph(org_addr, Small),
-    ]
-    if org_contact:
-        header_left.append(Spacer(0, 2 * mm))
-        header_left.append(Paragraph(org_contact, Small))
-
-    meta_rows = [
-        ["Quote #", quote.get("quote_number", "—")],
-        ["Date", datetime.now().strftime("%d %b %Y")],
-    ]
-    if quote.get("valid_until"):
-        meta_rows.append(["Valid until", str(quote.get("valid_until"))])
-    meta_rows.append(["Status", (quote.get("status") or "draft").replace("_", " ").title()])
-    meta_table = Table(meta_rows, colWidths=[22 * mm, 38 * mm])
-    meta_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("TEXTCOLOR", (0, 0), (0, -1), muted),
-        ("TEXTCOLOR", (1, 0), (1, -1), colors.black),
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-    ]))
-
-    header_table = Table(
-        [[header_left, meta_table]],
-        colWidths=[110 * mm, 60 * mm],
-    )
-    header_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEBELOW", (0, 0), (-1, 0), 1, brand),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    story.append(header_table)
-    story.append(Spacer(0, 8 * mm))
-
-    # ── Bill-to block ────────────────────────────────────────────
-    story.append(Paragraph("QUOTE FOR", H2))
-    bill_to_lines = []
-    if quote.get("company_name"):
-        bill_to_lines.append(Paragraph(f"<b>{quote['company_name']}</b>", Body))
-    if quote.get("contact_name"):
-        bill_to_lines.append(Paragraph(quote["contact_name"], Body))
-    if not bill_to_lines:
-        bill_to_lines.append(Paragraph("(No customer specified)", Small))
-    for ln in bill_to_lines:
-        story.append(ln)
-    if quote.get("title"):
-        story.append(Spacer(0, 3 * mm))
-        story.append(Paragraph(f"<b>Subject:</b> {quote['title']}", Body))
-    story.append(Spacer(0, 6 * mm))
-
-    # ── Line items table ─────────────────────────────────────────
-    head = [
-        Paragraph("<b>Description</b>", Body),
-        Paragraph("<b>Qty</b>", BoldRight),
-        Paragraph("<b>Unit Price</b>", BoldRight),
-        Paragraph("<b>Disc %</b>", BoldRight),
-        Paragraph("<b>Subtotal</b>", BoldRight),
-    ]
-    # Iter 220p1 — full currency map + market fallback (EUR/CAD/AUD), and
-    # localized tax label (VAT / Sales Tax / GST) snapshotted on the quote.
     from utils.localization import org_localization, currency_symbol as _cur_sym
     _loc = org_localization(org)
-    _ccy = (quote.get("currency") or _loc["currency"])
-    currency_symbol = _cur_sym(_ccy)
-    _tax_label = quote.get("tax_label") or _loc["tax_label"]
-    rows = [head]
-    for item in quote.get("line_items", []):
-        rows.append([
-            Paragraph(item.get("description") or item.get("product_name", "—"), Body),
-            Paragraph(f"{item.get('quantity', 0):g}", Right),
-            Paragraph(f"{currency_symbol}{item.get('unit_price', 0):,.2f}", Right),
-            Paragraph(f"{item.get('discount_percent', 0):g}%", Right),
-            Paragraph(f"{currency_symbol}{item.get('subtotal', 0):,.2f}", Right),
-        ])
-    items_table = Table(rows, colWidths=[78 * mm, 18 * mm, 26 * mm, 22 * mm, 30 * mm])
-    items_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), brand),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 9),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.Color(0.97, 0.98, 1.0)]),
-        ("LINEBELOW", (0, 0), (-1, -1), 0.4, border),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ]))
-    story.append(items_table)
-    story.append(Spacer(0, 6 * mm))
+    sym = _cur_sym(quote.get("currency") or _loc["currency"])
+    tax_label = quote.get("tax_label") or _loc["tax_label"]
 
-    # ── Totals box (right-aligned) ───────────────────────────────
-    totals_rows = [
-        ["Subtotal", f"{currency_symbol}{quote.get('subtotal', 0):,.2f}"],
-        [f"{_tax_label} ({quote.get('tax_rate', quote.get('vat_rate', 20)):g}%)", f"{currency_symbol}{quote.get('tax_amount', 0):,.2f}"],
-        ["Total", f"{currency_symbol}{quote.get('total', 0):,.2f}"],
+    flow: list = [pulse_header(s), Spacer(1, 6 * mm)]
+
+    # ── Title + meta panel ───────────────────────────────────────
+    meta_rows = [
+        ("Quote No.", quote.get("quote_number") or "—"),
+        ("Date", datetime.now().strftime("%d %b %Y")),
     ]
-    totals_table = Table(totals_rows, colWidths=[40 * mm, 32 * mm])
-    totals_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, 1), "Helvetica"),
-        ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ("LINEABOVE", (0, 2), (-1, 2), 1, brand),
-        ("TEXTCOLOR", (0, 2), (-1, 2), brand),
-        ("TOPPADDING", (0, 2), (-1, 2), 6),
-        ("BOTTOMPADDING", (0, 2), (-1, 2), 4),
+    if quote.get("valid_until"):
+        meta_rows.append(("Valid Until", str(quote.get("valid_until"))))
+    meta_rows.append(("Status", (quote.get("status") or "draft").replace("_", " ").title()))
+    meta = Table(
+        [[Paragraph(k, s["metalabel"]), Paragraph(_esc(v), s["metaval"])] for k, v in meta_rows],
+        colWidths=[28 * mm, 42 * mm])
+    meta.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
-    wrap_totals = Table([["", totals_table]], colWidths=[100 * mm, 72 * mm])
-    wrap_totals.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    story.append(wrap_totals)
+    title_row = Table([[Paragraph("Quotation", s["title"]), meta]], colWidths=[100 * mm, 70 * mm])
+    title_row.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    flow.append(title_row)
+    flow.append(Spacer(1, 8 * mm))
 
-    # ── Notes / payment terms ────────────────────────────────────
+    # ── Quote-for block ──────────────────────────────────────────
+    flow.append(section_label(s, "Quote For"))
+    if quote.get("company_name"):
+        flow.append(Paragraph(f"<b>{_esc(quote['company_name'])}</b>", s["value"]))
+    if quote.get("contact_name"):
+        flow.append(Paragraph(_esc(quote["contact_name"]), s["value"]))
+    if not quote.get("company_name") and not quote.get("contact_name"):
+        flow.append(Paragraph("(No customer specified)", s["muted"]))
+    if quote.get("title"):
+        flow.append(Spacer(1, 2 * mm))
+        flow.append(Paragraph(f"<b>Subject:</b> {_esc(quote['title'])}", s["value"]))
+    flow.append(Spacer(1, 6 * mm))
+
+    # ── Line items table ─────────────────────────────────────────
+    data = [[Paragraph("Description", s["th"]), Paragraph("Qty", s["thR"]),
+             Paragraph("Unit Price", s["thR"]), Paragraph("Disc %", s["thR"]),
+             Paragraph("Net", s["thR"])]]
+    items = quote.get("line_items", [])
+    if not items:
+        data.append([Paragraph("No line items.", s["cell"]), Paragraph("", s["cellR"]),
+                     Paragraph("", s["cellR"]), Paragraph("", s["cellR"]), Paragraph("", s["cellR"])])
+    for item in items:
+        data.append([
+            Paragraph(_esc(item.get("description") or item.get("product_name", "—")), s["cell"]),
+            Paragraph(f"{item.get('quantity', 0):g}", s["cellR"]),
+            Paragraph(f"{sym}{item.get('unit_price', 0):,.2f}", s["cellR"]),
+            Paragraph(f"{item.get('discount_percent', 0):g}%", s["cellR"]),
+            Paragraph(f"{sym}{item.get('subtotal', 0):,.2f}", s["cellR"]),
+        ])
+    t = Table(data, colWidths=[80 * mm, 18 * mm, 26 * mm, 20 * mm, 26 * mm], repeatRows=1)
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, PULSE_NAVY),
+    ]))
+    flow.append(t)
+    flow.append(Spacer(1, 6 * mm))
+
+    # ── Totals + payment (kept together on the final page) ───────
+    tax_rate = quote.get("tax_rate", quote.get("vat_rate", 20))
+    total_rows = [
+        [Paragraph("NET", s["total_label"]),
+         Paragraph(f"{sym}{quote.get('subtotal', 0):,.2f}", s["total_value"])],
+        [Paragraph(f"{tax_label} ({tax_rate:g}%)", s["total_label"]),
+         Paragraph(f"{sym}{quote.get('tax_amount', 0):,.2f}", s["total_value"])],
+        [Paragraph("TOTAL", s["total_label"]),
+         Paragraph(f"{sym}{quote.get('total', 0):,.2f}", s["grand_value"])],
+    ]
+    totals = Table(total_rows, colWidths=[30 * mm, 40 * mm], hAlign="RIGHT")
+    totals.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("BOX", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("LINEBELOW", (0, 0), (-1, 1), 0.5, PULSE_BORDER),
+        ("BACKGROUND", (0, 2), (-1, 2), PULSE_LIGHT),
+    ]))
+    tail = [totals, Spacer(1, 6 * mm)]
     if quote.get("notes"):
-        story.append(Spacer(0, 6 * mm))
-        story.append(Paragraph("NOTES", H2))
-        story.append(Paragraph(quote["notes"].replace("\n", "<br/>"), Body))
+        tail.append(section_label(s, "Notes"))
+        tail.append(Paragraph(_esc(quote["notes"]).replace("\n", "<br/>"), s["body"]))
+        tail.append(Spacer(1, 3 * mm))
+    tail.append(Paragraph(
+        f"<b>Payment terms:</b> {PULSE['payment_terms']}. "
+        f"{PULSE['bank_name']} · Account {PULSE['bank_account_number']} · "
+        f"Sort {PULSE['bank_sort_code']}. VAT Reg No. {PULSE['vat_reg']}.", s["muted"]))
+    tail.append(Paragraph(
+        f"<i>Prepared by {_esc(quote.get('created_by_name') or '—')} · "
+        f"Generated {datetime.now().strftime('%d %b %Y')}</i>", s["muted"]))
+    flow.append(KeepTogether(tail))
 
-    # ── Footer ───────────────────────────────────────────────────
-    story.append(Spacer(0, 10 * mm))
-    story.append(Paragraph(
-        f"<i>Prepared by {quote.get('created_by_name') or '—'} · "
-        f"Generated {datetime.now().strftime('%d %b %Y')}</i>",
-        Small,
-    ))
-
-    doc.build(story)
+    doc.build(flow)
     return buf.getvalue()
 
 
-
 async def render_quote_pdf(quote: dict, organization_id: str | None = None) -> bytes:
-    """Async helper used by `crm_v2.quote_pdf` + `send_quote_email`.
-
-    Resolves the organisation doc (for branding) then delegates to the
-    synchronous `build_crm_quote_pdf`. Tolerant of a missing org row —
-    falls back to a bare {} so an export still works on demo tenants.
-    """
+    """Async helper used by ``crm_v2.quote_pdf`` + ``send_quote_email``."""
     org: dict = {}
     if organization_id:
         try:

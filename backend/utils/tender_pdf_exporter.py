@@ -75,21 +75,16 @@ def _esc(text: str) -> str:
 
 
 def build_submission_pdf(tender: dict, questions: list[dict], brand: dict | None = None, *, is_mod: bool = False) -> bytes:
-    """Render the formal tender submission as a multi-page PDF.
-    `is_mod=True` adds the Crown copyright footer line (iter 216h166)."""
+    """Render the formal tender submission as a multi-page PDF on the shared
+    Pulse document shell. `is_mod=True` adds the Crown copyright footer line."""
+    from utils.pulse_doc_template import pulse_styles, pulse_header, make_pulse_doc
     s = _styles(brand or {})
+    ps = pulse_styles()
     buf = BytesIO()
+    doc = make_pulse_doc(buf, f"Tender response — {tender.get('title') or ''}", is_mod=is_mod)
 
-    frame = Frame(
-        20 * mm, 20 * mm, A4[0] - 40 * mm, A4[1] - 40 * mm,
-        showBoundary=0, leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
-    )
-    page = PageTemplate(id="main", frames=[frame], onPage=lambda c, d: _footer(c, d, s["company"], is_mod))
-    doc = BaseDocTemplate(buf, pagesize=A4, pageTemplates=[page])
-
-    story: list = []
+    story: list = [pulse_header(ps), Spacer(1, 8 * mm)]
     # Cover
-    story.append(Spacer(1, 60 * mm))
     story.append(Paragraph("Tender response", s["label"]))
     story.append(Paragraph(_esc(tender.get("title") or "Untitled tender"), s["cover_title"]))
     story.append(Paragraph(f"Submitted by {s['company']} · {datetime.now().strftime('%B %Y')}", s["cover_sub"]))
