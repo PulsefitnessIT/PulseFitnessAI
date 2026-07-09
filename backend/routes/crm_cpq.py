@@ -627,7 +627,9 @@ async def export_quote_pdf(quote_id: str, user=Depends(get_crm_user)):
          "country": 1, "primary_contact_email": 1, "phone": 1, "website": 1},
     ) or {}
     from utils.crm_quote_pdf import build_crm_quote_pdf
-    pdf_bytes = build_crm_quote_pdf(quote, org)
+    from utils.document_branding import resolve_company_if_configured
+    company = await resolve_company_if_configured(db, {"id": user.get("organization_id"), "name": org.get("name")})
+    pdf_bytes = build_crm_quote_pdf(quote, org, company=company)
     filename = f"{quote.get('quote_number') or quote_id}.pdf"
     return Response(
         content=pdf_bytes,

@@ -200,8 +200,8 @@ def _totals_block(s, quote: dict) -> Table:
     return table
 
 
-def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
-    """Render the quote to bytes."""
+def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False, company: dict | None = None) -> bytes:
+    """Render the quote to bytes. Pass ``company`` for tenant branding."""
     s = _styles()
     buf = BytesIO()
     doc = BaseDocTemplate(
@@ -209,15 +209,16 @@ def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
         leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=20 * mm,
         title=f"Quote {quote.get('quote_number') or ''}",
-        author="Pulse Fitness",
+        author=(company or {}).get("name") or "Pulse Fitness",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)
-    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=pulse_footer_factory(is_mod))])
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame],
+                                       onPage=pulse_footer_factory(is_mod, company=company))])
     flow = []
 
     ps = pulse_styles()
-    flow.append(pulse_header(ps))
+    flow.append(pulse_header(ps, company=company))
     flow.append(Spacer(1, 6 * mm))
     flow.append(Paragraph("Quotation", ps["title"]))
     flow.append(Paragraph(

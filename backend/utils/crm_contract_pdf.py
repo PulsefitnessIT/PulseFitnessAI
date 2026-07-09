@@ -77,8 +77,10 @@ def _grid_style(header_row: bool = False) -> TableStyle:
     return TableStyle(cmds)
 
 
-def build_contract_pdf(contract: dict, org: dict, catalog: dict) -> bytes:
-    """Render a service-contract document into a PDF byte string."""
+def build_contract_pdf(contract: dict, org: dict, catalog: dict, company: dict | None = None) -> bytes:
+    """Render a service-contract document into a PDF byte string. Pass
+    ``company`` (tenant document-branding profile) to brand it with the
+    tenant's own header/footer; omit for default Pulse branding."""
     s = pulse_styles()
     h2 = ParagraphStyle("ct_h2", parent=s["sectlabel"], fontSize=12, leading=15,
                         spaceBefore=8, spaceAfter=4, textColor=PULSE_NAVY)
@@ -91,8 +93,8 @@ def build_contract_pdf(contract: dict, org: dict, catalog: dict) -> bytes:
     _tax_label = contract.get("tax_label") or _loc["tax_label"]
 
     buf = io.BytesIO()
-    doc = make_pulse_doc(buf, f"Contract {contract.get('contract_number') or ''}")
-    story: list[Any] = [pulse_header(s), Spacer(1, 6 * mm)]
+    doc = make_pulse_doc(buf, f"Contract {contract.get('contract_number') or ''}", company=company)
+    story: list[Any] = [pulse_header(s, company=company), Spacer(1, 6 * mm)]
 
     # 1 · Title.
     story.append(Paragraph("Service Contract", s["title"]))
@@ -103,7 +105,7 @@ def build_contract_pdf(contract: dict, org: dict, catalog: dict) -> bytes:
     story.append(Spacer(1, 4 * mm))
 
     # 2 · Parties.
-    org_name = org.get("name") or "Pulse Fitness"
+    org_name = (company or {}).get("name") or org.get("name") or "Pulse Fitness"
     parties = [
         [Paragraph("<b>Provider</b>", body), Paragraph("<b>Customer</b>", body),
          Paragraph("<b>Site</b>", body)],

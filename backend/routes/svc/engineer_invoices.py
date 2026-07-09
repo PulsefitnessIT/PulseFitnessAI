@@ -583,8 +583,12 @@ async def download_invoice_pdf(invoice_id: str, user=Depends(get_current_user)):
     inv = await _get_invoice_or_404(invoice_id, user)
     from utils.engineer_invoice_pdf import build_engineer_invoice_pdf
     from utils.pdf_footer import is_mod_for_case
+    from utils.document_branding import resolve_company_if_configured
     is_mod = await is_mod_for_case(db, inv.get("case_id"))
-    pdf_bytes = build_engineer_invoice_pdf(inv, is_mod=is_mod)
+    _oid = user.get("service_org_id") or user.get("organization_id")
+    _org = await db.organizations.find_one({"id": _oid}, {"_id": 0, "name": 1}) or {}
+    company = await resolve_company_if_configured(db, {"id": _oid, "name": _org.get("name")})
+    pdf_bytes = build_engineer_invoice_pdf(inv, is_mod=is_mod, company=company)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -671,8 +675,12 @@ async def send_invoice(invoice_id: str, body: InvoiceSend, user=Depends(get_curr
             logger.info("[invoice_send] payment link skipped: %s", exc.detail)
     from utils.engineer_invoice_pdf import build_engineer_invoice_pdf
     from utils.pdf_footer import is_mod_for_case
+    from utils.document_branding import resolve_company_if_configured
     is_mod = await is_mod_for_case(db, inv.get("case_id"))
-    pdf_bytes = build_engineer_invoice_pdf(inv, is_mod=is_mod)
+    _oid = user.get("service_org_id") or user.get("organization_id")
+    _org = await db.organizations.find_one({"id": _oid}, {"_id": 0, "name": 1}) or {}
+    company = await resolve_company_if_configured(db, {"id": _oid, "name": _org.get("name")})
+    pdf_bytes = build_engineer_invoice_pdf(inv, is_mod=is_mod, company=company)
     attachment = {
         "filename": f"{inv['invoice_number']}.pdf",
         "content": base64.b64encode(pdf_bytes).decode("ascii"),

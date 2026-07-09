@@ -327,7 +327,9 @@ async def auto_send_renewals(user: dict = Depends(get_crm_user)):
         from utils.localization import org_localization
         _sym = org_localization(org)["currency_symbol"]
         try:
-            pdf_bytes = build_contract_pdf(renewal_doc, org, catalog)
+            from utils.document_branding import resolve_company_if_configured
+            _company = await resolve_company_if_configured(db, {"id": user.get("organization_id"), "name": org.get("name")})
+            pdf_bytes = build_contract_pdf(renewal_doc, org, catalog, company=_company)
         except Exception:
             pdf_bytes = b""
 

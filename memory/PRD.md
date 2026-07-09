@@ -1,4 +1,28 @@
-# ═══ 2026-07-09 (pt.3) · SHARED PDF SHELL ROLLOUT + PER-TENANT DOCUMENT BRANDING EDITOR (VERIFIED 100%) ═══
+# ═══ 2026-07-09 (pt.4) · TENANT BRANDING ROLLED ACROSS CRM QUOTES/CONTRACTS + ENGINEER INVOICES/QUOTES ═══
+Follow-up to pt.3: extended the per-tenant `company` document-branding profile beyond membership statements to
+ALL the other tenant-facing generated docs, so external users get their own logo/company/bank/footer everywhere.
+  - utils/document_branding.py: added resolve_company_if_configured(db, org) → returns the tenant company dict
+    ONLY when a profile is configured, else None (so Pulse-owned docs keep Pulse branding — zero regression).
+  - Threaded an optional `company=None` param through 4 more builders (default None == unchanged Pulse output):
+      • utils/crm_quote_pdf.build_crm_quote_pdf(quote, org, company=None) + render_quote_pdf resolves it.
+      • utils/crm_contract_pdf.build_contract_pdf(contract, org, catalog, company=None) (provider party + footer).
+      • utils/engineer_invoice_pdf.build_engineer_invoice_pdf(inv, *, is_mod, company=None) — payment/VAT block
+        now reads the tenant bank; Pulse warranty clauses only render on the default (company=None) path.
+      • utils/engineer_quote_pdf.build_engineer_quote_pdf(quote, *, is_mod, company=None).
+  - Callers resolve the tenant company and pass it: routes/crm_cpq.py (/crm/quotes/{id}/pdf),
+    routes/crm_v2.py (via render_quote_pdf), routes/crm_contract_send.py (download + send),
+    routes/crm_contract_lifecycle.py (auto-renewal), routes/svc/engineer_invoices.py (2 sites),
+    routes/svc/engineer_quotes.py (2 sites). Service-desk sites resolve org via service_org_id || organization_id.
+  Verified (Python, tenant vs default): each doc shows the tenant name+bank with NO Pulse 40023205/785413509
+  leakage when a profile is set, and keeps full Pulse branding when none is set. Backend imports + health green.
+  Note: could not curl these endpoints for a tenant WITH a profile (iso-demo has no CRM quotes/engineer invoices;
+  CRM is Pulse-only) — relied on builder unit tests + identical wiring; the membership sample.pdf already proves
+  the resolve→render path end-to-end via the live API.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 Two-part delivery, both VERIFIED (testing agent: backend 6/6, frontend 100%, 0 issues;
 report /app/test_reports/iteration_document_branding_jan2026.json).
 

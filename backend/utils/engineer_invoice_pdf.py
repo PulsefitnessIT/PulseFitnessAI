@@ -128,36 +128,32 @@ def _totals_block(s, inv):
     return t
 
 
-def _payment_and_vat(s, inv):
-    sym = inv.get("currency_symbol") or "£"
-    pay = Paragraph(
-        f"<b>Payment Details</b>  <font color='#5B6570'>{PULSE['payment_terms']}</font><br/>"
-        f"<b>{PULSE['bank_name']}</b><br/>"
-        f"Account Name: {PULSE['bank_account_name']}<br/>"
-        f"Account Number: {PULSE['bank_account_number']}<br/>"
-        f"Sort Code: {PULSE['bank_sort_code']}",
-        s["value"])
-    vat = Paragraph(f"<b>VAT Reg. No.</b> {PULSE['vat_reg']}", s["value"])
+def _payment_and_vat(s, inv, c):
+    pay_lines = [f"<b>Payment Details</b>  <font color='#5B6570'>{c.get('payment_terms', '')}</font>"]
+    if c.get("bank_name"):
+        pay_lines.append(f"<b>{c['bank_name']}</b>")
+    if c.get("bank_account_name"):
+        pay_lines.append(f"Account Name: {c['bank_account_name']}")
+    if c.get("bank_account_number"):
+        pay_lines.append(f"Account Number: {c['bank_account_number']}")
+    if c.get("bank_sort_code"):
+        pay_lines.append(f"Sort Code: {c['bank_sort_code']}")
+    pay = Paragraph("<br/>".join(pay_lines), s["value"])
+    vat = Paragraph(f"<b>VAT Reg. No.</b> {c['vat_reg']}" if c.get("vat_reg") else "", s["value"])
     t = Table([[pay, vat]], colWidths=[110 * mm, 60 * mm])
     t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
     return t
 
 
-def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
+def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False, company: dict | None = None) -> bytes:
+    from utils.pulse_doc_template import make_pulse_doc
     s = pulse_styles()
+    c = company or PULSE
     buf = BytesIO()
-    doc = BaseDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=16 * mm, bottomMargin=28 * mm,
-        title=f"Invoice {inv.get('invoice_number') or ''}", author="Pulse Fitness",
-    )
-    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="n", showBoundary=0)
-    doc.addPageTemplates([PageTemplate(id="default", frames=[frame],
-                                       onPage=pulse_footer_factory(is_mod))])
+    doc = make_pulse_doc(buf, f"Invoice {inv.get('invoice_number') or ''}", is_mod=is_mod, company=company)
 
-    flow = [pulse_header(s), Spacer(1, 6 * mm), _title_and_meta(s, inv), Spacer(1, 8 * mm),
+    flow = [pulse_header(s, company=company), Spacer(1, 6 * mm), _title_and_meta(s, inv), Spacer(1, 8 * mm),
             _address_blocks(s, inv), Spacer(1, 8 * mm)]
 
     if inv.get("description_of_work"):
@@ -174,14 +170,17 @@ def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
     tail = [
         _totals_block(s, inv),
         Spacer(1, 8 * mm),
-        _payment_and_vat(s, inv),
+        _payment_and_vat(s, inv, c),
         Spacer(1, 6 * mm),
     ]
     ref = inv.get("account_ref") or inv.get("customer_account_ref") or inv.get("invoice_number") or ""
     tail.append(Paragraph(
         f"Please quote the following reference on payment: <b>{_esc(ref)}</b>", s["muted"]))
-    for clause in PULSE["footer_clauses"][:2]:
-        tail.append(Paragraph(_esc(clause), s["muted"]))
+    if company is None:
+        for clause in PULSE["footer_clauses"][:2]:
+            tail.append(Paragraph(_esc(clause), s["muted"]))
+    elif c.get("footer_note"):
+        tail.append(Paragraph(_esc(c["footer_note"]), s["muted"]))
     flow.append(KeepTogether(tail))
 
     if inv.get("notes"):

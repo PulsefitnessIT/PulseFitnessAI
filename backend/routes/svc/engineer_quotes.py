@@ -333,8 +333,12 @@ async def download_quote_pdf(quote_id: str, user=Depends(get_current_user)):
     quote = await _get_quote_or_404(quote_id, user)
     from utils.engineer_quote_pdf import build_engineer_quote_pdf
     from utils.pdf_footer import is_mod_for_case
+    from utils.document_branding import resolve_company_if_configured
     is_mod = await is_mod_for_case(db, quote.get("case_id"))
-    pdf_bytes = build_engineer_quote_pdf(quote, is_mod=is_mod)
+    _oid = user.get("service_org_id") or user.get("organization_id")
+    _org = await db.organizations.find_one({"id": _oid}, {"_id": 0, "name": 1}) or {}
+    company = await resolve_company_if_configured(db, {"id": _oid, "name": _org.get("name")})
+    pdf_bytes = build_engineer_quote_pdf(quote, is_mod=is_mod, company=company)
     filename = f"{quote['quote_number']}.pdf"
     return Response(
         content=pdf_bytes,
@@ -420,8 +424,12 @@ async def send_quote(
         quote["public_shortcode"] = shortcode
     from utils.engineer_quote_pdf import build_engineer_quote_pdf
     from utils.pdf_footer import is_mod_for_case
+    from utils.document_branding import resolve_company_if_configured
     is_mod = await is_mod_for_case(db, quote.get("case_id"))
-    pdf_bytes = build_engineer_quote_pdf(quote, is_mod=is_mod)
+    _oid = user.get("service_org_id") or user.get("organization_id")
+    _org = await db.organizations.find_one({"id": _oid}, {"_id": 0, "name": 1}) or {}
+    company = await resolve_company_if_configured(db, {"id": _oid, "name": _org.get("name")})
+    pdf_bytes = build_engineer_quote_pdf(quote, is_mod=is_mod, company=company)
     import base64
     attachment = {
         "filename": f"{quote['quote_number']}.pdf",

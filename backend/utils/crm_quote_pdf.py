@@ -27,18 +27,22 @@ def _esc(t) -> str:
     return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
-    """Render the quote into a PDF byte string on the Pulse shell."""
+def build_crm_quote_pdf(quote: dict, org: dict, company: dict | None = None) -> bytes:
+    """Render the quote into a PDF byte string on the Pulse shell. Pass
+    ``company`` (from the tenant's document-branding profile) to brand the
+    header/footer/bank block with the tenant's own details; when omitted the
+    document keeps the default Pulse branding."""
     s = pulse_styles()
     buf = io.BytesIO()
-    doc = make_pulse_doc(buf, f"Quote {quote.get('quote_number') or ''}")
+    doc = make_pulse_doc(buf, f"Quote {quote.get('quote_number') or ''}", company=company)
+    c = company or PULSE
 
     from utils.localization import org_localization, currency_symbol as _cur_sym
     _loc = org_localization(org)
     sym = _cur_sym(quote.get("currency") or _loc["currency"])
     tax_label = quote.get("tax_label") or _loc["tax_label"]
 
-    flow: list = [pulse_header(s), Spacer(1, 6 * mm)]
+    flow: list = [pulse_header(s, company=company), Spacer(1, 6 * mm)]
 
     # ── Title + meta panel ───────────────────────────────────────
     meta_rows = [
@@ -129,9 +133,10 @@ def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
         tail.append(Paragraph(_esc(quote["notes"]).replace("\n", "<br/>"), s["body"]))
         tail.append(Spacer(1, 3 * mm))
     tail.append(Paragraph(
-        f"<b>Payment terms:</b> {PULSE['payment_terms']}. "
-        f"{PULSE['bank_name']} · Account {PULSE['bank_account_number']} · "
-        f"Sort {PULSE['bank_sort_code']}. VAT Reg No. {PULSE['vat_reg']}.", s["muted"]))
+        f"<b>Payment terms:</b> {c.get('payment_terms') or PULSE['payment_terms']}. "
+        + (f"{c['bank_name']} · Account {c.get('bank_account_number', '')} · "
+           f"Sort {c.get('bank_sort_code', '')}. " if c.get("bank_name") else "")
+        + (f"VAT Reg No. {c['vat_reg']}." if c.get("vat_reg") else ""), s["muted"]))
     tail.append(Paragraph(
         f"<i>Prepared by {_esc(quote.get('created_by_name') or '—')} · "
         f"Generated {datetime.now().strftime('%d %b %Y')}</i>", s["muted"]))
@@ -144,12 +149,15 @@ def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
 async def render_quote_pdf(quote: dict, organization_id: str | None = None) -> bytes:
     """Async helper used by ``crm_v2.quote_pdf`` + ``send_quote_email``."""
     org: dict = {}
+    company = None
     if organization_id:
         try:
             from utils.database import db as _db
             org_doc = await _db.organizations.find_one({"id": organization_id}, {"_id": 0})
             if org_doc:
                 org = org_doc
+            from utils.document_branding import resolve_company_if_configured
+            company = await resolve_company_if_configured(_db, {"id": organization_id, "name": org.get("name")})
         except Exception:
-            org = {}
-    return build_crm_quote_pdf(quote, org)
+            org = org or {}
+    return build_crm_quote_pdf(quote, org, company=company)

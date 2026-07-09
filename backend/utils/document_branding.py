@@ -78,3 +78,13 @@ async def resolve_company(db, org: dict | None, *, with_logo: bool = True) -> di
             logger.warning("Logo fetch failed for org %s: %s", org_id, e)
 
     return company
+
+
+async def resolve_company_if_configured(db, org: dict | None) -> dict | None:
+    """Return the tenant's ``company`` dict ONLY if they've configured a
+    document-branding profile, else None (so the caller keeps the default
+    Pulse branding — no regression for docs that were Pulse-branded)."""
+    if not org or not org.get("id"):
+        return None
+    company = await resolve_company(db, org)
+    return company if company.get("has_profile") else None

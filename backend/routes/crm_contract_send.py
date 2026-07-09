@@ -75,7 +75,9 @@ async def download_contract_pdf(contract_id: str, user: dict = Depends(get_crm_u
     operator. Uses the SAME builder as the email send path so the
     customer sees an identical artifact."""
     contract, org = await _load_contract_with_org(contract_id, _of(user))
-    pdf_bytes = build_contract_pdf(contract, org, _build_catalog())
+    from utils.document_branding import resolve_company_if_configured
+    company = await resolve_company_if_configured(db, {"id": contract.get("organization_id"), "name": org.get("name")})
+    pdf_bytes = build_contract_pdf(contract, org, _build_catalog(), company=company)
     fn = f"contract_{contract.get('contract_number') or contract_id[:8]}.pdf"
     return Response(
         content=pdf_bytes, media_type="application/pdf",
@@ -130,7 +132,9 @@ async def send_contract_to_customer(contract_id: str, data: dict,
         raise HTTPException(400, "No recipient email — pass `to` or set a contact email")
 
     # Build PDF + accept link.
-    pdf_bytes = build_contract_pdf(contract, org, _build_catalog())
+    from utils.document_branding import resolve_company_if_configured
+    company = await resolve_company_if_configured(db, {"id": contract.get("organization_id"), "name": org.get("name")})
+    pdf_bytes = build_contract_pdf(contract, org, _build_catalog(), company=company)
     token = await _ensure_accept_token(contract_id, of)
     # Public URL is deliberately relative — the FE renders it under the
     # current host (same trick the public tracking link uses).
