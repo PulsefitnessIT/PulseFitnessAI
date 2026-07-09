@@ -23,7 +23,7 @@ import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
   Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
-  Boxes, Warehouse, Wand2, Tags,
+  Boxes, Warehouse, Wand2, Tags, KeyRound, Mail,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useLocalization } from '@/utils/localization';
@@ -68,7 +68,7 @@ const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#0891b2', testid,
 
 export default function EngineerAccountSettings({ open, onClose, payouts, attention, onChanged }) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [importing, setImporting] = useState(false);
   const importRef = useRef(null);
   // Iter 220i — lightweight live partner status so the drawer can
@@ -82,6 +82,10 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
   // Iter 261 — org name in the drawer header + internal/partner split.
   const orgBrand = useEngineerOrgBrand();
   const attentionItems = (attention?.items) || [];
+  // Iter 288 — Pulse-associated (internal) engineers have everything managed by
+  // imports + the office, so hide the self-service settings and show only
+  // Security · Support · Sign out.
+  const internal = orgBrand.internal;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -245,6 +249,11 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             </section>
           )}
 
+          {/* Iter 288 — everything below is hidden for internal Pulse engineers
+              (managed by imports + the office). Partner/independent engineers
+              keep the full self-service set. */}
+          {!internal && (
+          <>
           {/* Iter 220i — Partner Engineer hub link. Closes the loop so
               engineers can see compliance, referral code + plan from
               inside the Engineer App. */}
@@ -525,6 +534,15 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               right={<ChevronRight size={16} className="text-slate-300 flex-shrink-0" />}
             />
           </section>
+          </>
+          )}
+
+          {/* Iter 288 — Security (login details). Shown to every engineer;
+              for internal Pulse engineers this is the primary section. */}
+          <section data-testid="engineer-settings-section-security">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Security</p>
+            <SecurityEditor email={user?.email} />
+          </section>
 
           {/* Support */}
           <section data-testid="engineer-settings-section-support">
@@ -564,6 +582,102 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
         <NotificationSettings onClose={() => setNotificationOpen(false)} />
       )}
     </div>
+  );
+}
+
+
+// ─── SecurityEditor ──────────────────────────────────────────────
+// Iter 288. Shows the engineer's login email (read-only) and an in-app
+// change-password form (reuses the existing /account/change-password
+// endpoint — no auth logic changed here).
+function SecurityEditor({ email }) {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!current || !next) { notify.error('Enter your current and new password'); return; }
+    if (next !== confirm) { notify.error('New passwords do not match'); return; }
+    setSaving(true);
+    try {
+      await axios.post(`${API}/account/change-password`,
+        { current_password: current, new_password: next }, auth());
+      notify.success('Password updated', 'Use your new password next time you sign in.');
+      setCurrent(''); setNext(''); setConfirm(''); setOpen(false);
+    } catch (e) {
+      notify.error('Could not update password', e?.response?.data?.detail || e?.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 space-y-3" data-testid="engineer-security-editor">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#0891b215' }}>
+          <Mail size={18} style={{ color: '#0891b2' }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Login email</p>
+          <p className="text-sm font-bold text-slate-900 truncate" data-testid="engineer-security-email">{email || '—'}</p>
+        </div>
+      </div>
+
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-900"
+          data-testid="engineer-security-change-toggle"
+        >
+          <KeyRound size={15} className="text-cyan-700" /> Change password
+        </button>
+      ) : (
+        <div className="space-y-2" data-testid="engineer-security-form">
+          <PwField label="Current password" value={current} onChange={setCurrent} testid="engineer-security-current" />
+          <PwField label="New password" value={next} onChange={setNext} testid="engineer-security-new" />
+          <PwField label="Confirm new password" value={confirm} onChange={setConfirm} testid="engineer-security-confirm" />
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setCurrent(''); setNext(''); setConfirm(''); }}
+              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700"
+              data-testid="engineer-security-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold disabled:opacity-50"
+              data-testid="engineer-security-save"
+            >
+              {saving ? <Loader2 size={12} className="animate-spin" /> : null}
+              {saving ? 'Saving…' : 'Update password'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PwField({ label, value, onChange, testid }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full text-sm border border-slate-200 rounded px-2 py-1.5 bg-white"
+        autoComplete="off"
+        data-testid={testid}
+      />
+    </label>
   );
 }
 

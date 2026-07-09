@@ -1,4 +1,30 @@
-# ═══ 2026-07-09 (pt.4) · TENANT BRANDING ROLLED ACROSS CRM QUOTES/CONTRACTS + ENGINEER INVOICES/QUOTES ═══
+# ═══ 2026-07-09 (pt.5) · ENGINEER APP: SLIM SETTINGS FOR INTERNAL ENGINEERS + SUPPORT PAGE ═══
+Three Engineer-App requests (all verified via screenshot + curl):
+  1. Account settings for Pulse-associated (internal) engineers now HIDE all self-service settings
+     (Partner, Payouts/Stripe, Customers, Pricing, Stock, Tools, Work reports, Brand, H&S, Reputation,
+     Tax, Notifications) — those are managed by imports + the office. Guarded on `orgBrand.internal`
+     (= `internal_engineer` from GET /svc/engineer/me). Added a new **Security** section (login email +
+     in-app Change password via the EXISTING /account/change-password endpoint — no auth logic changed),
+     and kept **Support** + **Sign out**. Partner/independent engineers keep the full set unchanged.
+     File: frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js (SecurityEditor + PwField added).
+  2. Fixed the /support 404 → new **Engineer Help & Support** page (built-in static content): 7 collapsible
+     troubleshooting guides (logging a job, PPM check sheet, photos, sending reports/invoices, offline/sync,
+     push notifications, sign-in/password), a 4-item FAQ, and a Contact Pulse Fitness block (email/phone).
+     File: frontend/src/pages/ServiceOps/Engineer/EngineerSupport.js; route added in routes/AppRoutes.js
+     (`/support`, auth-gated). data-testids: engineer-support-page, engineer-support-guide-N(-toggle),
+     engineer-support-faq-N, engineer-support-email/phone.
+  Verified: master (internal_engineer=true) drawer shows ONLY Security/Support/Sign out; /support renders;
+  change-password endpoint returns 401 on wrong current password (reachable, unchanged).
+
+BACKLOG (scoped this session, Pulse-Fitness-only, NOT built):
+  - Engineer "My customers" → feed from CRM **territories**: map CRM territory assignments → engineer, add a
+    read model so an internal engineer's customer list is driven by their assigned territory instead of the
+    engineer's own imported CSV (`/svc/engineer/customers`). Larger piece: territory↔engineer mapping + API.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 Follow-up to pt.3: extended the per-tenant `company` document-branding profile beyond membership statements to
 ALL the other tenant-facing generated docs, so external users get their own logo/company/bank/footer everywhere.
   - utils/document_branding.py: added resolve_company_if_configured(db, org) → returns the tenant company dict

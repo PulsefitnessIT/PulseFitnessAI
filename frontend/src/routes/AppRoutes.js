@@ -136,6 +136,7 @@ const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole
 const IntegrationsSiconConnect = lazy(() => import('@/pages/Admin/IntegrationsSiconConnect'));
 const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHomeV2'));
 const ServiceOpsEngineerJobsList = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHome'));
+const EngineerSupport = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerSupport'));
 const ServiceOpsEngineerJob = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerJobDetailV2'));
 const ServiceOpsEngineerQuotes = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerQuotes'));
 const ServiceOpsEngineerQuoteBuilder = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerQuoteBuilder'));
@@ -507,6 +508,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-ops/reports" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/comms" element={<Navigate to="/service-desk" replace />} />
       <Route path="/svc/engineer" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerHome /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/support" element={user ? <EngineerSupport /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJobsList /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs/:caseId" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJob /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/quotes" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerQuotes /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
