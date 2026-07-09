@@ -1,3 +1,32 @@
+# ═══ 2026-07-09 (pt.2) · STANDARD PULSE INVOICE TEMPLATE + SHARED DOC SHELL (VERIFIED) ═══
+User supplied the standard Pulse Fitness invoice PDF and asked that ALL invoices match it exactly, and the
+same template be reused for quotes / fault-service reports / PM / wherever possible. Confirmed static details
+(bank HSBC 40023205 / sort 40-28-56, VAT 785413509, reg office Radnor Park Congleton CW12 4TW, Co reg 4354059,
+terms "7 days from document date", phone/email/web, warranty+compliance clauses) baked in as the standard.
+
+- NEW utils/pulse_doc_template.py — single source of truth: Pulse palette (navy #0B3D91), the PULSE company
+  constants, pulse_styles(), pulse_header() (logo pulse-logo-primary.jpg + wordmark left, contact block right,
+  navy rule), section_label(), pulse_footer_factory() (registered office / Company Reg / VAT / compliance
+  footer on every page).
+- utils/engineer_invoice_pdf.py — REBUILT to match the attached exactly: header, "Invoice" title + meta panel
+  (Invoice / Customer Ref[=customer_po_number] / Account Ref / Invoice Date / Sales Order Ref[=case ref] /
+  Contract Ref), Invoice Address + Delivery Address, line-item table (Line Item Code | Description | Quantity |
+  Unit Price | Net, navy header), NET/VAT/GROSS totals (GROSS highlighted), Payment Details + VAT Reg, payment
+  reference + warranty clauses, standard footer. VERIFIED live via API: POST /svc/engineer/invoices then GET
+  /invoices/{id}.pdf renders all elements incl. PO-4471 pulled from the case (visual confirmed).
+- utils/engineer_quote_pdf.py — rebranded to the Pulse shell (pulse_header + pulse_footer + navy palette),
+  "Quotation" title + quote no/date/valid-until. Verified render.
+- routes/svc/service_report.py — _paint_page_chrome now draws the standard Pulse registered-office / Co Reg /
+  VAT footer (bottomMargin 14→22mm). Keeps the existing per-org white-label header.
+
+FOLLOW-UP (as agreed, not yet done): CRM quotes/contracts (crm_quote_pdf.py), membership statements, tender
+exporter, incident/RIDDOR, site-survey handovers, and a dedicated PM certificate if/when one exists. All can
+now import utils/pulse_doc_template for the shared shell.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-09 · CUSTOMER PO SURFACED ON INVOICE + SERVICE DESK QUEUE/HEADER (VERIFIED 100%) ═══
 Follow-on to the Customer PO feature — surface case.customer_po_number so finance can reconcile chargeable
 jobs against the customer's purchase order:

@@ -1,273 +1,187 @@
-"""Iter 216h130 — Branded engineer invoice PDF (light-mode Pulse Fitness)."""
+"""Standard Pulse Fitness invoice PDF — laid out to match the company's
+standard invoice template (see utils/pulse_doc_template for the shared shell)."""
 from __future__ import annotations
 
 from datetime import datetime
 from io import BytesIO
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle,
 )
 
-GX_PRIMARY = colors.HexColor("#1d4ed8")
-GX_ACCENT = colors.HexColor("#6366f1")
-GX_NAVY = colors.HexColor("#0F172A")
-GX_MUTED = colors.HexColor("#64748B")
-GX_LIGHT = colors.HexColor("#F1F5F9")
-GX_BORDER = colors.HexColor("#E2E8F0")
-GX_AMBER = colors.HexColor("#D97706")
+from utils.pulse_doc_template import (
+    PULSE, PULSE_NAVY, PULSE_LIGHT, PULSE_BORDER, PULSE_MUTED,
+    pulse_styles, pulse_header, section_label, pulse_footer_factory,
+)
 
 
-def _esc(text) -> str:
-    if text is None:
+def _esc(t) -> str:
+    if t is None:
         return ""
-    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _styles() -> dict:
-    base = getSampleStyleSheet()
-    return {
-        "h1": ParagraphStyle("h1", parent=base["Title"], fontSize=22, leading=28,
-                              textColor=colors.white, alignment=TA_LEFT, spaceAfter=2),
-        "kicker": ParagraphStyle("kicker", parent=base["Normal"], fontSize=8.5, leading=10,
-                                   textColor=colors.white, alignment=TA_LEFT, spaceAfter=4),
-        "label": ParagraphStyle("label", parent=base["Normal"], fontSize=8, leading=10,
-                                  textColor=GX_MUTED, spaceAfter=2, alignment=TA_LEFT),
-        "value": ParagraphStyle("value", parent=base["Normal"], fontSize=10, leading=13,
-                                  textColor=GX_NAVY, spaceAfter=2, alignment=TA_LEFT),
-        "body": ParagraphStyle("body", parent=base["Normal"], fontSize=10, leading=14,
-                                 textColor=GX_NAVY, alignment=TA_LEFT, spaceAfter=4),
-        "muted": ParagraphStyle("muted", parent=base["Normal"], fontSize=9, leading=12,
-                                  textColor=GX_MUTED, spaceAfter=3),
-        "total_label": ParagraphStyle("total_label", parent=base["Normal"], fontSize=10,
-                                        leading=14, textColor=GX_MUTED, alignment=TA_RIGHT),
-        "total_value": ParagraphStyle("total_value", parent=base["Normal"], fontSize=12,
-                                        leading=16, textColor=GX_NAVY,
-                                        alignment=TA_RIGHT, fontName="Helvetica-Bold"),
-        "grand_value": ParagraphStyle("grand_value", parent=base["Normal"], fontSize=16,
-                                        leading=20, textColor=GX_PRIMARY,
-                                        alignment=TA_RIGHT, fontName="Helvetica-Bold"),
-    }
-
-
-def _footer_factory(is_mod: bool):
-    """Iter 216h166 — close over `is_mod` so MOD tenants get the
-    Crown copyright bar without changing the call site of `_footer`."""
-    from utils.pdf_footer import draw_pdf_footer
-
-    def _footer(canvas, doc):
-        draw_pdf_footer(
-            canvas, doc,
-            primary_line="Pulse Fitness · Field Service for Fitness Equipment",
-            is_mod=is_mod,
-            muted_colour=GX_MUTED, line_colour=GX_BORDER,
-        )
-    return _footer
-
-
-def _header_block(s, inv: dict) -> Table:
-    ino = inv.get("invoice_number") or "INVOICE"
-    issue_date = inv.get("issue_date") or datetime.utcnow().date().isoformat()
-    due_date = inv.get("due_date") or "—"
-    header = Table(
-        [[Paragraph("INVOICE · Pulse Fitness", s["kicker"])],
-         [Paragraph(_esc(ino), s["h1"])],
-         [Paragraph(f"Issued {_esc(issue_date)} · Due {_esc(due_date)}", s["kicker"])]],
-        colWidths=[170 * mm],
-    )
-    header.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), GX_PRIMARY),
-        ("LEFTPADDING", (0, 0), (-1, -1), 16),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 16),
-        ("TOPPADDING", (0, 0), (-1, -1), 12),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+def _title_and_meta(s, inv):
+    account_ref = inv.get("account_ref") or inv.get("customer_account_ref") or "—"
+    meta_rows = [
+        ("Invoice", inv.get("invoice_number") or "—"),
+        ("Customer Ref", inv.get("customer_po_number") or "—"),
+        ("Account Ref", account_ref),
+        ("Invoice Date", inv.get("issue_date") or datetime.utcnow().date().isoformat()),
+        ("Sales Order Ref", inv.get("sales_order_ref") or inv.get("case_reference") or "—"),
+        ("Contract Ref", inv.get("contract_ref") or "—"),
+    ]
+    meta = Table(
+        [[Paragraph(k, s["metalabel"]), Paragraph(_esc(v), s["metaval"])] for k, v in meta_rows],
+        colWidths=[28 * mm, 42 * mm])
+    meta.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
-    return header
+    row = Table([[Paragraph("Invoice", s["title"]), meta]], colWidths=[100 * mm, 70 * mm])
+    row.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (0, 0), "TOP"), ("VALIGN", (1, 0), (1, 0), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return row
 
 
-def _two_col(s, left_label, left_lines, right_label, right_lines):
-    def stack(label, lines):
-        rows = [[Paragraph(label, s["label"])]]
+def _address_blocks(s, inv):
+    def block(label, lines):
+        rows = [[Paragraph(label, s["sectlabel"])]]
         for ln in lines:
-            rows.append([Paragraph(_esc(ln or ""), s["value"])])
-        t = Table(rows, colWidths=[80 * mm])
+            if ln:
+                rows.append([Paragraph(_esc(ln), s["value"])])
+        t = Table(rows, colWidths=[82 * mm])
         t.setStyle(TableStyle([
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ]))
         return t
-    return Table([[stack(left_label, left_lines), stack(right_label, right_lines)]],
+    inv_addr = [inv.get("customer_name"), inv.get("customer_company"),
+                inv.get("site_address") or inv.get("billing_address"),
+                inv.get("customer_email"), inv.get("customer_phone")]
+    del_addr = [inv.get("customer_name"), inv.get("site_name"),
+                inv.get("site_address"), inv.get("asset_name") and f"Asset: {inv.get('asset_name')}"]
+    grid = Table([[block("Invoice Address", inv_addr), block("Delivery Address", del_addr)]],
                  colWidths=[85 * mm, 85 * mm])
+    grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                              ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    return grid
 
 
 def _lines_table(s, inv):
     sym = inv.get("currency_symbol") or "£"
-    data = [["Description", "Qty", f"Unit {sym}", f"Total {sym}"]]
+    data = [[Paragraph("Line Item Code", s["th"]), Paragraph("Description", s["th"]),
+             Paragraph("Quantity", s["thR"]), Paragraph("Unit Price", s["thR"]),
+             Paragraph("Net", s["thR"])]]
     lines = inv.get("lines") or []
     if not lines:
-        data.append(["No line items.", "", "", ""])
+        data.append([Paragraph("", s["cell"]), Paragraph("No line items.", s["cell"]),
+                     Paragraph("", s["cellR"]), Paragraph("", s["cellR"]), Paragraph("", s["cellR"])])
     for ln in lines:
-        kind = (ln.get("kind") or "").title()
-        prefix = f"<font color='#64748B' size='8'>{_esc(kind)} · </font>" if kind else ""
-        desc_html = prefix + _esc(ln.get("description") or "—")
+        code = ln.get("code") or (ln.get("kind") or "").upper()[:8] or "—"
+        desc = _esc(ln.get("description") or "—")
         if ln.get("notes"):
-            desc_html += f"<br/><font color='#64748B' size='8'>{_esc(ln['notes'])}</font>"
+            desc += f"<br/><font color='#5B6570' size='7.5'>{_esc(ln['notes'])}</font>"
         data.append([
-            Paragraph(desc_html, s["body"]),
-            Paragraph(f"{float(ln.get('quantity', 0)):g}", s["body"]),
-            Paragraph(f"{float(ln.get('unit_price', 0)):,.2f}", s["body"]),
-            Paragraph(f"{float(ln.get('line_total', 0)):,.2f}", s["body"]),
+            Paragraph(_esc(code), s["cell"]),
+            Paragraph(desc, s["cell"]),
+            Paragraph(f"{float(ln.get('quantity', 0)):g}", s["cellR"]),
+            Paragraph(f"{sym} {float(ln.get('unit_price', 0)):,.2f}", s["cellR"]),
+            Paragraph(f"{sym} {float(ln.get('line_total', 0)):,.2f}", s["cellR"]),
         ])
-    t = Table(data, colWidths=[100 * mm, 18 * mm, 22 * mm, 30 * mm], repeatRows=1)
+    t = Table(data, colWidths=[26 * mm, 74 * mm, 20 * mm, 25 * mm, 25 * mm], repeatRows=1)
     t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), GX_PRIMARY),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 10),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, GX_LIGHT]),
-        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LINEBELOW", (0, 0), (-1, 0), 1, GX_PRIMARY),
-        ("GRID", (0, 1), (-1, -1), 0.25, GX_BORDER),
+        ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, PULSE_NAVY),
     ]))
     return t
 
 
 def _totals_block(s, inv):
     sym = inv.get("currency_symbol") or "£"
-    tax_label = inv.get("tax_label") or "VAT"
-    rows = [[Paragraph("Subtotal", s["total_label"]),
-             Paragraph(f"{sym}{float(inv.get('subtotal', 0)):,.2f}", s["total_value"])]]
-    if inv.get("discount_amount"):
-        rows.append([Paragraph(f"Discount ({inv.get('discount_pct', 0):g}%)", s["total_label"]),
-                     Paragraph(f"-{sym}{float(inv['discount_amount']):,.2f}", s["total_value"])])
-    # Iter 220l — if the engineer is VAT-exempt (below £85k threshold),
-    # show a clarifying row instead of "VAT (0%): £0.00".
-    if inv.get("vat_exempt"):
-        rows.append([Paragraph(tax_label, s["total_label"]),
-                     Paragraph("Not chargeable", s["total_value"])])
-    else:
-        rows.append([Paragraph(f"{tax_label} ({inv.get('vat_rate', 0):g}%)", s["total_label"]),
-                     Paragraph(f"{sym}{float(inv.get('vat_amount', 0)):,.2f}", s["total_value"])])
-    rows.append([Paragraph("<b>TOTAL DUE</b>", s["total_label"]),
-                 Paragraph(f"{sym}{float(inv.get('total', 0)):,.2f}", s["grand_value"])])
-    t = Table(rows, colWidths=[60 * mm, 40 * mm], hAlign="RIGHT")
+    net = float(inv.get("subtotal", 0))
+    vat = float(inv.get("vat_amount", 0))
+    gross = float(inv.get("total", 0))
+    rows = [
+        [Paragraph("NET", s["total_label"]), Paragraph(f"{sym} {net:,.2f}", s["total_value"])],
+        [Paragraph("VAT", s["total_label"]), Paragraph(f"{sym} {vat:,.2f}", s["total_value"])],
+        [Paragraph("GROSS", s["total_label"]), Paragraph(f"{sym} {gross:,.2f}", s["grand_value"])],
+    ]
+    t = Table(rows, colWidths=[30 * mm, 40 * mm], hAlign="RIGHT")
     t.setStyle(TableStyle([
-        ("LINEBELOW", (0, -2), (-1, -2), 0.5, GX_BORDER),
-        ("LINEABOVE", (0, -1), (-1, -1), 1.5, GX_PRIMARY),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("BOX", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("LINEBELOW", (0, 0), (-1, 1), 0.5, PULSE_BORDER),
+        ("BACKGROUND", (0, 2), (-1, 2), PULSE_LIGHT),
     ]))
     return t
 
 
-def _payment_block(s, inv):
-    """Highlighted box with bank/BACS instructions."""
-    body = []
-    if inv.get("payment_method"):
-        body.append(f"<b>Method:</b> {_esc(inv['payment_method'])}")
-    bank_lines = []
-    if inv.get("bank_name"):
-        bank_lines.append(f"Bank: {inv['bank_name']}")
-    if inv.get("bank_account_name"):
-        bank_lines.append(f"Account name: {inv['bank_account_name']}")
-    if inv.get("bank_sort_code"):
-        bank_lines.append(f"Sort code: {inv['bank_sort_code']}")
-    if inv.get("bank_account_number"):
-        bank_lines.append(f"Account number: {inv['bank_account_number']}")
-    if bank_lines:
-        body.append("<br/>".join(_esc(b) for b in bank_lines))
-    if inv.get("payment_instructions"):
-        body.append(_esc(inv["payment_instructions"]))
-    if not body:
-        return None
-    para = Paragraph("<br/><br/>".join(body), s["body"])
-    box = Table([[para]], colWidths=[170 * mm])
-    box.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), GX_LIGHT),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LINEBEFORE", (0, 0), (0, -1), 3, GX_PRIMARY),
-    ]))
-    return box
+def _payment_and_vat(s, inv):
+    sym = inv.get("currency_symbol") or "£"
+    pay = Paragraph(
+        f"<b>Payment Details</b>  <font color='#5B6570'>{PULSE['payment_terms']}</font><br/>"
+        f"<b>{PULSE['bank_name']}</b><br/>"
+        f"Account Name: {PULSE['bank_account_name']}<br/>"
+        f"Account Number: {PULSE['bank_account_number']}<br/>"
+        f"Sort Code: {PULSE['bank_sort_code']}",
+        s["value"])
+    vat = Paragraph(f"<b>VAT Reg. No.</b> {PULSE['vat_reg']}", s["value"])
+    t = Table([[pay, vat]], colWidths=[110 * mm, 60 * mm])
+    t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                           ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    return t
 
 
 def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
-    s = _styles()
+    s = pulse_styles()
     buf = BytesIO()
     doc = BaseDocTemplate(
         buf, pagesize=A4,
-        leftMargin=20 * mm, rightMargin=20 * mm,
-        topMargin=18 * mm, bottomMargin=20 * mm,
-        title=f"Invoice {inv.get('invoice_number') or ''}",
-        author="Pulse Fitness",
+        leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=16 * mm, bottomMargin=28 * mm,
+        title=f"Invoice {inv.get('invoice_number') or ''}", author="Pulse Fitness",
     )
-    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
-                  id="normal", showBoundary=0)
-    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer_factory(is_mod))])
-    flow = [_header_block(s, inv), Spacer(1, 8 * mm)]
-    customer_lines = [inv.get("customer_name"), inv.get("site_name"),
-                      inv.get("site_address"), inv.get("customer_email"),
-                      inv.get("customer_phone")]
-    engineer_lines = [inv.get("engineer_name"), inv.get("engineer_email"),
-                      inv.get("engineer_mobile"),
-                      f"Case ref: {inv.get('case_reference') or '—'}"]
-    # Iter — surface the Customer PO / reference so finance can reconcile the
-    # chargeable invoice against the customer's purchase order.
-    if (inv.get("customer_po_number") or "").strip():
-        engineer_lines.append(f"Customer PO / ref: {inv['customer_po_number']}")
-    if inv.get("linked_quote_number"):
-        engineer_lines.append(f"Linked quote: {inv['linked_quote_number']}")
-    flow.append(_two_col(s, "BILL TO", customer_lines, "FROM", engineer_lines))
-    flow.append(Spacer(1, 6 * mm))
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="n", showBoundary=0)
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame],
+                                       onPage=pulse_footer_factory(is_mod))])
 
-    if inv.get("asset_name") or inv.get("asset_serial"):
-        flow.append(Paragraph("ASSET", s["label"]))
-        flow.append(Paragraph(
-            f"{_esc(inv.get('asset_name') or '—')} · Serial {_esc(inv.get('asset_serial') or '—')}",
-            s["value"]))
-        flow.append(Spacer(1, 4 * mm))
+    flow = [pulse_header(s), Spacer(1, 6 * mm), _title_and_meta(s, inv), Spacer(1, 8 * mm),
+            _address_blocks(s, inv), Spacer(1, 8 * mm)]
 
     if inv.get("description_of_work"):
-        flow.append(Paragraph("DESCRIPTION OF WORK", s["label"]))
-        flow.append(Paragraph(_esc(inv["description_of_work"]).replace("\n", "<br/>"),
-                              s["body"]))
+        flow.append(section_label(s, "Description of Work"))
+        flow.append(Paragraph(_esc(inv["description_of_work"]).replace("\n", "<br/>"), s["body"]))
         flow.append(Spacer(1, 4 * mm))
 
-    flow.append(Paragraph("LINE ITEMS", s["label"]))
     flow.append(_lines_table(s, inv))
     flow.append(Spacer(1, 6 * mm))
     flow.append(_totals_block(s, inv))
     flow.append(Spacer(1, 8 * mm))
+    flow.append(_payment_and_vat(s, inv))
+    flow.append(Spacer(1, 6 * mm))
 
-    pay = _payment_block(s, inv)
-    if pay:
-        flow.append(Paragraph("PAYMENT INSTRUCTIONS", s["label"]))
-        flow.append(pay)
-        flow.append(Spacer(1, 6 * mm))
+    ref = inv.get("account_ref") or inv.get("customer_account_ref") or inv.get("invoice_number") or ""
+    flow.append(Paragraph(
+        f"Please quote the following reference on payment: <b>{_esc(ref)}</b>", s["muted"]))
+    for clause in PULSE["footer_clauses"][:2]:
+        flow.append(Paragraph(_esc(clause), s["muted"]))
 
     if inv.get("notes"):
-        flow.append(Paragraph("NOTES", s["label"]))
-        flow.append(Paragraph(_esc(inv["notes"]).replace("\n", "<br/>"), s["body"]))
-        flow.append(Spacer(1, 4 * mm))
-
-    if inv.get("terms"):
-        flow.append(Paragraph("TERMS &amp; CONDITIONS", s["label"]))
-        flow.append(Paragraph(_esc(inv["terms"]).replace("\n", "<br/>"), s["muted"]))
+        flow.append(Spacer(1, 3 * mm))
+        flow.append(section_label(s, "Notes"))
+        flow.append(Paragraph(_esc(inv["notes"]).replace("\n", "<br/>"), s["muted"]))
 
     doc.build(flow)
     return buf.getvalue()

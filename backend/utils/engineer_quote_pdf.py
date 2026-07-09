@@ -24,12 +24,16 @@ from reportlab.platypus import (
     Paragraph, Spacer, Table, TableStyle,
 )
 
-GX_PRIMARY = colors.HexColor("#1d4ed8")
-GX_ACCENT = colors.HexColor("#6366f1")
-GX_NAVY = colors.HexColor("#0F172A")
-GX_MUTED = colors.HexColor("#64748B")
-GX_LIGHT = colors.HexColor("#F1F5F9")
-GX_BORDER = colors.HexColor("#E2E8F0")
+from utils.pulse_doc_template import (
+    PULSE_NAVY, PULSE_BLUE, pulse_styles, pulse_header, pulse_footer_factory,
+)
+
+GX_PRIMARY = PULSE_NAVY
+GX_ACCENT = PULSE_BLUE
+GX_NAVY = colors.HexColor("#1A1A1A")
+GX_MUTED = colors.HexColor("#5B6570")
+GX_LIGHT = colors.HexColor("#EEF3FB")
+GX_BORDER = colors.HexColor("#C9D4E5")
 
 
 def _esc(text) -> str:
@@ -209,11 +213,19 @@ def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)
-    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer_factory(is_mod))])
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=pulse_footer_factory(is_mod))])
     flow = []
 
-    flow.append(_header_block(s, quote))
-    flow.append(Spacer(1, 8 * mm))
+    ps = pulse_styles()
+    flow.append(pulse_header(ps))
+    flow.append(Spacer(1, 6 * mm))
+    flow.append(Paragraph("Quotation", ps["title"]))
+    flow.append(Paragraph(
+        f"Quote No. {_esc(quote.get('quote_number') or '—')} &nbsp;·&nbsp; "
+        f"{_esc(quote.get('issue_date') or datetime.utcnow().date().isoformat())}"
+        + (f" &nbsp;·&nbsp; Valid until {_esc(quote.get('valid_until'))}" if quote.get('valid_until') else ""),
+        ps["muted"]))
+    flow.append(Spacer(1, 6 * mm))
 
     customer_lines = [
         quote.get("customer_name") or "—",

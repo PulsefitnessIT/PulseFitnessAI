@@ -283,7 +283,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=16 * mm, bottomMargin=14 * mm,
+        topMargin=16 * mm, bottomMargin=22 * mm,
         title=f"Service Report · {case.get('reference', '')}",
     )
     styles = getSampleStyleSheet()
@@ -860,25 +860,30 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
 
 
 def _paint_page_chrome(canv, doc) -> None:
-    """Iter 220e — Add a subtle footer with page numbers + a generation
-    timestamp so a printed/PDF copy never looks like an unsigned draft.
-    Called by ReportLab for every page."""
+    """Standard Pulse footer — page number + generation timestamp plus the
+    registered-office / company-registration / VAT line used across all Pulse
+    documents (invoices, quotes, reports)."""
     from reportlab.lib import colors as _colors
+    from utils.pulse_doc_template import PULSE
     canv.saveState()
     width, _ = doc.pagesize
     page_num = canv.getPageNumber()
-    # Hairline separator above the footer
-    canv.setStrokeColor(_colors.HexColor("#E2E8F0"))
-    canv.setLineWidth(0.4)
-    canv.line(15, 14, width - 15, 14)
-    # Footer text
-    canv.setFont("Helvetica", 7.5)
-    canv.setFillColor(_colors.HexColor("#94A3B8"))
-    canv.drawString(15, 6, f"Pulse Fitness Service Report · Page {page_num}")
+    canv.setStrokeColor(_colors.HexColor("#C9D4E5"))
+    canv.setLineWidth(0.5)
+    canv.line(18 * mm, 20 * mm, width - 18 * mm, 20 * mm)
+    canv.setFont("Helvetica-Bold", 6.5)
+    canv.setFillColor(_colors.HexColor("#0B3D91"))
+    canv.drawString(18 * mm, 16 * mm, "A pulseglobal Company")
+    canv.setFont("Helvetica", 6.2)
+    canv.setFillColor(_colors.HexColor("#5B6570"))
+    canv.drawString(
+        18 * mm, 13.2 * mm,
+        f"Registered Office: {PULSE['registered_office']}  Company Registration No "
+        f"{PULSE['company_reg']}. VAT Registration No {PULSE['vat_reg']}.")
+    canv.drawString(18 * mm, 10.6 * mm, f"Pulse Fitness Service Report · Page {page_num}")
     canv.drawRightString(
-        width - 15, 6,
-        datetime.now(timezone.utc).strftime("%d %b %Y · %H:%M UTC"),
-    )
+        width - 18 * mm, 10.6 * mm,
+        datetime.now(timezone.utc).strftime("%d %b %Y · %H:%M UTC"))
     canv.restoreState()
 
 
