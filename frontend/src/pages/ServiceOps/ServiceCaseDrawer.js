@@ -507,6 +507,15 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   {STATUS_LABEL[merged?.status] || merged?.status || '—'}
                 </span>
                 <SLABadge resolveAt={merged?.sla_resolve_at} />
+                {merged?.customer_po_number ? (
+                  <span
+                    className="svc-pill inline-flex items-center gap-1"
+                    style={{ background: '#ecfeff', color: '#0e7490', fontWeight: 700 }}
+                    title="Customer PO / reference — links this chargeable job to the customer's purchase order"
+                    data-testid="drawer-customer-po">
+                    PO / Ref: {merged.customer_po_number}
+                  </span>
+                ) : null}
                 {existingRating ? (
                   <span
                     className="svc-pill inline-flex items-center gap-0.5"

@@ -226,6 +226,10 @@ def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
     engineer_lines = [inv.get("engineer_name"), inv.get("engineer_email"),
                       inv.get("engineer_mobile"),
                       f"Case ref: {inv.get('case_reference') or '—'}"]
+    # Iter — surface the Customer PO / reference so finance can reconcile the
+    # chargeable invoice against the customer's purchase order.
+    if (inv.get("customer_po_number") or "").strip():
+        engineer_lines.append(f"Customer PO / ref: {inv['customer_po_number']}")
     if inv.get("linked_quote_number"):
         engineer_lines.append(f"Linked quote: {inv['linked_quote_number']}")
     flow.append(_two_col(s, "BILL TO", customer_lines, "FROM", engineer_lines))

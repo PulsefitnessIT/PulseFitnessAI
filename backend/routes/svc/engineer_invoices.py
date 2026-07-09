@@ -141,6 +141,7 @@ class InvoiceCreate(BaseModel):
     asset_name: str | None = None
     asset_serial: str | None = None
     description_of_work: str | None = None
+    customer_po_number: str | None = None
     lines: list[InvoiceLine] = Field(default_factory=list)
     vat_rate: float = 20
     discount_pct: float = 0
@@ -164,6 +165,7 @@ class InvoiceUpdate(BaseModel):
     asset_name: str | None = None
     asset_serial: str | None = None
     description_of_work: str | None = None
+    customer_po_number: str | None = None
     lines: list[InvoiceLine] | None = None
     vat_rate: float | None = None
     discount_pct: float | None = None
@@ -241,6 +243,10 @@ def _build_invoice_payload(
         "engineer_mobile": engineer.get("mobile"),
         "case_id": body.get("case_id") or case.get("id"),
         "case_reference": case.get("reference"),
+        # Iter — carry the Customer PO/reference so chargeable invoices are
+        # reconcilable against the customer's purchase order (renders on the
+        # PDF + editable via update_invoice).
+        "customer_po_number": (body.get("customer_po_number") or case.get("customer_po_number") or "").strip(),
         "asset_id": case.get("asset_id"),
         "linked_quote_id": body.get("linked_quote_id"),
         "linked_quote_number": body.get("linked_quote_number"),
@@ -403,6 +409,7 @@ async def invoice_prefill_from_case(case_id: str, user=Depends(get_current_user)
     return {
         "case_id": case_id,
         "case_reference": case.get("reference"),
+        "customer_po_number": case.get("customer_po_number") or "",
         "customer_name": case.get("customer_name") or "",
         "customer_email": case.get("customer_email") or "",
         "customer_phone": case.get("customer_phone") or "",
@@ -453,7 +460,7 @@ async def create_invoice(
         {"id": body.case_id, **_of(user)},
         {"_id": 0, "id": 1, "reference": 1, "customer_name": 1, "customer_email": 1,
          "customer_phone": 1, "site_name": 1, "asset_name": 1, "asset_id": 1,
-         "asset_serial": 1},
+         "asset_serial": 1, "customer_po_number": 1},
     ) if body.case_id else {}
     engineer = await _engineer_profile(user)
     vat_settings = await _engineer_vat_settings(user)
@@ -609,6 +616,7 @@ async def update_invoice(invoice_id: str, body: InvoiceUpdate, user=Depends(get_
         patch["status"] = payload["status"]
     for k in ("customer_name", "customer_email", "customer_phone", "site_name",
               "site_address", "asset_name", "asset_serial", "description_of_work",
+              "customer_po_number",
               "vat_rate", "discount_pct", "payment_terms_days", "due_date",
               "payment_method", "payment_instructions", "notes", "terms"):
         if k in payload:

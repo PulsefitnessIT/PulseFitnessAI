@@ -491,7 +491,12 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
                     className="svc-row--clickable"
                     data-testid={`case-row-${c.reference}`}
                   >
-                    <td className="font-bold tabular-nums">{c.reference}</td>
+                    <td className="font-bold tabular-nums">
+                      {c.reference}
+                      {c.customer_po_number ? (
+                        <div className="text-[10px] font-semibold svc-muted" title="Customer PO / reference" data-testid={`case-po-${c.reference}`}>PO: {c.customer_po_number}</div>
+                      ) : null}
+                    </td>
                     <td><span className={`svc-prio svc-prio--${pri.tone}`}>{pri.label}</span></td>
                     <td style={{ maxWidth: '20rem' }}>
                       <div className="font-semibold truncate">{c.title}</div>
