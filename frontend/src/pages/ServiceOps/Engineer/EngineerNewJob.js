@@ -84,7 +84,7 @@ export default function EngineerNewJob() {
     customer_name: '', customer_email: '', customer_phone: '',
     site_name: '', site_address: '', site_postcode: '',
     scheduled_at: '', estimated_minutes: 60,
-    intake_channel: 'manual', source_note: '',
+    intake_channel: 'manual', source_note: '', customer_po_number: '',
   });
 
   // Iter 220cw — Voice-to-job consumer. When VoiceToJobButton
@@ -541,6 +541,14 @@ export default function EngineerNewJob() {
           <div className="pt-2">
             <Field label="Source note (optional)">
               <input value={form.source_note} onChange={(e) => set('source_note', e.target.value)} placeholder="Referred by ..., supplier rep ..., etc." className={inputCls} data-testid="newjob-source-note" />
+            </Field>
+          </div>
+
+          {/* Iter — Customer reference / PO so chargeable jobs can be linked
+              to a Customer PO (maps to the case's customer_po_number → Sage). */}
+          <div className="pt-2">
+            <Field label="Customer reference / PO (optional)">
+              <input value={form.customer_po_number} onChange={(e) => set('customer_po_number', e.target.value)} placeholder="e.g. PO-4471 — links a chargeable job to the customer's purchase order" className={inputCls} data-testid="newjob-customer-po" />
             </Field>
           </div>
 

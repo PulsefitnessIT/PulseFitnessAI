@@ -108,6 +108,11 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         "description": description,
         "fault_code": payload.get("fault_code") or "",
         "fault_category": payload.get("fault_category") or "",
+        # Iter — carry the Operations "Log a fault" AI Triage + severity onto
+        # the case so the engineer / service desk see the full context that
+        # was logged (rendered behind a "View AI Triage" button in the app).
+        "ai_triage": payload.get("ai_triage") or "",
+        "fault_severity": payload.get("fault_severity") or "",
         "asset_id": payload.get("asset_id") or "",
         "asset_name": payload.get("asset_name") or "",
         # Multi-equipment selection (iter 215dq) — operators can attach

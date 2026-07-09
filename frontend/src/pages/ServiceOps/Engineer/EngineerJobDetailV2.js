@@ -29,6 +29,7 @@ import {
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download, Phone, Navigation, Edit3,
   Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
+  Sparkles, FileText,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
@@ -62,6 +63,108 @@ const fmtMins = (m) => {
   const r = total % 60;
   return h > 0 ? `${h}h ${r}m` : `${r}m`;
 };
+// Iter — Fault context surface for the engineer / service desk. Shows the
+// Customer PO/reference, fault code + severity as compact chips, and keeps
+// the operator-logged AI Triage behind a "View AI Triage" button so it never
+// crowds the Summary. Everything logged in Operations is viewable, tidily.
+const SEVERITY_STYLE = {
+  out_of_order: 'bg-red-100 text-red-700',
+  operational_fault: 'bg-amber-100 text-amber-700',
+  cosmetic: 'bg-slate-100 text-slate-600',
+};
+
+function parseTriage(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try {
+    const s = String(raw).trim().replace(/^```json/i, '').replace(/```$/, '').trim();
+    return JSON.parse(s);
+  } catch {
+    return { diagnosis: String(raw) };
+  }
+}
+
+const TriageBody = ({ triage }) => {
+  if (!triage) return null;
+  const steps = triage.repair_steps || triage.steps || [];
+  const parts = triage.parts || triage.parts_needed || [];
+  const hasStructure = triage.diagnosis || (Array.isArray(steps) && steps.length) || (Array.isArray(parts) && parts.length);
+  return (
+    <>
+      {triage.diagnosis && (
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Diagnosis</p><p className="leading-snug whitespace-pre-wrap" data-testid="jaag-triage-diagnosis">{triage.diagnosis}</p></div>
+      )}
+      {Array.isArray(steps) && steps.length > 0 && (
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Suggested repair steps</p><ol className="list-decimal ml-4 space-y-1">{steps.map((s, i) => <li key={i} className="leading-snug">{typeof s === 'string' ? s : (s.step || s.text || JSON.stringify(s))}</li>)}</ol></div>
+      )}
+      {Array.isArray(parts) && parts.length > 0 && (
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Likely parts</p><ul className="list-disc ml-4 space-y-1">{parts.map((p, i) => <li key={i}>{typeof p === 'string' ? p : (p.name || JSON.stringify(p))}</li>)}</ul></div>
+      )}
+      {triage.estimated_time && <p className="text-xs text-slate-500">Est. time: {triage.estimated_time}</p>}
+      {!hasStructure && (
+        <p className="whitespace-pre-wrap leading-snug">{typeof triage === 'string' ? triage : JSON.stringify(triage, null, 2)}</p>
+      )}
+    </>
+  );
+};
+
+const FaultContextCard = ({ job }) => {
+  const [open, setOpen] = useState(false);
+  const po = (job.customer_po_number || '').trim();
+  const code = (job.fault_code || '').trim();
+  const sev = (job.fault_severity || '').trim();
+  const triage = parseTriage(job.ai_triage);
+  const summary = triage ? (triage.summary || triage.diagnosis || '') : '';
+  if (!po && !code && !sev && !triage) return null;
+  return (
+    <div className="pt-2 border-t border-slate-100 space-y-2" data-testid="jaag-fault-context">
+      <div className="flex flex-wrap items-center gap-2">
+        {po && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-cyan-50 text-cyan-700" data-testid="jaag-customer-po">
+            <FileText size={11} /> PO / Ref: {po}
+          </span>
+        )}
+        {code && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-700" data-testid="jaag-fault-code">
+            Fault code: {code}
+          </span>
+        )}
+        {sev && (
+          <span className={`inline-flex items-center text-[11px] font-bold px-2 py-1 rounded-full capitalize ${SEVERITY_STYLE[sev] || 'bg-slate-100 text-slate-600'}`} data-testid="jaag-fault-severity">
+            {sev.replace(/_/g, ' ')}
+          </span>
+        )}
+      </div>
+      {triage && (
+        <>
+          {summary && (
+            <p className="text-xs text-slate-600 leading-snug line-clamp-2" data-testid="jaag-triage-summary">
+              <Sparkles size={11} className="inline mr-1 -mt-0.5 text-violet-500" />{summary}
+            </p>
+          )}
+          <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors" data-testid="jaag-view-triage-btn">
+            <Sparkles size={13} /> View AI Triage
+          </button>
+        </>
+      )}
+      {open && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50" onClick={() => setOpen(false)} data-testid="jaag-triage-modal">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-3 flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2"><Sparkles size={15} className="text-violet-500" /> AI Triage — logged at fault</h3>
+              <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-slate-100" data-testid="jaag-triage-close"><X size={18} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-4 text-sm text-slate-700">
+              <TriageBody triage={triage} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 
 // Iter 220dt — friendly labels for the case_type / job_type
 // taxonomy. Customer portal + service desk + intake all use the
@@ -618,6 +721,11 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
             </p>
           </div>
         )}
+
+        {/* Iter — Customer PO / fault code / severity + AI Triage (behind a
+            button). Surfaces the full Operations "Log a fault" context to the
+            engineer without crowding the Summary. */}
+        <FaultContextCard job={job} />
 
         {/* Iter 220ea·8 — Lower chip row removed. Priority + cover
             are already in the top status-pill row; case-type was

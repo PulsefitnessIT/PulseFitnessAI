@@ -310,6 +310,20 @@ async def _resolve_coverage_for_issue(serial_number: Optional[str],
         return coverage_to_case_meta({})
 
 
+async def _lookup_issue_po(issue_ids: list) -> str:
+    """Return the most recent Customer PO number raised in the Operations
+    portal for any of the given fault ids, so a PO raised at fault-log time
+    flows straight through to the engineer's case (and on to Sage)."""
+    ids = [i for i in issue_ids if i]
+    if not ids:
+        return ""
+    po = await db.purchase_orders.find_one(
+        {"issue_id": {"$in": ids}}, {"_id": 0, "po_number": 1},
+        sort=[("created_at", -1)],
+    )
+    return (po or {}).get("po_number") or ""
+
+
 async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
     """Bridge: when an Operations Portal fault is escalated to engineer
     (resolution_type='engineer'), materialise an `svc_cases` row so the
@@ -379,6 +393,12 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
             "equipment_ids": [equipment_id] if equipment_id else [],
             "equipment_serials": [issue_doc.get("serial_number") or ""] if issue_doc.get("serial_number") else [],
             "fault_code": issue_doc.get("fault_code") or "",
+            # Iter — pull the Customer PO raised in Operations + the AI Triage
+            # so chargeable jobs are PO-linked and the engineer sees the full
+            # fault context logged by the operator.
+            "customer_po_number": await _lookup_issue_po([issue_doc["id"]]),
+            "ai_triage": issue_doc.get("ai_triage") or "",
+            "fault_severity": issue_doc.get("severity") or "",
             "contract_id": cov_meta.get("contract_id") or "",
             "customer_name": issue_doc.get("reporter_name") or user.get("full_name") or "",
             "customer_email": issue_doc.get("reporter_email") or user.get("email") or "",
@@ -536,6 +556,12 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
             "equipment_ids": equipment_ids,
             "equipment_serials": equipment_serials,
             "fault_code": first.get("fault_code") or "",
+            # Iter — Customer PO (any sibling fault) + AI Triage from the
+            # primary machine so the bundled engineer job is PO-linked and
+            # shows the logged fault context.
+            "customer_po_number": await _lookup_issue_po([d["id"] for d in engineer_docs]),
+            "ai_triage": first.get("ai_triage") or "",
+            "fault_severity": first.get("severity") or "",
             "contract_id": primary.get("contract_id") or "",
             "customer_name": first.get("reporter_name") or user.get("full_name") or "",
             "customer_email": first.get("reporter_email") or user.get("email") or "",

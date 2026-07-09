@@ -141,6 +141,7 @@ class SelfCreateIn(BaseModel):
     site_postcode: Optional[str] = Field(None, max_length=16)
     intake_channel: str = Field("manual", description="manual | email | phone | other")
     source_note: Optional[str] = Field(None, max_length=400)
+    customer_po_number: Optional[str] = Field(None, max_length=80, description="Customer reference / PO for chargeable jobs (maps to Sage)")
 
 
 @engineer_router.post("/jobs/self-create", status_code=201, dependencies=[Depends(require_engineer_compliance_to_claim)])
@@ -193,6 +194,7 @@ async def jobs_self_create(
         "site_postcode": body.site_postcode,
         "intake_channel": body.intake_channel,
         "source_note": body.source_note,
+        "customer_po_number": (body.customer_po_number or "").strip(),
         "self_allocated": True,
         # Iter 216h158 — when the engineer self-creates from their own
         # phone/walk-up, they are the source. Card slug is None unless
