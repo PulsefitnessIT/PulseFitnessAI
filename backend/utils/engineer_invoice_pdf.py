@@ -8,7 +8,7 @@ from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle,
+    BaseDocTemplate, Frame, KeepTogether, PageTemplate, Paragraph, Spacer, Table, TableStyle,
 )
 
 from utils.pulse_doc_template import (
@@ -167,16 +167,22 @@ def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
 
     flow.append(_lines_table(s, inv))
     flow.append(Spacer(1, 6 * mm))
-    flow.append(_totals_block(s, inv))
-    flow.append(Spacer(1, 8 * mm))
-    flow.append(_payment_and_vat(s, inv))
-    flow.append(Spacer(1, 6 * mm))
-
+    # Keep the totals + payment details + references together so a page break
+    # never orphans the GROSS line or splits the bank details. On multi-page
+    # invoices the line-item table (repeatRows=1) carries its header to each
+    # page; this block then lands intact on the final page.
+    tail = [
+        _totals_block(s, inv),
+        Spacer(1, 8 * mm),
+        _payment_and_vat(s, inv),
+        Spacer(1, 6 * mm),
+    ]
     ref = inv.get("account_ref") or inv.get("customer_account_ref") or inv.get("invoice_number") or ""
-    flow.append(Paragraph(
+    tail.append(Paragraph(
         f"Please quote the following reference on payment: <b>{_esc(ref)}</b>", s["muted"]))
     for clause in PULSE["footer_clauses"][:2]:
-        flow.append(Paragraph(_esc(clause), s["muted"]))
+        tail.append(Paragraph(_esc(clause), s["muted"]))
+    flow.append(KeepTogether(tail))
 
     if inv.get("notes"):
         flow.append(Spacer(1, 3 * mm))
