@@ -393,7 +393,7 @@ const PreviewModal = ({ job, onClose, onClaim }) => {
 // for each visible row; we accept the full props bag, look up the
 // job by index from the `jobs` array, and apply the absolute-positioned
 // `style` the windowing engine hands us.
-const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode, showDistance }) => {
+const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, onOpen, viewMode, showDistance }) => {
   const job = jobs[index];
   if (!job) return null;
   // Iter 220p — "My gyms" rows are supplier_cases routed via the
@@ -483,6 +483,25 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode,
       >
         Open ticket
       </a>
+    ) : job.assigned_engineer_id ? (
+      <div className="flex flex-col gap-1.5 items-end flex-shrink-0">
+        <span
+          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 inline-flex items-center gap-1 max-w-[130px]"
+          data-testid={`queue-assigned-${rowKey}`}
+          title={job.assigned_engineer_name || 'Assigned'}
+        >
+          <ShieldCheck size={11} className="flex-shrink-0" />
+          <span className="truncate">{job.assigned_engineer_name ? `Assigned · ${job.assigned_engineer_name}` : 'Assigned'}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => onOpen && onOpen(job)}
+          className="text-cyan-700 hover:bg-cyan-50 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+          data-testid={`queue-open-${rowKey}`}
+        >
+          View →
+        </button>
+      </div>
     ) : (
       <div className="flex flex-col gap-1.5 items-end flex-shrink-0">
         <button
@@ -543,18 +562,22 @@ export default function EngineerQueue() {
           params.postcode = effectiveOrigin.postcode;
         }
       }
-      const [j, s, g] = await Promise.all([
-        axios.get(`${API}/svc/engineer/queue/unassigned`, { ...auth(), params }),
-        axios.get(`${API}/svc/engineer/queue/stats`, auth()),
-        // Iter 220p — fetch "My gyms" alongside so we have an instant
-        // count for the pill badge without a second roundtrip when
-        // the user toggles it.
+      const [j, g] = await Promise.all([
+        axios.get(`${API}/svc/engineer/queue/territory`, { ...auth(), params }),
+        // Iter 220p — fetch "My gyms" alongside for the pill badge count.
         axios.get(`${API}/svc/engineer/queue/my-gyms`, auth())
           .catch(() => ({ data: { jobs: [], total: 0, is_partner_engineer: null } })),
       ]);
-      setJobs(j.data?.jobs || []);
-      setOriginSource(j.data?.origin_source || null);
-      setStats(s.data || stats);
+      const tjobs = j.data?.jobs || [];
+      setJobs(tjobs);
+      setOriginSource(null);
+      // Territory view computes its own stat strip from the returned cases.
+      const p1 = tjobs.filter((x) => (x.priority || '').toUpperCase() === 'P1').length;
+      const slaRisk = tjobs.filter((x) => {
+        if (!x.sla_resolve_at) return false;
+        return (new Date(x.sla_resolve_at) - Date.now()) < 2 * 3600 * 1000;
+      }).length;
+      setStats({ total: tjobs.length, p1, sla_breached_or_due: slaRisk });
       setMyGyms(g.data || { jobs: [], total: 0, is_partner_engineer: null });
       // Iter 216h176 — Warm the engineer's "active week" cache so the
       // diary + notifications survive going offline. Throttled to once
@@ -694,7 +717,7 @@ export default function EngineerQueue() {
                 {orgBrand.label}
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                <Hand size={20} /> Up for grabs
+                <Hand size={20} /> Territory jobs
               </h1>
             </div>
           </div>
@@ -734,7 +757,7 @@ export default function EngineerQueue() {
               }`}
               data-testid="queue-view-org"
             >
-              Up for grabs{jobs.length ? ` · ${jobs.length}` : ''}
+              Territory jobs{jobs.length ? ` · ${jobs.length}` : ''}
             </button>
             <button
               type="button"
@@ -814,14 +837,14 @@ export default function EngineerQueue() {
           <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center" data-testid="queue-empty">
             <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
             <p className="text-sm font-semibold text-slate-700">
-              {viewMode === 'my-gyms' ? 'No open jobs from your gyms' : 'All caught up'}
+              {viewMode === 'my-gyms' ? 'No open jobs from your gyms' : 'No jobs in your area'}
             </p>
             <p className="text-xs text-slate-500 mt-1">
               {viewMode === 'my-gyms'
                 ? (myGyms.no_gyms_yet
                     ? "You haven't been added as a supplier yet. Share your referral link to onboard gyms."
                     : "Your gyms are all clear right now. New faults will appear here automatically.")
-                : "No unassigned jobs in your org right now. We refresh this every 30 seconds."}
+                : "No open cases logged in your territory right now. We refresh this every 30 seconds."}
             </p>
           </div>
         ) : (
@@ -841,6 +864,7 @@ export default function EngineerQueue() {
                   jobs={filtered}
                   onClaim={viewMode === 'my-gyms' ? null : setClaimFor}
                   onPreview={viewMode === 'my-gyms' ? null : setPreviewFor}
+                  onOpen={(j) => navigate(`/svc/engineer/jobs/${j.id}?from=queue`)}
                   viewMode={viewMode}
                   showDistance={sortMode === 'nearest'}
                 />
@@ -860,6 +884,7 @@ export default function EngineerQueue() {
                   jobs: filtered,
                   onClaim: viewMode === 'my-gyms' ? null : setClaimFor,
                   onPreview: viewMode === 'my-gyms' ? null : setPreviewFor,
+                  onOpen: (j) => navigate(`/svc/engineer/jobs/${j.id}?from=queue`),
                   viewMode,
                   showDistance: sortMode === 'nearest',
                 }}

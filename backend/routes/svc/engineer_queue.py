@@ -191,6 +191,71 @@ async def list_unassigned(
     }
 
 
+@router.get("/territory")
+async def list_territory(
+    priority: Optional[str] = Query(None),
+    limit: int = Query(200, ge=1, le=500),
+    user=Depends(get_current_user),
+):
+    """All open cases logged in the engineer's AREA — i.e. cases whose linked
+    CRM company sits in a territory the engineer is an assigned rep on. Unlike
+    ``/unassigned`` this returns everything in the patch (assigned or not), so
+    the engineer sees their territory's full workload. CRM territories are
+    Pulse-only, so this naturally returns nothing for non-Pulse tenants."""
+    of = _of(user)
+    org_id = of["organization_id"]
+
+    candidate_ids: set[str] = set()
+    if user.get("id"):
+        candidate_ids.add(user["id"])
+    email = (user.get("email") or "").strip().lower()
+    if email:
+        async for cu in db.crm_users.find(
+            {"organization_id": org_id, "email": email}, {"_id": 0, "id": 1},
+        ):
+            candidate_ids.add(cu["id"])
+    if not candidate_ids:
+        return {"jobs": [], "count": 0, "territories": []}
+
+    terrs = await db.crm_territories.find(
+        {"organization_id": org_id,
+         "assigned_rep_ids": {"$in": list(candidate_ids)},
+         "archived": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(200)
+    terr_list = [{"id": t["id"], "name": t.get("name") or "Territory"} for t in terrs]
+    terr_ids = [t["id"] for t in terrs]
+    if not terr_ids:
+        return {"jobs": [], "count": 0, "territories": []}
+
+    company_ids = [
+        c["id"] async for c in db.crm2_companies.find(
+            {"organization_id": org_id, "territory_id": {"$in": terr_ids}},
+            {"_id": 0, "id": 1})
+    ]
+    if not company_ids:
+        return {"jobs": [], "count": 0, "territories": terr_list}
+
+    q = {
+        "organization_id": org_id,
+        "company_id": {"$in": company_ids},
+        "status": {"$in": list(OPEN_STATES)},
+    }
+    if priority:
+        q["priority"] = priority.upper()
+    rows = await db.svc_cases.find(
+        q,
+        {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
+         "status": 1, "site_name": 1, "site_postcode": 1,
+         "customer_name": 1, "scheduled_at": 1, "sla_resolve_at": 1,
+         "estimated_minutes": 1, "intake_channel": 1, "description": 1,
+         "created_at": 1, "assigned_engineer_id": 1, "assigned_engineer_name": 1},
+    ).sort([("priority", 1), ("sla_resolve_at", 1), ("created_at", -1)]) \
+     .limit(limit).to_list(limit)
+
+    return {"jobs": rows, "count": len(rows), "territories": terr_list}
+
+
 # ─────────────────────────────────────────────────────────────────
 # Iter 220dc — "Nearest of MY jobs today" for the engineer home
 # screen. Different from /unassigned (which is up-for-grabs) — this

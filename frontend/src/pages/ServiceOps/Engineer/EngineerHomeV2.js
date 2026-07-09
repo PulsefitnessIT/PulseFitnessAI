@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes, RotateCcw,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
-  CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X, Wallet,
+  CreditCard, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X, Wallet,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
@@ -453,12 +453,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Wrench} primary label="New job"
                              testid="qa-new-job"
                              onClick={() => navigate('/svc/engineer/jobs/new')} />
-                <QuickAction icon={Hand} label="Up for grabs"
+                <QuickAction icon={Hand} label="Territory jobs"
                              testid="qa-queue"
                              onClick={() => navigate('/svc/engineer/queue')} />
-                <QuickAction icon={Inbox} label="Inbox"
-                             testid="qa-inbox"
-                             onClick={() => navigate('/svc/engineer/inbox')} />
                 <QuickAction icon={Calendar} label="View diary"
                              testid="qa-diary"
                              onClick={() => navigate('/svc/engineer/diary')} />
@@ -750,16 +747,6 @@ function MyDayBriefing({ briefing, navigate }) {
               data-testid="my-day-pending-quotes"
             >
               <FileText size={9} /> {briefing.pending_quotes_count} quote{briefing.pending_quotes_count === 1 ? '' : 's'} pending
-            </button>
-          )}
-          {briefing.unread_inbox_count > 0 && (
-            <button
-              type="button"
-              onClick={() => navigate('/svc/engineer/inbox')}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold uppercase tracking-wide"
-              data-testid="my-day-unread-inbox"
-            >
-              <Inbox size={9} /> {briefing.unread_inbox_count} unread
             </button>
           )}
         </div>

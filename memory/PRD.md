@@ -14,7 +14,27 @@ territories they're assigned to as a rep, alongside their own saved book.
   Verified: seeded territory+company → the endpoint + UI worked; and the new-job form pre-filled + pinned
   the customer, carrying crm_company_id + territory_id for the future Sicon sync. Seed removed after tests.
 
-# ═══ 2026-07-09 (pt.7) · ENGINEER "START A JOB" FROM A TERRITORY CUSTOMER + SICON RESEARCH ═══
+# ═══ 2026-07-09 (pt.8) · ENGINEER APP: TERRITORY JOBS + INBOX REMOVED + NOTIFICATIONS CRASH FIX ═══
+Three Engineer-App requests (all verified):
+  1. "Up for grabs" → "Territory jobs", now showing ALL open cases logged in the engineer's AREA (not just
+     unassigned). New backend GET /api/svc/engineer/queue/territory (routes/svc/engineer_queue.py): resolves
+     the engineer's CRM rep identity (user id + crm_users by email) → crm_territories they're a rep on →
+     crm2_companies in those territories → svc_cases with those company_ids in OPEN_STATES (any assignment).
+     Frontend EngineerQueue.js switched its data source to /territory, computes its stat strip client-side,
+     and the Row now shows an "Assigned · <name>" badge + View for already-assigned cases (unassigned stay
+     claimable). Titles/labels/empty-state reworded. (Nearest-sort + /stats are unused in this view.)
+  2. Removed Inbox from the Engineer App — dropped the "Inbox" quick action AND the "unread inbox" chip on
+     the home My-Day strip (EngineerHomeV2.js); removed the now-unused Inbox import. (Route/page left intact
+     but no longer linked.)
+  3. Fixed the Notifications "Something went wrong" crash — EngineerNotifications.js called
+     useEngineerOrgBrand() without importing it (ReferenceError → error boundary). Added the import.
+  Verified via screenshot (master, internal): Notifications renders "You're all caught up"; home shows no
+  Inbox and the quick action reads "Territory jobs"; /territory endpoint returns 200.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 Continued the pt.6 improvement. Each CRM-territory customer card now has a **"Start a job"** button that
 deep-links into the new-job flow with the customer/site pre-filled and pinned.
   - Frontend: EngineerCustomers.js — button stashes the customer in sessionStorage
