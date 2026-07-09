@@ -1,4 +1,23 @@
-# ═══ 2026-07-09 (pt.5) · ENGINEER APP: SLIM SETTINGS FOR INTERNAL ENGINEERS + SUPPORT PAGE ═══
+# ═══ 2026-07-09 (pt.6) · ENGINEER "MY CUSTOMERS" FED FROM CRM TERRITORIES (Pulse-only) — DONE ═══
+Implemented the pt.5 backlog item. Internal (Pulse) engineers now see their customers driven by the CRM
+territories they're assigned to as a rep, alongside their own saved book.
+  - Backend: GET /api/svc/engineer/customers/crm-territory (routes/svc/engineer_customers.py). Resolves the
+    engineer's CRM rep identity (platform user id + crm_users matched by email in the org), finds
+    crm_territories where assigned_rep_ids ∋ that id (not archived), then returns crm2_companies whose
+    territory_id ∈ those territories — mapped to the engineer customer shape (id "crm:<companyId>", name,
+    email, phone, site_address, territory_name, source:"crm"). Naturally no-ops (empty) for non-Pulse /
+    unassigned engineers since CRM is Pulse-only. Route defined before /{customer_id} to avoid capture.
+  - Frontend: pages/ServiceOps/Engineer/EngineerCustomers.js — for internal engineers, fetches the endpoint
+    and renders a read-only "FROM YOUR CRM TERRITORIES" section (territory badge, tap-to-call/email) above
+    the saved-customers list; empty-state suppressed when territory customers exist. data-testids:
+    customers-crm-territory, crm-customer-row-<companyId>.
+  Verified end-to-end: seeded a territory (master as rep) + a company → endpoint returned it and the UI
+  showed "QA Leisure Centre · QA North West"; seed data then removed. Backlog item cleared.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 Three Engineer-App requests (all verified via screenshot + curl):
   1. Account settings for Pulse-associated (internal) engineers now HIDE all self-service settings
      (Partner, Payouts/Stripe, Customers, Pricing, Stock, Tools, Work reports, Brand, H&S, Reputation,

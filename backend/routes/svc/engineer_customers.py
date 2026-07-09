@@ -275,6 +275,73 @@ async def list_customers(
     return {"customers": rows, "total": len(rows)}
 
 
+@router.get("/crm-territory")
+async def crm_territory_customers(
+    user=Depends(get_current_user),
+    limit: int = Query(default=300, ge=1, le=500),
+):
+    """Pulse-only: an internal engineer's customers, driven by the CRM
+    territories they're assigned to as a rep. Returns the companies whose
+    ``territory_id`` falls in the engineer's covered territories. Non-Pulse /
+    unassigned engineers get an empty list (CRM is Pulse-only), so this
+    naturally no-ops for everyone else.
+    """
+    org_id = _of(user)
+
+    # Resolve the engineer's CRM rep identity: their platform user id plus any
+    # crm_users row sharing their email in this org (CRM reps are crm_users).
+    candidate_ids: set[str] = set()
+    if user.get("id"):
+        candidate_ids.add(user["id"])
+    email = _norm_email(user.get("email"))
+    if email:
+        async for cu in db.crm_users.find(
+            {"organization_id": org_id, "email": email}, {"_id": 0, "id": 1},
+        ):
+            candidate_ids.add(cu["id"])
+    if not candidate_ids:
+        return {"customers": [], "territories": [], "source": "crm_territory", "total": 0}
+
+    terrs = await db.crm_territories.find(
+        {"organization_id": org_id,
+         "assigned_rep_ids": {"$in": list(candidate_ids)},
+         "archived": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(200)
+    terr_map = {t["id"]: (t.get("name") or "Territory") for t in terrs}
+    if not terr_map:
+        return {"customers": [], "territories": [], "source": "crm_territory", "total": 0}
+
+    companies = await db.crm2_companies.find(
+        {"organization_id": org_id, "territory_id": {"$in": list(terr_map)}},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1, "address": 1,
+         "address_line1": 1, "city": 1, "postcode": 1, "territory_id": 1},
+    ).sort("name", 1).to_list(length=limit)
+
+    customers = []
+    for c in companies:
+        addr = c.get("address") or ", ".join(
+            p for p in [c.get("address_line1"), c.get("city"), c.get("postcode")] if p)
+        customers.append({
+            "id": f"crm:{c['id']}",
+            "crm_company_id": c["id"],
+            "name": c.get("name") or "—",
+            "email": c.get("email") or "",
+            "phone": c.get("phone") or "",
+            "site_name": c.get("name") or "",
+            "site_address": addr,
+            "territory_id": c.get("territory_id"),
+            "territory_name": terr_map.get(c.get("territory_id")),
+            "source": "crm",
+        })
+    return {
+        "customers": customers,
+        "territories": [{"id": k, "name": v} for k, v in terr_map.items()],
+        "source": "crm_territory",
+        "total": len(customers),
+    }
+
+
 @router.get("/lookup")
 async def lookup_customer(
     user=Depends(get_current_user),

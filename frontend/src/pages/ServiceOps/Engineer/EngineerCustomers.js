@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useLocalization, formatMoney } from '@/utils/localization';
+import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -203,6 +204,9 @@ const CrmLinkRow = ({ customerId, crmCompany, onChanged }) => {
 export default function EngineerCustomers() {
   const navigate = useNavigate();
   const loc = useLocalization();
+  const orgBrand = useEngineerOrgBrand();
+  const internal = orgBrand.internal;
+  const [terr, setTerr] = useState({ customers: [], territories: [] });
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
@@ -325,6 +329,32 @@ export default function EngineerCustomers() {
     const id = setTimeout(load, 200);
     return () => clearTimeout(id);
   }, [load]);
+
+  // Iter 288b — Pulse-only: pull the engineer's customers from their assigned
+  // CRM territories (read-only). No-ops (empty) for non-Pulse / unassigned.
+  useEffect(() => {
+    if (!internal) return;
+    let cancel = false;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/svc/engineer/customers/crm-territory`, auth());
+        if (!cancel) setTerr({
+          customers: r.data?.customers || [],
+          territories: r.data?.territories || [],
+        });
+      } catch {
+        if (!cancel) setTerr({ customers: [], territories: [] });
+      }
+    })();
+    return () => { cancel = true; };
+  }, [internal]);
+
+  const terrQ = q.trim().toLowerCase();
+  const terrFiltered = terrQ
+    ? terr.customers.filter((c) =>
+        [c.name, c.email, c.phone, c.site_address, c.territory_name]
+          .some((v) => (v || '').toLowerCase().includes(terrQ)))
+    : terr.customers;
 
   const openNew = () => {
     setForm(EMPTY_FORM);
@@ -550,11 +580,63 @@ export default function EngineerCustomers() {
       </header>
 
       <main className="max-w-3xl mx-auto p-4 space-y-3">
+        {internal && terrFiltered.length > 0 && (
+          <section data-testid="customers-crm-territory" className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <MapPin size={14} className="text-cyan-700" />
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                From your CRM territories
+              </p>
+              <span className="text-[10px] text-slate-400">
+                {terr.territories.map((t) => t.name).join(' · ')}
+              </span>
+            </div>
+            {terrFiltered.map((c) => (
+              <div
+                key={c.id}
+                className="bg-white rounded-2xl border border-slate-200 px-4 py-3"
+                data-testid={`crm-customer-row-${c.crm_company_id}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-900 truncate">{c.name}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {c.site_address || c.email || c.phone || '—'}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-cyan-50 text-cyan-700">
+                    {c.territory_name}
+                  </span>
+                </div>
+                {(c.phone || c.email) && (
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+                    {c.phone && (
+                      <a href={`tel:${c.phone}`} className="inline-flex items-center gap-1 hover:text-cyan-700">
+                        <Phone size={12} /> {c.phone}
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1 hover:text-cyan-700">
+                        <Mail size={12} /> {c.email}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            {rows.length > 0 && (
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 px-1 pt-2">
+                Your saved customers
+              </p>
+            )}
+          </section>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="animate-spin text-cyan-500" />
           </div>
         ) : rows.length === 0 ? (
+          (internal && terrFiltered.length > 0) ? null : (
           <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center" data-testid="customers-empty">
             <Users size={28} className="mx-auto text-slate-300 mb-3" />
             <p className="font-bold text-slate-900">No customers yet</p>
@@ -570,6 +652,7 @@ export default function EngineerCustomers() {
               <Plus size={14} /> Add customer
             </button>
           </div>
+          )
         ) : (
           rows.map((row) => {
             const isOpen = activeId === row.id;
