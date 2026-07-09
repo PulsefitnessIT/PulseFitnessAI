@@ -31,7 +31,19 @@ Three Engineer-App requests (all verified):
   Verified via screenshot (master, internal): Notifications renders "You're all caught up"; home shows no
   Inbox and the quick action reads "Territory jobs"; /territory endpoint returns 200.
 
+# ═══ 2026-07-09 (pt.9) · TERRITORY JOBS — POSTCODE-AREA FALLBACK FOR UNLINKED CASES ═══
+Extended GET /api/svc/engineer/queue/territory (routes/svc/engineer_queue.py) so that beyond the CRM
+territory→company→case links, it ALSO surfaces open cases whose site_postcode outward code matches the
+engineer's territory postcode_prefixes but which aren't (yet) linked to an in-territory CRM company — e.g.
+a job just logged in the app. Reuses crm_territories._postcode_prefix; matched rows carry unlinked_area:true.
+Frontend EngineerQueue.js Row shows an indigo "In your area" badge (data-testid queue-row-area-<ref>) for
+those rows; they remain claimable. Verified end-to-end: seeded a "M" territory + an unlinked case at "M1 1AA"
+→ it surfaced with the badge; seed removed.
+
 ────────────────────────────────────────────────────────────────────────
+
+
+
 
 
 

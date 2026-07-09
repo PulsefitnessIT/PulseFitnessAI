@@ -221,7 +221,7 @@ async def list_territory(
         {"organization_id": org_id,
          "assigned_rep_ids": {"$in": list(candidate_ids)},
          "archived": {"$ne": True}},
-        {"_id": 0, "id": 1, "name": 1},
+        {"_id": 0, "id": 1, "name": 1, "postcode_prefixes": 1},
     ).to_list(200)
     terr_list = [{"id": t["id"], "name": t.get("name") or "Territory"} for t in terrs]
     terr_ids = [t["id"] for t in terrs]
@@ -233,25 +233,48 @@ async def list_territory(
             {"organization_id": org_id, "territory_id": {"$in": terr_ids}},
             {"_id": 0, "id": 1})
     ]
-    if not company_ids:
-        return {"jobs": [], "count": 0, "territories": terr_list}
 
-    q = {
-        "organization_id": org_id,
-        "company_id": {"$in": company_ids},
-        "status": {"$in": list(OPEN_STATES)},
-    }
-    if priority:
-        q["priority"] = priority.upper()
-    rows = await db.svc_cases.find(
-        q,
-        {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
-         "status": 1, "site_name": 1, "site_postcode": 1,
-         "customer_name": 1, "scheduled_at": 1, "sla_resolve_at": 1,
-         "estimated_minutes": 1, "intake_channel": 1, "description": 1,
-         "created_at": 1, "assigned_engineer_id": 1, "assigned_engineer_name": 1},
-    ).sort([("priority", 1), ("sla_resolve_at", 1), ("created_at", -1)]) \
-     .limit(limit).to_list(limit)
+    proj = {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
+            "status": 1, "site_name": 1, "site_postcode": 1,
+            "customer_name": 1, "scheduled_at": 1, "sla_resolve_at": 1,
+            "estimated_minutes": 1, "intake_channel": 1, "description": 1,
+            "created_at": 1, "assigned_engineer_id": 1, "assigned_engineer_name": 1}
+
+    rows: list[dict] = []
+    if company_ids:
+        q = {
+            "organization_id": org_id,
+            "company_id": {"$in": company_ids},
+            "status": {"$in": list(OPEN_STATES)},
+        }
+        if priority:
+            q["priority"] = priority.upper()
+        rows = await db.svc_cases.find(q, proj).sort(
+            [("priority", 1), ("sla_resolve_at", 1), ("created_at", -1)]
+        ).limit(limit).to_list(limit)
+
+    # Fallback — open cases in the engineer's postcode AREA that aren't linked
+    # to an in-territory CRM company yet (e.g. a job just logged in the app).
+    # Matched by the case's site_postcode outward code against the engineer's
+    # territory postcode prefixes.
+    prefixes = {p.upper().strip() for t in terrs for p in (t.get("postcode_prefixes") or []) if p}
+    if prefixes and len(rows) < limit:
+        from routes.crm_territories import _postcode_prefix
+        seen = {r["id"] for r in rows}
+        cand = await db.svc_cases.find(
+            {"organization_id": org_id,
+             "status": {"$in": list(OPEN_STATES)},
+             "site_postcode": {"$nin": [None, ""]},
+             "id": {"$nin": list(seen)}},
+            proj,
+        ).sort([("priority", 1), ("sla_resolve_at", 1), ("created_at", -1)]).limit(400).to_list(400)
+        for c in cand:
+            pc = _postcode_prefix(c.get("site_postcode") or "")
+            if pc and any(pc.startswith(p) for p in prefixes):
+                c["unlinked_area"] = True
+                rows.append(c)
+                if len(rows) >= limit:
+                    break
 
     return {"jobs": rows, "count": len(rows), "territories": terr_list}
 

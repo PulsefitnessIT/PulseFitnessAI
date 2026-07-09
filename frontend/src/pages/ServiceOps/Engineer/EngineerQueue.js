@@ -434,6 +434,15 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, onOpen, v
           </span>
         ) : null}
         {fmtSLA(job.sla_resolve_at)}
+        {job.unlinked_area ? (
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200"
+            data-testid={`queue-row-area-${rowKey}`}
+            title="Matched to your postcode area — not yet linked to a CRM customer"
+          >
+            <MapPin size={10} /> In your area
+          </span>
+        ) : null}
         {showDistance ? (
           <span className="ml-auto inline-flex items-center gap-1" data-testid={`queue-row-near-${rowKey}`}>
             <span
