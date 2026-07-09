@@ -1,3 +1,50 @@
+# ═══ 2026-07-09 (pt.3) · SHARED PDF SHELL ROLLOUT + PER-TENANT DOCUMENT BRANDING EDITOR (VERIFIED 100%) ═══
+Two-part delivery, both VERIFIED (testing agent: backend 6/6, frontend 100%, 0 issues;
+report /app/test_reports/iteration_document_branding_jan2026.json).
+
+PART 1 — ROLLED THE SHARED PULSE DOC SHELL (utils/pulse_doc_template) ONTO 5 MORE DOC TYPES.
+Each now renders the Pulse header (logo + contact), the registered-office/Co-Reg/VAT/compliance footer on
+EVERY page, navy palette, and keeps totals/tail on the FINAL page of multi-page docs (KeepTogether):
+  - utils/crm_quote_pdf.py (build_crm_quote_pdf) — rebuilt on the shell; NET/VAT/TOTAL + payment terms tail.
+  - utils/crm_contract_pdf.py (build_contract_pdf) — parties/cover/inclusions/…/pricing/terms/signature on shell.
+  - utils/survey_pdf.py (build_handover_pdf) — installation handover on shell (navy section rules + tables).
+  - utils/tender_pdf_exporter.py (build_submission_pdf) — cover + Q&A on shell; pitch deck left as landscape.
+  - utils/incident_pdf.py — _build_doc now returns (doc, intro) built via make_pulse_doc + pulse_header; all
+    6 generators (accident/witness/investigation/riddor/corrective-log/mgmt-summary) prepend the intro.
+  Added two helpers to pulse_doc_template: make_pulse_doc(buf,title,*,is_mod,company) and pulse_title().
+  Verified by Python: page counts 2/2/2/5, footer(registered office+VAT) on ALL pages, header+title on p1,
+  TOTAL lands on the final page only.
+
+PART 2 — PER-TENANT DOCUMENT BRANDING / TEMPLATE EDITOR (fixes the white-label concern: a non-Pulse gym's
+member statements must NOT carry Pulse's HSBC/VAT/registered-office). User decisions: editor in Operations →
+Settings; owners + managers can edit; logo via object storage; membership statements first, other docs next.
+  - pulse_doc_template header/footer/make_pulse_doc now take an optional `company=` override (empty fields
+    skipped; tenant docs never fall back to the Pulse logo/bank/footer). Default (company=None) == unchanged
+    Pulse branding, so the 5 Pulse-owned doc types above stay Pulse-branded.
+  - utils/document_branding.py — TEXT_FIELDS whitelist, empty_profile(), get_branding_profile(),
+    resolve_company(db, org) (merges the tenant profile onto the org name, fetches logo bytes from storage).
+  - routes/document_branding.py (registered in route_registry/core.py):
+      GET  /api/document-branding            → {profile, placeholders(=Pulse defaults), can_edit}
+      PUT  /api/document-branding            → owner/manager save (upsert to db.org_document_branding)
+      GET  /api/document-branding/sample.pdf → live sample membership statement in the tenant's branding
+    _can_edit = is_master_admin OR role in (owner, manager). Collection: org_document_branding (1 doc/org).
+  - Membership statements: routes/memberships/studio_billing._render_invoice_pdf REWRITTEN from raw canvas →
+    Pulse platypus shell, now takes company=; generate_monthly_invoices resolves _doc_company once and passes
+    it. White-label default (no profile) = gym name + NO Pulse bank/VAT. Removed the old "Powered by Pulse".
+  - Frontend: pages/DocumentBrandingSettings.js (editor: logo upload via POST /files/upload?category=branding,
+    Header/Bank/Legal field groups, Save, 'Download sample PDF'). Wired into the LIVE Account Settings modal —
+    components/shared/AccountSettings/shared.js SECTIONS + AccountSettingsModal.js render section 'documents'.
+    (Note: the legacy pages/SettingsTab.js is ORPHANED since iter202 — settings live in AccountSettingsModal.)
+  Verified: owner+manager RBAC, persistence, sample.pdf contains the tenant bank number + NO Pulse 40023205.
+
+FOLLOW-UP (next): roll the tenant `company` profile across the OTHER tenant-facing docs (CRM quotes/contracts,
+invoices) so external users get their own branding everywhere, not just membership statements. Pulse-owned
+internal docs keep Pulse defaults. Sicon Customer Auto-Import deferred (awaiting Sage/CRM API creds).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-09 (pt.2) · STANDARD PULSE INVOICE TEMPLATE + SHARED DOC SHELL (VERIFIED) ═══
 User supplied the standard Pulse Fitness invoice PDF and asked that ALL invoices match it exactly, and the
 same template be reused for quotes / fault-service reports / PM / wherever possible. Confirmed static details
