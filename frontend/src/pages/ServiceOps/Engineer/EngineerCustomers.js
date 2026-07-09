@@ -622,6 +622,23 @@ export default function EngineerCustomers() {
                     )}
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('svc.engineer.crmCustomerDraft', JSON.stringify({
+                        name: c.name, email: c.email, phone: c.phone,
+                        site_name: c.site_name, site_address: c.site_address,
+                        crm_company_id: c.crm_company_id, territory_id: c.territory_id,
+                      }));
+                    } catch { /* ignore */ }
+                    navigate('/svc/engineer/jobs/new?from=crm-customer');
+                  }}
+                  className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-xs font-bold shadow"
+                  data-testid={`crm-customer-start-job-${c.crm_company_id}`}
+                >
+                  <Wrench size={13} /> Start a job
+                </button>
               </div>
             ))}
             {rows.length > 0 && (

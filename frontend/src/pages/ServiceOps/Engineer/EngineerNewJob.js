@@ -122,6 +122,29 @@ export default function EngineerNewJob() {
    
   }, []);
 
+  // Iter 288c — "Start a job" from a CRM-territory customer. The customers
+  // screen stashes the picked customer and navigates here with
+  // ?from=crm-customer; we pre-fill the customer/site and pin it.
+  useEffect(() => {
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (params.get('from') !== 'crm-customer') return;
+    try {
+      const raw = sessionStorage.getItem('svc.engineer.crmCustomerDraft');
+      if (!raw) return;
+      const c = JSON.parse(raw);
+      setForm((f) => ({
+        ...f,
+        customer_name:  c.name         || f.customer_name,
+        customer_email: c.email        || f.customer_email,
+        customer_phone: c.phone        || f.customer_phone,
+        site_name:      c.site_name    || c.name || f.site_name,
+        site_address:   c.site_address || f.site_address,
+      }));
+      setSelectedCustomer({ ...c, source: 'crm' });
+      sessionStorage.removeItem('svc.engineer.crmCustomerDraft');
+    } catch { /* ignore */ }
+  }, []);
+
   const set = (k, v) => setForm((s) => {
     const next = { ...s, [k]: v };
     // Iter 220f — auto-enable the "save as customer" tickbox the first

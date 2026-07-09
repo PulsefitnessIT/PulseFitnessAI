@@ -11,10 +11,30 @@ territories they're assigned to as a rep, alongside their own saved book.
     and renders a read-only "FROM YOUR CRM TERRITORIES" section (territory badge, tap-to-call/email) above
     the saved-customers list; empty-state suppressed when territory customers exist. data-testids:
     customers-crm-territory, crm-customer-row-<companyId>.
-  Verified end-to-end: seeded a territory (master as rep) + a company → endpoint returned it and the UI
-  showed "QA Leisure Centre · QA North West"; seed data then removed. Backlog item cleared.
+  Verified: seeded territory+company → the endpoint + UI worked; and the new-job form pre-filled + pinned
+  the customer, carrying crm_company_id + territory_id for the future Sicon sync. Seed removed after tests.
+
+# ═══ 2026-07-09 (pt.7) · ENGINEER "START A JOB" FROM A TERRITORY CUSTOMER + SICON RESEARCH ═══
+Continued the pt.6 improvement. Each CRM-territory customer card now has a **"Start a job"** button that
+deep-links into the new-job flow with the customer/site pre-filled and pinned.
+  - Frontend: EngineerCustomers.js — button stashes the customer in sessionStorage
+    (svc.engineer.crmCustomerDraft: name/email/phone/site + crm_company_id + territory_id) and navigates to
+    /svc/engineer/jobs/new?from=crm-customer. testid: crm-customer-start-job-<companyId>.
+  - Frontend: EngineerNewJob.js — new effect reads ?from=crm-customer, pre-fills customer/site fields and
+    pins the customer (setSelectedCustomer source:'crm'). Mirrors the existing voice-to-job draft pattern.
+  Jobs flow through the Service Desk + invoicing as today. Verified end-to-end via screenshot (form pre-filled
+  with QA Leisure Centre + address, green pinned pill).
+SICON WRITE-BACK RESEARCH (for the user): write-back IS possible in future via (a) the Sage 200 REST/OData API
+  (api.columbus.sage.com; OAuth 2.0; POST Customers/Service Cases; needs Sage Developer Portal Client ID/Secret
+  + Web API licence) OR (b) the Sicon WebAPI (mobile-focused; real-time GET/POST to Sage 200 + Sicon Service/CRM;
+  one Sage 200 Web User licence; extra licensing for 3rd-party use). BLOCKED only on the user providing Sage/Sicon
+  API access + licensing. The crmCustomerDraft already carries crm_company_id + territory_id so a Service Case can
+  be created against the right Sage/CRM records when the integration is wired.
 
 ────────────────────────────────────────────────────────────────────────
+
+
+
 
 
 
