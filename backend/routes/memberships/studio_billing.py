@@ -815,6 +815,11 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
         {"id": org_id}, {"_id": 0, "name": 1, "primary_color": 1},
     ) or {}
 
+    # Resolve the tenant's document-branding profile once — statements use
+    # the gym's own logo / company / bank details (never Pulse's).
+    from utils.document_branding import resolve_company
+    _doc_company = await resolve_company(db, {"id": org_id, "name": org.get("name")})
+
     member_q: dict = {"organization_id": org_id, "status": {"$ne": "cancelled"}}
     if body.member_ids:
         member_q["id"] = {"$in": body.member_ids}
@@ -931,6 +936,7 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
                     period_label=period_label,
                     invoice=doc, member_name=name,
                     primary_color_hex=brand["primary_color"],
+                    company=_doc_company,
                 )
                 attachments = [{
                     "filename": f"invoice-{period_label.replace(' ', '-')}.pdf",
@@ -975,115 +981,119 @@ def _period_label(period: str) -> str:
 
 def _render_invoice_pdf(
     *, org_name: str, period_label: str, invoice: dict, member_name: str,
-    primary_color_hex: str,
+    primary_color_hex: str = "#19CDFF", company: dict | None = None,
 ) -> bytes:
-    """Build a 1-page A4 invoice PDF using reportlab. Returns the bytes."""
-    from reportlab.lib.pagesizes import A4
+    """Build a membership statement PDF on the shared Pulse document shell,
+    branded with the tenant's own logo / company / bank details (``company``).
+    Falls back to a clean white-label document keyed on ``org_name`` when the
+    tenant hasn't configured a branding profile."""
     from reportlab.lib.units import mm
-    from reportlab.lib.colors import HexColor, black, grey
-    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, KeepTogether
+    from utils.pulse_doc_template import (
+        PULSE_NAVY, PULSE_LIGHT, PULSE_BORDER,
+        pulse_styles, pulse_header, section_label, make_pulse_doc,
+    )
 
+    def _esc_(t) -> str:
+        if t is None:
+            return ""
+        return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    c = company or {"name": org_name, "use_default_logo": False}
+    s = pulse_styles()
     buf = io.BytesIO()
-    c = rl_canvas.Canvas(buf, pagesize=A4)
-    width, height = A4
-    primary = HexColor(primary_color_hex if primary_color_hex.startswith("#") else "#00B2C7")
+    doc = make_pulse_doc(buf, f"Statement — {member_name}", company=c)
 
-    # Header band
-    c.setFillColor(primary)
-    c.rect(0, height - 28 * mm, width, 28 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#FFFFFF"))
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(20 * mm, height - 12 * mm, f"INVOICE · {period_label.upper()}")
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(20 * mm, height - 22 * mm, org_name)
+    flow: list = [pulse_header(s, company=c), Spacer(1, 6 * mm)]
 
-    # Bill-to
-    y = height - 42 * mm
-    c.setFillColor(grey)
-    c.setFont("Helvetica", 8)
-    c.drawString(20 * mm, y, "BILL TO")
-    c.setFillColor(black)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(20 * mm, y - 5 * mm, member_name)
-    c.setFont("Helvetica", 9)
-    c.drawString(20 * mm, y - 10 * mm, invoice.get("member_email") or "")
-    c.drawString(width - 60 * mm, y - 5 * mm, f"Invoice #{invoice['id'][:8]}")
-    c.drawString(width - 60 * mm, y - 10 * mm, datetime.now(timezone.utc).strftime("Issued %d %b %Y"))
+    # Title + meta.
+    meta = Table([
+        [Paragraph("Invoice", s["metalabel"]), Paragraph(f"#{_esc_(invoice['id'][:8])}", s["metaval"])],
+        [Paragraph("Period", s["metalabel"]), Paragraph(_esc_(period_label), s["metaval"])],
+        [Paragraph("Issued", s["metalabel"]),
+         Paragraph(datetime.now(timezone.utc).strftime("%d %b %Y"), s["metaval"])],
+    ], colWidths=[28 * mm, 42 * mm])
+    meta.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    title_row = Table([[Paragraph("Statement", s["title"]), meta]], colWidths=[100 * mm, 70 * mm])
+    title_row.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    flow.append(title_row)
+    flow.append(Spacer(1, 8 * mm))
 
-    # Line items — iter 215y grouped by attendee if multiple
+    # Bill-to.
+    flow.append(section_label(s, "Bill To"))
+    flow.append(Paragraph(f"<b>{_esc_(member_name)}</b>", s["value"]))
+    if invoice.get("member_email"):
+        flow.append(Paragraph(_esc_(invoice["member_email"]), s["value"]))
+    flow.append(Spacer(1, 6 * mm))
+
+    # Line items (grouped by attendee when multiple).
     attendees = invoice.get("attendees") or []
     multi = len([a for a in attendees if a.get("attendee_kind") != "smoothed"]) > 1
-
-    table_y = y - 22 * mm
-    c.setFillColor(grey)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(20 * mm, table_y, "DESCRIPTION")
-    c.drawRightString(width - 20 * mm, table_y, "AMOUNT")
-    c.setStrokeColor(grey)
-    c.line(20 * mm, table_y - 1 * mm, width - 20 * mm, table_y - 1 * mm)
-    c.setFillColor(black)
-    c.setFont("Helvetica", 10)
-
-    row_y = table_y - 7 * mm
-    line_height = 6 * mm
-
+    data = [[Paragraph("Description", s["th"]), Paragraph("Amount", s["thR"])]]
+    styles_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, PULSE_NAVY),
+    ]
     if multi:
         grouped: dict[str, list[dict]] = {}
         for ln in invoice.get("lines", []):
-            key = ln.get("attendee_name") or "Account" if ln.get("kind") == "class" else "Account"
+            key = (ln.get("attendee_name") or "Account") if ln.get("kind") == "class" else "Account"
             grouped.setdefault(key, []).append(ln)
         for att_name, rows in grouped.items():
             sub = sum(int(r.get("amount_pence") or 0) for r in rows)
-            # Group heading
-            if row_y < 30 * mm:
-                c.showPage()
-                row_y = height - 30 * mm
-            c.setFillColor(grey)
-            c.setFont("Helvetica-Bold", 8)
-            c.drawString(
-                20 * mm, row_y,
-                f"{att_name.upper()} · £{sub/100:.2f}",
-            )
-            row_y -= line_height
-            c.setFillColor(black)
-            c.setFont("Helvetica", 10)
+            ri = len(data)
+            data.append([Paragraph(f"<b>{_esc_(att_name)}</b>", s["cell"]),
+                         Paragraph(f"<b>£{sub / 100:.2f}</b>", s["cellR"])])
+            styles_cmds.append(("BACKGROUND", (0, ri), (-1, ri), PULSE_LIGHT))
             for ln in rows:
-                if row_y < 30 * mm:
-                    c.showPage()
-                    row_y = height - 30 * mm
-                c.drawString(22 * mm, row_y, (ln.get("description") or "Item")[:78])
-                c.drawRightString(width - 20 * mm, row_y, f"£{ln['amount_pence']/100:.2f}")
-                row_y -= line_height
-            row_y -= 2 * mm  # extra spacing between groups
+                data.append([Paragraph(_esc_(ln.get("description") or "Item"), s["cell"]),
+                             Paragraph(f"£{ln['amount_pence'] / 100:.2f}", s["cellR"])])
     else:
         for ln in invoice.get("lines", []):
-            if row_y < 35 * mm:
-                c.showPage()
-                row_y = height - 30 * mm
-                c.setFont("Helvetica", 10)
-            desc = ln.get("description") or "Item"
-            c.drawString(20 * mm, row_y, desc[:80])
-            c.drawRightString(width - 20 * mm, row_y, f"£{ln['amount_pence']/100:.2f}")
-            row_y -= line_height
+            data.append([Paragraph(_esc_(ln.get("description") or "Item"), s["cell"]),
+                         Paragraph(f"£{ln['amount_pence'] / 100:.2f}", s["cellR"])])
+    t = Table(data, colWidths=[130 * mm, 40 * mm], repeatRows=1)
+    t.setStyle(TableStyle(styles_cmds))
+    flow.append(t)
+    flow.append(Spacer(1, 6 * mm))
 
-    # Total
-    row_y -= 4 * mm
-    c.setStrokeColor(primary)
-    c.setLineWidth(1.4)
-    c.line(width - 70 * mm, row_y, width - 20 * mm, row_y)
-    row_y -= 8 * mm
-    c.setFillColor(primary)
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(width - 70 * mm, row_y, "Total due")
-    c.drawRightString(width - 20 * mm, row_y, f"£{invoice['total_pence']/100:.2f}")
+    # Total + payment details (kept together, land on the final page).
+    total_tbl = Table([[Paragraph("TOTAL DUE", s["total_label"]),
+                        Paragraph(f"£{invoice['total_pence'] / 100:.2f}", s["grand_value"])]],
+                      colWidths=[30 * mm, 40 * mm], hAlign="RIGHT")
+    total_tbl.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("BOX", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("BACKGROUND", (0, 0), (-1, -1), PULSE_LIGHT),
+    ]))
+    tail = [total_tbl, Spacer(1, 6 * mm)]
+    if c.get("bank_account_number"):
+        bank = (f"<b>Payment Details</b>"
+                + (f"  <font color='#5B6570'>{_esc_(c['payment_terms'])}</font>" if c.get("payment_terms") else "")
+                + f"<br/>{_esc_(c.get('bank_name') or '')}")
+        if c.get("bank_account_name"):
+            bank += f"<br/>Account Name: {_esc_(c['bank_account_name'])}"
+        bank += f"<br/>Account Number: {_esc_(c['bank_account_number'])}"
+        if c.get("bank_sort_code"):
+            bank += f"<br/>Sort Code: {_esc_(c['bank_sort_code'])}"
+        tail.append(Paragraph(bank, s["value"]))
+        tail.append(Spacer(1, 3 * mm))
+    tail.append(Paragraph(f"Thank you for choosing {_esc_(c.get('name') or org_name)}.", s["muted"]))
+    flow.append(KeepTogether(tail))
 
-    # Footer
-    c.setFillColor(grey)
-    c.setFont("Helvetica", 8)
-    c.drawString(20 * mm, 15 * mm, f"Thank you for choosing {org_name}.")
-    c.drawRightString(width - 20 * mm, 15 * mm, "Powered by Pulse Fitness")
-    c.showPage()
-    c.save()
+    doc.build(flow)
     return buf.getvalue()
 
 

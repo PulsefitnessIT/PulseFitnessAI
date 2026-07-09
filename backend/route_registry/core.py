@@ -30,6 +30,7 @@ from routes.marketing_downloads import router as marketing_downloads_router
 from routes.localization import router as localization_router
 from routes.equipment_transfer import router as equipment_transfer_router
 from routes.parts_requests import router as parts_requests_router
+from routes.document_branding import router as document_branding_router
 
 
 def register_core(api_router: APIRouter) -> None:
@@ -46,5 +47,6 @@ def register_core(api_router: APIRouter) -> None:
         marketing_downloads_router,
         equipment_transfer_router,
         parts_requests_router,
+        document_branding_router,
     ):
         api_router.include_router(r)

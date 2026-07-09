@@ -103,7 +103,13 @@ def pulse_styles() -> dict:
     }
 
 
-def _logo_flowable(size_mm: float = 16):
+def _logo_flowable(size_mm: float = 16, logo_bytes: bytes | None = None):
+    if logo_bytes:
+        try:
+            from io import BytesIO
+            return Image(BytesIO(logo_bytes), width=size_mm * mm, height=size_mm * mm)
+        except Exception:
+            return None
     if os.path.exists(_LOGO_PATH):
         try:
             return Image(_LOGO_PATH, width=size_mm * mm, height=size_mm * mm)
@@ -112,21 +118,39 @@ def _logo_flowable(size_mm: float = 16):
     return None
 
 
-def pulse_header(s: dict) -> Table:
-    """Branded header: logo + wordmark top-left, company contact block top-right."""
-    logo = _logo_flowable()
-    left_inner = [[logo, Paragraph(PULSE["name"], s["wordmark"])]] if logo else [[Paragraph(PULSE["name"], s["wordmark"])]]
+def pulse_header(s: dict, company: dict | None = None) -> Table:
+    """Branded header: logo + wordmark top-left, company contact block top-right.
+
+    ``company`` overrides the default Pulse identity (used by tenant-branded
+    documents). It may carry ``logo_bytes`` (raw image), ``use_default_logo``
+    (fall back to the Pulse logo file), ``name``/``tagline``/``phone``/
+    ``email``/``web``/``hashtag`` — empty fields are simply skipped.
+    """
+    c = company or PULSE
+    logo_bytes = c.get("logo_bytes")
+    if logo_bytes:
+        logo = _logo_flowable(logo_bytes=logo_bytes)
+    elif c.get("use_default_logo", company is None):
+        logo = _logo_flowable()
+    else:
+        logo = None
+    name = c.get("name") or PULSE["name"]
+    left_inner = [[logo, Paragraph(_esc(name), s["wordmark"])]] if logo else [[Paragraph(_esc(name), s["wordmark"])]]
     left = Table(left_inner, colWidths=([18 * mm, 60 * mm] if logo else [78 * mm]))
     left.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
         ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
-    right = Paragraph(
-        f"<b>{PULSE['tagline']}</b><br/>{PULSE['phone']}<br/>"
-        f"{PULSE['email']}<br/>{PULSE['web']}<br/>"
-        f"<font color='#1763B5'>{PULSE['hashtag']}</font>",
-        s["co"])
+    contact_lines = []
+    if c.get("tagline"):
+        contact_lines.append(f"<b>{_esc(c['tagline'])}</b>")
+    for key in ("phone", "email", "web"):
+        if c.get(key):
+            contact_lines.append(_esc(c[key]))
+    if c.get("hashtag"):
+        contact_lines.append(f"<font color='#1763B5'>{_esc(c['hashtag'])}</font>")
+    right = Paragraph("<br/>".join(contact_lines), s["co"])
     header = Table([[left, right]], colWidths=[95 * mm, 75 * mm])
     header.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -143,10 +167,12 @@ def section_label(s: dict, text: str) -> Paragraph:
 
 def make_pulse_doc(buf, title: str, *, is_mod: bool = False,
                    left_mm: float = 18, right_mm: float = 18,
-                   top_mm: float = 16, bottom_mm: float = 28):
+                   top_mm: float = 16, bottom_mm: float = 28,
+                   company: dict | None = None):
     """Return a BaseDocTemplate wired with a single full-width frame and the
     standard Pulse footer (registered office / Co Reg / VAT / page number) on
-    every page. Callers prepend ``pulse_header(pulse_styles())`` to the story."""
+    every page. Callers prepend ``pulse_header(pulse_styles())`` to the story.
+    Pass ``company`` to brand the footer for a specific tenant."""
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 
@@ -154,12 +180,12 @@ def make_pulse_doc(buf, title: str, *, is_mod: bool = False,
         buf, pagesize=A4,
         leftMargin=left_mm * mm, rightMargin=right_mm * mm,
         topMargin=top_mm * mm, bottomMargin=bottom_mm * mm,
-        title=title, author="Pulse Fitness",
+        title=title, author=(company or PULSE).get("name") or "Pulse Fitness",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="pulse-body", showBoundary=0)
     doc.addPageTemplates([PageTemplate(id="default", frames=[frame],
-                                       onPage=pulse_footer_factory(is_mod))])
+                                       onPage=pulse_footer_factory(is_mod, company=company))])
     return doc
 
 
@@ -171,9 +197,14 @@ def pulse_title(s: dict, title: str, subtitle: str | None = None) -> list:
     return flow
 
 
-def pulse_footer_factory(is_mod: bool = False, primary_line: str | None = None):
-    """on_page callback drawing the standard Pulse registered-office / compliance
-    footer at the bottom of every page."""
+def pulse_footer_factory(is_mod: bool = False, primary_line: str | None = None,
+                         company: dict | None = None):
+    """on_page callback drawing the standard registered-office / compliance
+    footer at the bottom of every page. ``company`` overrides the default
+    Pulse identity for tenant-branded documents; empty fields are skipped."""
+    c = company or PULSE
+    is_tenant = company is not None and company is not PULSE
+
     def _footer(canvas, doc):
         canvas.saveState()
         width = doc.pagesize[0]
@@ -183,19 +214,31 @@ def pulse_footer_factory(is_mod: bool = False, primary_line: str | None = None):
         canvas.setStrokeColor(PULSE_BORDER)
         canvas.setLineWidth(0.5)
         canvas.line(x0, y + 9 * mm, x1, y + 9 * mm)
-        canvas.setFont("Helvetica-Bold", 6.5)
-        canvas.setFillColor(PULSE_NAVY)
-        canvas.drawString(x0, y + 5.5 * mm, "A pulseglobal Company")
+        brand_line = c.get("footer_brand_line") or ("" if is_tenant else "A pulseglobal Company")
+        if brand_line:
+            canvas.setFont("Helvetica-Bold", 6.5)
+            canvas.setFillColor(PULSE_NAVY)
+            canvas.drawString(x0, y + 5.5 * mm, brand_line)
         canvas.setFont("Helvetica", 6.2)
         canvas.setFillColor(PULSE_MUTED)
-        canvas.drawString(
-            x0, y + 3 * mm,
-            f"Registered Office: {PULSE['registered_office']}  Company Registration No "
-            f"{PULSE['company_reg']}. VAT Registration No {PULSE['vat_reg']}.")
-        canvas.drawString(
-            x0, y + 0.5 * mm,
-            "Refurbished electrical equipment tested per Electrical Equipment (Safety) "
-            "Regulations 2016 (GB); ongoing testing/compliance is the end user's responsibility.")
+        reg = c.get("registered_office")
+        reg_bits = []
+        if reg:
+            reg_bits.append(f"Registered Office: {reg}")
+        if c.get("company_reg"):
+            reg_bits.append(f"Company Registration No {c['company_reg']}.")
+        if c.get("vat_reg"):
+            reg_bits.append(f"VAT Registration No {c['vat_reg']}.")
+        if reg_bits:
+            canvas.drawString(x0, y + 3 * mm, "  ".join(reg_bits))
+        note = c.get("footer_note")
+        if note:
+            canvas.drawString(x0, y + 0.5 * mm, note[:180])
+        elif not is_tenant:
+            canvas.drawString(
+                x0, y + 0.5 * mm,
+                "Refurbished electrical equipment tested per Electrical Equipment (Safety) "
+                "Regulations 2016 (GB); ongoing testing/compliance is the end user's responsibility.")
         if is_mod:
             canvas.drawRightString(x1, y + 5.5 * mm, "© Crown Copyright")
         canvas.setFont("Helvetica", 6)

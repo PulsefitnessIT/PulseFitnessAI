@@ -9,7 +9,7 @@
  */
 import { useCallback } from 'react';
 import {
-  User, ShieldCheck, Sliders, CreditCard, Building2, Users, ListChecks, Truck, Database,
+  User, ShieldCheck, Sliders, CreditCard, Building2, Users, ListChecks, Truck, Database, FileText,
 } from 'lucide-react';
 
 export const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -21,6 +21,7 @@ export const SECTIONS = [
   { id: 'preferences',  label: 'Preferences',     icon: Sliders },
   { id: 'billing',      label: 'Plan & Billing',  icon: CreditCard },
   { id: 'organisation', label: 'Organisation',    icon: Building2 },
+  { id: 'documents',    label: 'Document Branding', icon: FileText },
   { id: 'suppliers',    label: 'Suppliers',       icon: Truck },
   { id: 'team',         label: 'Team & Roles',    icon: Users },
   { id: 'data-export',  label: 'Data export',     icon: Database },

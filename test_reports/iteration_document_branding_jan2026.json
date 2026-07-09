@@ -1,0 +1,24 @@
+{
+  "summary": "Verified Document Branding backend API (owner + manager RBAC, persistence, sample.pdf with tenant bank details) and frontend editor flow inside AccountSettingsModal. All 6 pytest tests pass; UI flow (login owner -> profile menu -> Settings -> Document Branding nav -> edit bank_account_number -> Save -> reload -> value persists) is green. Placeholders correctly expose Pulse defaults without persisting them, and the sample PDF contains the tenant's bank number 87654321 with NO Pulse 40023205 leakage.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_document_branding.py",
+    "/app/test_reports/pytest/doc_branding.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils/document_branding.resolve_company falls back to org.get('name') or literal 'Statement' — acceptable default; consider a clearer 'Untitled Organisation' fallback so a PDF for a truly nameless org isn't titled 'Statement'.",
+    "routes/document_branding.py PUT accepts arbitrary string content with no length caps; consider a per-field maxlength (e.g. 200) to avoid oversized PDFs and DB bloat.",
+    "PUT body contract is dict without a Pydantic model — losing input validation. Fine for internal use but not ideal for a public endpoint.",
+    "Sample PDF endpoint always calls _render_invoice_pdf; a lightweight cache/rate-limit could protect against abuse since it's authenticated but any owner/manager can trigger PDF generation on demand."
+  ],
+  "updated_files": ["/app/backend/tests/test_document_branding.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  ;  manager@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Test wrote org_document_branding profile for iso-demo-org: company_name=IsoDemo Fitness Ltd, bank_account_number=99998888 (last state after UI test), payment_terms=Net 30 (mgr edit). Safe to leave or clear.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both owner and manager @isodemo.com can PUT /api/document-branding. Sample PDF at GET /api/document-branding/sample.pdf renders correctly. Frontend editor at Operations -> Demo Owner menu -> Account Settings -> 'Document Branding' rail (data-testid account-nav-documents). Bank Account Number field data-testid is docbranding-field-bank_account_number.",
+  "rca of the issue": "N/A — no failures observed."
+}
