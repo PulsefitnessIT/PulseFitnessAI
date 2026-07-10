@@ -54,6 +54,11 @@ DEFAULT_THRESHOLDS = {
 
 
 def _require_owner_or_manager(user: dict) -> None:
+    # MOD portal users (site/branch/org) are the operators of their own
+    # scoped estate — they get CAPEX access regardless of their internal
+    # role label. Their data is already ring-fenced by resolve_mod_query_filter.
+    if user.get("account_type") in ("mod_site", "mod_branch", "mod_org"):
+        return
     if user.get("role") not in ("owner", "manager", "master_admin"):
         raise HTTPException(status_code=403, detail="CAPEX data is restricted to Owner and Manager roles")
 
@@ -975,6 +980,139 @@ async def set_capex_budget(data: dict, user: dict = Depends(get_current_user)):
         {"$set": record}, upsert=True,
     )
     return {"success": True, **record}
+
+
+# ─────────────────────── Replacement sweet-spot planner ─────────
+#
+# Multi-year phased replacement plan: for each asset, work out the
+# optimal ("sweet-spot") replacement YEAR from its lifecycle stage,
+# BER signal and safety risk, bucket the replacement cost into that
+# year, and compare each year's spend against the (optionally tapering)
+# Cap-Spend budget. Built for shrinking-budget estates — MOD especially
+# — who need to sequence ageing-kit replacement within a falling cap.
+
+def _target_year_offset(item: dict, horizon: int) -> int | None:
+    """Years from now until this asset should be replaced. None = beyond horizon."""
+    capex = item.get("capex", {})
+    status = capex.get("status")
+    safety = item.get("safety_risk", {})
+    ber = (item.get("service_signals") or {}).get("ber_recommendation")
+    if status == "replace_now" or safety.get("immediate_action") or ber == "replace":
+        return 0
+    if status == "replace_soon":
+        return 1
+    rem = (item.get("lifecycle_stage") or {}).get("remaining_years")
+    if rem is None:
+        age = capex.get("age_years") or 0
+        life = capex.get("expected_lifespan_years") or 8
+        rem = max(0, life - age)
+    yr = int(round(rem))
+    return yr if yr < horizon else None
+
+
+def _sweet_spot_reason(item: dict) -> str:
+    bits = []
+    stage = (item.get("lifecycle_stage") or {}).get("stage")
+    if stage:
+        bits.append(stage)
+    ber = (item.get("service_signals") or {})
+    if ber.get("ber_recommendation") == "replace":
+        bits.append("BER threshold breached")
+    elif ber.get("ber_recommendation") == "watch":
+        bits.append("approaching BER")
+    val = item.get("valuation") or {}
+    if val.get("available") and val.get("current_book_value") is not None:
+        bits.append(f"residual £{int(val['current_book_value']):,}")
+    return " · ".join(bits) or "Scheduled by expected lifespan"
+
+
+def _compute_replacement_plan(analysis: dict, horizon: int, annual_budget: float | None,
+                              taper_pct: float) -> dict:
+    now_year = datetime.now(timezone.utc).year
+    equipment = analysis.get("equipment", [])
+    years = [
+        {"year_offset": i, "year": now_year + i,
+         "budget": round((annual_budget or 0) * ((1 - taper_pct / 100) ** i), 2) if annual_budget else None,
+         "assets": [], "total_cost": 0.0}
+        for i in range(horizon)
+    ]
+    beyond = {"assets": [], "total_cost": 0.0}
+    for item in equipment:
+        offset = _target_year_offset(item, horizon)
+        cost = item.get("capex", {}).get("replacement_cost", 0) or 0
+        val = item.get("valuation") or {}
+        entry = {
+            "id": item.get("id"), "name": item.get("name"),
+            "equipment_type": item.get("equipment_type"),
+            "location": item.get("location"),
+            "replacement_cost": cost,
+            "residual_value": val.get("current_book_value") if val.get("available") else None,
+            "reason": _sweet_spot_reason(item),
+            "status": item.get("capex", {}).get("status"),
+            "resale": item.get("resale"),
+        }
+        bucket = beyond if offset is None else years[offset]
+        bucket["assets"].append(entry)
+        bucket["total_cost"] += cost
+
+    cumulative = 0.0
+    for y in years:
+        y["total_cost"] = round(y["total_cost"], 2)
+        y["asset_count"] = len(y["assets"])
+        y["assets"].sort(key=lambda a: -(a["replacement_cost"] or 0))
+        cumulative += y["total_cost"]
+        y["cumulative_cost"] = round(cumulative, 2)
+        if y["budget"] is not None:
+            y["over_budget"] = y["total_cost"] > y["budget"]
+            y["remaining"] = round(y["budget"] - y["total_cost"], 2)
+            y["utilisation_pct"] = round(100 * y["total_cost"] / y["budget"], 1) if y["budget"] else None
+        else:
+            y["over_budget"] = False
+            y["remaining"] = None
+            y["utilisation_pct"] = None
+    beyond["total_cost"] = round(beyond["total_cost"], 2)
+    beyond["asset_count"] = len(beyond["assets"])
+
+    total_plan_cost = round(sum(y["total_cost"] for y in years), 2)
+    total_budget = round(sum(y["budget"] or 0 for y in years), 2) if annual_budget else None
+    years_over = [y["year"] for y in years if y["over_budget"]]
+    return {
+        "horizon_years": horizon,
+        "annual_budget": annual_budget,
+        "taper_pct": taper_pct,
+        "years": years,
+        "beyond_horizon": beyond,
+        "totals": {
+            "plan_cost": total_plan_cost,
+            "budget": total_budget,
+            "shortfall": round(total_plan_cost - total_budget, 2) if total_budget is not None else None,
+            "years_over_budget": years_over,
+        },
+    }
+
+
+@router.get("/capex/replacement-plan")
+async def get_replacement_plan(
+    user: dict = Depends(get_current_user),
+    site_id: str | None = None,
+    years: int = 5,
+    annual_budget: float | None = None,
+    taper_pct: float = 0.0,
+):
+    """Multi-year replacement sweet-spot plan vs a (optionally tapering)
+    capital budget. MOD-aware via the same org scoping as the analysis.
+
+    `annual_budget` overrides the configured Cap-Spend budget; `taper_pct`
+    shrinks the budget each year (e.g. 5 = -5%/yr) — for falling estates.
+    """
+    _require_owner_or_manager(user)
+    horizon = max(1, min(int(years or 5), 10))
+    analysis = await get_capex_analysis(user=user, site_id=site_id)
+    if annual_budget is None:
+        doc = await _get_capex_budget_doc(user.get("organization_id"), site_id)
+        annual_budget = float(doc["annual_budget"]) if doc and doc.get("annual_budget") else None
+    plan = _compute_replacement_plan(analysis, horizon, annual_budget, float(taper_pct or 0))
+    return plan
 
 
 # ─────────────────────────── Board CAPEX Report ──────────────────

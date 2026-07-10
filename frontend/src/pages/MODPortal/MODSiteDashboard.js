@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AlertTriangle, Wrench, Users, Shield, Gauge, ChevronRight,
-  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck,
+  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck, PoundSterling,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
@@ -60,6 +60,7 @@ import MODFaultWizard from './MODFaultWizard';
 import MODIncidentWizard from './MODIncidentWizard';
 import MODStaffModal from './MODStaffModal';
 import MODASERPortal from './MODASERPortal';
+import MODCapexPortal from './MODCapexPortal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -72,6 +73,7 @@ export default function MODSiteDashboard() {
   const [staffOpen, setStaffOpen] = useState(false);
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [aserOpen, setAserOpen] = useState(false);
+  const [capexOpen, setCapexOpen] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
   const [activeDrill, setActiveDrill] = useState(null);
 
@@ -197,6 +199,9 @@ export default function MODSiteDashboard() {
             <button onClick={() => setAserOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-aser">
               <ShieldAlert size={13} /> Reports · ASER
             </button>
+            <button onClick={() => setCapexOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-capex">
+              <PoundSterling size={13} /> Reports · CAPEX
+            </button>
             <button onClick={() => setStaffOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-staff">
               <Users size={13} /> Staff
             </button>
@@ -310,6 +315,7 @@ export default function MODSiteDashboard() {
       )}
       {staffOpen && <MODStaffModal onClose={() => setStaffOpen(false)} />}
       {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
+      {capexOpen && <MODCapexPortal onClose={() => setCapexOpen(false)} />}
       {incidentOpen && (
         <MODIncidentWizard
           onClose={() => setIncidentOpen(false)}

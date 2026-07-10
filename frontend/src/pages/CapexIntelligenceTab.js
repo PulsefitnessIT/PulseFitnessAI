@@ -257,6 +257,99 @@ const CapSpendCard = ({ budget, onSave }) => {
   );
 };
 
+const ReplacementPlanner = ({ plan, years, taper, onYears, onTaper, loading }) => {
+  const yearControls = (
+    <div className="flex items-center gap-3 flex-wrap">
+      <label className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
+        Horizon
+        <select value={years} onChange={e => onYears(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs" data-testid="planner-years">
+          {[3, 5, 7, 10].map(y => <option key={y} value={y}>{y} yr</option>)}
+        </select>
+      </label>
+      <label className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5" title="Shrink the budget each year — for falling estates like MOD.">
+        Budget taper
+        <select value={taper} onChange={e => onTaper(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs" data-testid="planner-taper">
+          {[0, 3, 5, 10].map(t => <option key={t} value={t}>-{t}%/yr</option>)}
+        </select>
+      </label>
+    </div>
+  );
+  return (
+    <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="capex-replacement-planner">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Target size={18} className="text-[var(--color-brand-blue)]" />
+          <h3 className="text-lg font-semibold text-white">Replacement Sweet-Spot Planner</h3>
+        </div>
+        {yearControls}
+      </div>
+      <p className="text-[var(--color-text-muted)] text-xs mb-4">
+        Each asset is scheduled into its optimal replacement year (from lifecycle stage, BER and safety), then costed against your capital budget. Plan phased spend within a shrinking cap.
+      </p>
+      {loading && <p className="text-[var(--color-text-muted)] text-sm">Building plan…</p>}
+      {!loading && plan && (
+        <>
+          {plan.totals?.budget != null && (
+            <div className="mb-4 flex flex-wrap gap-4 text-sm">
+              <span className="text-[var(--color-text-muted)]">{plan.horizon_years}-yr plan cost: <strong className="text-white">{fmt(plan.totals.plan_cost)}</strong></span>
+              <span className="text-[var(--color-text-muted)]">Budget: <strong className="text-white">{fmt(plan.totals.budget)}</strong></span>
+              {plan.totals.shortfall > 0
+                ? <span className="text-red-400 font-semibold">Shortfall: {fmt(plan.totals.shortfall)}</span>
+                : <span className="text-green-400 font-semibold">Within budget ({fmt(Math.abs(plan.totals.shortfall))} headroom)</span>}
+            </div>
+          )}
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {plan.years.map(y => {
+              const util = y.utilisation_pct;
+              const barColor = y.budget == null ? 'var(--color-brand-blue)' : y.over_budget ? 'var(--color-danger)' : util >= 80 ? 'var(--color-orange)' : 'var(--color-green)';
+              return (
+                <div key={y.year} className="bg-white/5 rounded-lg p-4" data-testid={`planner-year-${y.year}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-white font-semibold">{y.year}</p>
+                    <p className={`text-sm font-semibold ${y.over_budget ? 'text-red-400' : 'text-white'}`}>{fmt(y.total_cost)}</p>
+                  </div>
+                  {y.budget != null && (
+                    <>
+                      <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-1">
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, util || 0)}%`, background: barColor }} />
+                      </div>
+                      <p className="text-[10px] text-[var(--color-text-muted)] mb-2">{util != null ? `${util}% of ${fmt(y.budget)}` : ''}{y.over_budget ? ' · OVER' : ''}</p>
+                    </>
+                  )}
+                  {y.assets.length === 0 ? (
+                    <p className="text-[var(--color-text-muted)] text-xs italic">No replacements scheduled.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {y.assets.slice(0, 6).map(a => (
+                        <li key={a.id} className="text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-white truncate">{a.name}</span>
+                            <span className="text-[var(--color-text-muted)] tabular-nums flex-shrink-0">{fmt(a.replacement_cost)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--color-text-muted)] text-[10px] truncate">{a.reason}</span>
+                            {a.resale && <a href={a.resale.url} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-blue)] text-[10px] inline-flex items-center gap-0.5 flex-shrink-0" data-testid={`planner-resale-${a.id}`}><Recycle size={9} /> Resale</a>}
+                          </div>
+                        </li>
+                      ))}
+                      {y.assets.length > 6 && <li className="text-[10px] text-[var(--color-text-muted)]">+{y.assets.length - 6} more…</li>}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {plan.beyond_horizon?.asset_count > 0 && (
+            <p className="text-[var(--color-text-muted)] text-xs mt-3">
+              Beyond {plan.horizon_years} years: {plan.beyond_horizon.asset_count} assets ({fmt(plan.beyond_horizon.total_cost)}) still within useful life.
+            </p>
+          )}
+        </>
+      )}
+    </Card>
+  );
+};
+
 const FleetKPIStrip = ({ kpis, conditionAverage }) => (
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="capex-fleet-kpis">
   <div className="flex items-center gap-2 mb-4">
@@ -890,6 +983,10 @@ const CapexIntelligenceTab = () => {
  const [downloadingPdf, setDownloadingPdf] = useState(false);
  const [expanded, setExpanded] = useState({});
  const [filter, setFilter] = useState('all');
+ const [plan, setPlan] = useState(null);
+ const [planYears, setPlanYears] = useState(5);
+ const [planTaper, setPlanTaper] = useState(0);
+ const [planLoading, setPlanLoading] = useState(false);
  const [_justificationsLoaded, setJustificationsLoaded] = useState(false);
  const token = localStorage.getItem('token');
  const headers = { Authorization: `Bearer ${token}` };
@@ -933,6 +1030,21 @@ const CapexIntelligenceTab = () => {
  notify.error('Failed to save budget');
  }
  };
+
+ const loadPlan = useCallback(async () => {
+ setPlanLoading(true);
+ try {
+ const res = await axios.get(`${API}/capex/replacement-plan?years=${planYears}&taper_pct=${planTaper}`, { headers });
+ setPlan(res.data);
+ } catch {
+ setPlan(null);
+ } finally {
+ setPlanLoading(false);
+ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [planYears, planTaper]);
+
+ useEffect(() => { loadPlan(); }, [loadPlan]);
 
  const generateJustifications = async () => {
  setGeneratingAI(true);
@@ -1035,6 +1147,9 @@ const CapexIntelligenceTab = () => {
 
  {/* Cap-Spend Budget vs Forecast */}
  <CapSpendCard budget={data.capital_budget} onSave={saveBudget} />
+
+ {/* Replacement Sweet-Spot Planner */}
+ <ReplacementPlanner plan={plan} years={planYears} taper={planTaper} onYears={setPlanYears} onTaper={setPlanTaper} loading={planLoading} />
 
  {/* Fleet Intelligence KPIs */}
  {data.fleet_intelligence?.fleet_kpis && (

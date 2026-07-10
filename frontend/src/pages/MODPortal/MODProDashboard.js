@@ -16,6 +16,7 @@ import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import GymFloorManagerTab from '../LiteDashboard/GymFloorManagerTab';
 import MODASERPortal from './MODASERPortal';
+import CapexIntelligenceTab from '../CapexIntelligenceTab';
 
 export default function MODProDashboard() {
   const { _user, logout, API } = useAuth();
@@ -203,7 +204,13 @@ export default function MODProDashboard() {
 
         {/* Iter 216h110 — CAPEX pillar */}
         {activePillar === 'capex' && (
-          <CapexPanel capex={capex} />
+          <div className="space-y-5">
+            <CapexPanel capex={capex} />
+            {/* Asset Financial Intelligence: residual value, TCO, Cap-Spend
+                budget & the replacement sweet-spot planner — scoped to this
+                MOD estate via resolve_mod_query_filter. */}
+            <CapexIntelligenceTab />
+          </div>
         )}
 
         {/* Iter 216h110 — Reports pillar */}
