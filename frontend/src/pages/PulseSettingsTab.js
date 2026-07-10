@@ -201,10 +201,10 @@ const PulseSettingsTab = () => {
     return 'bg-gray-500/20 text-gray-400';
   };
 
-  const sections = user.role === 'staff' ? ['org-details', 'templates'] : ['team', 'sites', 'org-details', 'qr-codes', 'templates', 'data-export', 'launch'];
+  const sections = user.role === 'staff' ? ['org-details', 'templates'] : ['team', 'staff', 'sites', 'org-details', 'qr-codes', 'templates', 'data-export', 'launch'];
 
   const sectionLabels = {
-    team: 'Team & Organisation', sites: 'Sites', 'org-details': 'Organisation Details', 'qr-codes': 'QR Codes', templates: 'Fault Templates', 'data-export': 'Data export', launch: 'Launch readiness',
+    team: 'Team & Organisation', staff: 'Staff', sites: 'Sites', 'org-details': 'Organisation Details', 'qr-codes': 'QR Codes', templates: 'Fault Templates', 'data-export': 'Data export', launch: 'Launch readiness',
   };
 
   return (

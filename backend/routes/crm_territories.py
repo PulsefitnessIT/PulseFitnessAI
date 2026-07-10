@@ -740,6 +740,103 @@ async def map_auto_assign(data: dict, user=Depends(get_crm_user)):
     return {"dry_run": dry_run, "totals": totals, "total": sum(totals.values())}
 
 
+# ── Office locations (map markers) ───────────────────────────────────
+#
+# Physical offices/depots the org wants pinned on the coverage map so
+# planners can see how field staff patches sit relative to their bases.
+# Stored in their own `crm_offices` collection (kept out of
+# `crm_territories` so they never interfere with the auto-assign engine).
+
+def _num_or_none(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+@router.get("/offices")
+async def list_offices(user=Depends(get_crm_user)):
+    of = _org_filter(user)
+    items = await db.crm_offices.find(
+        {**of, "archived": {"$ne": True}}, {"_id": 0},
+    ).sort("name", 1).to_list(500)
+    return {"offices": items, "total": len(items)}
+
+
+@router.post("/offices")
+async def create_office(data: dict, user=Depends(get_crm_user)):
+    _require_team_admin(user)
+    lat = _num_or_none(data.get("lat"))
+    lng = _num_or_none(data.get("lng"))
+    if lat is None or lng is None:
+        raise HTTPException(400, "Valid lat and lng are required")
+    oid = _id()
+    record = {
+        "id": oid,
+        "organization_id": user.get("organization_id"),
+        "name": (data.get("name") or "").strip() or "Office",
+        "address": (data.get("address") or "").strip(),
+        "postcode": (data.get("postcode") or "").strip().upper(),
+        "lat": lat,
+        "lng": lng,
+        "colour_hex": _normalise_colour(data.get("colour_hex") or "#0F172A"),
+        "kind": (data.get("kind") or "office").strip().lower(),
+        "archived": False,
+        "created_by": user["id"],
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    await db.crm_offices.insert_one(record)
+    await log_audit(user, "office", oid, "created", {"name": record["name"]})
+    return {k: v for k, v in record.items() if k != "_id"}
+
+
+@router.put("/offices/{oid}")
+async def update_office(oid: str, data: dict, user=Depends(get_crm_user)):
+    _require_team_admin(user)
+    of = _org_filter(user)
+    existing = await db.crm_offices.find_one({"id": oid, **of}, {"_id": 0, "id": 1})
+    if not existing:
+        raise HTTPException(404, "Office not found")
+    updates: dict = {"updated_at": _now()}
+    if "name" in data:
+        updates["name"] = (data.get("name") or "").strip() or "Office"
+    if "address" in data:
+        updates["address"] = (data.get("address") or "").strip()
+    if "postcode" in data:
+        updates["postcode"] = (data.get("postcode") or "").strip().upper()
+    if "colour_hex" in data:
+        updates["colour_hex"] = _normalise_colour(data.get("colour_hex"))
+    if "kind" in data:
+        updates["kind"] = (data.get("kind") or "office").strip().lower()
+    if "lat" in data:
+        lat = _num_or_none(data.get("lat"))
+        if lat is None:
+            raise HTTPException(400, "Invalid lat")
+        updates["lat"] = lat
+    if "lng" in data:
+        lng = _num_or_none(data.get("lng"))
+        if lng is None:
+            raise HTTPException(400, "Invalid lng")
+        updates["lng"] = lng
+    await db.crm_offices.update_one({"id": oid, **of}, {"$set": updates})
+    await log_audit(user, "office", oid, "updated", {k: v for k, v in updates.items() if k != "updated_at"})
+    return {"success": True}
+
+
+@router.delete("/offices/{oid}")
+async def delete_office(oid: str, user=Depends(get_crm_user)):
+    _require_team_admin(user)
+    of = _org_filter(user)
+    r = await db.crm_offices.update_one(
+        {"id": oid, **of}, {"$set": {"archived": True, "updated_at": _now()}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(404, "Office not found")
+    await log_audit(user, "office", oid, "archived")
+    return {"success": True}
+
+
 @router.get("/{tid}")
 async def get_territory(tid: str, user=Depends(get_crm_user)):
     of = _org_filter(user)

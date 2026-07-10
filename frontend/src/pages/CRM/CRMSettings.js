@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Upload, FileSpreadsheet, Shield, Clock, User, ChevronRight, Loader2,
-  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code, ShieldOff, Briefcase
+  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code, ShieldOff, Briefcase, Users
 } from 'lucide-react';
 import axios from 'axios';
+import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import CRMPermissions from './CRMPermissions';
 import CRMPicklistsSection from './CRMPicklistsSection';
 import CRMProductsSection from './CRMProductsSection';
@@ -479,6 +480,7 @@ export default function CRMSettings() {
   const sections = [
     { id: 'import', label: 'Data Import', icon: Upload },
     { id: 'team', label: 'Team', icon: User },
+    { id: 'staff', label: 'Staff', icon: Users },
     { id: 'permissions', label: 'Permissions', icon: Lock, jumpTo: 'permissions' },
     { id: 'picklists', label: 'Picklists', icon: Edit2 },
     { id: 'products', label: 'Price List', icon: Package },
@@ -548,6 +550,20 @@ export default function CRMSettings() {
           {/* Team */}
           {activeSection === 'team' && (
             <TeamSection API={API} headers={headers} user={user} c={c} isDark={isDark} />
+          )}
+
+          {/* Staff — same add-staff Profile + HR records as Operations ▸ Staffing ▸ HR.
+              Uses the platform token so records flow to/from Operations (shared /staffing/*). */}
+          {activeSection === 'staff' && (
+            <div className="rounded-lg border overflow-hidden" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid="settings-staff">
+              <div className="p-4 border-b" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+                <h3 className="text-sm font-semibold" style={{ color: c.text }}>Staff &amp; job roles</h3>
+                <p className="text-xs mt-0.5" style={{ color: c.textDim }}>Add staff and allocate job roles. These records are shared with Operations ▸ Staffing.</p>
+              </div>
+              <div className="p-2">
+                <HRTab headers={{ Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token')}` }} isManager />
+              </div>
+            </div>
           )}
 
           {/* Permissions */}

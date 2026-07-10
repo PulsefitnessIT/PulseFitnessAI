@@ -19,12 +19,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { feature } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
-  Flame, Zap, Paintbrush,
+  Flame, Zap, Paintbrush, Building2, Users,
 } from 'lucide-react';
+import OfficesPanel from './CRMTerritoryOffices';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
@@ -189,6 +190,9 @@ export default function CRMTerritoryMap() {
   const [coverage, setCoverage] = useState({ counties: {}, postcode_areas: {} });
   const [heatmap, setHeatmap] = useState({ counties: {}, postcode_areas: {} });
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'sales_manager' | 'engineer'
+  const [offices, setOffices] = useState([]);
+  const [showOffices, setShowOffices] = useState(true);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [staff, setStaff] = useState([]);
   const [focusedUser, setFocusedUser] = useState(null);
@@ -223,6 +227,13 @@ export default function CRMTerritoryMap() {
     }
   }, []);
 
+  const loadOffices = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/crm/territories/offices`, auth());
+      setOffices(r.data.offices || []);
+    } catch (e) { /* offices are optional; ignore load errors */ }
+  }, []);
+
   const loadMaps = useCallback(async () => {
     setLoading(true);
     try {
@@ -243,7 +254,8 @@ export default function CRMTerritoryMap() {
   useEffect(() => {
     loadMaps();
     loadCoverage();
-  }, [loadMaps, loadCoverage]);
+    loadOffices();
+  }, [loadMaps, loadCoverage, loadOffices]);
 
   // ── Save handlers ─────────────────────────────────────────────────
   const saveRegion = async (region, assignedIds) => {
@@ -336,6 +348,21 @@ export default function CRMTerritoryMap() {
 
   // ── Region fill resolver — colour-mix when N reps cover the same area ──
   const staffById = useMemo(() => Object.fromEntries(staff.map((s) => [s.id, s])), [staff]);
+  // Role filter: a member with role 'both' always matches. This lets an
+  // admin view Engineer coverage and Sales-Manager coverage independently
+  // while allowing the two to overlap on the same region.
+  const roleMatch = useCallback(
+    (r) => roleFilter === 'all' || r === roleFilter || r === 'both',
+    [roleFilter],
+  );
+  const membersFor = useCallback((type, code) => {
+    const list = (type === 'county' ? coverage.counties : coverage.postcode_areas)[code] || [];
+    return list.filter((m) => roleMatch(m.role));
+  }, [coverage, roleMatch]);
+  const visibleStaff = useMemo(
+    () => staff.filter((s) => roleMatch(s.territory_role)),
+    [staff, roleMatch],
+  );
   // Pre-compute the heatmap normalisation range for the active layer so
   // opacity scales sensibly across whatever range the org has.
   const heatRange = useMemo(() => {
@@ -344,12 +371,12 @@ export default function CRMTerritoryMap() {
     return { max: Math.max(...vals) };
   }, [heatmap, layer]);
   const fillForRegion = useCallback((type, code) => {
-    const list = (type === 'county' ? coverage.counties : coverage.postcode_areas)[code] || [];
+    const list = membersFor(type, code);
     const focusList = focusedUser ? list.filter((m) => m.user_id === focusedUser) : list;
-    if (!focusList.length) return focusedUser ? '#F1F5F9' : '#FFFFFF';
+    if (!focusList.length) return (focusedUser || roleFilter !== 'all') ? '#F1F5F9' : '#FFFFFF';
     const first = staffById[focusList[0].user_id] || focusList[0];
     return first.colour_hex || '#94A3B8';
-  }, [coverage, focusedUser, staffById]);
+  }, [membersFor, focusedUser, roleFilter, staffById]);
   const opacityForRegion = useCallback((type, code) => {
     if (!showHeatmap) return 1;
     if (!heatRange.max) return 0.18;
@@ -395,7 +422,7 @@ export default function CRMTerritoryMap() {
             <button
               type="button"
               onClick={() => setLayer('county')}
-              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'county' ? 'bg-zinc-900 text-white' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
+              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'county' ? 'bg-zinc-900 text-white' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
               data-testid="layer-county"
             >
               <MapIcon size={12} /> Counties
@@ -403,7 +430,7 @@ export default function CRMTerritoryMap() {
             <button
               type="button"
               onClick={() => setLayer('postcode_area')}
-              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'postcode_area' ? 'bg-zinc-900 text-white' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
+              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'postcode_area' ? 'bg-zinc-900 text-white' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
               data-testid="layer-postcode"
             >
               <Layers size={12} /> Postcode areas
@@ -418,7 +445,32 @@ export default function CRMTerritoryMap() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-zinc-900" data-testid="role-filter">
+            {[
+              { v: 'all', label: 'All roles', Icon: Users },
+              { v: 'sales_manager', label: 'Managers', Icon: UserCog },
+              { v: 'engineer', label: 'Engineers', Icon: Hammer },
+            ].map(({ v, label, Icon }) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setRoleFilter(v)}
+                className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${roleFilter === v ? 'bg-zinc-900 text-white' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
+                data-testid={`role-filter-${v}`}
+              >
+                <Icon size={12} /> {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowOffices((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showOffices ? 'bg-zinc-900 border-zinc-900 text-white' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
+            title="Show or hide office pins on the map."
+            data-testid="map-offices-toggle"
+          >
+            <Building2 size={12} /> Offices
+          </button>
           <button
             onClick={runAutoAssign}
             disabled={autoAssigning}
@@ -468,7 +520,7 @@ export default function CRMTerritoryMap() {
                 {({ geographies }) => geographies.map((geo) => {
                   const region = regionFor(geo);
                   const fill = fillForRegion(region.type, region.code);
-                  const list = (region.type === 'county' ? coverage.counties : coverage.postcode_areas)[region.code] || [];
+                  const list = membersFor(region.type, region.code);
                   const hasAssignees = list.length > 0;
                   const tooltip = hasAssignees
                     ? `${region.label} — ${list.map((m) => m.full_name).join(', ')}`
@@ -493,6 +545,14 @@ export default function CRMTerritoryMap() {
                   );
                 })}
               </Geographies>
+              {showOffices && offices.map((o) => (
+                <Marker key={o.id} coordinates={[o.lng, o.lat]} data-testid={`office-marker-${o.id}`}>
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle r={5} fill={o.colour_hex || '#0F172A'} stroke="#FFFFFF" strokeWidth={1.4} />
+                    <text textAnchor="middle" y={-9} fontSize={9} fontWeight="700" fill="#0F172A" stroke="#FFFFFF" strokeWidth={2.4} paintOrder="stroke">{o.name}</text>
+                  </g>
+                </Marker>
+              ))}
             </ComposableMap>
           )}
         </div>
@@ -511,8 +571,8 @@ export default function CRMTerritoryMap() {
               Click a person to select them, then click counties or postcode areas on the map to allocate that area to them. Click an allocated area again to remove it. Click a colour swatch to recolour a person.
             </p>
             <div className="space-y-1 max-h-[520px] overflow-y-auto" data-testid="staff-list">
-              {staff.length === 0 && <p className="text-xs text-zinc-400 italic py-2">No CRM users yet — add reps in People first.</p>}
-              {staff.map((s) => (
+              {visibleStaff.length === 0 && <p className="text-xs text-zinc-400 italic py-2">{staff.length === 0 ? 'No CRM users yet — add reps in People first.' : 'No people match this role filter.'}</p>}
+              {visibleStaff.map((s) => (
                 <StaffRow
                   key={s.id}
                   s={s}
@@ -524,6 +584,7 @@ export default function CRMTerritoryMap() {
               ))}
             </div>
           </div>
+          <OfficesPanel offices={offices} onChange={loadOffices} />
           <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/60 p-3 text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
             <p className="font-semibold text-zinc-700 dark:text-zinc-300 mb-1">How coverage resolves</p>
             <p>

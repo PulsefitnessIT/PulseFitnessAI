@@ -52,7 +52,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from utils.auth import get_current_user
+from utils.dual_auth import get_current_user_or_crm as get_current_user
 from utils.database import db
 
 from routes.staffing import (

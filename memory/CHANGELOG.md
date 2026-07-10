@@ -1005,3 +1005,10 @@ MOD Service Portal → Reports → ASER. Lets MOD site users document equipment-
 - config endpoint returns ai_summaries flag; frontend DetailView shows 'AI summary' + 'Draft AI replacement evidence' buttons (violet, Sparkles) → aser-ai-result panel.
 - Verified: backend curl (real LLM output; RE PDF grew + valid); frontend 100% (iteration_mod_aser_ai_fe_jan2026.json). Test data reset. PREVIEW only — redeploy for production.
 - ASER PHASE 2 COMPLETE: analytics, exports (CSV/XLSX/PDF), Replacement Evidence Report, email-the-report, Master Admin settings, configurable notifications, AI summaries.
+
+---
+## Feature: Territory map — role filter + office locations (Jul 10, 2026)
+CRM → Territories map (P0, `crm_territories.py` + `CRMTerritoryMap.js`):
+1. **Role filter** — new segmented control (All roles / Managers / Engineers) on the map toolbar. Filters both the painted region coverage and the sidebar staff list by `territory_role` (a member flagged `both` matches every filter). This lets an admin view Engineer coverage and Sales-Manager coverage independently while both roles overlap the same region — the "multiple roles per area" ask. (Regions already support N reps each, so overlapping-role coverage needed no data change.)
+2. **Office locations** — new `crm_offices` collection + CRUD under `/api/crm/territories/offices` (GET/POST/PUT/DELETE, admin-only, soft-delete). New `CRMTerritoryOffices.js` sidebar panel to add/remove offices (name, address, postcode, lat/lng, pin colour). Offices render as coloured pin `Marker`s with labels on the UK map; toolbar "Offices" toggle shows/hides them.
+Verified: backend CRUD via curl (create/list/delete) + Playwright e2e (all 7 control testids present, Engineers filter correctly hid the Sales-Manager, "Leeds Depot" pin rendered on map at correct coords, office row + delete work). Test office cleaned up. PREVIEW only — redeploy to push to production.

@@ -39,7 +39,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from utils.security_plus import safe_regex_exact
 from pydantic import BaseModel, Field
 
-from utils.auth import get_current_user
+from utils.dual_auth import get_current_user_or_crm as get_current_user
 from utils.database import db
 
 logger = logging.getLogger(__name__)

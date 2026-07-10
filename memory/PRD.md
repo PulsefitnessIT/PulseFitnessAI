@@ -31,7 +31,28 @@ Three Engineer-App requests (all verified):
   Verified via screenshot (master, internal): Notifications renders "You're all caught up"; home shows no
   Inbox and the quick action reads "Territory jobs"; /territory endpoint returns 200.
 
-# ═══ 2026-07-09 (pt.9) · TERRITORY JOBS — POSTCODE-AREA FALLBACK FOR UNLINKED CASES ═══
+# ═══ 2026-07-10 · CRM/OPS BATCH: TERRITORY TEXT CONTRAST · HR/STAFF MERGE · CRM STAFF (partial) ═══
+User batch of 4 requests. Status:
+  1. DONE — CRM ▸ Territories washed-out toggle text: bumped inactive contrast text-zinc-700→zinc-900
+     (+ dark variants) in CRMTerritories.js (view toggle) and CRMTerritoryMap.js (Counties/Postcode layer).
+  2. DONE (verified) — Operations ▸ Staffing: merged the duplicated "Staff" tab into "HR". People group is
+     now HR · Site Login · Org Chart (StaffingConsole.js GROUPS_ALL; MOD keeps its own staff tab via isMOD
+     branch). Nothing lost: added an "Add staff" dialog (AddStaffDialog) + "Add" button into HRTab.js
+     (POST /staffing/staff, roles from GET /staffing/roles → data.all). testids hr-add-staff-*.
+  3. PARTIAL — CRM ▸ Settings ▸ new "Staff" section renders the SAME HRTab (add-staff Profile + job roles);
+     data flows via the shared org-scoped /staffing/* collections. WORKS when a platform token is present
+     (unified app). BLOCKER for CRM-ONLY customers: /staffing/* uses platform get_current_user and returns
+     401 for a crm_token (verified). Interim: the section shows a "sign in to main app" note when no platform
+     token. NEEDS a decision on the auth bridge (see ask) — either make /staffing accept CRM auth, or add
+     /crm/staff routes reusing the existing CRM auth dependency over the same collections + a basePath prop on
+     HRTab. (Auth change → route via integration_expert.)
+  4. NOT STARTED — CRM ▸ Territories: filter by job role; allocate multiple roles per area (Engineer + Sales
+     manager on same area); add office locations to the map. Needs data-model + map work (planned).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 Extended GET /api/svc/engineer/queue/territory (routes/svc/engineer_queue.py) so that beyond the CRM
 territory→company→case links, it ALSO surfaces open cases whose site_postcode outward code matches the
 engineer's territory postcode_prefixes but which aren't (yet) linked to an in-territory CRM company — e.g.

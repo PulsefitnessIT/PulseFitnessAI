@@ -63,9 +63,10 @@ const ALL = ['owner', 'manager', 'master_admin', 'staff'];
 
 const GROUPS_ALL = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, leaf: 'dashboard', roles: MGR },
-  // People = Staff roster + HR records (combined per user request).
+  // People = Staff roster + HR records combined. Per user, the old standalone
+  // "Staff" tab was merged into HR (HRTab now has Add-staff); the other People
+  // options are unchanged.
   { id: 'people', label: 'People', icon: Users, children: [
-    { id: 'staff',    label: 'Staff',     icon: Users,   roles: MGR },
     { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
     { id: 'hr',       label: 'HR',        icon: IdCard,  roles: MGR },
     { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
@@ -167,6 +168,7 @@ export default function StaffingConsole() {
   const [tab, setTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(storageKey);
+      if (saved === 'staff') return 'hr';  // merged Staff → HR
       if (saved) return saved;
     }
     return firstLeaf(groups[0]) || 'leave';
@@ -174,6 +176,7 @@ export default function StaffingConsole() {
 
   // Keep `tab` valid when the role-filtered tree changes.
   useEffect(() => {
+    if (tab === 'staff') { setTab('hr'); return; }
     if (!leafToGroup[tab]) setTab(firstLeaf(groups[0]) || 'leave');
   }, [groups, leafToGroup, tab]);
 

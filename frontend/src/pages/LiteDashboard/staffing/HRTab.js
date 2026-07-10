@@ -12,16 +12,115 @@
  *   • Training    — learning history (alongside Phase S4 certs)
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
   Trash2, X, Check, Search, AlertTriangle,
-  ExternalLink, Briefcase,
+  ExternalLink, Briefcase, UserPlus,
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+// Iter 289 — Add Staff dialog lives here now that Staff + HR are one tab.
+// Mirrors the roster's create flow (POST /staffing/staff) so nothing was lost
+// when the duplicate "Staff" tab was removed.
+function AddStaffDialog({ headers, onClose, onCreated }) {
+  const [roles, setRoles] = useState(['manager', 'staff']);
+  const [form, setForm] = useState({
+    full_name: '', email: '', primary_role: 'staff',
+    contract_type: 'part_time', hours_per_week: 0, hourly_cost: 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/staffing/roles`, { headers });
+        const list = data.all || data.valid || data.platform_defaults || [];
+        if (list.length) setRoles(list);
+      } catch { /* keep defaults */ }
+    })();
+  }, [headers]);
+
+  const submit = async () => {
+    if (!form.full_name.trim()) { setErr('Name is required'); return; }
+    setSaving(true); setErr('');
+    try {
+      const { data } = await axios.post(`${API}/staffing/staff`, form, { headers });
+      onCreated(data?.id || data?.staff?.id || null);
+      onClose();
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Could not add staff');
+    } finally { setSaving(false); }
+  };
+
+  return createPortal((
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"
+      onClick={onClose} data-testid="hr-add-staff-backdrop">
+      <div className="rounded-2xl border p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}
+        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
+        data-testid="hr-add-staff-dialog">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Add staff</div>
+          <button type="button" onClick={onClose} data-testid="hr-add-staff-close"><X size={16} style={{ color: 'var(--theme-text-muted)' }} /></button>
+        </div>
+        <div className="space-y-2">
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Full name</label>
+            <input placeholder="e.g. Jane Doe" value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              className="w-full rounded-lg px-3 py-2 text-sm border"
+              style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-add-staff-name" />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Email <span className="opacity-60 normal-case font-normal">(optional — links to existing user)</span></label>
+            <input placeholder="jane@example.com" value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full rounded-lg px-3 py-2 text-sm border"
+              style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-add-staff-email" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Job role</label>
+              <select value={form.primary_role} onChange={(e) => setForm({ ...form, primary_role: e.target.value })}
+                className="w-full rounded-lg px-3 py-2 text-sm border"
+                style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="hr-add-staff-role">
+                {roles.map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contract type</label>
+              <select value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })}
+                className="w-full rounded-lg px-3 py-2 text-sm border"
+                style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="hr-add-staff-contract">
+                {['full_time', 'part_time', 'casual', 'contractor'].map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          {err && <p className="text-xs text-red-500" data-testid="hr-add-staff-error">{err}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-bold border"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-add-staff-cancel">Cancel</button>
+            <button type="button" onClick={submit} disabled={saving}
+              className="px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-add-staff-save">
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Add staff
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ), document.body);
+}
+
 
 const SUB_TABS = [
   { id: 'profile',      label: 'Profile',      icon: User },
@@ -823,6 +922,7 @@ export default function HRTab({ headers, isManager }) {
   const [sub, setSub] = useState(() => localStorage.getItem('staffing.hr.sub') || 'profile');
   const [loading, setLoading] = useState(true);
   const [rolesOpen, setRolesOpen] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -867,18 +967,34 @@ export default function HRTab({ headers, isManager }) {
         <JobRolesModal headers={headers} onClose={() => setRolesOpen(false)} onChanged={load} />
       )}
 
+      {showAdd && (
+        <AddStaffDialog
+          headers={headers}
+          onClose={() => setShowAdd(false)}
+          onCreated={async (newId) => { await load(); if (newId) setActiveId(newId); }}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 rounded-xl border overflow-hidden"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)', minHeight: '600px' }}>
         {/* Staff list */}
         <div className="border-r flex flex-col" style={{ borderColor: 'var(--theme-border)' }}>
-          <div className="p-2 border-b" style={{ borderColor: 'var(--theme-border)' }}>
-            <div className="relative">
+          <div className="p-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--theme-border)' }}>
+            <div className="relative flex-1">
               <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-50" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search staff…"
                 className="w-full h-8 rounded-md bg-transparent border pl-6 pr-2 text-xs"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="hr-search" />
             </div>
+            {isManager && (
+              <button type="button" onClick={() => setShowAdd(true)}
+                className="h-8 px-2.5 rounded-md text-xs font-bold inline-flex items-center gap-1 shrink-0"
+                style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+                data-testid="hr-add-staff-btn" title="Add staff">
+                <UserPlus size={13} /> Add
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto" data-testid="hr-staff-list">
             {loading && (
