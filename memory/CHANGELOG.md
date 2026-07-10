@@ -1017,3 +1017,13 @@ Verified: backend CRUD via curl (create/list/delete) + Playwright e2e (all 7 con
 - **Geocode by postcode** — new `GET /api/crm/territories/geocode?postcode=` (free postcodes.io API, server-side, keyless). Offices form gets a "Find" button that fills lat/lng from a UK postcode; `POST /offices` also auto-geocodes when coords are omitted but a postcode is given.
 - **Nearest-office badge** — clicking a region opens the drawer showing the closest pinned office + great-circle distance in miles (client-side haversine from the region's `geoCentroid`).
 Verified e2e: "B1 1HQ" → 52.4787/-1.9069, pin rendered, drawer showed "Nearest office: Birmingham HQ · 27 mi". Invalid postcodes correctly return 404. PREVIEW only — redeploy for production.
+
+## Feature: Asset Financial Intelligence + Cap-Spend budgets (P0, competitor gap fill) — Jul 10, 2026
+Extended the existing CAPEX Intelligence module (Operations > Reports > CAPEX Intelligence) — reusing all CAPEX/equipment data, zero duplication — to close the biggest gap vs Orbit4:
+- **Residual value & depreciation** — `compute_valuation()` (straight-line, 10% salvage floor) on every asset: current book value, accumulated + annual depreciation, residual %. Uses real `purchase_cost` when present, else replacement_cost (flagged `basis: estimated`).
+- **Total Cost of Ownership** — `compute_tco()` = acquisition + lifetime service spend (projected from live 12-mo `svc_capex_signals`), TCO/year, % that is service — our data edge over a valuation-only rival.
+- **Cap-Spend budgets** — new `capex_budgets` collection + `GET/PUT /api/capex/budget` (site or estate scope). CAPEX analysis returns a `capital_budget` block (annual budget vs 12-mo forecast, utilisation %, remaining, over-budget). New `CapSpendCard` UI with inline edit.
+- **Pulse Resale referral** — `build_resale_referral()` returns an outbound link to https://pulseresale.com (category+brand params) ONLY for replace/at-risk assets. No in-app marketplace (per user). UI shows it in the expanded asset row + "trade-in sweet-spot" note.
+- Fleet KPIs gained Fleet Book Value + Total Cost of Ownership; all flow through analysis → board-report JSON → dashboard.
+Files: `utils/capex_intelligence.py` (+compute_valuation/compute_tco/build_resale_referral, fleet totals), `routes/capex.py` (item decoration + budget endpoints + budget block + drilldown), `frontend/src/pages/CapexIntelligenceTab.js` (CapSpendCard, KPIs, valuation/TCO row, resale link).
+Verified: backend via direct calls (Treadmill 07 → replace_soon, book £350/10%, resale link) + testing_agent frontend E2E 100% (7/7). Seeded 3 demo assets + £50k budget into iso-demo-org. Board PDF exporter NOT yet updated (JSON has the data) — follow-up. PREVIEW only — redeploy for production.
