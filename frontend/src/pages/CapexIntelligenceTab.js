@@ -199,7 +199,7 @@ const CONDITION_COLORS = {
   '5': 'var(--color-danger)',
 };
 
-const CapSpendCard = ({ budget, onSave }) => {
+const CapSpendCard = ({ budget, onSave, dataHealth }) => {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -222,7 +222,17 @@ const CapSpendCard = ({ budget, onSave }) => {
           <h3 className="text-lg font-semibold text-white">Cap-Spend Budget vs Forecast</h3>
           <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] border border-white/10 rounded px-1.5 py-0.5">{budget.scope === 'site' ? 'Site' : 'Estate'} · {budget.period_year}</span>
         </div>
-        {!editing && (
+        <div className="flex items-center gap-2">
+          {dataHealth && dataHealth.total_assets > 0 && (
+            <span
+              className={`text-[10px] font-bold rounded-full px-2 py-1 ${dataHealth.actual_pct >= 80 ? 'bg-green-500/15 text-green-300' : dataHealth.actual_pct >= 40 ? 'bg-amber-500/15 text-amber-300' : 'bg-rose-500/15 text-rose-300'}`}
+              title={`${dataHealth.actual_count} of ${dataHealth.total_assets} assets have an actual purchase cost. The rest use estimated (replacement-cost) valuations — expand them and hit "Set actual cost".`}
+              data-testid="capex-data-health"
+            >
+              Data health: {dataHealth.actual_count}/{dataHealth.total_assets} actual ({dataHealth.actual_pct}%)
+            </span>
+          )}
+          {!editing && (
           <Button size="sm" variant="outline" className="border-white/10 text-[var(--color-text-muted)] hover:text-white" onClick={() => { setValue(configured ? String(budget.annual_budget) : ''); setEditing(true); }} data-testid="capex-budget-edit">
             <Wallet size={13} className="mr-1.5" /> {configured ? 'Edit budget' : 'Set budget'}
           </Button>
@@ -234,6 +244,7 @@ const CapSpendCard = ({ budget, onSave }) => {
             <Button size="sm" variant="outline" className="border-white/10 text-[var(--color-text-muted)]" onClick={() => setEditing(false)}>Cancel</Button>
           </div>
         )}
+        </div>
       </div>
       {!configured ? (
         <p className="text-[var(--color-text-muted)] text-sm">No capital budget set. Add one to track your 12-month replacement forecast ({fmt(budget.forecast_12m)}) against an approved Cap-Spend limit.</p>
@@ -675,7 +686,50 @@ const BerTrendSection = ({ trend }) => {
 
 
 /* ─── Equipment Detail Row ─── */
-const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
+const CostNudge = ({ item, onSaved }) => {
+  const { API } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState('');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    const amt = parseFloat(val);
+    if (isNaN(amt) || amt < 0) { notify.error('Enter a valid cost'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API}/equipment/${item.id}`, { purchase_cost: amt },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      notify.success('Purchase cost saved — valuation now actual');
+      onSaved && onSaved();
+    } catch {
+      notify.error('Could not save cost');
+    } finally { setSaving(false); }
+  };
+  return (
+    <div className="col-span-2 md:col-span-4 rounded-lg p-3 bg-amber-500/10 border border-amber-500/25" data-testid={`capex-cost-nudge-${item.id}`}>
+      {!open ? (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-amber-200/90 text-xs flex items-center gap-1.5">
+            <CircleAlert size={13} /> Estimated valuation — based on replacement cost. Add the actual purchase cost for a precise book value & TCO.
+          </p>
+          <button onClick={() => setOpen(true)} className="text-amber-300 text-xs font-bold hover:underline flex-shrink-0" data-testid={`capex-cost-nudge-open-${item.id}`}>
+            Set actual cost →
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-amber-200/90 text-xs">Purchase cost £</span>
+          <input type="number" min="0" step="0.01" value={val} onChange={e => setVal(e.target.value)} autoFocus
+            onKeyDown={e => { if (e.key === 'Enter') save(); }}
+            placeholder="e.g. 3500" className="w-28 px-2 py-1 text-sm rounded bg-white/10 border border-white/15 text-white" data-testid={`capex-cost-nudge-input-${item.id}`} />
+          <button onClick={save} disabled={saving} className="px-3 py-1 text-xs font-bold rounded bg-amber-400 text-amber-950 disabled:opacity-50" data-testid={`capex-cost-nudge-save-${item.id}`}>{saving ? '…' : 'Save'}</button>
+          <button onClick={() => setOpen(false)} className="px-2 py-1 text-xs text-amber-200/70 hover:text-white">Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EquipmentRow = ({ item, justification, isExpanded, onToggle, onCostSaved }) => {
  const cfg = STATUS_CONFIG[item.capex.status] || STATUS_CONFIG.monitor;
  const IconComp = cfg.icon;
  return (
@@ -822,6 +876,7 @@ const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
  <p className="text-white font-semibold tabular-nums">{fmt(item.tco.tco_per_year)}</p>
  </div>
  )}
+ {item.valuation.basis === 'estimated' && <CostNudge item={item} onSaved={onCostSaved} />}
  </div>
  )}
  {/* Suggested Action */}
@@ -1146,7 +1201,7 @@ const CapexIntelligenceTab = () => {
  <SummaryCards summary={data.summary} forecast={data.forecast} />
 
  {/* Cap-Spend Budget vs Forecast */}
- <CapSpendCard budget={data.capital_budget} onSave={saveBudget} />
+ <CapSpendCard budget={data.capital_budget} onSave={saveBudget} dataHealth={data.data_health} />
 
  {/* Replacement Sweet-Spot Planner */}
  <ReplacementPlanner plan={plan} years={planYears} taper={planTaper} onYears={setPlanYears} onTaper={setPlanTaper} loading={planLoading} />
@@ -1252,6 +1307,7 @@ const CapexIntelligenceTab = () => {
  justification={justifications[item.name]}
  isExpanded={!!expanded[item.id]}
  onToggle={() => setExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+ onCostSaved={loadData}
  />
  )) : (
  <p className="text-[var(--color-text-muted)] text-center py-8">No equipment matches this filter</p>

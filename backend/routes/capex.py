@@ -472,6 +472,20 @@ async def get_capex_analysis(
     capital_budget = await _build_budget_block(
         user.get("organization_id"), site_id, forecast["12m"], by_priority.get("immediate", 0),
     )
+    # Data health — how many assets have an ACTUAL purchase cost vs an
+    # estimated (replacement-cost proxy) valuation. Drives the "set actual
+    # cost" nudge so operators can complete the data and sharpen every
+    # board figure.
+    total = len(results)
+    actual_count = sum(1 for r in results if (r.get("valuation") or {}).get("basis") == "actual")
+    missing_cost = [r["id"] for r in results if not (r.get("valuation") or {}).get("basis") == "actual"]
+    data_health = {
+        "total_assets": total,
+        "actual_count": actual_count,
+        "estimated_count": total - actual_count,
+        "actual_pct": round(100 * actual_count / total) if total else 0,
+        "assets_missing_cost": missing_cost[:200],
+    }
 
     return {
         "equipment": results,
@@ -492,6 +506,8 @@ async def get_capex_analysis(
         "fleet_intelligence": fleet,
         # Cap-Spend: capital budget vs 12-month replacement forecast.
         "capital_budget": capital_budget,
+        # Completeness of the actual-cost data behind the valuations.
+        "data_health": data_health,
     }
 
 

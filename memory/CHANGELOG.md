@@ -1047,3 +1047,9 @@ Enabled operators to populate the financial inputs the CAPEX valuation engine ne
 - Frontend Edit form (`EquipmentInfoTab.js`): same three fields added to the edit dialog (data-testid edit-purchase_cost / edit-replacement_cost / edit-expected_lifespan_years); numeric coercion ('' → null) on save.
 - CSV import already supported purchase_cost/purchase_date/replacement_cost (`/api/equipment/import-csv`).
 Result: once an operator enters or imports a real purchase_cost, the CAPEX book/residual value + TCO switch from `basis: estimated` (replacement-cost proxy) to `basis: actual`. Verified via curl: create persists purchase_cost/expected_lifespan_years/purchase_date; PATCH round-trip updates purchase_cost (2200 → 2500). Frontend lint clean (0 errors). Sicon auto-import remains BLOCKED on Sage 200 API credentials. PREVIEW only — redeploy for production.
+
+## Feature: CAPEX data-health badge + per-asset "set actual cost" nudge — Jul 10, 2026
+Drives purchase-cost data completeness so more valuations read `actual`:
+- Backend: `get_capex_analysis` now returns a `data_health` block {total_assets, actual_count, estimated_count, actual_pct, assets_missing_cost} (counts assets whose valuation.basis === 'actual').
+- Frontend (`CapexIntelligenceTab.js`): a colour-coded "Data health: X/Y actual (Z%)" badge in the Cap-Spend card header (data-testid capex-data-health); and a per-asset amber `CostNudge` in the expanded valuation block (only when basis === 'estimated') with an inline "Set actual cost" input that PATCHes /api/equipment/{id} purchase_cost and reloads (data-testid capex-cost-nudge-<id> / -open / -input / -save).
+Verified: data_health via direct calls (MOD org 2/2=100% green; Bitterne 0/44=0% rose, all 44 nudge-eligible); nudge PATCH endpoint previously curl-verified. Frontend lint clean (0 errors). UI not screenshot-verified (harness login/rate-limit); nudge is a thin wrapper over the verified PATCH. PREVIEW only — redeploy for production.
