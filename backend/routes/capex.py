@@ -1209,9 +1209,14 @@ async def _build_board_report_cached(
         org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "name": 1})
         site = await db.sites.find_one({"id": site_id}, {"_id": 0, "name": 1})
         scope_label = (org or site or {}).get("name") or "Selected site"
+    # 5-year replacement sweet-spot plan against the configured budget so
+    # the board PDF matches the on-screen planner.
+    annual_budget = (base.get("capital_budget") or {}).get("annual_budget")
+    replacement_plan = _compute_replacement_plan(base, 5, annual_budget, 0.0)
     return {
         **base,
         "executive_summary": exec_block,
+        "replacement_plan": replacement_plan,
         "scope_label": scope_label,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "prepared_by": user.get("full_name") or user.get("email") or "Platform",

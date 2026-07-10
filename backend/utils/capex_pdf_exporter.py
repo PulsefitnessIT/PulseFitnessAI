@@ -335,6 +335,176 @@ def _service_signals_section(s, equipment: list[dict]) -> list:
     return flow
 
 
+def _budget_and_valuation_section(s, report: dict) -> list:
+    """Cap-Spend budget vs 12-month forecast + fleet valuation / TCO.
+
+    Renders nothing budget-specific when no budget is configured, but
+    always shows the fleet book-value / TCO line when available.
+    """
+    flow: list = []
+    budget = report.get("capital_budget") or {}
+    fleet_kpis = (report.get("fleet_intelligence") or {}).get("fleet_kpis", {})
+
+    flow.append(Paragraph("7. Cap-Spend Budget &amp; Asset Valuation", s["h1"]))
+    flow.append(Paragraph(
+        "Capital budget measured against the 12-month replacement forecast, "
+        "plus the fleet's current book (residual) value and total cost of "
+        "ownership. Book value uses straight-line depreciation; TCO adds "
+        "lifetime service spend to the acquisition cost.", s["muted"]))
+    flow.append(Spacer(1, 3 * mm))
+
+    flow.append(_kpi_row(s, [
+        ("Fleet Book Value", f"£{fleet_kpis.get('total_current_book_value', 0):,.0f}"),
+        ("Acquisition Cost", f"£{fleet_kpis.get('total_acquisition_cost', 0):,.0f}"),
+        ("Total Cost of Ownership", f"£{fleet_kpis.get('total_cost_of_ownership', 0):,.0f}"),
+    ]))
+    flow.append(Spacer(1, 4 * mm))
+
+    if budget.get("configured") and budget.get("annual_budget") is not None:
+        util = budget.get("utilisation_pct")
+        over = budget.get("over_budget")
+        status_txt = (
+            f"OVER BUDGET by £{abs(budget.get('remaining') or 0):,.0f}"
+            if over else f"£{budget.get('remaining') or 0:,.0f} headroom"
+        )
+        status_col = PULSE_DANGER if over else PULSE_OK
+        rows = [
+            [Paragraph("<b>Metric</b>", s["body"]), Paragraph("<b>Value</b>", s["body"])],
+            ["Annual capital budget", f"£{budget.get('annual_budget', 0):,.0f}"],
+            ["12-month replacement forecast", f"£{budget.get('forecast_12m', 0):,.0f}"],
+            ["Committed now (immediate)", f"£{budget.get('committed_immediate', 0):,.0f}"],
+            ["Utilisation", f"{util}%" if util is not None else "—"],
+            ["Status", status_txt],
+        ]
+        tbl = Table(rows, colWidths=[70 * mm, 40 * mm])
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), PULSE_LIGHT),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PULSE_LIGHT]),
+            ("LINEBELOW", (0, 0), (-1, 0), 1, PULSE_MUTED),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("TEXTCOLOR", (1, 5), (1, 5), status_col),
+            ("FONTNAME", (1, 5), (1, 5), "Helvetica-Bold"),
+        ]))
+        flow.append(tbl)
+    else:
+        flow.append(Paragraph(
+            "No capital (Cap-Spend) budget configured. Set one in the CAPEX "
+            "dashboard to track spend against an approved limit.", s["muted"]))
+    flow.append(Spacer(1, 6 * mm))
+    return flow
+
+
+def _replacement_plan_section(s, plan: dict) -> list:
+    """Multi-year replacement sweet-spot plan vs budget, year by year."""
+    flow: list = []
+    if not plan or not plan.get("years"):
+        return flow
+    horizon = plan.get("horizon_years", 5)
+    flow.append(Paragraph("8. Replacement Sweet-Spot Plan", s["h1"]))
+    intro = (
+        f"Each asset scheduled into its optimal replacement year over the next "
+        f"{horizon} years — derived from lifecycle stage, Beyond-Economic-Repair "
+        f"signal and safety risk — then costed against the capital budget."
+    )
+    totals = plan.get("totals") or {}
+    if totals.get("budget") is not None:
+        shortfall = totals.get("shortfall")
+        intro += (
+            f" {horizon}-year plan cost £{totals.get('plan_cost', 0):,.0f} vs budget "
+            f"£{totals.get('budget', 0):,.0f} — "
+            + (f"shortfall £{shortfall:,.0f}." if (shortfall or 0) > 0
+               else f"£{abs(shortfall or 0):,.0f} headroom.")
+        )
+    flow.append(Paragraph(intro, s["muted"]))
+    flow.append(Spacer(1, 3 * mm))
+
+    header = ["Year", "Scheduled", "Cost", "Budget", "Utilisation", "Status"]
+    rows = [[Paragraph(f"<b>{h}</b>", s["body"]) for h in header]]
+    over_rows = []
+    for i, y in enumerate(plan["years"], start=1):
+        util = y.get("utilisation_pct")
+        over = y.get("over_budget")
+        if over:
+            over_rows.append(i)
+        rows.append([
+            Paragraph(str(y.get("year")), s["body"]),
+            Paragraph(f"{y.get('asset_count', 0)} assets", s["body"]),
+            Paragraph(f"£{y.get('total_cost', 0):,.0f}", s["body"]),
+            Paragraph(f"£{y.get('budget'):,.0f}" if y.get("budget") is not None else "—", s["body"]),
+            Paragraph(f"{util}%" if util is not None else "—", s["body"]),
+            Paragraph("OVER" if over else "OK", s["body"]),
+        ])
+    tbl = Table(rows, colWidths=[20 * mm, 28 * mm, 28 * mm, 28 * mm, 30 * mm, 26 * mm], repeatRows=1)
+    style = [
+        ("BACKGROUND", (0, 0), (-1, 0), s["primary"]),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PULSE_LIGHT]),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("GRID", (0, 0), (-1, -1), 0.25, PULSE_LIGHT),
+    ]
+    for i in over_rows:
+        style.append(("TEXTCOLOR", (5, i), (5, i), PULSE_DANGER))
+        style.append(("FONTNAME", (5, i), (5, i), "Helvetica-Bold"))
+    tbl.setStyle(TableStyle(style))
+    flow.append(tbl)
+
+    beyond = plan.get("beyond_horizon") or {}
+    if beyond.get("asset_count"):
+        flow.append(Spacer(1, 2 * mm))
+        flow.append(Paragraph(
+            f"Beyond {horizon} years: {beyond['asset_count']} assets "
+            f"(£{beyond.get('total_cost', 0):,.0f}) still within useful life.", s["muted"]))
+
+    # Assets scheduled this year (year 0) — the immediate action list.
+    year0 = plan["years"][0] if plan["years"] else {}
+    y0_assets = (year0.get("assets") or [])[:12]
+    if y0_assets:
+        flow.append(Spacer(1, 4 * mm))
+        flow.append(Paragraph(f"<b>Scheduled for {year0.get('year')} (this year)</b>", s["body"]))
+        flow.append(Spacer(1, 2 * mm))
+        a_rows = [[
+            Paragraph("<b>Asset</b>", s["body"]),
+            Paragraph("<b>Location</b>", s["body"]),
+            Paragraph("<b>Replacement</b>", s["body"]),
+            Paragraph("<b>Residual</b>", s["body"]),
+            Paragraph("<b>Why</b>", s["body"]),
+        ]]
+        for a in y0_assets:
+            resid = a.get("residual_value")
+            a_rows.append([
+                Paragraph(_esc(a.get("name", "")), s["body"]),
+                Paragraph(_esc(a.get("location") or "—"), s["body"]),
+                Paragraph(f"£{a.get('replacement_cost', 0):,.0f}", s["body"]),
+                Paragraph(f"£{resid:,.0f}" if resid is not None else "—", s["body"]),
+                Paragraph(_esc(a.get("reason") or ""), s["body"]),
+            ])
+        a_tbl = Table(a_rows, colWidths=[42 * mm, 30 * mm, 26 * mm, 22 * mm, 50 * mm], repeatRows=1)
+        a_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), PULSE_LIGHT),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PULSE_LIGHT]),
+            ("LINEBELOW", (0, 0), (-1, 0), 1, PULSE_MUTED),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        flow.append(a_tbl)
+    flow.append(Spacer(1, 6 * mm))
+    return flow
+
+
 def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bool = False) -> bytes:
     """Render the full Board CAPEX PDF and return raw bytes.
 
@@ -472,8 +642,15 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bo
     ))
     flow.append(Spacer(1, 6 * mm))
 
-    # ─── 7. Recommendations ─────────────────────────────────
-    flow.append(Paragraph("7. Replacement Recommendations (Top 20)", s["h1"]))
+    # ─── 7. Cap-Spend Budget & Asset Valuation ──────────────
+    flow.extend(_budget_and_valuation_section(s, report))
+
+    # ─── 8. Replacement Sweet-Spot Plan ─────────────────────
+    flow.extend(_replacement_plan_section(s, report.get("replacement_plan") or {}))
+    flow.append(PageBreak())
+
+    # ─── 9. Recommendations ─────────────────────────────────
+    flow.append(Paragraph("9. Replacement Recommendations (Top 20)", s["h1"]))
     flagged = [
         e for e in (report.get("equipment") or [])
         if (e.get("capex") or {}).get("status") in ("replace_now", "replace_soon", "at_risk")
@@ -484,8 +661,8 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bo
         flow.append(Paragraph("No assets flagged for replacement.", s["muted"]))
     flow.append(PageBreak())
 
-    # ─── 8. Asset Register ──────────────────────────────────
-    flow.append(Paragraph("8. Asset Register — Detailed", s["h1"]))
+    # ─── 10. Asset Register ─────────────────────────────────
+    flow.append(Paragraph("10. Asset Register — Detailed", s["h1"]))
     flow.append(Paragraph(
         f"Top {min(25, len(report.get('equipment') or []))} assets by CAPEX urgency. "
         "Full register available in the platform.", s["muted"]))
@@ -493,8 +670,8 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bo
     flow.append(_equipment_table(s, report.get("equipment") or [], limit=25))
     flow.append(Spacer(1, 8 * mm))
 
-    # ─── 9. Sign-off footer ────────────────────────────────
-    flow.append(Paragraph("9. Sign-off", s["h1"]))
+    # ─── 11. Sign-off footer ────────────────────────────────
+    flow.append(Paragraph("11. Sign-off", s["h1"]))
     sign_table = Table(
         [
             [Paragraph("<b>Prepared by</b>", s["body"]), Paragraph(_esc(report.get("prepared_by", brand_name)), s["body"])],
