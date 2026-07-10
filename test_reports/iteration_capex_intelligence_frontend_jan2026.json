@@ -1,0 +1,19 @@
+{
+  "summary": "Frontend-only validation of the CAPEX Intelligence sub-tab (Operations > Reports > CAPEX Intelligence) for iso-demo-org. All 7 requested UI checks pass: sub-tab renders, Cap-Spend budget card + edit flow work, Fleet KPIs include Book Value and TCO, Treadmill 07 (Old) expanded panel shows valuation (£350 / 10% residual / TCO £3,500 / TCO/yr £388.89) AND a Pulse Resale referral to pulseresale.com (target _blank, mentions residual/trade-in), healthy assets show valuation but NO Pulse Resale referral.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Two Reports implementations exist (Dashboard/ReportsSection.js uses report-sub-capex, PulseReportsTab.js uses pulse-report-sub-capex). Owner login lands on /service-desk which uses the ServiceOps view (no CAPEX sub-tab). The CAPEX Intelligence tab is reachable only via /dashboard (main Operations dashboard). Consider surfacing it from ServiceOps too, or making the sidebar 'Reports' route to the CAPEX-aware view for owner role. Task description referenced report-sub-capex which is correct for /dashboard.",
+    "Rate-limited /api/auth/login (429) is aggressive for automated testing; noted in task context."
+  ],
+  "updated_files": [],
+  "success_rate": {"frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None. Reused seeded iso-demo-org assets and existing £50,000 budget. Budget was temporarily changed to £60,000 during edit test, then reset to £50,000 (verified).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To reach CAPEX Intelligence: login → navigate to /dashboard (NOT /service-desk which shows ServiceOps reports) → click 'Reports' top-tab → click data-testid=report-sub-capex. Verified data: Treadmill 07 valuation £350 (10% residual), £3,150 depreciation, TCO £3,500, TCO/yr £388.89; Pulse Resale href=https://pulseresale.com/?category=Treadmill&brand=Life+Fitness target=_blank. Spin Bike 12 book £891.42 (74.3% residual) no resale. Cable Machine 03 book £3,150 (70% residual) no resale. Fleet Book Value £4,391.42, Fleet TCO £9,200. Budget edit toast: no explicit toast selector detected but card recomputes correctly (7.6% ↔ 6.3% utilisation for £50k vs £60k).",
+  "rca of the issue": "N/A — all features work as spec'd."
+}

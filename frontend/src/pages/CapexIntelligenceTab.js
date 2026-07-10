@@ -12,7 +12,8 @@ import {
 import {
  TrendingUp, TrendingDown, AlertTriangle, Shield, Download,
  Brain, Loader2, ChevronDown, ChevronUp, FileText,
- CheckCircle, Clock, XCircle, CircleAlert, Gauge, Target, ArrowRight
+ CheckCircle, Clock, XCircle, CircleAlert, Gauge, Target, ArrowRight,
+ Recycle, ExternalLink, Wallet, PiggyBank
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -198,6 +199,64 @@ const CONDITION_COLORS = {
   '5': 'var(--color-danger)',
 };
 
+const CapSpendCard = ({ budget, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
+  if (!budget) return null;
+  const configured = budget.configured && budget.annual_budget != null;
+  const util = budget.utilisation_pct;
+  const over = budget.over_budget;
+  const barColor = !configured ? 'var(--color-brand-blue)' : over ? 'var(--color-danger)' : util >= 80 ? 'var(--color-orange)' : 'var(--color-green)';
+  const save = async () => {
+    const amt = parseFloat(value);
+    if (isNaN(amt) || amt < 0) return;
+    setSaving(true);
+    try { await onSave(amt); setEditing(false); } finally { setSaving(false); }
+  };
+  return (
+    <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="capex-capspend-card">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <PiggyBank size={18} className="text-[var(--color-brand-blue)]" />
+          <h3 className="text-lg font-semibold text-white">Cap-Spend Budget vs Forecast</h3>
+          <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] border border-white/10 rounded px-1.5 py-0.5">{budget.scope === 'site' ? 'Site' : 'Estate'} · {budget.period_year}</span>
+        </div>
+        {!editing && (
+          <Button size="sm" variant="outline" className="border-white/10 text-[var(--color-text-muted)] hover:text-white" onClick={() => { setValue(configured ? String(budget.annual_budget) : ''); setEditing(true); }} data-testid="capex-budget-edit">
+            <Wallet size={13} className="mr-1.5" /> {configured ? 'Edit budget' : 'Set budget'}
+          </Button>
+        )}
+        {editing && (
+          <div className="flex items-center gap-2">
+            <input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="Annual £" className="w-32 px-2 py-1.5 text-sm rounded bg-white/5 border border-white/10 text-white" data-testid="capex-budget-input" />
+            <Button size="sm" disabled={saving} onClick={save} className="bg-[var(--color-brand-blue)] text-white" data-testid="capex-budget-save">{saving ? '…' : 'Save'}</Button>
+            <Button size="sm" variant="outline" className="border-white/10 text-[var(--color-text-muted)]" onClick={() => setEditing(false)}>Cancel</Button>
+          </div>
+        )}
+      </div>
+      {!configured ? (
+        <p className="text-[var(--color-text-muted)] text-sm">No capital budget set. Add one to track your 12-month replacement forecast ({fmt(budget.forecast_12m)}) against an approved Cap-Spend limit.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white/5 rounded-lg p-3"><p className="text-[var(--color-text-muted)] text-[10px] uppercase">Annual Budget</p><p className="text-lg font-semibold text-white">{fmt(budget.annual_budget)}</p></div>
+            <div className="bg-white/5 rounded-lg p-3"><p className="text-[var(--color-text-muted)] text-[10px] uppercase">12-mo Forecast</p><p className="text-lg font-semibold text-white">{fmt(budget.forecast_12m)}</p></div>
+            <div className="bg-white/5 rounded-lg p-3"><p className="text-[var(--color-text-muted)] text-[10px] uppercase">Committed (now)</p><p className="text-lg font-semibold text-white">{fmt(budget.committed_immediate)}</p></div>
+            <div className="bg-white/5 rounded-lg p-3"><p className="text-[var(--color-text-muted)] text-[10px] uppercase">Remaining</p><p className={`text-lg font-semibold ${over ? 'text-red-400' : 'text-green-400'}`}>{fmt(budget.remaining)}</p></div>
+          </div>
+          <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, util || 0)}%`, background: barColor }} />
+          </div>
+          <p className="text-xs mt-2" style={{ color: over ? 'var(--color-danger)' : 'var(--color-text-muted)' }} data-testid="capex-budget-status">
+            {over ? `⚠ Forecast exceeds budget by ${fmt(Math.abs(budget.remaining))} (${util}% utilised)` : `${util}% of budget forecast to be used`}
+          </p>
+        </>
+      )}
+    </Card>
+  );
+};
+
 const FleetKPIStrip = ({ kpis, conditionAverage }) => (
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="capex-fleet-kpis">
   <div className="flex items-center gap-2 mb-4">
@@ -214,6 +273,8 @@ const FleetKPIStrip = ({ kpis, conditionAverage }) => (
       { label: 'Avg Age', value: kpis.average_age_years != null ? `${kpis.average_age_years} yr` : '—', color: 'text-white', test: 'kpi-avg-age' },
       { label: 'Est. Lifetime Saving', value: fmt(kpis.estimated_lifetime_saving), color: 'text-green-400', test: 'kpi-lifetime-saving' },
       { label: 'Full-Fleet Replacement', value: fmt(kpis.total_replacement_cost_full_fleet), color: 'text-white', test: 'kpi-full-replacement' },
+      { label: 'Fleet Book Value', value: fmt(kpis.total_current_book_value), color: 'text-cyan-400', test: 'kpi-book-value' },
+      { label: 'Total Cost of Ownership', value: fmt(kpis.total_cost_of_ownership), color: 'text-white', test: 'kpi-tco' },
     ].map(k => (
       <div key={k.label} className="bg-white/5 rounded-lg p-3" data-testid={k.test}>
         <p className="text-[var(--color-text-muted)] text-[10px] uppercase tracking-wide mb-1">{k.label}</p>
@@ -642,6 +703,34 @@ const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
  </div>
  </div>
  )}
+ {/* Asset Financial Intelligence — depreciation / residual value + TCO */}
+ {item.valuation?.available && (
+ <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid={`capex-valuation-${item.id}`}>
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">Current Book Value</p>
+ <p className="text-white font-semibold tabular-nums">{fmt(item.valuation.current_book_value)}</p>
+ <p className="text-[var(--color-text-muted)] text-[10px] mt-0.5">{item.valuation.residual_value_pct}% residual{item.valuation.basis === 'estimated' ? ' · est.' : ''}</p>
+ </div>
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">Depreciation (to date)</p>
+ <p className="text-white font-semibold tabular-nums">{fmt(item.valuation.accumulated_depreciation)}</p>
+ <p className="text-[var(--color-text-muted)] text-[10px] mt-0.5">{fmt(item.valuation.annual_depreciation)}/yr straight-line</p>
+ </div>
+ {item.tco && (
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">Total Cost of Ownership</p>
+ <p className="text-white font-semibold tabular-nums">{fmt(item.tco.total_cost_of_ownership)}</p>
+ <p className="text-[var(--color-text-muted)] text-[10px] mt-0.5">{item.tco.service_pct_of_tco}% is service spend</p>
+ </div>
+ )}
+ {item.tco && (
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">TCO / Year</p>
+ <p className="text-white font-semibold tabular-nums">{fmt(item.tco.tco_per_year)}</p>
+ </div>
+ )}
+ </div>
+ )}
  {/* Suggested Action */}
  <div className={`rounded-lg p-4 ${cfg.bg}`}>
  <p className={`font-semibold text-sm ${cfg.text}`}>{item.capex.suggested_action}</p>
@@ -649,6 +738,26 @@ const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
  <p className="text-[var(--color-text-muted)] text-xs mt-1">Replacement cost: {fmt(item.capex.replacement_cost)} · Timeline: within {item.capex.replace_within_months} months</p>
  )}
  </div>
+ {/* Pulse Resale referral — source a replacement / trade in the retired unit */}
+ {item.resale && (
+ <a
+   href={item.resale.url}
+   target="_blank"
+   rel="noopener noreferrer"
+   className="flex items-center gap-3 rounded-lg p-4 bg-[rgb(var(--rgb-brand-blue)/0.1)] border border-[rgb(var(--rgb-brand-blue)/0.3)] hover:bg-[rgb(var(--rgb-brand-blue)/0.15)] transition-colors"
+   data-testid={`capex-resale-${item.id}`}
+ >
+   <Recycle size={18} className="text-[var(--color-brand-blue)] flex-shrink-0" />
+   <div className="flex-1 min-w-0">
+     <p className="text-[var(--color-brand-blue)] text-sm font-semibold">{item.resale.label}</p>
+     <p className="text-[var(--color-text-muted)] text-[11px] mt-0.5">
+       {item.resale.sweet_spot ? 'Ageing asset — a good window to trade in while residual value remains. ' : ''}
+       {item.resale.estimated_residual_value != null ? `Est. residual value: ${fmt(item.resale.estimated_residual_value)}` : ''}
+     </p>
+   </div>
+   <ExternalLink size={14} className="text-[var(--color-brand-blue)] flex-shrink-0" />
+ </a>
+ )}
  {/* AI Justification */}
  {justification && (
  <div className="rounded-lg p-4 bg-[rgb(var(--rgb-brand-blue)/0.1)] border border-[rgb(var(--rgb-brand-blue)/0.2)]">
@@ -815,6 +924,16 @@ const CapexIntelligenceTab = () => {
 
  useEffect(() => { loadData(); }, [loadData]);
 
+ const saveBudget = async (amount) => {
+ try {
+ await axios.put(`${API}/capex/budget`, { annual_budget: amount, site_id: '' }, { headers });
+ notify.success('Cap-Spend budget updated');
+ loadData();
+ } catch {
+ notify.error('Failed to save budget');
+ }
+ };
+
  const generateJustifications = async () => {
  setGeneratingAI(true);
  try {
@@ -913,6 +1032,9 @@ const CapexIntelligenceTab = () => {
 
  {/* Summary */}
  <SummaryCards summary={data.summary} forecast={data.forecast} />
+
+ {/* Cap-Spend Budget vs Forecast */}
+ <CapSpendCard budget={data.capital_budget} onSave={saveBudget} />
 
  {/* Fleet Intelligence KPIs */}
  {data.fleet_intelligence?.fleet_kpis && (

@@ -250,7 +250,7 @@ def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq
         compute_lifecycle_stage, compute_condition_scores,
         compute_fault_history_breakdown, compute_downtime_metrics,
         compute_ber_flag, compute_safety_risk, compute_roi_estimate,
-        build_recommendation_detail,
+        compute_valuation, build_recommendation_detail,
     )
     now_dt = datetime.now(timezone.utc)
     asset_faults = (faults_by_eq or {}).get(equip["id"], [])
@@ -276,6 +276,12 @@ def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq
         age_years=capex.get("age_years"),
         expected_lifespan_years=capex.get("expected_lifespan_years"),
     )
+    valuation = compute_valuation(
+        acquisition_cost=equip.get("purchase_cost"),
+        age_years=capex.get("age_years"),
+        expected_lifespan_years=capex.get("expected_lifespan_years"),
+        replacement_cost=capex.get("replacement_cost"),
+    )
 
     return {
         "id": equip["id"], "name": equip.get("name", "Unknown"),
@@ -299,6 +305,7 @@ def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq
         "ber_flag": ber,
         "safety_risk": safety,
         "roi_estimate": roi,
+        "valuation": valuation,
         "recommendation": recommendation,
     }
 
@@ -365,6 +372,7 @@ async def get_capex_analysis(
         return {
             "equipment": [], "summary": {"total": 0}, "forecast": {},
             "fleet_intelligence": aggregate_fleet_intelligence([]),
+            "capital_budget": await _build_budget_block(user.get("organization_id"), site_id, 0, 0),
         }
 
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
@@ -409,8 +417,10 @@ async def get_capex_analysis(
     # Attach the SVC signal payload (+ BER computation) to each
     # equipment item. Done post-aggregation so we have the resolved
     # replacement_cost from `_compute_capex_score`.
+    from utils.capex_intelligence import compute_tco, build_resale_referral
     for item in results:
         sig = svc_signals.get(item["id"])
+        spend_12mo = sig["service_spend_12mo"] if sig else 0.0
         if not sig:
             item["service_signals"] = {
                 "service_visits_12mo": 0,
@@ -435,9 +445,28 @@ async def get_capex_analysis(
                     replacement_cost=item.get("capex", {}).get("replacement_cost", 0),
                 ),
             }
+        # TCO (acquisition + lifetime service) + Pulse Resale referral —
+        # computed here because they blend the valuation + live service spend.
+        item["tco"] = compute_tco(
+            acquisition_cost=item.get("valuation", {}).get("acquisition_cost"),
+            replacement_cost=item.get("capex", {}).get("replacement_cost"),
+            service_spend_12mo=spend_12mo,
+            age_years=item.get("capex", {}).get("age_years"),
+            valuation=item.get("valuation"),
+        )
+        item["resale"] = build_resale_referral(
+            equipment_type=item.get("equipment_type"),
+            manufacturer=item.get("manufacturer"),
+            status=item.get("capex", {}).get("status", "monitor"),
+            lifecycle_stage=(item.get("lifecycle_stage") or {}).get("stage"),
+            valuation=item.get("valuation"),
+        )
 
     priority_top5 = [r for r in results if r["capex"]["status"] in ("replace_now", "replace_soon", "at_risk")][:5]
     fleet = aggregate_fleet_intelligence(results)
+    capital_budget = await _build_budget_block(
+        user.get("organization_id"), site_id, forecast["12m"], by_priority.get("immediate", 0),
+    )
 
     return {
         "equipment": results,
@@ -456,6 +485,8 @@ async def get_capex_analysis(
         # Iter 216h127 — fleet-level board KPIs (lifecycle, condition,
         # safety, BER, ROI, priority matrix).
         "fleet_intelligence": fleet,
+        # Cap-Spend: capital budget vs 12-month replacement forecast.
+        "capital_budget": capital_budget,
     }
 
 
@@ -502,9 +533,30 @@ async def get_asset_service_signals(
         service_spend_12mo=sig["service_spend_12mo"],
         replacement_cost=replacement_cost,
     )
+    # Valuation + TCO so the asset drawer / integrations get the full
+    # financial picture, not just service signals.
+    from utils.capex_intelligence import compute_valuation, compute_tco, build_resale_referral
+    from utils.helpers import get_bulk_equipment_stats
+    stats_map = await get_bulk_equipment_stats([equip], org_filter)
+    age_years = (stats_map.get(asset_id, {}).get("days_in_service") or 0) / 365 or None
+    valuation = compute_valuation(
+        acquisition_cost=equip.get("purchase_cost"),
+        age_years=age_years,
+        expected_lifespan_years=equip.get("expected_lifespan_years"),
+        replacement_cost=replacement_cost,
+    )
+    tco = compute_tco(
+        acquisition_cost=equip.get("purchase_cost"),
+        replacement_cost=replacement_cost,
+        service_spend_12mo=sig["service_spend_12mo"],
+        age_years=age_years,
+        valuation=valuation,
+    )
     return {
         "asset": equip,
         "replacement_cost": replacement_cost,
+        "valuation": valuation,
+        "tco": tco,
         "service_signals": {
             "service_visits_12mo": sig["service_visits_12mo"],
             "open_service_cases": sig["open_service_cases"],
@@ -826,6 +878,103 @@ async def master_admin_capex_overview(user: dict = Depends(get_current_user)) ->
             "total_faults": issue_count,
         })
     return {"organizations": overview}
+
+
+# ─────────────────────── Cap-Spend budget ───────────────────────
+#
+# A per-org (optionally per-site) annual capital budget the CAPEX
+# forecast is measured against. Stored in its own `capex_budgets`
+# collection — it never duplicates equipment/CAPEX data, it only holds
+# the budget figure the existing 12-month replacement forecast is
+# compared to.
+
+async def _get_capex_budget_doc(org_id: str | None, site_id: str | None) -> dict | None:
+    """Resolve the most specific budget: site-level first, then org-level."""
+    if not org_id:
+        return None
+    if site_id:
+        doc = await db.capex_budgets.find_one(
+            {"organization_id": org_id, "site_id": site_id}, {"_id": 0},
+        )
+        if doc:
+            return doc
+    return await db.capex_budgets.find_one(
+        {"organization_id": org_id, "$or": [{"site_id": ""}, {"site_id": None}]}, {"_id": 0},
+    )
+
+
+async def _build_budget_block(org_id: str | None, site_id: str | None,
+                              forecast_12m: float, committed_immediate: float) -> dict:
+    doc = await _get_capex_budget_doc(org_id, site_id)
+    year = datetime.now(timezone.utc).year
+    if not doc or not doc.get("annual_budget"):
+        return {
+            "configured": False,
+            "annual_budget": None,
+            "period_year": year,
+            "forecast_12m": round(forecast_12m, 2),
+            "committed_immediate": round(committed_immediate, 2),
+            "utilisation_pct": None,
+            "remaining": None,
+            "over_budget": False,
+            "scope": "site" if site_id else "estate",
+        }
+    budget = float(doc["annual_budget"])
+    remaining = round(budget - forecast_12m, 2)
+    return {
+        "configured": True,
+        "annual_budget": budget,
+        "period_year": doc.get("period_year") or year,
+        "forecast_12m": round(forecast_12m, 2),
+        "committed_immediate": round(committed_immediate, 2),
+        "utilisation_pct": round(100 * forecast_12m / budget, 1) if budget else None,
+        "remaining": remaining,
+        "over_budget": forecast_12m > budget,
+        "scope": doc.get("site_id") and "site" or "estate",
+        "currency": doc.get("currency", "GBP"),
+    }
+
+
+@router.get("/capex/budget")
+async def get_capex_budget(user: dict = Depends(get_current_user), site_id: str = ""):
+    """Return the configured Cap-Spend budget (site-level, else estate)."""
+    _require_owner_or_manager(user)
+    doc = await _get_capex_budget_doc(user.get("organization_id"), site_id or None)
+    if not doc:
+        return {"configured": False, "annual_budget": None, "site_id": site_id,
+                "period_year": datetime.now(timezone.utc).year, "currency": "GBP"}
+    return {"configured": True, **doc}
+
+
+@router.put("/capex/budget")
+async def set_capex_budget(data: dict, user: dict = Depends(get_current_user)):
+    """Set/update the annual capital budget. Owner/manager only. Pass
+    `site_id` (empty string = estate-wide)."""
+    _require_owner_or_manager(user)
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(400, "Organization context required")
+    try:
+        annual_budget = float(data.get("annual_budget"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "annual_budget must be a number")
+    if annual_budget < 0:
+        raise HTTPException(400, "annual_budget cannot be negative")
+    site_id = (data.get("site_id") or "").strip()
+    record = {
+        "organization_id": org_id,
+        "site_id": site_id,
+        "annual_budget": round(annual_budget, 2),
+        "period_year": int(data.get("period_year") or datetime.now(timezone.utc).year),
+        "currency": (data.get("currency") or "GBP").upper(),
+        "updated_by": user["id"],
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.capex_budgets.update_one(
+        {"organization_id": org_id, "site_id": site_id},
+        {"$set": record}, upsert=True,
+    )
+    return {"success": True, **record}
 
 
 # ─────────────────────────── Board CAPEX Report ──────────────────

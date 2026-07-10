@@ -27,6 +27,108 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 
+# ─────────────────────── Asset valuation / depreciation ─────────
+
+# Commercial gym equipment retains a residual/salvage floor at the end
+# of its expected life (parts, frame, resale). 10% is a conservative
+# industry default; overridable per-org via capex_config later.
+RESIDUAL_FLOOR_PCT = 0.10
+
+# Referral target for sourcing replacements / trading in retired kit.
+# We deliberately do NOT run our own marketplace — we hand off to Pulse
+# Resale. No inventory, no listings held in-platform.
+PULSE_RESALE_URL = "https://pulseresale.com/"
+
+
+def compute_valuation(acquisition_cost: float | None, age_years: float | None,
+                      expected_lifespan_years: float | None, replacement_cost: float | None,
+                      residual_floor_pct: float = RESIDUAL_FLOOR_PCT) -> dict:
+    """Straight-line depreciation → current book / residual value.
+
+    Uses the asset's real `purchase_cost` when available; falls back to
+    `replacement_cost` as an estimated acquisition basis (flagged via
+    `basis`). Never duplicates the CAPEX replacement-cost logic — this
+    is the *backward-looking* value of the asset you already own, the
+    piece Orbit4 leads on that the scoring engine didn't cover.
+    """
+    basis = "actual"
+    acq = acquisition_cost
+    if not acq or acq <= 0:
+        acq = replacement_cost or 0
+        basis = "estimated"
+    if not acq or acq <= 0:
+        return {"available": False}
+    life = expected_lifespan_years or 8
+    age = max(0.0, age_years or 0)
+    salvage = round(acq * residual_floor_pct, 2)
+    annual_dep = round((acq - salvage) / life, 2) if life > 0 else 0.0
+    accumulated = min(annual_dep * age, acq - salvage)
+    book = round(max(salvage, acq - accumulated), 2)
+    return {
+        "available": True,
+        "basis": basis,
+        "acquisition_cost": round(acq, 2),
+        "salvage_value": salvage,
+        "annual_depreciation": annual_dep,
+        "accumulated_depreciation": round(accumulated, 2),
+        "current_book_value": book,
+        "residual_value_pct": round(100 * book / acq, 1) if acq else None,
+        "depreciation_method": "straight_line",
+        "expected_lifespan_years": life,
+    }
+
+
+def compute_tco(acquisition_cost: float | None, replacement_cost: float | None,
+                service_spend_12mo: float | None, age_years: float | None,
+                valuation: dict | None = None) -> dict:
+    """Total cost of ownership = acquisition + lifetime service/parts spend.
+
+    Lifetime service is estimated from the live 12-month service spend
+    (from `svc_capex_signals`) projected across the asset's age — our
+    unfair advantage over a valuation-only competitor, since we hold the
+    real service history.
+    """
+    acq = (valuation or {}).get("acquisition_cost") or acquisition_cost or replacement_cost or 0
+    age = max(0.0, age_years or 0)
+    annual_service = float(service_spend_12mo or 0)
+    lifetime_service = round(annual_service * max(age, 1.0), 2)
+    total = round(acq + lifetime_service, 2)
+    tco_per_year = round(total / age, 2) if age >= 1 else total
+    return {
+        "acquisition_cost": round(acq, 2),
+        "annual_service_spend": round(annual_service, 2),
+        "estimated_lifetime_service_spend": lifetime_service,
+        "total_cost_of_ownership": total,
+        "tco_per_year": tco_per_year,
+        "service_pct_of_tco": round(100 * lifetime_service / total, 1) if total else 0.0,
+        "basis": "estimated",
+    }
+
+
+def build_resale_referral(equipment_type: str | None, manufacturer: str | None,
+                          status: str, lifecycle_stage: str | None,
+                          valuation: dict | None) -> dict | None:
+    """For assets flagged for replacement, hand off to Pulse Resale for
+    sourcing a replacement or trading in the retired unit. Returns None
+    for healthy assets (no referral needed). No marketplace held here."""
+    if status not in ("replace_now", "replace_soon", "at_risk"):
+        return None
+    from urllib.parse import urlencode
+    params = {}
+    if equipment_type:
+        params["category"] = equipment_type
+    if manufacturer:
+        params["brand"] = manufacturer
+    query = ("?" + urlencode(params)) if params else ""
+    residual = (valuation or {}).get("current_book_value") if valuation and valuation.get("available") else None
+    return {
+        "url": PULSE_RESALE_URL + query,
+        "label": "Source replacement or trade-in via Pulse Resale",
+        "estimated_residual_value": residual,
+        "sweet_spot": lifecycle_stage in ("Ageing", "End-of-life"),
+    }
+
+
 # ─────────────────────── Lifecycle stage ────────────────────────
 
 def compute_lifecycle_stage(age_years: float | None, expected_lifespan: float | None) -> dict:
@@ -351,6 +453,9 @@ def aggregate_fleet_intelligence(results: list[dict]) -> dict:
                 "estimated_lifetime_saving": 0,
                 "total_replacement_cost_full_fleet": 0,
                 "average_age_years": None,
+                "total_current_book_value": 0,
+                "total_acquisition_cost": 0,
+                "total_cost_of_ownership": 0,
             },
             "priority_matrix": [],
         }
@@ -371,6 +476,9 @@ def aggregate_fleet_intelligence(results: list[dict]) -> dict:
     condition_sum = 0
     age_sum = 0.0
     age_n = 0
+    total_book_value = 0.0
+    total_acquisition = 0.0
+    total_tco = 0.0
     matrix: list[dict] = []
 
     for r in results:
@@ -409,6 +517,13 @@ def aggregate_fleet_intelligence(results: list[dict]) -> dict:
             age_sum += capex["age_years"]
             age_n += 1
 
+        val = r.get("valuation") or {}
+        if val.get("available"):
+            total_book_value += val.get("current_book_value") or 0
+            total_acquisition += val.get("acquisition_cost") or 0
+        tco = r.get("tco") or {}
+        total_tco += tco.get("total_cost_of_ownership") or 0
+
         # Priority-matrix datapoint:
         matrix.append({
             "id": r.get("id"),
@@ -443,6 +558,9 @@ def aggregate_fleet_intelligence(results: list[dict]) -> dict:
             "estimated_lifetime_saving": round(lifetime_saving, 2),
             "total_replacement_cost_full_fleet": total_replacement,
             "average_age_years": round(age_sum / age_n, 1) if age_n else None,
+            "total_current_book_value": round(total_book_value, 2),
+            "total_acquisition_cost": round(total_acquisition, 2),
+            "total_cost_of_ownership": round(total_tco, 2),
         },
         "priority_matrix": matrix,
     }
@@ -490,6 +608,9 @@ __all__ = [
     "compute_ber_flag",
     "compute_safety_risk",
     "compute_roi_estimate",
+    "compute_valuation",
+    "compute_tco",
+    "build_resale_referral",
     "build_recommendation_detail",
     "aggregate_fleet_intelligence",
     "build_executive_summary",
