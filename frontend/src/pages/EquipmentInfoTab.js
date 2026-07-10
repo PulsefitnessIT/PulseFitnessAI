@@ -294,6 +294,9 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  serial_number: equip.serial_number || '',
  purchase_date: equip.purchase_date || '',
  warranty_expiry: equip.warranty_expiry || '',
+ purchase_cost: equip.purchase_cost ?? '',
+ replacement_cost: equip.replacement_cost ?? '',
+ expected_lifespan_years: equip.expected_lifespan_years ?? '',
  location: equip.location || '',
  sla_response_time: equip.sla_response_time || '',
  sla_contract_ref: equip.sla_contract_ref || '',
@@ -310,6 +313,10 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  const token = localStorage.getItem('token');
  const supplierChanged = (editForm.supplier || '') !== (selectedEquipment?.supplier || '');
  const payload = { ...editForm };
+ // Coerce CAPEX numeric fields: '' → null, else Number.
+ ['purchase_cost', 'replacement_cost', 'expected_lifespan_years'].forEach((k) => {
+ payload[k] = payload[k] === '' || payload[k] == null ? null : Number(payload[k]);
+ });
  if (canEditSupplier && supplierChanged && editForm.supplier && notifySupplier) {
  payload.notify_supplier = true;
  }
@@ -781,6 +788,9 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  { key: 'location', label: 'Location', placeholder: 'e.g. Cardio Zone', datalist: 'edit-location-presets' },
  { key: 'purchase_date', label: 'Purchase Date', type: 'date' },
  { key: 'warranty_expiry', label: 'Warranty Expiry', type: 'date' },
+ { key: 'purchase_cost', label: 'Purchase Cost (£)', type: 'number', placeholder: 'e.g. 3500' },
+ { key: 'replacement_cost', label: 'Replacement Cost (£)', type: 'number', placeholder: "Today's like-for-like" },
+ { key: 'expected_lifespan_years', label: 'Expected Life (years)', type: 'number', placeholder: 'e.g. 8' },
  { key: 'sla_contract_ref', label: 'SLA Contract Reference', placeholder: 'Contract reference number' },
  { key: 'sla_expiry', label: 'SLA Expiry Date', type: 'date' },
  { key: 'notes', label: 'Notes', placeholder: 'Additional notes' },
@@ -794,6 +804,17 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
      placeholder="DD/MM/YYYY"
      inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
      testid={`edit-${field.key}`}
+   />
+ ) : field.type === 'number' ? (
+   <Input
+     type="number"
+     min="0"
+     step={field.key === 'expected_lifespan_years' ? '1' : '0.01'}
+     value={editForm[field.key] ?? ''}
+     onChange={e => setEditForm({ ...editForm, [field.key]: e.target.value })}
+     placeholder={field.placeholder}
+     className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+     data-testid={`edit-${field.key}`}
    />
  ) : (
    <>

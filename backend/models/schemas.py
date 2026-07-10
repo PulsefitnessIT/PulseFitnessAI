@@ -244,6 +244,9 @@ class EquipmentCreate(BaseModel):
     # type-default, when not supplied).
     purchase_cost: Optional[float] = None
     replacement_cost: Optional[float] = None
+    # Expected useful life (years) — drives the CAPEX depreciation curve
+    # and residual/book value. Falls back to a type default when unset.
+    expected_lifespan_years: Optional[float] = None
     # Service / maintenance contract the machine sits under.
     contract_number: Optional[str] = None
     contract_start_date: Optional[str] = None

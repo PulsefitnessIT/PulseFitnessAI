@@ -603,7 +603,7 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict =
         "name", "equipment_type", "manufacturer", "model", "serial_number",
         "purchase_date", "warranty_expiry", "length", "width", "height", "notes",
         "location", "sla_response_time", "sla_contract_ref", "sla_expiry", "photo_url",
-        "replacement_cost", "expected_lifespan_years",
+        "purchase_cost", "replacement_cost", "expected_lifespan_years",
         # Supplier reassignment — restricted below to owner/manager roles.
         "supplier",
         # Iter 216h114 — also persist the supplier id when assigning so

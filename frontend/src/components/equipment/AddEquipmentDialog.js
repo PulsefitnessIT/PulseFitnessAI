@@ -28,6 +28,9 @@ const EMPTY_FORM = {
   location: '',
   purchase_date: '',
   warranty_expiry: '',
+  purchase_cost: '',
+  replacement_cost: '',
+  expected_lifespan_years: '',
   sla_response_time: '48h',
   sla_response_other: '',
   sla_contract_ref: '',
@@ -116,6 +119,11 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
         location: form.location.trim() || null,
         purchase_date: form.purchase_date || null,
         warranty_expiry: form.warranty_expiry || null,
+        // CAPEX financial inputs — real purchase_cost makes the asset's
+        // book/residual value read "actual" instead of "estimated".
+        purchase_cost: form.purchase_cost !== '' ? Number(form.purchase_cost) : null,
+        replacement_cost: form.replacement_cost !== '' ? Number(form.replacement_cost) : null,
+        expected_lifespan_years: form.expected_lifespan_years !== '' ? Number(form.expected_lifespan_years) : null,
         sla_response_time: sla_response_time || null,
         sla_contract_ref: form.sla_contract_ref.trim() || null,
         sla_expiry: form.sla_expiry || null,
@@ -287,6 +295,44 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
                 placeholder="DD/MM/YYYY"
                 inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
                 testid="add-equip-sla-expiry"
+              />
+            </div>
+          </div>
+
+          {/* CAPEX financials — purchase cost powers real (not estimated)
+              residual/book value + TCO in the CAPEX board report. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-[var(--color-text-muted)] text-sm">Purchase Cost (£)</Label>
+              <Input
+                type="number" min="0" step="0.01"
+                value={form.purchase_cost}
+                onChange={(e) => setField('purchase_cost', e.target.value)}
+                placeholder="e.g. 3500"
+                className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                data-testid="add-equip-purchase-cost"
+              />
+            </div>
+            <div>
+              <Label className="text-[var(--color-text-muted)] text-sm">Replacement Cost (£)</Label>
+              <Input
+                type="number" min="0" step="0.01"
+                value={form.replacement_cost}
+                onChange={(e) => setField('replacement_cost', e.target.value)}
+                placeholder="Today's like-for-like"
+                className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                data-testid="add-equip-replacement-cost"
+              />
+            </div>
+            <div>
+              <Label className="text-[var(--color-text-muted)] text-sm">Expected Life (years)</Label>
+              <Input
+                type="number" min="1" step="1"
+                value={form.expected_lifespan_years}
+                onChange={(e) => setField('expected_lifespan_years', e.target.value)}
+                placeholder="e.g. 8"
+                className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                data-testid="add-equip-expected-life"
               />
             </div>
           </div>
