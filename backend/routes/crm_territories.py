@@ -754,6 +754,41 @@ def _num_or_none(v):
         return None
 
 
+async def _geocode_postcode(postcode: str) -> dict | None:
+    """Resolve a UK postcode to {lat, lng} via the free postcodes.io API.
+
+    Returns None on any failure (bad postcode, network, timeout) so
+    callers can fall back to manual coordinates.
+    """
+    pc = (postcode or "").strip().replace(" ", "")
+    if not pc:
+        return None
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            r = await client.get(f"https://api.postcodes.io/postcodes/{pc}")
+            if r.status_code != 200:
+                return None
+            res = (r.json() or {}).get("result") or {}
+            lat = res.get("latitude")
+            lng = res.get("longitude")
+            if lat is None or lng is None:
+                return None
+            return {"lat": float(lat), "lng": float(lng), "county": res.get("admin_county") or res.get("region") or ""}
+    except Exception:
+        return None
+
+
+@router.get("/geocode")
+async def geocode_postcode(postcode: str = "", user=Depends(get_crm_user)):
+    """Look up lat/lng for a UK postcode so the Offices form can pin by
+    postcode instead of manual coordinates."""
+    g = await _geocode_postcode(postcode)
+    if not g:
+        raise HTTPException(404, "Could not resolve that postcode")
+    return g
+
+
 @router.get("/offices")
 async def list_offices(user=Depends(get_crm_user)):
     of = _org_filter(user)
@@ -768,15 +803,21 @@ async def create_office(data: dict, user=Depends(get_crm_user)):
     _require_team_admin(user)
     lat = _num_or_none(data.get("lat"))
     lng = _num_or_none(data.get("lng"))
+    postcode = (data.get("postcode") or "").strip().upper()
+    # Auto-geocode from the postcode when no coordinates were supplied.
+    if (lat is None or lng is None) and postcode:
+        g = await _geocode_postcode(postcode)
+        if g:
+            lat, lng = g["lat"], g["lng"]
     if lat is None or lng is None:
-        raise HTTPException(400, "Valid lat and lng are required")
+        raise HTTPException(400, "Provide a valid UK postcode or lat/lng")
     oid = _id()
     record = {
         "id": oid,
         "organization_id": user.get("organization_id"),
         "name": (data.get("name") or "").strip() or "Office",
         "address": (data.get("address") or "").strip(),
-        "postcode": (data.get("postcode") or "").strip().upper(),
+        "postcode": postcode,
         "lat": lat,
         "lng": lng,
         "colour_hex": _normalise_colour(data.get("colour_hex") or "#0F172A"),

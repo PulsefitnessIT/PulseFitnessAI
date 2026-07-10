@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
+import { geoCentroid } from 'd3-geo';
 import { feature } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
@@ -80,7 +81,7 @@ function StaffRow({ s, onColour, onRole, focused, onFocus }) {
   );
 }
 
-function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
+function RegionDrawer({ region, staff, coverage, offices = [], onClose, onSave }) {
   const current = coverage[region?.code] || [];
   const [selected, setSelected] = useState(() => current.map((m) => m.user_id));
   const [saving, setSaving] = useState(false);
@@ -93,6 +94,26 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
     if (!q) return staff;
     return staff.filter((s) => (s.full_name || s.email || '').toLowerCase().includes(q));
   }, [staff, query]);
+
+  // Nearest office to this region — great-circle distance (miles) from the
+  // region centroid to every pinned office. Helps planners pick the
+  // closest depot when allocating coverage.
+  const nearest = useMemo(() => {
+    if (!region?.centroid || !offices.length) return null;
+    const [lng, lat] = region.centroid;
+    const R = 3958.8; // Earth radius, miles
+    const toRad = (d) => (d * Math.PI) / 180;
+    let best = null;
+    offices.forEach((o) => {
+      if (typeof o.lat !== 'number' || typeof o.lng !== 'number') return;
+      const dLat = toRad(o.lat - lat);
+      const dLng = toRad(o.lng - lng);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat)) * Math.cos(toRad(o.lat)) * Math.sin(dLng / 2) ** 2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      if (!best || dist < best.dist) best = { office: o, dist };
+    });
+    return best;
+  }, [region, offices]);
 
   if (!region) return null;
   const save = async () => {
@@ -130,6 +151,17 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
         <p className="mt-2 text-[11px] text-zinc-500">
           {selected.length} assigned · click anyone to toggle them on or off this region.
         </p>
+        {nearest && (
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300" data-testid="region-nearest-office">
+            <Building2 size={12} className="text-zinc-500" />
+            Nearest office:
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full border border-zinc-300" style={{ backgroundColor: nearest.office.colour_hex }} />
+              {nearest.office.name}
+            </span>
+            <span className="text-zinc-400 font-normal">· {Math.round(nearest.dist)} mi</span>
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {visible.length === 0 && <p className="text-sm text-zinc-400 text-center py-6">No matching people.</p>}
@@ -529,7 +561,7 @@ export default function CRMTerritoryMap() {
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      onClick={() => { if (focusedUser) paintRegion(region, focusedUser); else setActiveRegion(region); }}
+                      onClick={() => { if (focusedUser) paintRegion(region, focusedUser); else setActiveRegion({ ...region, centroid: geoCentroid(geo) }); }}
                       style={{
                         // SVG stroke colours — visual data, not theme tokens.
                         /* eslint-disable gymaxis/no-inline-hex -- SVG stroke literals */
@@ -598,6 +630,7 @@ export default function CRMTerritoryMap() {
       <RegionDrawer
         region={activeRegion}
         staff={staff}
+        offices={offices}
         coverage={layer === 'county' ? coverage.counties : coverage.postcode_areas}
         onClose={() => setActiveRegion(null)}
         onSave={saveRegion}
