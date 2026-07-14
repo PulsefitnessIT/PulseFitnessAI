@@ -1,0 +1,30 @@
+{
+  "summary": "Dealer Parts spreadsheet MACHINE COUNTING refinement verified end-to-end. Backend (4/4 pytest passed): chunk-uploaded the real Sage-export xlsx (Pure Pulse) via /upload/init → /chunk → /finish-invoice — response has available=true, source='spreadsheet_scan', machines_total=68, machines_matched=50, lines_total=26, matched_count=20, order_value=74134.42; note reads 'found 68 machine(s) across 26 product line(s); 50 machine(s) on 20 line(s) matched the BOM.' Serial-dedupe correct: 348H-AAA qty=3 (NOT 9), 302H-AAO qty=2, 307H-AAO qty=3 — all matched=true. UNMATCHED lines surfaced with matched=false (38-307-AAA and 516H-AAG both present); sum matched qty (50) + sum unmatched qty (18) = 68 machines. No-quantity-column CSV fallback verified: uploaded 'ItemCode,Description' CSV with two rows of 305H-ZZY → machines_total=2, quantity=2 (each row = 1 machine). LLM path regression: text invoice with '305H-ZZY qty 1' → matched=true. RBAC: dealer_user gets 403 on /upload/init and /ai-parse-invoice. FRONTEND: Service Desk → Stores → Dealer Parts → Allocation Wizard renders; selecting Fitline via dp-wiz-dealer (native SELECT) and uploading Pure Pulse xlsx via dp-wiz-invoice-input populates 26 machine inputs (dp-wiz-machine-0='302H-AAO', 348H-AAA present etc.); dp-wiz-ai-info banner reads: 'Scanned the whole spreadsheet: found 68 machine(s) across 26 product line(s); 50 machine(s) on 20 line(s) matched the BOM. Unmatched machines stay editable below — use \"Find in BOM\" to map them.' Find-in-BOM buttons (dp-wiz-resolve-N) render for lines; clicking dp-wiz-generate advances to dp-wiz-step1. Pack value £0 confirmed EXPECTED (approved-only gating).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service Desk shell", "issues": ["Pre-existing React hydration warning '<option> cannot be a child of <span>' still logged (AllocationWizardTab line 189 native SELECT wrapping option in span). Cosmetic, no functional impact."]},
+      {"screen": "Service Desk shell", "issues": ["CSP still blocks emergent-main.js / posthog / cloudflareinsights beacon. Pre-existing, unrelated to this change."]},
+      {"screen": "Allocation Wizard", "issues": ["'Find in BOM' resolve buttons (dp-wiz-resolve-N) render for ALL 26 lines including matched ones — spec suggests matched=green-check, unmatched=amber+resolve. Functionally harmless (matched lines also show a green check), but consider hiding resolve on matched lines for clarity."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_machine_count_jan2026.py",
+    "/app/test_reports/pytest/dp_machine_count.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AllocationWizardTab.js line ~189: native <select><option>{d.name}</option></select> pattern where option children apparently render inside a span wrapper — triggers React hydration warning. Consider removing wrapper or using shadcn Select.",
+    "dp-wiz-resolve-N buttons appear for all lines; ideally only unmatched (matched=false) should show the 'Find in BOM' resolve button to reduce visual clutter."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_machine_count_jan2026.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (all spec'd assertions passed)"},
+  "test_credentials": "Staff: owner@isodemo.com / IsoDemo123!  |  Dealer (blocked): portal2@fitline.test / DealerDemo123!",
+  "seed_data_creation": "None — used existing iso-demo-org BOM seed. Test xlsx cached at /tmp/pure_pulse_invoice.xlsx.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest: /app/backend/tests/test_dealer_parts_machine_count_jan2026.py — run with REACT_APP_BACKEND_URL exported (conftest doesn't automatically pass through the env var). Sample invoice at /tmp/pure_pulse_invoice.xlsx (re-download from customer-assets URL if missing). Fitline dealer id 5e7fc632-eab1-4d6a-ad54-42d96b459f5c. dp-wiz-dealer is a native <select>; use select_option(value=<uuid>).",
+  "rca of the issue": "N/A — no failures. All new machine-count semantics (machines_total=68, machines_matched=50, matched_count=20 product lines, order_value=74134.42, serial-dedupe of 348H-AAA/302H-AAO/307H-AAO, UNMATCHED surfacing, no-qty-column fallback) verified against real Pure Pulse Sage invoice."
+}

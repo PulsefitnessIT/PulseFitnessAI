@@ -1338,59 +1338,106 @@ async def data_report_csv(report: str, top_level_ref: str = Query(""), user=Depe
 
 
 async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx) -> dict:
-    """Deterministically scan EVERY cell of a spreadsheet for values that match a
-    BOM machine reference / stock code. Robust to wide raw exports (Sage etc.) and
-    to traceable-serial row duplication. Returns machine lines the wizard can use."""
+    """Deterministically scan EVERY cell of a spreadsheet for values matching a BOM
+    machine reference / stock code. Robust to wide raw exports (Sage etc.).
+
+    Machine counting rule (per user spec):
+      • Detect a quantity column by header. If present, each product LINE contributes
+        its stated quantity (serial-expanded duplicate rows are collapsed).
+      • If there is NO quantity column, each ROW represents one machine.
+    """
     from utils.dealer_parts_ai import spreadsheet_rows
     by_ref, by_stock, _ = idx
 
-    def _is_num(v):
+    def _num(v):
         try:
-            f = float(str(v).replace(",", "").replace("$", "").replace("£", "").replace("€", "").strip())
-            return f
+            return float(str(v).replace(",", "").replace("$", "").replace("£", "").replace("€", "").strip())
         except (TypeError, ValueError):
             return None
 
-    seen = set()          # distinct (code_norm, qty, unit) lines — collapses serial dupes
-    per_code = {}         # code_norm -> {machine, qty, value}
-    for row in spreadsheet_rows(content, filename):
-        cells = list(row)
-        for ci, cell in enumerate(cells):
-            if cell is None or _is_num(cell) is not None:
+    def _looks_like_code(v):
+        s = str(v or "").strip()
+        return 3 <= len(s) <= 24 and any(c.isdigit() for c in s) and any(c.isalpha() for c in s)
+
+    rows = list(spreadsheet_rows(content, filename))
+    if not rows:
+        return {"lines": [], "order_value": 0, "matched_count": 0}
+    header = [str(h or "").lower() for h in rows[0]]
+    data = rows[1:] if any(("item" in h or "code" in h or "quantity" in h or "description" in h) for h in header) else rows
+
+    def _hcol(*keys):
+        for i, h in enumerate(header):
+            if any(k in h for k in keys):
+                return i
+        return None
+    qty_col = _hcol("quantity", "qty")
+    price_col = _hcol("itemprice", "unitprice", "unit price")
+    if price_col is None:
+        price_col = _hcol("price")
+    total_col = _hcol("linetotalvalue", "linetotal", "line total")
+
+    # Find the column that holds item codes (the one with the most BOM matches).
+    col_hits = {}
+    for row in data:
+        for ci, cell in enumerate(row):
+            if cell is None or _num(cell) is not None:
                 continue
             cn = norm_code(cell)
-            if not cn:
-                continue
-            m = by_ref.get(cn) or by_stock.get(cn)
-            if not m:
-                continue
-            # numeric cells to the right → [qty, unit_value, ...]
-            nums = [n for n in (_is_num(cells[k]) for k in range(ci + 1, len(cells))) if n is not None]
-            qty = nums[0] if nums else 1
-            unit = nums[1] if len(nums) > 1 else 0
-            if qty <= 0 or qty > 100000:
-                qty = 1
-            key = (cn, round(qty, 2), round(unit, 2))
-            if key in seen:
-                break  # duplicate serial row of a line already captured
-            seen.add(key)
-            agg = per_code.setdefault(cn, {"machine": m, "qty": 0.0, "value": 0.0})
-            agg["qty"] += qty
-            agg["value"] += qty * unit
-            break  # one machine match per row
+            if cn and (cn in by_ref or cn in by_stock):
+                col_hits[ci] = col_hits.get(ci, 0) + 1
+    if not col_hits:
+        return {"lines": [], "order_value": 0, "matched_count": 0}
+    code_col = max(col_hits, key=col_hits.get)
 
-    lines, order_value = [], 0.0
+    has_qty = qty_col is not None
+    seen_lines = set()          # (code_norm, qty, unit, total) — collapses serial dupes
+    per_code = {}               # code_norm -> {code, machine, qty, value, matched}
+    for row in data:
+        if code_col >= len(row):
+            continue
+        raw = row[code_col]
+        if not raw or not _looks_like_code(raw):
+            continue
+        cn = norm_code(raw)
+        m = by_ref.get(cn) or by_stock.get(cn)
+        qty = _num(row[qty_col]) if (has_qty and qty_col < len(row)) else None
+        if qty is None or qty <= 0:
+            qty = 1
+        unit = _num(row[price_col]) if (price_col is not None and price_col < len(row)) else 0
+        total = _num(row[total_col]) if (total_col is not None and total_col < len(row)) else None
+        if has_qty:
+            key = (cn, round(qty, 2), round(unit or 0, 2), round(total or 0, 2))
+            if key in seen_lines:
+                continue  # serial-expanded duplicate of a line already counted
+            seen_lines.add(key)
+        agg = per_code.setdefault(cn, {"code": str(raw).strip(), "machine": m, "qty": 0.0, "value": 0.0, "matched": bool(m)})
+        agg["qty"] += qty
+        agg["value"] += total if total is not None else qty * (unit or 0)
+
+    lines, order_value, machines_total, machines_matched = [], 0.0, 0, 0
     for cn, agg in per_code.items():
-        m = agg["machine"]
         q = int(agg["qty"]) if float(agg["qty"]).is_integer() else round(agg["qty"], 2)
         order_value += agg["value"]
+        machines_total += q
+        m = agg["machine"]
+        if m:
+            machines_matched += q
         lines.append({
-            "input_ref": m["top_level_ref"], "quantity": q,
+            "input_ref": (m["top_level_ref"] if m else agg["code"]), "quantity": q,
             "unit_value": round(agg["value"] / agg["qty"], 2) if agg["qty"] else 0,
-            "matched": True, "match_method": "exact_ref", "match_score": 100,
-            "top_level_ref": m["top_level_ref"], "machine_description": m.get("description"),
+            "matched": bool(m),
+            "match_method": "exact_ref" if m else "none", "match_score": 100 if m else 0,
+            "top_level_ref": m["top_level_ref"] if m else None,
+            "machine_description": m.get("description") if m else None,
         })
-    return {"lines": lines, "order_value": round(order_value, 2), "matched_count": len(lines)}
+    lines.sort(key=lambda x: (not x["matched"], x["input_ref"]))
+    return {
+        "lines": lines, "order_value": round(order_value, 2),
+        "matched_count": sum(1 for l in lines if l["matched"]),
+        "lines_total": len(lines),
+        "machines_total": machines_total, "machines_matched": machines_matched,
+        "quantity_column_found": has_qty,
+    }
 
 
 async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filename: str, content_type: str) -> dict:
@@ -1405,12 +1452,19 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
         scan = await _scan_spreadsheet_invoice(org, content, filename, idx)
         if scan["matched_count"] > 0:
             await _audit(org, user, "ai_invoice_parse", filename=filename, ok=True,
-                         method="spreadsheet_scan", lines=scan["matched_count"])
+                         method="spreadsheet_scan", lines=scan["matched_count"],
+                         machines=scan.get("machines_total"))
+            mt, mm = scan.get("machines_total", 0), scan.get("machines_matched", 0)
+            qcol = scan.get("quantity_column_found")
+            note = (f"Scanned the whole spreadsheet: found {mt} machine(s) across {scan['lines_total']} product line(s); "
+                    f"{mm} machine(s) on {scan['matched_count']} line(s) matched the BOM.")
+            if not qcol:
+                note += " No quantity column detected — each row was counted as one machine."
             return {
                 "available": True, "advisory_only": True, "source": "spreadsheet_scan",
                 "order_reference": "", "currency": "", "order_value": scan["order_value"],
-                "note": f"Scanned the whole spreadsheet and matched {scan['matched_count']} machine(s) to the BOM.",
-                "lines": scan["lines"], "matched_count": scan["matched_count"],
+                "note": note, "lines": scan["lines"], "matched_count": scan["matched_count"],
+                "machines_total": mt, "machines_matched": mm, "lines_total": scan["lines_total"],
             }
         # fall through to LLM if nothing matched deterministically
 

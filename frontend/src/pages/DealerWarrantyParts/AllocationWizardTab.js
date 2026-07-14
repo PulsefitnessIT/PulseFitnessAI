@@ -108,8 +108,12 @@ export default function AllocationWizardTab() {
       }));
       if (newLines.length) setLines(newLines);
       if (res.order_value) setOrderValue(String(res.order_value));
-      setAiInfo({ ref: res.order_reference, currency: res.currency, matched: res.matched_count, total: res.lines?.length || 0, note: res.note });
-      notify.success(`AI read the invoice — ${res.matched_count}/${res.lines?.length || 0} machines matched to BOM`);
+      setAiInfo({ ref: res.order_reference, currency: res.currency, matched: res.matched_count, total: res.lines?.length || 0, note: res.note,
+        machinesTotal: res.machines_total, machinesMatched: res.machines_matched, source: res.source });
+      const machineMsg = res.machines_total != null
+        ? `AI found ${res.machines_total} machines — ${res.machines_matched} matched to BOM`
+        : `AI read the invoice — ${res.matched_count}/${res.lines?.length || 0} machines matched to BOM`;
+      notify.success(machineMsg);
     } catch (e) { notify.error(e?.response?.data?.detail || 'AI parsing failed'); }
     finally { setAiBusy(false); }
   };
@@ -229,8 +233,10 @@ export default function AllocationWizardTab() {
             <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800 flex items-start gap-2" data-testid="dp-wiz-ai-info">
               <Sparkles size={14} className="mt-0.5 shrink-0" />
               <div>
-                <b>AI suggestion — please review.</b> {aiInfo.ref ? `Invoice ${aiInfo.ref}. ` : ''}Extracted {aiInfo.total} machine line(s), {aiInfo.matched} matched to BOM{aiInfo.currency ? ` (${aiInfo.currency})` : ''}. Unmatched refs stay editable below.
-                {aiInfo.note ? <div className="text-emerald-700 mt-0.5">{aiInfo.note}</div> : null}
+                <b>AI suggestion — please review.</b> {aiInfo.note
+                  ? aiInfo.note
+                  : `${aiInfo.ref ? `Invoice ${aiInfo.ref}. ` : ''}Extracted ${aiInfo.total} machine line(s), ${aiInfo.matched} matched to BOM${aiInfo.currency ? ` (${aiInfo.currency})` : ''}.`}
+                {' '}Unmatched machines stay editable below — use “Find in BOM” to map them.
               </div>
             </div>
           )}
