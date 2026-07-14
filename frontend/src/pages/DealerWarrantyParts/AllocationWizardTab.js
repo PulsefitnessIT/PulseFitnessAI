@@ -76,6 +76,7 @@ export default function AllocationWizardTab() {
   const [busy, setBusy] = useState(false);
   const [qtyOverrides, setQtyOverrides] = useState({});
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
   const [aiInfo, setAiInfo] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [resolving, setResolving] = useState(null);
@@ -95,9 +96,9 @@ export default function AllocationWizardTab() {
 
   const parseInvoice = async (file) => {
     if (!file) return;
-    setAiBusy(true); setAiInfo(null);
+    setAiBusy(true); setAiInfo(null); setAiProgress(0);
     try {
-      const res = await dpApi.aiParseInvoiceFile(file);
+      const res = await dpApi.aiParseInvoiceFile(file, setAiProgress);
       if (!res.available) { notify.error(res.error || 'AI could not read this invoice'); return; }
       const newLines = (res.lines || []).map((l) => ({
         machine_ref: l.top_level_ref || l.input_ref || '',
@@ -204,13 +205,16 @@ export default function AllocationWizardTab() {
             {aiBusy ? (
               <div className="flex flex-col items-center gap-2 py-2 text-slate-500">
                 <Sparkles size={22} className="text-[var(--gx-brand-from)] animate-pulse" />
-                <span className="text-sm font-medium">AI is reading your invoice…</span>
+                <span className="text-sm font-medium">{aiProgress < 100 ? `Uploading invoice… ${aiProgress}%` : 'AI is reading your invoice…'}</span>
+                <div className="w-48 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-[var(--gx-brand-from)] transition-all" style={{ width: `${aiProgress}%` }} />
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1.5">
                 <UploadCloud size={26} className="text-[var(--gx-brand-from)]" />
                 <div className="text-sm font-semibold text-slate-800">Drop a dealer invoice here, or click to upload</div>
-                <div className="text-xs text-slate-500">AI reads the invoice, extracts the machines & values, and matches them to the BOM. <span className="text-slate-400">PDF, Excel, CSV or image.</span></div>
+                <div className="text-xs text-slate-500">AI reads the invoice, extracts the machines & values, and matches them to the BOM. <span className="text-slate-400">PDF, Excel, CSV or image — large files supported, never stored.</span></div>
               </div>
             )}
           </div>

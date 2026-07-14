@@ -1160,3 +1160,8 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 
 ## 2026-07-14 — Allocation Wizard: inline "Find in BOM" machine picker (enhancement)
 - Added MachinePicker to AllocationWizardTab.js: each machine line has a "Find in BOM" button (highlighted amber when AI couldn't match). Opens an inline debounced search (reuses GET /api/dealer-parts/data/machines?q=) showing ref · component count · description; picking sets the line's machine_ref, marks it matched (green ✓), toast confirms. Resolves unmatched invoice lines without leaving the wizard. Verified via screenshot (search 305H → pick 305H-ZZY → line populated + matched).
+
+## 2026-07-14 — Allocation Wizard invoice: large-file (up to ~30MB+) chunked upload, never stored
+- The AI invoice upload now uses the chunked flow (init → 1.4MB chunks → finish-invoice), bypassing the 2MB ingress body limit. Backend: new POST /api/dealer-parts/data/upload/{id}/finish-invoice — assembles temp file, AI-parses via _parse_and_match_invoice, then deletes the temp .part file in a finally block (invoice never persisted). Direct POST /ai-parse-invoice kept for small files. Refactored shared helper _parse_and_match_invoice.
+- Frontend: aiParseInvoiceFile now chunk-uploads with progress; dropzone shows upload % then "AI is reading…". Hint updated: "large files supported, never stored".
+- Verified: 4.25MB invoice chunk-uploaded + parsed (£60,000, 305H-ZZY matched), temp file confirmed deleted.

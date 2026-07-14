@@ -1337,16 +1337,11 @@ async def data_report_csv(report: str, top_level_ref: str = Query(""), user=Depe
     raise HTTPException(404, "Unknown report")
 
 
-@router.post("/ai-parse-invoice")
-async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_current_user)):
-    """Drag-and-drop invoice → AI extracts machine lines + order value, then each
-    line is resolved against the BOM so the Allocation Wizard can pre-fill."""
+async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filename: str, content_type: str) -> dict:
     from utils.dealer_parts_ai import parse_invoice_file
-    org = _of(user)
-    content = await file.read()
-    parsed = await parse_invoice_file(content, file.filename or "invoice", file.content_type or "")
+    parsed = await parse_invoice_file(content, filename or "invoice", content_type or "")
     if not parsed.get("available"):
-        await _audit(org, user, "ai_invoice_parse", filename=file.filename, ok=False)
+        await _audit(org, user, "ai_invoice_parse", filename=filename, ok=False)
         return parsed
     settings = await _data_settings(org)
     idx = await _machine_index(org)
@@ -1365,7 +1360,7 @@ async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_c
             "top_level_ref": m["top_level_ref"] if m else None,
             "machine_description": m.get("description") if m else None,
         })
-    await _audit(org, user, "ai_invoice_parse", filename=file.filename, ok=True, lines=len(lines))
+    await _audit(org, user, "ai_invoice_parse", filename=filename, ok=True, lines=len(lines))
     return {
         "available": True, "advisory_only": True,
         "order_reference": parsed.get("order_reference", ""),
@@ -1375,3 +1370,31 @@ async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_c
         "lines": lines,
         "matched_count": sum(1 for l in lines if l["matched"]),
     }
+
+
+@router.post("/ai-parse-invoice")
+async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Small invoices (< 2 MB) — direct upload. Larger files use the chunked
+    /upload/init → /upload/{id}/chunk → /upload/{id}/finish-invoice flow."""
+    org = _of(user)
+    content = await file.read()
+    return await _parse_and_match_invoice(org, user, content, file.filename or "invoice", file.content_type or "")
+
+
+@router.post("/upload/{upload_id}/finish-invoice")
+async def upload_finish_invoice(upload_id: str, data: dict, user=Depends(get_current_user)):
+    """Assemble a chunk-uploaded invoice (any size), AI-parse it, then delete the
+    temp file immediately — the invoice is never stored."""
+    org = _of(user)
+    path = _upload_path(upload_id)
+    if not _os.path.exists(path):
+        raise HTTPException(404, "Upload session not found")
+    with open(path, "rb") as fh:
+        content = fh.read()
+    try:
+        return await _parse_and_match_invoice(org, user, content, data.get("filename") or "invoice", data.get("content_type") or "")
+    finally:
+        try:
+            _os.remove(path)
+        except OSError:
+            pass

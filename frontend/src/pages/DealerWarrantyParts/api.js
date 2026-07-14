@@ -114,10 +114,20 @@ export const dpApi = {
   matchMachine: (q) => axios.get(`${BASE}/data/match-machine`, { ...auth(), params: { q } }).then((r) => r.data),
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
   dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
-  aiParseInvoiceFile: (file) => {
-    const fd = new FormData();
-    fd.append('file', file);
-    return axios.post(`${BASE}/data/ai-parse-invoice`, fd, auth()).then((r) => r.data);
+  aiParseInvoiceFile: async (file, onProgress) => {
+    // Chunked upload → parse → temp file deleted server-side. Handles files of any size.
+    const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
+    const uploadId = init.upload_id;
+    const CHUNK = 1_400_000;
+    for (let start = 0; start < file.size; start += CHUNK) {
+      const fd = new FormData();
+      fd.append('chunk', file.slice(start, start + CHUNK));
+      await axios.post(`${BASE}/data/upload/${uploadId}/chunk`, fd, auth());
+      if (onProgress) onProgress(Math.min(99, Math.round(((start + CHUNK) / file.size) * 100)));
+    }
+    const { data } = await axios.post(`${BASE}/data/upload/${uploadId}/finish-invoice`, { filename: file.name, content_type: file.type }, auth());
+    if (onProgress) onProgress(100);
+    return data;
   },
   downloadDataReport: async (report, topLevelRef = '') => {
     const res = await axios.get(`${BASE}/data/reports/${report}.csv`, { ...auth(), params: topLevelRef ? { top_level_ref: topLevelRef } : {}, responseType: 'blob' });
