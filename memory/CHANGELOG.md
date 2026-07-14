@@ -1053,3 +1053,11 @@ Drives purchase-cost data completeness so more valuations read `actual`:
 - Backend: `get_capex_analysis` now returns a `data_health` block {total_assets, actual_count, estimated_count, actual_pct, assets_missing_cost} (counts assets whose valuation.basis === 'actual').
 - Frontend (`CapexIntelligenceTab.js`): a colour-coded "Data health: X/Y actual (Z%)" badge in the Cap-Spend card header (data-testid capex-data-health); and a per-asset amber `CostNudge` in the expanded valuation block (only when basis === 'estimated') with an inline "Set actual cost" input that PATCHes /api/equipment/{id} purchase_cost and reloads (data-testid capex-cost-nudge-<id> / -open / -input / -save).
 Verified: data_health via direct calls (MOD org 2/2=100% green; Bitterne 0/44=0% rose, all 44 nudge-eligible); nudge PATCH endpoint previously curl-verified. Frontend lint clean (0 errors). UI not screenshot-verified (harness login/rate-limit); nudge is a thin wrapper over the verified PATCH. PREVIEW only — redeploy for production.
+
+## UX: Service Desk sidebar declutter — Options menu, Analytics hub, Expenses role-gate — Jul 14, 2026
+Reorganised the congested `/service-desk` left rail (`ServiceDeskPage.js`):
+- New collapsible **Options** menu (data-testid desk-options-btn / desk-options-menu) holding Import data, Integrations, Audit log, Account settings (opens shared `AccountSettingsModal`), and Engineers — pulled out of the main rail/Insights.
+- **Analytics hub**: Reports + Supplier health merged into Analytics as sub-tabs (data-testid desk-analytics-sub-overview/-suppliers/-reports); removed as standalone nav items.
+- **Expenses** now managers/owners only — filtered from Insights via `can(user,'manage_operations')` and guarded in the body (non-managers fall back to the dashboard).
+- Main rail trimmed to Dashboard/Cases/Scheduler/Customers/Equipment/Maintenance/Parts/Billing; Insights to Analytics/Expenses/H&S/Compliance.
+Verified via screenshot + data-testids (owner account: all Options items present, Analytics sub-tabs render, Expenses visible). Lint clean. Provider accounts still hide Equipment/Supplier-health/Engineers. PREVIEW only — user must REDEPLOY to push to production (fitness-ai-migrate.emergent.host).

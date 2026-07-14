@@ -20,12 +20,14 @@ import { useAuth } from '@/App';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
-  HardHat, LogOut, ArrowLeft, Wrench, TrendingDown, ScrollText, Loader2,
+  HardHat, LogOut, ArrowLeft, Wrench, ScrollText, Loader2,
   ShieldCheck, Menu, X, BarChart3, UploadCloud, Wallet, CalendarClock, Cable,
+  SlidersHorizontal, Settings, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { can, isPulseAdmin } from '@/utils/capabilities';
+import AccountSettingsModal from '@/components/shared/AccountSettingsModal';
 
 import DeskSummary from './ServiceDesk/DeskSummary';
 import DeskCustomers from './ServiceDesk/DeskCustomers';
@@ -56,7 +58,7 @@ const OpsReports   = lazy(() => import('./ServiceOps/ServiceOpsReportsPage'));
 const OpsSafety    = lazy(() => import('./ServiceOps/SafetyTemplateAdmin'));
 const OpsCompliance = lazy(() => import('./ServiceOps/ComplianceAdmin'));
 
-// Sidebar order — matches Lee's spec verbatim.
+// Sidebar order — Engineers now lives under the Options menu.
 const TABS = [
   { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
   { id: 'cases',      label: 'Cases',      icon: ClipboardList },
@@ -66,21 +68,32 @@ const TABS = [
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'parts',      label: 'Parts',      icon: Package },
   { id: 'billing',    label: 'Billing',    icon: FileText },
-  { id: 'engineers',  label: 'Engineers',  icon: HardHat },
 ];
 
-// Insights nav lives under the user/menu footer — keeps the main tab
-// row clean and matches Lee's 8-tab spec exactly.
+// Insights nav — Reports + Supplier health now live inside Analytics as
+// sub-views; Import data / Integrations / Audit log moved to Options.
+// `expenses` is managers/owners only (see visibleInsights).
 const INSIGHTS_TABS = [
   { id: 'analytics',  label: 'Analytics',       icon: BarChart3 },
-  { id: 'expenses',   label: 'Expenses',        icon: Wallet },
-  { id: 'imports',    label: 'Import data',     icon: UploadCloud },
-  { id: 'suppliers',  label: 'Supplier health', icon: TrendingDown },
-  { id: 'reports',    label: 'Reports',         icon: ScrollText },
+  { id: 'expenses',   label: 'Expenses',        icon: Wallet, managerial: true },
   { id: 'safety',     label: 'H&S checklist',   icon: ShieldCheck },
   { id: 'compliance', label: 'Compliance',      icon: ShieldCheck },
-  { id: 'audit',      label: 'Audit log',       icon: ScrollText },
-  { id: 'integrations', label: 'Integrations',  icon: Cable },
+];
+
+// Options menu — utility / admin surfaces kept out of the main rail.
+const OPTIONS_ITEMS = [
+  { id: 'imports',      label: 'Import data',      icon: UploadCloud, kind: 'tab' },
+  { id: 'integrations', label: 'Integrations',     icon: Cable,       kind: 'tab' },
+  { id: 'audit',        label: 'Audit log',        icon: ScrollText,  kind: 'tab' },
+  { id: 'account',      label: 'Account settings', icon: Settings,    kind: 'modal' },
+  { id: 'engineers',    label: 'Engineers',        icon: HardHat,     kind: 'tab' },
+];
+
+// Analytics hub sub-views (Reports + Supplier health merged in).
+const ANALYTICS_SUBS = [
+  { id: 'overview',  label: 'Analytics' },
+  { id: 'suppliers', label: 'Supplier health' },
+  { id: 'reports',   label: 'Reports' },
 ];
 
 const EmbedFallback = () => (
@@ -103,6 +116,9 @@ export default function ServiceDeskPage() {
   // Iter 216h256 — mobile-first: sidebar is an off-canvas drawer below
   // `md`. State drives the hamburger toggle + backdrop.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [acctOpen, setAcctOpen] = useState(false);
+  const [analyticsSub, setAnalyticsSub] = useState('overview');
 
   useEffect(() => {
     if (!can(user, 'view_service_desk')) {
@@ -133,8 +149,13 @@ export default function ServiceDeskPage() {
   // providers. Hide them to keep the trial desk purpose-built.
   const isProvider = user?.account_type === 'service_provider';
   const PROVIDER_HIDDEN = isProvider ? new Set(['equipment', 'suppliers']) : new Set();
+  const canManage = can(user, 'manage_operations');
   const visibleTabs = TABS.filter((t) => !PROVIDER_HIDDEN.has(t.id));
-  const visibleInsights = INSIGHTS_TABS.filter((t) => !PROVIDER_HIDDEN.has(t.id));
+  const visibleInsights = INSIGHTS_TABS.filter(
+    (t) => !PROVIDER_HIDDEN.has(t.id) && (!t.managerial || canManage),
+  );
+  // Options items: providers don't run their own engineer roster here.
+  const visibleOptions = OPTIONS_ITEMS.filter((o) => !(isProvider && o.id === 'engineers'));
 
   // Render the active tab body. The ServiceOps pages render inside their
   // own <ServiceOpsShell> — we wrap with the embedded-context provider
@@ -159,10 +180,38 @@ export default function ServiceDeskPage() {
       case 'audit':
         return <DeskAuditLog API={API} />;
       case 'analytics':
-        return <Suspense fallback={<EmbedFallback />}><DeskAnalytics API={API} /></Suspense>;
+        return (
+          <div data-testid="desk-analytics-hub">
+            <div className="flex items-center gap-1 mb-5 border-b border-slate-200">
+              {ANALYTICS_SUBS.filter((sub) => !(sub.id === 'suppliers' && isProvider)).map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setAnalyticsSub(sub.id)}
+                  data-testid={`desk-analytics-sub-${sub.id}`}
+                  className={`px-4 py-2.5 text-sm font-semibold -mb-px border-b-2 transition-colors ${
+                    analyticsSub === sub.id
+                      ? 'border-[var(--gx-brand-from)] text-[var(--gx-brand-from)]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+            {analyticsSub === 'overview' && <Suspense fallback={<EmbedFallback />}><DeskAnalytics API={API} /></Suspense>}
+            {analyticsSub === 'suppliers' && !isProvider && <DeskSuppliers API={API} />}
+            {analyticsSub === 'reports' && (
+              <ServiceOpsEmbeddedContext.Provider value={true}>
+                <Suspense fallback={<EmbedFallback />}><OpsReports /></Suspense>
+              </ServiceOpsEmbeddedContext.Provider>
+            )}
+          </div>
+        );
       case 'imports':
         return <Suspense fallback={<EmbedFallback />}><DeskImports API={API} /></Suspense>;
       case 'expenses':
+        // Finance cockpit — managers/owners only.
+        if (!canManage) return <DeskSummary API={API} onJumpToCustomers={() => setTab('customers')} onNavigate={goTo} />;
         return <Suspense fallback={<EmbedFallback />}><DeskExpenses API={API} /></Suspense>;
       case 'maintenance':
         return <Suspense fallback={<EmbedFallback />}><DeskPreventativeMaintenance /></Suspense>;
@@ -297,6 +346,44 @@ export default function ServiceDeskPage() {
               <span className="flex-1">{label}</span>
             </button>
           ))}
+
+          {/* Options menu — utility/admin surfaces + Account settings modal */}
+          <div className="pt-2">
+            <button
+              onClick={() => setOptionsOpen((v) => !v)}
+              data-testid="desk-options-btn"
+              aria-expanded={optionsOpen}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span className="flex-1">Options</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${optionsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {optionsOpen && (
+              <div className="mt-1 ml-2 pl-2 border-l border-slate-100 space-y-1" data-testid="desk-options-menu">
+                {visibleOptions.map(({ id, label, icon: Icon, kind }) => (
+                  <button
+                    key={id}
+                    data-testid={`desk-option-${id}`}
+                    onClick={() => {
+                      if (kind === 'modal') { setAcctOpen(true); }
+                      else { setTab(id); setSelectedOrgId(null); }
+                      setOptionsOpen(false);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                      kind === 'tab' && tab === id
+                        ? 'bg-gradient-to-r from-[var(--gx-brand-from)]/10 to-[var(--gx-brand-to)]/10 text-[var(--gx-brand-from)] font-semibold ring-1 ring-[var(--gx-brand-from)]/15'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="flex-1">{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* User footer */}
@@ -349,6 +436,8 @@ export default function ServiceDeskPage() {
         </div>
         <Body />
       </main>
+
+      <AccountSettingsModal open={acctOpen} onClose={() => setAcctOpen(false)} />
     </div>
   );
 }
