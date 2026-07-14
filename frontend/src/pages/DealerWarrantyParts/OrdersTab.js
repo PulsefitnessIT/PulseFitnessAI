@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, FileText, Trash2, Calculator } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
-import { Spinner, Modal, Field, input, money } from './shared';
+import { Spinner, Modal, Field, input, inputTight, money } from './shared';
 
 export default function OrdersTab() {
   const [orders, setOrders] = useState([]);
@@ -101,9 +101,9 @@ export default function OrdersTab() {
         </div>
         {lines.map((l, i) => (
           <div key={i} className="flex gap-2 mb-2">
-            <input placeholder="Machine model" className={`${input} flex-1`} value={l.machine_model} onChange={(e) => { const n = [...lines]; n[i].machine_model = e.target.value; setLines(n); }} />
-            <input type="number" placeholder="Qty" className={`${input} w-16`} value={l.quantity} onChange={(e) => { const n = [...lines]; n[i].quantity = e.target.value; setLines(n); }} />
-            <input type="number" placeholder="Unit £" className={`${input} w-24`} value={l.unit_value} onChange={(e) => { const n = [...lines]; n[i].unit_value = e.target.value; setLines(n); }} />
+            <input placeholder="Machine model" className={`${inputTight} flex-1`} value={l.machine_model} onChange={(e) => { const n = [...lines]; n[i].machine_model = e.target.value; setLines(n); }} />
+            <input type="number" placeholder="Qty" className={`${inputTight} w-16`} value={l.quantity} onChange={(e) => { const n = [...lines]; n[i].quantity = e.target.value; setLines(n); }} />
+            <input type="number" placeholder="Unit £" className={`${inputTight} w-24`} value={l.unit_value} onChange={(e) => { const n = [...lines]; n[i].unit_value = e.target.value; setLines(n); }} />
             {lines.length > 1 && <button onClick={() => setLines(lines.filter((_, x) => x !== i))} className="text-slate-300 hover:text-red-500"><Trash2 size={15} /></button>}
           </div>
         ))}

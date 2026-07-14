@@ -1,0 +1,37 @@
+{
+  "summary": "Dealer Warranty Parts Phase 2 (BOM management, Most-Used parts, Recommendation Engine) tested end-to-end. Backend: 10/10 pytest cases pass. Frontend: all 3 flows verified (BOM create + versioning UI, Most-Used add/list, Allocation → Generate Recommendation with duplicates_avoided + missing_bom_models banner). No blocking issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Allocations modal", "issues": ["React hydration console warning: <span> inside <option> in the Link-to-order select (AllocationsTab.js line ~145). Renders fine but produces a client-side hydration warning. Consider using plain text (e.g. `${o.order_reference} — allowance ${money(o.allowance)}`) as the option child instead of JSX spans."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_phase2_jan2026.py",
+    "/app/test_reports/pytest/dealer_parts_phase2_jan2026.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: fix the <span>-in-<option> hydration warning in AllocationsTab.js line 145 (order picker) by using a plain interpolated string for the option label."
+  ],
+  "critical_code_review_comments": [
+    "dealer_parts_bom.py `recommend`: BOM lookup uses safe_regex(f'^{model}$') as first try — same bug pattern flagged in Phase 1. In practice it still works here because there is a fallback `db[BOMS].find_one({machine_model: model})` (exact string match), but the first-pass safe_regex call is dead code (re.escape escapes ^ and $). Replace with `safe_regex_exact(model)` for consistency and to avoid confusion.",
+    "recommend() iterates order lines with `await` inside loop for BOM + most-used lookups — could be parallelised with asyncio.gather for large multi-line orders. Not a bug, just perf.",
+    "upsert_most_used returns the raw doc via _strip; existing branch returns doc without any 'created_at' field re-fetched — non-critical but consumers relying on created_at after an update may see it absent.",
+    "list_boms sorts by (machine_model, version desc) — fine, but no organization-scoped compound index shown. Verify indexes on (organization_id, machine_model, status) for scale."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_dealer_parts_phase2_jan2026.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (all 3 flows verified visually + interaction)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — worked",
+  "seed_data_creation": "Test created transient TEST_MODEL_Phase2_<uuid> BOMs+most-used (cleaned up) and one UI_TEST_MODEL_JAN26 BOM + most-used row via UI (cleaned up). Existing 260G Treadmill BOM and MU parts (BELT-260G, MOTOR-260G) left intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 2 fully passing. If Phase 3 lands (engineer app, RMA, reports), reuse test_dealer_parts_phase2_jan2026.py as a regression baseline — TEST_MODEL fixture uses random unique suffix, so it's safe to re-run any time. Note the recommend endpoint's dual-lookup (safe_regex + exact fallback) — either fix the first call to safe_regex_exact OR delete the dead first call.",
+  "rca of the issue": "N/A — no bugs found. Duplicate prevention netting was observed live in the browser (Fitline Deutschland order PO-DE-2041: 1 duplicate avoided, banner showed 'No BOM found for: 500 Series Cross Trainer', recommendation £1,050 vs £6,000 allowance)."
+}

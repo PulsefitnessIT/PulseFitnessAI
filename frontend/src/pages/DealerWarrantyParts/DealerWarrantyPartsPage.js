@@ -4,11 +4,13 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
 import AllocationsTab from './AllocationsTab';
+import BomTab from './BomTab';
+import MostUsedTab from './MostUsedTab';
 import StoresTab from './StoresTab';
 import LedgerTab from './LedgerTab';
 import SettingsTab from './SettingsTab';
@@ -18,6 +20,8 @@ const TABS = [
   { id: 'dealers', label: 'Dealers', icon: Building2, C: DealersTab },
   { id: 'orders', label: 'Orders & Allowance', icon: FileText, C: OrdersTab },
   { id: 'allocations', label: 'Allocations', icon: Package, C: AllocationsTab },
+  { id: 'bom', label: 'BOM Management', icon: Layers, C: BomTab },
+  { id: 'most_used', label: 'Most Used Parts', icon: Star, C: MostUsedTab },
   { id: 'stores', label: 'Remote Stores', icon: Warehouse, C: StoresTab },
   { id: 'ledger', label: 'Stock Ledger', icon: ArrowRightLeft, C: LedgerTab },
   { id: 'settings', label: 'Settings', icon: Settings, C: SettingsTab },

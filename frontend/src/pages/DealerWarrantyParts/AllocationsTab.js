@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, CheckCircle2, Send, Truck, PackageCheck } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Send, Truck, PackageCheck, Sparkles, AlertTriangle } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
-import { Spinner, Modal, Field, input, money, StatusBadge } from './shared';
+import { Spinner, Modal, Field, input, inputTight, money, StatusBadge } from './shared';
 
 const ACTIONS = {
   draft: { label: 'Submit', icon: Send, fn: 'submitAllocation', next: 'submitted for approval' },
@@ -21,6 +21,8 @@ export default function AllocationsTab() {
   const [dealerId, setDealerId] = useState('');
   const [orderId, setOrderId] = useState('');
   const [items, setItems] = useState([{ part_sku: '', part_name: '', machine_model: '', quantity: 1, unit_value: '', reason: '' }]);
+  const [recMeta, setRecMeta] = useState(null);
+  const [recLoading, setRecLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -43,10 +45,32 @@ export default function AllocationsTab() {
     try {
       await dpApi.createAllocation({ dealer_id: dealerId, order_id: orderId || null, items: clean });
       notify.success('Allocation created');
-      setModal(false); setDealerId(''); setOrderId('');
+      setModal(false); setDealerId(''); setOrderId(''); setRecMeta(null);
       setItems([{ part_sku: '', part_name: '', machine_model: '', quantity: 1, unit_value: '', reason: '' }]);
       load();
     } catch { notify.error('Failed to create allocation'); }
+  };
+
+  const generateRecommendation = async () => {
+    if (!orderId) { notify.error('Select an order first'); return; }
+    setRecLoading(true);
+    try {
+      const rec = await dpApi.recommend({ order_id: orderId });
+      const recItems = (rec.recommended_items || []).map((i) => ({
+        part_sku: i.part_sku, part_name: i.part_name, machine_model: i.machine_model,
+        quantity: i.recommended_qty, unit_value: i.unit_value, reason: i.reason,
+      }));
+      if (recItems.length === 0) {
+        notify.info('No new parts recommended — dealer already holds the required stock.');
+        setItems([{ part_sku: '', part_name: '', machine_model: '', quantity: 1, unit_value: '', reason: '' }]);
+      } else {
+        setItems(recItems);
+      }
+      setRecMeta(rec);
+      notify.success(`AI recommendation ready — ${recItems.length} parts, ${rec.duplicates_avoided} duplicate(s) avoided`);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not generate recommendation');
+    } finally { setRecLoading(false); }
   };
 
   const runAction = async (a) => {
@@ -65,7 +89,7 @@ export default function AllocationsTab() {
     <div className="space-y-4" data-testid="dp-allocations-tab">
       <div className="flex items-center">
         <h3 className="text-sm font-semibold text-slate-500">Dealer warranty parts allocations</h3>
-        <button data-testid="dp-add-alloc-btn" onClick={() => setModal(true)} disabled={dealers.length === 0}
+        <button data-testid="dp-add-alloc-btn" onClick={() => { setModal(true); setRecMeta(null); }} disabled={dealers.length === 0}
           className="ml-auto inline-flex items-center gap-1.5 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-3.5 py-2 rounded-lg hover:opacity-90 disabled:opacity-40">
           <Plus size={15} /> New allocation
         </button>
@@ -116,11 +140,27 @@ export default function AllocationsTab() {
         </Field>
         {dealerId && (
           <Field label="Link to order (sets allowance)">
-            <select data-testid="dp-alloc-order" className={input} value={orderId} onChange={(e) => setOrderId(e.target.value)}>
+            <select data-testid="dp-alloc-order" className={input} value={orderId} onChange={(e) => { setOrderId(e.target.value); setRecMeta(null); }}>
               <option value="">No order</option>
               {dealerOrders.map((o) => <option key={o.id} value={o.id}>{o.order_reference || o.id.slice(0, 6)} — allowance {money(o.allowance)}</option>)}
             </select>
           </Field>
+        )}
+
+        {orderId && (
+          <button data-testid="dp-generate-rec-btn" onClick={generateRecommendation} disabled={recLoading}
+            className="w-full mb-3 inline-flex items-center justify-center gap-2 text-sm font-semibold px-3 py-2.5 rounded-lg bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white hover:opacity-90 disabled:opacity-50">
+            <Sparkles size={15} /> {recLoading ? 'Generating…' : 'Generate recommended parts pack'}
+          </button>
+        )}
+
+        {recMeta && (
+          <div className="mb-3 rounded-lg border border-[var(--gx-brand-from)]/20 bg-[var(--gx-brand-from)]/5 p-3 text-xs space-y-1" data-testid="dp-rec-meta">
+            <p className="text-slate-600">AI recommendation — please review before approval. {recMeta.duplicates_avoided} duplicate part(s) avoided using dealer stock &amp; prior allocations.</p>
+            {recMeta.missing_bom_models?.length > 0 && (
+              <p className="text-amber-700 flex items-center gap-1"><AlertTriangle size={12} /> No BOM found for: {recMeta.missing_bom_models.join(', ')} — add a BOM for fuller coverage.</p>
+            )}
+          </div>
         )}
 
         <div className="mb-2 flex items-center justify-between">
@@ -130,14 +170,14 @@ export default function AllocationsTab() {
         {items.map((it, i) => (
           <div key={i} className="border border-slate-100 rounded-lg p-2.5 mb-2 space-y-2">
             <div className="flex gap-2">
-              <input placeholder="Part SKU" className={`${input} w-32 font-mono`} value={it.part_sku} onChange={(e) => { const n = [...items]; n[i].part_sku = e.target.value.toUpperCase(); setItems(n); }} />
-              <input placeholder="Part name" className={`${input} flex-1`} value={it.part_name} onChange={(e) => { const n = [...items]; n[i].part_name = e.target.value; setItems(n); }} />
+              <input placeholder="Part SKU" className={`${inputTight} w-32 font-mono`} value={it.part_sku} onChange={(e) => { const n = [...items]; n[i].part_sku = e.target.value.toUpperCase(); setItems(n); }} />
+              <input placeholder="Part name" className={`${inputTight} flex-1`} value={it.part_name} onChange={(e) => { const n = [...items]; n[i].part_name = e.target.value; setItems(n); }} />
               {items.length > 1 && <button onClick={() => setItems(items.filter((_, x) => x !== i))} className="text-slate-300 hover:text-red-500"><Trash2 size={15} /></button>}
             </div>
             <div className="flex gap-2">
-              <input placeholder="Machine model" className={`${input} flex-1`} value={it.machine_model} onChange={(e) => { const n = [...items]; n[i].machine_model = e.target.value; setItems(n); }} />
-              <input type="number" placeholder="Qty" className={`${input} w-16`} value={it.quantity} onChange={(e) => { const n = [...items]; n[i].quantity = e.target.value; setItems(n); }} />
-              <input type="number" placeholder="Unit £" className={`${input} w-24`} value={it.unit_value} onChange={(e) => { const n = [...items]; n[i].unit_value = e.target.value; setItems(n); }} />
+              <input placeholder="Machine model" className={`${inputTight} flex-1`} value={it.machine_model} onChange={(e) => { const n = [...items]; n[i].machine_model = e.target.value; setItems(n); }} />
+              <input type="number" placeholder="Qty" className={`${inputTight} w-16`} value={it.quantity} onChange={(e) => { const n = [...items]; n[i].quantity = e.target.value; setItems(n); }} />
+              <input type="number" placeholder="Unit £" className={`${inputTight} w-24`} value={it.unit_value} onChange={(e) => { const n = [...items]; n[i].unit_value = e.target.value; setItems(n); }} />
             </div>
             <input placeholder="Reason for recommendation" className={input} value={it.reason} onChange={(e) => { const n = [...items]; n[i].reason = e.target.value; setItems(n); }} />
           </div>

@@ -32,4 +32,14 @@ export const dpApi = {
   storeStock: (id) => axios.get(`${BASE}/stores/${id}/stock`, auth()).then((r) => r.data),
 
   listMovements: (params = {}) => axios.get(`${BASE}/movements`, { ...auth(), params }).then((r) => r.data),
+
+  listBoms: (params = {}) => axios.get(`${BASE}/boms`, { ...auth(), params }).then((r) => r.data),
+  createBom: (data) => axios.post(`${BASE}/boms`, data, auth()).then((r) => r.data),
+  updateBom: (id, data) => axios.patch(`${BASE}/boms/${id}`, data, auth()).then((r) => r.data),
+
+  listMostUsed: (params = {}) => axios.get(`${BASE}/most-used`, { ...auth(), params }).then((r) => r.data),
+  upsertMostUsed: (data) => axios.post(`${BASE}/most-used`, data, auth()).then((r) => r.data),
+  deleteMostUsed: (id) => axios.delete(`${BASE}/most-used/${id}`, auth()).then((r) => r.data),
+
+  recommend: (data) => axios.post(`${BASE}/recommend`, data, auth()).then((r) => r.data),
 };
