@@ -113,4 +113,13 @@ export const dpApi = {
   saveDataSettings: (data) => axios.put(`${BASE}/data/settings`, data, auth()).then((r) => r.data),
   matchMachine: (q) => axios.get(`${BASE}/data/match-machine`, { ...auth(), params: { q } }).then((r) => r.data),
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
+  dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
+  downloadDataReport: async (report, topLevelRef = '') => {
+    const res = await axios.get(`${BASE}/data/reports/${report}.csv`, { ...auth(), params: topLevelRef ? { top_level_ref: topLevelRef } : {}, responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement('a');
+    a.href = url; a.download = `${report}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };

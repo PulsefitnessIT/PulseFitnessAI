@@ -1192,3 +1192,146 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         "dealer_context": {"previous_allocations": prev_allocs, "stock_lines": stock_lines},
         "approved_only_matches": approved_only,
     }
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 3 — Intelligence monitoring + Reports/exports
+# ─────────────────────────────────────────────────────────────────
+
+import csv as _csv
+from fastapi.responses import StreamingResponse
+
+USAGE_LOGS = "dealer_parts_usage_logs"
+
+
+@router.get("/monitoring")
+async def data_monitoring(user=Depends(get_current_user)):
+    """Intelligence insights derived from the imported spreadsheets + matches.
+    Complements the engineer-usage Monitoring Agent with BOM/usage intelligence."""
+    org = _of(user)
+    analysis = await db[ANALYSIS].find({"organization_id": org}, {"_id": 0}).to_list(5000)
+
+    # BOM components + which have historical usage (matched approved/any)
+    used_bom_codes = set()
+    for a in analysis:
+        if a.get("matched") and a.get("matched_bom_code") and a.get("review_status") not in ("rejected",):
+            used_bom_codes.add(norm_code(a["matched_bom_code"]))
+
+    bom_codes: dict = {}
+    async for c in db[BOM_COMPONENTS].find(
+        {"organization_id": org, "status": "active"},
+        {"_id": 0, "code": 1, "code_norm": 1, "description": 1},
+    ):
+        bom_codes.setdefault(c["code_norm"], c)
+    never_used = [c for cn, c in bom_codes.items() if cn not in used_bom_codes]
+
+    bom_missing_high_usage = sorted(
+        [a for a in analysis if not a.get("matched") and a.get("high_usage")],
+        key=lambda x: -(x.get("total_qty") or 0))
+    increasing = sorted(
+        [a for a in analysis if a.get("trend") == "increasing"],
+        key=lambda x: -(x.get("total_qty") or 0))
+    new_failure = sorted(
+        [a for a in analysis if a.get("trend") == "new_failure_trend"],
+        key=lambda x: -(x.get("total_qty") or 0))
+
+    # "Sent but never used" — dealer store stock on hand with no logged usage of that sku
+    used_by_dealer = set()
+    async for u in db[USAGE_LOGS].find({"organization_id": org}, {"_id": 0, "dealer_id": 1, "part_sku": 1}):
+        used_by_dealer.add((u.get("dealer_id"), (u.get("part_sku") or "").upper()))
+    sent_never_used = []
+    async for s in db[STORE_STOCK].find({"organization_id": org}, {"_id": 0}):
+        if (s.get("qty_on_hand") or 0) > 0 and (s.get("dealer_id"), (s.get("part_sku") or "").upper()) not in used_by_dealer:
+            sent_never_used.append({
+                "dealer_id": s.get("dealer_id"), "store_name": s.get("store_name"),
+                "part_sku": s.get("part_sku"), "part_name": s.get("part_name"),
+                "on_hand": s.get("qty_on_hand"), "value": round((s.get("qty_on_hand") or 0) * (s.get("unit_value") or 0), 2),
+            })
+    sent_never_used.sort(key=lambda x: -(x["value"] or 0))
+
+    def slim(rows, n=15):
+        return [{"code": a["code"], "description": a.get("description"), "total_qty": a.get("total_qty"),
+                 "usage_count": a.get("usage_count"), "recent_12m": a.get("recent_12m"), "trend": a.get("trend")}
+                for a in rows[:n]]
+
+    return {
+        "insights": {
+            "bom_missing_high_usage": {"count": len(bom_missing_high_usage), "top": slim(bom_missing_high_usage)},
+            "bom_never_used": {"count": len(never_used),
+                               "top": [{"code": c["code"], "description": c.get("description")} for c in never_used[:15]]},
+            "increasing_usage": {"count": len(increasing), "top": slim(increasing)},
+            "new_failure_trend": {"count": len(new_failure), "top": slim(new_failure)},
+            "sent_never_used": {"count": len(sent_never_used), "value": round(sum(x["value"] for x in sent_never_used), 2),
+                                "top": sent_never_used[:15]},
+        },
+        "totals": {"analysis_parts": len(analysis), "bom_components": len(bom_codes),
+                   "matched_bom_components": len(used_bom_codes)},
+    }
+
+
+def _csv_response(filename: str, headers: list, rows: list):
+    buf = io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(headers)
+    for r in rows:
+        w.writerow(r)
+    buf.seek(0)
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.get("/reports/{report}.csv")
+async def data_report_csv(report: str, top_level_ref: str = Query(""), user=Depends(get_current_user)):
+    org = _of(user)
+    if report == "most-used-since-2022":
+        rows = await db[ANALYSIS].find({"organization_id": org}, {"_id": 0}).sort([("rank", 1)]).to_list(5000)
+        return _csv_response("most_used_since_2022.csv",
+            ["Rank", "Code", "Description", "Total Qty", "Usage Events", "Total Cost", "Avg Cost",
+             "First Used", "Last Used", "Recent 90d", "Recent 12m", "Avg/Month", "Trend", "High Usage", "Matched", "Matched BOM Code"],
+            [[a["rank"], a["code"], a["description"], a["total_qty"], a["usage_count"], a["total_cost"], a["avg_cost"],
+              a["first_used"], a["last_used"], a["recent_90d"], a["recent_12m"], a["avg_monthly"], a["trend"],
+              a["high_usage"], a["matched"], a.get("matched_bom_code") or ""] for a in rows])
+
+    if report == "parts-used-vs-bom-match":
+        rows = await db[ANALYSIS].find({"organization_id": org}, {"_id": 0}).sort([("rank", 1)]).to_list(5000)
+        return _csv_response("parts_used_vs_bom_match.csv",
+            ["Code", "Description", "Total Qty", "Matched", "Match Method", "Confidence", "Matched BOM Code",
+             "Matched BOM Description", "Machines", "Review Status"],
+            [[a["code"], a["description"], a["total_qty"], a["matched"], a["match_method"], a["match_confidence"],
+              a.get("matched_bom_code") or "", a.get("matched_bom_description") or "",
+              "; ".join(a.get("matched_models") or []), a["review_status"]] for a in rows])
+
+    if report == "unmatched-high-usage":
+        rows = await db[ANALYSIS].find({"organization_id": org, "matched": False, "high_usage": True},
+                                       {"_id": 0}).sort([("total_qty", -1)]).to_list(5000)
+        return _csv_response("unmatched_high_usage.csv",
+            ["Code", "Description", "Total Qty", "Usage Events", "Recent 12m", "Trend", "Total Cost", "Review Status"],
+            [[a["code"], a["description"], a["total_qty"], a["usage_count"], a["recent_12m"], a["trend"],
+              a["total_cost"], a["review_status"]] for a in rows])
+
+    if report == "bom-no-usage":
+        used = set()
+        async for a in db[ANALYSIS].find({"organization_id": org, "matched": True}, {"_id": 0, "matched_bom_code": 1}):
+            if a.get("matched_bom_code"):
+                used.add(norm_code(a["matched_bom_code"]))
+        seen = {}
+        async for c in db[BOM_COMPONENTS].find({"organization_id": org, "status": "active"},
+                                               {"_id": 0, "code": 1, "code_norm": 1, "description": 1, "top_level_ref": 1}):
+            if c["code_norm"] not in used and c["code_norm"] not in seen:
+                seen[c["code_norm"]] = c
+        return _csv_response("bom_components_no_usage.csv",
+            ["Component Code", "Description", "Example Machine"],
+            [[c["code"], c.get("description") or "", c.get("top_level_ref") or ""] for c in seen.values()])
+
+    if report == "most-used-by-machine":
+        if not top_level_ref:
+            raise HTTPException(400, "top_level_ref query param required")
+        data = await machine_parts(top_level_ref=top_level_ref, user=user)
+        return _csv_response(f"most_used_{top_level_ref}.csv",
+            ["Component Code", "Description", "BOM Qty", "Used Historically", "Total Qty Used", "Usage Events",
+             "Recent 12m", "Trend", "Unit Cost", "Dealer Priority"],
+            [[c["code"], c.get("description") or "", c["quantity"], c["used_historically"], c["total_qty_used"],
+              c["usage_count"], c["recent_12m"], c.get("trend") or "", c.get("unit_cost") or "", c["priority"]]
+             for c in data["components"]])
+
+    raise HTTPException(404, "Unknown report")

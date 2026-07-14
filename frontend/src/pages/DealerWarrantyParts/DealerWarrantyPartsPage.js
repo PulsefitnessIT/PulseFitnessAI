@@ -28,6 +28,7 @@ import MatchReviewTab from './MatchReviewTab';
 import UnmatchedReviewTab from './UnmatchedReviewTab';
 import MachinePartsTab from './MachinePartsTab';
 import AllocationWizardTab from './AllocationWizardTab';
+import DataIntelligenceTab from './DataIntelligenceTab';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, C: DashboardTab },
@@ -37,6 +38,7 @@ const TABS = [
   { id: 'unmatched', label: 'Unmatched Review', icon: HelpCircle, C: UnmatchedReviewTab },
   { id: 'machine_parts', label: 'Machine Parts', icon: Cog, C: MachinePartsTab },
   { id: 'wizard', label: 'Allocation Wizard', icon: Wand2, C: AllocationWizardTab },
+  { id: 'intelligence', label: 'Intelligence & Reports', icon: Radar, C: DataIntelligenceTab },
   { id: 'dealers', label: 'Dealers', icon: Building2, C: DealersTab },
   { id: 'orders', label: 'Orders & Allowance', icon: FileText, C: OrdersTab },
   { id: 'allocations', label: 'Allocations', icon: Package, C: AllocationsTab },
