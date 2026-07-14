@@ -154,3 +154,12 @@ input[type="checkbox"]:not([class*="rounded-none"]):not([class*="rounded-full"])
 .card {
   border-radius: 0.75rem;
 }
+
+/* Dealer Parts — AI invoice indeterminate progress bar */
+@keyframes dpIndeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+.dp-indeterminate {
+  animation: dpIndeterminate 1.1s ease-in-out infinite;
+}

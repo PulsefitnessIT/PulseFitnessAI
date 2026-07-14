@@ -132,7 +132,7 @@ async def dealer_summary(context: dict) -> dict:
     return parsed
 
 
-__all__ = ["parse_invoice_text", "parse_invoice_file", "dealer_summary"]
+__all__ = ["parse_invoice_text", "parse_invoice_file", "spreadsheet_rows", "dealer_summary"]
 
 
 def _text_from_file(content: bytes, filename: str) -> str:
@@ -206,3 +206,21 @@ async def parse_invoice_file(content: bytes, filename: str, content_type: str = 
     if not text.strip():
         return {"available": False, "error": "Could not read text from this file. Try a PDF/Excel or paste the text."}
     return await parse_invoice_text(text)
+
+
+def spreadsheet_rows(content: bytes, filename: str):
+    """Yield every row (as a list of cell values) from an xlsx/xls/csv file."""
+    name = (filename or "").lower()
+    if name.endswith((".xlsx", ".xls")):
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        for ws in wb.worksheets:
+            for row in ws.iter_rows(values_only=True):
+                yield list(row)
+        wb.close()
+    else:  # csv / txt
+        import csv as _csv
+        text = content.decode("utf-8", errors="ignore")
+        for row in _csv.reader(text.splitlines()):
+            yield row

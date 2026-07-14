@@ -1337,15 +1337,87 @@ async def data_report_csv(report: str, top_level_ref: str = Query(""), user=Depe
     raise HTTPException(404, "Unknown report")
 
 
+async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx) -> dict:
+    """Deterministically scan EVERY cell of a spreadsheet for values that match a
+    BOM machine reference / stock code. Robust to wide raw exports (Sage etc.) and
+    to traceable-serial row duplication. Returns machine lines the wizard can use."""
+    from utils.dealer_parts_ai import spreadsheet_rows
+    by_ref, by_stock, _ = idx
+
+    def _is_num(v):
+        try:
+            f = float(str(v).replace(",", "").replace("$", "").replace("£", "").replace("€", "").strip())
+            return f
+        except (TypeError, ValueError):
+            return None
+
+    seen = set()          # distinct (code_norm, qty, unit) lines — collapses serial dupes
+    per_code = {}         # code_norm -> {machine, qty, value}
+    for row in spreadsheet_rows(content, filename):
+        cells = list(row)
+        for ci, cell in enumerate(cells):
+            if cell is None or _is_num(cell) is not None:
+                continue
+            cn = norm_code(cell)
+            if not cn:
+                continue
+            m = by_ref.get(cn) or by_stock.get(cn)
+            if not m:
+                continue
+            # numeric cells to the right → [qty, unit_value, ...]
+            nums = [n for n in (_is_num(cells[k]) for k in range(ci + 1, len(cells))) if n is not None]
+            qty = nums[0] if nums else 1
+            unit = nums[1] if len(nums) > 1 else 0
+            if qty <= 0 or qty > 100000:
+                qty = 1
+            key = (cn, round(qty, 2), round(unit, 2))
+            if key in seen:
+                break  # duplicate serial row of a line already captured
+            seen.add(key)
+            agg = per_code.setdefault(cn, {"machine": m, "qty": 0.0, "value": 0.0})
+            agg["qty"] += qty
+            agg["value"] += qty * unit
+            break  # one machine match per row
+
+    lines, order_value = [], 0.0
+    for cn, agg in per_code.items():
+        m = agg["machine"]
+        q = int(agg["qty"]) if float(agg["qty"]).is_integer() else round(agg["qty"], 2)
+        order_value += agg["value"]
+        lines.append({
+            "input_ref": m["top_level_ref"], "quantity": q,
+            "unit_value": round(agg["value"] / agg["qty"], 2) if agg["qty"] else 0,
+            "matched": True, "match_method": "exact_ref", "match_score": 100,
+            "top_level_ref": m["top_level_ref"], "machine_description": m.get("description"),
+        })
+    return {"lines": lines, "order_value": round(order_value, 2), "matched_count": len(lines)}
+
+
 async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filename: str, content_type: str) -> dict:
     from utils.dealer_parts_ai import parse_invoice_file
+    settings = await _data_settings(org)
+    idx = await _machine_index(org)
+    cutoff = int(settings["fuzzy_threshold"] * 100)
+    name = (filename or "").lower()
+
+    # Spreadsheets → deterministic full-sheet scan against the BOM (handles wide raw exports).
+    if name.endswith((".xlsx", ".xls", ".csv")):
+        scan = await _scan_spreadsheet_invoice(org, content, filename, idx)
+        if scan["matched_count"] > 0:
+            await _audit(org, user, "ai_invoice_parse", filename=filename, ok=True,
+                         method="spreadsheet_scan", lines=scan["matched_count"])
+            return {
+                "available": True, "advisory_only": True, "source": "spreadsheet_scan",
+                "order_reference": "", "currency": "", "order_value": scan["order_value"],
+                "note": f"Scanned the whole spreadsheet and matched {scan['matched_count']} machine(s) to the BOM.",
+                "lines": scan["lines"], "matched_count": scan["matched_count"],
+            }
+        # fall through to LLM if nothing matched deterministically
+
     parsed = await parse_invoice_file(content, filename or "invoice", content_type or "")
     if not parsed.get("available"):
         await _audit(org, user, "ai_invoice_parse", filename=filename, ok=False)
         return parsed
-    settings = await _data_settings(org)
-    idx = await _machine_index(org)
-    cutoff = int(settings["fuzzy_threshold"] * 100)
     lines = []
     for ln in parsed.get("lines", []):
         ref = (ln.get("machine_model") or ln.get("machine_ref") or "").strip()

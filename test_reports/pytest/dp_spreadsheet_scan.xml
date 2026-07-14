@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="10.454" timestamp="2026-07-14T16:44:35.674057+00:00" hostname="agent-env-bdca771f-4a0c-4ced-8725-43ac714bb159"><testcase classname="tests.test_dealer_parts_spreadsheet_scan_jan2026" name="test_spreadsheet_full_sheet_scan" time="5.499" /><testcase classname="tests.test_dealer_parts_spreadsheet_scan_jan2026" name="test_finish_invoice_session_consumed" time="0.165" /><testcase classname="tests.test_dealer_parts_spreadsheet_scan_jan2026" name="test_llm_path_text_invoice" time="3.820"><failure message="AssertionError: assert 'fuzzy_description' == 'exact_ref'&#10;  &#10;  - exact_ref&#10;  + fuzzy_description">tests/test_dealer_parts_spreadsheet_scan_jan2026.py:135: in test_llm_path_text_invoice
+    assert hit.get("match_method") == "exact_ref"
+E   AssertionError: assert 'fuzzy_description' == 'exact_ref'
+E     
+E     - exact_ref
+E     + fuzzy_description</failure></testcase><testcase classname="tests.test_dealer_parts_spreadsheet_scan_jan2026" name="test_rbac_dealer_blocked" time="0.871" /></testsuite></testsuites>

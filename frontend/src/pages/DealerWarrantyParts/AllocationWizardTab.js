@@ -203,12 +203,19 @@ export default function AllocationWizardTab() {
             <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.webp" className="hidden"
               data-testid="dp-wiz-invoice-input" onChange={(e) => parseInvoice(e.target.files?.[0])} />
             {aiBusy ? (
-              <div className="flex flex-col items-center gap-2 py-2 text-slate-500">
-                <Sparkles size={22} className="text-[var(--gx-brand-from)] animate-pulse" />
-                <span className="text-sm font-medium">{aiProgress < 100 ? `Uploading invoice… ${aiProgress}%` : 'AI is reading your invoice…'}</span>
-                <div className="w-48 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full bg-[var(--gx-brand-from)] transition-all" style={{ width: `${aiProgress}%` }} />
+              <div className="flex flex-col items-center gap-2.5 py-3 text-slate-600" data-testid="dp-wiz-ai-status">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={20} className="text-[var(--gx-brand-from)] animate-pulse" />
+                  <span className="text-sm font-semibold">{aiProgress < 100 ? `Uploading invoice… ${aiProgress}%` : 'AI is reading your invoice…'}</span>
                 </div>
+                <div className="w-64 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  {aiProgress < 100
+                    ? <div className="h-full bg-[var(--gx-brand-from)] transition-all duration-200" style={{ width: `${aiProgress}%` }} />
+                    : <div className="h-full w-1/3 bg-[var(--gx-brand-from)] rounded-full dp-indeterminate" />}
+                </div>
+                <span className="text-xs text-slate-400">
+                  {aiProgress < 100 ? 'Securely streaming your file…' : 'Extracting machines, quantities & values and matching them to the BOM…'}
+                </span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1.5">

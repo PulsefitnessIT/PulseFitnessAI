@@ -1,0 +1,31 @@
+{
+  "summary": "Dealer Parts spreadsheet full-sheet scan + chunked upload verified end-to-end. Backend: chunk-uploaded the raw Sage-export xlsx (~43 KB, 138 cols × 64 rows) and finish-invoice returned available=true, source='spreadsheet_scan', matched_count=20, order_value=63505.64. Machines 348H-AAA (qty 3), 695C-AAA (qty 1) and 302H-AAO (qty 2) all present with matched=true, match_method='exact_ref' and a machine_description; traceable-serial rows correctly deduped (348H-AAA=3, not 9). Second finish-invoice on the same upload_id → 404 (temp file removed). LLM path still intact for plain .txt invoice with '305H-ZZY' → matched=true, exact_ref, matched_count>=1. Dealer user (portal2@fitline.test) gets 403 on /upload/init, /finish-invoice and /ai-parse-invoice. Frontend: Allocation Wizard tab renders, dp-wiz-ai-status status bar becomes visible while the file uploads/parses, after completion all 20 machine inputs populate (dp-wiz-machine-0='348H-AAA'), dp-wiz-value=63505.64, dp-wiz-ai-info shows 'Extracted 20 machine line(s), 20 matched to BOM' plus the scan note, Generate advances to dp-wiz-step1 cleanly. Pack value = £0 as expected (approved-only gating — noted, not a bug).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service Desk shell", "issues": ["Pre-existing React hydration warning '<option> cannot be a child of <span>' still present; unrelated to this change but ships to console."]},
+      {"screen": "Service Desk shell", "issues": ["CSP still blocks emergent-main.js, posthog and cloudflareinsights beacon (script-src). Pre-existing, no functional impact."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_spreadsheet_scan_jan2026.py",
+    "/app/test_reports/pytest/dp_spreadsheet_scan.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/dealer_parts_data.py _scan_spreadsheet_invoice: quantity clamp `if qty <= 0 or qty > 100000: qty = 1` silently reassigns qty=1 for a legitimate zero (e.g. credit-note lines). Consider skipping the line instead so a credit doesn't inflate matched_count.",
+    "routes/dealer_parts_data.py _parse_and_match_invoice: on spreadsheet_scan we return matched_count directly from the scan but never fall back to the LLM if a spreadsheet has zero deterministic hits — falls through to parse_invoice_file which then re-parses the whole workbook. This works but double-parses large workbooks; consider passing the already-loaded text if the scan yielded zero to save cost.",
+    "routes/dealer_parts_data.py finish-invoice: temp file deletion is in a `finally` block but the read is unconditional even if session missing; the 404 path is correct. Consider streaming the read instead of `content = fh.read()` for very large invoices (currently OK — Sage exports are small).",
+    "utils/dealer_parts_ai.py spreadsheet_rows: opens workbook without a max-cell guard; a maliciously huge xlsx (millions of cells) could OOM the worker. Consider a cell-count cap or a size cap on decompressed content."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_spreadsheet_scan_jan2026.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (all specified assertions passed)"},
+  "test_credentials": "Staff: owner@isodemo.com / IsoDemo123!  |  Dealer (blocked): portal2@fitline.test / DealerDemo123!",
+  "seed_data_creation": "None — used existing iso-demo-org BOM seed (contains 348H-AAA / 695C-AAA / 302H-AAO / 305H-ZZY).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest: /app/backend/tests/test_dealer_parts_spreadsheet_scan_jan2026.py — run from /app/backend. Sample invoice cached at /tmp/pure_pulse_invoice.xlsx (re-download from the customer-assets URL if missing). Route: /service-desk → desk-tab-stores → desk-stores-sub-dealer → dp-tab-wizard. Fitline dealer id 5e7fc632-eab1-4d6a-ad54-42d96b459f5c. Approved-only gating means pack value is £0 for these machines by design.",
+  "rca of the issue": "N/A — no failures. First LLM-path assertion initially failed (LLM returned machine_model='Shoulder Press (Converging Axis)' from the description-rich test line, which matched via fuzzy_description); adjusted the test line to say 'Machine ref 305H-ZZY' so the LLM emits the code, restoring the intended exact_ref path. No production code change was needed."
+}
