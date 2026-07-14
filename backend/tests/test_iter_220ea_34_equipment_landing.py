@@ -12,7 +12,7 @@ import pathlib
 
 import requests
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 FRONT = pathlib.Path("/app/frontend/src/pages/Marketing/Landing")
 
 

@@ -11,7 +11,7 @@ import pytest
 import requests
 
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-            or "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+            or "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PASSWORD = "IsoDemo123!"
 

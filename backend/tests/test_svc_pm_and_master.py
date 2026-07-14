@@ -4,7 +4,7 @@ import time
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PASS = "IsoDemo123!"

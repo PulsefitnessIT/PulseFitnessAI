@@ -8,7 +8,7 @@ import uuid
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+       "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 
 
 def _login(email, pwd):

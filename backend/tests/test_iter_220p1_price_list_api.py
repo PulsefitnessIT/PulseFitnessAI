@@ -9,7 +9,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 SAMPLE = "/app/test_samples/pulse_master_price_list_sample.xlsx"
 ADMIN_EMAIL = "admin@gymaxisai.com"
 ADMIN_PASS = "MasterAdmin123!"

@@ -26,7 +26,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+       or "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 DB_NAME = os.environ.get("DB_NAME") or "test_database"
 
 

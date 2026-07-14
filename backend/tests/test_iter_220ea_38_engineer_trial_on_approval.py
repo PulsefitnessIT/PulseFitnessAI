@@ -25,7 +25,7 @@ from conftest import rate_limit_bypass_headers
 
 load_dotenv("/app/backend/.env")
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://rbac-modules.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 ADMIN_PW = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
 MONGO_URL = os.environ["MONGO_URL"]

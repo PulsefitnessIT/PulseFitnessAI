@@ -1,27 +1,19 @@
-<analysis>**original_problem_statement**: PRODUCT REQUIREMENTS: Robust Operations management, Lite/Pro tiering, and seamless Multi-Module RBAC. Features requested: Request a Part module inside Operations, upload exploded drawings, and fix a recurring production deployment crash-loop (k8s health check timeout). Recently added: Ensure 'Request a Part' UI renders inline, fix missing Forgot password? option on the sign-in modal, and investigate/fix test data leaking into the live production database.
+<analysis><analysis>
+**original_problem_statement**: PRODUCT REQUIREMENTS: Robust Operations management, Lite/Pro tiering, Multi-Module RBAC. Requested features: P0 PDF template rollout, external tenant document branding, Engineer app tweaks (settings/support), Territory-based routing for engineers, CRM Staffing integration, Territory mapping upgrades, Asset Financial Intelligence (CAPEX), and MOD CAPEX integration.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in the user's preferred language only)
 
-**what currently exists?** A fully functional CRM with Site Surveys and a robust Request a Part flow. Master Admin Catalogue supports Exploded Drawings with mapped interactive part lists. The production K8s crash-loop issue is completely resolved via a lazy-loaded Motor DB proxy. The 'Forgot Password' flow has been implemented end-to-end and connected to the Pulse Landing Page modal. 
+**what currently exists?**: A mature full-stack CRM, Operations management, and Service Desk platform with multi-tenant RBAC, custom PDF builders leveraging ReportLab, territory-based routing, an advanced CAPEX Intelligence engine (with depreciation, total cost of ownership, Cap-Spend budgets, and sweet-spot replacement planners), a MOD-specific Service portal, and a newly decluttered Service Desk sidebar.
 
 **Last working item**: 
-    - Last item agent was working: Investigating why preview/test data appeared in the live production database. The agent fetched architecture details from the support agent, explaining that preview and prod use separate DBs, but a backend boot-seed script likely ran on the prod server. The agent proposed auditing the seed logic to hard-gate test data off in production, or adding a one-click purge test orgs helper to the Master Admin UI.
-    - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: N
-    - Which testing method agent to use? backend testing agent (Once seed logic is audited/fixed)
+    - Last item agent was working: Service Desk sidebar declutter. Reorganized the main sidebar by creating a collapsible Options menu (holding Import data, Integrations, Audit log, Account settings, Engineers), merging Reports and Supplier Health into the Analytics hub, and gating the Expenses tab to only be visible to  and  ( capability).
+    - Status: COMPLETED
+    - Agent Testing Done: Y
+    - Which testing method agent to use?: NA (already validated visually via screenshot tool and backend checks).
     - User Testing Done: N
 
-**All Pending/In progress Issue list**:
-  Issue 1: Production database containing preview/test data (P0)
-     - Attempted fixes: Investigated cause via support_agent. Explained to the user that it's likely a seed script running on startup.
-     - Next debug checklist: Await user confirmation, then audit backend boot-seeding scripts (, ) to ensure test/regression data is strictly gated via . Potentially add a purge helper in Master Admin UI.
-     - Why fix this issue and what will be achieved with the fix?: Prevents fake regression data from cluttering the live production environment.
-     - Status: USER VERIFICATION PENDING
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix?: Backend
-     - Blocked on other issue: Waiting for user to confirm the proposed remediation plan.
-
-  Issue 2: Stripe Module Subscription Checkout Blocked (P2)
+**All Pending/In progress Issue list**:  
+  Issue 1: Stripe Module Subscription Checkout Blocked (P2)
      - Attempted fixes: Previously built, but blocked by an expired Stripe key.
      - Next debug checklist: Wait for user to provide pricing and a valid Stripe API key.
      - Why fix this issue and what will be achieved with the fix?: Enables revenue collection.
@@ -30,7 +22,7 @@
      - Should Test frontend/backend/both after fix?: Backend
      - Blocked on other issue: Expired Stripe Key & finalized pricing.
 
-  Issue 3: SEO Audit Subagent Timeout (P2)
+  Issue 2: SEO Audit Subagent Timeout (P2)
      - Attempted fixes: Subagent timed out multiple times previously.
      - Next debug checklist: Needs to be re-run and logs monitored.
      - Why fix this issue and what will be achieved with the fix?: Fulfills previous user request.
@@ -39,114 +31,139 @@
      - Should Test frontend/backend/both after fix?: NA
      - Blocked on other issue: None
 
-**In progress Task List**: 
+**In progress Task List**:
   None
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - Task 1: Sicon Customer Auto-Import via Sage Core / CRM API (P2)
-    - Task 2: Sicon Equipment API Auto-Import (P2 - BLOCKED, needs Sicon equipment API doc)
-    - Task 3: CRM-only assets Promote to register action (P2)
-    - Task 4: Update 'Request a Part' status badges to use dashboard's translucent badge style (e.g. bg-emerald-500/20) for dark mode visual parity (Proposed Enhancement - Pending Approval)
+    - Task 1: Sicon Customer Auto-Import via Sage Core / CRM API (P0 - deferred by user pending credentials)
+    - Task 2: CRM-only assets Promote to register action (P1)
+    - Task 3: Sicon Equipment API Auto-Import (P2 - BLOCKED, needs Sicon equipment API doc)
     
     Future Tasks:
-    - Task 1: Interactive-hotspot version for exploded drawings (Requested as a later roadmap item).
+    - Task 1: Sicon Write-back for Service Cases / Customers (Feasible, but requires Sage 200 web API credentials from user).
+    - Task 2: Interactive-hotspot version for exploded drawings.
+    - Task 3: CSV cost backfill wizard for equipment (Suggested: Export assets-missing-cost list pre-filled, fill purchase costs, and re-import).
 
 **Completed work in this session**
-- Identified and fixed the root cause of the prod crash-loop:  parses DNS SRV records synchronously, blocking the import thread. Implemented a lazy proxy () in  to defer instantiation until the event loop runs. (DONE)
-- Hardened AST regression test () to scan  and  for eager motor client construction. (DONE)
-- Built the frontend UI for Forgot Password requesting a reset link ( without token) and wired it up to the existing backend. (DONE)
-- Added the missing Forgot password? link to the  login modal. (DONE)
+- CRM Territories: Role filters (Managers/Engineers) and Office locations with Postcode Geocoding via  (DONE)
+- Asset Financial Intelligence: Added Residual/Book value, Depreciation, TCO, and Cap-Spend Budgets vs Forecast into CAPEX (DONE)
+- MOD CAPEX Integration: Pushed CAPEX intelligence & Replacement Sweet-Spot Planner down to the MOD portal () (DONE)
+- Board CAPEX PDF: Expanded  to include Cap-Spend Budget, Asset Valuation, and Replacement Plan (DONE)
+- Equipment Cost Data: Enabled , , and  via backend  and Frontend UI (DONE)
+- CAPEX Data Health: Added fleet data-health badge & inline cost nudges for incomplete asset records (DONE)
+- Service Desk Sidebar: Decluttered sidebar, created Options menu, combined Analytics tabs, and role-gated Expenses (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-   Issue 1: SEO Audit Subagent Timeout
-   - Debug checklist: Needs to be re-run and logs monitored.
-   - Why to solve this issue and what will be achieved with this?: Fulfills previous user request.
-   - Should Test frontend/backend/both after fix: NA
-   - Is recurring issue? Y
+   - Issue 1: SEO Audit Subagent Timeout (Still not initiated)
+     - Debug checklist: Trigger the SEO Audit tool/subagent and track execution to ensure it completes without timing out.
+     - Why to solve this issue and what will be achieved with this?: Fulfills earlier SEO marketing requirement.
+     - Should Test frontend/backend/both after fix: Backend logs.
+     - Is recurring issue? Y
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Production Deployment Crash-loop Verification (k8s timeout). Initially patched with async Motor refactor, but it recurred because the  Atlas URI inherently blocks on DNS lookups during client instantiation at module import scope. 
-  - Recurrence count: 2
-  - Status: RESOLVED (Fixed via transparent lazy DB proxy; successfully deployed to prod).
+  - Issue recurrence in previous fork: Production Deployment Crash-loop (k8s timeout) due to synchronous blocking calls at module import level.
+  - Recurrence count: 3
+  - Status: RESOLVED
 
 **Code Architecture**
 /app
 ├── backend/
 │   ├── routes/
-│   │   ├── auth.py                 # Handles /auth/forgot-password and /auth/reset-password
+│   │   ├── capex.py (Updated: Valuations, Budgets, Planner, Health)
+│   │   ├── crm_territories.py (Updated: Geocoding, Office CRUD)
+│   │   ├── equipment.py (Updated: purchase cost/date schemas)
 │   ├── utils/
-│   │   ├── database.py             # Contains  logic to prevent SRV blocking
-│   ├── tests/
-│   │   ├── test_no_blocking_imports.py  # AST guard for blocking imports (now scans utils & bootstrap)
+│   │   ├── capex_intelligence.py (Updated: Financials)
+│   │   ├── capex_pdf_exporter.py (Updated: Budget/Valuation & Planner layout)
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/
-│   │   │   ├── ResetPasswordPage.js  # Updated to include initial email request state
-│   │   │   ├── PulseLandingPage.js   # Updated login modal with Forgot Password link
+│   │   ├── pages/ServiceDeskPage.js (Updated: Nav declutter, Options)
+│   │   ├── pages/CapexIntelligenceTab.js (Updated)
+│   │   ├── pages/MODPortal/ (Updated: MODSiteDashboard.js, MODCapexPortal.js)
+│   │   ├── pages/CRM/ (Updated: CRMTerritoryMap.js, CRMTerritoryOffices.js)
+│   │   ├── components/equipment/ (Updated: AddEquipmentDialog.js)
+├── memory/
+│   ├── COMPETITIVE_GAP_ANALYSIS.md (NEW)
 
 **Key Technical Concepts**
-React, FastAPI, MongoDB (Motor Async with Lazy Proxies), Tailwind CSS, Threadpools, Pytest, AST Guards.
+React, FastAPI, MongoDB, Multi-tenant RBAC, ReportLab (PDF Generation), Haversine formula (Distance), Open Postcodes API (postcodes.io).
 
 **key DB schema**
-  - : {id, company_id, site_id, sections, readiness, status}
+  - : {enabled_modules, capital_budget...}
+  - : {purchase_cost, purchase_date, expected_lifespan_years...}
+  - : {id, organization_id, name, postcode, lat, lng...}
 
 **changes in tech stack**
-  - Database Initialization: Motor connections MUST use the custom lazy proxy in  when using  to avoid event-loop blocking during k8s deployment.
+  - Usage of  for territory office geocoding.
 
 **All files of reference** 
+  -  (NEW - Research on Simpro & Orbit4 gaps)
+  -  & 
   - 
   - 
-  - 
-  - 
+  -  
   - 
 
 **Areas that need refactoring**: 
-  - None currently.
+  - N/A
 
 **key api endpoints**
-  -  and 
+  - 
+  - 
+  - 
   - 
   - 
 
 **Critical Info for New Agent** 
-  - **Database Connection Blocking:** Never use synchronous network or DB constructor calls at the module scope in FastAPI. Specifically,  URIs execute synchronous DNS SRV resolution upon object instantiation. A lazy proxy () is handling this now—do not alter this behavior.
-  - **Separate Databases:** Production and Preview use strictly isolated MongoDB databases. 
-  - **Data Leakage:** Test data leaked into the live production database. It is highly likely that test-seeding scripts in  or  executed unconditionally on startup. This must be strictly gated using .
+  - **ENVIRONMENT SETUP RULE**: The user has deployed the app to production. There are now TWO environments: PREVIEW (dev) and PRODUCTION (deployed at user's custom domain). You ONLY have access to PREVIEW. ALL changes happen in PREVIEW. Do not provide deployment URLs or tell the user to redeploy proactively; only clarify which environment they are referring to if bugs are reported.
+  - **CAPEX Mod Gating**:  backend gates have been updated so  /  roles can query CAPEX intelligence scoped to their location.
+  - **Sicon Integration**: Still technically blocked pending user credentials & API docs for Sage Core.
 
 **documents and test reports created in this job** 
   - 
   - 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *[User (System)]*: Deployment FAILED AGAIN (timeout).
- - *[User (System)]*: The user reported a bug. After applying the fix you MUST call the testing_agent...
- - *[User (System)]*: The user has deployed this app to production. There are now TWO environments...
- - *[User]*: Sign in - There's no forgot password option
- - *[User]*: Database - How has the preview database been copied over to production?
- - **Pending Human Message**: Waiting for the user to confirm whether the agent should (a) audit the backend boot-seeding script to block test data in prod, and/or (b) add a one-click purge tool to the Master Admin UI to clean up the spilled test data.
+ - *[Agent]*: Proposed plan to do P0 Territory Upgrades (Role filter & Office locations).
+ - *[User]*: continue
+ - *[Agent]*: Implemented territory map role filter + postcode office locations.
+ - *[User]*: continue potential improvement (postcode to lat/lng geocoding).
+ - *[User]*: Crawl competitor websites (Simpro & Orbit4) and find gaps.
+ - *[Agent]*: Found gap: Asset Financial Intelligence & Cap-Spend.
+ - *[User]*: Tie in with CAPEX reports and ensure data flows without duplication.
+ - *[User]*: Ensure that the new capex runs through to /MODService too.
+ - *[User]*: Add the planner + valuation/budget to the Board CAPEX PDF.
+ - *[User]*: Populate real purchase_cost/purchase_date on live equipment.
+ - *[User]*: Add estimated -> set actual cost nudge.
+ - *[User]*: Service desk - The side nav bar is looking congested - Create an options button... Merge Reports and supplier health into Analytics. Expenses should only be available to managers and owners.
+ - *[Agent]*: Decluttered Service Desk sidebar. COMPLETED.
+ - **Pending Human Message**: None. 
 
 **Project Health Check:**
-  - Broken: None. 
-  - Mocked: Sicon Equipment API
+  - Broken: None.
+  - Mocked: Sicon Equipment API.
 
 **3rd Party Integrations** 
   - OpenAI GPT-4o — uses Emergent LLM Key
-  - Resend (Email) — requires User API Key (Configured)
+  - Resend (Email) — requires User API Key
   - Stripe (Payments) — requires User API Key (Blocked)
-  - Object Storage — uses Emergent integrations (Playbook applied)
+  - Object Storage — uses Emergent integrations
+  -  - Free open external API
 
 **Testing status**
   - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: 
-    - 
-    - 
+  - Test files created: , 
   - Known regressions: None
 
 **Credentials to test flow:**
-  - Master Admin:  (Check  for password)
-  - Test User: 
+  - Master Admin:  
+  - Test User (Owner - has Service Desk access):  / 
+  - Pulse Pro Operator:  / 
+  - MOD ASER User:  / 
 
 **What agent forgot to execute**
-None. All tasks were addressed and executed according to constraints.</analysis>
+The SEO Audit Subagent timeout issue (P2) is still pending and has been repeatedly deferred.
+</analysis></analysis>
