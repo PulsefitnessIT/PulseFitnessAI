@@ -22,7 +22,7 @@ import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, ScrollText, Loader2,
   ShieldCheck, Menu, X, BarChart3, UploadCloud, Wallet, CalendarClock, Cable,
-  SlidersHorizontal, Settings, ChevronDown,
+  SlidersHorizontal, Settings, ChevronDown, Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +52,7 @@ import { ServiceOpsEmbeddedContext } from './ServiceOps/ServiceOpsShell';
 const OpsCases     = lazy(() => import('./ServiceOps/ServiceDeskPage'));
 const OpsScheduler = lazy(() => import('./ServiceOps/SchedulerHub'));
 const OpsParts     = lazy(() => import('./ServiceOps/PartsInventoryPage'));
+const DealerParts  = lazy(() => import('./DealerWarrantyParts/DealerWarrantyPartsPage'));
 const OpsBilling   = lazy(() => import('./ServiceOps/BillingPage'));
 const OpsEngineers = lazy(() => import('./ServiceOps/EngineersAdminPage'));
 const OpsReports   = lazy(() => import('./ServiceOps/ServiceOpsReportsPage'));
@@ -67,6 +68,7 @@ const TABS = [
   { id: 'equipment',  label: 'Equipment',  icon: Wrench },
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'parts',      label: 'Parts',      icon: Package },
+  { id: 'dealer_parts', label: 'Dealer Warranty Parts', icon: Globe },
   { id: 'billing',    label: 'Billing',    icon: FileText },
 ];
 
@@ -236,6 +238,8 @@ export default function ServiceDeskPage() {
             <Suspense fallback={<EmbedFallback />}><OpsParts /></Suspense>
           </ServiceOpsEmbeddedContext.Provider>
         );
+      case 'dealer_parts':
+        return <Suspense fallback={<EmbedFallback />}><DealerParts /></Suspense>;
       case 'billing':
         return (
           <ServiceOpsEmbeddedContext.Provider value={true}>

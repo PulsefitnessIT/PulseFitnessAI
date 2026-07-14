@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="3.409" timestamp="2026-07-14T11:02:13.395495+00:00" hostname="agent-env-bdca771f-4a0c-4ced-8725-43ac714bb159"><testcase classname="tests.test_dealer_parts_jan2026" name="test_dashboard" time="1.123" /><testcase classname="tests.test_dealer_parts_jan2026" name="test_settings_get_and_put" time="0.322" /><testcase classname="tests.test_dealer_parts_jan2026" name="test_dealer_create_get_and_dedup" time="0.221"><failure message="AssertionError: Duplicate dealer not deduped&#10;assert 'c7828188-2fa...-6054463c087c' == 'ce14e897-01a...-d8d044e80e0c'&#10;  &#10;  - ce14e897-01ac-4ce5-a295-d8d044e80e0c&#10;  + c7828188-2fa8-4153-9c19-6054463c087c">tests/test_dealer_parts_jan2026.py:70: in test_dealer_create_get_and_dedup
+    assert r2.json()["id"] == dealer_id, "Duplicate dealer not deduped"
+E   AssertionError: Duplicate dealer not deduped
+E   assert 'c7828188-2fa...-6054463c087c' == 'ce14e897-01a...-d8d044e80e0c'
+E     
+E     - ce14e897-01ac-4ce5-a295-d8d044e80e0c
+E     + c7828188-2fa8-4153-9c19-6054463c087c</failure></testcase><testcase classname="tests.test_dealer_parts_jan2026" name="test_order_import_allowance_and_dedup" time="0.330" /><testcase classname="tests.test_dealer_parts_jan2026" name="test_allocation_full_lifecycle" time="0.870" /><testcase classname="tests.test_dealer_parts_jan2026" name="test_over_allowance_approval" time="0.439" /></testsuite></testsuites>
