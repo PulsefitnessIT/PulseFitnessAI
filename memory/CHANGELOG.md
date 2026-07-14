@@ -1150,3 +1150,10 @@ Seeded on org iso-demo-org (owner@isodemo.com / IsoDemo123!).
 - Verified: monitoring endpoint counts, all 5 CSV reports, tab renders via screenshot.
 
 Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Analysis, Match Review, Unmatched Review, Machine Parts, Allocation Wizard, Intelligence & Reports, Dealers, Orders, Allocations, BOM Mgmt, Most Used, Engineer Usage, Stores Dept, Failure Intel, Alerts, Replenishment, Dealer Portal, Reports, RMA, Remote Stores, Ledger, Settings.
+
+## 2026-07-14 — Dealer Parts UX restructure + AI drag-drop invoice → VERIFIED (all backend+frontend tests pass)
+- Consolidated 24 top-level tabs → 14, in logical order: Dashboard, Allocation Wizard, Dealers, Orders & Allowance, Allocations, Stores Dept, Remote Stores, Engineer Usage, Replenishment, Returns/RMA, Stock Ledger, Dealer Portal, Analytics, Settings.
+- New Analytics hub (AnalyticsTab.js + SubTabHub.js): merges Most-Used Analysis, Intelligence & Reports, Parts by Machine, Most-Used Parts (manual), Failure Intelligence, Monitoring & Alerts, Dealer Reports.
+- New Settings hub (SettingsHubTab.js): merges General, Data Imports, BOM Management, Match Review, Unmatched Review.
+- Allocation Wizard: added drag-and-drop invoice upload (dp-wiz-dropzone). Backend POST /api/dealer-parts/data/ai-parse-invoice (multipart) → utils/dealer_parts_ai.parse_invoice_file: PDF (pypdf)/xlsx (openpyxl)/csv/txt text extraction + image vision (ImageContent), Emergent LLM key gpt-5.2 → extracts machine lines + order value, then _resolve_machine matches each to BOM. Wizard auto-fills machine lines + order value + shows "AI suggestion — please review" banner, marks matched/unmatched per line. RBAC: dealer_user → 403.
+- Verified: 305H-ZZY extracted (exact_ref, matched_count=1), unknown ref matched=false, full wizard e2e (upload→prefill→generate), Analytics/Settings hubs render all sub-tabs, no forbidden standalone tabs.
