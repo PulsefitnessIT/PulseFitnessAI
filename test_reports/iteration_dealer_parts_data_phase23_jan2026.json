@@ -1,0 +1,23 @@
+{
+  "summary": "Dealer Parts Phase 2 (machine matching + recommendation) and Phase 3 (monitoring + CSV reports) — all 19 pytest cases passed against iso-demo-org seeded data.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_phase23.py",
+    "/app/test_reports/pytest/dealer_parts_p23.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "recommend_from_invoice is ~120 lines inside a 1338-line module — consider splitting Phase2/Phase3 helpers into dedicated modules for maintainability (>700 line threshold).",
+    "data_report_csv uses long if/elif chain — could be dict-dispatched; loads up to 5000 rows into memory before streaming (fine for current scale).",
+    "recommend response returns run doc via **run then re-pops _id; already excluded via insert_one(dict(run)) copy — pop is defensive, OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_phase23.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "n/a"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (staff), portal2@fitline.test / DealerDemo123! (dealer). Fitline dealer id 5e7fc632-eab1-4d6a-ad54-42d96b459f5c.",
+  "seed_data_creation": "None — used existing seeded iso-demo-org data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase2/3 fully green. Test file: /app/backend/tests/test_dealer_parts_phase23.py. Validated: exact_ref match for 305H-ZZY, garbage returns match=null with alternatives, recommend allowance math (50000*2.5%=1250 and 1000*2.5%=25), over_allowance flag+negative allowance_remaining, unmatched line handling, ~21 items in 305H-ZZY pack with all required fields, fleet-scaling (original_qty>=3 when qty=3), duplicates_avoided counter present, monitoring returns all 5 insights + totals, all 4 CSV reports 200, most-used-by-machine 400 without top_level_ref and 200 with it, unknown report 404, dealer_user gets 403 on all 4 endpoints.",
+  "rca of the issue": "n/a"
+}
