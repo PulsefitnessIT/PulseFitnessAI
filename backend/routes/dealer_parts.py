@@ -32,7 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from utils.database import db
 from utils.auth import get_current_user
-from utils.security_plus import safe_regex
+from utils.security_plus import safe_regex, safe_regex_exact
 
 router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
 
@@ -183,7 +183,7 @@ async def create_dealer(data: dict, user=Depends(get_current_user)):
         existing = await db[DEALERS].find_one({"organization_id": org, "company_id": company_id})
     if not existing:
         existing = await db[DEALERS].find_one(
-            {"organization_id": org, "name": safe_regex(f"^{name}$")}
+            {"organization_id": org, "name": safe_regex_exact(name)}
         )
     if existing:
         return _strip(existing)
@@ -658,7 +658,7 @@ async def create_store(data: dict, user=Depends(get_current_user)):
     if not dealer_id or not name:
         raise HTTPException(400, "dealer_id and name required")
     dealer = await _dealer_or_404(org, dealer_id)
-    existing = await db[STORES].find_one({"organization_id": org, "dealer_id": dealer_id, "name": safe_regex(f"^{name}$")})
+    existing = await db[STORES].find_one({"organization_id": org, "dealer_id": dealer_id, "name": safe_regex_exact(name)})
     if existing:
         return _strip(existing)
     store = {

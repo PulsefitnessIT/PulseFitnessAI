@@ -1,6 +1,17 @@
 # Changelog
 
 
+## Jul 14, 2026 — Dealer Warranty Parts (Phase 1) — Service Desk → Parts
+New global dealer spare-parts module. Extends the platform, reuses existing records (parts catalogue `svc_parts`, service cases, equipment, CRM companies) — no duplication.
+- **Backend (`routes/dealer_parts.py`, prefix `/api/dealer-parts`):** dealers (link to CRM company_id, name/company dedup via `safe_regex_exact`), order/invoice import with automatic spare-parts allowance calc (`allowance = order_value × %`; % resolves order-override → dealer default → global setting), allocation lifecycle (draft → submit → approve → dispatch → receive), auto-created "Main Dealer Store" on dispatch, remote stores + per-part store stock, immutable stock movement ledger, dashboard rollups, settings (manager-gated), audit events. Over-allowance / above-threshold allocations require manager approval.
+- **Collections:** dealer_parts_dealers, dealer_parts_settings, dealer_parts_orders, dealer_parts_allocations, dealer_remote_stores, dealer_remote_store_stock, dealer_stock_movements, dealer_parts_audit_events.
+- **Frontend (`pages/DealerWarrantyParts/*`):** "Dealer Warranty Parts" sidebar tab in Service Desk. Tabs: Dashboard (cards + allowance-by-country + recent allocations), Dealers (+ detail w/ stores/stock/allocations), Orders & Allowance (live allowance preview), Allocations (workflow action buttons), Remote Stores (+ stock view), Stock Ledger, Settings.
+- **Demo seed:** `backend/seed_dealer_parts_demo.py` — 3 dealers (Germany/Spain/UAE) with orders, allocations at different lifecycle stages.
+- **Tested:** testing_agent (backend 6/6 after fix, frontend all tabs) + curl + screenshots. Fixed 1 bug: dealer/store name dedup used `safe_regex(^name$)` (escaped anchors, never matched) → now `safe_regex_exact`.
+- **Deferred to next phases:** BOM + Most-Used Parts + Recommendation engine (P2), Engineer-app parts usage + Stores dept + Shipments/RMA (P3), Failure Monitoring Agent + Replenishment + Alerts (P4), Dealer Portal + Reports + AI (P5).
+
+
+
 ## Jul 6, 2026 — Imported Pulse Fitness PDF manual catalogue (103 URLs) + one-click bundled importer
 - **Crawled** the uploaded `pulse_fitness_pdf_inventory_partial_103.xlsx` (103 pulsefitness.com PDF URLs) → bundled as `backend/data/pulse_manual_urls.json` (manufacturer="Pulse Fitness", model=Product/Code, title, url, document_type, category).
 - **Backend (`routes/machine_manuals.py`):** `GET …/machine-manuals/bundled-catalogue` (status: total/present/missing) + `POST …/global/import-bundled` (idempotent bulk import via shared `_upsert_global_url_manual`). All 103 imported as global URL manuals (verified; re-run reused 103 / imported 0). **Bug fix:** an earlier edit had dropped the `@router.post(.../promote-global)` decorator — restored (route re-registered).
