@@ -111,4 +111,6 @@ export const dpApi = {
   machineParts: (topLevelRef) => axios.get(`${BASE}/data/machine-parts`, { ...auth(), params: { top_level_ref: topLevelRef } }).then((r) => r.data),
   getDataSettings: () => axios.get(`${BASE}/data/settings`, auth()).then((r) => r.data),
   saveDataSettings: (data) => axios.put(`${BASE}/data/settings`, data, auth()).then((r) => r.data),
+  matchMachine: (q) => axios.get(`${BASE}/data/match-machine`, { ...auth(), params: { q } }).then((r) => r.data),
+  recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
 };

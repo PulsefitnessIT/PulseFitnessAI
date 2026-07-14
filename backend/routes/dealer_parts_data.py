@@ -40,7 +40,8 @@ from utils.database import db
 from utils.auth import get_current_user
 from utils.security_plus import safe_regex
 
-from routes.dealer_parts import _of, _now, _audit, require_staff
+from routes.dealer_parts import _of, _now, _audit, require_staff, _dealer_or_404, DEALERS, ALLOCATIONS, STORE_STOCK
+from routes.dealer_parts_bom import _dealer_held, _dealer_allocated
 
 router = APIRouter(prefix="/dealer-parts/data", tags=["Dealer Parts — Data & Intelligence"],
                    dependencies=[Depends(require_staff)])
@@ -980,3 +981,214 @@ async def update_data_settings(data: dict, user=Depends(get_current_user)):
     await db[DATA_SETTINGS].update_one({"organization_id": org}, {"$set": upd}, upsert=True)
     await _audit(org, user, "data_settings_updated", **{k: str(v) for k, v in upd.items()})
     return await _data_settings(org)
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 2 — Invoice → BOM machine matching + recommendation engine
+# ─────────────────────────────────────────────────────────────────
+
+REC_RUNS = "dealer_parts_recommendation_runs"
+
+PRIORITY_BASE_QTY = {"critical": 3, "recommended": 2, "optional": 1, "low": 1, "no_usage": 0}
+PRIORITY_RANK = {"critical": 5, "recommended": 4, "optional": 3, "low": 2, "no_usage": 1}
+
+
+async def _machine_index(org: str):
+    """Load active BOM machines once for in-memory matching (few lines per invoice)."""
+    by_ref, by_stock, desc_pairs = {}, {}, []
+    async for m in db[BOM_MACHINES].find(
+        {"organization_id": org, "status": "active"},
+        {"_id": 0, "id": 1, "top_level_ref": 1, "top_level_ref_norm": 1,
+         "top_level_stock_code": 1, "description": 1, "component_count": 1},
+    ):
+        by_ref.setdefault(m["top_level_ref_norm"], m)
+        sc = norm_code(m.get("top_level_stock_code"))
+        if sc:
+            by_stock.setdefault(sc, m)
+        dn = norm_desc(m.get("description"))
+        if dn:
+            desc_pairs.append((dn, m))
+    return by_ref, by_stock, desc_pairs
+
+
+def _resolve_machine(ref: str, idx, fuzzy_cutoff: int):
+    by_ref, by_stock, desc_pairs = idx
+    rn = norm_code(ref)
+    if rn in by_ref:
+        return by_ref[rn], "exact_ref", 100
+    if rn in by_stock:
+        return by_stock[rn], "stock_code", 96
+    dn = norm_desc(ref)
+    if dn and desc_pairs:
+        from rapidfuzz import process, fuzz as _rf
+        keys = [d for d, _ in desc_pairs]
+        hit = process.extractOne(dn, keys, scorer=_rf.ratio, score_cutoff=fuzzy_cutoff)
+        if hit:
+            return desc_pairs[hit[2]][1], "fuzzy_description", int(hit[1])
+    return None, "none", 0
+
+
+async def _usage_by_bom_code(org: str, approved_only: bool) -> dict:
+    """bom_code_norm → aggregated historical usage from matched analysis rows."""
+    q = {"organization_id": org, "matched": True, "matched_bom_code": {"$ne": None}}
+    out: dict = {}
+    async for a in db[ANALYSIS].find(q, {"_id": 0}):
+        rs = a.get("review_status")
+        if rs in ("rejected", "obsolete", "not_relevant", "excluded"):
+            continue
+        if approved_only and rs != "approved":
+            continue
+        key = norm_code(a.get("matched_bom_code"))
+        cur = out.get(key)
+        if not cur or (a.get("total_qty") or 0) > (cur.get("total_qty") or 0):
+            out[key] = {
+                "total_qty": a.get("total_qty") or 0, "recent_12m": a.get("recent_12m") or 0,
+                "trend": a.get("trend"), "avg_cost": a.get("avg_cost"),
+                "priority": _machine_priority(a), "used_code": a.get("code"),
+            }
+    return out
+
+
+@router.get("/match-machine")
+async def match_machine(q: str = Query(...), user=Depends(get_current_user)):
+    org = _of(user)
+    settings = await _data_settings(org)
+    idx = await _machine_index(org)
+    m, method, score = _resolve_machine(q, idx, int(settings["fuzzy_threshold"] * 100))
+    result = None
+    if m:
+        result = {"top_level_ref": m["top_level_ref"], "top_level_stock_code": m.get("top_level_stock_code"),
+                  "description": m.get("description"), "component_count": m.get("component_count"),
+                  "method": method, "score": score}
+    # a few alternatives by fuzzy description
+    alts = []
+    from rapidfuzz import process, fuzz as _rf
+    _, _, desc_pairs = idx
+    if desc_pairs:
+        keys = [d for d, _ in desc_pairs]
+        for hit in process.extract(norm_desc(q), keys, scorer=_rf.ratio, limit=5):
+            mm = desc_pairs[hit[2]][1]
+            if not m or mm["top_level_ref"] != m["top_level_ref"]:
+                alts.append({"top_level_ref": mm["top_level_ref"], "description": mm.get("description"), "score": int(hit[1])})
+    return {"match": result, "alternatives": alts[:4]}
+
+
+@router.post("/recommend")
+async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
+    """Recommend a dealer spare-parts pack from invoice machine lines, using the
+    matched historical-usage intelligence. Nets against dealer held/allocated stock
+    (duplicate prevention) and computes the spare-parts allowance."""
+    org = _of(user)
+    dealer_id = data.get("dealer_id")
+    if not dealer_id:
+        raise HTTPException(400, "dealer_id required")
+    dealer = await _dealer_or_404(org, dealer_id)
+    settings = await _data_settings(org)
+    approved_only = bool(settings.get("require_human_review_before_recommend", True))
+    fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
+
+    idx = await _machine_index(org)
+    usage_map = await _usage_by_bom_code(org, approved_only)
+    held = await _dealer_held(org, dealer_id)
+    allocated = await _dealer_allocated(org, dealer_id)
+
+    # allowance
+    order_value = float(data.get("order_value") or 0)
+    percentage = data.get("spare_parts_percentage")
+    if percentage is None:
+        percentage = dealer.get("default_percentage")
+    if percentage is None:
+        percentage = 2.5
+    percentage = float(percentage)
+    allowance = round(order_value * percentage / 100.0, 2)
+
+    machine_lines, unmatched_lines, pack = [], [], []
+    duplicates_avoided = 0
+    for ln in (data.get("lines") or []):
+        ref = (ln.get("machine_ref") or ln.get("machine_model") or "").strip()
+        qty = float(ln.get("quantity") or 1)
+        if not ref:
+            continue
+        m, method, score = _resolve_machine(ref, idx, fuzzy_cutoff)
+        if not m:
+            unmatched_lines.append({"input_ref": ref, "quantity": qty})
+            machine_lines.append({"input_ref": ref, "quantity": qty, "matched": False})
+            continue
+        machine_lines.append({
+            "input_ref": ref, "quantity": qty, "matched": True, "match_method": method, "score": score,
+            "top_level_ref": m["top_level_ref"], "description": m.get("description"),
+        })
+        # components for this machine, deduped by code
+        comps: dict = {}
+        async for c in db[BOM_COMPONENTS].find(
+            {"organization_id": org, "top_level_ref_norm": m["top_level_ref_norm"], "status": "active"},
+            {"_id": 0, "code": 1, "code_norm": 1, "description": 1, "quantity": 1},
+        ):
+            cur = comps.get(c["code_norm"])
+            if cur:
+                cur["quantity"] += c.get("quantity") or 0
+            else:
+                comps[c["code_norm"]] = {"code": c["code"], "code_norm": c["code_norm"],
+                                         "description": c.get("description"), "quantity": c.get("quantity") or 0}
+        items = []
+        for cn, c in comps.items():
+            u = usage_map.get(cn)
+            if not u:
+                continue  # only recommend parts with proven historical usage
+            priority = u["priority"]
+            base = PRIORITY_BASE_QTY.get(priority, 0)
+            if base <= 0:
+                continue
+            fleet_factor = max(1, int(qty))
+            raw = int(base * fleet_factor)
+            have = int((held.get(c["code"], 0) or 0) + (allocated.get(c["code"], 0) or 0))
+            rec = max(0, raw - have)
+            unit = u.get("avg_cost") or 0
+            dup_warning = ""
+            if have > 0 and rec < raw:
+                duplicates_avoided += 1
+                dup_warning = (f"Dealer already holds/allocated {have} — no repeat needed."
+                               if rec == 0 else f"Reduced {raw}→{rec}: dealer already holds/allocated {have}.")
+            status = "recommended" if rec > 0 else "duplicate_avoided"
+            reason = (f"Historically used {u['total_qty']} (trend {u['trend']}, {priority} priority) "
+                      f"for {m['top_level_ref']}. " + dup_warning).strip()
+            items.append({
+                "part_sku": c["code"], "part_name": c.get("description") or c["code"],
+                "machine_model": m["top_level_ref"], "bom_qty": c["quantity"],
+                "priority": priority, "priority_rank": PRIORITY_RANK.get(priority, 1),
+                "trend": u["trend"], "recommended_qty": rec, "original_qty": raw,
+                "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
+                "total_used": u["total_qty"], "reason": reason, "status": status,
+            })
+        items.sort(key=lambda x: (-x["priority_rank"], -x["value"]))
+        pack.append({
+            "machine_ref": m["top_level_ref"], "machine_description": m.get("description"),
+            "quantity": qty, "items": items,
+            "item_count": sum(1 for i in items if i["recommended_qty"] > 0),
+        })
+
+    total_value = round(sum(i["value"] for grp in pack for i in grp["items"] if i["recommended_qty"] > 0), 2)
+    over = bool(allowance and total_value > allowance)
+
+    # dealer context (previous allocations + current stock)
+    prev_allocs = await db[ALLOCATIONS].count_documents(
+        {"organization_id": org, "dealer_id": dealer_id, "status": {"$nin": ["cancelled", "draft"]}})
+    stock_lines = await db[STORE_STOCK].count_documents({"organization_id": org, "dealer_id": dealer_id})
+
+    run = {
+        "id": str(uuid.uuid4()), "organization_id": org, "dealer_id": dealer_id, "dealer_name": dealer["name"],
+        "order_value": round(order_value, 2), "spare_parts_percentage": percentage, "allowance": allowance,
+        "total_value": total_value, "over_allowance": over, "duplicates_avoided": duplicates_avoided,
+        "machine_lines": machine_lines, "unmatched_lines": unmatched_lines,
+        "created_by": user.get("full_name") or user.get("email"), "created_at": _now(),
+    }
+    await db[REC_RUNS].insert_one(dict(run))
+    await _audit(org, user, "recommendation_generated", dealer_id=dealer_id, run_id=run["id"],
+                 total_value=total_value, over_allowance=over, unmatched_lines=len(unmatched_lines))
+    run.pop("_id", None)
+    return {
+        **run, "pack": pack,
+        "allowance_remaining": round(allowance - total_value, 2),
+        "dealer_context": {"previous_allocations": prev_allocs, "stock_lines": stock_lines},
+        "approved_only_matches": approved_only,
+    }
