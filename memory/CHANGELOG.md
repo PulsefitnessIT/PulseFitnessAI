@@ -1,6 +1,20 @@
 # Changelog
 
 
+## Jul 14, 2026 — Dealer Parts: nav merge + Phase 4 (Failure Monitoring + Intelligence + Replenishment + closed loop)
+- **Nav change:** Service Desk sidebar "Parts" → renamed **"Stores"**; the standalone "Dealer Warranty Parts" tab is merged INTO Stores as a sub-tab **"Dealer Parts"** (alongside "Pulse Warehouse"). Module retitled **"Dealer Parts"** (now covers all dealer parts, not just warranty). Files: `ServiceDeskPage.js` (desk-tab-stores, desk-stores-sub-warehouse/dealer).
+- **Backend (`routes/dealer_parts_intel.py`, reads Phase 3 usage logs):**
+  - **Global Failure Intelligence** — `GET /intel/overview` (top failing parts, by country/dealer/model/reason, monthly trend) and `GET /intel/failures?group_by=part|country|dealer|model|serial`.
+  - **Parts Failure Monitoring Agent** — `POST /monitoring/run` generates alerts: high_failure_rate (country vs average of OTHER regions × spike factor), potential_quality_issue (≥3 defect-type failures), repeated_failure_by_serial (≥3 in a serial prefix/batch). Idempotent dedup on open alerts. `GET /alerts`, `PATCH /alerts/{id}` (new→…→resolved/dismissed).
+  - **Replenishment engine** — `GET /replenishment`: on-hand vs min/recommended + 90d usage → labels (No Action/Monitor/Low Stock/Replenishment Recommended/Critical/Overstocked) with recommended qty + value.
+  - **Closed loop** — `failure_bump()` imported by the recommendation engine: when a SKU fails above the other-region average in a dealer's country, the recommended pack quantity is auto-increased (with an explanatory reason) and a quality flag raised. Verified: MOTOR-260G (7 failures Germany vs 1 Spain) bumped 2→4 for a Fitline order.
+  - Settings gained monitoring thresholds: enable_monitoring_agent, failure_alert_threshold, usage_spike_factor, monitoring_window_days.
+- **Frontend:** new tabs — Failure Intelligence (charts + grouping toggles), Monitoring & Alerts (run agent + status workflow), Replenishment (labelled table + filter).
+- **Tested:** testing_agent — backend 13/13, frontend 100%. No issues.
+- **Deferred:** Phase 5 (Dealer Portal + Reports/Exports + AI invoice parsing/summaries).
+
+
+
 ## Jul 14, 2026 — Dealer Warranty Parts (Phase 3) — Engineer usage flow + Stores Dept + Returns/RMA
 - **Backend (`routes/dealer_parts_ops.py`, reuses Phase 1 helpers):**
   - **Parts usage** (`dealer_parts_usage_logs`) — `POST /api/dealer-parts/usage` logs a part used by an engineer/dealer, DECREMENTS the dealer remote-store stock (sets last_used), writes a `dealer_stock_movements` row (type `part_used` — no stock change without a ledger row), and appends a Service Desk case timeline event (`svc_case_events`, type `dealer_part_used`) when a valid `case_id` is supplied (best-effort, non-existent case never errors). Captures warranty/chargeable, failure_reason, serial, machine model for Phase 4 monitoring.
