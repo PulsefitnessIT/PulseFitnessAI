@@ -1119,3 +1119,8 @@ Reorganised the congested `/service-desk` left rail (`ServiceDeskPage.js`):
 - **Expenses** now managers/owners only — filtered from Insights via `can(user,'manage_operations')` and guarded in the body (non-managers fall back to the dashboard).
 - Main rail trimmed to Dashboard/Cases/Scheduler/Customers/Equipment/Maintenance/Parts/Billing; Insights to Analytics/Expenses/H&S/Compliance.
 Verified via screenshot + data-testids (owner account: all Options items present, Analytics sub-tabs render, Expenses visible). Lint clean. Provider accounts still hide Equipment/Supplier-health/Engineers. PREVIEW only — user must REDEPLOY to push to production (fitness-ai-migrate.emergent.host).
+
+## 2026-07-14 — Dealer Parts: Standalone Dealer Portal auth guard (P0) — VERIFIED
+- Confirmed end-to-end the `dealer_user` auth scope: dealer login (portal2@fitline.test) redirects to /dealer-portal; direct navigation to staff routes (/dashboard) is forced back to /dealer-portal via DashboardRoute guard in AppRoutes.js (line 235).
+- Backend RBAC verified: portal/me/overview → 200 (dealer-scoped); staff endpoint replenishment-requests → 403 for dealer_user.
+- Test creds added to test_credentials.md.
