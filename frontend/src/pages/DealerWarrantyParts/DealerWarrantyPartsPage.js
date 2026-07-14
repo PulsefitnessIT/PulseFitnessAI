@@ -4,7 +4,7 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck, Radar, PackagePlus } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck, Radar, PackagePlus, Store, FileSpreadsheet } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
@@ -17,6 +17,8 @@ import RmaTab from './RmaTab';
 import FailureIntelTab from './FailureIntelTab';
 import AlertsTab from './AlertsTab';
 import ReplenishmentTab from './ReplenishmentTab';
+import DealerPortalTab from './DealerPortalTab';
+import ReportsTab from './ReportsTab';
 import StoresTab from './StoresTab';
 import LedgerTab from './LedgerTab';
 import SettingsTab from './SettingsTab';
@@ -33,6 +35,8 @@ const TABS = [
   { id: 'intel', label: 'Failure Intelligence', icon: Globe, C: FailureIntelTab },
   { id: 'alerts', label: 'Monitoring & Alerts', icon: Radar, C: AlertsTab },
   { id: 'replenishment', label: 'Replenishment', icon: PackagePlus, C: ReplenishmentTab },
+  { id: 'portal', label: 'Dealer Portal', icon: Store, C: DealerPortalTab },
+  { id: 'reports', label: 'Reports', icon: FileSpreadsheet, C: ReportsTab },
   { id: 'rma', label: 'Returns / RMA', icon: RotateCcw, C: RmaTab },
   { id: 'stores', label: 'Remote Stores', icon: Warehouse, C: StoresTab },
   { id: 'ledger', label: 'Stock Ledger', icon: ArrowRightLeft, C: LedgerTab },

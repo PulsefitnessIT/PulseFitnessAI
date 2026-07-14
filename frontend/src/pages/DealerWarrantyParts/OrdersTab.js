@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, FileText, Trash2, Calculator } from 'lucide-react';
+import { Plus, FileText, Trash2, Calculator, Sparkles } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, Modal, Field, input, inputTight, money } from './shared';
@@ -11,6 +11,9 @@ export default function OrdersTab() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ dealer_id: '', order_reference: '', order_value: '', spare_parts_percentage: '', currency: 'GBP', order_date: '' });
   const [lines, setLines] = useState([{ machine_model: '', quantity: 1, unit_value: '' }]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -44,12 +47,30 @@ export default function OrdersTab() {
     } catch { notify.error('Failed to import order'); }
   };
 
+  const parseInvoice = async () => {
+    if (aiText.trim().length < 20) { notify.error('Paste the invoice/order text'); return; }
+    setAiLoading(true);
+    try {
+      const r = await dpApi.aiParseInvoice(aiText);
+      if (!r.available) { notify.error(r.error || 'AI unavailable'); return; }
+      if (r.order_reference) setForm((f) => ({ ...f, order_reference: r.order_reference, currency: r.currency || f.currency, order_value: r.order_value || '' }));
+      if ((r.lines || []).length) setLines(r.lines.map((l) => ({ machine_model: l.machine_model || '', quantity: l.quantity || 1, unit_value: l.unit_value || '' })));
+      notify.success(`AI extracted ${(r.lines || []).length} line(s) — please review before importing`);
+      setAiOpen(false); setModal(true); setAiText('');
+    } catch (e) { notify.error(e?.response?.data?.detail || 'AI parse failed'); }
+    finally { setAiLoading(false); }
+  };
+
   return (
     <div className="space-y-4" data-testid="dp-orders-tab">
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
         <h3 className="text-sm font-semibold text-slate-500">Dealer orders &amp; invoices</h3>
+        <button data-testid="dp-ai-invoice-btn" onClick={() => setAiOpen(true)} disabled={dealers.length === 0}
+          className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border border-[var(--gx-brand-from)]/30 text-[var(--gx-brand-from)] hover:bg-[var(--gx-brand-from)]/5 disabled:opacity-40">
+          <Sparkles size={15} /> Parse invoice with AI
+        </button>
         <button data-testid="dp-add-order-btn" onClick={() => setModal(true)} disabled={dealers.length === 0}
-          className="ml-auto inline-flex items-center gap-1.5 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-3.5 py-2 rounded-lg hover:opacity-90 disabled:opacity-40">
+          className="inline-flex items-center gap-1.5 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-3.5 py-2 rounded-lg hover:opacity-90 disabled:opacity-40">
           <Plus size={15} /> Import order
         </button>
       </div>
@@ -120,6 +141,16 @@ export default function OrdersTab() {
             <div className="text-lg font-bold text-[var(--gx-brand-from)]">{money(allowance)} spare parts allowance</div>
           </div>
         </div>
+      </Modal>
+
+      <Modal open={aiOpen} onClose={() => setAiOpen(false)} title="Parse invoice with AI" testid="dp-ai-invoice-modal"
+        footer={<>
+          <button onClick={() => setAiOpen(false)} className="px-4 py-2 text-sm text-slate-500">Cancel</button>
+          <button data-testid="dp-ai-parse-btn" onClick={parseInvoice} disabled={aiLoading} className="px-4 py-2 text-sm font-semibold bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white rounded-lg disabled:opacity-50">{aiLoading ? 'Reading…' : 'Extract lines'}</button>
+        </>}>
+        <p className="text-xs text-slate-500 mb-2">Paste the dealer's invoice / order text. AI will extract the machine lines and order value — <strong>please review before importing</strong>.</p>
+        <textarea data-testid="dp-ai-invoice-text" value={aiText} onChange={(e) => setAiText(e.target.value)} rows={9}
+          className={`${input} font-mono text-xs`} placeholder={"e.g.\nPO-DE-9001\n10 x 260G Treadmill @ 8000 EUR\n5 x 500 Series Cross Trainer @ 6000 EUR\nGrand Total: 110000 EUR"} />
       </Modal>
     </div>
   );

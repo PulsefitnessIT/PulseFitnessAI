@@ -1,0 +1,21 @@
+{
+  "summary": "Dealer Parts Phase 5 (AI + CSV Reports + Dealer Portal) fully verified. Backend: 11/11 pytest pass — AI parse-invoice returns available:true with 3 lines and order_value ~12,450 EUR from the pasted PulseFit sample (no invented lines, min-length 400 enforced); AI dealer-summary for Fitline Deutschland returns available:true with summary+highlights[]+dealer_note; all 4 CSV reports (allocations/stock/usage/failures) return text/csv with Content-Disposition attachment header and header row; unknown report → 404; portal/{id}/overview returns dealer+stock (with stock_status)+stock_value+incoming (only dispatched/partially_received)+recent_usage+requests; portal 404 on unknown dealer; replenishment lifecycle POST creates status='requested', GET lists it, PATCH invalid → 400, PATCH approved works, missing sku → 400, unknown id → 404. Frontend: Orders → 'Parse invoice with AI' modal (dp-ai-invoice-btn/dp-ai-invoice-text/dp-ai-parse-btn) prefilled dp-order-ref with 'PO-2026-DE-00421' after ~15s AI call. Dealer Portal tab (dp-tab-portal): selecting Fitline Deutschland from dp-portal-dealer loaded dp-portal-stock; dp-portal-request-btn → modal → dp-portal-req-sku='TEST_UI_P5' → dp-portal-request-save persisted and the SKU appeared in the requests list on the page. Reports tab (dp-tab-reports): all 4 dp-report-* download buttons render; dp-summary-dealer + dp-gen-summary-btn produced a 1154-char summary result in dp-summary-result with 3 highlight bullets + 'Draft dealer note' section for Fitline Deutschland. TEST_ artifacts cleaned up (2 replenishment requests deleted).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_phase5.py",
+    "/app/test_reports/pytest/dealer_parts_phase5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "dealer_parts_portal.py cleanly separates AI/CSV/Portal concerns (222 lines, well under threshold). No _id leakage (all Mongo reads use projection {\"_id\":0}). Good.",
+    "CSP console errors for emergent-main.js / posthog / cloudflare beacon appear on every page load — cosmetic, unrelated to Phase 5, but consider updating the platform CSP script-src to include those hosts or drop the injected scripts."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_phase5.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None persistent. Created 2 TEST_ replenishment requests during testing (TEST_SKU_P5 backend, TEST_UI_P5 UI) — both deleted after run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 5 fully green. AI endpoints hit real LLM (openai/gpt-5.2 via Emergent key) — first attempts succeeded on both parse-invoice (~5-10s) and dealer-summary (~10-15s); retry logic is in the test but wasn't needed. Sample invoice used in test yields order_value ~12,450 and 3 lines (Treadmill T-9000, Elliptical E-500, Bike B-200). Fitline Deutschland dealer id in iso-demo-org = 5e7fc632-eab1-4d6a-ad54-42d96b459f5c. Frontend path: /service-desk → desk-tab-stores → desk-stores-sub-dealer → dp-tab-{orders|portal|reports}."
+}

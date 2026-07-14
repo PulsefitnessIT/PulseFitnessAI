@@ -58,4 +58,21 @@ export const dpApi = {
   listAlerts: (params = {}) => axios.get(`${BASE}/alerts`, { ...auth(), params }).then((r) => r.data),
   updateAlert: (id, data) => axios.patch(`${BASE}/alerts/${id}`, data, auth()).then((r) => r.data),
   replenishment: (params = {}) => axios.get(`${BASE}/replenishment`, { ...auth(), params }).then((r) => r.data),
+
+  aiParseInvoice: (text) => axios.post(`${BASE}/ai/parse-invoice`, { text }, auth()).then((r) => r.data),
+  aiDealerSummary: (dealer_id) => axios.post(`${BASE}/ai/dealer-summary`, { dealer_id }, auth()).then((r) => r.data),
+
+  portalOverview: (dealerId) => axios.get(`${BASE}/portal/${dealerId}/overview`, auth()).then((r) => r.data),
+  requestReplenishment: (dealerId, data) => axios.post(`${BASE}/portal/${dealerId}/request-replenishment`, data, auth()).then((r) => r.data),
+  listReplenishmentRequests: (params = {}) => axios.get(`${BASE}/replenishment-requests`, { ...auth(), params }).then((r) => r.data),
+  updateReplenishmentRequest: (id, data) => axios.patch(`${BASE}/replenishment-requests/${id}`, data, auth()).then((r) => r.data),
+
+  downloadReport: async (report, dealer_id = '') => {
+    const res = await axios.get(`${BASE}/reports/${report}.csv`, { ...auth(), params: dealer_id ? { dealer_id } : {}, responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement('a');
+    a.href = url; a.download = `dealer_${report}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
