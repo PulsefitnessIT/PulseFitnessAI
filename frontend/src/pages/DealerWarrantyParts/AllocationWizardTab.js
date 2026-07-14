@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText } from 'lucide-react';
+import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, money } from './shared';
@@ -26,6 +26,45 @@ function StepDots({ step }) {
   );
 }
 
+function MachinePicker({ onPick, onClose }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); return; }
+    const t = setTimeout(() => {
+      setLoading(true);
+      dpApi.listDataMachines({ q, limit: 8 }).then((d) => setResults(d.machines || [])).finally(() => setLoading(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  return (
+    <div className="mt-1 mb-2 rounded-lg border border-[var(--gx-brand-from)]/40 bg-white shadow-sm p-2" data-testid="dp-wiz-machine-picker">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input autoFocus data-testid="dp-wiz-picker-search" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Search BOM machines by ref, stock code or name…"
+            className="w-full rounded-md border border-slate-200 pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30" />
+        </div>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
+      </div>
+      {loading ? <div className="text-xs text-slate-400 px-2 py-2">Searching…</div> : results.length > 0 ? (
+        <div className="mt-1.5 max-h-52 overflow-y-auto divide-y divide-slate-50">
+          {results.map((m) => (
+            <button key={m.id} data-testid={`dp-wiz-picker-result-${m.id}`} onClick={() => onPick(m)}
+              className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded-md">
+              <span className="font-mono text-xs font-semibold text-slate-800">{m.top_level_ref}</span>
+              <span className="text-xs text-slate-500"> · {m.component_count} components</span>
+              <div className="text-xs text-slate-500 truncate">{m.description || 'No description'}</div>
+            </button>
+          ))}
+        </div>
+      ) : q.trim() ? <div className="text-xs text-slate-400 px-2 py-2">No machines found.</div> : null}
+    </div>
+  );
+}
+
 export default function AllocationWizardTab() {
   const [step, setStep] = useState(0);
   const [dealers, setDealers] = useState([]);
@@ -39,11 +78,20 @@ export default function AllocationWizardTab() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiInfo, setAiInfo] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [resolving, setResolving] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(() => { dpApi.listDealers().then((d) => setDealers(d.dealers || [])); }, []);
 
   const setLine = (i, k, v) => { const n = [...lines]; n[i][k] = v; setLines(n); };
+
+  const pickMachine = (i, m) => {
+    const n = [...lines];
+    n[i] = { ...n[i], machine_ref: m.top_level_ref, matched: true, input_ref: n[i].input_ref || n[i].machine_ref };
+    setLines(n);
+    setResolving(null);
+    notify.success(`Matched to ${m.top_level_ref}`);
+  };
 
   const parseInvoice = async (file) => {
     if (!file) return;
@@ -186,12 +234,20 @@ export default function AllocationWizardTab() {
               <button onClick={() => setLines([...lines, { machine_ref: '', quantity: 1 }])} className="text-xs text-[var(--gx-brand-from)] font-semibold">+ Add machine</button>
             </div>
             {lines.map((l, i) => (
-              <div key={i} className="flex gap-2 mb-2 items-center">
-                <input data-testid={`dp-wiz-machine-${i}`} placeholder="Machine ref / stock code / description" className={`${input} flex-1 font-mono`} value={l.machine_ref} onChange={(e) => setLine(i, 'machine_ref', e.target.value)} />
-                {l.matched === false && l.input_ref ? <AlertTriangle size={15} className="text-amber-500 shrink-0" title="AI could not match this to a BOM machine" /> : null}
-                {l.matched === true ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" title="Matched to BOM" /> : null}
-                <input type="number" placeholder="Qty" className={`${input} w-20`} value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} />
-                {lines.length > 1 && <button onClick={() => setLines(lines.filter((_, x) => x !== i))} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>}
+              <div key={i} className="mb-2">
+                <div className="flex gap-2 items-center">
+                  <input data-testid={`dp-wiz-machine-${i}`} placeholder="Machine ref / stock code / description" className={`${input} flex-1 font-mono`} value={l.machine_ref} onChange={(e) => setLine(i, 'machine_ref', e.target.value)} />
+                  {l.matched === false && l.input_ref ? <AlertTriangle size={15} className="text-amber-500 shrink-0" title="AI could not match this to a BOM machine" /> : null}
+                  {l.matched === true ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" title="Matched to BOM" /> : null}
+                  <button type="button" data-testid={`dp-wiz-resolve-${i}`} onClick={() => setResolving(resolving === i ? null : i)}
+                    className={`shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-md border ${l.matched === false && l.input_ref ? 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    title="Find & pick a BOM machine">
+                    <Search size={13} /> Find in BOM
+                  </button>
+                  <input type="number" placeholder="Qty" className={`${input} w-20`} value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} />
+                  {lines.length > 1 && <button onClick={() => setLines(lines.filter((_, x) => x !== i))} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>}
+                </div>
+                {resolving === i && <MachinePicker onPick={(m) => pickMachine(i, m)} onClose={() => setResolving(null)} />}
               </div>
             ))}
           </div>
