@@ -1335,3 +1335,43 @@ async def data_report_csv(report: str, top_level_ref: str = Query(""), user=Depe
              for c in data["components"]])
 
     raise HTTPException(404, "Unknown report")
+
+
+@router.post("/ai-parse-invoice")
+async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Drag-and-drop invoice → AI extracts machine lines + order value, then each
+    line is resolved against the BOM so the Allocation Wizard can pre-fill."""
+    from utils.dealer_parts_ai import parse_invoice_file
+    org = _of(user)
+    content = await file.read()
+    parsed = await parse_invoice_file(content, file.filename or "invoice", file.content_type or "")
+    if not parsed.get("available"):
+        await _audit(org, user, "ai_invoice_parse", filename=file.filename, ok=False)
+        return parsed
+    settings = await _data_settings(org)
+    idx = await _machine_index(org)
+    cutoff = int(settings["fuzzy_threshold"] * 100)
+    lines = []
+    for ln in parsed.get("lines", []):
+        ref = (ln.get("machine_model") or ln.get("machine_ref") or "").strip()
+        qty = float(ln.get("quantity") or 1) or 1
+        m, method, score = (None, "none", 0)
+        if ref:
+            m, method, score = _resolve_machine(ref, idx, cutoff)
+        lines.append({
+            "input_ref": ref, "quantity": qty,
+            "unit_value": float(ln.get("unit_value") or 0),
+            "matched": bool(m), "match_method": method, "match_score": score,
+            "top_level_ref": m["top_level_ref"] if m else None,
+            "machine_description": m.get("description") if m else None,
+        })
+    await _audit(org, user, "ai_invoice_parse", filename=file.filename, ok=True, lines=len(lines))
+    return {
+        "available": True, "advisory_only": True,
+        "order_reference": parsed.get("order_reference", ""),
+        "currency": parsed.get("currency", ""),
+        "order_value": parsed.get("order_value", 0),
+        "note": parsed.get("note", ""),
+        "lines": lines,
+        "matched_count": sum(1 for l in lines if l["matched"]),
+    }

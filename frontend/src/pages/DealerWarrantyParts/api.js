@@ -114,6 +114,11 @@ export const dpApi = {
   matchMachine: (q) => axios.get(`${BASE}/data/match-machine`, { ...auth(), params: { q } }).then((r) => r.data),
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
   dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
+  aiParseInvoiceFile: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return axios.post(`${BASE}/data/ai-parse-invoice`, fd, auth()).then((r) => r.data);
+  },
   downloadDataReport: async (report, topLevelRef = '') => {
     const res = await axios.get(`${BASE}/data/reports/${report}.csv`, { ...auth(), params: topLevelRef ? { top_level_ref: topLevelRef } : {}, responseType: 'blob' });
     const url = window.URL.createObjectURL(new Blob([res.data]));

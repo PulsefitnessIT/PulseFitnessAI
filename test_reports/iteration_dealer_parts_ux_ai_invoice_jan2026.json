@@ -1,0 +1,30 @@
+{
+  "summary": "Dealer Parts UX restructure + AI invoice drag-drop: all backend + frontend checks PASSED. Backend AI parse correctly extracted 305H-ZZY (exact_ref, score 100, matched_count=1) and unknown ref returned matched=false; dealer_user got 403. Frontend: 14 tabs render in the specified order with zero forbidden standalone tabs, Analytics hub exposes all 7 sub-tabs (MUA shows '33/001' and '1440' unique parts), Settings hub exposes all 5 sub-tabs, and the Allocation Wizard AI drop-zone auto-populated machine-0='305H-ZZY', order value 37500, AI info banner visible, then Generate produced step1 with pack value £589 and machine group card.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service Desk (all pages)", "issues": ["Persistent 'Install App' PWA overlay + cookie banner at the bottom right can obscure content on smaller viewports; not blocking here but worth a close-persistence tweak."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_ai_invoice.py",
+    "/app/test_reports/pytest/dp_ai_invoice.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils/dealer_parts_ai.py: parse_invoice_text uses text[:8000]; for very large multi-page PDFs later on this may truncate before the totals row — consider prioritising last N kb + first N kb.",
+    "routes/dealer_parts_data.py ai_parse_invoice_file catches nothing around parse_invoice_file — an unexpected exception in the LLM helper would 500. Consider wrapping and returning {available:false} to keep UX graceful (audit already only fires on success).",
+    "DealerWarrantyPartsPage.js: TABS array recreated inside module scope with icon references — fine, but overflow-x-auto with 14 tabs on <1200px screens causes horizontal scroll with no visual indicator; consider a scroll shadow.",
+    "Console hydration warning noted (unrelated to this change): 'In HTML, <option> cannot be a child of <span>' — likely in a Select somewhere in ServiceDesk shell; low priority."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_ai_invoice.py"],
+  "success_rate": {"backend": "100% (2/2)", "frontend": "100% (all specified assertions passed)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  |  portal2@fitline.test / DealerDemo123!",
+  "seed_data_creation": "None — used existing iso-demo-org seed (BOM contains 305H-ZZY = 'Shoulder Press (Converging Axis)').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest lives at /app/backend/tests/test_dealer_parts_ai_invoice.py — run from /app/backend with pytest. Route is /service-desk (single page) → primary tab desk-tab-stores → sub desk-stores-sub-dealer to reach Dealer Parts. All new IDs (dp-tab-*, dp-subtab-*, dp-wiz-*) verified. 305H-ZZY is a real seeded machine ref matching exact_ref.",
+  "rca of the issue": "N/A — no failures."
+}

@@ -132,4 +132,77 @@ async def dealer_summary(context: dict) -> dict:
     return parsed
 
 
-__all__ = ["parse_invoice_text", "dealer_summary"]
+__all__ = ["parse_invoice_text", "parse_invoice_file", "dealer_summary"]
+
+
+def _text_from_file(content: bytes, filename: str) -> str:
+    """Best-effort text extraction from an invoice file (pdf/xlsx/csv/txt)."""
+    name = (filename or "").lower()
+    if name.endswith(".pdf"):
+        try:
+            import io
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            return "\n".join((p.extract_text() or "") for p in reader.pages)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("[dealer-parts-ai] pdf extract failed: %s", exc)
+            return ""
+    if name.endswith((".xlsx", ".xls")):
+        try:
+            import io
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+            out = []
+            for ws in wb.worksheets:
+                for row in ws.iter_rows(values_only=True):
+                    cells = [str(c) for c in row if c is not None]
+                    if cells:
+                        out.append("\t".join(cells))
+            wb.close()
+            return "\n".join(out)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("[dealer-parts-ai] xlsx extract failed: %s", exc)
+            return ""
+    try:
+        return content.decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+
+async def _parse_invoice_image(content: bytes, mime: str) -> dict:
+    """Parse an invoice image via the multimodal model."""
+    chat = _chat(f"dp_invoice_img_{datetime.now().timestamp()}", _INVOICE_SYSTEM)
+    if not chat:
+        return {"available": False, "error": "AI is not configured or is unavailable."}
+    import base64
+    b64 = base64.b64encode(content).decode()
+    prompt = (
+        "This is a dealer equipment invoice/order image. Extract equipment lines and totals as STRICT JSON:\n"
+        '{"order_reference":"","currency":"","order_value":0,'
+        '"lines":[{"machine_model":"","quantity":0,"unit_value":0}],"note":""}\n'
+        "Only include equipment/machine lines. Never invent a machine model that is not shown."
+    )
+    try:
+        from emergentintegrations.llm.chat import UserMessage, ImageContent
+        raw = (await chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b64)]))).strip()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("[dealer-parts-ai] invoice image failed: %s", exc)
+        return {"available": False, "error": "AI could not read the image. Try a PDF or paste the text."}
+    parsed = _extract_json(raw)
+    if not isinstance(parsed, dict):
+        return {"available": False, "error": "AI returned an unreadable response."}
+    parsed.update({"available": True, "advisory_only": True})
+    parsed.setdefault("lines", [])
+    return parsed
+
+
+async def parse_invoice_file(content: bytes, filename: str, content_type: str = "") -> dict:
+    """Parse an uploaded invoice file (pdf/xlsx/csv/txt/image) into structured lines."""
+    name = (filename or "").lower()
+    is_image = name.endswith((".png", ".jpg", ".jpeg", ".webp")) or (content_type or "").startswith("image/")
+    if is_image:
+        return await _parse_invoice_image(content, content_type or "image/png")
+    text = _text_from_file(content, filename)
+    if not text.strip():
+        return {"available": False, "error": "Could not read text from this file. Try a PDF/Excel or paste the text."}
+    return await parse_invoice_text(text)

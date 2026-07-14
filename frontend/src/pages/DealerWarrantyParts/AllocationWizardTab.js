@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, PackageCheck, Building2 } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, money } from './shared';
@@ -36,10 +36,34 @@ export default function AllocationWizardTab() {
   const [rec, setRec] = useState(null);
   const [busy, setBusy] = useState(false);
   const [qtyOverrides, setQtyOverrides] = useState({});
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiInfo, setAiInfo] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => { dpApi.listDealers().then((d) => setDealers(d.dealers || [])); }, []);
 
   const setLine = (i, k, v) => { const n = [...lines]; n[i][k] = v; setLines(n); };
+
+  const parseInvoice = async (file) => {
+    if (!file) return;
+    setAiBusy(true); setAiInfo(null);
+    try {
+      const res = await dpApi.aiParseInvoiceFile(file);
+      if (!res.available) { notify.error(res.error || 'AI could not read this invoice'); return; }
+      const newLines = (res.lines || []).map((l) => ({
+        machine_ref: l.top_level_ref || l.input_ref || '',
+        quantity: l.quantity || 1,
+        matched: l.matched,
+        input_ref: l.input_ref,
+      }));
+      if (newLines.length) setLines(newLines);
+      if (res.order_value) setOrderValue(String(res.order_value));
+      setAiInfo({ ref: res.order_reference, currency: res.currency, matched: res.matched_count, total: res.lines?.length || 0, note: res.note });
+      notify.success(`AI read the invoice — ${res.matched_count}/${res.lines?.length || 0} machines matched to BOM`);
+    } catch (e) { notify.error(e?.response?.data?.detail || 'AI parsing failed'); }
+    finally { setAiBusy(false); }
+  };
 
   const generate = async () => {
     if (!dealerId) { notify.error('Select a dealer'); return; }
@@ -120,14 +144,52 @@ export default function AllocationWizardTab() {
             </div>
           </div>
 
+          <div
+            data-testid="dp-wiz-dropzone"
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); parseInvoice(e.dataTransfer.files?.[0]); }}
+            onClick={() => fileRef.current?.click()}
+            className={`rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${dragOver ? 'border-[var(--gx-brand-from)] bg-[var(--gx-brand-from)]/5' : 'border-slate-300 bg-slate-50/50 hover:border-[var(--gx-brand-from)]/50'}`}>
+            <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.webp" className="hidden"
+              data-testid="dp-wiz-invoice-input" onChange={(e) => parseInvoice(e.target.files?.[0])} />
+            {aiBusy ? (
+              <div className="flex flex-col items-center gap-2 py-2 text-slate-500">
+                <Sparkles size={22} className="text-[var(--gx-brand-from)] animate-pulse" />
+                <span className="text-sm font-medium">AI is reading your invoice…</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1.5">
+                <UploadCloud size={26} className="text-[var(--gx-brand-from)]" />
+                <div className="text-sm font-semibold text-slate-800">Drop a dealer invoice here, or click to upload</div>
+                <div className="text-xs text-slate-500">AI reads the invoice, extracts the machines & values, and matches them to the BOM. <span className="text-slate-400">PDF, Excel, CSV or image.</span></div>
+              </div>
+            )}
+          </div>
+          {aiInfo && (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800 flex items-start gap-2" data-testid="dp-wiz-ai-info">
+              <Sparkles size={14} className="mt-0.5 shrink-0" />
+              <div>
+                <b>AI suggestion — please review.</b> {aiInfo.ref ? `Invoice ${aiInfo.ref}. ` : ''}Extracted {aiInfo.total} machine line(s), {aiInfo.matched} matched to BOM{aiInfo.currency ? ` (${aiInfo.currency})` : ''}. Unmatched refs stay editable below.
+                {aiInfo.note ? <div className="text-emerald-700 mt-0.5">{aiInfo.note}</div> : null}
+              </div>
+            </div>
+          )}
+
+          <div className="relative flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex-1 h-px bg-slate-200" /> or enter machines manually <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-500">Machines on invoice</span>
               <button onClick={() => setLines([...lines, { machine_ref: '', quantity: 1 }])} className="text-xs text-[var(--gx-brand-from)] font-semibold">+ Add machine</button>
             </div>
             {lines.map((l, i) => (
-              <div key={i} className="flex gap-2 mb-2">
+              <div key={i} className="flex gap-2 mb-2 items-center">
                 <input data-testid={`dp-wiz-machine-${i}`} placeholder="Machine ref / stock code / description" className={`${input} flex-1 font-mono`} value={l.machine_ref} onChange={(e) => setLine(i, 'machine_ref', e.target.value)} />
+                {l.matched === false && l.input_ref ? <AlertTriangle size={15} className="text-amber-500 shrink-0" title="AI could not match this to a BOM machine" /> : null}
+                {l.matched === true ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" title="Matched to BOM" /> : null}
                 <input type="number" placeholder="Qty" className={`${input} w-20`} value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} />
                 {lines.length > 1 && <button onClick={() => setLines(lines.filter((_, x) => x !== i))} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>}
               </div>

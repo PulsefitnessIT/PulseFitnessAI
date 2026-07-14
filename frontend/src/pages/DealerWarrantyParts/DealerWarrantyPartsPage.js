@@ -4,57 +4,37 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck, Radar, PackagePlus, Store, FileSpreadsheet, UploadCloud, BarChart3, GitCompare, HelpCircle, Cog, Wand2 } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Wrench, RotateCcw, Truck, PackagePlus, Store, BarChart3, Wand2 } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
 import AllocationsTab from './AllocationsTab';
-import BomTab from './BomTab';
-import MostUsedTab from './MostUsedTab';
 import UsageTab from './UsageTab';
 import StoresDeptTab from './StoresDeptTab';
 import RmaTab from './RmaTab';
-import FailureIntelTab from './FailureIntelTab';
-import AlertsTab from './AlertsTab';
 import ReplenishmentTab from './ReplenishmentTab';
 import DealerPortalTab from './DealerPortalTab';
-import ReportsTab from './ReportsTab';
 import StoresTab from './StoresTab';
 import LedgerTab from './LedgerTab';
-import SettingsTab from './SettingsTab';
-import DataImportsTab from './DataImportsTab';
-import MostUsedAnalysisTab from './MostUsedAnalysisTab';
-import MatchReviewTab from './MatchReviewTab';
-import UnmatchedReviewTab from './UnmatchedReviewTab';
-import MachinePartsTab from './MachinePartsTab';
 import AllocationWizardTab from './AllocationWizardTab';
-import DataIntelligenceTab from './DataIntelligenceTab';
+import AnalyticsTab from './AnalyticsTab';
+import SettingsHubTab from './SettingsHubTab';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, C: DashboardTab },
-  { id: 'imports', label: 'Data Imports', icon: UploadCloud, C: DataImportsTab },
-  { id: 'analysis', label: 'Most-Used Analysis', icon: BarChart3, C: MostUsedAnalysisTab },
-  { id: 'match_review', label: 'Match Review', icon: GitCompare, C: MatchReviewTab },
-  { id: 'unmatched', label: 'Unmatched Review', icon: HelpCircle, C: UnmatchedReviewTab },
-  { id: 'machine_parts', label: 'Machine Parts', icon: Cog, C: MachinePartsTab },
   { id: 'wizard', label: 'Allocation Wizard', icon: Wand2, C: AllocationWizardTab },
-  { id: 'intelligence', label: 'Intelligence & Reports', icon: Radar, C: DataIntelligenceTab },
   { id: 'dealers', label: 'Dealers', icon: Building2, C: DealersTab },
   { id: 'orders', label: 'Orders & Allowance', icon: FileText, C: OrdersTab },
   { id: 'allocations', label: 'Allocations', icon: Package, C: AllocationsTab },
-  { id: 'bom', label: 'BOM Management', icon: Layers, C: BomTab },
-  { id: 'most_used', label: 'Most Used Parts', icon: Star, C: MostUsedTab },
-  { id: 'usage', label: 'Engineer Usage', icon: Wrench, C: UsageTab },
   { id: 'stores_dept', label: 'Stores Dept', icon: Truck, C: StoresDeptTab },
-  { id: 'intel', label: 'Failure Intelligence', icon: Globe, C: FailureIntelTab },
-  { id: 'alerts', label: 'Monitoring & Alerts', icon: Radar, C: AlertsTab },
-  { id: 'replenishment', label: 'Replenishment', icon: PackagePlus, C: ReplenishmentTab },
-  { id: 'portal', label: 'Dealer Portal', icon: Store, C: DealerPortalTab },
-  { id: 'reports', label: 'Reports', icon: FileSpreadsheet, C: ReportsTab },
-  { id: 'rma', label: 'Returns / RMA', icon: RotateCcw, C: RmaTab },
   { id: 'stores', label: 'Remote Stores', icon: Warehouse, C: StoresTab },
+  { id: 'usage', label: 'Engineer Usage', icon: Wrench, C: UsageTab },
+  { id: 'replenishment', label: 'Replenishment', icon: PackagePlus, C: ReplenishmentTab },
+  { id: 'rma', label: 'Returns / RMA', icon: RotateCcw, C: RmaTab },
   { id: 'ledger', label: 'Stock Ledger', icon: ArrowRightLeft, C: LedgerTab },
-  { id: 'settings', label: 'Settings', icon: Settings, C: SettingsTab },
+  { id: 'portal', label: 'Dealer Portal', icon: Store, C: DealerPortalTab },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, C: AnalyticsTab },
+  { id: 'settings', label: 'Settings', icon: Settings, C: SettingsHubTab },
 ];
 
 export default function DealerWarrantyPartsPage() {
