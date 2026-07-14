@@ -53,6 +53,7 @@ const OpsCases     = lazy(() => import('./ServiceOps/ServiceDeskPage'));
 const OpsScheduler = lazy(() => import('./ServiceOps/SchedulerHub'));
 const OpsParts     = lazy(() => import('./ServiceOps/PartsInventoryPage'));
 const DealerParts  = lazy(() => import('./DealerWarrantyParts/DealerWarrantyPartsPage'));
+const StoresDepartment = lazy(() => import('./StoresDepartment'));
 const OpsBilling   = lazy(() => import('./ServiceOps/BillingPage'));
 const OpsEngineers = lazy(() => import('./ServiceOps/EngineersAdminPage'));
 const OpsReports   = lazy(() => import('./ServiceOps/ServiceOpsReportsPage'));
@@ -120,7 +121,7 @@ export default function ServiceDeskPage() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const [analyticsSub, setAnalyticsSub] = useState('overview');
-  const [storesSub, setStoresSub] = useState('warehouse');
+  const [storesSub, setStoresSub] = useState('dept');
 
   useEffect(() => {
     if (!can(user, 'view_service_desk')) {
@@ -236,7 +237,7 @@ export default function ServiceDeskPage() {
         return (
           <div data-testid="desk-stores-hub">
             <div className="flex items-center gap-1 mb-5 border-b border-slate-200">
-              {[{ id: 'warehouse', label: 'Pulse Warehouse' }, { id: 'dealer', label: 'Dealer Parts' }].map((sub) => (
+              {[{ id: 'dept', label: 'Stores Department' }, { id: 'warehouse', label: 'Pulse Warehouse' }, { id: 'dealer', label: 'Dealer Parts' }].map((sub) => (
                 <button
                   key={sub.id}
                   onClick={() => setStoresSub(sub.id)}
@@ -251,6 +252,7 @@ export default function ServiceDeskPage() {
                 </button>
               ))}
             </div>
+            {storesSub === 'dept' && <Suspense fallback={<EmbedFallback />}><StoresDepartment /></Suspense>}
             {storesSub === 'warehouse' && (
               <ServiceOpsEmbeddedContext.Provider value={true}>
                 <Suspense fallback={<EmbedFallback />}><OpsParts /></Suspense>

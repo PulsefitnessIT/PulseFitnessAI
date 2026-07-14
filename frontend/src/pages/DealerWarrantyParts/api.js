@@ -4,10 +4,15 @@ const BASE = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api/dealer-parts`
   : '/api/dealer-parts';
 
+const ROOT = process.env.REACT_APP_BACKEND_URL
+  ? `${process.env.REACT_APP_BACKEND_URL}/api`
+  : '/api';
+
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
 export const dpApi = {
   dashboard: () => axios.get(`${BASE}/dashboard`, auth()).then((r) => r.data),
+  listPartsRequests: (params = {}) => axios.get(`${ROOT}/parts-requests`, { ...auth(), params }).then((r) => r.data),
   getSettings: () => axios.get(`${BASE}/settings`, auth()).then((r) => r.data),
   saveSettings: (data) => axios.put(`${BASE}/settings`, data, auth()).then((r) => r.data),
 

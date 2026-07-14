@@ -10,7 +10,6 @@ import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
 import AllocationsTab from './AllocationsTab';
 import UsageTab from './UsageTab';
-import StoresDeptTab from './StoresDeptTab';
 import RmaTab from './RmaTab';
 import ReplenishmentTab from './ReplenishmentTab';
 import DealerPortalTab from './DealerPortalTab';
@@ -26,7 +25,6 @@ const TABS = [
   { id: 'dealers', label: 'Dealers', icon: Building2, C: DealersTab },
   { id: 'orders', label: 'Orders & Allowance', icon: FileText, C: OrdersTab },
   { id: 'allocations', label: 'Allocations', icon: Package, C: AllocationsTab },
-  { id: 'stores_dept', label: 'Stores Dept', icon: Truck, C: StoresDeptTab },
   { id: 'stores', label: 'Remote Stores', icon: Warehouse, C: StoresTab },
   { id: 'usage', label: 'Engineer Usage', icon: Wrench, C: UsageTab },
   { id: 'replenishment', label: 'Replenishment', icon: PackagePlus, C: ReplenishmentTab },
