@@ -1,0 +1,21 @@
+{
+  "summary": "Dealer Parts Phase 4 — full backend + frontend verification. All 13 pytest cases PASS: Failure Intelligence (overview + 5 group_by modes + 422 on invalid), Monitoring Agent (run + idempotent dedup + list + status transitions + 404), Replenishment (all 6 label enum), and Closed-Loop recommendation bump (MOTOR-260G in Germany order → recommended_qty 2→4, failure_bumped=true, reason contains 'Failure monitoring: MOTOR-260G is failing 7.0× the other-region average in Germany', top-level quality_flags=['MOTOR-260G']). Frontend nav: desk-tab-stores present; old desk-tab-parts / desk-tab-dealer_parts gone; sub-tabs desk-stores-sub-warehouse (Pulse Warehouse) + desk-stores-sub-dealer (Dealer Parts) render module titled 'Dealer Parts'. Failure Intelligence tab shows stat cards, top failing parts, by-country/dealer/model bars, and all 5 grouping toggles (dp-intel-group-part/country/dealer/model/serial). Monitoring & Alerts tab: dp-run-monitoring-btn works (0 new alerts on re-run = correct dedup), 3 alert rows with severity/evidence/suggested action + inline status dropdowns updated status successfully (toast 'Alert updated'). Replenishment tab: rows render with label badges, 'Only items needing action' filter toggles correctly (default on = 1 row Low Stock; off = all 8 rows).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_phase4.py",
+    "/app/test_reports/pytest/dealer_parts_phase4.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Leftover test artefacts observed in intel data (TEST-NONESUCH sku, TEST_TREAD-9 model, PF260G-* serial range with 8 failures). These come from earlier testing iterations, not created here. Consider a cleanup script if the org demo is user-facing.",
+    "/app/backend/routes/dealer_parts_intel.py is 380 lines and mixes intel + monitoring + replenishment + closed-loop helper — acceptable but nearing split threshold; consider splitting monitoring vs intel if it grows further."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_phase4.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None — used existing seeded MOTOR-260G Germany scenario. No TEST_ artifacts created by this run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 4 fully verified. Closed loop confirmed: MOTOR-260G Germany order returns recommended_qty=4 (from 2), failure_bumped=true, quality_flags=['MOTOR-260G']. Monitoring re-run must return alerts_created=0 due to open-alert dedup (this is CORRECT). Old testing seed left TEST- prefixed usage rows in the DB that appear in intel output — not a bug."
+}

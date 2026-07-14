@@ -102,6 +102,10 @@ async def _get_settings(org: str) -> dict:
             "require_receipt_confirmation": True,
             "ai_recommendations_enabled": True,
             "multi_currency_enabled": True,
+            "enable_monitoring_agent": True,
+            "failure_alert_threshold": 5,
+            "usage_spike_factor": 2.0,
+            "monitoring_window_days": 90,
             "updated_at": _now(),
         }
         await db[SETTINGS].insert_one(dict(s))
@@ -141,6 +145,7 @@ async def update_settings(data: dict, user=Depends(get_current_user)):
         "ai_recommendations_enabled", "multi_currency_enabled",
         "allow_dealer_portal_usage", "allow_engineer_app_usage",
         "require_photo_evidence", "enable_monitoring_agent",
+        "failure_alert_threshold", "usage_spike_factor", "monitoring_window_days",
     }
     patch = {k: v for k, v in data.items() if k in allowed}
     patch["updated_at"] = _now()

@@ -24,6 +24,7 @@ from routes.dealer_parts import (
     _of, _now, _audit, _can_manage, _strip, _dealer_or_404,
     ORDERS, ALLOCATIONS, STORE_STOCK,
 )
+from routes.dealer_parts_intel import failure_bump
 
 router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
 
@@ -231,7 +232,9 @@ async def recommend(data: dict, user=Depends(get_current_user)):
     if not order:
         raise HTTPException(404, "Order not found")
     dealer_id = order["dealer_id"]
-    await _dealer_or_404(org, dealer_id)
+    dealer = await _dealer_or_404(org, dealer_id)
+    d_region = dealer.get("region") or ""
+    d_country = dealer.get("country") or ""
 
     held = await _dealer_held(org, dealer_id)
     allocated = await _dealer_allocated(org, dealer_id)
@@ -301,6 +304,7 @@ async def recommend(data: dict, user=Depends(get_current_user)):
     items = []
     duplicates_avoided = 0
     total_value = 0.0
+    quality_flags = []
     for sku, c in candidates.items():
         raw = c["qty"]
         have = held.get(sku, 0) + allocated.get(sku, 0)
@@ -315,6 +319,16 @@ async def recommend(data: dict, user=Depends(get_current_user)):
                 dup_warning = f"Dealer already holds/allocated {int(have)} unit(s) — no repeat needed."
             else:
                 dup_warning = f"Reduced from {raw} to {rec}: dealer already holds/allocated {int(have)}."
+        # Closed loop — bump for regional failure signals + quality watch.
+        bump_note = ""
+        extra, note, qflag = await failure_bump(org, d_region, d_country, sku)
+        if extra and rec >= 0:
+            rec += extra
+            bump_note = note
+        elif note:
+            bump_note = note
+        if qflag:
+            quality_flags.append(sku)
         items.append({
             "part_sku": sku,
             "part_name": c["part_name"],
@@ -325,8 +339,10 @@ async def recommend(data: dict, user=Depends(get_current_user)):
             "already_held": int(have),
             "unit_value": unit,
             "value": round(rec * unit, 2),
-            "reason": (base_reason + (" " + dup_warning if dup_warning else "")).strip(),
+            "reason": (base_reason + (" " + dup_warning if dup_warning else "") + bump_note).strip(),
             "duplicate_warning": dup_warning,
+            "failure_bumped": bool(extra),
+            "quality_flag": qflag,
             "source": c["source"],
         })
         total_value += rec * unit
@@ -345,5 +361,6 @@ async def recommend(data: dict, user=Depends(get_current_user)):
         "allowance_remaining": round(allowance - total_value, 2),
         "over_allowance": total_value > allowance if allowance else False,
         "duplicates_avoided": duplicates_avoided,
+        "quality_flags": sorted(set(quality_flags)),
         "missing_bom_models": sorted(set(missing_bom_models)),
     }

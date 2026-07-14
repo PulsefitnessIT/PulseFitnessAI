@@ -67,8 +67,7 @@ const TABS = [
   { id: 'customers',  label: 'Customers',  icon: Users },
   { id: 'equipment',  label: 'Equipment',  icon: Wrench },
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
-  { id: 'parts',      label: 'Parts',      icon: Package },
-  { id: 'dealer_parts', label: 'Dealer Warranty Parts', icon: Globe },
+  { id: 'stores',     label: 'Stores',     icon: Package },
   { id: 'billing',    label: 'Billing',    icon: FileText },
 ];
 
@@ -121,6 +120,7 @@ export default function ServiceDeskPage() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const [analyticsSub, setAnalyticsSub] = useState('overview');
+  const [storesSub, setStoresSub] = useState('warehouse');
 
   useEffect(() => {
     if (!can(user, 'view_service_desk')) {
@@ -232,14 +232,33 @@ export default function ServiceDeskPage() {
             <Suspense fallback={<EmbedFallback />}><OpsScheduler /></Suspense>
           </ServiceOpsEmbeddedContext.Provider>
         );
-      case 'parts':
+      case 'stores':
         return (
-          <ServiceOpsEmbeddedContext.Provider value={true}>
-            <Suspense fallback={<EmbedFallback />}><OpsParts /></Suspense>
-          </ServiceOpsEmbeddedContext.Provider>
+          <div data-testid="desk-stores-hub">
+            <div className="flex items-center gap-1 mb-5 border-b border-slate-200">
+              {[{ id: 'warehouse', label: 'Pulse Warehouse' }, { id: 'dealer', label: 'Dealer Parts' }].map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setStoresSub(sub.id)}
+                  data-testid={`desk-stores-sub-${sub.id}`}
+                  className={`px-4 py-2.5 text-sm font-semibold -mb-px border-b-2 transition-colors ${
+                    storesSub === sub.id
+                      ? 'border-[var(--gx-brand-from)] text-[var(--gx-brand-from)]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+            {storesSub === 'warehouse' && (
+              <ServiceOpsEmbeddedContext.Provider value={true}>
+                <Suspense fallback={<EmbedFallback />}><OpsParts /></Suspense>
+              </ServiceOpsEmbeddedContext.Provider>
+            )}
+            {storesSub === 'dealer' && <Suspense fallback={<EmbedFallback />}><DealerParts /></Suspense>}
+          </div>
         );
-      case 'dealer_parts':
-        return <Suspense fallback={<EmbedFallback />}><DealerParts /></Suspense>;
       case 'billing':
         return (
           <ServiceOpsEmbeddedContext.Provider value={true}>

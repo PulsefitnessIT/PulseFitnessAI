@@ -51,4 +51,11 @@ export const dpApi = {
   listRma: (params = {}) => axios.get(`${BASE}/rma`, { ...auth(), params }).then((r) => r.data),
   createRma: (data) => axios.post(`${BASE}/rma`, data, auth()).then((r) => r.data),
   updateRma: (id, data) => axios.patch(`${BASE}/rma/${id}`, data, auth()).then((r) => r.data),
+
+  intelOverview: (params = {}) => axios.get(`${BASE}/intel/overview`, { ...auth(), params }).then((r) => r.data),
+  intelFailures: (params = {}) => axios.get(`${BASE}/intel/failures`, { ...auth(), params }).then((r) => r.data),
+  runMonitoring: () => axios.post(`${BASE}/monitoring/run`, {}, auth()).then((r) => r.data),
+  listAlerts: (params = {}) => axios.get(`${BASE}/alerts`, { ...auth(), params }).then((r) => r.data),
+  updateAlert: (id, data) => axios.patch(`${BASE}/alerts/${id}`, data, auth()).then((r) => r.data),
+  replenishment: (params = {}) => axios.get(`${BASE}/replenishment`, { ...auth(), params }).then((r) => r.data),
 };

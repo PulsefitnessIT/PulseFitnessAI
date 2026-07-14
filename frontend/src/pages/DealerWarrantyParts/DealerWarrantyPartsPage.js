@@ -4,7 +4,7 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck, Radar, PackagePlus } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
@@ -14,6 +14,9 @@ import MostUsedTab from './MostUsedTab';
 import UsageTab from './UsageTab';
 import StoresDeptTab from './StoresDeptTab';
 import RmaTab from './RmaTab';
+import FailureIntelTab from './FailureIntelTab';
+import AlertsTab from './AlertsTab';
+import ReplenishmentTab from './ReplenishmentTab';
 import StoresTab from './StoresTab';
 import LedgerTab from './LedgerTab';
 import SettingsTab from './SettingsTab';
@@ -27,6 +30,9 @@ const TABS = [
   { id: 'most_used', label: 'Most Used Parts', icon: Star, C: MostUsedTab },
   { id: 'usage', label: 'Engineer Usage', icon: Wrench, C: UsageTab },
   { id: 'stores_dept', label: 'Stores Dept', icon: Truck, C: StoresDeptTab },
+  { id: 'intel', label: 'Failure Intelligence', icon: Globe, C: FailureIntelTab },
+  { id: 'alerts', label: 'Monitoring & Alerts', icon: Radar, C: AlertsTab },
+  { id: 'replenishment', label: 'Replenishment', icon: PackagePlus, C: ReplenishmentTab },
   { id: 'rma', label: 'Returns / RMA', icon: RotateCcw, C: RmaTab },
   { id: 'stores', label: 'Remote Stores', icon: Warehouse, C: StoresTab },
   { id: 'ledger', label: 'Stock Ledger', icon: ArrowRightLeft, C: LedgerTab },
@@ -44,8 +50,8 @@ export default function DealerWarrantyPartsPage() {
           <Globe className="text-white" size={22} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dealer Warranty Parts</h1>
-          <p className="text-sm text-slate-500">Manage global dealer warranty parts, remote stock, engineer usage, replenishment and failure intelligence.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dealer Parts</h1>
+          <p className="text-sm text-slate-500">Manage global dealer parts — warranty allocations, remote stock, engineer usage, replenishment and failure intelligence.</p>
         </div>
       </div>
 
