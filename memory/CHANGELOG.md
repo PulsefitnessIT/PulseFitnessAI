@@ -1,6 +1,17 @@
 # Changelog
 
 
+## Jul 14, 2026 — Dealer Parts (Phase 5, final) — AI + Reports + Dealer Portal
+- **AI (Emergent LLM key, model openai/gpt-5.2, advisory-only)** — `routes/dealer_parts_portal.py` + `utils/dealer_parts_ai.py`:
+  - `POST /ai/parse-invoice {text}` extracts machine lines + order value from pasted invoice/order text (never invents lines) → Orders tab "Parse invoice with AI" pre-fills the import form for review, then auto-calculates the allowance.
+  - `POST /ai/dealer-summary {dealer_id}` drafts an internal summary + highlights + a friendly dealer-facing note.
+- **CSV Reports** — `GET /reports/{allocations|stock|usage|failures}.csv` (attachment downloads; Reports tab buttons fetch as blob with auth header).
+- **Dealer Portal** (`portal/{dealer_id}/overview`, `request-replenishment`, `replenishment-requests`) — dealer-scoped views (a dealer only sees their own store/stock/usage/incoming shipments) + raise replenishment requests; Pulse can list & action requests. Frontend "Dealer Portal" tab with dealer selector.
+- **Tested:** testing_agent — backend 11/11, frontend 100%. No issues. AI verified live (parsed PO ref + lines; generated dealer summary).
+- **Status:** Global Dealer Parts module COMPLETE across all 5 phases (dealers, orders+allowance, allocations, BOM, most-used, recommendation engine w/ duplicate prevention + failure-driven closed loop, engineer usage → stock/ledger/case, stores dept, RMA, failure monitoring + intelligence, replenishment, alerts, dealer portal, reports, AI). All under Service Desk → Stores → Dealer Parts.
+
+
+
 ## Jul 14, 2026 — Dealer Parts: nav merge + Phase 4 (Failure Monitoring + Intelligence + Replenishment + closed loop)
 - **Nav change:** Service Desk sidebar "Parts" → renamed **"Stores"**; the standalone "Dealer Warranty Parts" tab is merged INTO Stores as a sub-tab **"Dealer Parts"** (alongside "Pulse Warehouse"). Module retitled **"Dealer Parts"** (now covers all dealer parts, not just warranty). Files: `ServiceDeskPage.js` (desk-tab-stores, desk-stores-sub-warehouse/dealer).
 - **Backend (`routes/dealer_parts_intel.py`, reads Phase 3 usage logs):**
