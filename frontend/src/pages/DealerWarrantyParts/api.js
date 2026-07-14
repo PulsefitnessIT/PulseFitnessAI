@@ -42,4 +42,13 @@ export const dpApi = {
   deleteMostUsed: (id) => axios.delete(`${BASE}/most-used/${id}`, auth()).then((r) => r.data),
 
   recommend: (data) => axios.post(`${BASE}/recommend`, data, auth()).then((r) => r.data),
+
+  listUsage: (params = {}) => axios.get(`${BASE}/usage`, { ...auth(), params }).then((r) => r.data),
+  logUsage: (data) => axios.post(`${BASE}/usage`, data, auth()).then((r) => r.data),
+
+  storesDashboard: () => axios.get(`${BASE}/stores-dashboard`, auth()).then((r) => r.data),
+
+  listRma: (params = {}) => axios.get(`${BASE}/rma`, { ...auth(), params }).then((r) => r.data),
+  createRma: (data) => axios.post(`${BASE}/rma`, data, auth()).then((r) => r.data),
+  updateRma: (id, data) => axios.patch(`${BASE}/rma/${id}`, data, auth()).then((r) => r.data),
 };

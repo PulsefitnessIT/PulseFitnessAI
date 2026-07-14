@@ -1,0 +1,22 @@
+{
+  "summary": "Phase 3 Dealer Warranty Parts (usage, stores dept dashboard, RMA) fully tested backend + frontend. All 9 pytest cases pass; all UI flows work (log usage decrements stock and creates ledger movement + case timeline event best-effort, Stores Dept dashboard renders 4 cards + queues, RMA create/inline status change works).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_dealer_parts_phase3.py",
+    "/app/test_reports/pytest/dealer_parts_phase3.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/dealer_parts_ops.py imports safe_regex but never uses it — dead import (minor lint).",
+    "log_usage: if part_sku has no matching STORE_STOCK row, stock is not decremented BUT a 'part_used' movement is still recorded — invariant that 'no stock changes without a ledger row' holds, but a phantom movement is created for parts never held (arguably fine for Phase 4 failure monitoring, but worth noting).",
+    "_ensure_usage_store may auto-create a 'Main Dealer Store' as a side-effect of a validation-failing request path if the dealer has no stores; consider deferring creation until after quantity/sku validation passes (currently validated first, so OK)."
+  ],
+  "updated_files": ["/app/backend/tests/test_dealer_parts_phase3.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (Usage, Stores Dept, RMA)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Created ~6 TEST_ usage rows on Fitline Deutschland (BELT-260G qty 1 each) + TEST-RMA-FE RMA. GulfGym approved allocation was dispatched, then IberFit dispatched allocation was received during test flow (as noted in review request).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend + frontend Phase 3 fully passing. If re-running usage test, note that BELT-260G qty_on_hand on Fitline has been decremented several times by test runs — the fixture reads current qty first so it stays valid. GulfGym approved allocation was consumed (dispatched during UI test), so 'to_pick' will now show 0 unless the seed script is re-run."
+}

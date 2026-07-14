@@ -4,13 +4,16 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
 import AllocationsTab from './AllocationsTab';
 import BomTab from './BomTab';
 import MostUsedTab from './MostUsedTab';
+import UsageTab from './UsageTab';
+import StoresDeptTab from './StoresDeptTab';
+import RmaTab from './RmaTab';
 import StoresTab from './StoresTab';
 import LedgerTab from './LedgerTab';
 import SettingsTab from './SettingsTab';
@@ -22,6 +25,9 @@ const TABS = [
   { id: 'allocations', label: 'Allocations', icon: Package, C: AllocationsTab },
   { id: 'bom', label: 'BOM Management', icon: Layers, C: BomTab },
   { id: 'most_used', label: 'Most Used Parts', icon: Star, C: MostUsedTab },
+  { id: 'usage', label: 'Engineer Usage', icon: Wrench, C: UsageTab },
+  { id: 'stores_dept', label: 'Stores Dept', icon: Truck, C: StoresDeptTab },
+  { id: 'rma', label: 'Returns / RMA', icon: RotateCcw, C: RmaTab },
   { id: 'stores', label: 'Remote Stores', icon: Warehouse, C: StoresTab },
   { id: 'ledger', label: 'Stock Ledger', icon: ArrowRightLeft, C: LedgerTab },
   { id: 'settings', label: 'Settings', icon: Settings, C: SettingsTab },

@@ -119,6 +119,7 @@ from routes.svc.engineer_parts_requests import (
 # Dealer Warranty Parts — global dealer spare-parts ecosystem
 from routes.dealer_parts import router as dealer_parts_router
 from routes.dealer_parts_bom import router as dealer_parts_bom_router
+from routes.dealer_parts_ops import router as dealer_parts_ops_router
 # Iter 215dq — Phase 3 Scheduler + Parts catalogue
 from routes.svc.parts import router as svc_parts_router
 from routes.svc.scheduler import router as svc_scheduler_router
@@ -327,6 +328,7 @@ _UNGATED_ROUTERS = (
     # Dealer Warranty Parts — global dealer spare-parts ecosystem
     dealer_parts_router,
     dealer_parts_bom_router,
+    dealer_parts_ops_router,
     # Iter 215dq — Phase 3 Scheduler + Parts
     svc_parts_router, svc_scheduler_router,
     # AI Scheduling Agent (ported from GymAxis) — re-plan/approve layer
