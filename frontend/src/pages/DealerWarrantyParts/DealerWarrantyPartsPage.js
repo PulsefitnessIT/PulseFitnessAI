@@ -4,7 +4,7 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck, Radar, PackagePlus, Store, FileSpreadsheet } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Layers, Star, Wrench, RotateCcw, Truck, Radar, PackagePlus, Store, FileSpreadsheet, UploadCloud, BarChart3, GitCompare, HelpCircle, Cog } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';
@@ -22,9 +22,19 @@ import ReportsTab from './ReportsTab';
 import StoresTab from './StoresTab';
 import LedgerTab from './LedgerTab';
 import SettingsTab from './SettingsTab';
+import DataImportsTab from './DataImportsTab';
+import MostUsedAnalysisTab from './MostUsedAnalysisTab';
+import MatchReviewTab from './MatchReviewTab';
+import UnmatchedReviewTab from './UnmatchedReviewTab';
+import MachinePartsTab from './MachinePartsTab';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, C: DashboardTab },
+  { id: 'imports', label: 'Data Imports', icon: UploadCloud, C: DataImportsTab },
+  { id: 'analysis', label: 'Most-Used Analysis', icon: BarChart3, C: MostUsedAnalysisTab },
+  { id: 'match_review', label: 'Match Review', icon: GitCompare, C: MatchReviewTab },
+  { id: 'unmatched', label: 'Unmatched Review', icon: HelpCircle, C: UnmatchedReviewTab },
+  { id: 'machine_parts', label: 'Machine Parts', icon: Cog, C: MachinePartsTab },
   { id: 'dealers', label: 'Dealers', icon: Building2, C: DealersTab },
   { id: 'orders', label: 'Orders & Allowance', icon: FileText, C: OrdersTab },
   { id: 'allocations', label: 'Allocations', icon: Package, C: AllocationsTab },

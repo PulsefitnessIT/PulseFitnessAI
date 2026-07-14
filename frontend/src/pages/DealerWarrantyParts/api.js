@@ -79,4 +79,36 @@ export const dpApi = {
     document.body.appendChild(a); a.click(); a.remove();
     window.URL.revokeObjectURL(url);
   },
+
+  // ── Phase 1 Data & Intelligence engine ──
+  listImports: (kind = '') => axios.get(`${BASE}/data/imports`, { ...auth(), params: kind ? { kind } : {} }).then((r) => r.data),
+  reverseImport: (id) => axios.post(`${BASE}/data/imports/${id}/reverse`, {}, auth()).then((r) => r.data),
+  // Chunked upload — bypasses the 2 MB ingress body limit.
+  uploadSpreadsheet: async (file, kind, onProgress) => {
+    const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
+    const uploadId = init.upload_id;
+    const CHUNK = 1_400_000;
+    for (let start = 0; start < file.size; start += CHUNK) {
+      const fd = new FormData();
+      fd.append('chunk', file.slice(start, start + CHUNK));
+      await axios.post(`${BASE}/data/upload/${uploadId}/chunk`, fd, auth());
+      if (onProgress) onProgress(Math.min(100, Math.round(((start + CHUNK) / file.size) * 100)));
+    }
+    const { data } = await axios.post(`${BASE}/data/upload/${uploadId}/finish`, { kind, filename: file.name }, auth());
+    if (onProgress) onProgress(100);
+    return data;
+  },
+  mostUsedAnalysis: (params = {}) => axios.get(`${BASE}/data/most-used-analysis`, { ...auth(), params }).then((r) => r.data),
+  unmatched: (params = {}) => axios.get(`${BASE}/data/unmatched`, { ...auth(), params }).then((r) => r.data),
+  runMatching: () => axios.post(`${BASE}/data/match/run`, {}, auth()).then((r) => r.data),
+  listDataMatches: (params = {}) => axios.get(`${BASE}/data/matches`, { ...auth(), params }).then((r) => r.data),
+  reviewMatch: (id, action) => axios.post(`${BASE}/data/matches/${id}/review`, { action }, auth()).then((r) => r.data),
+  listAliases: (status = '') => axios.get(`${BASE}/data/aliases`, { ...auth(), params: status ? { status } : {} }).then((r) => r.data),
+  createAlias: (data) => axios.post(`${BASE}/data/aliases`, data, auth()).then((r) => r.data),
+  reviewAlias: (id, action) => axios.post(`${BASE}/data/aliases/${id}/review`, { action }, auth()).then((r) => r.data),
+  unmatchedAction: (codeNorm, data) => axios.post(`${BASE}/data/unmatched/${encodeURIComponent(codeNorm)}/action`, data, auth()).then((r) => r.data),
+  listDataMachines: (params = {}) => axios.get(`${BASE}/data/machines`, { ...auth(), params }).then((r) => r.data),
+  machineParts: (topLevelRef) => axios.get(`${BASE}/data/machine-parts`, { ...auth(), params: { top_level_ref: topLevelRef } }).then((r) => r.data),
+  getDataSettings: () => axios.get(`${BASE}/data/settings`, auth()).then((r) => r.data),
+  saveDataSettings: (data) => axios.put(`${BASE}/data/settings`, data, auth()).then((r) => r.data),
 };

@@ -84,3 +84,29 @@ export const Field = ({ label, children }) => (
 
 export const input = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30';
 export const inputTight = 'rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30';
+
+export const TREND_TONE = {
+  increasing: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  new_failure_trend: 'bg-red-50 text-red-700 border-red-200',
+  stable: 'bg-blue-50 text-blue-700 border-blue-200',
+  decreasing: 'bg-amber-50 text-amber-700 border-amber-200',
+  dormant: 'bg-slate-100 text-slate-500 border-slate-200',
+  one_off: 'bg-slate-100 text-slate-500 border-slate-200',
+};
+
+export const TrendBadge = ({ trend }) => (
+  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize ${TREND_TONE[trend] || TREND_TONE.stable}`}>
+    {String(trend || 'stable').replace(/_/g, ' ')}
+  </span>
+);
+
+export const CONFIDENCE_TONE = {
+  exact_code: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  normalised_code: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  alias: 'bg-teal-50 text-teal-700 border-teal-200',
+  manual: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  exact_description: 'bg-blue-50 text-blue-700 border-blue-200',
+  normalised_description: 'bg-blue-50 text-blue-700 border-blue-200',
+  fuzzy_description: 'bg-amber-50 text-amber-700 border-amber-200',
+  none: 'bg-slate-100 text-slate-500 border-slate-200',
+};
