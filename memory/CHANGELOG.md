@@ -1,6 +1,17 @@
 # Changelog
 
 
+## Jul 14, 2026 — Dealer Warranty Parts (Phase 3) — Engineer usage flow + Stores Dept + Returns/RMA
+- **Backend (`routes/dealer_parts_ops.py`, reuses Phase 1 helpers):**
+  - **Parts usage** (`dealer_parts_usage_logs`) — `POST /api/dealer-parts/usage` logs a part used by an engineer/dealer, DECREMENTS the dealer remote-store stock (sets last_used), writes a `dealer_stock_movements` row (type `part_used` — no stock change without a ledger row), and appends a Service Desk case timeline event (`svc_case_events`, type `dealer_part_used`) when a valid `case_id` is supplied (best-effort, non-existent case never errors). Captures warranty/chargeable, failure_reason, serial, machine model for Phase 4 monitoring.
+  - **Stores Department** — `GET /api/dealer-parts/stores-dashboard`: cards + picking/dispatch queue (approved allocations), shipments awaiting receipt (dispatched/partially-received), recent usage, low-stock lines.
+  - **Returns / RMA** (`dealer_parts_rma`) — create (auto RMA reference), list, PATCH status through the lifecycle (return_requested → … → under_inspection/quality_review → closed) with inspection/quality/warranty/credit fields.
+- **Frontend:** new tabs — **Engineer Usage** (log part used → stock reduces; per-row Raise-RMA), **Stores Dept** (dashboard with pick&dispatch + confirm-receipt actions), **Returns / RMA** (create + inline status dropdown).
+- **Tested:** testing_agent — backend 9/9, frontend all flows. No issues.
+- **Deferred:** Phase 4 (Failure Monitoring Agent + Global Failure Intelligence + Replenishment + Alerts — INCLUDING the closed loop: monitoring insights auto-adjust Recommendation Engine pack quantities per region/dealer and flag quality issues), Phase 5 (Dealer Portal + Reports + AI).
+
+
+
 ## Jul 14, 2026 — Dealer Warranty Parts (Phase 2) — BOM + Most-Used + Recommendation Engine
 - **Backend (`routes/dealer_parts_bom.py`, reuses Phase 1 helpers):**
   - **BOM Management** — versioned per machine model (`dealer_bom`); creating a new active BOM auto-supersedes the prior active version (history preserved, never overwritten). Item flags: warranty_relevance / recommended_spare / service_part / wear_item / consumable, criticality, cost. PATCH changes status (draft/active/superseded/archived).
