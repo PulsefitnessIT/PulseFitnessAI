@@ -1124,3 +1124,16 @@ Verified via screenshot + data-testids (owner account: all Options items present
 - Confirmed end-to-end the `dealer_user` auth scope: dealer login (portal2@fitline.test) redirects to /dealer-portal; direct navigation to staff routes (/dashboard) is forced back to /dealer-portal via DashboardRoute guard in AppRoutes.js (line 235).
 - Backend RBAC verified: portal/me/overview → 200 (dealer-scoped); staff endpoint replenishment-requests → 403 for dealer_user.
 - Test creds added to test_credentials.md.
+
+## 2026-07-14 — Dealer Parts Phase 1: Data Import + BOM Matching + Most-Used Intelligence engine — DONE (27/27 backend tests pass)
+Built inside Service Desk → Stores → Dealer Parts. Turns the two historical Pulse spreadsheets into a reusable intelligence engine (no duplication of dealers/orders/stock/parts).
+- New backend router: routes/dealer_parts_data.py (prefix /api/dealer-parts/data, staff-only). Collections: dealer_parts_import_batches, dealer_parts_usage_records, dealer_most_used_analysis, dealer_bom_machines, dealer_bom_components, dealer_component_matches, dealer_component_aliases, dealer_parts_data_settings.
+- Parts Used importer (sheet SageReportData1) → 15,600 usage rows → computed Most-Used analysis (1,440 unique parts): total_qty, usage_count, cost, first/last used, by-year/month, avg_monthly, recent_90d/12m, trend (increasing/stable/decreasing/dormant/one_off/new_failure_trend), rank, high_usage flag.
+- BOM importer (sheet BOMData) → 104,020 component rows → 4,879 versioned BOM machines + components. Re-import supersedes prior version (history kept).
+- Chunked upload endpoints (/data/upload/init|chunk|finish) bypass the 2 MB ingress body limit (7 MB BOM uploads fine). rapidfuzz added for fast fuzzy matching.
+- Multi-stage matching engine (/data/match/run, <2s): exact code → normalised code → exact/normalised description → fuzzy description (rapidfuzz, needs review) → approved alias. Idempotent; preserves manual matches. Result on seed data: 112 exact, 25 fuzzy, ~1301 unmatched (EXPECTED — high-runner spares genuinely aren't in the assembly BOM).
+- Unmatched review queue (sorted by qty) with dispositions: map_to_bom (manual match), create_alias, mark_obsolete, not_dealer_relevant, exclude_from_recommendations, send_for_review. Aliases require approval; approved aliases resolve on next match run.
+- Machine→parts intelligence (/data/machine-parts): BOM components ranked by historical usage with dealer-stock priority (critical/recommended/optional/low/no_usage).
+- Frontend tabs added: Data Imports, Most-Used Analysis, Match Review (+Aliases), Unmatched Review, Machine Parts. Full audit trail via dealer_parts_audit_events. Import batches reversible.
+- Bug fixed during testing: _audit() positional `action` collided with kwarg action= in 3 review handlers → renamed to review_action.
+Seeded on org iso-demo-org (owner@isodemo.com / IsoDemo123!).
