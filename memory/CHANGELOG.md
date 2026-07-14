@@ -1,6 +1,17 @@
 # Changelog
 
 
+## Jul 14, 2026 — Dealer Warranty Parts (Phase 2) — BOM + Most-Used + Recommendation Engine
+- **Backend (`routes/dealer_parts_bom.py`, reuses Phase 1 helpers):**
+  - **BOM Management** — versioned per machine model (`dealer_bom`); creating a new active BOM auto-supersedes the prior active version (history preserved, never overwritten). Item flags: warranty_relevance / recommended_spare / service_part / wear_item / consumable, criticality, cost. PATCH changes status (draft/active/superseded/archived).
+  - **Most-Used Parts** (`dealer_most_used_parts`) — upsert by (model, part_number) so re-imports update rather than duplicate; priority (critical→optional), recommended dealer stock qty, usage/failure frequency, cost, lead time.
+  - **Recommendation Engine** (`POST /api/dealer-parts/recommend`) — reads an order's machine lines, pulls the active BOM + most-used parts, computes a recommended pack (base qty × fleet factor by priority), then NETS against the dealer's current stock (on-hand + in-transit) and prior non-cancelled allocations → duplicate/repetition prevention. Returns per-part recommended vs original qty, already_held, reason + duplicate_warning, duplicates_avoided, missing_bom_models, total value vs allowance / over-allowance.
+- **Frontend (`pages/DealerWarrantyParts/`):** new **BOM Management** and **Most Used Parts** tabs; **"Generate recommended parts pack"** button in the New Allocation flow (populates items with reasons, shows AI-recommendation banner with duplicates avoided + missing-BOM warning). Fixed a width-conflict (base `input` `w-full` vs inline widths) via `inputTight`.
+- **Tested:** testing_agent — backend 10/10, frontend all 3 flows. No blocking issues.
+- **Deferred:** Phase 3 (engineer-app parts usage + Stores dept + shipments/RMA), Phase 4 (failure monitoring + replenishment + alerts), Phase 5 (dealer portal + reports + AI invoice parsing).
+
+
+
 ## Jul 14, 2026 — Dealer Warranty Parts (Phase 1) — Service Desk → Parts
 New global dealer spare-parts module. Extends the platform, reuses existing records (parts catalogue `svc_parts`, service cases, equipment, CRM companies) — no duplication.
 - **Backend (`routes/dealer_parts.py`, prefix `/api/dealer-parts`):** dealers (link to CRM company_id, name/company dedup via `safe_regex_exact`), order/invoice import with automatic spare-parts allowance calc (`allowance = order_value × %`; % resolves order-override → dealer default → global setting), allocation lifecycle (draft → submit → approve → dispatch → receive), auto-created "Main Dealer Store" on dispatch, remote stores + per-part store stock, immutable stock movement ledger, dashboard rollups, settings (manager-gated), audit events. Over-allowance / above-threshold allocations require manager approval.
