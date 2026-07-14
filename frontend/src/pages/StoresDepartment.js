@@ -1,14 +1,79 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Warehouse, PackageSearch, Truck, Building2, ClipboardList } from 'lucide-react';
+import { Warehouse, PackageSearch, Truck, Building2, ClipboardList, ListChecks, ArrowRight } from 'lucide-react';
 import { dpApi } from './DealerWarrantyParts/api';
-import { StatCard, Spinner, StatusBadge } from './DealerWarrantyParts/shared';
+import { StatCard, Spinner, StatusBadge, money } from './DealerWarrantyParts/shared';
 import StoresDeptTab from './DealerWarrantyParts/StoresDeptTab';
 
 const OPEN_STATUSES = ['draft', 'submitted', 'acknowledged', 'quoted', 'invoiced', 'allocated'];
+const DESPATCH_READY = ['allocated', 'invoiced', 'quoted', 'acknowledged'];
 
 function fmtDate(v) {
   if (!v) return '';
   try { return new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return ''; }
+}
+
+function ActionQueue({ onGoWarehouse, onGoDealer }) {
+  const [items, setItems] = useState(null);
+
+  const load = useCallback(() => {
+    Promise.all([
+      dpApi.listPartsRequests().catch(() => ({ requests: [] })),
+      dpApi.storesDashboard().catch(() => ({ to_pick: [] })),
+    ]).then(([wh, dealer]) => {
+      const rows = [];
+      (wh.requests || []).filter((r) => DESPATCH_READY.includes(r.status)).forEach((r) => rows.push({
+        key: `wh-${r.id}`, source: 'warehouse', title: r.supplier_name || r.reference,
+        sub: `${r.reference} · ${r.part_count ?? 0} parts`, status: r.status,
+        action: 'Despatch', date: r.created_at,
+      }));
+      (dealer.to_pick || []).forEach((a) => rows.push({
+        key: `dl-${a.id}`, source: 'dealer', title: a.dealer_name,
+        sub: `${(a.items || []).length} parts · ${money(a.approved_value || a.recommended_value)}`, status: 'approved',
+        action: 'Pick & dispatch', date: a.approved_at,
+      }));
+      rows.sort((x, y) => new Date(x.date || 0) - new Date(y.date || 0));
+      setItems(rows);
+    });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (items === null) return <Spinner />;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5" data-testid="stores-dept-action-queue">
+      <div className="flex items-center gap-2 mb-3">
+        <ListChecks size={16} className="text-[var(--gx-brand-from)]" />
+        <h3 className="text-sm font-bold text-slate-900">To action today</h3>
+        <span className="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--gx-brand-from)]/10 text-[var(--gx-brand-from)]">{items.length}</span>
+        <span className="ml-auto text-xs text-slate-400">Warehouse despatches + dealer allocations, prioritised oldest first</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-sm text-slate-400">Nothing awaiting picking or despatch right now. 🎉</p>
+      ) : (
+        <div className="divide-y divide-slate-50">
+          {items.slice(0, 15).map((it) => (
+            <div key={it.key} data-testid={`sd-queue-${it.key}`} className="flex items-center gap-3 py-2.5">
+              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${it.source === 'warehouse' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
+                {it.source === 'warehouse' ? <Warehouse size={11} /> : <Building2 size={11} />}
+                {it.source === 'warehouse' ? 'Warehouse' : 'Dealer'}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-slate-800 truncate">{it.title}</div>
+                <div className="text-xs text-slate-400 truncate">{it.sub}</div>
+              </div>
+              <StatusBadge status={it.status} />
+              <span className="text-xs text-slate-400 w-14 text-right">{fmtDate(it.date)}</span>
+              <button data-testid={`sd-queue-go-${it.key}`}
+                onClick={() => (it.source === 'warehouse' ? onGoWarehouse() : onGoDealer())}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--gx-brand-from)] hover:underline">
+                {it.action} <ArrowRight size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function WarehouseSection() {
@@ -80,6 +145,8 @@ export default function StoresDepartment() {
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><ClipboardList size={18} className="text-[var(--gx-brand-from)]" /> Stores Department</h2>
         <p className="text-sm text-slate-500">Fulfilment across all parts leaving Pulse Fitness — warehouse supplier requests and dealer warranty allocations.</p>
       </div>
+
+      <ActionQueue onGoWarehouse={() => setView('warehouse')} onGoDealer={() => setView('dealer')} />
 
       <div className="flex flex-wrap gap-1.5 border-b border-slate-200 pb-3">
         {views.map((v) => {
