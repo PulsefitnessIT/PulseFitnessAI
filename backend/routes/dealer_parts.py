@@ -34,7 +34,14 @@ from utils.database import db
 from utils.auth import get_current_user
 from utils.security_plus import safe_regex, safe_regex_exact
 
-router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
+async def require_staff(user=Depends(get_current_user)):
+    """Reject dealer-portal sub-users from Pulse admin endpoints (defense-in-depth)."""
+    if (user.get("role") or "").lower() == "dealer_user":
+        raise HTTPException(403, "Dealer accounts cannot access this area")
+    return user
+
+
+router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"], dependencies=[Depends(require_staff)])
 
 DEALERS = "dealer_parts_dealers"
 SETTINGS = "dealer_parts_settings"

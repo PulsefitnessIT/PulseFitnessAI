@@ -23,11 +23,11 @@ from utils.security_plus import safe_regex
 from utils.svc_state import append_event
 
 from routes.dealer_parts import (
-    _of, _now, _audit, _strip, _dealer_or_404, _movement,
+    _of, _now, _audit, _strip, _dealer_or_404, _movement, require_staff,
     STORES, STORE_STOCK, ALLOCATIONS,
 )
 
-router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
+router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"], dependencies=[Depends(require_staff)])
 
 USAGE = "dealer_parts_usage_logs"
 RMA = "dealer_parts_rma"

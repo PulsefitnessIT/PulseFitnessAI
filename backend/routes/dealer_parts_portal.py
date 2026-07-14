@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import io
+import secrets
 import uuid
 from datetime import datetime, timezone, timedelta
 
@@ -15,12 +16,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from utils.database import db
-from utils.auth import get_current_user
+from utils.auth import get_current_user, hash_password
 from utils.dealer_parts_ai import parse_invoice_text, dealer_summary
 
-from routes.dealer_parts import _of, _now, _audit, _dealer_or_404, _get_settings
+from routes.dealer_parts import _of, _now, _audit, _dealer_or_404, _get_settings, require_staff
 
 router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
+
+
+async def require_dealer_user(user=Depends(get_current_user)):
+    """Dealer sub-user only; must have a linked dealer_id."""
+    if (user.get("role") or "").lower() != "dealer_user" or not user.get("dealer_id"):
+        raise HTTPException(403, "Dealer account required")
+    return user
 
 DEALERS = "dealer_parts_dealers"
 ORDERS = "dealer_parts_orders"
@@ -37,7 +45,7 @@ REPLEN_REQ = "dealer_parts_replenishment_requests"
 # ─────────────────────────────────────────────────────────────────
 
 @router.post("/ai/parse-invoice")
-async def ai_parse_invoice(data: dict, user=Depends(get_current_user)):
+async def ai_parse_invoice(data: dict, user=Depends(require_staff)):
     org = _of(user)
     s = await _get_settings(org)
     if not s.get("ai_recommendations_enabled", True):
@@ -51,7 +59,7 @@ async def ai_parse_invoice(data: dict, user=Depends(get_current_user)):
 
 
 @router.post("/ai/dealer-summary")
-async def ai_dealer_summary(data: dict, user=Depends(get_current_user)):
+async def ai_dealer_summary(data: dict, user=Depends(require_staff)):
     org = _of(user)
     s = await _get_settings(org)
     if not s.get("ai_recommendations_enabled", True):
@@ -94,7 +102,7 @@ def _csv(headers: list, rows: list, filename: str) -> Response:
 
 
 @router.get("/reports/{report}.csv")
-async def report_csv(report: str, dealer_id: str = Query(""), user=Depends(get_current_user)):
+async def report_csv(report: str, dealer_id: str = Query(""), user=Depends(require_staff)):
     org = _of(user)
     base: dict = {"organization_id": org}
     if dealer_id:
@@ -146,9 +154,7 @@ async def report_csv(report: str, dealer_id: str = Query(""), user=Depends(get_c
 # Dealer Portal (dealer-scoped views)
 # ─────────────────────────────────────────────────────────────────
 
-@router.get("/portal/{dealer_id}/overview")
-async def portal_overview(dealer_id: str, user=Depends(get_current_user)):
-    org = _of(user)
+async def _portal_payload(org: str, dealer_id: str) -> dict:
     dealer = await _dealer_or_404(org, dealer_id)
     stock = await db[STORE_STOCK].find({"organization_id": org, "dealer_id": dealer_id}, {"_id": 0}).to_list(2000)
     incoming = await db[ALLOCATIONS].find(
@@ -170,35 +176,85 @@ async def portal_overview(dealer_id: str, user=Depends(get_current_user)):
     }
 
 
-@router.post("/portal/{dealer_id}/request-replenishment")
-async def request_replenishment(dealer_id: str, data: dict, user=Depends(get_current_user)):
-    org = _of(user)
-    dealer = await _dealer_or_404(org, dealer_id)
+async def _create_replen_request(org: str, dealer: dict, data: dict, user: dict) -> dict:
     sku = (data.get("part_sku") or "").strip().upper()
     if not sku:
         raise HTTPException(400, "part_sku required")
     req = {
-        "id": str(uuid.uuid4()),
-        "organization_id": org,
-        "dealer_id": dealer_id,
-        "dealer_name": dealer["name"],
-        "part_sku": sku,
-        "part_name": (data.get("part_name") or sku).strip(),
-        "quantity": float(data.get("quantity") or 1),
-        "note": (data.get("note") or "").strip(),
-        "status": "requested",
+        "id": str(uuid.uuid4()), "organization_id": org, "dealer_id": dealer["id"],
+        "dealer_name": dealer["name"], "part_sku": sku,
+        "part_name": (data.get("part_name") or sku).strip(), "quantity": float(data.get("quantity") or 1),
+        "note": (data.get("note") or "").strip(), "status": "requested",
         "requested_by": user.get("full_name") or user.get("email"),
-        "created_at": _now(),
-        "updated_at": _now(),
+        "created_at": _now(), "updated_at": _now(),
     }
     await db[REPLEN_REQ].insert_one(dict(req))
-    await _audit(org, user, "replenishment_requested", dealer_id=dealer_id, part_sku=sku, quantity=req["quantity"])
+    await _audit(org, user, "replenishment_requested", dealer_id=dealer["id"], part_sku=sku, quantity=req["quantity"])
     req.pop("_id", None)
     return req
 
 
+@router.get("/portal/me/overview")
+async def portal_me_overview(user=Depends(require_dealer_user)):
+    return await _portal_payload(user["organization_id"], user["dealer_id"])
+
+
+@router.post("/portal/me/request-replenishment")
+async def portal_me_request(data: dict, user=Depends(require_dealer_user)):
+    dealer = await _dealer_or_404(user["organization_id"], user["dealer_id"])
+    return await _create_replen_request(user["organization_id"], dealer, data, user)
+
+
+@router.get("/portal/{dealer_id}/overview")
+async def portal_overview(dealer_id: str, user=Depends(require_staff)):
+    return await _portal_payload(_of(user), dealer_id)
+
+
+@router.post("/portal/{dealer_id}/request-replenishment")
+async def request_replenishment(dealer_id: str, data: dict, user=Depends(require_staff)):
+    org = _of(user)
+    dealer = await _dealer_or_404(org, dealer_id)
+    return await _create_replen_request(org, dealer, data, user)
+
+
+# ── Dealer login provisioning (Pulse staff) ──────────────────────
+
+@router.get("/dealers/{dealer_id}/users")
+async def list_dealer_users(dealer_id: str, user=Depends(require_staff)):
+    org = _of(user)
+    await _dealer_or_404(org, dealer_id)
+    rows = await db.users.find(
+        {"organization_id": org, "role": "dealer_user", "dealer_id": dealer_id},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "is_active": 1, "created_at": 1, "must_change_password": 1},
+    ).to_list(200)
+    return {"users": rows, "count": len(rows)}
+
+
+@router.post("/dealers/{dealer_id}/users")
+async def create_dealer_user(dealer_id: str, data: dict, user=Depends(require_staff)):
+    org = _of(user)
+    dealer = await _dealer_or_404(org, dealer_id)
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(400, "Valid email required")
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(400, "A user with this email already exists")
+    temp_password = data.get("password") or (secrets.token_urlsafe(9) + "A1!")
+    uid = str(uuid.uuid4())
+    doc = {
+        "id": uid, "email": email, "password": hash_password(temp_password),
+        "full_name": (data.get("full_name") or dealer["name"]).strip(),
+        "organization_id": org, "role": "dealer_user", "dealer_id": dealer_id,
+        "is_active": True, "must_change_password": True,
+        "created_at": _now(), "password_updated_at": _now(),
+    }
+    await db.users.insert_one(doc)
+    await _audit(org, user, "dealer_user_created", dealer_id=dealer_id, email=email)
+    return {"id": uid, "email": email, "full_name": doc["full_name"], "temp_password": temp_password}
+
+
 @router.get("/replenishment-requests")
-async def list_replenishment_requests(status: str = Query(""), user=Depends(get_current_user)):
+async def list_replenishment_requests(status: str = Query(""), user=Depends(require_staff)):
     org = _of(user)
     q: dict = {"organization_id": org}
     if status:
@@ -208,7 +264,7 @@ async def list_replenishment_requests(status: str = Query(""), user=Depends(get_
 
 
 @router.patch("/replenishment-requests/{req_id}")
-async def update_replenishment_request(req_id: str, data: dict, user=Depends(get_current_user)):
+async def update_replenishment_request(req_id: str, data: dict, user=Depends(require_staff)):
     org = _of(user)
     existing = await db[REPLEN_REQ].find_one({"organization_id": org, "id": req_id}, {"_id": 0})
     if not existing:

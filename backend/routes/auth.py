@@ -291,6 +291,7 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "subscription_tier": (org.get('subscription_tier', 'none') if org else user.get('subscription_tier', 'none')),
         "role": user.get('role', 'owner'),
         "organization_id": user.get('organization_id'),
+        "dealer_id": user.get('dealer_id'),
         "company_code": (org.get('company_code') if org and is_owner_or_mgr else None),
         "is_master_admin": user.get('is_master_admin', False),
         "org_is_operator": bool(org) and (

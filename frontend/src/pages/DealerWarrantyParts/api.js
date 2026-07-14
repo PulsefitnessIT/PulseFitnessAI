@@ -64,6 +64,10 @@ export const dpApi = {
 
   portalOverview: (dealerId) => axios.get(`${BASE}/portal/${dealerId}/overview`, auth()).then((r) => r.data),
   requestReplenishment: (dealerId, data) => axios.post(`${BASE}/portal/${dealerId}/request-replenishment`, data, auth()).then((r) => r.data),
+  portalMeOverview: () => axios.get(`${BASE}/portal/me/overview`, auth()).then((r) => r.data),
+  portalMeRequest: (data) => axios.post(`${BASE}/portal/me/request-replenishment`, data, auth()).then((r) => r.data),
+  listDealerUsers: (dealerId) => axios.get(`${BASE}/dealers/${dealerId}/users`, auth()).then((r) => r.data),
+  createDealerUser: (dealerId, data) => axios.post(`${BASE}/dealers/${dealerId}/users`, data, auth()).then((r) => r.data),
   listReplenishmentRequests: (params = {}) => axios.get(`${BASE}/replenishment-requests`, { ...auth(), params }).then((r) => r.data),
   updateReplenishmentRequest: (id, data) => axios.patch(`${BASE}/replenishment-requests/${id}`, data, auth()).then((r) => r.data),
 

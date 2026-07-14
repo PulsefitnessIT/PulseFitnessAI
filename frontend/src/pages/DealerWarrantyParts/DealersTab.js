@@ -1,12 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Building2, ArrowLeft, MapPin, Boxes, Package } from 'lucide-react';
+import { Plus, Search, Building2, ArrowLeft, MapPin, Boxes, Package, KeyRound } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { StatCard, Spinner, Modal, Field, input, money, StatusBadge } from './shared';
 
 function DealerDetail({ dealerId, onBack }) {
   const [data, setData] = useState(null);
-  useEffect(() => { dpApi.getDealer(dealerId).then(setData); }, [dealerId]);
+  const [users, setUsers] = useState([]);
+  const [modal, setModal] = useState(false);
+  const [uform, setUform] = useState({ email: '', full_name: '' });
+  const [tempPw, setTempPw] = useState(null);
+  const loadUsers = useCallback(() => { dpApi.listDealerUsers(dealerId).then((d) => setUsers(d.users || [])); }, [dealerId]);
+  useEffect(() => { dpApi.getDealer(dealerId).then(setData); loadUsers(); }, [dealerId, loadUsers]);
+  const createLogin = async () => {
+    if (!uform.email.trim()) { notify.error('Email required'); return; }
+    try {
+      const r = await dpApi.createDealerUser(dealerId, uform);
+      setTempPw({ email: r.email, password: r.temp_password });
+      setUform({ email: '', full_name: '' }); loadUsers();
+      notify.success('Dealer login created');
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Failed to create login'); }
+  };
   if (!data) return <Spinner />;
   const d = data.dealer; const r = data.rollup;
   return (
@@ -65,6 +79,23 @@ function DealerDetail({ dealerId, onBack }) {
         )}
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-white p-5" data-testid="dp-dealer-logins">
+        <div className="flex items-center mb-3">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><KeyRound size={15} /> Dealer portal logins ({users.length})</h3>
+          <button data-testid="dp-create-login-btn" onClick={() => { setModal(true); setTempPw(null); }} className="ml-auto text-xs font-semibold text-[var(--gx-brand-from)]">+ Create login</button>
+        </div>
+        {users.length === 0 ? <p className="text-sm text-slate-400">No portal logins yet — create one so this dealer can access their own store.</p> : (
+          <div className="space-y-1.5">
+            {users.map((u) => (
+              <div key={u.id} className="flex items-center justify-between text-sm py-1 border-b border-slate-50 last:border-0">
+                <span className="text-slate-700">{u.email}</span>
+                <span className="text-xs text-slate-400">{u.must_change_password ? 'Awaiting first login' : 'Active'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2"><Package size={15} /> Allocations ({data.allocations.length})</h3>
         {data.allocations.length === 0 && <p className="text-sm text-slate-400">No allocations yet.</p>}
@@ -77,6 +108,25 @@ function DealerDetail({ dealerId, onBack }) {
           ))}
         </div>
       </div>
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Create dealer portal login" testid="dp-login-modal"
+        footer={tempPw ? <button onClick={() => setModal(false)} className="px-4 py-2 text-sm font-semibold bg-[var(--gx-brand-from)] text-white rounded-lg">Done</button> : <>
+          <button onClick={() => setModal(false)} className="px-4 py-2 text-sm text-slate-500">Cancel</button>
+          <button data-testid="dp-login-save" onClick={createLogin} className="px-4 py-2 text-sm font-semibold bg-[var(--gx-brand-from)] text-white rounded-lg">Create login</button>
+        </>}>
+        {tempPw ? (
+          <div className="space-y-2" data-testid="dp-login-temp">
+            <p className="text-sm text-slate-600">Login created for <strong>{tempPw.email}</strong>. Share this temporary password securely — they'll be asked to change it on first login.</p>
+            <div className="font-mono text-sm bg-slate-100 rounded-lg px-3 py-2 select-all">{tempPw.password}</div>
+          </div>
+        ) : (
+          <>
+            <Field label="Email *"><input data-testid="dp-login-email" className={input} value={uform.email} onChange={(e) => setUform({ ...uform, email: e.target.value })} placeholder="portal@dealer.com" /></Field>
+            <Field label="Contact name"><input className={input} value={uform.full_name} onChange={(e) => setUform({ ...uform, full_name: e.target.value })} /></Field>
+            <p className="text-xs text-slate-400">A temporary password will be generated. The dealer sees only their own store.</p>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

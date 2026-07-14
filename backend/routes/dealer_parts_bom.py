@@ -21,12 +21,12 @@ from utils.auth import get_current_user
 from utils.security_plus import safe_regex
 
 from routes.dealer_parts import (
-    _of, _now, _audit, _can_manage, _strip, _dealer_or_404,
+    _of, _now, _audit, _can_manage, _strip, _dealer_or_404, require_staff,
     ORDERS, ALLOCATIONS, STORE_STOCK,
 )
 from routes.dealer_parts_intel import failure_bump
 
-router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
+router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"], dependencies=[Depends(require_staff)])
 
 BOMS = "dealer_bom"
 MOST_USED = "dealer_most_used_parts"

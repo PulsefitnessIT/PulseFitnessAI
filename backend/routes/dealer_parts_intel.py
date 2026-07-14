@@ -21,9 +21,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from utils.database import db
 from utils.auth import get_current_user
 
-from routes.dealer_parts import _of, _now, _audit, _get_settings
+from routes.dealer_parts import _of, _now, _audit, _get_settings, require_staff
 
-router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
+router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"], dependencies=[Depends(require_staff)])
 
 USAGE = "dealer_parts_usage_logs"
 STORE_STOCK = "dealer_remote_store_stock"

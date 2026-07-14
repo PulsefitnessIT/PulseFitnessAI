@@ -89,6 +89,10 @@ export default function LoginPage() {
         navigate('/change-password', { replace: true });
         return;
       }
+      if (u.role === 'dealer_user') {
+        navigate('/dealer-portal', { replace: true });
+        return;
+      }
       const fallback = (u.is_master_admin || u.is_pulse_admin)
         ? '/master-admin'
         : u.is_service_desk
