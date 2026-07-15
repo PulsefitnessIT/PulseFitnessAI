@@ -1479,6 +1479,77 @@ async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx
     }
 
 
+async def _scan_pdf_invoice(content: bytes, idx) -> dict:
+    """Deterministically scan an invoice PDF's extracted text for BOM item codes.
+
+    Sage/Pulse invoices are highly regular: each product row is
+      Item Code → Description (1-4 lines) → Quantity (int) → Unit Price → Net.
+    We detect code-shaped tokens (e.g. 348H-AAA) and read the quantity/unit that
+    follow. This is instant and accurate — no LLM — and never hangs. Codes not in
+    the BOM are still surfaced as unmatched so they can be mapped.
+    """
+    by_ref, by_stock, _ = idx
+    try:
+        import io as _io
+        from pypdf import PdfReader
+        reader = PdfReader(_io.BytesIO(content))
+        text = "\n".join((p.extract_text() or "") for p in reader.pages)
+    except Exception:  # pragma: no cover
+        return {"lines": [], "order_value": 0, "matched_count": 0, "lines_total": 0,
+                "machines_total": 0, "machines_matched": 0}
+    lines = [l.strip() for l in text.split("\n")]
+    n = len(lines)
+    price_re = re.compile(r"^[\d,]+\.\d{1,2}$")
+    code_re = re.compile(r"^[0-9A-Z]{2,}-[0-9A-Z]{2,}$", re.I)
+    per_code = {}
+    for i, ln in enumerate(lines):
+        cn = norm_code(ln)
+        in_bom = bool(cn) and (cn in by_ref or cn in by_stock)
+        if not (in_bom or code_re.match(ln.replace(" ", ""))):
+            continue
+        m = by_ref.get(cn) or by_stock.get(cn)
+        qty, unit = None, None
+        for j in range(i + 1, min(i + 12, n)):
+            t = lines[j]
+            if qty is None and t.isdigit() and 1 <= int(t) <= 9999:
+                qty = int(t)
+                continue
+            if qty is not None and price_re.match(t):
+                unit = float(t.replace(",", ""))
+                break
+        if qty is None:
+            qty = 1
+        agg = per_code.setdefault(cn or ln, {"code": ln, "machine": m, "qty": 0, "value": 0.0, "matched": bool(m)})
+        agg["qty"] += qty
+        agg["value"] += qty * (unit or 0)
+    if not per_code:
+        return {"lines": [], "order_value": 0, "matched_count": 0, "lines_total": 0,
+                "machines_total": 0, "machines_matched": 0}
+    out_lines, order_value, machines_total, machines_matched = [], 0.0, 0, 0
+    for agg in per_code.values():
+        q = int(agg["qty"])
+        order_value += agg["value"]
+        machines_total += q
+        m = agg["machine"]
+        if m:
+            machines_matched += q
+        out_lines.append({
+            "input_ref": (m["top_level_ref"] if m else agg["code"]), "quantity": q,
+            "unit_value": round(agg["value"] / q, 2) if q else 0,
+            "matched": bool(m), "match_method": "exact_ref" if m else "none",
+            "match_score": 100 if m else 0,
+            "top_level_ref": m["top_level_ref"] if m else None,
+            "machine_description": m.get("description") if m else None,
+        })
+    out_lines.sort(key=lambda x: (not x["matched"], x["input_ref"]))
+    return {
+        "lines": out_lines, "order_value": round(order_value, 2),
+        "matched_count": sum(1 for l in out_lines if l["matched"]),
+        "lines_total": len(out_lines),
+        "machines_total": machines_total, "machines_matched": machines_matched,
+    }
+
+
 async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filename: str, content_type: str) -> dict:
     from utils.dealer_parts_ai import parse_invoice_file
     settings = await _data_settings(org)
@@ -1506,6 +1577,24 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
                 "machines_total": mt, "machines_matched": mm, "lines_total": scan["lines_total"],
             }
         # fall through to LLM if nothing matched deterministically
+
+    # PDFs → deterministic text scan for item codes first (instant + accurate).
+    if name.endswith(".pdf"):
+        scan = await _scan_pdf_invoice(content, idx)
+        if scan["matched_count"] > 0:
+            await _audit(org, user, "ai_invoice_parse", filename=filename, ok=True,
+                         method="pdf_scan", lines=scan["matched_count"],
+                         machines=scan.get("machines_total"))
+            mt, mm = scan.get("machines_total", 0), scan.get("machines_matched", 0)
+            note = (f"Scanned the invoice PDF: found {mt} machine(s) across {scan['lines_total']} product line(s); "
+                    f"{mm} machine(s) on {scan['matched_count']} line(s) matched the BOM.")
+            return {
+                "available": True, "advisory_only": True, "source": "pdf_scan",
+                "order_reference": "", "currency": "", "order_value": scan["order_value"],
+                "note": note, "lines": scan["lines"], "matched_count": scan["matched_count"],
+                "machines_total": mt, "machines_matched": mm, "lines_total": scan["lines_total"],
+            }
+        # fall through to LLM if no item codes matched deterministically
 
     parsed = await parse_invoice_file(content, filename or "invoice", content_type or "")
     if not parsed.get("available"):

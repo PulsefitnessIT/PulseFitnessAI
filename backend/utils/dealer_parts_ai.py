@@ -15,11 +15,13 @@ import json
 import logging
 import os
 import re
+import asyncio
 from datetime import datetime
 
 logger = logging.getLogger("dealer_parts_ai")
 
 _MODEL = ("openai", "gpt-5.2")
+_LLM_TIMEOUT = 90  # seconds — never let a stalled LLM call hang the request
 
 
 def _chat(session_id: str, system: str):
@@ -82,7 +84,10 @@ async def parse_invoice_text(text: str) -> dict:
     )
     try:
         from emergentintegrations.llm.chat import UserMessage
-        raw = (await chat.send_message(UserMessage(text=prompt))).strip()
+        raw = (await asyncio.wait_for(chat.send_message(UserMessage(text=prompt)), timeout=_LLM_TIMEOUT)).strip()
+    except asyncio.TimeoutError:
+        logger.warning("[dealer-parts-ai] invoice parse timed out after %ss", _LLM_TIMEOUT)
+        return {"available": False, "error": "AI took too long to read this invoice. Please try again or enter the machines manually."}
     except Exception as exc:  # pragma: no cover
         logger.warning("[dealer-parts-ai] invoice send failed: %s", exc)
         return {"available": False, "error": "AI request failed."}
@@ -184,7 +189,10 @@ async def _parse_invoice_image(content: bytes, mime: str) -> dict:
     )
     try:
         from emergentintegrations.llm.chat import UserMessage, ImageContent
-        raw = (await chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b64)]))).strip()
+        raw = (await asyncio.wait_for(chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b64)])), timeout=_LLM_TIMEOUT)).strip()
+    except asyncio.TimeoutError:
+        logger.warning("[dealer-parts-ai] invoice image timed out after %ss", _LLM_TIMEOUT)
+        return {"available": False, "error": "AI took too long to read this image. Try a PDF or paste the text."}
     except Exception as exc:  # pragma: no cover
         logger.warning("[dealer-parts-ai] invoice image failed: %s", exc)
         return {"available": False, "error": "AI could not read the image. Try a PDF or paste the text."}

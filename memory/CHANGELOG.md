@@ -1210,3 +1210,10 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Frontend api.js: added _withRetry (exp backoff, retries ONLY network errors + 5xx/408/429, never 4xx) and _uploadChunks helper. uploadSpreadsheet + aiParseInvoiceFile now retry each failed chunk (and init/finish) instead of restarting the whole upload — important for flaky dealer connections. Invoice-job polling ignores transient network blips and keeps polling.
 - Safe because the backend chunk endpoint is idempotent per (upload_id, seq) via upsert. Verified: uploading seq 0 twice → 1 doc, assembled 'AAAABBBB' (no duplication).
 - NOTE: PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Invoice PDF: instant deterministic code-scan (fixes "AI reading for 5 minutes")
+- ROOT CAUSE of long wait: PDF invoices went straight to the GPT-5.2 LLM path (spreadsheet deterministic scan only covered .xlsx/.xls/.csv). The LLM call had NO timeout, so a slow/stalled provider left the UI spinning for minutes. It also extracted DESCRIPTIONS, not the Item Codes, so BOM matching returned 0.
+- FIX (dealer_parts_data.py): new _scan_pdf_invoice() — extracts PDF text (pypdf, instant) and deterministically finds item codes (regex ^[0-9A-Z]{2,}-[0-9A-Z]{2,}$ + BOM membership), reading the quantity (first standalone int after the code) and unit price that follow the Sage/Pulse row layout (Code→Description→Qty→Unit→Net). Wired into _parse_and_match_invoice BEFORE the LLM fallback; unmatched codes still surface for Find-in-BOM.
+- SAFETY NET (dealer_parts_ai.py): LLM invoice calls (text + image) now wrapped in asyncio.wait_for(90s) — a stalled LLM returns a clear "took too long" error instead of hanging.
+- Verified with the user's "Pure Pulse Invoice.pdf" (3.2MB, 9 pages): full chunked-upload→job→poll flow completed in ~2s (was 16s LLM / 5min prod), source=pdf_scan, 26 product lines, 20 matched, 64 machines/50 matched, order_value £82,425.48. UI confirmed: toast + banner + machine_ref fields populated with correct codes (302H-AAO, 348H-AAA…) and quantities.
+- NOTE: PRODUCTION — requires redeploy.
