@@ -98,10 +98,12 @@ export const dpApi = {
     const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
     const uploadId = init.upload_id;
     const CHUNK = 1_400_000;
+    let seq = 0;
     for (let start = 0; start < file.size; start += CHUNK) {
       const fd = new FormData();
       fd.append('chunk', file.slice(start, start + CHUNK));
-      await axios.post(`${BASE}/data/upload/${uploadId}/chunk`, fd, auth());
+      await axios.post(`${BASE}/data/upload/${uploadId}/chunk?seq=${seq}`, fd, auth());
+      seq += 1;
       if (onProgress) onProgress(Math.min(100, Math.round(((start + CHUNK) / file.size) * 100)));
     }
     const { data } = await axios.post(`${BASE}/data/upload/${uploadId}/finish`, { kind, filename: file.name }, auth());
@@ -131,10 +133,12 @@ export const dpApi = {
     const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
     const uploadId = init.upload_id;
     const CHUNK = 1_400_000;
+    let seq = 0;
     for (let start = 0; start < file.size; start += CHUNK) {
       const fd = new FormData();
       fd.append('chunk', file.slice(start, start + CHUNK));
-      await axios.post(`${BASE}/data/upload/${uploadId}/chunk`, fd, auth());
+      await axios.post(`${BASE}/data/upload/${uploadId}/chunk?seq=${seq}`, fd, auth());
+      seq += 1;
       if (onProgress) onProgress(Math.min(99, Math.round(((start + CHUNK) / file.size) * 100)));
     }
     const { data: started } = await axios.post(`${BASE}/data/upload/${uploadId}/finish-invoice`, { filename: file.name, content_type: file.type }, auth());

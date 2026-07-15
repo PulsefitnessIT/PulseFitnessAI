@@ -491,48 +491,86 @@ async def import_bom(file: UploadFile = File(...), user=Depends(get_current_user
 
 
 # ── Chunked upload (bypasses the 2 MB ingress body limit) ─────────
-import os as _os
-import tempfile as _tempfile
+# Chunks are stored in MongoDB — NOT local disk — so the flow is correct across
+# multiple backend replicas / load-balanced pods in production. A local temp
+# file would break because init/chunk/finish can land on different pods (root
+# cause of "Upload session not found"). Chunks are transient: deleted on finish
+# and auto-expired after 1h via a TTL index for abandoned uploads.
+UPLOAD_CHUNKS = "dealer_parts_upload_chunks"
 
-_UPLOAD_DIR = _os.path.join(_tempfile.gettempdir(), "dp_uploads")
-_os.makedirs(_UPLOAD_DIR, exist_ok=True)
+_upload_idx_ready = False
 
 
-def _upload_path(upload_id: str) -> str:
-    safe = re.sub(r"[^a-zA-Z0-9_-]", "", upload_id)
-    return _os.path.join(_UPLOAD_DIR, f"{safe}.part")
+async def _ensure_upload_indexes():
+    global _upload_idx_ready
+    if _upload_idx_ready:
+        return
+    try:
+        await db[UPLOAD_CHUNKS].create_index([("upload_id", 1), ("seq", 1)])
+        await db[UPLOAD_CHUNKS].create_index("created_at", expireAfterSeconds=3600)
+        await db["dealer_parts_invoice_jobs"].create_index("created_at", expireAfterSeconds=86400)
+    except Exception:  # pragma: no cover
+        pass
+    _upload_idx_ready = True
+
+
+async def _assemble_upload(upload_id: str, org: str) -> bytes:
+    """Read every chunk of an upload from MongoDB (any replica) in order."""
+    marker = await db[UPLOAD_CHUNKS].find_one(
+        {"upload_id": upload_id, "organization_id": org, "marker": True}, {"_id": 1}
+    )
+    if not marker:
+        raise HTTPException(404, "Upload session not found")
+    parts = await db[UPLOAD_CHUNKS].find(
+        {"upload_id": upload_id, "marker": {"$ne": True}}, {"_id": 0, "seq": 1, "data": 1}
+    ).sort("seq", 1).to_list(200000)
+    return b"".join(bytes(p["data"]) for p in parts)
+
+
+async def _cleanup_upload(upload_id: str) -> None:
+    try:
+        await db[UPLOAD_CHUNKS].delete_many({"upload_id": upload_id})
+    except Exception:  # pragma: no cover
+        pass
 
 
 @router.post("/upload/init")
 async def upload_init(user=Depends(get_current_user)):
-    _of(user)
+    org = _of(user)
+    await _ensure_upload_indexes()
     upload_id = str(uuid.uuid4())
-    open(_upload_path(upload_id), "wb").close()
+    await db[UPLOAD_CHUNKS].insert_one({
+        "upload_id": upload_id, "organization_id": org, "marker": True,
+        "seq": -1, "created_at": datetime.now(timezone.utc),
+    })
     return {"upload_id": upload_id}
 
 
 @router.post("/upload/{upload_id}/chunk")
-async def upload_chunk(upload_id: str, chunk: UploadFile = File(...), user=Depends(get_current_user)):
-    _of(user)
-    path = _upload_path(upload_id)
-    if not _os.path.exists(path):
+async def upload_chunk(upload_id: str, seq: int = Query(0), chunk: UploadFile = File(...), user=Depends(get_current_user)):
+    org = _of(user)
+    marker = await db[UPLOAD_CHUNKS].find_one(
+        {"upload_id": upload_id, "organization_id": org, "marker": True}, {"_id": 1}
+    )
+    if not marker:
         raise HTTPException(404, "Upload session not found")
     data = await chunk.read()
-    with open(path, "ab") as fh:
-        fh.write(data)
-    return {"ok": True, "received": len(data), "total": _os.path.getsize(path)}
+    # Idempotent per (upload_id, seq): a retried chunk overwrites rather than duplicating.
+    await db[UPLOAD_CHUNKS].update_one(
+        {"upload_id": upload_id, "seq": seq, "marker": {"$ne": True}},
+        {"$set": {"upload_id": upload_id, "organization_id": org, "seq": seq,
+                  "data": data, "created_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    return {"ok": True, "received": len(data), "seq": seq}
 
 
 @router.post("/upload/{upload_id}/finish")
 async def upload_finish(upload_id: str, data: dict, user=Depends(get_current_user)):
     org = _of(user)
-    path = _upload_path(upload_id)
-    if not _os.path.exists(path):
-        raise HTTPException(404, "Upload session not found")
+    content = await _assemble_upload(upload_id, org)
     kind = (data.get("kind") or "").lower()
     filename = data.get("filename") or f"{kind}.xlsx"
-    with open(path, "rb") as fh:
-        content = fh.read()
     try:
         if kind == "parts_used":
             result = await _import_parts_used(org, user, content, filename)
@@ -541,10 +579,7 @@ async def upload_finish(upload_id: str, data: dict, user=Depends(get_current_use
         else:
             raise HTTPException(400, "kind must be parts_used or bom")
     finally:
-        try:
-            _os.remove(path)
-        except OSError:
-            pass
+        await _cleanup_upload(upload_id)
     return result
 
 
@@ -1514,12 +1549,10 @@ async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_c
 INVOICE_JOBS = "dealer_parts_invoice_jobs"
 
 
-async def _run_invoice_job(job_id: str, org: str, user: dict, path: str, filename: str, content_type: str):
-    """Background worker: parse a chunk-uploaded invoice, store the result and
-    delete the temp file immediately — the invoice is never stored."""
+async def _run_invoice_job(job_id: str, org: str, user: dict, content: bytes, filename: str, content_type: str):
+    """Background worker: AI-parse the already-assembled invoice bytes and store
+    the result. The invoice is never persisted — chunks were deleted at finish."""
     try:
-        with open(path, "rb") as fh:
-            content = fh.read()
         result = await _parse_and_match_invoice(org, user, content, filename, content_type)
         await db[INVOICE_JOBS].update_one(
             {"id": job_id},
@@ -1531,29 +1564,25 @@ async def _run_invoice_job(job_id: str, org: str, user: dict, path: str, filenam
             {"id": job_id},
             {"$set": {"status": "error", "error": str(exc) or "AI parsing failed", "updated_at": _now()}},
         )
-    finally:
-        try:
-            _os.remove(path)
-        except OSError:
-            pass
 
 
 @router.post("/upload/{upload_id}/finish-invoice")
 async def upload_finish_invoice(upload_id: str, data: dict, user=Depends(get_current_user)):
-    """Assemble a chunk-uploaded invoice (any size) and AI-parse it in the
-    BACKGROUND, returning a job id immediately. This avoids the ~100s Cloudflare
-    origin timeout on slow LLM parses — the client polls /invoice-jobs/{id}."""
+    """Assemble a chunk-uploaded invoice (any size) from MongoDB, delete the
+    chunks immediately (zero retention), then AI-parse it in the BACKGROUND and
+    return a job id. Background parse avoids the ~100s Cloudflare origin timeout;
+    the client polls /invoice-jobs/{id}."""
     org = _of(user)
-    path = _upload_path(upload_id)
-    if not _os.path.exists(path):
-        raise HTTPException(404, "Upload session not found")
+    content = await _assemble_upload(upload_id, org)
+    await _cleanup_upload(upload_id)
     job_id = str(uuid.uuid4())
     await db[INVOICE_JOBS].insert_one({
         "id": job_id, "organization_id": org, "status": "processing",
-        "result": None, "error": None, "created_at": _now(), "updated_at": _now(),
+        "result": None, "error": None, "created_at": datetime.now(timezone.utc),
+        "updated_at": _now(),
     })
     _asyncio.create_task(_run_invoice_job(
-        job_id, org, user, path,
+        job_id, org, user, content,
         data.get("filename") or "invoice", data.get("content_type") or "",
     ))
     return {"job_id": job_id, "status": "processing"}

@@ -1194,3 +1194,14 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
   - Currency: dropdown (GBP/EUR/USD/AUD…17 codes) replacing free typing.
   - Account manager: dropdown of internal Pulse Fitness Ltd staff from GET /dealer-parts/staff (db.users, excludes dealer_user role) (user choice 2a).
   - New backend endpoints added in dealer_parts.py under the main JWT token (not the separate CRM token). Verified: staff list, company create/list, and dealer create with company_id + account_manager all return correctly; UI screenshot shows all 3 dropdowns rendering. QA test records cleaned up.
+
+## 2026-07-15 — Chunked upload "Upload session not found" (PRODUCTION) → MongoDB-backed, replica-safe
+- ROOT CAUSE: chunked uploads (BOM/Parts/invoice) stored the assembling file on LOCAL POD DISK (/tmp/dp_uploads). In production the backend runs multiple load-balanced replicas, so /upload/init, /chunk and /finish can land on DIFFERENT pods → the temp file isn't there → "Upload session not found". Preview is single-pod so it never reproduced.
+- FIX (dealer_parts_data.py): removed all local-disk temp-file logic. Chunks now persist in MongoDB collection `dealer_parts_upload_chunks` (shared across every replica):
+  - upload/init → inserts a marker doc, returns upload_id.
+  - upload/{id}/chunk?seq=N → upserts {upload_id, seq, data:bytes} (idempotent per seq, so a retried chunk overwrites not duplicates).
+  - finish / finish-invoice → _assemble_upload() reads all chunks sorted by seq and concatenates; _cleanup_upload() deletes them immediately (zero retention). Invoice bytes are assembled + chunks deleted IN the request, then the LLM parse runs in the background job (no cross-pod dependency).
+  - TTL indexes: upload chunks auto-expire after 1h (abandoned uploads); invoice jobs after 24h. Compound index (upload_id, seq).
+- Frontend (api.js): uploadSpreadsheet + aiParseInvoiceFile now send ?seq=N per chunk.
+- Verified via curl: 2-chunk (1.28MB + tail) invoice → finish returned job immediately, polled to done on the assembled full content (no session-not-found), chunks collection back to 0 docs, indexes present.
+- NOTE: PRODUCTION fix — requires a REDEPLOY to take effect on https://fitness-ai-migrate.emergent.host.
