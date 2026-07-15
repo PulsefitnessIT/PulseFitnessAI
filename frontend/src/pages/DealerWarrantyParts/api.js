@@ -21,6 +21,11 @@ export const dpApi = {
   getDealer: (id) => axios.get(`${BASE}/dealers/${id}`, auth()).then((r) => r.data),
   updateDealer: (id, data) => axios.patch(`${BASE}/dealers/${id}`, data, auth()).then((r) => r.data),
 
+  // Dealer setup dropdowns — link to CRM companies + internal Pulse Fitness staff.
+  listCrmCompanies: (search = '') => axios.get(`${BASE}/crm-companies`, { ...auth(), params: { search } }).then((r) => r.data),
+  createCrmCompany: (data) => axios.post(`${BASE}/crm-companies`, data, auth()).then((r) => r.data),
+  listOrgStaff: () => axios.get(`${BASE}/staff`, auth()).then((r) => r.data),
+
   listOrders: (params = {}) => axios.get(`${BASE}/orders`, { ...auth(), params }).then((r) => r.data),
   createOrder: (data) => axios.post(`${BASE}/orders`, data, auth()).then((r) => r.data),
 
@@ -120,7 +125,9 @@ export const dpApi = {
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
   dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
   aiParseInvoiceFile: async (file, onProgress) => {
-    // Chunked upload → parse → temp file deleted server-side. Handles files of any size.
+    // Chunked upload → async parse job → poll → temp file deleted server-side.
+    // The parse runs in the background so slow LLM reads never hit the ~100s
+    // Cloudflare origin timeout. Handles files of any size.
     const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
     const uploadId = init.upload_id;
     const CHUNK = 1_400_000;
@@ -130,9 +137,19 @@ export const dpApi = {
       await axios.post(`${BASE}/data/upload/${uploadId}/chunk`, fd, auth());
       if (onProgress) onProgress(Math.min(99, Math.round(((start + CHUNK) / file.size) * 100)));
     }
-    const { data } = await axios.post(`${BASE}/data/upload/${uploadId}/finish-invoice`, { filename: file.name, content_type: file.type }, auth());
+    const { data: started } = await axios.post(`${BASE}/data/upload/${uploadId}/finish-invoice`, { filename: file.name, content_type: file.type }, auth());
     if (onProgress) onProgress(100);
-    return data;
+    // Backward-compatible: if the server parsed inline, return immediately.
+    if (!started.job_id) return started;
+    const jobId = started.job_id;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    // Poll up to ~10 minutes (300 × 2s) — safely beyond any LLM parse time.
+    for (let i = 0; i < 300; i += 1) {
+      await sleep(2000);
+      const { data: job } = await axios.get(`${BASE}/data/invoice-jobs/${jobId}`, auth());
+      if (job.status === 'done' || job.status === 'error') return job;
+    }
+    return { available: false, error: 'AI parsing timed out. Please try again.' };
   },
   downloadDataReport: async (report, topLevelRef = '') => {
     const res = await axios.get(`${BASE}/data/reports/${report}.csv`, { ...auth(), params: topLevelRef ? { top_level_ref: topLevelRef } : {}, responseType: 'blob' });

@@ -270,6 +270,59 @@ async def update_dealer(dealer_id: str, data: dict, user=Depends(get_current_use
 
 
 # ─────────────────────────────────────────────────────────────────
+# Dealer-setup lookups — CRM companies + internal staff (main JWT).
+# Mirrors the CRM/staff APIs but on the dealer-parts (Service Desk) token
+# so the "Set up a dealer" form can populate dropdowns without a separate
+# CRM login.
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/crm-companies")
+async def list_crm_companies_for_dealers(search: str = "", limit: int = Query(200), user=Depends(get_current_user)):
+    org = _of(user)
+    q = {"organization_id": org}
+    if search:
+        q["name"] = safe_regex(search)
+    rows = await db.crm_companies.find(q, {"_id": 0, "id": 1, "name": 1, "country": 1, "industry": 1}).sort("name", 1).limit(limit).to_list(limit)
+    return {"companies": rows, "count": len(rows)}
+
+
+@router.post("/crm-companies")
+async def create_crm_company_for_dealer(data: dict, user=Depends(get_current_user)):
+    org = _of(user)
+    name = (data.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    existing = await db.crm_companies.find_one({"organization_id": org, "name": safe_regex_exact(name)}, {"_id": 0})
+    if existing:
+        return {"id": existing["id"], "name": existing["name"]}
+    company = {
+        "id": str(uuid.uuid4()),
+        "organization_id": org,
+        "name": name,
+        "industry": "Fitness Equipment Dealer",
+        "country": (data.get("country") or "").strip(),
+        "created_by": user.get("id"),
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    await db.crm_companies.insert_one(dict(company))
+    await _audit(org, user, "crm_company_created_from_dealer", company_id=company["id"], name=name)
+    return {"id": company["id"], "name": company["name"]}
+
+
+@router.get("/staff")
+async def list_internal_staff(user=Depends(get_current_user)):
+    """Internal Pulse Fitness Ltd staff — used for the Account Manager dropdown."""
+    org = _of(user)
+    rows = await db.users.find(
+        {"organization_id": org, "disabled": {"$ne": True}, "role": {"$ne": "dealer_user"}},
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "role": 1},
+    ).sort("full_name", 1).to_list(500)
+    return {"staff": rows, "count": len(rows)}
+
+
+
+# ─────────────────────────────────────────────────────────────────
 # Orders / Invoices + allowance calculation
 # ─────────────────────────────────────────────────────────────────
 

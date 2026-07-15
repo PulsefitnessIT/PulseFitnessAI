@@ -131,13 +131,19 @@ function DealerDetail({ dealerId, onBack }) {
   );
 }
 
+const CURRENCIES = ['GBP', 'EUR', 'USD', 'AUD', 'CAD', 'NZD', 'AED', 'ZAR', 'SGD', 'HKD', 'JPY', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'INR'];
+
 export default function DealersTab() {
   const [dealers, setDealers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState(null);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: '', country: '', region: '', currency: 'GBP', default_percentage: '', account_manager: '' });
+  const [companies, setCompanies] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [companyMode, setCompanyMode] = useState('existing'); // 'existing' | 'new'
+  const emptyForm = { company_id: '', name: '', country: '', region: '', currency: 'GBP', default_percentage: '', account_manager: '' };
+  const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -145,12 +151,36 @@ export default function DealersTab() {
   }, [q]);
   useEffect(() => { load(); }, [load]);
 
+  const openAdd = () => {
+    setForm(emptyForm); setCompanyMode('existing'); setModal(true);
+    dpApi.listCrmCompanies().then((d) => setCompanies(d.companies || [])).catch(() => setCompanies([]));
+    dpApi.listOrgStaff().then((d) => setStaff(d.staff || [])).catch(() => setStaff([]));
+  };
+
+  const onPickCompany = (v) => {
+    if (v === '__new__') { setCompanyMode('new'); setForm({ ...form, company_id: '', name: '' }); return; }
+    const c = companies.find((x) => x.id === v);
+    setForm({ ...form, company_id: v, name: c?.name || '', country: c?.country || form.country });
+  };
+
   const save = async () => {
-    if (!form.name.trim()) { notify.error('Dealer name required'); return; }
+    let { company_id, name } = form;
+    // Create-new-company path (option 1b): create the CRM company, then link it.
+    if (companyMode === 'new') {
+      if (!name.trim()) { notify.error('Company name required'); return; }
+      try {
+        const c = await dpApi.createCrmCompany({ name: name.trim(), country: form.country });
+        company_id = c.id;
+      } catch { notify.error('Failed to create CRM company'); return; }
+    }
+    if (!name.trim()) { notify.error('Select or create a company'); return; }
     try {
-      await dpApi.createDealer({ ...form, default_percentage: form.default_percentage === '' ? null : Number(form.default_percentage) });
+      await dpApi.createDealer({
+        ...form, company_id, name: name.trim(),
+        default_percentage: form.default_percentage === '' ? null : Number(form.default_percentage),
+      });
       notify.success('Dealer added');
-      setModal(false); setForm({ name: '', country: '', region: '', currency: 'GBP', default_percentage: '', account_manager: '' });
+      setModal(false); setForm(emptyForm);
       load();
     } catch { notify.error('Failed to save dealer'); }
   };
@@ -164,7 +194,7 @@ export default function DealersTab() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input data-testid="dp-dealer-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search dealers…" className={`${input} pl-9`} />
         </div>
-        <button data-testid="dp-add-dealer-btn" onClick={() => setModal(true)} className="ml-auto inline-flex items-center gap-1.5 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-3.5 py-2 rounded-lg hover:opacity-90">
+        <button data-testid="dp-add-dealer-btn" onClick={openAdd} className="ml-auto inline-flex items-center gap-1.5 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-3.5 py-2 rounded-lg hover:opacity-90">
           <Plus size={15} /> Add dealer
         </button>
       </div>
@@ -191,16 +221,38 @@ export default function DealersTab() {
           <button onClick={() => setModal(false)} className="px-4 py-2 text-sm text-slate-500">Cancel</button>
           <button data-testid="dp-dealer-save" onClick={save} className="px-4 py-2 text-sm font-semibold bg-[var(--gx-brand-from)] text-white rounded-lg">Save dealer</button>
         </>}>
-        <Field label="Dealer name *"><input data-testid="dp-dealer-name" className={input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+        <Field label="Dealer (CRM company) *">
+          {companyMode === 'existing' ? (
+            <select data-testid="dp-dealer-company" className={input} value={form.company_id} onChange={(e) => onPickCompany(e.target.value)}>
+              <option value="">Select a company…</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              <option value="__new__">+ Set up a new company…</option>
+            </select>
+          ) : (
+            <div className="flex gap-2">
+              <input data-testid="dp-dealer-name" className={`${input} flex-1`} value={form.name} placeholder="New company name" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <button type="button" onClick={() => { setCompanyMode('existing'); setForm({ ...form, name: '', company_id: '' }); }} className="text-xs text-slate-500 hover:text-slate-800 px-2">Cancel</button>
+            </div>
+          )}
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Country"><input className={input} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} /></Field>
           <Field label="Region"><input className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Currency"><input className={input} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} /></Field>
+          <Field label="Currency">
+            <select data-testid="dp-dealer-currency" className={input} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
           <Field label="Spare parts %"><input type="number" step="0.1" className={input} value={form.default_percentage} onChange={(e) => setForm({ ...form, default_percentage: e.target.value })} placeholder="2.5" /></Field>
         </div>
-        <Field label="Account manager"><input className={input} value={form.account_manager} onChange={(e) => setForm({ ...form, account_manager: e.target.value })} /></Field>
+        <Field label="Account manager (Pulse Fitness Ltd)">
+          <select data-testid="dp-dealer-account-manager" className={input} value={form.account_manager} onChange={(e) => setForm({ ...form, account_manager: e.target.value })}>
+            <option value="">Select account manager…</option>
+            {staff.map((s) => <option key={s.id} value={s.full_name || s.email}>{s.full_name || s.email}</option>)}
+          </select>
+        </Field>
       </Modal>
     </div>
   );

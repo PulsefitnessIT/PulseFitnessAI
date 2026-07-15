@@ -1183,3 +1183,14 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 
 ## 2026-07-14 — Stores Department: unified "To action today" fulfilment queue
 - Added ActionQueue at the top of StoresDepartment.js merging (a) warehouse parts requests in a despatch-ready status (allocated/invoiced/quoted/acknowledged) from GET /api/parts-requests, and (b) approved dealer allocations awaiting pick from GET /dealer-parts/stores-dashboard (to_pick). Sorted oldest-first. Each row: source badge (Warehouse/Dealer), title, sub (parts/value), status, date, and an action link that jumps to the relevant fulfilment view (onGoWarehouse/onGoDealer). Verified: created+approved a dealer allocation → appeared as "To action today (1) · Fitline Deutschland · Pick & dispatch"; test allocation cleaned up after.
+
+## 2026-07-15 — Invoice upload Cloudflare 524 fix + Dealer setup dropdowns → VERIFIED
+- FIX (P0 live bug): uploading an invoice to the Allocation Wizard returned Cloudflare 524 ("origin did not respond in time"). Root cause: synchronous LLM invoice parse on /upload/{id}/finish-invoice exceeded Cloudflare's ~100s origin timeout for slow PDF/image parses (and spreadsheets falling through to GPT-5.2).
+  - Backend (dealer_parts_data.py): finish-invoice now starts an ASYNC background job (asyncio.create_task → _run_invoice_job) writing to dealer_parts_invoice_jobs and returns {job_id, status:"processing"} instantly. New GET /dealer-parts/data/invoice-jobs/{job_id} returns the parse result once done/error. Temp file still deleted in the worker's finally block (zero retention).
+  - Frontend (api.js aiParseInvoiceFile): after chunk upload it polls invoice-jobs/{id} every 2s (up to ~10min) until done/error. Backward-compatible if job_id absent.
+  - Verified end-to-end via curl: finish-invoice → {processing}; poll → done with parsed lines/order_value. No timeout.
+- FEATURE (P0): Dealer setup form (DealersTab.js) — replaced free-text inputs with dropdowns:
+  - Dealer (CRM company): dropdown from GET /dealer-parts/crm-companies + "+ Set up a new company…" which creates a CRM company (POST /dealer-parts/crm-companies, writes db.crm_companies) then links it via company_id (user choice 1b).
+  - Currency: dropdown (GBP/EUR/USD/AUD…17 codes) replacing free typing.
+  - Account manager: dropdown of internal Pulse Fitness Ltd staff from GET /dealer-parts/staff (db.users, excludes dealer_user role) (user choice 2a).
+  - New backend endpoints added in dealer_parts.py under the main JWT token (not the separate CRM token). Verified: staff list, company create/list, and dealer create with company_id + account_manager all return correctly; UI screenshot shows all 3 dropdowns rendering. QA test records cleaned up.

@@ -29,9 +29,13 @@ from __future__ import annotations
 import io
 import re
 import uuid
+import asyncio as _asyncio
+import logging
 import unicodedata
 from datetime import datetime, timezone, timedelta
 from difflib import SequenceMatcher
+
+_logger = logging.getLogger("dealer_parts_data")
 
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
@@ -1507,20 +1511,63 @@ async def ai_parse_invoice_file(file: UploadFile = File(...), user=Depends(get_c
     return await _parse_and_match_invoice(org, user, content, file.filename or "invoice", file.content_type or "")
 
 
-@router.post("/upload/{upload_id}/finish-invoice")
-async def upload_finish_invoice(upload_id: str, data: dict, user=Depends(get_current_user)):
-    """Assemble a chunk-uploaded invoice (any size), AI-parse it, then delete the
-    temp file immediately — the invoice is never stored."""
-    org = _of(user)
-    path = _upload_path(upload_id)
-    if not _os.path.exists(path):
-        raise HTTPException(404, "Upload session not found")
-    with open(path, "rb") as fh:
-        content = fh.read()
+INVOICE_JOBS = "dealer_parts_invoice_jobs"
+
+
+async def _run_invoice_job(job_id: str, org: str, user: dict, path: str, filename: str, content_type: str):
+    """Background worker: parse a chunk-uploaded invoice, store the result and
+    delete the temp file immediately — the invoice is never stored."""
     try:
-        return await _parse_and_match_invoice(org, user, content, data.get("filename") or "invoice", data.get("content_type") or "")
+        with open(path, "rb") as fh:
+            content = fh.read()
+        result = await _parse_and_match_invoice(org, user, content, filename, content_type)
+        await db[INVOICE_JOBS].update_one(
+            {"id": job_id},
+            {"$set": {"status": "done", "result": result, "updated_at": _now()}},
+        )
+    except Exception as exc:  # pragma: no cover
+        _logger.exception("[dealer-parts] invoice job %s failed", job_id)
+        await db[INVOICE_JOBS].update_one(
+            {"id": job_id},
+            {"$set": {"status": "error", "error": str(exc) or "AI parsing failed", "updated_at": _now()}},
+        )
     finally:
         try:
             _os.remove(path)
         except OSError:
             pass
+
+
+@router.post("/upload/{upload_id}/finish-invoice")
+async def upload_finish_invoice(upload_id: str, data: dict, user=Depends(get_current_user)):
+    """Assemble a chunk-uploaded invoice (any size) and AI-parse it in the
+    BACKGROUND, returning a job id immediately. This avoids the ~100s Cloudflare
+    origin timeout on slow LLM parses — the client polls /invoice-jobs/{id}."""
+    org = _of(user)
+    path = _upload_path(upload_id)
+    if not _os.path.exists(path):
+        raise HTTPException(404, "Upload session not found")
+    job_id = str(uuid.uuid4())
+    await db[INVOICE_JOBS].insert_one({
+        "id": job_id, "organization_id": org, "status": "processing",
+        "result": None, "error": None, "created_at": _now(), "updated_at": _now(),
+    })
+    _asyncio.create_task(_run_invoice_job(
+        job_id, org, user, path,
+        data.get("filename") or "invoice", data.get("content_type") or "",
+    ))
+    return {"job_id": job_id, "status": "processing"}
+
+
+@router.get("/invoice-jobs/{job_id}")
+async def get_invoice_job(job_id: str, user=Depends(get_current_user)):
+    """Poll an async invoice-parsing job. Returns the parse result once done."""
+    org = _of(user)
+    job = await db[INVOICE_JOBS].find_one({"id": job_id, "organization_id": org}, {"_id": 0})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    if job["status"] == "done":
+        return {"status": "done", **(job.get("result") or {})}
+    if job["status"] == "error":
+        return {"status": "error", "available": False, "error": job.get("error") or "AI parsing failed"}
+    return {"status": "processing"}
