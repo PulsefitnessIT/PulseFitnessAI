@@ -1217,3 +1217,9 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - SAFETY NET (dealer_parts_ai.py): LLM invoice calls (text + image) now wrapped in asyncio.wait_for(90s) — a stalled LLM returns a clear "took too long" error instead of hanging.
 - Verified with the user's "Pure Pulse Invoice.pdf" (3.2MB, 9 pages): full chunked-upload→job→poll flow completed in ~2s (was 16s LLM / 5min prod), source=pdf_scan, 26 product lines, 20 matched, 64 machines/50 matched, order_value £82,425.48. UI confirmed: toast + banner + machine_ref fields populated with correct codes (302H-AAO, 348H-AAA…) and quantities.
 - NOTE: PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Allocation Wizard "AI just returned numbers" → layout bug fixed
+- ROOT CAUSE: in the "Machines on invoice" rows, the qty input used the shared `input` class (which includes `w-full`) plus `w-20`. Due to Tailwind CSS ordering, `w-full` overrode `w-20`, so the QTY field rendered full-width and the item-code (machine_ref) field got squished to a tiny box — the extracted codes (302H-AAO…) were present in the DOM but visually hidden, so it looked like the AI "just returned numbers".
+- FIX (AllocationWizardTab.js): rebuilt the row as a 3-col grid [item code | qty | delete] using `inputTight` (no w-full). Now shows: prominent monospace item-code field with matched (green ✓) / unmatched (amber ⚠) state, the matched BOM machine DESCRIPTION beneath it (e.g. "Shoulder Press"), a labelled centered Qty field, column headers, and inline "Find in BOM". parseInvoice + pickMachine now carry machine_description.
+- Verified via screenshot with Pure Pulse Invoice.pdf: rows clearly show 302H-AAO/Shoulder Press/Qty 2, 307H-AAO/Chest Press/Qty 3, 348H-AAA/Dual Multi-Pulley/Qty 3, order value £82,425.48. Downstream (Generate recommendation → BOM parts + most-used + dedup + allowance %) unchanged.
+- NOTE: PRODUCTION — requires redeploy.
