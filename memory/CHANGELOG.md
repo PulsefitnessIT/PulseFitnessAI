@@ -1247,3 +1247,12 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - FIX (order value reconciliation): scanner now also captures the printed NET line total (2nd price after qty) and, crucially, detects the invoice's printed goods total (NET/GROSS/GOODS/TOTAL block) and uses it as the authoritative order_value. Response now includes invoice_total + line_sum; note states "Order value set to the invoice's printed total".
 - Verified with user's Pure Pulse Invoice.pdf: 22 clean lines (was 26), 20 matched + 2 genuinely-unmatched codes (516H-AAG, 925H-AAB), 55 machines/50 matched, NO description duplicates, order_value = £74,134.42 = the invoice's printed NET/GROSS total. UI confirmed: value field auto-fills £74,134.42, banner explains it, machine rows show code+description+qty cleanly.
 - NOTE: PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Manual BOM part picker + live allowance countdown (recommendation step)
+- FEATURE: when the AI can't recommend parts (or in addition to it), users can now browse each matched machine's full BOM and pick parts by hand.
+  - Backend (machine_parts): now surfaces unit_value per component (from a BOM cost field — unit_cost/value/price/cost/unit_price/list_price — falling back to historical avg_cost) + has_value flag.
+  - Frontend (AllocationWizardTab): new "Choose parts from the machine BOM" section on Step 1 — a collapsible panel per matched machine (derived from rec.pack) with a filter box and a parts table (code, description, Used 12m, Unit value, Send qty input). Chosen rows highlight; per-machine "N parts chosen" badge.
+  - Manual selections flow into liveTotal(), the consolidated "Recommended parts" list, selectedItems() and the "Approve & create allocation (N)" count.
+  - New "Allowance remaining" stat card gives a LIVE countdown = allowance − live pack value; turns red when negative. Verified: adding 310-GT15-4 ×3 dropped remaining to £1,015 (£1,250 − £235).
+- NOTE: BOM values aren't stored yet (current demo BOM has no cost column) — picker shows "—" and £0 until a BOM-with-values is imported. When the user provides the new BOM spreadsheet, wire the value column into the BOM import so unit values + countdown are accurate.
+- PRODUCTION — requires redeploy.

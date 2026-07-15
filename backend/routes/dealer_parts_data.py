@@ -978,13 +978,17 @@ async def machine_parts(top_level_ref: str = Query(...), user=Depends(get_curren
     # dedupe components by code (a BOM can list a code at multiple levels)
     comp_by_code: dict = {}
     for c in comps:
+        cost = next((c[k] for k in ("unit_cost", "unit_value", "unit_price", "value", "price", "cost", "list_price")
+                     if c.get(k) is not None), None)
         cur = comp_by_code.get(c["code_norm"])
         if cur:
             cur["quantity"] += c.get("quantity") or 0
+            if cur.get("bom_value") is None and cost is not None:
+                cur["bom_value"] = cost
         else:
             comp_by_code[c["code_norm"]] = {"code": c["code"], "code_norm": c["code_norm"],
                                             "description": c.get("description"), "quantity": c.get("quantity") or 0,
-                                            "line_type": c.get("line_type")}
+                                            "line_type": c.get("line_type"), "bom_value": cost}
     # join usage analysis
     usage_codes = list(comp_by_code.keys())
     usage_map = {}
@@ -993,6 +997,8 @@ async def machine_parts(top_level_ref: str = Query(...), user=Depends(get_curren
     items = []
     for cn, c in comp_by_code.items():
         u = usage_map.get(cn)
+        bom_value = c.pop("bom_value", None)
+        unit_value = bom_value if bom_value is not None else (u.get("avg_cost") if u else None)
         items.append({
             **c,
             "used_historically": bool(u),
@@ -1001,6 +1007,8 @@ async def machine_parts(top_level_ref: str = Query(...), user=Depends(get_curren
             "recent_12m": u.get("recent_12m") if u else 0,
             "trend": u.get("trend") if u else None,
             "unit_cost": u.get("avg_cost") if u else None,
+            "unit_value": round(unit_value, 2) if unit_value is not None else 0,
+            "has_value": unit_value is not None,
             "priority": _machine_priority(u),
         })
     items.sort(key=lambda x: (-(x["total_qty_used"] or 0), x["code"]))

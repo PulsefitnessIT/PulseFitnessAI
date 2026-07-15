@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X } from 'lucide-react';
+import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, inputTight, money } from './shared';
@@ -9,6 +9,7 @@ const PRIORITY_TONE = {
   recommended: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   optional: 'bg-blue-50 text-blue-700 border-blue-200',
   low: 'bg-slate-100 text-slate-600 border-slate-200',
+  manual: 'bg-[var(--gx-brand-from)]/10 text-[var(--gx-brand-from)] border-[var(--gx-brand-from)]/20',
 };
 
 function StepDots({ step }) {
@@ -80,7 +81,34 @@ export default function AllocationWizardTab() {
   const [aiInfo, setAiInfo] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [resolving, setResolving] = useState(null);
+  const [manualParts, setManualParts] = useState({}); // `${ref}||${code}` -> {part_sku, part_name, machine_model, quantity, unit_value}
+  const [bomOpen, setBomOpen] = useState(null);        // machine ref whose BOM is expanded
+  const [bomData, setBomData] = useState({});          // ref -> {loading, components}
+  const [bomQuery, setBomQuery] = useState('');
   const fileRef = useRef(null);
+
+  const loadBom = (ref) => {
+    if (bomOpen === ref) { setBomOpen(null); return; }
+    setBomOpen(ref); setBomQuery('');
+    if (bomData[ref]?.components) return;
+    setBomData((s) => ({ ...s, [ref]: { loading: true } }));
+    dpApi.machineParts(ref)
+      .then((d) => setBomData((s) => ({ ...s, [ref]: { loading: false, components: d.components || [] } })))
+      .catch(() => setBomData((s) => ({ ...s, [ref]: { loading: false, components: [] } })));
+  };
+
+  const manualKey = (ref, code) => `${ref}||${code}`;
+  const setManualQty = (ref, c, qty) => {
+    const q = Math.max(0, Number(qty) || 0);
+    setManualParts((s) => {
+      const n = { ...s };
+      const k = manualKey(ref, c.code);
+      if (q <= 0) delete n[k];
+      else n[k] = { part_sku: c.code, part_name: c.description, machine_model: ref, quantity: q, unit_value: c.unit_value || 0 };
+      return n;
+    });
+  };
+  const manualQtyOf = (ref, code) => manualParts[manualKey(ref, code)]?.quantity || 0;
 
   useEffect(() => { dpApi.listDealers().then((d) => setDealers(d.dealers || [])); }, []);
 
@@ -149,6 +177,7 @@ export default function AllocationWizardTab() {
       const q = Number(qtyFor(gi, ii, it.recommended_qty));
       if (q > 0) out.push({ part_sku: it.part_sku, part_name: it.part_name, machine_model: it.machine_model, quantity: q, unit_value: it.unit_value, reason: it.reason });
     }));
+    Object.values(manualParts).forEach((m) => { if (m.quantity > 0) out.push({ ...m, reason: `Manually selected from ${m.machine_model} BOM` }); });
     return out;
   };
 
@@ -164,25 +193,25 @@ export default function AllocationWizardTab() {
     } catch { notify.error('Failed to create allocation'); } finally { setBusy(false); }
   };
 
-  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setQtyOverrides({}); };
+  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); };
 
   const liveTotal = () => {
     let t = 0;
     (rec?.pack || []).forEach((grp, gi) => grp.items.forEach((it, ii) => { t += Number(qtyFor(gi, ii, it.recommended_qty)) * (it.unit_value || 0); }));
+    Object.values(manualParts).forEach((m) => { t += m.quantity * (m.unit_value || 0); });
     return Math.round(t * 100) / 100;
   };
 
   const consolidatedParts = () => {
     const map = {};
-    (rec?.pack || []).forEach((grp, gi) => grp.items.forEach((it, ii) => {
-      const q = Number(qtyFor(gi, ii, it.recommended_qty));
+    const add = (sku, name, priority, q, unit, machine) => {
       if (q <= 0) return;
-      const k = it.part_sku;
-      if (!map[k]) map[k] = { sku: it.part_sku, name: it.part_name, priority: it.priority, qty: 0, unit: it.unit_value || 0, value: 0, machines: new Set() };
-      map[k].qty += q;
-      map[k].value += q * (it.unit_value || 0);
-      if (it.machine_model) map[k].machines.add(it.machine_model);
-    }));
+      if (!map[sku]) map[sku] = { sku, name, priority: priority || 'low', qty: 0, unit: unit || 0, value: 0, machines: new Set() };
+      map[sku].qty += q; map[sku].value += q * (unit || 0);
+      if (machine) map[sku].machines.add(machine);
+    };
+    (rec?.pack || []).forEach((grp, gi) => grp.items.forEach((it, ii) => add(it.part_sku, it.part_name, it.priority, Number(qtyFor(gi, ii, it.recommended_qty)), it.unit_value, it.machine_model)));
+    Object.values(manualParts).forEach((m) => add(m.part_sku, m.part_name, 'manual', m.quantity, m.unit_value, m.machine_model));
     return Object.values(map).sort((a, b) => b.value - a.value);
   };
 
@@ -310,9 +339,10 @@ export default function AllocationWizardTab() {
 
       {step === 1 && rec && (
         <div className="space-y-4" data-testid="dp-wiz-step1">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <StatCard label="Allowance" value={money(rec.allowance)} tone="brand" />
             <StatCard label="Pack value" value={money(liveTotal())} tone={liveTotal() > rec.allowance ? 'red' : 'emerald'} testid="dp-wiz-packvalue" />
+            <StatCard label="Allowance remaining" value={money(rec.allowance - liveTotal())} tone={(rec.allowance - liveTotal()) < 0 ? 'red' : 'emerald'} testid="dp-wiz-remaining" />
             <StatCard label="Duplicates avoided" value={rec.duplicates_avoided} tone="slate" />
             <StatCard label="Unmatched lines" value={rec.unmatched_lines?.length || 0} tone={rec.unmatched_lines?.length ? 'amber' : 'slate'} />
           </div>
@@ -329,6 +359,78 @@ export default function AllocationWizardTab() {
               <AlertTriangle size={14} className="mt-0.5 shrink-0" /><div>{rec.note}</div>
             </div>
           )}
+
+          {(() => {
+            const machines = [];
+            const seen = new Set();
+            (rec?.pack || []).forEach((g) => { if (g.machine_ref && !seen.has(g.machine_ref)) { seen.add(g.machine_ref); machines.push({ machine_ref: g.machine_ref, description: g.machine_description }); } });
+            if (!machines.length) return null;
+            return (
+              <div className="rounded-xl border border-slate-200 bg-white" data-testid="dp-wiz-bom-browser">
+                <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-2 flex-wrap">
+                  <PackageCheck size={15} className="text-[var(--gx-brand-from)]" />
+                  <span className="text-sm font-bold text-slate-900">Choose parts from the machine BOM</span>
+                  <span className="text-xs text-slate-500">Browse each machine’s full BOM and add parts by hand — ideal when there’s no usage history yet.</span>
+                </div>
+                {machines.map((mac) => {
+                  const ref = mac.machine_ref;
+                  const bd = bomData[ref] || {};
+                  const opened = bomOpen === ref;
+                  const chosen = Object.keys(manualParts).filter((k) => k.startsWith(`${ref}||`)).length;
+                  const comps = (bd.components || []).filter((c) => {
+                    const q = bomQuery.trim().toLowerCase();
+                    return !q || (c.code || '').toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q);
+                  });
+                  return (
+                    <div key={ref} className="border-b border-slate-50 last:border-0">
+                      <button onClick={() => loadBom(ref)} className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-left" data-testid={`dp-wiz-bom-toggle-${ref}`}>
+                        {opened ? <ChevronDown size={15} className="text-slate-400" /> : <ChevronRight size={15} className="text-slate-400" />}
+                        <span className="font-mono text-sm font-semibold text-slate-900">{ref}</span>
+                        <span className="text-xs text-slate-500 truncate">{mac.description}</span>
+                        {chosen > 0
+                          ? <span className="ml-auto text-xs font-semibold text-[var(--gx-brand-from)]">{chosen} part{chosen > 1 ? 's' : ''} chosen</span>
+                          : <span className="ml-auto text-xs text-slate-400">Browse BOM</span>}
+                      </button>
+                      {opened && (
+                        <div className="px-4 pb-3">
+                          {bd.loading ? <div className="py-5 flex justify-center"><Spinner /></div> : (
+                            <>
+                              <div className="relative mb-2">
+                                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input className={`${inputTight} w-full pl-8`} placeholder="Filter parts by code or description…" value={bomQuery} onChange={(e) => setBomQuery(e.target.value)} data-testid={`dp-wiz-bom-filter-${ref}`} />
+                              </div>
+                              <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-100">
+                                <table className="w-full text-sm">
+                                  <thead className="sticky top-0 bg-white shadow-sm"><tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                                    <th className="py-1.5 px-3">Part ({comps.length})</th><th className="text-right">Used 12m</th><th className="text-right">Unit</th><th className="text-right px-3">Send qty</th>
+                                  </tr></thead>
+                                  <tbody>
+                                    {comps.slice(0, 400).map((c) => (
+                                      <tr key={c.code} className={`border-b border-slate-50 ${manualQtyOf(ref, c.code) > 0 ? 'bg-emerald-50/50' : ''}`}>
+                                        <td className="py-1.5 px-3 max-w-[340px]"><span className="font-mono text-xs text-slate-500">{c.code}</span><div className="text-xs text-slate-600 truncate">{c.description}</div></td>
+                                        <td className="text-right tabular-nums text-slate-500">{c.recent_12m || 0}</td>
+                                        <td className="text-right tabular-nums text-slate-500">{c.has_value ? money(c.unit_value) : '—'}</td>
+                                        <td className="text-right px-3">
+                                          <input type="number" min="0" data-testid={`dp-wiz-bom-qty-${ref}-${c.code}`} className="w-16 text-right rounded border border-slate-200 px-2 py-1 text-sm tabular-nums"
+                                            value={manualQtyOf(ref, c.code) || ''} placeholder="0" onChange={(e) => setManualQty(ref, c, e.target.value)} />
+                                        </td>
+                                      </tr>
+                                    ))}
+                                    {comps.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-xs text-slate-400">No parts match your filter.</td></tr>}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
 
           {consolidatedParts().length > 0 && (
             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden" data-testid="dp-wiz-consolidated">
