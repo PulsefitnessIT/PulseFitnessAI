@@ -1544,28 +1544,37 @@ async def _scan_pdf_invoice(content: bytes, idx) -> dict:
     lines = [l.strip() for l in text.split("\n")]
     n = len(lines)
     price_re = re.compile(r"^[\d,]+\.\d{1,2}$")
+    # Item codes never contain spaces and are short (e.g. 581H-AAG, 867H-ZZW).
+    # Requiring no spaces prevents descriptions with a hyphen ("45-Degree Leg
+    # Press", "Multi-Pulley") from being mis-read as codes and double-counted.
     code_re = re.compile(r"^[0-9A-Z]{2,}-[0-9A-Z]{2,}$", re.I)
     per_code = {}
     for i, ln in enumerate(lines):
         cn = norm_code(ln)
         in_bom = bool(cn) and (cn in by_ref or cn in by_stock)
-        if not (in_bom or code_re.match(ln.replace(" ", ""))):
+        looks_like_code = (" " not in ln) and (4 <= len(ln) <= 20) and bool(code_re.match(ln))
+        if not (in_bom or looks_like_code):
             continue
         m = by_ref.get(cn) or by_stock.get(cn)
-        qty, unit = None, None
-        for j in range(i + 1, min(i + 12, n)):
+        qty, prices = None, []
+        for j in range(i + 1, min(i + 14, n)):
             t = lines[j]
             if qty is None and t.isdigit() and 1 <= int(t) <= 9999:
                 qty = int(t)
                 continue
             if qty is not None and price_re.match(t):
-                unit = float(t.replace(",", ""))
-                break
+                prices.append(float(t.replace(",", "")))
+                if len(prices) >= 2:
+                    break
         if qty is None:
             qty = 1
+        # Row layout: qty → unit price → net (line total). Prefer the printed NET
+        # so the summed order value equals the invoice goods total exactly.
+        unit = prices[0] if prices else 0
+        net = prices[1] if len(prices) >= 2 else unit * qty
         agg = per_code.setdefault(cn or ln, {"code": ln, "machine": m, "qty": 0, "value": 0.0, "matched": bool(m)})
         agg["qty"] += qty
-        agg["value"] += qty * (unit or 0)
+        agg["value"] += net
     if not per_code:
         return {"lines": [], "order_value": 0, "matched_count": 0, "lines_total": 0,
                 "machines_total": 0, "machines_matched": 0}
@@ -1586,8 +1595,22 @@ async def _scan_pdf_invoice(content: bytes, idx) -> dict:
             "machine_description": m.get("description") if m else None,
         })
     out_lines.sort(key=lambda x: (not x["matched"], x["input_ref"]))
+    line_sum = round(order_value, 2)
+
+    # Detect the invoice's printed goods total (NET/GROSS/GOODS block) and use it
+    # as the authoritative order value, so the value always matches the invoice.
+    invoice_total = None
+    for i, ln in enumerate(lines):
+        if ln.upper() in ("NET", "GROSS", "GOODS", "GOODS TOTAL", "NET TOTAL", "SUB TOTAL", "SUBTOTAL", "TOTAL"):
+            for j in range(i + 1, min(i + 4, n)):
+                t = lines[j].replace(",", "").replace("$", "").replace("£", "").replace("€", "").strip()
+                if re.match(r"^\d+\.\d{2}$", t):
+                    invoice_total = float(t)  # keep last (totals block is at the end)
+                    break
+    order_value = invoice_total if invoice_total else line_sum
     return {
         "lines": out_lines, "order_value": round(order_value, 2),
+        "invoice_total": invoice_total, "line_sum": line_sum,
         "matched_count": sum(1 for l in out_lines if l["matched"]),
         "lines_total": len(out_lines),
         "machines_total": machines_total, "machines_matched": machines_matched,
@@ -1632,9 +1655,12 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
             mt, mm = scan.get("machines_total", 0), scan.get("machines_matched", 0)
             note = (f"Scanned the invoice PDF: found {mt} machine(s) across {scan['lines_total']} product line(s); "
                     f"{mm} machine(s) on {scan['matched_count']} line(s) matched the BOM.")
+            if scan.get("invoice_total"):
+                note += f" Order value set to the invoice’s printed total ({scan['invoice_total']:,.2f})."
             return {
                 "available": True, "advisory_only": True, "source": "pdf_scan",
                 "order_reference": "", "currency": "", "order_value": scan["order_value"],
+                "invoice_total": scan.get("invoice_total"), "line_sum": scan.get("line_sum"),
                 "note": note, "lines": scan["lines"], "matched_count": scan["matched_count"],
                 "machines_total": mt, "machines_matched": mm, "lines_total": scan["lines_total"],
             }

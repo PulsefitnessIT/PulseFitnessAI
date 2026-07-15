@@ -1240,3 +1240,10 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Verified: 305H-AEQ → 21 parts £392.44 list rendered; no-usage machine → clear amber note. 
 - PENDING (#2 invoice total / duplicate machines): needs the user's exact spreadsheet to fix total-reconciliation safely without breaking the working scanner — asked user to share it.
 - NOTE: PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Invoice PDF: duplicate machines removed + order value = invoice total (#2)
+- ISSUE (from user screenshot): the PDF scanner picked up product DESCRIPTIONS as extra item codes ("Club Line 45-Degree Leg Press 480kg", "Premium 45-Degree Leg Press 480kg", "Dual Use Dual Multi-Pulley 2x114kg") because after stripping spaces the hyphen in "45-Degree"/"Multi-Pulley" matched the code regex — creating duplicate/unmatched machine lines and inflating the total (£82,425 vs true £74,134).
+- FIX (dealer_parts_data.py _scan_pdf_invoice): item-code detection now requires NO spaces in the line + length 4–20 + code regex (real Sage/Pulse codes never contain spaces). Descriptions are no longer mis-read as codes.
+- FIX (order value reconciliation): scanner now also captures the printed NET line total (2nd price after qty) and, crucially, detects the invoice's printed goods total (NET/GROSS/GOODS/TOTAL block) and uses it as the authoritative order_value. Response now includes invoice_total + line_sum; note states "Order value set to the invoice's printed total".
+- Verified with user's Pure Pulse Invoice.pdf: 22 clean lines (was 26), 20 matched + 2 genuinely-unmatched codes (516H-AAG, 925H-AAB), 55 machines/50 matched, NO description duplicates, order_value = £74,134.42 = the invoice's printed NET/GROSS total. UI confirmed: value field auto-fills £74,134.42, banner explains it, machine rows show code+description+qty cleanly.
+- NOTE: PRODUCTION — requires redeploy.
