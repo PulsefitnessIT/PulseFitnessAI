@@ -58,6 +58,7 @@ BOM_COMPONENTS = "dealer_bom_components"
 MATCHES = "dealer_component_matches"
 ALIASES = "dealer_component_aliases"
 DATA_SETTINGS = "dealer_parts_data_settings"
+PRICES = "dealer_parts_prices"
 
 DEFAULT_DATA_SETTINGS = {
     "fuzzy_threshold": 0.82,
@@ -154,6 +155,82 @@ def _col(hmap, *candidates):
         if idx is not None:
             return idx
     return None
+
+
+# ─────────────────────────────────────────────────────────────────
+# Pulse Fitness Parts Price List (Code → Sales Price)
+# ─────────────────────────────────────────────────────────────────
+
+async def _import_pricelist(org: str, user: dict, content: bytes, filename: str) -> dict:
+    """Import the Pulse Fitness parts price list. Stores Sales Price + Average
+    Buying Price keyed by normalised part code; upserts so re-imports refresh."""
+    wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    ws = _find_sheet(wb, "ExportData") or wb[wb.sheetnames[0]]
+    hmap = _header_map(ws)
+    c_code = _col(hmap, "Code", "Part Code", "Item Code", "Stock Code")
+    c_name = _col(hmap, "Name", "Description")
+    c_group = _col(hmap, "Product Group Description", "Product Group")
+    c_buy = _col(hmap, "Average Buying Price", "Buying Price", "Cost Price", "Cost")
+    c_sale = _col(hmap, "Sales Price", "Sell Price", "List Price", "Price", "RRP")
+    c_mfr = _col(hmap, "Manufacturer", "Supplier")
+    if c_code is None or c_sale is None:
+        wb.close()
+        raise HTTPException(400, "Price list needs a 'Code' column and a 'Sales Price' column")
+
+    def _num(row, idx):
+        if idx is None or row[idx] in (None, ""):
+            return None
+        try:
+            return round(float(row[idx]), 2)
+        except (TypeError, ValueError):
+            return None
+
+    seen = {}
+    skipped = 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        code = row[c_code] if c_code is not None else None
+        if not code or not str(code).strip():
+            skipped += 1
+            continue
+        cn = norm_code(code)
+        entry = {
+            "organization_id": org, "code": str(code).strip(), "code_norm": cn,
+            "name": (str(row[c_name]).strip() if c_name is not None and row[c_name] else ""),
+            "product_group": (str(row[c_group]).strip() if c_group is not None and row[c_group] else ""),
+            "sales_price": _num(row, c_sale), "avg_buying_price": _num(row, c_buy),
+            "manufacturer": (str(row[c_mfr]).strip() if c_mfr is not None and row[c_mfr] else ""),
+            "updated_at": _now(),
+        }
+        seen[cn] = entry  # last wins on duplicate code
+    wb.close()
+
+    from pymongo import ReplaceOne
+    try:
+        await db[PRICES].create_index([("organization_id", 1), ("code_norm", 1)])
+    except Exception:
+        pass
+    ops = [ReplaceOne({"organization_id": org, "code_norm": cn}, entry, upsert=True)
+           for cn, entry in seen.items()]
+    if ops:
+        for i in range(0, len(ops), 2000):
+            await db[PRICES].bulk_write(ops[i:i + 2000], ordered=False)
+
+    imported = len(seen)
+    with_price = sum(1 for e in seen.values() if e["sales_price"] is not None)
+    await _audit(org, user, "pricelist_imported", filename=filename, rows=imported, with_price=with_price)
+    return {"rows_imported": imported, "rows_skipped": skipped, "with_sales_price": with_price,
+            "filename": filename}
+
+
+async def _price_map(org: str) -> dict:
+    """{code_norm: sales_price} for all priced parts in the org."""
+    out = {}
+    async for p in db[PRICES].find({"organization_id": org, "sales_price": {"$ne": None}},
+                                   {"_id": 0, "code_norm": 1, "sales_price": 1}):
+        out[p["code_norm"]] = p["sales_price"]
+    return out
+
+
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -576,8 +653,10 @@ async def upload_finish(upload_id: str, data: dict, user=Depends(get_current_use
             result = await _import_parts_used(org, user, content, filename)
         elif kind == "bom":
             result = await _import_bom(org, user, content, filename)
+        elif kind == "pricelist":
+            result = await _import_pricelist(org, user, content, filename)
         else:
-            raise HTTPException(400, "kind must be parts_used or bom")
+            raise HTTPException(400, "kind must be parts_used, bom or pricelist")
     finally:
         await _cleanup_upload(upload_id)
     return result
@@ -994,11 +1073,15 @@ async def machine_parts(top_level_ref: str = Query(...), user=Depends(get_curren
     usage_map = {}
     async for u in db[ANALYSIS].find({"organization_id": org, "code_norm": {"$in": usage_codes}}, {"_id": 0}):
         usage_map[u["code_norm"]] = u
+    price_map = await _price_map(org)
     items = []
     for cn, c in comp_by_code.items():
         u = usage_map.get(cn)
         bom_value = c.pop("bom_value", None)
-        unit_value = bom_value if bom_value is not None else (u.get("avg_cost") if u else None)
+        # Prefer the price-list sales price, then any BOM value, then historical cost.
+        unit_value = price_map.get(cn)
+        if unit_value is None:
+            unit_value = bom_value if bom_value is not None else (u.get("avg_cost") if u else None)
         items.append({
             **c,
             "used_historically": bool(u),
@@ -1219,6 +1302,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     if not usage_map and approved_only:
         usage_map = await _usage_by_bom_code(org, approved_only=False)
         usage_relaxed = bool(usage_map)
+    price_map = await _price_map(org)
     held = await _dealer_held(org, dealer_id)
     allocated = await _dealer_allocated(org, dealer_id)
 
@@ -1273,7 +1357,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             raw = int(base * fleet_factor)
             have = int((held.get(c["code"], 0) or 0) + (allocated.get(c["code"], 0) or 0))
             rec = max(0, raw - have)
-            unit = u.get("avg_cost") or 0
+            unit = price_map.get(cn) or u.get("avg_cost") or 0
             dup_warning = ""
             if have > 0 and rec < raw:
                 duplicates_avoided += 1

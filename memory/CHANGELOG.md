@@ -1269,3 +1269,10 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Verified across allowances: £5,000→£196.22 (all fit), £100→£98.33 (20/21, trimmed), £25→£24.99 (14/21). Pack value never exceeds allowance. UI confirmed: Allowance £25 = Pack £25, remaining £0, no over-allowance warning, priority-ordered parts.
 - Manual BOM picks can still push over (warned) for manager-approved exceptions.
 - PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Pulse Fitness Parts Price List import → sales values drive recommendations
+- FEATURE: users can import the Pulse Fitness "Price List.xlsx" (19,907 rows: Code, Name, Product Group, Average Buying Price, Sales Price, Manufacturer). Sales Price is now the authoritative unit value for every part.
+- Backend (dealer_parts_data.py): new PRICES collection + _import_pricelist (chunked upload, kind="pricelist", flexible header matching, upsert by code_norm, creates a (org, code_norm) index — cut re-import from >100s/502 to ~2.7s) + _price_map helper. Wired into recommend_from_invoice (unit = price_map sales price → falls back to avg cost) and machine_parts (unit_value prefers sales price). So the allowance-fitting engine + manual BOM picker now use real sales values.
+- Frontend (DataImportsTab.js): third upload card "Parts Price List" (sheet ExportData) with a "Parts priced: N of M" summary.
+- Verified: imported 19,907/19,907 with sales price; 165/165 BOM component codes covered; recommend for 305H-AEQ now prices parts (100-309-5 £134.24, G003 £32.55…); machine-parts shows all 52 components with real values; allowance fitting works against real prices.
+- NOTE: price list import doesn't create a reversible batch record (it's a reference lookup, re-import to refresh). PRODUCTION — requires redeploy.

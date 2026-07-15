@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { UploadCloud, FileSpreadsheet, Layers, RotateCcw, Play, CheckCircle2, AlertTriangle, Database } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, Layers, RotateCcw, Play, CheckCircle2, AlertTriangle, Database, PoundSterling } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard } from './shared';
@@ -62,6 +62,7 @@ function UploadCard({ kind, title, subtitle, sheet, icon: Icon, onDone }) {
           <div>Rows imported: <b>{summary.rows_imported?.toLocaleString()}</b> · skipped: {summary.rows_skipped}</div>
           {kind === 'parts_used' && <div>Unique parts: <b>{summary.unique_parts?.toLocaleString()}</b> · high-usage: {summary.analysis?.high_usage_parts}</div>}
           {kind === 'bom' && <div>Machines: <b>{summary.machines?.toLocaleString()}</b> · unique components: {summary.unique_components?.toLocaleString()}</div>}
+          {kind === 'pricelist' && <div>Parts priced: <b>{summary.with_sales_price?.toLocaleString()}</b> of {summary.rows_imported?.toLocaleString()}</div>}
         </div>
       )}
     </div>
@@ -97,11 +98,13 @@ export default function DataImportsTab() {
 
   return (
     <div className="space-y-6" data-testid="dp-data-imports-tab">
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-3 gap-4">
         <UploadCard kind="parts_used" title="Parts Used" subtitle="Historical engineer parts usage since 2022 → Most-Used analysis"
           sheet="SageReportData1" icon={FileSpreadsheet} onDone={load} />
         <UploadCard kind="bom" title="Pulse Fitness BOM" subtitle="Machine bills of materials → versioned BOM machines + components"
           sheet="BOMData" icon={Layers} onDone={load} />
+        <UploadCard kind="pricelist" title="Parts Price List" subtitle="Sales price per part code → values recommendation packs & the allowance"
+          sheet="ExportData" icon={PoundSterling} onDone={load} />
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
