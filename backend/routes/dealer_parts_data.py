@@ -677,6 +677,14 @@ async def unmatched_parts(limit: int = Query(200), user=Depends(get_current_user
 async def run_matching(user=Depends(get_current_user)):
     org = _of(user)
     settings = await _data_settings(org)
+    stats = await _do_matching(org, settings)
+    await _audit(org, user, "match_run", **stats)
+    total = sum(stats.values())
+    return {"stats": stats, "total": total,
+            "matched": total - stats["none"], "unmatched": stats["none"]}
+
+
+async def _do_matching(org: str, settings: dict) -> dict:
     fuzzy_threshold = settings["fuzzy_threshold"]
     fuzzy_cutoff = int(fuzzy_threshold * 100)
 
@@ -785,10 +793,7 @@ async def run_matching(user=Depends(get_current_user)):
         for i in range(0, len(match_docs), 1000):
             await db[MATCHES].insert_many([dict(d) for d in match_docs[i:i + 1000]])
 
-    await _audit(org, user, "match_run", **stats)
-    total = sum(stats.values())
-    return {"stats": stats, "total": total,
-            "matched": total - stats["none"], "unmatched": stats["none"]}
+    return stats
 
 
 @router.get("/matches")
@@ -1127,7 +1132,25 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
 
     idx = await _machine_index(org)
+
+    # Resilient usage lookup so operators get recommendations without needing to
+    # know about the separate "Run matching" / manual-approval steps:
+    #   1. If nothing has been matched yet, auto-run matching once (links the
+    #      imported "Parts Used" codes to BOM component codes).
+    #   2. Prefer approved matches; if none are approved, fall back to ALL
+    #      non-rejected matches (high-confidence exact/normalised code matches
+    #      are trustworthy enough to recommend from).
+    matched_n = await db[ANALYSIS].count_documents({"organization_id": org, "matched": True})
+    if matched_n == 0:
+        try:
+            await _do_matching(org, settings)
+        except Exception:
+            _logger.exception("[dealer-parts] auto-matching failed during recommend")
     usage_map = await _usage_by_bom_code(org, approved_only)
+    usage_relaxed = False
+    if not usage_map and approved_only:
+        usage_map = await _usage_by_bom_code(org, approved_only=False)
+        usage_relaxed = bool(usage_map)
     held = await _dealer_held(org, dealer_id)
     allocated = await _dealer_allocated(org, dealer_id)
 
@@ -1208,6 +1231,25 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
 
     total_value = round(sum(i["value"] for grp in pack for i in grp["items"] if i["recommended_qty"] > 0), 2)
     over = bool(allowance and total_value > allowance)
+    parts_total = sum(g["item_count"] for g in pack)
+    matched_machine_count = sum(1 for l in machine_lines if l.get("matched"))
+
+    # Explain an empty pack so the operator knows the exact reason + next step.
+    note = ""
+    if parts_total == 0:
+        if matched_machine_count == 0:
+            note = ("None of the invoice machines matched a BOM. Use “Find in BOM” on Step 1 "
+                    "to map each machine, then regenerate.")
+        elif not usage_map:
+            note = ("No historical parts-usage data is available yet. Import a “Parts Used” spreadsheet "
+                    "(and the BOM) under Data Imports so the AI can learn which parts each machine needs, "
+                    "then regenerate.")
+        else:
+            note = ("The matched machines have no proven parts usage in the Most-Used history yet, so no parts "
+                    "were recommended. Add/approve usage for these machines’ components, then regenerate.")
+    elif usage_relaxed:
+        note = ("Recommended from all matched parts (no items have been manually approved yet — review matches "
+                "under Data → Matches to refine).")
 
     # dealer context (previous allocations + current stock)
     prev_allocs = await db[ALLOCATIONS].count_documents(
@@ -1230,6 +1272,8 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         "allowance_remaining": round(allowance - total_value, 2),
         "dealer_context": {"previous_allocations": prev_allocs, "stock_lines": stock_lines},
         "approved_only_matches": approved_only,
+        "parts_total": parts_total, "matched_machine_count": matched_machine_count,
+        "usage_relaxed": usage_relaxed, "note": note,
     }
 
 

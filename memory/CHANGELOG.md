@@ -1232,3 +1232,11 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Backend already returned already_held / original_qty / recommended_qty / status / reason — no API change.
 - Verified: seeded a temp held stock line (G003=999) for a dealer, generated a recommendation for machine 305H-AEQ → "Duplicates avoided 1", banner shown, G003 row rec qty 0 with "Already sent 999 — skipped" badge. Temp data cleaned up.
 - NOTE: PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Recommendation £0 fix + recommended-parts list
+- ISSUE: "AI is not recommending parts" (Pack value £0). Root cause: recommendations only used most-used rows with review_status=='approved' AND required the separate "Run matching" step to have linked Parts-Used codes to BOM components. On production neither had happened → £0 with no explanation.
+- FIX (dealer_parts_data.py recommend_from_invoice): (1) refactored run_matching into reusable _do_matching(org,settings); (2) if no matched analysis rows exist, auto-run matching once inside recommend; (3) tiered usage lookup — prefer approved matches, else fall back to ALL non-rejected matches (usage_relaxed flag); (4) always return a clear `note` explaining an empty pack (no BOM match / no usage data imported / matched machines have no proven usage) plus parts_total & matched_machine_count.
+- FEATURE (#3): AllocationWizardTab step 1 now shows a consolidated "Recommended parts" card (dp-wiz-consolidated) at the top — unique part count, total qty, total value, and a table of every recommended part (code, description, priority, which machines, qty, unit, value), reacting to qty overrides. Plus a note banner (dp-wiz-rec-note) surfacing the backend explanation.
+- Verified: 305H-AEQ → 21 parts £392.44 list rendered; no-usage machine → clear amber note. 
+- PENDING (#2 invoice total / duplicate machines): needs the user's exact spreadsheet to fix total-reconciliation safely without breaking the working scanner — asked user to share it.
+- NOTE: PRODUCTION — requires redeploy.

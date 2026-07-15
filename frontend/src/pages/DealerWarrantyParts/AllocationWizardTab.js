@@ -172,6 +172,20 @@ export default function AllocationWizardTab() {
     return Math.round(t * 100) / 100;
   };
 
+  const consolidatedParts = () => {
+    const map = {};
+    (rec?.pack || []).forEach((grp, gi) => grp.items.forEach((it, ii) => {
+      const q = Number(qtyFor(gi, ii, it.recommended_qty));
+      if (q <= 0) return;
+      const k = it.part_sku;
+      if (!map[k]) map[k] = { sku: it.part_sku, name: it.part_name, priority: it.priority, qty: 0, unit: it.unit_value || 0, value: 0, machines: new Set() };
+      map[k].qty += q;
+      map[k].value += q * (it.unit_value || 0);
+      if (it.machine_model) map[k].machines.add(it.machine_model);
+    }));
+    return Object.values(map).sort((a, b) => b.value - a.value);
+  };
+
   return (
     <div className="space-y-4" data-testid="dp-allocation-wizard-tab">
       <div className="flex items-center gap-2">
@@ -308,6 +322,42 @@ export default function AllocationWizardTab() {
           )}
           {rec.unmatched_lines?.length > 0 && (
             <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 flex items-center gap-2"><AlertTriangle size={14} /> Unmatched machine lines (no BOM): {rec.unmatched_lines.map((u) => u.input_ref).join(', ')}. These produce no recommendations until matched.</div>
+          )}
+
+          {rec.note && (
+            <div className={`rounded-lg p-3 text-xs flex items-start gap-2 border ${rec.parts_total === 0 ? 'bg-amber-50 border-amber-100 text-amber-800' : 'bg-blue-50 border-blue-100 text-blue-800'}`} data-testid="dp-wiz-rec-note">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" /><div>{rec.note}</div>
+            </div>
+          )}
+
+          {consolidatedParts().length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden" data-testid="dp-wiz-consolidated">
+              <div className="px-4 py-2.5 bg-[var(--gx-brand-from)]/5 border-b border-slate-100 flex items-center gap-2">
+                <PackageCheck size={15} className="text-[var(--gx-brand-from)]" />
+                <span className="text-sm font-bold text-slate-900">Recommended parts</span>
+                <span className="text-xs text-slate-500">{consolidatedParts().length} unique · {consolidatedParts().reduce((s, p) => s + p.qty, 0)} total qty</span>
+                <span className="ml-auto text-sm font-bold text-slate-900">{money(liveTotal())}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                    <th className="py-2 px-4">Part</th><th>Priority</th><th>For machines</th><th className="text-right">Qty</th><th className="text-right">Unit</th><th className="text-right px-4">Value</th>
+                  </tr></thead>
+                  <tbody>
+                    {consolidatedParts().map((p) => (
+                      <tr key={p.sku} className="border-b border-slate-50" data-testid={`dp-wiz-cons-${p.sku}`}>
+                        <td className="py-2 px-4 max-w-[260px]"><span className="font-mono text-xs text-slate-500">{p.sku}</span><div className="text-xs text-slate-600 truncate">{p.name}</div></td>
+                        <td><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${PRIORITY_TONE[p.priority] || PRIORITY_TONE.low}`}>{p.priority}</span></td>
+                        <td className="text-xs text-slate-500 font-mono">{[...p.machines].slice(0, 3).join(', ')}{p.machines.size > 3 ? ` +${p.machines.size - 3}` : ''}</td>
+                        <td className="text-right tabular-nums font-semibold">{p.qty}</td>
+                        <td className="text-right tabular-nums text-slate-500">{money(p.unit)}</td>
+                        <td className="text-right tabular-nums px-4">{money(p.value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
           {rec.duplicates_avoided > 0 && (
