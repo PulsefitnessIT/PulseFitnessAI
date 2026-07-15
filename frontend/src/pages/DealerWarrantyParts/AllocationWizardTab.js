@@ -469,52 +469,6 @@ export default function AllocationWizardTab() {
             </div>
           )}
 
-          {rec.pack.filter((g) => g.items.length).map((grp, gi) => (
-            <div key={gi} className="rounded-xl border border-slate-200 bg-white overflow-hidden" data-testid={`dp-wiz-machine-grp-${gi}`}>
-              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                <span className="font-mono text-sm font-semibold text-slate-900">{grp.machine_ref}</span>
-                <span className="text-xs text-slate-500">{grp.machine_description}</span>
-                <span className="ml-auto text-xs text-slate-400">×{grp.quantity} · {grp.item_count} parts</span>
-              </div>
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs text-slate-400 border-b border-slate-100">
-                  <th className="py-2 px-4">Part</th><th>Priority</th><th className="text-right">Used</th><th className="text-right">Rec. qty</th><th className="text-right">Unit</th><th className="text-right">Value</th><th className="pl-2">Stock check</th>
-                </tr></thead>
-                <tbody>
-                  {grp.items.map((it, ii) => {
-                    const q = qtyFor(gi, ii, it.recommended_qty);
-                    return (
-                      <tr key={ii} data-testid={`dp-wiz-item-${gi}-${ii}`} className={`border-b border-slate-50 ${it.status === 'duplicate_avoided' ? 'bg-slate-50/60' : ''}`}>
-                        <td className="py-2 px-4 max-w-[240px]"><span className="font-mono text-xs text-slate-500">{it.part_sku}</span><div className="text-xs text-slate-500 truncate">{it.part_name}</div></td>
-                        <td><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${PRIORITY_TONE[it.priority] || PRIORITY_TONE.low}`}>{it.priority}</span></td>
-                        <td className="text-right tabular-nums text-slate-500">{it.total_used}</td>
-                        <td className="text-right">
-                          <input type="number" min="0" data-testid={`dp-wiz-qty-${gi}-${ii}`} className="w-16 text-right rounded border border-slate-200 px-2 py-1 text-sm tabular-nums"
-                            value={q} onChange={(e) => setQtyOverrides({ ...qtyOverrides, [`${gi}-${ii}`]: e.target.value })} />
-                        </td>
-                        <td className="text-right tabular-nums text-slate-500">{money(it.unit_value)}</td>
-                        <td className="text-right tabular-nums">{money(Number(q) * (it.unit_value || 0))}</td>
-                        <td className="pl-2 pr-4 py-2 max-w-[240px]" data-testid={`dp-wiz-stock-${gi}-${ii}`}>
-                          {it.already_held > 0 ? (
-                            <span title={it.reason}
-                              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${it.status === 'duplicate_avoided' ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                              <PackageCheck size={12} />
-                              {it.status === 'duplicate_avoided'
-                                ? `Already sent ${it.already_held} — skipped`
-                                : `Holds ${it.already_held} · ${it.original_qty}→${it.recommended_qty}`}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400 capitalize">{it.trend || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ))}
-
           <div className="flex items-center gap-2">
             <button onClick={() => setStep(0)} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"><ChevronLeft size={15} /> Back</button>
             <button data-testid="dp-wiz-approve" onClick={approve} disabled={busy} className="ml-auto inline-flex items-center gap-2 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">

@@ -1276,3 +1276,9 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Frontend (DataImportsTab.js): third upload card "Parts Price List" (sheet ExportData) with a "Parts priced: N of M" summary.
 - Verified: imported 19,907/19,907 with sales price; 165/165 BOM component codes covered; recommend for 305H-AEQ now prices parts (100-309-5 £134.24, G003 £32.55…); machine-parts shows all 52 components with real values; allowance fitting works against real prices.
 - NOTE: price list import doesn't create a reversible batch record (it's a reference lookup, re-import to refresh). PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Recommendation screen simplified (removed per-machine breakdown)
+- Per user feedback ("we don't need the historical data / per-machine recommended parts at the bottom — what we need is above"): removed the per-machine recommendation group tables (columns Part/Priority/Used/Rec.qty/Unit/Value/Stock check) from Step 1 of the Allocation Wizard.
+- The screen now shows: stat cards (Allowance, Pack value, Allowance remaining, Duplicates avoided, Unmatched lines) → note banner → "Choose parts from the machine BOM" browser → single consolidated "Recommended parts" list → dedup banner → Approve. The consolidated list is the single source of what will be sent. Auto-fit still sizes the pack to the allowance; manual tweaks via the BOM browser.
+- qtyFor/qtyOverrides retained (used by consolidated list + reset); no functional regression to allocation creation.
+- PRODUCTION — requires redeploy.
