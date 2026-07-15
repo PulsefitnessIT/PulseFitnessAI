@@ -1223,3 +1223,12 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - FIX (AllocationWizardTab.js): rebuilt the row as a 3-col grid [item code | qty | delete] using `inputTight` (no w-full). Now shows: prominent monospace item-code field with matched (green ✓) / unmatched (amber ⚠) state, the matched BOM machine DESCRIPTION beneath it (e.g. "Shoulder Press"), a labelled centered Qty field, column headers, and inline "Find in BOM". parseInvoice + pickMachine now carry machine_description.
 - Verified via screenshot with Pure Pulse Invoice.pdf: rows clearly show 302H-AAO/Shoulder Press/Qty 2, 307H-AAO/Chest Press/Qty 3, 348H-AAA/Dual Multi-Pulley/Qty 3, order value £82,425.48. Downstream (Generate recommendation → BOM parts + most-used + dedup + allowance %) unchanged.
 - NOTE: PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Recommendation step: visible duplicate-avoidance ("Already sent") flags
+- Enhanced Allocation Wizard step 1 (AllocationWizardTab.js) to surface the existing dedup logic clearly:
+  - New indigo banner (dp-wiz-dedup-banner) shown when duplicates_avoided>0: "N part(s) auto-adjusted to avoid duplicating stock this dealer already holds or has on order. Lines tagged 'Already sent' were skipped or reduced — only re-sent if the dealer has run out."
+  - Renamed the last table column "Note" → "Stock check". Each part now shows a badge: grey "Already sent {held} — skipped" for duplicate_avoided items (rec qty 0), or amber "Holds {held} · {orig}→{rec}" for reduced items; otherwise the usage trend. Reason string is the tooltip.
+  - duplicate_avoided rows now use a subtle bg tint (was opacity-60).
+- Backend already returned already_held / original_qty / recommended_qty / status / reason — no API change.
+- Verified: seeded a temp held stock line (G003=999) for a dealer, generated a recommendation for machine 305H-AEQ → "Duplicates avoided 1", banner shown, G003 row rec qty 0 with "Already sent 999 — skipped" badge. Temp data cleaned up.
+- NOTE: PRODUCTION — requires redeploy.
