@@ -1205,3 +1205,8 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Frontend (api.js): uploadSpreadsheet + aiParseInvoiceFile now send ?seq=N per chunk.
 - Verified via curl: 2-chunk (1.28MB + tail) invoice → finish returned job immediately, polled to done on the assembled full content (no session-not-found), chunks collection back to 0 docs, indexes present.
 - NOTE: PRODUCTION fix — requires a REDEPLOY to take effect on https://fitness-ai-migrate.emergent.host.
+
+## 2026-07-15 — Chunked upload resilience: per-chunk auto-retry + resilient polling
+- Frontend api.js: added _withRetry (exp backoff, retries ONLY network errors + 5xx/408/429, never 4xx) and _uploadChunks helper. uploadSpreadsheet + aiParseInvoiceFile now retry each failed chunk (and init/finish) instead of restarting the whole upload — important for flaky dealer connections. Invoice-job polling ignores transient network blips and keeps polling.
+- Safe because the backend chunk endpoint is idempotent per (upload_id, seq) via upsert. Verified: uploading seq 0 twice → 1 doc, assembled 'AAAABBBB' (no duplication).
+- NOTE: PRODUCTION — requires redeploy.

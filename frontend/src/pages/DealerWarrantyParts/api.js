@@ -10,6 +10,47 @@ const ROOT = process.env.REACT_APP_BACKEND_URL
 
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
+const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Retry a request with exponential backoff. Only retries network errors and
+// 5xx / 408 / 429 (transient) — never 4xx auth/validation. Chunk uploads are
+// idempotent per seq on the server (upsert), so retrying a chunk is always safe.
+const _withRetry = async (fn, { attempts = 4, baseDelay = 800 } = {}) => {
+  let lastErr;
+  for (let i = 0; i < attempts; i += 1) {
+    try { return await fn(); }
+    catch (e) {
+      lastErr = e;
+      const status = e?.response?.status;
+      if (status && status !== 408 && status !== 429 && status < 500) throw e;
+      if (i < attempts - 1) await _sleep(baseDelay * 2 ** i);
+    }
+  }
+  throw lastErr;
+};
+
+// Upload a file to a MongoDB-backed session in ~1.4 MB chunks, retrying any
+// single failed chunk (rather than restarting the whole upload). Returns the
+// upload_id so the caller can call finish / finish-invoice.
+const _uploadChunks = async (file, onProgress, cap = 100) => {
+  const { data: init } = await _withRetry(() => axios.post(`${BASE}/data/upload/init`, {}, auth()));
+  const uploadId = init.upload_id;
+  const CHUNK = 1_400_000;
+  let seq = 0;
+  for (let start = 0; start < file.size; start += CHUNK) {
+    const blob = file.slice(start, start + CHUNK);
+    const s = seq;
+    await _withRetry(() => {
+      const fd = new FormData();
+      fd.append('chunk', blob);
+      return axios.post(`${BASE}/data/upload/${uploadId}/chunk?seq=${s}`, fd, auth());
+    });
+    seq += 1;
+    if (onProgress) onProgress(Math.min(cap, Math.round(((start + CHUNK) / file.size) * 100)));
+  }
+  return uploadId;
+};
+
 export const dpApi = {
   dashboard: () => axios.get(`${BASE}/dashboard`, auth()).then((r) => r.data),
   listPartsRequests: (params = {}) => axios.get(`${ROOT}/parts-requests`, { ...auth(), params }).then((r) => r.data),
@@ -93,20 +134,10 @@ export const dpApi = {
   // ── Phase 1 Data & Intelligence engine ──
   listImports: (kind = '') => axios.get(`${BASE}/data/imports`, { ...auth(), params: kind ? { kind } : {} }).then((r) => r.data),
   reverseImport: (id) => axios.post(`${BASE}/data/imports/${id}/reverse`, {}, auth()).then((r) => r.data),
-  // Chunked upload — bypasses the 2 MB ingress body limit.
+  // Chunked upload (MongoDB-backed, replica-safe) with per-chunk auto-retry.
   uploadSpreadsheet: async (file, kind, onProgress) => {
-    const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
-    const uploadId = init.upload_id;
-    const CHUNK = 1_400_000;
-    let seq = 0;
-    for (let start = 0; start < file.size; start += CHUNK) {
-      const fd = new FormData();
-      fd.append('chunk', file.slice(start, start + CHUNK));
-      await axios.post(`${BASE}/data/upload/${uploadId}/chunk?seq=${seq}`, fd, auth());
-      seq += 1;
-      if (onProgress) onProgress(Math.min(100, Math.round(((start + CHUNK) / file.size) * 100)));
-    }
-    const { data } = await axios.post(`${BASE}/data/upload/${uploadId}/finish`, { kind, filename: file.name }, auth());
+    const uploadId = await _uploadChunks(file, onProgress, 100);
+    const { data } = await _withRetry(() => axios.post(`${BASE}/data/upload/${uploadId}/finish`, { kind, filename: file.name }, auth()));
     if (onProgress) onProgress(100);
     return data;
   },
@@ -127,31 +158,23 @@ export const dpApi = {
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
   dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
   aiParseInvoiceFile: async (file, onProgress) => {
-    // Chunked upload → async parse job → poll → temp file deleted server-side.
+    // Chunked upload (MongoDB-backed, per-chunk retry) → async parse job → poll.
     // The parse runs in the background so slow LLM reads never hit the ~100s
-    // Cloudflare origin timeout. Handles files of any size.
-    const { data: init } = await axios.post(`${BASE}/data/upload/init`, {}, auth());
-    const uploadId = init.upload_id;
-    const CHUNK = 1_400_000;
-    let seq = 0;
-    for (let start = 0; start < file.size; start += CHUNK) {
-      const fd = new FormData();
-      fd.append('chunk', file.slice(start, start + CHUNK));
-      await axios.post(`${BASE}/data/upload/${uploadId}/chunk?seq=${seq}`, fd, auth());
-      seq += 1;
-      if (onProgress) onProgress(Math.min(99, Math.round(((start + CHUNK) / file.size) * 100)));
-    }
-    const { data: started } = await axios.post(`${BASE}/data/upload/${uploadId}/finish-invoice`, { filename: file.name, content_type: file.type }, auth());
+    // Cloudflare origin timeout. Handles files of any size; poll survives blips.
+    const uploadId = await _uploadChunks(file, onProgress, 99);
+    const { data: started } = await _withRetry(() => axios.post(`${BASE}/data/upload/${uploadId}/finish-invoice`, { filename: file.name, content_type: file.type }, auth()));
     if (onProgress) onProgress(100);
     // Backward-compatible: if the server parsed inline, return immediately.
     if (!started.job_id) return started;
     const jobId = started.job_id;
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // Poll up to ~10 minutes (300 × 2s) — safely beyond any LLM parse time.
+    // Transient network errors during polling are ignored (keep polling).
     for (let i = 0; i < 300; i += 1) {
-      await sleep(2000);
-      const { data: job } = await axios.get(`${BASE}/data/invoice-jobs/${jobId}`, auth());
-      if (job.status === 'done' || job.status === 'error') return job;
+      await _sleep(2000);
+      try {
+        const { data: job } = await axios.get(`${BASE}/data/invoice-jobs/${jobId}`, auth());
+        if (job.status === 'done' || job.status === 'error') return job;
+      } catch (e) { /* transient blip — keep polling */ }
     }
     return { available: false, error: 'AI parsing timed out. Please try again.' };
   },
