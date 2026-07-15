@@ -1256,3 +1256,16 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
   - New "Allowance remaining" stat card gives a LIVE countdown = allowance − live pack value; turns red when negative. Verified: adding 310-GT15-4 ×3 dropped remaining to £1,015 (£1,250 − £235).
 - NOTE: BOM values aren't stored yet (current demo BOM has no cost column) — picker shows "—" and £0 until a BOM-with-values is imported. When the user provides the new BOM spreadsheet, wire the value column into the BOM import so unit values + countdown are accurate.
 - PRODUCTION — requires redeploy.
+
+## 2026-07-15 — Allowance-fitting recommendation engine (pack value never exceeds the %)
+- CORE FIX: the recommendation pack could vastly exceed the spare-parts allowance (user saw £4,135 pack vs £426 allowance). Now the engine fits the pack WITHIN the allowance.
+- Backend (_fit_pack_to_allowance in dealer_parts_data.py): after building all candidate parts, it selects intelligently:
+  • Rank by priority (critical→low), then CHEAPEST-first within priority, then highest historical usage.
+  • Pass 1 (breadth): 1 unit to as many distinct parts as the budget allows → a RANGE of parts, not all budget on one line.
+  • Pass 2 (depth): top up quantities toward the ideal, still within budget.
+  • Parts with no known value (unit 0) included free; result guaranteed ≤ allowance.
+  This means small orders get small/essential parts (can't afford pricey/low-priority items) while large orders can include higher-value parts once essentials are covered — exactly the ratioed behaviour requested. Already-sent parts remain netted out (dedup) so a different range can be sent next time.
+- recommend response now returns fit_stats {spent, candidate_count, fitted_count, trimmed_count, cheapest_unit, all_fit} and a note explaining the fit ("Pack auto-fitted to the £X allowance — Y of Z eligible parts included…" / "allowance too small — cheapest is £X").
+- Verified across allowances: £5,000→£196.22 (all fit), £100→£98.33 (20/21, trimmed), £25→£24.99 (14/21). Pack value never exceeds allowance. UI confirmed: Allowance £25 = Pack £25, remaining £0, no over-allowance warning, priority-ordered parts.
+- Manual BOM picks can still push over (warned) for manager-approved exceptions.
+- PRODUCTION — requires redeploy.

@@ -1045,6 +1045,66 @@ PRIORITY_BASE_QTY = {"critical": 3, "recommended": 2, "optional": 1, "low": 1, "
 PRIORITY_RANK = {"critical": 5, "recommended": 4, "optional": 3, "low": 2, "no_usage": 1}
 
 
+def _gbp(v) -> str:
+    try:
+        return f"£{float(v):,.2f}"
+    except (TypeError, ValueError):
+        return "£0.00"
+
+
+def _fit_pack_to_allowance(pack: list, allowance: float) -> dict:
+    """Clever selection so the pack value never exceeds the spare-parts allowance.
+
+    Strategy (matches Pulse's spec):
+      • Rank candidates by priority (critical→low), then CHEAPEST-first within a
+        priority, then highest historical usage. Cheap-first means a small
+        allowance naturally fills with small, essential parts and simply cannot
+        afford high-value/low-priority items, while a larger allowance has room
+        for pricier parts once the essentials are covered.
+      • Pass 1 (breadth): give 1 unit to as many distinct parts as the budget
+        allows → a useful RANGE of parts, not the whole budget on one line.
+      • Pass 2 (depth): top up quantities toward the ideal, still within budget.
+    Parts with no known value (unit 0) are included without consuming budget.
+    Returns fit stats. Mutates each item's recommended_qty / value in place.
+    """
+    cands = []
+    for grp in pack:
+        for it in grp["items"]:
+            it["recommended_qty"] = 0
+            it["value"] = 0.0
+            if it.get("ideal_qty", 0) > 0:
+                cands.append(it)
+    cands.sort(key=lambda x: (-x["priority_rank"], x["unit_value"] or 0, -(x.get("total_used") or 0), x["part_sku"]))
+    budget = allowance if (allowance and allowance > 0) else 0
+    spent = 0.0
+    cheapest = min((c["unit_value"] for c in cands if (c["unit_value"] or 0) > 0), default=0)
+
+    def _affordable(u):
+        return u == 0 or (budget > 0 and spent + u <= budget + 1e-6)
+
+    for it in cands:  # breadth
+        u = it["unit_value"] or 0
+        if _affordable(u):
+            it["recommended_qty"] = 1
+            spent += u
+    for it in cands:  # depth
+        u = it["unit_value"] or 0
+        while it["recommended_qty"] < it["ideal_qty"] and _affordable(u):
+            it["recommended_qty"] += 1
+            spent += u
+    for it in cands:
+        it["value"] = round(it["recommended_qty"] * (it["unit_value"] or 0), 2)
+
+    fitted = sum(1 for c in cands if c["recommended_qty"] > 0)
+    trimmed = [c for c in cands if c["recommended_qty"] < c["ideal_qty"]]
+    return {
+        "spent": round(spent, 2), "candidate_count": len(cands),
+        "fitted_count": fitted, "trimmed_count": len(trimmed),
+        "cheapest_unit": round(cheapest, 2),
+        "all_fit": len(trimmed) == 0,
+    }
+
+
 async def _machine_index(org: str):
     """Load active BOM machines once for in-memory matching (few lines per invoice)."""
     by_ref, by_stock, desc_pairs = {}, {}, []
@@ -1226,7 +1286,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                 "part_sku": c["code"], "part_name": c.get("description") or c["code"],
                 "machine_model": m["top_level_ref"], "bom_qty": c["quantity"],
                 "priority": priority, "priority_rank": PRIORITY_RANK.get(priority, 1),
-                "trend": u["trend"], "recommended_qty": rec, "original_qty": raw,
+                "trend": u["trend"], "recommended_qty": rec, "original_qty": raw, "ideal_qty": rec,
                 "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
                 "total_used": u["total_qty"], "reason": reason, "status": status,
             })
@@ -1237,12 +1297,18 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             "item_count": sum(1 for i in items if i["recommended_qty"] > 0),
         })
 
+    # Fit the pack within the allowance (clever priority + value selection).
+    fit = _fit_pack_to_allowance(pack, allowance)
+    for grp in pack:
+        grp["items"].sort(key=lambda x: (-x["priority_rank"], -x["value"]))
+        grp["item_count"] = sum(1 for i in grp["items"] if i["recommended_qty"] > 0)
+
     total_value = round(sum(i["value"] for grp in pack for i in grp["items"] if i["recommended_qty"] > 0), 2)
-    over = bool(allowance and total_value > allowance)
+    over = bool(allowance and total_value > allowance + 0.01)
     parts_total = sum(g["item_count"] for g in pack)
     matched_machine_count = sum(1 for l in machine_lines if l.get("matched"))
 
-    # Explain an empty pack so the operator knows the exact reason + next step.
+    # Explain the pack / an empty pack so the operator knows the exact reason + next step.
     note = ""
     if parts_total == 0:
         if matched_machine_count == 0:
@@ -1252,12 +1318,24 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             note = ("No historical parts-usage data is available yet. Import a “Parts Used” spreadsheet "
                     "(and the BOM) under Data Imports so the AI can learn which parts each machine needs, "
                     "then regenerate.")
+        elif fit["candidate_count"] > 0 and fit["cheapest_unit"] > 0 and allowance < fit["cheapest_unit"]:
+            note = (f"The allowance ({_gbp(allowance)}) is too small to send any recommended part — the cheapest "
+                    f"is {_gbp(fit['cheapest_unit'])}. Increase the order value or the spare-parts %, or pick parts "
+                    "manually from the BOM below.")
         else:
             note = ("The matched machines have no proven parts usage in the Most-Used history yet, so no parts "
                     "were recommended. Add/approve usage for these machines’ components, then regenerate.")
-    elif usage_relaxed:
-        note = ("Recommended from all matched parts (no items have been manually approved yet — review matches "
-                "under Data → Matches to refine).")
+    else:
+        bits = []
+        if not fit["all_fit"]:
+            bits.append(f"Pack auto-fitted to the {_gbp(allowance)} allowance — {fit['fitted_count']} of "
+                        f"{fit['candidate_count']} eligible parts included (higher-value / lower-priority parts were "
+                        "left out because the allowance doesn’t cover them). Raise the order value or % to include more.")
+        else:
+            bits.append(f"All eligible parts fit within the {_gbp(allowance)} allowance.")
+        if usage_relaxed:
+            bits.append("Recommended from all matched parts (none manually approved yet — refine under Data → Matches).")
+        note = " ".join(bits)
 
     # dealer context (previous allocations + current stock)
     prev_allocs = await db[ALLOCATIONS].count_documents(
@@ -1281,7 +1359,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         "dealer_context": {"previous_allocations": prev_allocs, "stock_lines": stock_lines},
         "approved_only_matches": approved_only,
         "parts_total": parts_total, "matched_machine_count": matched_machine_count,
-        "usage_relaxed": usage_relaxed, "note": note,
+        "usage_relaxed": usage_relaxed, "note": note, "fit_stats": fit,
     }
 
 
