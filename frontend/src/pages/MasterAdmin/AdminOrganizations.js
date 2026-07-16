@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
  Building2, Search, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive, Edit2, Mail,
- CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen, Crown,
+ CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen, Crown, MinusCircle,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -2073,14 +2073,42 @@ useEffect(() => {
     full access (no override stored). Toggling OFF stores
     `module_overrides[key] = false` which the resolver respects. */}
 {(() => {
-  if (editingUser.role === 'owner' || editingUser.is_master_admin) {
+  const hasDesk = !!(editingUser.is_service_desk || editingUser.role === 'service_desk');
+  const hasEngineer = editingUser.role === 'engineer' || !!editingUser.is_engineer || !!editingUser.engineer_id || editingUser.display_role === 'Partner Engineer';
+  const privileged = editingUser.role === 'owner' || editingUser.is_master_admin;
+  // Iter 280 — Service Desk + Engineer shown here (read-only) so the Edit
+  // drawer matches the People-drawer "Module access" (6 rows, not 4).
+  // These aren't module_overrides: Service Desk is managed on the Service
+  // Desk admin page; Engineer follows the Role dropdown above.
+  const InfoRow = ({ label, desc, on, managedNote }) => (
+    <div className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md" data-testid={`edit-user-info-row-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+      <div className="min-w-0">
+        <p className="text-[12px] font-medium text-zinc-800">{label}</p>
+        <p className="text-[10px] text-zinc-400 truncate">{managedNote || desc}</p>
+      </div>
+      {(on || privileged)
+        ? <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+        : <MinusCircle size={16} className="text-zinc-300 shrink-0" />}
+    </div>
+  );
+  const infoRows = (
+    <div className="pt-1.5 mt-1 border-t border-zinc-200 space-y-0.5">
+      <InfoRow label="Service Desk" desc="Service Desk hub (/service-desk)"
+        on={hasDesk} managedNote="Managed on Master Admin → Service Desk" />
+      <InfoRow label="Engineer app" desc="Field engineer app (/engineer)"
+        on={hasEngineer} managedNote="Set via the Role dropdown above" />
+    </div>
+  );
+
+  if (privileged) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3" data-testid="edit-user-permissions-owner-note">
-        <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Permissions</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Module Permissions</p>
         <p className="text-[11px] text-amber-800 leading-relaxed">
           Owners always have access to every module the organisation has enabled.
           To restrict a teammate, change their role to Manager or Staff first.
         </p>
+        {infoRows}
       </div>
     );
   }
@@ -2101,47 +2129,44 @@ useEffect(() => {
   };
   const overrides = editingUser.module_overrides || {};
   const visible = MODULES.filter(m => isOrgEnabled(m.key));
-  if (visible.length === 0) {
-    return (
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3" data-testid="edit-user-permissions-empty">
-        <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">Permissions</p>
-        <p className="text-[11px] text-zinc-500">Organisation has no modules enabled to delegate.</p>
-      </div>
-    );
-  }
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 space-y-2" data-testid="edit-user-permissions">
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Module Permissions</p>
         <p className="text-[10px] text-zinc-400 leading-relaxed">Toggle off to revoke this user's access to a module. Org-level access is required first.</p>
       </div>
-      <div className="space-y-1.5">
-        {visible.map(m => {
-          const checked = overrides[m.key] === undefined ? true : !!overrides[m.key];
-          return (
-            <label
-              key={m.key}
-              className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md hover:bg-white cursor-pointer"
-              data-testid={`edit-user-perm-row-${m.key}`}
-            >
-              <div className="min-w-0">
-                <p className="text-[12px] font-medium text-zinc-800">{m.label}</p>
-                <p className="text-[10px] text-zinc-400 truncate">{m.desc}</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => {
-                  const next = { ...overrides, [m.key]: e.target.checked };
-                  setEditingUser({ ...editingUser, module_overrides: next });
-                }}
-                className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                data-testid={`edit-user-perm-${m.key}`}
-              />
-            </label>
-          );
-        })}
-      </div>
+      {visible.length === 0 ? (
+        <p className="text-[11px] text-zinc-500" data-testid="edit-user-permissions-empty">Organisation has no modules enabled to delegate.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {visible.map(m => {
+            const checked = overrides[m.key] === undefined ? true : !!overrides[m.key];
+            return (
+              <label
+                key={m.key}
+                className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md hover:bg-white cursor-pointer"
+                data-testid={`edit-user-perm-row-${m.key}`}
+              >
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium text-zinc-800">{m.label}</p>
+                  <p className="text-[10px] text-zinc-400 truncate">{m.desc}</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = { ...overrides, [m.key]: e.target.checked };
+                    setEditingUser({ ...editingUser, module_overrides: next });
+                  }}
+                  className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  data-testid={`edit-user-perm-${m.key}`}
+                />
+              </label>
+            );
+          })}
+        </div>
+      )}
+      {infoRows}
     </div>
   );
 })()}
