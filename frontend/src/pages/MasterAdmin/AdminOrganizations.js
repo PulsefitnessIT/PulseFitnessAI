@@ -429,6 +429,8 @@ const AdminOrganizations = ({
  const [savingEdit, setSavingEdit] = useState(false);
  const [editingUser, setEditingUser] = useState(null);
  const [savingUser, setSavingUser] = useState(false);
+ // Iter 280 — inline Service Desk grant/revoke toggle in the Edit-User drawer.
+ const [deskBusy, setDeskBusy] = useState(false);
  // Iter 215bi — temp password from in-dialog reset, surfaced inline.
  const [lastResetTempPw, setLastResetTempPw] = useState(null);
  const [lastInviteUrl, setLastInviteUrl] = useState(null);
@@ -2091,10 +2093,53 @@ useEffect(() => {
         : <MinusCircle size={16} className="text-zinc-300 shrink-0" />}
     </div>
   );
+  // Iter 280 — inline Service Desk grant/revoke, reusing the Service Desk
+  // admin endpoints. Brand follows the edited user's OWN org (Pulse → "pulse").
+  const userOrg = (filteredOrgs || []).find(o => o.id === editingUser.organization_id);
+  const deskBrand = (['pulse_pro', 'pulse_lite', 'pulse'].includes(userOrg?.account_type)
+    || ['pulse', 'pulse_fitness'].includes((userOrg?.brand || '').toLowerCase())) ? 'pulse' : 'gymaxis';
+  const toggleDesk = async () => {
+    if (!editingUser.email) return;
+    setDeskBusy(true);
+    const grant = !hasDesk;
+    try {
+      const tk = localStorage.getItem('token');
+      const path = grant ? 'grant' : 'revoke';
+      const payload = grant ? { email: editingUser.email, brand: deskBrand } : { email: editingUser.email };
+      await axios.post(`${API}/master-admin/service-desk/members/${path}`, payload, { headers: { Authorization: `Bearer ${tk}` } });
+      setEditingUser({ ...editingUser, is_service_desk: grant });
+      notify.success(grant ? `Granted Service Desk access to ${editingUser.email}` : `Revoked Service Desk access from ${editingUser.email}`);
+    } catch (err) {
+      notifyApiError(notify, err, grant ? 'Grant failed' : 'Revoke failed');
+    } finally {
+      setDeskBusy(false);
+    }
+  };
+  const ServiceDeskRow = () => (
+    <div className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md" data-testid="edit-user-info-row-service-desk">
+      <div className="min-w-0">
+        <p className="text-[12px] font-medium text-zinc-800">Service Desk</p>
+        <p className="text-[10px] text-zinc-400 truncate">Service Desk hub (/service-desk)</p>
+      </div>
+      {privileged ? (
+        <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+      ) : (
+        <button
+          type="button"
+          onClick={toggleDesk}
+          disabled={deskBusy}
+          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors disabled:opacity-50 shrink-0 ${hasDesk ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}`}
+          data-testid="edit-user-service-desk-toggle"
+        >
+          {deskBusy ? <Loader2 size={11} className="animate-spin" /> : (hasDesk ? <MinusCircle size={11} /> : <CheckCircle2 size={11} />)}
+          {deskBusy ? 'Saving…' : (hasDesk ? 'Revoke' : 'Grant')}
+        </button>
+      )}
+    </div>
+  );
   const infoRows = (
     <div className="pt-1.5 mt-1 border-t border-zinc-200 space-y-0.5">
-      <InfoRow label="Service Desk" desc="Service Desk hub (/service-desk)"
-        on={hasDesk} managedNote="Managed on Master Admin → Service Desk" />
+      <ServiceDeskRow />
       <InfoRow label="Engineer app" desc="Field engineer app (/engineer)"
         on={hasEngineer} managedNote="Set via the Role dropdown above" />
     </div>
