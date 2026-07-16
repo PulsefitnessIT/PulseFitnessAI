@@ -213,6 +213,18 @@ async def get_all_organizations(
         pipe.append({"$group": {"_id": "$organization_id", "c": {"$sum": 1}}})
         return {d["_id"]: d["c"] for d in await coll.aggregate(pipe).to_list(length=None)}
 
+    async def _emails(coll):
+        """Return {org_id: set(lower-cased emails)} — used to count PEOPLE
+        distinctly across the `users` + `crm_users` collections. A single
+        human is intentionally present in both (a login user AND a CRM
+        contact), so summing raw counts double-counts them (Pulse showed 9
+        for 5 real people). Deduping by email matches the `/users` directory."""
+        pipe = [
+            {"$match": {"organization_id": {"$in": org_ids}}},
+            {"$group": {"_id": "$organization_id", "emails": {"$addToSet": {"$toLower": "$email"}}}},
+        ]
+        return {d["_id"]: set(d.get("emails") or []) async for d in coll.aggregate(pipe)}
+
     async def _owners():
         pipe = [
             {"$match": {"organization_id": {"$in": org_ids}, "role": "owner"}},
@@ -240,11 +252,11 @@ async def get_all_organizations(
         return {d["_id"]: d async for d in db.crm_users.aggregate(pipe)}
 
     (
-        sp_user_map, crm_user_map, equip_map, issue_map, open_issue_map,
+        sp_email_map, crm_email_map, equip_map, issue_map, open_issue_map,
         file_map, ai_map, owner_map, crm_owner_map,
     ) = await asyncio.gather(
-        _group(db.users),
-        _group(db.crm_users),
+        _emails(db.users),
+        _emails(db.crm_users),
         _group(db.equipment),
         _group(db.issues),
         _group(db.issues, {"status": "open"}),
@@ -281,7 +293,7 @@ async def get_all_organizations(
         enriched.append({
             **org,
             "status": org.get("status", "active"),
-            "user_count": sp_user_map.get(oid, 0) + crm_user_map.get(oid, 0),
+            "user_count": len(sp_email_map.get(oid, set()) | crm_email_map.get(oid, set())),
             "equipment_count": equip_map.get(oid, 0),
             "issue_count": issue_map.get(oid, 0),
             "open_issues": open_issue_map.get(oid, 0),

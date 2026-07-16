@@ -1290,3 +1290,7 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - Verified by testing agent: 4/4 backend pytest pass; frontend grant dropdown (35 staff), no duplicate brand, single badge, revoke, and new module rows all confirmed; end-to-end grant succeeded. Report: /app/test_reports/iteration_master_admin_desk_fixes_jan2026.json.
 - Non-critical note from review: legacy grantBrand/createForm.brand string literals ('pulse'/'gymaxis') remain as harmless dead-brand cruft.
 - PRODUCTION — requires redeploy.
+
+## 2026-07-16 — Master Admin P0 fixes
+- **Org user-count mismatch fixed**: `/master-admin/organizations` was SUMMING `users` + `crm_users` counts, double-counting anyone present in both collections (Pulse Fitness showed 9 for ~5-6 real people). Now counts DISTINCT emails via union of both collections (`master_admin_orgs.py` `_emails()`), matching the deduped `/users` directory. Verified: Pulse Fitness Ltd now 6 = directory 6.
+- **Service Desk grant "user not found" fixed & verified**: granting Service Desk role to a CRM-only contact (`/master-admin/service-desk/members/grant`) now auto-provisions a `users` login row (temp password + invite email), appears in members list, and can authenticate. Verified end-to-end via curl.
