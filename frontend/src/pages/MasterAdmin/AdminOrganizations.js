@@ -423,7 +423,7 @@ const AdminOrganizations = ({
    || ['pulse', 'pulse_fitness'].includes((selectedOrg?.brand || '').toLowerCase());
  const masterAdminRoleLabel = isPulseOrg ? 'Master Admin (Pulse)' : 'Master Admin (full platform)';
  const [addingUser, setAddingUser] = useState(false);
- const [userForm, setUserForm] = useState({ email: '', full_name: '', password: '', role: 'staff' });
+ const [userForm, setUserForm] = useState({ email: '', full_name: '', password: '', role: 'staff', module_overrides: {} });
  const [lastInvite, setLastInvite] = useState(null); // Iter 215ev — post-create invite link panel
  const [editingOrg, setEditingOrg] = useState(null);
  const [savingEdit, setSavingEdit] = useState(false);
@@ -669,11 +669,11 @@ useEffect(() => {
    // (WhatsApp / their own email / Slack).
    if (created?.invite_url) {
      setLastInvite(created);
-     setUserForm({ email: '', full_name: '', password: '', role: 'staff' });
+     setUserForm({ email: '', full_name: '', password: '', role: 'staff', module_overrides: {} });
      return;
    }
    setShowAddUser(null);
-   setUserForm({ email: '', full_name: '', password: '', role: 'staff' });
+   setUserForm({ email: '', full_name: '', password: '', role: 'staff', module_overrides: {} });
  };
 
  return (
@@ -1088,7 +1088,7 @@ useEffect(() => {
  <div className="flex items-center justify-between mb-3">
  <p className="text-sm font-medium text-zinc-700">Users in {org.name} ({orgUsers.length})</p>
  <div className="flex items-center gap-2">
- <Button size="sm" className="h-7 text-xs" onClick={() => { setShowAddUser(org.id); setUserForm({ email: '', full_name: '', password: '', role: 'staff' }); }} data-testid={`org-add-user-btn-${org.id}`}>
+ <Button size="sm" className="h-7 text-xs" onClick={() => { setShowAddUser(org.id); setUserForm({ email: '', full_name: '', password: '', role: 'staff', module_overrides: {} }); }} data-testid={`org-add-user-btn-${org.id}`}>
  <UserPlus size={12} className="mr-1" /> Add User
  </Button>
  </div>
@@ -1859,6 +1859,80 @@ useEffect(() => {
    </p>
  ) : null}
  </div>
+ {/* Iter 280 — Module Permissions at creation time. Mirrors the Edit-User
+     drawer exactly so both views match. Owners / Master Admins always get
+     every module (no picker). For Manager / Staff / Engineer we show one
+     checkbox per org-enabled module; all default ON. Unticking stores
+     module_overrides[key]=false which the backend persists on the new user. */}
+ {(userForm.role === 'owner' || userForm.role === 'master_admin') ? (
+   <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3" data-testid="add-user-permissions-owner-note">
+     <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Module Permissions</p>
+     <p className="text-[11px] text-amber-800 leading-relaxed">
+       {userForm.role === 'owner' ? 'Owners' : 'Master Admins'} always have access to every module the organisation has enabled.
+     </p>
+   </div>
+ ) : (() => {
+   const addOrg = (filteredOrgs || []).find(o => o.id === showAddUser);
+   const orgModulesCfg = (addOrg?.modules) || {};
+   const orgEnabledList = Array.isArray(addOrg?.enabled_modules) ? addOrg.enabled_modules : [];
+   const MODULES = [
+     { key: 'operations', label: 'Operations', desc: 'Service desk, equipment, faults' },
+     { key: 'memberships', label: 'Memberships', desc: 'Members, classes, billing' },
+     { key: 'marketing',  label: 'Marketing',   desc: 'Campaigns, segments, image library' },
+     { key: 'crm',        label: 'CRM',         desc: 'Leads, deals, business pipeline' },
+   ];
+   const isOrgEnabled = (k) => {
+     const cfg = orgModulesCfg[k];
+     if (cfg && typeof cfg === 'object' && 'enabled' in cfg) return !!cfg.enabled;
+     if (orgEnabledList.length) return orgEnabledList.includes(k);
+     return k === 'operations';
+   };
+   const overrides = userForm.module_overrides || {};
+   const visible = MODULES.filter(m => isOrgEnabled(m.key));
+   if (visible.length === 0) {
+     return (
+       <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3" data-testid="add-user-permissions-empty">
+         <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">Module Permissions</p>
+         <p className="text-[11px] text-zinc-500">This organisation has no modules enabled to delegate.</p>
+       </div>
+     );
+   }
+   return (
+     <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 space-y-2" data-testid="add-user-permissions">
+       <div>
+         <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Module Permissions</p>
+         <p className="text-[10px] text-zinc-400 leading-relaxed">Choose which modules this user can access. All on by default.</p>
+       </div>
+       <div className="space-y-1.5">
+         {visible.map(m => {
+           const checked = overrides[m.key] === undefined ? true : !!overrides[m.key];
+           return (
+             <label
+               key={m.key}
+               className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md hover:bg-white cursor-pointer"
+               data-testid={`add-user-perm-row-${m.key}`}
+             >
+               <div className="min-w-0">
+                 <p className="text-[12px] font-medium text-zinc-800">{m.label}</p>
+                 <p className="text-[10px] text-zinc-400 truncate">{m.desc}</p>
+               </div>
+               <input
+                 type="checkbox"
+                 checked={checked}
+                 onChange={(e) => {
+                   const next = { ...overrides, [m.key]: e.target.checked };
+                   setUserForm({ ...userForm, module_overrides: next });
+                 }}
+                 className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                 data-testid={`add-user-perm-${m.key}`}
+               />
+             </label>
+           );
+         })}
+       </div>
+     </div>
+   );
+ })()}
  {/* Iter 215ev — password field is now OPTIONAL. Leaving blank issues
      an invite link so the user sets their own password. This is the
      recommended flow (admin never handles plaintext). The admin can

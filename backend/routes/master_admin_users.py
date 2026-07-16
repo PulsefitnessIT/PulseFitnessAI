@@ -477,6 +477,19 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
                 {"$set": {"is_master_admin": True, "role": "owner"}},
             )
 
+    # Iter 280 — module access chosen at creation time. The Add-User dialog
+    # sends a `module_overrides` map ({operations:true, crm:false, ...}); we
+    # persist it verbatim (validated against the known keys) so the created
+    # user's effective access matches exactly what the admin ticked, and the
+    # People-drawer "Module access" view agrees with the create form.
+    raw_overrides = body.get("module_overrides")
+    if isinstance(raw_overrides, dict) and role not in ("master_admin", "owner"):
+        from utils.module_access import MODULE_KEYS
+        overrides = {k: bool(v) for k, v in raw_overrides.items() if k in MODULE_KEYS}
+        if overrides:
+            await db.users.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
+            await db.crm_users.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
+
     invite_url = None
     invite_expires_at = None
     if invite_mode:
