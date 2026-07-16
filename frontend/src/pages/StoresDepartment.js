@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Warehouse, PackageSearch, Truck, Building2, ClipboardList, ListChecks, ArrowRight } from 'lucide-react';
+import { Warehouse, PackageSearch, Truck, Building2, ClipboardList, ListChecks, ArrowRight, Clock } from 'lucide-react';
 import { dpApi } from './DealerWarrantyParts/api';
 import { StatCard, Spinner, StatusBadge, money } from './DealerWarrantyParts/shared';
 import StoresDeptTab from './DealerWarrantyParts/StoresDeptTab';
@@ -10,6 +10,20 @@ const DESPATCH_READY = ['allocated', 'invoiced', 'quoted', 'acknowledged'];
 function fmtDate(v) {
   if (!v) return '';
   try { return new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return ''; }
+}
+
+// Iter 283 — ageing / SLA highlight for the Stores fulfilment queue.
+// amber when waiting more than 2 days, red when 5+ days.
+function ageDays(v) {
+  if (!v) return 0;
+  const t = new Date(v).getTime();
+  if (Number.isNaN(t)) return 0;
+  return Math.floor((Date.now() - t) / 86400000);
+}
+function slaTone(days) {
+  if (days >= 5) return 'red';
+  if (days > 2) return 'amber';
+  return null;
 }
 
 function ActionQueue({ onGoWarehouse, onGoDealer }) {
@@ -45,14 +59,19 @@ function ActionQueue({ onGoWarehouse, onGoDealer }) {
         <ListChecks size={16} className="text-[var(--gx-brand-from)]" />
         <h3 className="text-sm font-bold text-slate-900">To action today</h3>
         <span className="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--gx-brand-from)]/10 text-[var(--gx-brand-from)]">{items.length}</span>
-        <span className="ml-auto text-xs text-slate-400">Warehouse despatches + dealer allocations, prioritised oldest first</span>
+        <span className="ml-auto text-xs text-slate-400">Oldest first · <span className="text-amber-600 font-semibold">amber &gt;2 days</span> · <span className="text-red-600 font-semibold">red 5+ days</span></span>
       </div>
       {items.length === 0 ? (
         <p className="text-sm text-slate-400">Nothing awaiting picking or despatch right now. 🎉</p>
       ) : (
         <div className="divide-y divide-slate-50">
-          {items.slice(0, 15).map((it) => (
-            <div key={it.key} data-testid={`sd-queue-${it.key}`} className="flex items-center gap-3 py-2.5">
+          {items.slice(0, 15).map((it) => {
+            const days = ageDays(it.date);
+            const tone = slaTone(days);
+            const rowAccent = tone === 'red' ? 'border-l-4 border-red-400 bg-red-50/40 pl-2 -ml-2 rounded-r'
+              : tone === 'amber' ? 'border-l-4 border-amber-400 bg-amber-50/40 pl-2 -ml-2 rounded-r' : '';
+            return (
+            <div key={it.key} data-testid={`sd-queue-${it.key}`} className={`flex items-center gap-3 py-2.5 ${rowAccent}`}>
               <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${it.source === 'warehouse' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
                 {it.source === 'warehouse' ? <Warehouse size={11} /> : <Building2 size={11} />}
                 {it.source === 'warehouse' ? 'Warehouse' : 'Dealer'}
@@ -61,6 +80,13 @@ function ActionQueue({ onGoWarehouse, onGoDealer }) {
                 <div className="font-medium text-slate-800 truncate">{it.title}</div>
                 <div className="text-xs text-slate-400 truncate">{it.sub}</div>
               </div>
+              {tone && (
+                <span data-testid={`sd-queue-sla-${it.key}`}
+                  className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${tone === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}
+                  title={`Waiting ${days} days — ${tone === 'red' ? 'breached SLA (5+ days)' : 'ageing (over 2 days)'}`}>
+                  <Clock size={11} /> {days}d
+                </span>
+              )}
               <StatusBadge status={it.status} />
               <span className="text-xs text-slate-400 w-14 text-right">{fmtDate(it.date)}</span>
               <button data-testid={`sd-queue-go-${it.key}`}
@@ -69,7 +95,7 @@ function ActionQueue({ onGoWarehouse, onGoDealer }) {
                 {it.action} <ArrowRight size={13} />
               </button>
             </div>
-          ))}
+          );})}
         </div>
       )}
     </div>
