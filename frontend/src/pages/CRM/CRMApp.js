@@ -580,6 +580,14 @@ export default function CRMApp() {
   // Settings later).
   const [hideStart] = useUserPref('hideStartTabs', false);
   useEffect(() => { if (hideStart && activeTab === 'start') setActiveTab('dashboard'); }, [hideStart, activeTab]);
+  // Iter 284b — count of certificates expired / expiring within 30 days,
+  // surfaced as a badge on the Documents tab so staff notice without opening it.
+  const [expiringDocs, setExpiringDocs] = useState(0);
+  useEffect(() => {
+    axios.get(`${API}/crm/v2/documents-expiring-count`, { headers: headers() })
+      .then((r) => setExpiringDocs(r.data?.expiring_soon || 0))
+      .catch(() => {});
+  }, [headers, activeTab]);
   // Iter 220ea·41 — if the active tab is hidden in the Members environment
   // (e.g. user switched mode while on Tenders/Territories), fall back to the
   // dashboard so they're never stranded on an invisible tab.
@@ -1030,6 +1038,13 @@ export default function CRMApp() {
                   >
                     <Icon size={14} className="shrink-0" />
                     <span>{tabLabel(item)}</span>
+                    {item.id === 'documents' && expiringDocs > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold bg-red-500 text-white"
+                        title={`${expiringDocs} certificate${expiringDocs > 1 ? 's' : ''} expired or expiring within 30 days`}
+                        data-testid="crm-docs-expiring-badge">
+                        {expiringDocs > 9 ? '9+' : expiringDocs}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1061,6 +1076,11 @@ export default function CRMApp() {
                   >
                     <Icon size={12} className="shrink-0" />
                     <span>{tabLabel(item)}</span>
+                    {item.id === 'documents' && expiringDocs > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[15px] h-3.5 px-1 rounded-full text-[9px] font-bold bg-red-500 text-white" data-testid="crm-docs-expiring-badge-mobile">
+                        {expiringDocs > 9 ? '9+' : expiringDocs}
+                      </span>
+                    )}
                   </button>
                 );
               })}

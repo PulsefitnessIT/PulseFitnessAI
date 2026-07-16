@@ -2906,6 +2906,21 @@ async def list_v2_documents(
     return {"documents": items, "total": total, "categories": DOCUMENT_CATEGORIES}
 
 
+@router.get("/documents-expiring-count")
+async def documents_expiring_count(user=Depends(get_crm_user)):
+    """Iter 284b — count certificates that are expired or within 30 days of
+    expiry, so the CRM Documents tab can surface an 'expiring soon' badge.
+    expiry_date is stored as an ISO YYYY-MM-DD string → lexical compare works."""
+    from datetime import date, timedelta
+    cutoff = (date.today() + timedelta(days=30)).isoformat()
+    count = await db.crm2_documents.count_documents({
+        **_of(user),
+        "category": "certificates",
+        "expiry_date": {"$ne": None, "$lte": cutoff},
+    })
+    return {"expiring_soon": count}
+
+
 @router.post("/documents")
 async def upload_v2_document(
     category: str = "general",
