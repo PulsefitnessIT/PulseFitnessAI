@@ -1,0 +1,29 @@
+{
+  "summary": "Iter 284 — CRM company Documents tab with Pre-Install/Certificates/Processes sub-tabs and certificate expiry badges. All 6 requested scenarios PASSED via Playwright E2E as owner@isodemo.com. Browser 'today' = 2026-07-16.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Category label chip is styled uppercase via CSS ('CERTIFICATES'), but the underlying value is the human label 'Certificates' from CAT_LABELS — meets the spec ('not the raw key')."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Uploaded 3 test certificates (test_cert_amber.txt, test_cert_expired.txt, test_cert_future.txt) into iso-demo-org CRM documents. Cleanup not required per task.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Documents tab is visible in CRM top nav (data-testid=crm-nav-documents). Sub-tabs: doc-tab-all, doc-tab-pre_install, doc-tab-certificates, doc-tab-processes. Upload dialog exposes doc-upload-category-select; selecting 'certificates' reveals doc-upload-expiry. Doc rows show category chip with human label + a doc-expiry-<id> badge — red for past, amber (warning color) for <=30d, neutral border for >30d. All verified in Playwright run.",
+  "verified_scenarios": {
+    "documents_nav_visible": "PASS — crm-nav-documents present and opens crm-documents view",
+    "sub_tabs_all_pre_certs_processes": "PASS — All, Pre-Install Information, Certificates, Processes all present with correct labels",
+    "amber_certificate_upload": "PASS — Expiry field appears when Certificates selected. Uploaded with today+7 → badge 'Expires 23 Jul 2026 · 7d' with background var(--color-warning) (amber)",
+    "expired_red_badge": "PASS — Uploaded with today-10 → badge 'Expired 06 Jul 2026' with background var(--color-danger) (red)",
+    "future_neutral_badge": "PASS — Uploaded with today+90 → badge 'Expires 14 Oct 2026' with transparent bg + border (neutral)",
+    "category_label_readable": "PASS — Rows display 'Certificates' label (styled uppercase in the chip via CSS, but the text value is the human label, not raw 'certificates' key)"
+  }
+}

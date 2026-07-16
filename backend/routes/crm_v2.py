@@ -2885,7 +2885,8 @@ async def get_portal_equipment(company_id: str, user=Depends(get_crm_user)):
 
 DOCUMENT_CATEGORIES = [
     "spec_sheets", "pre_install", "maintenance", "manuals",
-    "general", "contract", "proposal", "invoice", "other"
+    "general", "contract", "proposal", "invoice", "other",
+    "certificates", "processes",
 ]
 
 
@@ -2909,6 +2910,7 @@ async def list_v2_documents(
 async def upload_v2_document(
     category: str = "general",
     notes: str = "",
+    expiry_date: str = "",
     file: UploadFile = FastAPIFile(...),
     user=Depends(get_crm_user),
 ):
@@ -2922,6 +2924,9 @@ async def upload_v2_document(
         "size": len(content),
         "data_b64": b64,
         "notes": notes,
+        # Iter 284 — optional expiry (mainly for Certificates) so staff can see
+        # at a glance which certificates are near/past expiry and replace them.
+        "expiry_date": (expiry_date or "").strip() or None,
         "uploaded_by": user.get("id"),
         "uploaded_by_name": user.get("full_name", ""),
         "created_at": _now(),

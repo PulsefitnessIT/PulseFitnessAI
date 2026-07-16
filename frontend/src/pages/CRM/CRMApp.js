@@ -95,7 +95,7 @@ const NAV_ITEMS = [
   // Iter 215de — record-level + field-level permissions (admin only).
   { id: 'permissions', labelKey: 'crm.permissions', icon: EyeOff, adminOnly: true, hideFromBar: true },
   // Hidden from the bar but still routable via contextual entry points.
-  { id: 'documents', labelKey: 'crm.documents', icon: FolderOpen, hideFromBar: true },
+  { id: 'documents', labelKey: 'crm.documents', label: 'Documents', icon: FolderOpen },
   { id: 'ai-tools', labelKey: 'crm.ai_tools', icon: Sparkles, hideFromBar: true },
   // Settings stays out of the bar — it's the gear icon in the toolbar.
 ];

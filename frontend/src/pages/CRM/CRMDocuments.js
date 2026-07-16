@@ -1,23 +1,43 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Upload, FolderOpen, Search, Trash2, Download, FileText, File, Image, Eye
+  Upload, FolderOpen, Search, Trash2, Download, FileText, File, Image, Eye, CalendarClock
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';
 
-const CATEGORIES = ['spec_sheets', 'pre_install', 'maintenance', 'manuals', 'general', 'contract', 'proposal', 'invoice', 'other'];
-const CAT_COLORS = { general: 'var(--color-info-ios)', contract: 'var(--color-accent-magenta)', proposal: 'var(--color-warning)', invoice: 'var(--color-success-alt)', manual: 'var(--color-cyan-500)', other: 'var(--color-text-faint-alt)', spec_sheets: 'var(--color-info)', pre_install: 'var(--color-accent-amber)', maintenance: 'var(--color-success)', manuals: 'var(--color-accent-indigo)' };
+// Iter 284 — company document library reshaped into the three staff-facing
+// categories requested: Pre-Install Information, Certificates, Processes.
+const UPLOAD_CATEGORIES = [
+  { value: 'pre_install', label: 'Pre-Install Information' },
+  { value: 'certificates', label: 'Certificates' },
+  { value: 'processes', label: 'Processes' },
+];
+const CAT_LABELS = {
+  pre_install: 'Pre-Install Information', certificates: 'Certificates', processes: 'Processes',
+  spec_sheets: 'Spec Sheets', maintenance: 'Maintenance', manuals: 'Manuals',
+  contract: 'Contract', general: 'General', proposal: 'Proposal', invoice: 'Invoice', other: 'Other',
+};
+const CAT_COLORS = { pre_install: 'var(--color-accent-amber)', certificates: 'var(--color-accent-magenta)', processes: 'var(--color-accent-indigo)', general: 'var(--color-info-ios)', contract: 'var(--color-accent-magenta)', proposal: 'var(--color-warning)', invoice: 'var(--color-success-alt)', spec_sheets: 'var(--color-info)', maintenance: 'var(--color-success)', manuals: 'var(--color-accent-indigo)', other: 'var(--color-text-faint-alt)' };
 
 const DOC_TABS = [
   { id: '', label: 'All' },
-  { id: 'spec_sheets', label: 'Spec Sheets' },
-  { id: 'pre_install', label: 'Pre-Install' },
-  { id: 'maintenance', label: 'Maintenance' },
-  { id: 'manuals', label: 'Manuals' },
-  { id: 'contract', label: 'Contracts' },
-  { id: 'general', label: 'General' },
+  { id: 'pre_install', label: 'Pre-Install Information' },
+  { id: 'certificates', label: 'Certificates' },
+  { id: 'processes', label: 'Processes' },
 ];
+
+// Iter 284 — certificate expiry status: past = red, within 30 days = amber.
+function expiryStatus(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+  const label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (days < 0) return { tone: 'red', text: `Expired ${label}`, days };
+  if (days <= 30) return { tone: 'amber', text: `Expires ${label} · ${days}d`, days };
+  return { tone: 'ok', text: `Expires ${label}`, days };
+}
 
 function formatSize(bytes) {
   if (!bytes) return '-';
@@ -41,8 +61,9 @@ export default function CRMDocuments() {
   const [catFilter, setCatFilter] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadCat, setUploadCat] = useState('general');
+  const [uploadCat, setUploadCat] = useState('pre_install');
   const [uploadNotes, setUploadNotes] = useState('');
+  const [uploadExpiry, setUploadExpiry] = useState('');
   const fileRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -66,13 +87,15 @@ export default function CRMDocuments() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      const qs = `category=${uploadCat}&notes=${encodeURIComponent(uploadNotes)}${uploadExpiry ? `&expiry_date=${encodeURIComponent(uploadExpiry)}` : ''}`;
       await axios.post(
-        `${API}/crm/v2/documents?category=${uploadCat}&notes=${encodeURIComponent(uploadNotes)}`,
+        `${API}/crm/v2/documents?${qs}`,
         formData, { headers: { ...headers(), 'Content-Type': 'multipart/form-data' } }
       );
       setShowUpload(false);
       setUploadNotes('');
-      setUploadCat('general');
+      setUploadExpiry('');
+      setUploadCat('pre_install');
       load();
     } catch (e) { console.error(e); }
     setUploading(false);
@@ -102,7 +125,7 @@ export default function CRMDocuments() {
           style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}`, color: c.text }}
           data-testid="doc-filter">
           <option value="">All categories</option>
-          {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ')}</option>)}
+          {DOC_TABS.filter(t => t.id).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
         <p className="text-xs ml-auto" style={{ color: c.textDim }}>{total} file{total !== 1 ? 's' : ''}</p>
         <button type="button" onClick={() => setShowUpload(true)} className="btn-primary" data-testid="upload-doc-btn">
@@ -145,8 +168,27 @@ export default function CRMDocuments() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{doc.original_filename}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${color}20`, color }}>{doc.category}</span>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${color}20`, color }}>{CAT_LABELS[doc.category] || doc.category}</span>
+                    {(() => {
+                      const ex = expiryStatus(doc.expiry_date);
+                      if (!ex) return null;
+                      const styleMap = {
+                        red: { bg: 'var(--color-danger, #ef4444)', fg: '#fff' },
+                        amber: { bg: 'var(--color-warning, #f59e0b)', fg: '#fff' },
+                        ok: { bg: 'transparent', fg: c.textDim },
+                      };
+                      const s = styleMap[ex.tone];
+                      return (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                          style={ex.tone === 'ok'
+                            ? { color: s.fg, border: `1px solid ${c.border}` }
+                            : { background: s.bg, color: s.fg }}
+                          data-testid={`doc-expiry-${doc.id}`} title={ex.text}>
+                          <CalendarClock size={11} /> {ex.text}
+                        </span>
+                      );
+                    })()}
                     <span className="text-[11px]" style={{ color: c.textDim }}>{formatSize(doc.size)}</span>
                     <span className="text-[11px]" style={{ color: c.textDim }}>{doc.uploaded_by_name}</span>
                     <span className="text-[11px]" style={{ color: c.textDim }}>{new Date(doc.created_at).toLocaleDateString('en-GB')}</span>
@@ -179,10 +221,19 @@ export default function CRMDocuments() {
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Category</label>
                 <select value={uploadCat} onChange={e => setUploadCat(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}>
-                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="doc-upload-category-select">
+                  {UPLOAD_CATEGORIES.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
                 </select>
               </div>
+              {uploadCat === 'certificates' && (
+                <div data-testid="doc-upload-expiry-wrap">
+                  <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Expiry date <span className="normal-case text-[10px]" style={{ color: c.textDim }}>(so staff can see when to replace it)</span></label>
+                  <input type="date" value={uploadExpiry} onChange={e => setUploadExpiry(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                    data-testid="doc-upload-expiry" />
+                </div>
+              )}
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Notes</label>
                 <input value={uploadNotes} onChange={e => setUploadNotes(e.target.value)}
