@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
+import AreaSwitcher from '@/components/shared/AreaSwitcher';
+import { useAuth } from '@/App';
 // Iter 220e6 — Release readiness: outbox pill + global error reporter.
 import { OutboxStatusPill, installEngineerErrorReporters } from '@/utils/engineerStatusBoot';
 import PausedUploadsPill from './PausedUploadsPill';
@@ -176,6 +178,7 @@ export default function EngineerHomeV2() {
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { user: authUser } = useAuth();
   // Iter 220ea·33 — dismissible Legacy Import tile. Once an engineer has
   // migrated all their historic reports they may never need it again, so
   // they can hide it from Home (still reachable via Settings → Tools).
@@ -256,6 +259,9 @@ export default function EngineerHomeV2() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Iter 283 — compact Switch area (icon-only) for dual-access
+                engineers. Renders only when 2+ areas are reachable. */}
+            <AreaSwitcher user={authUser} tone="icon" />
             {/* Iter 220e6 — Offline outbox status pill. Only renders
                 when offline or there are queued mutations. */}
             <OutboxStatusPill />
