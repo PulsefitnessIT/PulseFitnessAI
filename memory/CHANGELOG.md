@@ -1318,3 +1318,9 @@ Verified: backend via curl (409 dedupe, invoice log); frontend all 6 flows PASS 
 Verified: frontend testing agent 100% (iteration_switch_area_pulse_portal_stores_sla_jan2026.json), backend org-portal-login via curl.
 Note: after switching into Pulse Fitness Ltd the header shows the SITE name ("Pulse Fitness AI Head Office") — the org scoping is correct; only the site label reads that way.
 - **AreaSwitcher in Engineer app (compact icon variant)**: added `tone="icon"` — an icon-only round button (grid glyph, matches the engineer header's other round buttons) placed in the EngineerHomeV2 header next to the account/menu button. Keeps the already-stacked engineer UI compact. Also refined `accessibleAreas()` so "Main app" only appears for users with real operator/module access (a pure field engineer won't get a dead link); switcher still only renders when 2+ areas are reachable. Compiles clean.
+
+## 2026-07-16 — CRM Documents (company library) + certificate expiry
+- **Documents tab surfaced in CRM nav** (`CRMApp.js` — removed hideFromBar). Company-wide document library visible to all CRM staff.
+- **Sub-tabs reshaped** to the three requested: All / Pre-Install Information / Certificates / Processes (`CRMDocuments.js`). Upload category select offers those three (default Pre-Install Information); legacy docs still show under All.
+- **Certificate expiry** (`crm_v2.py` upload_v2_document accepts+stores `expiry_date`; DOCUMENT_CATEGORIES adds certificates+processes): when Certificates is chosen, an Expiry date field appears. Each cert row shows an expiry badge — RED if expired, AMBER within 30 days ('Expires <date> · Nd'), neutral otherwise (`expiryStatus()`).
+- Verified: backend curl (upload/list/expiry/categories); frontend testing agent 100% (iteration_iter284_crm_docs_expiry.json).
