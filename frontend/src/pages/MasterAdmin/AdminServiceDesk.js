@@ -29,9 +29,10 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
   const [creating, setCreating] = useState(false);
   const [lastCreated, setLastCreated] = useState(null); // {email, temp_password, brand} when email failed
 
-  // Grant existing form
+  // Grant existing form — pick from a dropdown of current staff
   const [grantEmail, setGrantEmail] = useState('');
-  const [grantBrand, setGrantBrand] = useState(isPulseAdmin ? 'pulse' : 'gymaxis');
+  const [people, setPeople] = useState([]);
+  const grantBrand = isPulseAdmin ? 'pulse' : 'gymaxis';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,7 +45,14 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
     } finally { setLoading(false); }
   }, [API]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadPeople = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/master-admin/users`, authConfig());
+      setPeople(r.data.users || []);
+    } catch { /* dropdown just stays empty */ }
+  }, [API]);
+
+  useEffect(() => { load(); loadPeople(); }, [load, loadPeople]);
 
   const createUser = async () => {
     const email = createForm.email.trim().toLowerCase();
@@ -78,9 +86,9 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
     try {
       await axios.post(`${API}/master-admin/service-desk/members/grant`,
         { email, brand: grantBrand }, authConfig());
-      notify.success(`Granted ${grantBrand === 'pulse' ? 'Pulse' : 'Pulse Fitness'} Service Desk to ${email}`);
+      notify.success(`Granted Service Desk access to ${email}`);
       setGrantEmail('');
-      await load();
+      await load(); await loadPeople();
     } catch (e) {
       notifyApiError(notify, e, 'Grant failed');
     }
@@ -91,11 +99,17 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
     try {
       await axios.post(`${API}/master-admin/service-desk/members/revoke`, { email }, authConfig());
       notify.success(`Revoked Service Desk role from ${email}`);
-      await load();
+      await load(); await loadPeople();
     } catch (e) {
       notifyApiError(notify, e, 'Revoke failed');
     }
   };
+
+  // Staff who don't already have Service Desk access — the grant dropdown options
+  const memberEmails = new Set(members.map((m) => (m.email || '').toLowerCase()));
+  const candidates = people
+    .filter((p) => p.email && !memberEmails.has(p.email.toLowerCase()) && !p.is_service_desk)
+    .sort((a, b) => (a.full_name || a.email).localeCompare(b.full_name || b.email));
 
   return (
     <div className="space-y-4" data-testid="admin-service-desk">
@@ -106,9 +120,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
             {total} {total === 1 ? 'person has' : 'people have'} Service Desk access.{' '}
-            {isPulseAdmin
-              ? 'Nominate Pulse Fitness people — they are routed straight to the Service Desk when they sign in.'
-              : <>Two brands: <strong>Pulse Fitness</strong> and <strong>Pulse Fitness</strong>.</>}
+            Nominate Pulse Fitness Ltd staff — they’re routed straight to the Service Desk when they sign in.
           </p>
         </div>
         <Button
@@ -140,28 +152,6 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
               onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
               data-testid="desk-create-email"
             />
-          </div>
-          <div className="text-xs uppercase tracking-wider font-bold text-zinc-500 mb-1">Service Desk brand</div>
-          <div className="flex gap-2 mb-3">
-            {[
-              { v: 'gymaxis', label: 'Pulse Fitness Service Desk' },
-              { v: 'pulse',   label: 'Pulse Fitness Service Desk' },
-            ].filter((b) => !isPulseAdmin || b.v === 'pulse').map((b) => {
-              const active = createForm.brand === b.v;
-              return (
-                <button
-                  key={b.v}
-                  type="button"
-                  onClick={() => setCreateForm((f) => ({ ...f, brand: b.v }))}
-                  className={`flex-1 text-sm px-3 py-2 rounded-md border-2 transition ${active
-                    ? (b.v === 'pulse' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-cyan-500 bg-cyan-50 text-cyan-700')
-                    : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}
-                  data-testid={`desk-create-brand-${b.v}`}
-                >
-                  {b.label}
-                </button>
-              );
-            })}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating} data-testid="desk-create-cancel">Cancel</Button>
@@ -205,22 +195,18 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
       <Card className="p-5">
         <div className="text-sm font-medium text-zinc-900 mb-2">Grant Service Desk role to an existing user</div>
         <div className="flex flex-wrap gap-2 items-center">
-          <Input
-            type="email"
-            placeholder="user@example.com"
+          <select
             value={grantEmail}
             onChange={(e) => setGrantEmail(e.target.value)}
-            className="flex-1 min-w-[260px]"
-            data-testid="desk-grant-email"
-          />
-          <select
-            value={grantBrand}
-            onChange={(e) => setGrantBrand(e.target.value)}
-            className="text-sm border border-zinc-200 rounded-md px-2 py-1.5 bg-white"
-            data-testid="desk-grant-brand"
+            className="flex-1 min-w-[300px] text-sm border border-zinc-200 rounded-md px-3 py-2 bg-white"
+            data-testid="desk-grant-user"
           >
-            {!isPulseAdmin && <option value="gymaxis">Pulse Fitness</option>}
-            <option value="pulse">Pulse</option>
+            <option value="">Select a staff member…</option>
+            {candidates.map((p) => (
+              <option key={p.id || p.email} value={p.email}>
+                {(p.full_name || p.email)}{p.full_name ? ` — ${p.email}` : ''}{p.job_title ? ` · ${p.job_title}` : ''}
+              </option>
+            ))}
           </select>
           <Button
             onClick={grantExisting}
@@ -228,9 +214,12 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
             className="bg-zinc-800 hover:bg-zinc-900 text-white"
             data-testid="desk-grant-btn"
           >
-            <UserPlus className="w-4 h-4 mr-1" /> Grant
+            <UserPlus className="w-4 h-4 mr-1" /> Grant access
           </Button>
         </div>
+        {candidates.length === 0 && (
+          <p className="text-xs text-zinc-500 mt-2">All staff already have Service Desk access, or no other staff exist yet.</p>
+        )}
       </Card>
 
       {/* Members list */}
@@ -253,11 +242,7 @@ export default function AdminServiceDesk({ API, isPulseAdmin = false }) {
                   <div className="text-xs text-zinc-500 truncate">{m.email}</div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
-                  {m.service_desk_brand && (
-                    <Badge variant="outline" className={`text-[10px] ${BRAND_BADGE[m.service_desk_brand] || ''}`}>
-                      {m.service_desk_brand === 'pulse' ? 'Pulse' : 'Pulse Fitness'}
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200">Service Desk</Badge>
                   {m.must_change_password && (
                     <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">Pending first sign-in</Badge>
                   )}

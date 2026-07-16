@@ -165,9 +165,27 @@ def _module_access_payload(target: dict, org: Optional[dict]) -> dict:
             "fix_action": action,  # null | "grant_org" | "restore_user"
         })
 
+    # Informational (non-org-module) access flags the People drawer should show:
+    #   • Service Desk hub access   • Engineer app access
+    role = (target.get("role") or "").lower()
+    has_desk = bool(target.get("is_service_desk"))
+    has_engineer = role == "engineer" or bool(target.get("is_engineer")) or bool(target.get("engineer_id"))
+    if privileged:
+        has_desk = True
+    modules.append({
+        "key": "service_desk", "label": "Service Desk", "blurb": "Service Desk hub (/service-desk)",
+        "org_enabled": True, "user_access": has_desk or privileged,
+        "reason": ("Full access — " + priv_label) if privileged else ("Service Desk member" if has_desk else "No Service Desk access"),
+        "fix_action": None, "informational": True,
+    })
+    modules.append({
+        "key": "engineer", "label": "Engineer app", "blurb": "Field engineer app (/engineer)",
+        "org_enabled": True, "user_access": has_engineer or privileged,
+        "reason": ("Full access — " + priv_label) if privileged else ("Engineer" if has_engineer else "Not an engineer"),
+        "fix_action": None, "informational": True,
+    })
+
     return {
-        "user_id": target.get("id"),
-        "account_type": (org or {}).get("account_type") or target.get("account_type") or "—",
         "organization_name": (org or {}).get("name") or "",
         "organization_id": (org or {}).get("id"),
         "is_privileged": privileged,
