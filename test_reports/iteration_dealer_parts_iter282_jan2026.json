@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend E2E testing of Iter 282 Dealer Parts changes (Stock Movement merged tab + sub-tabs, unsaved-work confirm() guard on Allocation Wizard, invoice-number field, duplicate invoice HARD-BLOCK, dealer invoice log). All 6 acceptance criteria PASS end-to-end against the preview URL. Tested via owner@isodemo.com against Fitline Deutschland dealer.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AllocationWizardTab dealer <select>", "issues": ["React hydration warning in console: '<span> cannot be a child of <option>' — caused by visual-editor instrumentation wrapping option text in a <span>. Non-blocking (dealer select still works and value posts correctly). Consider suppressing the x-source-* wrapper for children of <option>."]}
+    ]
+  },
+  "acceptance_results": {
+    "1_tabs_merged": "PASS — dp-tab-stock-movement present (count=1); dp-tab-ledger / dp-tab-replenishment / dp-tab-rma no longer exist as top-level tabs (count=0 each).",
+    "2_sub_tabs": "PASS — clicking Stock Movement renders dp-stock-sub-ledger / dp-stock-sub-replenishment / dp-stock-sub-rma; switching between them renders each child tab without errors.",
+    "3_unsaved_guard": "PASS — with empty wizard, switching top tab does NOT prompt. After typing order value, switching top tab shows window.confirm 'You have unsaved work in this section...'. Dismissing keeps user on dp-wiz-step0; accepting navigates away (dealers tab visible).",
+    "4_invoice_field": "PASS — dp-wiz-invoice-ref input exists in step 0 with helper text 'logged against the dealer; each invoice can only be allocated once'.",
+    "5_duplicate_hard_block": "PASS — Created 1st allocation with UITEST-282147 -> succeeded (step2 visible). Retrying same invoice -> approve returned 409, red banner dp-wiz-duplicate-warning shown after Back, dp-wiz-generate becomes disabled with label 'Invoice already used'. Toast 'already been allocated' also observed.",
+    "6_dealer_invoice_log": "PASS — Opening Fitline Deutschland dealer profile shows dp-dealer-invoices section with row dp-invoice-row-UITEST-282147 containing invoice ref, date 2026-07-16, parts count 12, Draft status badge and value £572."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: suppress the visual-editor <span> wrapping inside <option> to silence the hydration warning in the dealer select."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate warning banner dp-wiz-duplicate-warning is only rendered in step 0; when a 409 comes back at approve-time (step 1), the user must click Back to see the banner. UX-wise consider surfacing the banner on step 1 too, or auto-returning to step 0 on 409 approve.",
+    "Reset button (`Start over`) is not gated by the unsaved-work confirm — clicking it silently wipes state; consider gating.",
+    "beforeunload guard is correctly armed via dirtyRef; cleanup in useEffect return handler present."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Fitline Deutschland dealer_id 5e7fc632-eab1-4d6a-ad54-42d96b459f5c)",
+  "seed_data_creation": "Created one draft allocation UITEST-282147 against Fitline Deutschland (per user note, cleanup not required).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Nav path: /service-desk -> Stores sidebar -> Dealer Parts sub-tab. Dealer select uses <select value=dealer_id>; use value= (not label regex) in Playwright. Dealer picker BOM search 'a' returns 8 machines (works). window.confirm dialogs fired synchronously from onClick — Playwright must set page.on('dialog', ...) BEFORE the click."
+}

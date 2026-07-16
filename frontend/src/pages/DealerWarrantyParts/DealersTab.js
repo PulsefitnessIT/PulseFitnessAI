@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Building2, ArrowLeft, MapPin, Boxes, Package, KeyRound } from 'lucide-react';
+import { Plus, Search, Building2, ArrowLeft, MapPin, Boxes, Package, KeyRound, FileText } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { StatCard, Spinner, Modal, Field, input, money, StatusBadge } from './shared';
@@ -92,6 +92,32 @@ function DealerDetail({ dealerId, onBack }) {
                 <span className="text-xs text-slate-400">{u.must_change_password ? 'Awaiting first login' : 'Active'}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5" data-testid="dp-dealer-invoices">
+        <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2"><FileText size={15} /> Invoices with parts allocated ({(data.invoices || []).length})</h3>
+        {(data.invoices || []).length === 0 ? (
+          <p className="text-sm text-slate-400">No invoices have had parts allocated yet. Each invoice can only be allocated once.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                <th className="py-2">Invoice #</th><th>Allocated</th><th>Parts</th><th>Status</th><th className="text-right">Value</th>
+              </tr></thead>
+              <tbody>
+                {data.invoices.map((inv) => (
+                  <tr key={inv.allocation_id} className="border-b border-slate-50" data-testid={`dp-invoice-row-${inv.invoice_reference}`}>
+                    <td className="py-2 font-mono text-xs font-semibold text-slate-700">{inv.invoice_reference}</td>
+                    <td className="text-xs text-slate-500">{inv.allocated_at ? String(inv.allocated_at).slice(0, 10) : '—'}</td>
+                    <td className="tabular-nums text-slate-500">{inv.parts_count}</td>
+                    <td><StatusBadge status={inv.status} /></td>
+                    <td className="text-right tabular-nums">{money(inv.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircl
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, inputTight, money } from './shared';
+import { useDealerPartsNav } from './navGuard';
 
 const PRIORITY_TONE = {
   critical: 'bg-red-50 text-red-700 border-red-200',
@@ -85,6 +86,8 @@ export default function AllocationWizardTab() {
   const [bomOpen, setBomOpen] = useState(null);        // machine ref whose BOM is expanded
   const [bomData, setBomData] = useState({});          // ref -> {loading, components}
   const [bomQuery, setBomQuery] = useState('');
+  const [invoiceRef, setInvoiceRef] = useState('');   // Iter 282 — invoice number for the allocation log + dedupe
+  const [dupInfo, setDupInfo] = useState(null);        // duplicate-invoice warning from the parser
   const fileRef = useRef(null);
 
   const loadBom = (ref) => {
@@ -112,6 +115,16 @@ export default function AllocationWizardTab() {
 
   useEffect(() => { dpApi.listDealers().then((d) => setDealers(d.dealers || [])); }, []);
 
+  // Iter 282 — report unsaved-work state so the page can warn before the
+  // user navigates away mid-allocation. Step 2 is the completed screen.
+  const { setDirty } = useDealerPartsNav();
+  const isDirty = step === 1 || (step === 0 && (
+    !!dealerId || !!orderValue || !!invoiceRef || !!rec || !!aiInfo ||
+    lines.some((l) => (l.machine_ref || '').trim())
+  ));
+  useEffect(() => { setDirty(isDirty); }, [isDirty, setDirty]);
+  useEffect(() => () => setDirty(false), [setDirty]);
+
   const setLine = (i, k, v) => { const n = [...lines]; n[i][k] = v; setLines(n); };
 
   const pickMachine = (i, m) => {
@@ -138,6 +151,13 @@ export default function AllocationWizardTab() {
       }));
       if (newLines.length) setLines(newLines);
       if (res.order_value) setOrderValue(String(res.order_value));
+      if (res.order_reference) setInvoiceRef(res.order_reference);
+      if (res.duplicate_invoice) {
+        setDupInfo({ dealer: res.duplicate_dealer_name, at: res.duplicate_allocated_at });
+        notify.error(`Invoice ${res.order_reference} has already been allocated${res.duplicate_dealer_name ? ` to ${res.duplicate_dealer_name}` : ''}.`);
+      } else {
+        setDupInfo(null);
+      }
       setAiInfo({ ref: res.order_reference, currency: res.currency, matched: res.matched_count, total: res.lines?.length || 0, note: res.note,
         machinesTotal: res.machines_total, machinesMatched: res.machines_matched, source: res.source });
       const machineMsg = res.machines_total != null
@@ -184,16 +204,24 @@ export default function AllocationWizardTab() {
   const approve = async () => {
     const items = selectedItems();
     if (items.length === 0) { notify.error('No items to allocate'); return; }
+    if (dupInfo) { notify.error('This invoice has already been allocated — change the invoice number to continue.'); return; }
     setBusy(true);
     try {
-      const alloc = await dpApi.createAllocation({ dealer_id: dealerId, items });
+      const alloc = await dpApi.createAllocation({ dealer_id: dealerId, items, invoice_reference: invoiceRef.trim() });
       notify.success(`Allocation created — ${items.length} parts (draft). Open the Allocations tab to submit & dispatch.`);
       setRec({ ...rec, _createdAllocId: alloc.id });
       setStep(2);
-    } catch { notify.error('Failed to create allocation'); } finally { setBusy(false); }
+    } catch (e) {
+      if (e?.response?.status === 409) {
+        setDupInfo({ dealer: '', at: null });
+        notify.error(e?.response?.data?.detail || 'This invoice has already been allocated.');
+      } else {
+        notify.error('Failed to create allocation');
+      }
+    } finally { setBusy(false); }
   };
 
-  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); };
+  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); };
 
   const liveTotal = () => {
     let t = 0;
@@ -240,6 +268,15 @@ export default function AllocationWizardTab() {
               <label className="block"><span className="text-xs font-semibold text-slate-500 mb-1 block">Spare parts % (blank = dealer/global default)</span>
                 <input data-testid="dp-wiz-pct" type="number" className={input} value={pct} onChange={(e) => setPct(e.target.value)} placeholder="2.5" /></label>
             </div>
+            <label className="block"><span className="text-xs font-semibold text-slate-500 mb-1 block">Invoice number <span className="text-slate-400 font-normal">— logged against the dealer; each invoice can only be allocated once</span></span>
+              <input data-testid="dp-wiz-invoice-ref" className={`${input} font-mono ${dupInfo ? 'border-red-300 bg-red-50/50' : ''}`} value={invoiceRef}
+                onChange={(e) => { setInvoiceRef(e.target.value); setDupInfo(null); }} placeholder="e.g. INV-2051 (auto-filled from the invoice)" /></label>
+            {dupInfo && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700 flex items-start gap-2" data-testid="dp-wiz-duplicate-warning">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <div><b>Invoice already used.</b> Invoice <span className="font-mono">{invoiceRef}</span> has already had parts allocated{dupInfo.dealer ? ` to ${dupInfo.dealer}` : ''}. Change the invoice number to continue — an invoice can only be allocated once.</div>
+              </div>
+            )}
           </div>
 
           <div
@@ -330,9 +367,9 @@ export default function AllocationWizardTab() {
             ))}
           </div>
 
-          <button data-testid="dp-wiz-generate" onClick={generate} disabled={busy}
+          <button data-testid="dp-wiz-generate" onClick={generate} disabled={busy || !!dupInfo}
             className="inline-flex items-center gap-2 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
-            <Wand2 size={16} /> {busy ? 'Generating…' : 'Generate recommendation'}
+            <Wand2 size={16} /> {busy ? 'Generating…' : dupInfo ? 'Invoice already used' : 'Generate recommendation'}
           </button>
         </div>
       )}

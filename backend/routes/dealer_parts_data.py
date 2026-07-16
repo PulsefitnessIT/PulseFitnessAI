@@ -1855,14 +1855,37 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
             "machine_description": m.get("description") if m else None,
         })
     await _audit(org, user, "ai_invoice_parse", filename=filename, ok=True, lines=len(lines))
+    order_ref = parsed.get("order_reference", "")
+    dup_info = await _invoice_duplicate_info(org, order_ref)
     return {
         "available": True, "advisory_only": True,
-        "order_reference": parsed.get("order_reference", ""),
+        "order_reference": order_ref,
         "currency": parsed.get("currency", ""),
         "order_value": parsed.get("order_value", 0),
         "note": parsed.get("note", ""),
         "lines": lines,
         "matched_count": sum(1 for l in lines if l["matched"]),
+        **dup_info,
+    }
+
+
+async def _invoice_duplicate_info(org: str, invoice_reference: str) -> dict:
+    """Iter 282 — check whether this invoice number has already been allocated
+    anywhere in the org, so the wizard can hard-block a duplicate upload."""
+    ref = (invoice_reference or "").strip()
+    norm = ref.upper().replace(" ", "")
+    if not norm:
+        return {"duplicate_invoice": False}
+    dup = await db[ALLOCATIONS].find_one(
+        {"organization_id": org, "invoice_reference_norm": norm, "status": {"$ne": "cancelled"}},
+        {"_id": 0, "dealer_name": 1, "created_at": 1, "id": 1},
+    )
+    if not dup:
+        return {"duplicate_invoice": False}
+    return {
+        "duplicate_invoice": True,
+        "duplicate_dealer_name": dup.get("dealer_name") or "",
+        "duplicate_allocated_at": dup.get("created_at"),
     }
 
 

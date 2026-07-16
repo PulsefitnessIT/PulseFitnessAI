@@ -237,15 +237,37 @@ async def get_dealer(dealer_id: str, user=Depends(get_current_user)):
     stock_value = sum((s.get("qty_on_hand") or 0) * (s.get("unit_value") or 0) for s in stock)
     allowance_total = sum(o.get("allowance") or 0 for o in orders)
     approved_value = sum(a.get("approved_value") or 0 for a in allocs if a.get("status") not in ("draft", "cancelled"))
+    # Iter 282 — invoice allocation log: every invoice this dealer has had
+    # parts allocated against (deduped by invoice number, newest first).
+    invoices = []
+    seen_inv = set()
+    for a in allocs:
+        ref = (a.get("invoice_reference") or "").strip()
+        if not ref or a.get("status") == "cancelled":
+            continue
+        key = ref.upper().replace(" ", "")
+        if key in seen_inv:
+            continue
+        seen_inv.add(key)
+        invoices.append({
+            "invoice_reference": ref,
+            "allocation_id": a.get("id"),
+            "status": a.get("status"),
+            "value": a.get("recommended_value") or a.get("approved_value") or 0,
+            "parts_count": len(a.get("items") or []),
+            "allocated_at": a.get("created_at"),
+        })
     return {
         "dealer": dealer,
         "orders": orders,
         "allocations": allocs,
+        "invoices": invoices,
         "stores": stores,
         "stock": stock,
         "rollup": {
             "orders_count": len(orders),
             "allocations_count": len(allocs),
+            "invoices_count": len(invoices),
             "stores_count": len(stores),
             "stock_lines": len(stock),
             "stock_value": round(stock_value, 2),
@@ -449,6 +471,22 @@ async def create_allocation(data: dict, user=Depends(get_current_user)):
     order = None
     if order_id:
         order = await db[ORDERS].find_one({"organization_id": org, "id": order_id}, {"_id": 0})
+    # Iter 282 — capture the source invoice number so Pulse Fitness has a log
+    # of which invoices have had parts allocated, and HARD-BLOCK re-using an
+    # invoice already allocated anywhere in the org (avoids double allocation).
+    invoice_reference = (data.get("invoice_reference") or (order or {}).get("invoice_reference") or "").strip()
+    invoice_norm = invoice_reference.upper().replace(" ", "")
+    if invoice_norm:
+        dup = await db[ALLOCATIONS].find_one(
+            {"organization_id": org, "invoice_reference_norm": invoice_norm,
+             "status": {"$ne": "cancelled"}},
+            {"_id": 0, "dealer_name": 1, "created_at": 1},
+        )
+        if dup:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Invoice {invoice_reference} has already been allocated to {dup.get('dealer_name') or 'another dealer'}. Each invoice can only be used once.",
+            )
     items = []
     for it in (data.get("items") or []):
         items.append({
@@ -470,6 +508,8 @@ async def create_allocation(data: dict, user=Depends(get_current_user)):
         "dealer_name": dealer["name"],
         "order_id": order_id,
         "order_reference": order.get("order_reference") if order else "",
+        "invoice_reference": invoice_reference,
+        "invoice_reference_norm": invoice_norm,
         "items": items,
         "recommended_value": value,
         "approved_value": 0.0,
