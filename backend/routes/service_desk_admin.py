@@ -244,17 +244,24 @@ async def grant_service_desk(
         now_iso = datetime.now(timezone.utc).isoformat()
         expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         full_name = sanitise_string(crm.get("full_name") or crm.get("name") or email.split("@")[0])
+        # Iter 281 — PRESERVE the contact's organisation + role. Service Desk
+        # is an ADDITIVE flag (`is_service_desk`), not a role. Previously we
+        # set organization_id=None + role="service_desk", which detached the
+        # person from their org (they vanished from the org's People tab) —
+        # Honey Hancock bug. Org staff must stay attached to their org.
+        crm_org = crm.get("organization_id")
+        crm_role = crm.get("role") or "staff"
         new_doc = {
             "id": user_id, "email": email, "full_name": full_name,
             "password": hash_password(temp_password),
-            "role": "service_desk", "is_service_desk": True,
+            "role": crm_role, "is_service_desk": True,
             "is_master_admin": False, "is_pulse_admin": False,
             "must_change_password": True, "temp_password_expires_at": expires_at,
             "service_desk_brand": brand, "service_desk_granted_at": now_iso,
             "service_desk_granted_by": user["id"], "service_desk_granted_by_email": user["email"],
             "provisioned_by": user.get("email"), "provisioned_from_crm": crm.get("id"),
-            "organization_id": None,
-            "service_org_id": user.get("organization_id") or user.get("service_org_id"),
+            "organization_id": crm_org,
+            "service_org_id": crm_org or user.get("organization_id") or user.get("service_org_id"),
             "subscription_tier": "none",
             "company_name": "Pulse Fitness" if brand == "pulse" else "Pulse Fitness AI",
             "active": True, "created_at": now_iso, "last_login": None,
@@ -268,6 +275,18 @@ async def grant_service_desk(
         return {"success": True, "email": email, "brand": brand, "provisioned": True,
                 "email_sent": email_sent, "temp_password": temp_password}
     if target.get("is_service_desk"):
+        # Iter 281 — self-heal: an earlier bug detached org staff from their
+        # org (organization_id=None). If this desk user has no org but a CRM
+        # contact with the same email does, re-attach it so they reappear in
+        # the org's People tab.
+        if not target.get("organization_id"):
+            crm = await db.crm_users.find_one({"email": email}, {"_id": 0, "organization_id": 1})
+            if crm and crm.get("organization_id"):
+                await db.users.update_one(
+                    {"id": target["id"]},
+                    {"$set": {"organization_id": crm["organization_id"]}},
+                )
+                return {"success": True, "already_service_desk": True, "org_reattached": True}
         return {"success": True, "already_service_desk": True}
 
     now = datetime.now(timezone.utc).isoformat()
@@ -278,8 +297,9 @@ async def grant_service_desk(
         "service_desk_granted_by": user["id"],
         "service_desk_granted_by_email": user["email"],
     }
-    # Iter 244 — org-less (platform-level) users need a working service org
-    # for the org-scoped Service-Ops surfaces (cases / scheduler / engineers).
+    # Iter 281 — an existing org user KEEPS their organization_id (grant is
+    # additive). Only backfill a service_org_id when they're a platform-level
+    # (org-less) user, so the org-scoped Service-Ops surfaces still resolve.
     if not target.get("organization_id") and not target.get("service_org_id"):
         svc_org = user.get("organization_id") or user.get("service_org_id")
         if svc_org:

@@ -568,6 +568,12 @@ def _merge_users_by_email(sp_users: list, crm_list: list) -> list:
                 existing["portals"].append("crm")
             if not existing.get("avatar_url") and u.get("avatar_url"):
                 existing["avatar_url"] = u["avatar_url"]
+            # Iter 281 — if the Service Portal row has no org (e.g. a Service
+            # Desk agent provisioned from a CRM contact before the org-preserve
+            # fix), adopt the CRM row's org so the person still shows under
+            # their organisation instead of vanishing to "N/A".
+            if not existing.get("organization_id") and u.get("organization_id"):
+                existing["organization_id"] = u["organization_id"]
         else:
             u = dict(u)
             u["portals"] = ["crm"]
