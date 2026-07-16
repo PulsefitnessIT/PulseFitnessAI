@@ -93,7 +93,7 @@ import ConsolidatedTabsBar from './MasterAdmin/ConsolidatedTabsBar';
 import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
 // Iter 216h17 — brand context for Master Admin (Phase 1 IA redesign).
 import { BrandContextProvider, useBrandContext } from './MasterAdmin/BrandContext';
-import BrandPicker from './MasterAdmin/BrandPicker';
+import BrandPicker from './MasterAdmin/BrandPicker';  // eslint-disable-line no-unused-vars -- retained for future multi-brand; picker hidden Iter 285
 
 const MasterAdminPage = ({ _onBack }) => {
   const { user, API, logout } = useAuth();
@@ -216,20 +216,11 @@ const MasterAdminPage = ({ _onBack }) => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Iter 283 — "Pulse Fitness Portal" opens the actual PULSE FITNESS LTD
-  // organisation's operator portal (not the platform "Pulse Fitness AI" admin
-  // preview). We locate the Pulse Fitness Ltd org and switch into it via the
-  // org-portal-login impersonation flow, exactly like the org picker.
-  const handlePulseSwitch = async () => {
-    const orgs = organizations || [];
-    const pulseOrg = orgs.find((o) => (o.name || '').trim().toLowerCase() === 'pulse fitness ltd')
-      || orgs.find((o) => (o.name || '').toLowerCase().includes('pulse fitness ltd'))
-      || orgs.find((o) => (o.name || '').toLowerCase().startsWith('pulse fitness') && !(o.name || '').toLowerCase().includes(' ai'));
-    if (pulseOrg) {
-      try { await handleOrgSwitch(pulseOrg.id); return; } catch { /* fall through */ }
-    }
-    window.location.href = '/dashboard?as=operator';
-  };
+  // Iter 285 — "Pulse Fitness Portal" opens the operator dashboard AS THE
+  // MASTER ADMIN (no impersonation). Previously it impersonated the org owner
+  // (Lee Somers), which the master admin should not have to do just to view
+  // the portal. `?as=operator` renders the operator surface for the admin.
+  const handlePulseSwitch = () => { window.location.href = '/dashboard?as=operator'; };
   const handleOrgSwitch = async (orgId) => {
     const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true });
     const impToken = res.data?.token;
@@ -674,7 +665,9 @@ const MasterAdminPage = ({ _onBack }) => {
             {/* Iter 222 — Pulse Fitness platform email-deliverability health is
                 internal platform infra; hidden for delegated Pulse admins. */}
             {!isPulseAdmin && <EmailHealthPill />}
-            <BrandPicker isPulseAdmin={isPulseAdmin} />
+            {/* Iter 285 — Brand switcher removed: there is now a single Pulse
+                Fitness brand, so the picker only added confusing duplicate
+                "Pulse Fitness" entries. Brand context stays 'all' (everything). */}
             <Button
               size="sm"
               variant="outline"
