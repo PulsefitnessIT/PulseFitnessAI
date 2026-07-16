@@ -1282,3 +1282,11 @@ Dealer Parts full module now has 17 tabs: Dashboard, Data Imports, Most-Used Ana
 - The screen now shows: stat cards (Allowance, Pack value, Allowance remaining, Duplicates avoided, Unmatched lines) → note banner → "Choose parts from the machine BOM" browser → single consolidated "Recommended parts" list → dedup banner → Approve. The consolidated list is the single source of what will be sent. Auto-fit still sizes the pack to the allowance; manual tweaks via the BOM browser.
 - qtyFor/qtyOverrides retained (used by consolidated list + reset); no functional regression to allocation creation.
 - PRODUCTION — requires redeploy.
+
+## 2026-07-16 — Master Admin Service Desk team fixes (verified by testing agent, 100%)
+- BUG: "Grant Service Desk role to an existing user" free-text email box wouldn't let you continue. Replaced with a DROPDOWN of current staff (AdminServiceDesk.js, data-testid=desk-grant-user) populated from GET /master-admin/users, excluding people who already have Service Desk access. Grant sends the selected user's email. Old desk-grant-email / desk-grant-brand removed.
+- BUG: brand selector showed "Pulse Fitness" twice (legacy Gymaxis→Pulse rebrand). Removed the duplicate brand selectors from both the grant card and the create-user modal, fixed the "Two brands…" subtitle; members now show a single orange "Service Desk" badge. Brand value still sent by context (unchanged routing semantics).
+- FEATURE: Master Admin → People module-access drawer now includes two informational rows — "Service Desk" (key service_desk) and "Engineer app" (key engineer) — showing whether the user has that access (master_admin_users.py _module_access_payload).
+- Verified by testing agent: 4/4 backend pytest pass; frontend grant dropdown (35 staff), no duplicate brand, single badge, revoke, and new module rows all confirmed; end-to-end grant succeeded. Report: /app/test_reports/iteration_master_admin_desk_fixes_jan2026.json.
+- Non-critical note from review: legacy grantBrand/createForm.brand string literals ('pulse'/'gymaxis') remain as harmless dead-brand cruft.
+- PRODUCTION — requires redeploy.
