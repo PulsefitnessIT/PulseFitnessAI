@@ -1,0 +1,21 @@
+{
+  "summary": "Frontend verification for iter 285. Verified: (1) CRM mobile toolbar restructured cleanly at 390x844 with module pills row, controls row (mode switcher, quick-create, bell, kebab), and full-width search on own row; kebab menu opens with Staff filter, AI Tools, Settings — AI Tools and Settings items both switch tabs correctly. (2) CRM desktop at 1440x900 keeps inline crm-toolbar-ai + crm-toolbar-settings + inline staff filter; the crm-toolbar-more kebab is hidden. (3) Master Admin > Pulse Fitness Portal button navigates to /dashboard?as=operator with NO impersonation (user is 'Master Admin', not 'Lee Somers'; no Return to Master Admin banner; no impersonation_token in storage). (4) BrandPicker removed from Master Admin top bar. All 4 review items PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MasterAdminPage.js still imports BrandPicker with eslint-disable no-unused-vars; if truly retired, remove the import to keep bundle clean. Current comment says 'retained for future multi-brand' — acceptable but non-ideal."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! ; admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM auth uses /api/crm/auth/login; general /api/auth/login is rate-limited (~35s cooldown). Mobile viewport 390x844 required to see kebab (md:hidden). Master admin sidebar has data-testid portal-switch-pulse; clicking it does a hard nav to /dashboard?as=operator (no impersonation). BrandPicker no longer rendered in MasterAdminPage.js although import is retained."
+}

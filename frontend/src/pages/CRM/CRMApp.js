@@ -36,7 +36,7 @@ import { LEAD_SOURCE_OPTIONS, CRM_TASK_TYPE_OPTIONS, CRM_TASK_PRIORITY_OPTIONS }
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
-import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3, GitCompareArrows, Mail } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3, GitCompareArrows, Mail, MoreVertical } from 'lucide-react';
 import CampaignsPanel from '@/pages/Comms/CampaignsPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -502,6 +502,7 @@ export default function CRMApp() {
   // Settings, above the tab bar. CRMDashboard reads `staffFilter` from
   // context so it can scope its data to the chosen team member.
   const [staffFilter, setStaffFilter] = useState('mine');
+  const [moreOpen, setMoreOpen] = useState(false);  // Iter 285 — mobile toolbar overflow menu
 
   // ── CRM modes (Iter 215c) ─────────────────────────────────────────
   const crmModesData = useCRMModes();
@@ -937,71 +938,118 @@ export default function CRMApp() {
               subtitle="Pipeline, quotes, contracts & customer accounts."
               isPulseBranded={isPulseBrandedCRM}
             />
-            {/* Toolbar row — module switcher + search + quick actions
-                + staff filter + settings, all level with each other. */}
-            <div className="flex items-center gap-3 flex-wrap" data-testid="crm-toolbar">
-              <ModuleSwitcher user={platformUser} current="crm" />
-              <CRMModeSwitcher
-                modes={crmModesData.modes}
-                activeMode={activeMode}
-                onChange={handleModeChange}
-                brandAccent={brandCfg.accent}
-              />
-              <div className="hidden md:block flex-1 min-w-[160px] max-w-sm">
+            {/* Toolbar — mobile-first: module pills scroll on their own row,
+                a tidy controls row (mode + primary actions + overflow kebab),
+                and a full-width search below. Desktop keeps a single clean row. */}
+            <div className="flex flex-col md:flex-row md:items-center gap-3 w-full" data-testid="crm-toolbar">
+              {/* Module switcher — horizontal scroll on mobile instead of wrapping */}
+              <div className="w-full md:w-auto overflow-x-auto pb-0.5 md:pb-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+                <ModuleSwitcher user={platformUser} current="crm" />
+              </div>
+
+              {/* Controls row */}
+              <div className="flex items-center gap-2 w-full md:w-auto md:flex-1">
+                <CRMModeSwitcher
+                  modes={crmModesData.modes}
+                  activeMode={activeMode}
+                  onChange={handleModeChange}
+                  brandAccent={brandCfg.accent}
+                />
+                <div className="hidden md:block flex-1 min-w-[160px] max-w-sm">
+                  <GlobalSearchBar API={API} headers={headers} c={c} isDark={isDark} t={t} onNavigate={(type, id) => navigateTo(type, id)} />
+                </div>
+                <div className="flex items-center gap-2 ml-auto">
+                  <QuickCreateButton API={API} headers={headers} c={c} isDark={isDark} onCreated={(type) => {
+                    if (type === 'contact') setActiveTab('contacts');
+                    else if (type === 'deal') setActiveTab('pipeline');
+                    else if (type === 'case') setActiveTab('dashboard');
+                    else if (type === 'task') setActiveTab('inbox');
+                  }} />
+                  <NotificationsBell API={API} headers={headers} c={c} isDark={isDark} />
+
+                  {/* Desktop: secondary actions inline */}
+                  <div className="hidden md:flex items-center gap-2">
+                    {(['admin', 'owner', 'manager', 'director'].includes(user?.role)) && (
+                      <StaffFilterDropdown
+                        API={API} headers={headers} c={c} isDark={isDark}
+                        value={staffFilter} onChange={setStaffFilter} brandAccent={brandCfg.accent}
+                      />
+                    )}
+                    <button
+                      onClick={() => setActiveTab('ai-tools')}
+                      className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
+                      style={{ color: activeTab === 'ai-tools' ? brandCfg.accent : c.textMuted, borderColor: c.border }}
+                      aria-label="AI Tools" title="AI Tools — drafts, summaries, automation suggestions"
+                      data-testid="crm-toolbar-ai"
+                    >
+                      <Sparkles size={16} />
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('settings')}
+                      className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
+                      style={{ color: activeTab === 'settings' ? brandCfg.accent : c.textMuted, borderColor: c.border }}
+                      aria-label={t('crm.settings')} title={t('crm.settings')}
+                      data-testid="crm-toolbar-settings"
+                    >
+                      <Settings size={16} />
+                    </button>
+                  </div>
+
+                  {/* Mobile: secondary actions collapse into an overflow kebab */}
+                  <div className="relative md:hidden">
+                    <button
+                      onClick={() => setMoreOpen((o) => !o)}
+                      className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
+                      style={{ color: moreOpen ? brandCfg.accent : c.textMuted, borderColor: c.border }}
+                      aria-label="More actions" aria-expanded={moreOpen}
+                      data-testid="crm-toolbar-more"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    {moreOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+                        <div
+                          className="absolute right-0 top-11 w-56 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1"
+                          style={{ background: isDark ? 'var(--color-ink-alt, #18181b)' : '#ffffff', border: `1px solid ${c.border}` }}
+                          data-testid="crm-toolbar-more-menu"
+                        >
+                          {(['admin', 'owner', 'manager', 'director'].includes(user?.role)) && (
+                            <div className="px-1 pt-1 pb-1.5 border-b" style={{ borderColor: c.border }} data-testid="crm-toolbar-staff-filter-mobile">
+                              <p className="text-[10px] uppercase tracking-wider font-semibold px-2 mb-1.5" style={{ color: c.textDim }}>View records</p>
+                              <StaffFilterDropdown
+                                API={API} headers={headers} c={c} isDark={isDark}
+                                value={staffFilter} onChange={setStaffFilter} brandAccent={brandCfg.accent}
+                              />
+                            </div>
+                          )}
+                          <button
+                            onClick={() => { setActiveTab('ai-tools'); setMoreOpen(false); }}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                            style={{ color: activeTab === 'ai-tools' ? brandCfg.accent : c.text }}
+                            data-testid="crm-toolbar-ai-mobile"
+                          >
+                            <Sparkles size={16} /> AI Tools
+                          </button>
+                          <button
+                            onClick={() => { setActiveTab('settings'); setMoreOpen(false); }}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                            style={{ color: activeTab === 'settings' ? brandCfg.accent : c.text }}
+                            data-testid="crm-toolbar-settings-mobile"
+                          >
+                            <Settings size={16} /> {t('crm.settings')}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Full-width search on mobile */}
+              <div className="w-full md:hidden">
                 <GlobalSearchBar API={API} headers={headers} c={c} isDark={isDark} t={t} onNavigate={(type, id) => navigateTo(type, id)} />
               </div>
-              <div className="flex items-center gap-2 ml-auto">
-                <QuickCreateButton API={API} headers={headers} c={c} isDark={isDark} onCreated={(type) => {
-                  if (type === 'contact') setActiveTab('contacts');
-                  else if (type === 'deal') setActiveTab('pipeline');
-                  else if (type === 'case') setActiveTab('dashboard');
-                  else if (type === 'task') setActiveTab('inbox');
-                }} />
-                <NotificationsBell API={API} headers={headers} c={c} isDark={isDark} />
-                {(['admin', 'owner', 'manager', 'director'].includes(user?.role)) && (
-                  <StaffFilterDropdown
-                    API={API}
-                    headers={headers}
-                    c={c}
-                    isDark={isDark}
-                    value={staffFilter}
-                    onChange={setStaffFilter}
-                    brandAccent={brandCfg.accent}
-                  />
-                )}
-                <button
-                  onClick={() => setActiveTab('ai-tools')}
-                  className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
-                  style={{
-                    color: activeTab === 'ai-tools' ? brandCfg.accent : c.textMuted,
-                    borderColor: c.border,
-                  }}
-                  aria-label="AI Tools"
-                  title="AI Tools — drafts, summaries, automation suggestions"
-                  data-testid="crm-toolbar-ai"
-                >
-                  <Sparkles size={16} />
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
-                  style={{
-                    color: activeTab === 'settings' ? brandCfg.accent : c.textMuted,
-                    borderColor: c.border,
-                  }}
-                  aria-label={t('crm.settings')}
-                  title={t('crm.settings')}
-                  data-testid="crm-toolbar-settings"
-                >
-                  <Settings size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile-only search row (so the toolbar above stays
-                tidy on narrow screens). */}
-            <div className="mt-3 md:hidden">
-              <GlobalSearchBar API={API} headers={headers} c={c} isDark={isDark} t={t} onNavigate={(type, id) => navigateTo(type, id)} />
             </div>
           </div>
         )}
