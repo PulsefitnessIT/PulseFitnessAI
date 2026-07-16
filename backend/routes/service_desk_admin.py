@@ -232,7 +232,41 @@ async def grant_service_desk(
 
     target = await db.users.find_one({"email": email}, {"_id": 0})
     if not target:
-        raise HTTPException(status_code=404, detail=f"User {email} not found")
+        # The People dropdown also lists CRM contacts (e.g. a "Parts Administrator")
+        # who have no login account yet. If the email belongs to a CRM user,
+        # provision a proper Service Desk login for them (temp password + invite)
+        # instead of failing with "user not found".
+        crm = await db.crm_users.find_one({"email": email}, {"_id": 0})
+        if not crm:
+            raise HTTPException(status_code=404, detail=f"User {email} not found")
+        temp_password = _generate_temp_password()
+        user_id = str(uuid.uuid4())
+        now_iso = datetime.now(timezone.utc).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        full_name = sanitise_string(crm.get("full_name") or crm.get("name") or email.split("@")[0])
+        new_doc = {
+            "id": user_id, "email": email, "full_name": full_name,
+            "password": hash_password(temp_password),
+            "role": "service_desk", "is_service_desk": True,
+            "is_master_admin": False, "is_pulse_admin": False,
+            "must_change_password": True, "temp_password_expires_at": expires_at,
+            "service_desk_brand": brand, "service_desk_granted_at": now_iso,
+            "service_desk_granted_by": user["id"], "service_desk_granted_by_email": user["email"],
+            "provisioned_by": user.get("email"), "provisioned_from_crm": crm.get("id"),
+            "organization_id": None,
+            "service_org_id": user.get("organization_id") or user.get("service_org_id"),
+            "subscription_tier": "none",
+            "company_name": "Pulse Fitness" if brand == "pulse" else "Pulse Fitness AI",
+            "active": True, "created_at": now_iso, "last_login": None,
+        }
+        await db.users.insert_one(new_doc)
+        email_sent = await _send_service_desk_invite(email, full_name, temp_password, brand)
+        await log_desk_action(
+            user, "desk.grant_crm", "user", user_id,
+            f"Provisioned {brand} Service Desk login for CRM contact {email}",
+        )
+        return {"success": True, "email": email, "brand": brand, "provisioned": True,
+                "email_sent": email_sent, "temp_password": temp_password}
     if target.get("is_service_desk"):
         return {"success": True, "already_service_desk": True}
 
