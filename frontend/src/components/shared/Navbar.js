@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AccountPanel from '../../pages/AccountPanel';
 import AccountSettingsModal from './AccountSettingsModal';
+import AreaSwitcher from './AreaSwitcher';
 import CaptchaWidget from './CaptchaWidget';
 import axios from 'axios';
 import { useInlineBanner, notify } from '@/components/notifications';
@@ -466,6 +467,9 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <SiteSwitcher />
  )}
  
+ {/* Iter 283 — Switch area (Service Desk / Engineer app), next to account menu */}
+ <AreaSwitcher user={user} tone="header" />
+
  {/* User Menu Dropdown */}
  <div className="relative">
  <button

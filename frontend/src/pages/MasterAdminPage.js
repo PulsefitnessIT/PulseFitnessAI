@@ -216,11 +216,20 @@ const MasterAdminPage = ({ _onBack }) => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Iter 292 — "Pulse Fitness Portal" drops the operator (e.g. Lee at
-  // Pulse Fitness Ltd) straight into their OWN Operations dashboard via the
-  // ?as=operator flag — no self-impersonation, no Global view. The dropdown
-  // arrow beside it still opens the impersonation org-picker.
-  const handlePulseSwitch = () => { window.location.href = '/dashboard?as=operator'; };
+  // Iter 283 — "Pulse Fitness Portal" opens the actual PULSE FITNESS LTD
+  // organisation's operator portal (not the platform "Pulse Fitness AI" admin
+  // preview). We locate the Pulse Fitness Ltd org and switch into it via the
+  // org-portal-login impersonation flow, exactly like the org picker.
+  const handlePulseSwitch = async () => {
+    const orgs = organizations || [];
+    const pulseOrg = orgs.find((o) => (o.name || '').trim().toLowerCase() === 'pulse fitness ltd')
+      || orgs.find((o) => (o.name || '').toLowerCase().includes('pulse fitness ltd'))
+      || orgs.find((o) => (o.name || '').toLowerCase().startsWith('pulse fitness') && !(o.name || '').toLowerCase().includes(' ai'));
+    if (pulseOrg) {
+      try { await handleOrgSwitch(pulseOrg.id); return; } catch { /* fall through */ }
+    }
+    window.location.href = '/dashboard?as=operator';
+  };
   const handleOrgSwitch = async (orgId) => {
     const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true });
     const impToken = res.data?.token;

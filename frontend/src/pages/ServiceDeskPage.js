@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { can, isPulseAdmin } from '@/utils/capabilities';
 import AccountSettingsModal from '@/components/shared/AccountSettingsModal';
+import AreaSwitcher from '@/components/shared/AreaSwitcher';
 
 import DeskSummary from './ServiceDesk/DeskSummary';
 import DeskCustomers from './ServiceDesk/DeskCustomers';
@@ -423,6 +424,8 @@ export default function ServiceDeskPage() {
               <Badge variant="outline" className="mt-1 text-[9px] border-slate-200" data-testid="desk-pulse-admin-badge">Pulse Master Admin</Badge>
             )}
           </div>
+          {/* Iter 283 — Switch area (Main app / Engineer app) next to account controls */}
+          <AreaSwitcher user={user} tone="sidebar" className="mb-1" />
           {(user?.is_master_admin || isPulseAdmin(user)) && (
             <Button
               variant="ghost" size="sm"
