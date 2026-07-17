@@ -1,11 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   Sparkles, LayoutDashboard, Dumbbell, AlertTriangle, ClipboardCheck,
-  Users, BarChart3, Truck, LayoutGrid, FileText, ShieldAlert,
+  Users, BarChart3, Truck, LayoutGrid, FileText,
 } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUserPref } from '@/utils/userPrefs';
-import MODASERPortal from '../MODPortal/MODASERPortal';
 
 /**
  * Pulse Fitness Dashboard tab bar — aligned with Pulse Fitness Pro (iter 215d2).
@@ -23,12 +22,10 @@ import MODASERPortal from '../MODPortal/MODASERPortal';
  *
  *   Pulse Fitness /dashboard (this component) — identical order + labels.
  */
-const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole, isMOD = false }) => {
+const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole }) => {
   const pillBarRef = useRef(null);
   const [scrollable, setScrollable] = useState(false);
   const [hideStart] = useUserPref('hideStartTabs', false);
-  // Iter 288 — ASER opens as a full-screen overlay from a sub-menu tab (MOD only).
-  const [aserOpen, setAserOpen] = useState(false);
 
   useEffect(() => {
     if (!pillBarRef.current) return;
@@ -58,10 +55,6 @@ const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole, i
     { id: 'staffing',    label: t('dashboard.staffing'),     icon: Users },
     { id: 'reports',     label: t('dashboard.reports'),      icon: BarChart3 },
   );
-  // Iter 288 — MOD ASER register: opens as an overlay from the sub-menu bar
-  // (replaces the old red card inside the Reports tab). `action: true` means
-  // clicking it fires onAction instead of switching the active content tab.
-  if (isMOD) tabs.push({ id: 'aser', label: t('dashboard.aser', 'ASER'), icon: ShieldAlert, action: () => setAserOpen(true) });
   // Suppliers is owner/manager only — mirrors Pulse staff-tier behaviour.
   if (showSuppliers) tabs.push({ id: 'suppliers', label: t('dashboard.suppliers_tab'), icon: Truck });
   tabs.push({ id: 'gym-design', label: t('dashboard.gym_layout'), icon: LayoutGrid });
@@ -78,19 +71,6 @@ const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole, i
       >
         {tabs.map(tab => {
           const Icon = tab.icon;
-          if (tab.action) {
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={tab.action}
-                className={`${triggerClass} text-[var(--color-text-muted)] hover:text-[var(--theme-text)]`}
-                data-testid={`tab-${tab.id}`}
-              >
-                {Icon && <Icon size={14} />} {tab.label}
-              </button>
-            );
-          }
           return (
             <TabsTrigger
               key={tab.id}
@@ -126,7 +106,7 @@ const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole, i
           return (
             <button
               key={tab.id}
-              onClick={() => (tab.action ? tab.action() : setActiveTab(tab.id))}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
                 active ? 'text-white' : 'text-[var(--color-text-muted)] hover:text-white'
               }`}
@@ -138,7 +118,6 @@ const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole, i
           );
         })}
       </div>
-      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
     </>
   );
 };

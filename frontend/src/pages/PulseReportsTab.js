@@ -9,8 +9,9 @@ import {
 import axios from 'axios';
 import {
   BarChart3, TrendingUp, Wrench, AlertTriangle, CheckCircle,
-  PoundSterling, RefreshCw, Shield, Mail
+  PoundSterling, RefreshCw, Shield, Mail, ShieldAlert
 } from 'lucide-react';
+import MODASERPortal from './MODPortal/MODASERPortal';
 import RiskAssessmentTab from './RiskAssessmentTab';
 import CapexIntelligenceTab from './CapexIntelligenceTab';
 import IncidentsTab from './IncidentsTab';
@@ -26,6 +27,8 @@ const PulseReportsTab = () => {
   const [period, setPeriod] = useState('30d');
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState('performance');
+  const [aserOpen, setAserOpen] = useState(false);
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -104,6 +107,7 @@ const PulseReportsTab = () => {
           { id: 'operational', label: 'Operational Reports', icon: BarChart3 },
           { id: 'risk', label: 'Risk Assessments', icon: Shield },
           { id: 'incidents', label: 'H&S Incidents', icon: AlertTriangle },
+          ...(isMOD ? [{ id: 'aser', label: 'ASER', icon: ShieldAlert, action: true }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'capex', label: 'CAPEX Intelligence', icon: PoundSterling }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
         ].map(tab => {
@@ -113,7 +117,7 @@ const PulseReportsTab = () => {
               key={tab.id}
               type="button"
               className={`subtab-pill ${isActive ? 'is-active' : ''}`}
-              onClick={() => setSubTab(tab.id)}
+              onClick={() => (tab.action ? setAserOpen(true) : setSubTab(tab.id))}
               data-testid={`pulse-report-sub-${tab.id}`}
             >
               <tab.icon size={14} /> {tab.label}
@@ -289,6 +293,7 @@ const PulseReportsTab = () => {
       )}
       </>
       )}
+      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
     </div>
   );
 };

@@ -870,7 +870,7 @@ function App() {
  </>
  )}
  {user && <UnifiedAssistant />}
- {user && !isMODacct && <FeedbackWidget />}
+ {user && !(['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type)) && <FeedbackWidget />}
  {user && <GuidedTour />}
  {user && <SetupChecklist />}
  {user && <GlobalCommandPalette />}
