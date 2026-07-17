@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package, ShieldAlert } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
@@ -24,7 +24,8 @@ const LiteFaultsTab = ({
   selectedIssue, onSelectIssue,
   onLogFault, onFilterStatus, onFilterSeverity,
   onUpdateIssueStatus, suppliers = [],
-  getSeverityStyle, getSeverityLabel, getStatusColor
+  getSeverityStyle, getSeverityLabel, getStatusColor,
+  showReportIncident = false, onReportIncident,
 }) => {
   const [faultView, setFaultView] = useState('reactive');
   // Iter 216d — multi-machine fault jobs collapse into a single
@@ -141,6 +142,18 @@ const LiteFaultsTab = ({
             className={`subtab-pill ${faultView === 'ppm' ? 'is-active' : ''}`}
             onClick={() => setFaultView('ppm')} data-testid="lite-faults-view-ppm">
             <Calendar size={14} /> {t('faults.ppm', 'Planned Maintenance (PPM)')}
+          </button>
+        )}
+        {/* Iter 286 — Report Incident moved here (after Planned Maintenance)
+            from the old floating CTA. Opens the MOD personal-incident wizard. */}
+        {showReportIncident && (
+          <button type="button"
+            className="subtab-pill"
+            onClick={() => onReportIncident && onReportIncident()}
+            data-testid="lite-faults-report-incident"
+            style={{ color: 'var(--color-danger)' }}
+            title="Report a personal incident (RIDDOR)">
+            <ShieldAlert size={14} /> {t('faults.report_incident', 'Report Incident')}
           </button>
         )}
       </div>

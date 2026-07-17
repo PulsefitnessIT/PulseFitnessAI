@@ -1,0 +1,16 @@
+{
+  "summary": "Verified MOD dashboard UX fixes on mobile viewport (390x844) as MOD site owner aser.qa@army.mod.test. All 5 assertions PASS: (1) MOD/Lite dashboard loads (data-testid='lite-dashboard'), (2) NO 'AI Triage' tab in top pill row — visible tabs: Start, Dashboard, Equipment, Faults, Check Sheets, Documents, Staffing, Reports, Suppliers, (3) NO cross-module Memberships/'Explore Memberships'/'member booking' upsell tip anywhere on the MOD dashboard, (4) 'Report Incident' pill (data-testid='lite-faults-report-incident') now appears inside the Faults sub-menu, in the SAME parent as the other sub-pills and positioned AFTER 'Planned Maintenance (PPM)' (data-testid='lite-faults-view-ppm') — verified via compareDocumentPosition: ppmBeforeRp=true, sharesParent=true. Sub-pill order: Reactive Faults → Request a Part → Planned Maintenance (PPM) → Report Incident. Clicking the pill opens the MOD personal-incident wizard titled 'Report a personal incident' with the 'LOG INCIDENT' button, (5) The old floating red FAB (data-testid='mod-incident-launch') is GONE from the dashboard.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "MOD site owner aser.qa@army.mod.test / AserQA123!",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD dashboard top pill row is horizontally scrollable; the 'Faults' tab often lies off-screen. Playwright click() reports 'not visible' due to horizontal overflow — use JS el.scrollIntoView({inline:'center'}) followed by el.click() to interact. Bottom nav also has a 'Faults' item. Cookie banner 'Essential Only' should be dismissed first.",
+  "rca of the issue": "n/a — verification test only, no bug found"
+}

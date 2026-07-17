@@ -688,7 +688,9 @@ const LiteDashboardPage = () => {
       // underlying components stay separate (each is brand-tuned for
       // its portal); only the user-facing label is unified.
       { id: 'check-sheets', label: t('dashboard.check_sheets', 'Check Sheets'), icon: ClipboardCheck },
-      { id: 'ai-triage',    label: aiTabLabel,     icon: Brain },
+      // Iter 286 — AI Triage is hidden for MOD portals (not part of the MOD
+      // operations toolset); it stays for Pulse Pro / Pulse Fitness ops.
+      ...(!isMOD ? [{ id: 'ai-triage', label: aiTabLabel, icon: Brain }] : []),
       { id: 'documents',    label: t('dashboard.documents', 'Documents'),    icon: FileText },
       // Managers & owners see 'Staffing' (full workforce suite).
       // Staff see the same module labelled 'Gym Floor' (their limited
@@ -857,7 +859,10 @@ const LiteDashboardPage = () => {
             <ModuleSwitcher user={user} current="operations" />
           </div>
 
-          <CrossModuleTipsBanner mode="operations" />
+          {/* Iter 286 — MOD portals only ever run Operations; suppress the
+              cross-module upsell tips (Memberships/Marketing) so MOD users
+              only see operations-relevant guidance. */}
+          {!isMOD && <CrossModuleTipsBanner mode="operations" />}
 
           {/* Iter 238c — operator-facing 3-day Pro upgrade CTA. Shows
               for `account_type='lite'` only and disappears once the
@@ -983,6 +988,8 @@ const LiteDashboardPage = () => {
                 getSeverityStyle={getSeverityStyle}
                 getSeverityLabel={getSeverityLabel}
                 getStatusColor={getStatusColor}
+                showReportIncident={isMODSite}
+                onReportIncident={() => setIncidentOpen(true)}
               />
             </TabsContent>
 
@@ -1155,20 +1162,9 @@ const LiteDashboardPage = () => {
       {/* Floating Document Q&A for Pro users */}
       {isPro && activeTab !== 'documents' && <DocumentQA />}
 
-      {/* Iter 216h117 — MOD personal-incident floating CTA + wizard */}
-      {isMODSite && (
-        <button
-          type="button"
-          onClick={() => setIncidentOpen(true)}
-          className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 inline-flex items-center gap-2 px-4 py-3 rounded-full font-extrabold uppercase tracking-wider text-xs text-white shadow-lg shadow-rose-500/30"
-          style={{ background: '#dc2626' }}
-          data-testid="mod-incident-launch"
-          title="Report a personal incident (RIDDOR)"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2L4 7v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7l-8-5z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Report incident
-        </button>
-      )}
+      {/* Iter 286 — the floating "Report incident" CTA was removed (cluttered
+          the mobile bottom-right). Reporting is now launched from a pill in
+          the Faults sub-menu (after Planned Maintenance). Wizard unchanged. */}
       {isMODSite && incidentOpen && (
         <MODIncidentWizard
           onClose={() => setIncidentOpen(false)}
