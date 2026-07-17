@@ -1331,3 +1331,9 @@ Note: after switching into Pulse Fitness Ltd the header shows the SITE name ("Pu
 2. **Master Admin 'Pulse Fitness Portal' — no impersonation** (`MasterAdminPage.handlePulseSwitch`): reverted to `/dashboard?as=operator` so the master admin views the operator portal AS THEMSELVES (previously it impersonated org owner Lee Somers, which the user didn't want).
 3. **Brand switcher removed** (`MasterAdminPage.js`): `<BrandPicker/>` render removed from the Master Admin top bar (single Pulse Fitness brand now; picker only added confusing duplicate entries). Brand context stays 'all'.
 Verified: frontend testing agent 100% (iteration_iter285_crm_mobile_toolbar_pulse_portal_brandpicker.json).
+
+## 2026-07-16 — MOD portal UX fixes (mobile)
+1. **Report Incident relocated** (`LiteDashboardPage.js` + `LiteFaultsTab.js`): removed the cluttered floating red 'Report incident' FAB; it's now a pill in the Faults sub-menu AFTER 'Planned Maintenance (PPM)' (data-testid lite-faults-report-incident) that opens the MOD personal-incident wizard. Gated to isMODSite.
+2. **AI Triage hidden for MOD** (`LiteDashboardPage.js`): the 'ai-triage' tab is excluded when isMOD (mod_site/branch/org); still available for Pulse Pro/Fitness ops.
+3. **MOD tips operations-only**: CrossModuleTipsBanner (Memberships/Marketing upsells) hidden when isMOD, so MOD users no longer see the 'member booking / Explore Memberships' tip.
+Verified: frontend testing agent 100% on mobile viewport (iteration_mod_faults_report_incident_pill_jan2026.json). Reports/ASER UX polish deferred pending user pointing at the specific screen.
