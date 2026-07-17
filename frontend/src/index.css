@@ -727,6 +727,36 @@
   -webkit-text-fill-color: transparent !important;
 }
 
+/* ============================================================
+   Iter 287 — MOD report overlays (ASER register, etc.) were authored
+   as always-dark consoles (bg ink-deep / surface-darker + translucent
+   white text). In LIGHT mode the deep-dark backgrounds don't flip while
+   `.text-white` does → dark-on-dark washed-out text and stubbornly dark
+   modals. These overrides are SCOPED to `.mod-report-overlay` so they
+   only affect MOD reports (not marketing/membership dark islands that
+   legitimately reuse --color-surface-darker). In dark mode none of this
+   applies, so the console stays dark as designed.
+   ============================================================ */
+[data-theme="light"] .mod-report-overlay.bg-\[var\(--color-ink-deep\)\],
+[data-theme="light"] .mod-report-overlay .bg-\[var\(--color-ink-deep\)\] {
+  background-color: var(--theme-bg) !important;
+}
+[data-theme="light"] .mod-report-overlay .bg-\[var\(--color-surface-darker\)\] {
+  background-color: var(--theme-surface) !important;
+}
+[data-theme="light"] .mod-report-overlay .text-white\/80,
+[data-theme="light"] .mod-report-overlay .text-white\/90 {
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] .mod-report-overlay .text-white\/30,
+[data-theme="light"] .mod-report-overlay .text-white\/40,
+[data-theme="light"] .mod-report-overlay .text-white\/50,
+[data-theme="light"] .mod-report-overlay .text-white\/60,
+[data-theme="light"] .mod-report-overlay .text-white\/70 {
+  color: var(--theme-text-muted) !important;
+}
+
+
 /* Navbar text */
 [data-theme="light"] nav.glass a.text-\[\#A1A1AA\] {
   color: var(--theme-text-muted) !important;

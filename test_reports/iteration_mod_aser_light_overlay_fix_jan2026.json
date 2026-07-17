@@ -1,0 +1,40 @@
+{
+  "summary": "Verified MOD ASER reports overlay light-mode readability fix. Portal now uses .mod-report-overlay class; in light mode background flips to light and text to dark; dark mode still renders as the intended dark console. Email ASER Summary Report modal also renders light in light mode.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "assertions_verified": {
+    "light_portal_bg": "rgb(245, 245, 247) (--theme-bg) — LIGHT (not near-black) ✓",
+    "light_portal_text": "rgb(24, 24, 27) — DARK readable ✓",
+    "light_header_surface_bg": "rgb(255, 255, 255) (--theme-surface) ✓",
+    "light_heading_color": "rgb(24, 24, 27) — dark on light ✓",
+    "light_muted_labels_color": "rgb(82, 82, 91) — readable (was near-white on light before)",
+    "light_email_modal_bg": "rgb(255, 255, 255) — light card ✓",
+    "light_email_modal_text": "rgb(24, 24, 27) — dark readable ✓",
+    "dark_portal_bg": "rgb(15, 20, 25) — dark console preserved ✓",
+    "dark_portal_text": "rgb(255, 255, 255) — white text preserved ✓",
+    "portal_has_mod_report_overlay_class": true
+  },
+  "test_flow": [
+    "Logged in as aser.qa@army.mod.test on /pulse (MOD account routes to Pulse dashboard).",
+    "Forced data-theme='light'; opened Reports tab; clicked data-testid='mod-reports-aser-open' (mod-nav-aser is only on the legacy MODSiteDashboard which is not currently routed for /pulse — the same portal is launched from the Pulse Reports tab).",
+    "Inspected computed styles of [data-testid='mod-aser-portal'] and its header/muted labels.",
+    "Opened Email ASER Summary Report modal ([data-testid='aser-email-modal']) and inspected computed styles.",
+    "Toggled data-theme='dark' and re-inspected the portal for regression."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PulseReportsTab.js:49 uses /reports/resolution-stats and returns 403 for MOD user (KPI load failed console errors). Not related to this CSS fix but worth checking whether MOD accounts should be allowed to see the KPI endpoints or if the UI should hide the tab gracefully."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "MOD site owner aser.qa@army.mod.test / AserQA123! (worked, no rate-limit hit).",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The mod-nav-aser button lives in MODSiteDashboard.js which is imported as _MODSiteDashboard (unused) — MOD users are routed to /pulse instead. The ASER portal is opened via PulseReportsTab -> data-testid='mod-reports-aser-open'. Use that entry point."
+}
