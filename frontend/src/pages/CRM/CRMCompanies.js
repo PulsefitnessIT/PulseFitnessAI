@@ -422,6 +422,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
 function AssetReconcilePanel({ companyId, API, headers, c, isDark }) {
   const [data, setData] = useState(null);
   const [linking, setLinking] = useState('');
+  const [promoting, setPromoting] = useState('');
 
   const load = React.useCallback(async () => {
     try {
@@ -444,6 +445,18 @@ function AssetReconcilePanel({ companyId, API, headers, c, isDark }) {
       await load();
     } catch (e) { toast.error('Could not link asset'); }
     setLinking('');
+  };
+
+  const promoteOne = async (assetId) => {
+    setPromoting(assetId);
+    try {
+      await axios.post(`${API}/crm/v2/assets/${assetId}/promote-to-register`, {}, { headers: headers() });
+      toast.success('Promoted to the Operations register');
+      await load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not promote asset');
+    }
+    setPromoting('');
   };
 
   const clean = duplicates.length === 0 && crm_only.length === 0;
@@ -474,7 +487,19 @@ function AssetReconcilePanel({ companyId, API, headers, c, isDark }) {
             </div>
           )}
           {crm_only.length > 0 && (
-            <p className="text-[11px]" style={{ color: c.textDim }} data-testid="asset-reconcile-crmonly">{crm_only.length} CRM-only asset(s) not in the register (manually added).</p>
+            <div data-testid="asset-reconcile-crmonly">
+              <p className="text-[11px] font-semibold mb-1" style={{ color: c.textDim }}>{crm_only.length} CRM-only asset(s) not in the register — promote to make the register the single source of truth:</p>
+              {crm_only.map((a) => (
+                <div key={a.id} className="flex items-center gap-2 text-[11px] py-1 border-t" style={{ borderColor: border }} data-testid={`asset-crmonly-${a.id}`}>
+                  <span className="flex-1 min-w-0 truncate" style={{ color: c.text }}>{a.name} <span style={{ color: c.textDim }}>(S/N {a.serial_number || 'N/A'}{a.status ? ` · ${a.status}` : ''})</span></span>
+                  <button onClick={() => promoteOne(a.id)} disabled={promoting === a.id}
+                    className="px-2 py-1 rounded-md font-semibold shrink-0 inline-flex items-center gap-1" style={{ background: 'var(--color-success-ios, #34c759)', color: '#fff' }}
+                    data-testid={`asset-promote-${a.id}`}>
+                    {promoting === a.id ? '…' : (<><Plus size={11} /> Promote to register</>)}
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

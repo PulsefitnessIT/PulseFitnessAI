@@ -1030,6 +1030,82 @@ async def link_asset_to_equipment(asset_id: str, data: dict, user=Depends(get_cr
 
 
 
+@router.post("/assets/{asset_id}/promote-to-register")
+async def promote_asset_to_register(asset_id: str, data: dict | None = None,
+                                    user=Depends(get_crm_user)):
+    """Promote a CRM-only asset into the Operations equipment register.
+
+    Creates a canonical ``db.equipment`` row from the CRM asset's fields
+    (enriched from the linked product when available) and links the CRM
+    asset back to it, so the register stays the single source of truth.
+    Only valid for CRM-only assets (no existing ``equipment_id``).
+    """
+    of = _of(user)
+    asset = await db.crm2_assets.find_one({"id": asset_id, **of}, {"_id": 0})
+    if not asset:
+        raise HTTPException(404, "Asset not found")
+    if asset.get("equipment_id"):
+        return {"ok": True, "asset_id": asset_id,
+                "equipment_id": asset["equipment_id"], "already_linked": True}
+
+    company = await db.crm2_companies.find_one(
+        {"id": asset.get("company_id"), **of}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found for this asset")
+    linked_org_id = await _resolve_linked_org(company, user)
+    if not linked_org_id:
+        raise HTTPException(
+            400,
+            "This company isn't linked to an Operations organisation, so its "
+            "equipment register can't be located. Link the company to an org first.",
+        )
+
+    # Best-effort product enrichment (manufacturer / model / type / cost).
+    product = None
+    if asset.get("product_id"):
+        product = await db.crm_products.find_one(
+            {"id": asset["product_id"]}, {"_id": 0}) or None
+    p = product or {}
+
+    name = (asset.get("name") or p.get("name") or "Unnamed asset").strip()
+    category = (p.get("category") or "").strip()
+    equipment_type = category if category and category.lower() not in ("equipment", "other") else "Other"
+
+    now = _now()
+    equipment_doc = {
+        "id": _id(),
+        "user_id": user.get("id"),
+        "organization_id": linked_org_id,
+        "name": name,
+        "equipment_type": equipment_type,
+        "manufacturer": p.get("supplier_name") or "",
+        "model": p.get("sku") or "",
+        "serial_number": asset.get("serial_number") or "",
+        "warranty_expiry": asset.get("warranty_expiry") or None,
+        "purchase_date": asset.get("install_date") or None,
+        "site_id": asset.get("site_id") or None,
+        "sicon_equipment_id": asset.get("sicon_equipment_id") or None,
+        "purchase_cost": p.get("cost_price"),
+        "source": "crm_promoted",
+        "manuals": [],
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.equipment.insert_one(equipment_doc)
+    await db.crm2_assets.update_one(
+        {"id": asset_id, **of},
+        {"$set": {"equipment_id": equipment_doc["id"], "source": "register", "updated_at": now}},
+    )
+    await record_audit(
+        entity_type="crm2_asset", entity_id=asset_id, action="update", user=user,
+        summary=f"Promoted CRM asset '{name}' to the equipment register",
+        extra={"equipment_id": equipment_doc["id"], "linked_organization_id": linked_org_id},
+    )
+    return {"ok": True, "asset_id": asset_id,
+            "equipment_id": equipment_doc["id"], "name": name}
+
+
+
 @router.post("/companies/{company_id}/equipment-coverage")
 async def attach_equipment_to_contract(company_id: str, data: dict,
                                        user=Depends(get_crm_user)):

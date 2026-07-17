@@ -35,6 +35,14 @@ PRO_DEFAULT_FEATURES = {
     "ai_audits",
 }
 
+# MOD tenants (mod_site / mod_branch / mod_org) run the FULL operational
+# toolkit — including the Reports → Performance KPIs surface and multi-site
+# HQ hierarchies — so these Pro defaults are on for them too. `ai_audits`
+# is intentionally excluded (MOD AI triage/diagnosis was removed from the
+# MOD toolset), keeping the feature flags aligned with the MOD UI.
+MOD_ACCOUNT_TYPES = {"mod_site", "mod_branch", "mod_org"}
+MOD_ENABLED_PRO_FEATURES = {"kpi_engine", "multi_site"}
+
 # All known feature keys — used so we never 403 an unknown key.
 KNOWN_FEATURES = GYMAXIS_ONLY_FEATURES | PRO_DEFAULT_FEATURES | {
     "ppm_engine",
@@ -70,7 +78,12 @@ def _feature_default_for_account(feature_key: str, account_type: str) -> bool:
     if feature_key in GYMAXIS_ONLY_FEATURES:
         return account_type == "full"
     if feature_key in PRO_DEFAULT_FEATURES:
-        return account_type in ("full", "pulse_pro")
+        if account_type in ("full", "pulse_pro"):
+            return True
+        # MOD tenants share the Pro Reports/KPI + multi-site toolkit.
+        if account_type in MOD_ACCOUNT_TYPES and feature_key in MOD_ENABLED_PRO_FEATURES:
+            return True
+        return False
     # Non-enterprise features default to enabled
     return True
 

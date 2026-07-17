@@ -1,0 +1,22 @@
+{
+  "summary": "Verified both ITEM 1 (CRM 'Promote to register' end-to-end) and ITEM 2 (MOD Reports → Performance KPIs loads without 403). Both pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [
+    "MINOR (non-blocking): The success toast text was not captured on the DOM after the Promote click (checked [role=status], [data-sonner-toast], .toast, [class*=\"toast\"]). The visual confirmation still works because the AssetReconcilePanel refreshes in place ('Operations register: 4 · 1 linked' + entry disappears). Consider verifying the toast is actually dispatched (or extend its lifetime) if a toast is intended per spec."
+  ],
+  "critical_code_review_comments": [
+    "AssetReconcilePanel updates optimistically and correctly reflects post-promote state (register count +1, CRM-only entry removed, badge/message change).",
+    "Backend POST /api/crm/v2/assets/{id}/promote-to-register returned 200 as expected; frontend uses the /v2 path (not the /api/crm/assets... path noted in the review request — likely just a naming shorthand).",
+    "MOD account correctly receives kpi_engine feature and /api/reports/kpi-dashboard returned 200 twice (period=30d). KPI dashboard rendered all 4 summary tiles (PPM Compliance, Avg Machine Downtime, Safety Response SLA, Machine Availability) and detail cards."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% (2/2 items verified)"},
+  "test_credentials": "MOD: aser.qa@army.mod.test / AserQA123! · CRM/Owner: owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None — but seed asset 'iso-crmonly-asset-1' is now PROMOTED. Re-run scripts/seed_site_isolation_demo.py (or equivalent) to reset before next end-to-end retest.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "ITEM 1: Login as owner@isodemo.com on /login?next=/crm → CRM → Companies → click row iso-cA (AlphaCo) → tab company-tab-equipment_assets → click 'CRM assets' sub-tab (no testid, text selector works). Panel testid: asset-reconcile-panel; promote button testid: asset-promote-iso-crmonly-asset-1. POST /api/crm/v2/assets/{id}/promote-to-register. ITEM 2: MOD login modal on landing page ('LOG IN' → dialog submit is [role=dialog] button[type=submit]), then Reports (lite-tab-reports) → Performance KPIs (pulse-report-sub-performance). /api/auth/login is aggressively rate-limited (429) — wait ~35s between fresh logins.",
+  "rca_of_the_issue": "N/A — features work as spec'd."
+}
