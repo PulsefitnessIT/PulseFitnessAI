@@ -25,7 +25,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://equipment-finance-1.preview.emergentagent.com",
+    "https://dealer-parts-engine.preview.emergentagent.com",
 )
 
 EXPECTED_BREAKDOWN_KEYS = {

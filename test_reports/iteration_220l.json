@@ -21,7 +21,7 @@
     "All four fixes are wired correctly: trial card, upgrade-now-btn, upgrade-btn, mab-app-address* testids, and the two new analytics sub-tabs render without crashes.",
     "Top-level 'Studio brain' and 'AI Insights' tabs successfully removed from MembershipsConsole nav (verified DOM count = 0).",
     "PhoneFrame is now light (white screen, dark bezel/text on the seven preview cards) — confirmed in screenshot.",
-    "QR code image renders and the slug URL https://equipment-finance-1.preview.emergentagent.com/m/member-only-gym is shown.",
+    "QR code image renders and the slug URL https://dealer-parts-engine.preview.emergentagent.com/m/member-only-gym is shown.",
     "Console only has expected environment-level CSP/403 errors for emergent-main.js, posthog, cloudflareinsights — none originate from the new code paths (billing modal, AnalyticsTab sub-tabs, AppAddressCard qrcode lib)."
   ],
   "updated_files": [],
@@ -46,7 +46,7 @@
     },
     "test_3_app_address": {
       "mab_app_address": true,
-      "mab_app_address_url_text": "https://equipment-finance-1.preview.emergentagent.com/m/member-only-gym",
+      "mab_app_address_url_text": "https://dealer-parts-engine.preview.emergentagent.com/m/member-only-gym",
       "mab_app_address_copy": true,
       "mab_app_address_open": true,
       "mab_app_address_qr": true,

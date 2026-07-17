@@ -6,7 +6,7 @@ import io
 import requests
 import pytest
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://equipment-finance-1.preview.emergentagent.com").rstrip("/")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://dealer-parts-engine.preview.emergentagent.com").rstrip("/")
 API = f"{BASE}/api"
 
 STAFF_EMAIL = "owner@isodemo.com"
