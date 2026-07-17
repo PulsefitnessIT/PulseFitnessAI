@@ -870,7 +870,7 @@ function App() {
  </>
  )}
  {user && <UnifiedAssistant />}
- {user && <FeedbackWidget />}
+ {user && !isMODacct && <FeedbackWidget />}
  {user && <GuidedTour />}
  {user && <SetupChecklist />}
  {user && <GlobalCommandPalette />}
