@@ -394,3 +394,36 @@ def feature_list(s, items, x, y, w, row_h=0.62, chip=CORE, title_size=12.5, desc
         text(s, x + 0.66, cy + 0.3, w - 0.7, 0.26,
              [para(desc, size=desc_size, color=SLATE, line=1.05)])
         cy += row_h
+
+
+SHOT_RATIO = 1900 / 1193.0  # width/height of captured module screenshots
+
+def shot(s, img, x, y, w, h=None, label=None):
+    """Place a real screenshot as a floating, shadowed app window (no crop if h omitted)."""
+    if h is None:
+        h = w / SHOT_RATIO
+    back = rect(s, x, y, w, h, fill=WHITE, shape=MSO_SHAPE.ROUNDED_RECTANGLE, shadow=True)
+    _round_radius(back, 0.03)
+    picture_cover(s, img, x + 0.02, y + 0.02, w - 0.04, h - 0.04)
+    fr = rect(s, x, y, w, h, fill=None, line=SILVER, line_w=1.0, shape=MSO_SHAPE.ROUNDED_RECTANGLE)
+    _round_radius(fr, 0.03)
+    if label:
+        tag = rect(s, x + 0.28, y + h - 0.5, 0.1 + len(label) * 0.085, 0.34, fill=NAVY,
+                   shape=MSO_SHAPE.ROUNDED_RECTANGLE, shadow=True); _round_radius(tag, 0.5)
+        text(s, x + 0.28, y + h - 0.52, 0.2 + len(label) * 0.085, 0.34,
+             [para(label, size=9, color=WHITE, bold=True, align=PP_ALIGN.CENTER)], anchor=MSO_ANCHOR.MIDDLE)
+    return h
+
+def image_panel(s, img, x, y, w, h, overlay=0x0E2A36, alpha=55):
+    """Cover-fit photo with a dark brand overlay (for title/divider)."""
+    picture_cover(s, img, x, y, w, h)
+    ov = rect(s, x, y, w, h, fill=RGBColor((overlay >> 16) & 255, (overlay >> 8) & 255, overlay & 255))
+    _set_alpha(ov, alpha)
+    return ov
+
+def _set_alpha(shape, pct):
+    sp = shape.fill.fore_color._xFill
+    srgb = sp.find(qn('a:srgbClr'))
+    if srgb is not None:
+        a = srgb.makeelement(qn('a:alpha'), {'val': str(int(pct * 1000))})
+        srgb.append(a)
