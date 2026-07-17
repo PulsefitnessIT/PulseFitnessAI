@@ -30361,3 +30361,18 @@ Fix:
 - Bug found+fixed during testing: `App.js:873` referenced undefined `isMODacct` (introduced by the earlier feedback-widget removal for MOD), crashing the app post-login. Replaced with an inline `['mod_site','mod_branch','mod_org'].includes(user?.account_type)` check so FeedbackWidget stays hidden for MOD users.
 Verified by testing_agent: 100% (4/4 acceptance criteria) — report `/app/test_reports/iteration_mod_aser_reports_submenu_jan2026.json`. No top-level `lite-tab-aser` exists. PREVIEW only — redeploy to push to production.
 Non-blocking note: MOD users get 403 on Reports → Performance KPIs endpoints (pre-existing perms gap, unrelated to ASER).
+
+---
+## Feature: CRM-only asset "Promote to register" + Fix: MOD 403 on Reports → Performance KPIs (Jun 17, 2026)
+Two follow-up items after the MOD ASER work.
+
+ITEM 1 — Promote CRM-only assets into the Operations equipment register:
+- Backend `POST /crm/v2/assets/{asset_id}/promote-to-register` (`crm_contracts.py`): for a CRM-only `crm2_asset` (no `equipment_id`), resolves the company's linked Operations org (`_resolve_linked_org`), creates a canonical `db.equipment` row (`source="crm_promoted"`, enriched from the linked `crm_products` doc when present), and links the asset back (`source="register"`, `equipment_id` set). 404 if asset/company missing; 400 if the company isn't linked to an org; idempotent (returns existing link if already promoted).
+- Frontend (`CRMCompanies.js` → `AssetReconcilePanel`): the CRM-only assets are now listed with a green "Promote to register" button (`data-testid=asset-promote-<assetId>`) instead of a bare count. Promoting refreshes the panel in place (register count +1, entry moves to "linked").
+- Seed for demo/regression: `python scripts/seed_crm_only_asset_demo.py` (company iso-cA linked to iso-demo-org + CRM-only asset iso-crmonly-asset-1). CRM login owner@isodemo.com / IsoDemo123!.
+
+ITEM 2 — MOD users were 403'd on Reports → Performance KPIs:
+- Root cause: `/reports/kpi-dashboard` is gated by `require_feature("kpi_engine")`; `kpi_engine` ∈ `PRO_DEFAULT_FEATURES` which defaulted ON only for `full`/`pulse_pro`. MOD account types (mod_site/branch/org) defaulted false → 403, even though MOD users see the Reports tab.
+- Fix (`utils/feature_guard.py`): `_feature_default_for_account` now enables `kpi_engine` + `multi_site` for MOD account types (`MOD_ENABLED_PRO_FEATURES`). `ai_audits` intentionally left OFF for MOD (consistent with the MOD AI-triage removal).
+
+Verified: backend via curl (promote → 200, register_count 3→4, crm_only→linked; MOD kpi-dashboard → 200). Frontend via testing_agent 100% (2/2) — report `/app/test_reports/iteration_crm_promote_and_mod_kpi_jan2026.json`. PREVIEW only — redeploy for production.
