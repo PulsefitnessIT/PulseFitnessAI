@@ -1,3 +1,17 @@
+# ═══ 2026-06 · STAFF ONBOARDING — WIZARD DROPDOWNS/CALENDARS (VERIFIED 100% FE) ═══
+Per user request, converted the 'Create Onboarding Case' wizard from free-text to dropdowns/combos + calendars:
+- Native <select>: Department, Employment type, Probation period, Notice period, Holiday entitlement.
+- Editable <datalist> combos (pick or type): Employing company, Site/place of work, Line manager, Authorised
+  signatory (manager/signatory suggestions fetched from GET /api/staffing/staff).
+- Hours per week → number input; Proposed start date already a date/calendar; Job title + Salary remain text.
+- New reusable WizardSelect / WizardCombo components; data-testids preserved (wizard-<key>).
+Also reordered People sub-tabs → HR, Staff Onboarding, Org Chart, Site Login (Site Login least-used, now last).
+VERIFIED: frontend 100%, 0 issues. Report iteration_staff_onboarding_wizard_dropdowns_jan2026.json.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF ONBOARDING — AUTO-EMAIL ONBOARDING PACK ON ACTIVATION (VERIFIED 100%) ═══
 Enhancement: when an employee is activated, the audit-ready Onboarding Pack PDF is automatically emailed to
 HR/payroll (configurable). Reuses build_pack_pdf + utils.email.send_email (LIVE Resend key) with a base64 PDF attachment.
