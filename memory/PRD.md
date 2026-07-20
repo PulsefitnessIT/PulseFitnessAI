@@ -1,3 +1,21 @@
+# ═══ 2026-06 · STAFF PORTAL LOGIN + FORGOT/RESET PASSWORD (VERIFIED: backend 15/15 + FE 100%) ═══
+Dedicated email+password login for activated employees & recruits, plus password reset (integration_expert
+reviewed; reuses utils/auth bcrypt verify_password/create_token; JWT 24h).
+- Frontend routes: /staff-login (StaffLogin.js — login + 'Forgot password' toggle), /staff-portal
+  (NewStarterPortal with staffMode; redirects to /staff-login if no sessionStorage staff_jwt),
+  /staff-reset/:token (StaffResetPassword.js).
+- Backend: POST /api/new-starter/staff-login (email+password → JWT, 401 wrong); /api/new-starter/forgot-password
+  (secrets token in staff_password_resets, 1h expiry, emails reset link via Resend, GENERIC response — no
+  enumeration); /api/new-starter/reset-password (single-use, 400 invalid/used, 410 expired).
+- Cosmetic: extended SessionResumedBanner route guard to also skip /staff-portal, /staff-login, /staff-reset/*
+  (was already skipping /new-starter/*) so the main-app 'session expired' toast never bleeds onto these pages
+  (self-verified via compile; same guard pattern already verified on /new-starter/*).
+Verified: iteration_staff_login_portal_jan2026.json (15/15 backend, all FE flows). test_credentials.md updated.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · NEW STARTER PORTAL — RETURNING-USER LOGIN FIX (VERIFIED: backend 9/9 + FE 100%) ═══
 Bug: after 'Log out', a recruit was shown 'Create a password' again (treated as first-time) and accept-invite RESET
 the password every visit. Fix (integration_expert consulted; reused utils/auth bcrypt verify_password/create_token):
