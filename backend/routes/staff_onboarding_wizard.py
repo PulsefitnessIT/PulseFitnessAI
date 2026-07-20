@@ -23,6 +23,14 @@ from pydantic import BaseModel
 from utils.database import db
 from utils.auth import get_current_user, hash_password, create_token
 
+try:
+    from utils.email import send_email
+except Exception:  # pragma: no cover
+    async def send_email(*a, **k):
+        return False
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "").rstrip("/")
+
 router = APIRouter()
 
 # ───────────────────────── object storage ─────────────────────────
@@ -103,6 +111,64 @@ async def _audit(org: str, case_id: str, event: str, user: dict, **extra):
         "user_role": user.get("role"), "at": _now(),
         **{k: v for k, v in extra.items() if v is not None},
     })
+
+
+SENSITIVE_FORM_FIELDS = {"ni_number", "bank_account", "sort_code", "bank_sort_code", "account_number"}
+
+
+def _mask(val) -> str:
+    s = str(val or "")
+    if len(s) <= 4:
+        return "••••"
+    return "••••" + s[-4:]
+
+
+def _mask_forms(forms: list, reveal: bool):
+    if reveal:
+        return forms
+    out = []
+    for f in forms:
+        data = dict(f.get("data") or {})
+        for k in list(data.keys()):
+            if k.lower() in SENSITIVE_FORM_FIELDS and data[k]:
+                data[k] = _mask(data[k])
+        f = {**f, "data": data}
+        out.append(f)
+    return out
+
+
+def _email_shell(title: str, lines: list[str], cta_url: str | None = None, cta_label: str | None = None) -> str:
+    body = "".join(f'<p style="margin:0 0 12px;color:#334;line-height:1.5">{ln}</p>' for ln in lines)
+    cta = ""
+    if cta_url:
+        cta = (f'<a href="{cta_url}" style="display:inline-block;margin-top:8px;background:#19CDFF;'
+               f'color:#0b2530;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:10px">'
+               f'{cta_label or "Open portal"}</a>')
+    return (
+        f'<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;'
+        f'border:1px solid #e3ebf0;border-radius:16px;overflow:hidden">'
+        f'<div style="background:#0c2430;padding:18px 24px"><span style="color:#fff;font-weight:800;font-size:18px">'
+        f'Pulse Fitness</span></div>'
+        f'<div style="padding:24px"><h2 style="margin:0 0 14px;color:#11222c">{title}</h2>{body}{cta}'
+        f'<p style="margin:18px 0 0;color:#889;font-size:12px">This is a secure notification from Pulse Fitness. '
+        f'It contains no confidential terms — please sign in to your portal to view details.</p></div></div>'
+    )
+
+
+async def _notify(org, case_id, audience, staff_id, event, message,
+                  email_to=None, email_subject=None, email_html=None):
+    """Record an in-app notification and (best-effort) send a neutral email."""
+    await db.staff_onboarding_notifications.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": org, "onboarding_case_id": case_id,
+        "audience": audience, "staff_id": staff_id, "event": event, "message": message,
+        "read": False, "created_at": _now(),
+    })
+    if email_to and email_subject and email_html:
+        try:
+            await send_email(to=email_to, subject=email_subject, html=email_html,
+                             organization_id=org, kind="staff_onboarding")
+        except Exception:
+            pass
 
 
 def _render(template_body: str, ctx: dict) -> str:
@@ -463,13 +529,15 @@ async def get_case(case_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(404, "Case not found")
     staff = await db.staff_members.find_one({"id": c.get("staff_id")}) or {}
     forms = await db.staff_form_submissions.find({"onboarding_case_id": case_id}).to_list(50)
+    reveal = user.get("role") in ("owner", "master_admin")  # payroll/DBS role gating (Phase 2 expands)
     docs = await db.staff_onboarding_documents.find({"onboarding_case_id": case_id, "is_deleted": {"$ne": True}}).to_list(100)
     acks = await db.staff_policy_acknowledgements.find({"onboarding_case_id": case_id}).to_list(50)
     agr = await db.staff_agreement_assignments.find({"onboarding_case_id": case_id}).to_list(50)
     invite = await db.staff_onboarding_invites.find_one({"onboarding_case_id": case_id})
     return {
         "case": _strip(c), "person": _strip(staff),
-        "forms": [_strip(f) for f in forms], "documents": [_strip(d) for d in docs],
+        "forms": _mask_forms([_strip(f) for f in forms], reveal), "sensitive_masked": not reveal,
+        "documents": [_strip(d) for d in docs],
         "policy_acknowledgements": [_strip(a) for a in acks], "agreements": [_strip(a) for a in agr],
         "invite": {"status": invite.get("status"), "expires_at": invite.get("expires_at")} if invite else None,
     }
@@ -514,6 +582,17 @@ async def create_invite(case_id: str, body: InviteBody, user: dict = Depends(get
     await db.staff_onboarding_cases.update_one({"id": case_id}, {"$set": {"status": "in_progress", "updated_at": _now()}})
     await _audit(org, case_id, "invite_sent", user)
     staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    portal_url = f"{FRONTEND_URL}/new-starter/{token}"
+    if staff.get("email"):
+        await _notify(org, case_id, "recruit", c["staff_id"], "invite_sent",
+                      "Your Pulse Fitness onboarding portal is ready.",
+                      email_to=staff["email"], email_subject="Welcome to Pulse Fitness — start your onboarding",
+                      email_html=_email_shell(
+                          f"Hello {staff.get('preferred_name') or staff.get('full_name') or 'there'},",
+                          ["Welcome to Pulse Fitness. Your secure New Starter Portal is ready.",
+                           "Please set a password and complete your onboarding forms, documents and policies.",
+                           f"Your invitation expires on {inv['expires_at'][:10]}."],
+                          cta_url=portal_url, cta_label="Open my portal"))
     return {"invite_token": token, "portal_path": f"/new-starter/{token}",
             "recruit_email": staff.get("email"), "expires_at": inv["expires_at"]}
 
@@ -628,6 +707,17 @@ async def issue_offer(case_id: str, user: dict = Depends(get_current_user)):
         {"$set": {"offer": offer, "status": "offer_issued", "updated_at": _now()}})
     await _audit(org, case_id, "offer_issued", user)
     await db.staff_members.update_one({"id": c["staff_id"]}, {"$set": {"lifecycle_stage": "offer_issued"}})
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    if staff.get("email"):
+        inv = await db.staff_onboarding_invites.find_one({"onboarding_case_id": case_id})
+        url = f"{FRONTEND_URL}/new-starter/{inv['token']}" if inv else FRONTEND_URL
+        await _notify(org, case_id, "recruit", c["staff_id"], "offer_issued",
+                      "Your offer letter is ready to review in your portal.",
+                      email_to=staff["email"], email_subject="Your Pulse Fitness offer is ready to review",
+                      email_html=_email_shell(f"Hello {staff.get('preferred_name') or staff.get('full_name')},",
+                          ["Good news — your offer letter is now available in your Pulse Fitness portal.",
+                           "Please sign in to review it and accept or decline."],
+                          cta_url=url, cta_label="Review my offer"))
     return offer
 
 
@@ -712,6 +802,17 @@ async def issue_contract(case_id: str, user: dict = Depends(get_current_user)):
         {"$set": {"contract": con, "status": "contract_issued", "updated_at": _now()}})
     await db.staff_members.update_one({"id": c["staff_id"]}, {"$set": {"lifecycle_stage": "contract_issued"}})
     await _audit(org, case_id, "contract_issued", user)
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    if staff.get("email"):
+        inv = await db.staff_onboarding_invites.find_one({"onboarding_case_id": case_id})
+        url = f"{FRONTEND_URL}/new-starter/{inv['token']}" if inv else FRONTEND_URL
+        await _notify(org, case_id, "recruit", c["staff_id"], "contract_issued",
+                      "Your employment contract is ready to sign in your portal.",
+                      email_to=staff["email"], email_subject="Your Pulse Fitness contract is ready to sign",
+                      email_html=_email_shell(f"Hello {staff.get('preferred_name') or staff.get('full_name')},",
+                          ["Your employment contract (and any schedules) is now available in your portal.",
+                           "Please review the full document and sign electronically."],
+                          cta_url=url, cta_label="Review & sign my contract"))
     return con
 
 
@@ -755,6 +856,14 @@ async def countersign_contract(case_id: str, body: SignBody, request: Request, u
     await db.staff_onboarding_cases.update_one({"id": case_id},
         {"$set": {"contract": con, "status": "ready_to_activate", "updated_at": _now()}})
     await _audit(org, case_id, "contract_fully_signed", user)
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    if staff.get("email"):
+        await _notify(org, case_id, "recruit", c["staff_id"], "contract_fully_signed",
+                      "Your contract is fully signed and stored in your portal.",
+                      email_to=staff["email"], email_subject="Your Pulse Fitness contract is complete",
+                      email_html=_email_shell(f"Hello {staff.get('preferred_name') or staff.get('full_name')},",
+                          ["Your employment contract has been countersigned and is now fully signed.",
+                           "A copy is saved securely in your portal for your records."]))
     return con
 
 
@@ -806,6 +915,18 @@ async def activate(case_id: str, user: dict = Depends(get_current_user)):
     await db.staff_onboarding_cases.update_one({"id": case_id},
         {"$set": {"status": "complete", "activated_at": _now(), "updated_at": _now()}})
     await _audit(org, case_id, "employee_activated", user)
+    staff2 = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    if staff2.get("email"):
+        inv = await db.staff_onboarding_invites.find_one({"onboarding_case_id": case_id})
+        url = f"{FRONTEND_URL}/new-starter/{inv['token']}" if inv else FRONTEND_URL
+        await _notify(org, case_id, "recruit", c["staff_id"], "activated",
+                      "Welcome to the team! Your Staff Portal is now active.",
+                      email_to=staff2["email"], email_subject="Welcome to Pulse Fitness — your first day",
+                      email_html=_email_shell(f"Welcome, {staff2.get('preferred_name') or staff2.get('full_name')}!",
+                          ["Your onboarding is complete and your account is now your Pulse Fitness Staff Portal.",
+                           "All your completed documents, offer letter and contract remain available there.",
+                           f"Your start date: {ep.get('proposed_start_date') or 'to be confirmed'}."],
+                          cta_url=url, cta_label="Open my Staff Portal"))
     return {"status": "complete", "staff_id": c["staff_id"]}
 
 
@@ -987,6 +1108,8 @@ async def offer_respond(body: OfferRespond, request: Request, user: dict = Depen
         {"$set": {"offer": offer, "status": "offer_accepted", "updated_at": _now()}})
     await db.staff_members.update_one({"id": staff["id"]}, {"$set": {"lifecycle_stage": "offer_accepted"}})
     await _audit(case["organization_id"], case["id"], "offer_accepted", user)
+    await _notify(case["organization_id"], case["id"], "hr", staff["id"], "offer_accepted",
+                  f"{staff.get('full_name')} accepted their offer — ready to create the contract.")
     return {"status": "accepted", "certificate_id": cert["id"]}
 
 
@@ -1084,3 +1207,30 @@ async def set_rtw(case_id: str, body: RTWBody, user: dict = Depends(get_current_
         "checker": user.get("full_name"), "check_date": _now(), "expiry": body.expiry, "notes": body.notes})
     await _audit(org, case_id, "right_to_work_verified", user, new_value=body.result)
     return {"ok": True, "result": body.result}
+
+
+# ───────────────────────── notifications ─────────────────────────
+@router.get("/staff-onboarding/notifications")
+async def hr_notifications(user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    items = await db.staff_onboarding_notifications.find(
+        {"organization_id": org, "audience": "hr"}).sort("created_at", -1).to_list(100)
+    unread = sum(1 for n in items if not n.get("read"))
+    return {"notifications": [_strip(n) for n in items], "unread": unread}
+
+
+@router.post("/staff-onboarding/notifications/read")
+async def hr_notifications_read(user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    await db.staff_onboarding_notifications.update_many(
+        {"organization_id": org, "audience": "hr", "read": False}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@router.get("/new-starter/notifications")
+async def recruit_notifications(user: dict = Depends(get_current_user)):
+    case, staff = await _recruit_case(user)
+    items = await db.staff_onboarding_notifications.find(
+        {"onboarding_case_id": case["id"], "audience": "recruit"}).sort("created_at", -1).to_list(100)
+    unread = sum(1 for n in items if not n.get("read"))
+    return {"notifications": [_strip(n) for n in items], "unread": unread}

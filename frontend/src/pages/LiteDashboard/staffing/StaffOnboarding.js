@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   UserPlus, Loader2, X, FileText, FileSignature, CheckCircle2, ShieldCheck,
-  ClipboardList, ScrollText, ArrowRight, AlertTriangle, History,
+  ClipboardList, ScrollText, ArrowRight, AlertTriangle, History, Bell,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -36,18 +36,29 @@ export default function StaffOnboarding({ headers }) {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [openCase, setOpenCase] = useState(null);
+  const [notifs, setNotifs] = useState({ notifications: [], unread: 0 });
+  const [showNotifs, setShowNotifs] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [d, c] = await Promise.all([
+      const [d, c, n] = await Promise.all([
         axios.get(`${API}/staff-onboarding/dashboard`, { headers }),
         axios.get(`${API}/staff-onboarding/cases`, { headers }),
+        axios.get(`${API}/staff-onboarding/notifications`, { headers }).catch(() => ({ data: { notifications: [], unread: 0 } })),
       ]);
       setCards(d.data.cards || {});
       setCases(c.data.cases || []);
+      setNotifs(n.data || { notifications: [], unread: 0 });
     } catch (e) { /* noop */ } finally { setLoading(false); }
   }, [headers]);
+
+  const openNotifs = async () => {
+    setShowNotifs((v) => !v);
+    if (!showNotifs && notifs.unread > 0) {
+      try { await axios.post(`${API}/staff-onboarding/notifications/read`, {}, { headers }); setNotifs((p) => ({ ...p, unread: 0 })); } catch (e) {}
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,11 +82,33 @@ export default function StaffOnboarding({ headers }) {
             Paperless recruitment-to-employment — one person record, offer letter, contract & e-signature.
           </p>
         </div>
-        <button onClick={() => setShowWizard(true)} data-testid="new-onboarding-case-btn"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-slate-900"
-          style={{ background: 'var(--color-brand-cyan, #19CDFF)' }}>
-          <UserPlus size={16} /> Create Onboarding Case
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button onClick={openNotifs} data-testid="notifications-bell"
+              className="relative p-2 rounded-xl border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+              <Bell size={18} />
+              {notifs.unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{notifs.unread}</span>}
+            </button>
+            {showNotifs && (
+              <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-auto rounded-xl border shadow-xl z-50 p-2" data-testid="notifications-panel"
+                style={{ background: 'var(--theme-bg,#0f1417)', borderColor: 'var(--theme-border)' }}>
+                {notifs.notifications.length === 0 ? (
+                  <div className="p-4 text-sm opacity-60 text-center" style={{ color: 'var(--theme-text)' }}>No notifications</div>
+                ) : notifs.notifications.map((n) => (
+                  <div key={n.id} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--theme-text)' }}>
+                    <div className="font-medium">{n.message}</div>
+                    <div className="text-xs opacity-50">{new Date(n.created_at).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={() => setShowWizard(true)} data-testid="new-onboarding-case-btn"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-slate-900"
+            style={{ background: 'var(--color-brand-cyan, #19CDFF)' }}>
+            <UserPlus size={16} /> Create Onboarding Case
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

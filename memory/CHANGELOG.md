@@ -1350,3 +1350,9 @@ Verified: frontend testing agent 100% on mobile viewport (iteration_mod_faults_r
 - Collections: staff_onboarding_cases/invites, staff_form_submissions, staff_onboarding_documents, staff_policy_versions/acknowledgements, staff_agreement_versions/assignments, staff_right_to_work_checks, staff_offer_templates, staff_contract_templates, staff_electronic_signatures, staff_signature_certificates, staff_onboarding_tasks, staff_onboarding_messages, staff_onboarding_audit_events, staff_onboarding_settings.
 - Tested: backend 100%, frontend 95% (testing_agent iteration_staff_onboarding_wizard_jan2026). Fixed inline-component focus-loss bug post-test.
 - Phase 2 (deferred, agreed): deep RTW/DBS sub-workflows, policy knowledge-checks, multi-role approval matrices & field-level permissions, pre-start task automation (IT/Fleet/Stores/Training), reporting suite, template admin UIs.
+
+## 2026-07-20 (cont.) — Onboarding automation: emails, notifications, field masking
+- Automated NEUTRAL emails (no salary/bank/identity terms) wired via existing graceful `utils/email.send_email` (Resend): invitation, offer issued, contract issued, contract fully signed, activation welcome — each with a Pulse-branded secure portal link. No-ops safely until a RESEND_API_KEY is added; activates automatically once set.
+- In-app notifications: `staff_onboarding_notifications` collection + emit on invite/offer-issued/offer-accepted(HR)/contract-issued/fully-signed/activation. Endpoints: GET /api/staff-onboarding/notifications (HR) + /read, GET /api/new-starter/notifications (recruit). HR console shows a notifications bell with unread badge + panel.
+- Sensitive-field masking: NI number / bank fields masked in HR case detail unless role in {owner, master_admin} (payroll/DBS role gating expands in Phase 2). Verified: owner sees full NI, manager sees ••••877D.
+- Backend now 41 routes; verified via curl + HR console screenshot.
