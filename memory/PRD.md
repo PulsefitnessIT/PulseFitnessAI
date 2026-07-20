@@ -1,3 +1,36 @@
+# ═══ 2026-07-20 · STAFF PORTAL DASHBOARD + MODULE-ACCESS PROVISIONING (VERIFIED: backend 9/9 + FE 100%, 0 issues) ═══
+Built the full self-serve Staff Portal for ACTIVATED employees (/staff-portal, scoped staff_jwt) + the
+HR→Line-Manager→Modules access-provisioning workflow. Report iteration_staff_portal_provisioning_jan2026.json.
+- NEW frontend pages/StaffPortal.js (replaces NewStarterPortal in staffMode on /staff-portal route). 5 tabs:
+  • My Rota — own upcoming shifts (staff_shifts).
+  • Timesheets — VIEW weekly timesheet + "Send correction request" (flags staff_timesheets 'disputed' for
+    manager review); prev/next week nav.
+  • Holidays — request own leave (staff_leave_requests) + allowance card (parsed from
+    employment_proposal.holiday_entitlement) + DEPARTMENT-ONLY team calendar of colleagues' APPROVED holidays;
+    cancel own pending.
+  • Documents — download signed offer/contract PDFs + uploaded onboarding docs.
+  • System Access — read-only: assigned line manager + which org modules were granted.
+- NEW backend routes/staff_portal.py (registered in route_registry/features.py):
+  Employee (staff token): /api/new-starter/portal/{rota,timesheet,timesheet/edit,holidays(GET/POST/DELETE),
+    documents,access}.
+  HR (platform token): GET /api/staff-onboarding/managers, GET/POST /api/staff-onboarding/cases/{id}/line-manager.
+  Line Manager (platform token): GET /api/staffing/access/my-reports, POST /api/staffing/access/reports/{id}/modules.
+  New collection staff_access_provisions (1 doc/employee). Grant also writes user.module_overrides (revokes
+  non-granted bolt-ons — overrides can only revoke, so granted bolt-ons fall back to org entitlement).
+- Employee department now stamped onto staff_members at activation (from employment_proposal.department) so the
+  team calendar filter works. All data reuses EXISTING collections (no duplicate stores).
+- Frontend wiring: TeamAccessTab.js mounted as Operations → Staffing → People → "Team Access" leaf (MGR only);
+  LineManagerPanel added to StaffOnboarding Activate tab (HR assigns the line manager).
+- Seed: scripts/seed_staff_portal_demo.py → employee portal.staff@pulsedemo.test/Staff123!,
+  manager portal.manager@pulsedemo.test/Manager123!, HR owner@isodemo.com/IsoDemo123!.
+- NOTE: legal/module gating for recruit-type accounts logging into the MAIN app is unchanged; provisioning is an
+  authoritative grant record + module_overrides mirror. Real staff accounts get true main-app module gating.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · STAFF PORTAL LOGIN + FORGOT/RESET PASSWORD (VERIFIED: backend 15/15 + FE 100%) ═══
 Dedicated email+password login for activated employees & recruits, plus password reset (integration_expert
 reviewed; reuses utils/auth bcrypt verify_password/create_token; JWT 24h).
