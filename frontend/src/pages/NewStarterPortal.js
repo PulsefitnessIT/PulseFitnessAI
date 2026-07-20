@@ -28,8 +28,11 @@ export default function NewStarterPortal() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [me, setMe] = useState(null);
+  const [inviteInfo, setInviteInfo] = useState(null);
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
   const logout = () => { sessionStorage.removeItem(`nsp:${token}`); setJwt(''); setMe(null); setPassword(''); };
+
+  const fmtErr = (d) => (typeof d === 'string' ? d : Array.isArray(d) ? d.map((e) => e?.msg || '').join(' ') : d?.msg || 'Something went wrong.');
 
   const loadMe = useCallback(async (tk) => {
     try {
@@ -39,14 +42,20 @@ export default function NewStarterPortal() {
   }, [token]);
 
   useEffect(() => { if (jwt) loadMe(jwt); }, [jwt, loadMe]);
+  useEffect(() => {
+    if (!jwt) axios.get(`${API}/new-starter/invite/${token}`).then((r) => setInviteInfo(r.data)).catch(() => setInviteInfo({ found: false }));
+  }, [jwt, token]);
+
+  const returning = !!inviteInfo?.accepted;
 
   const acceptInvite = async () => {
     setBusy(true); setErr('');
     try {
-      const r = await axios.post(`${API}/new-starter/accept-invite`, { token, password });
+      const url = returning ? 'login' : 'accept-invite';
+      const r = await axios.post(`${API}/new-starter/${url}`, { token, password });
       sessionStorage.setItem(`nsp:${token}`, r.data.token);
       setJwt(r.data.token);
-    } catch (e) { setErr(e?.response?.data?.detail || 'Invalid or expired invitation'); }
+    } catch (e) { setErr(fmtErr(e?.response?.data?.detail) || 'Invalid or expired invitation'); }
     finally { setBusy(false); }
   };
 
@@ -54,15 +63,16 @@ export default function NewStarterPortal() {
     return (
       <Shell>
         <div className="max-w-md mx-auto mt-16 rounded-2xl bg-white shadow-xl p-8 border border-slate-200" data-testid="nsp-signin">
-          <h1 className="text-2xl font-bold text-slate-900">Welcome to Pulse Fitness</h1>
-          <p className="text-slate-500 mt-1 text-sm">Set a password to access your New Starter Portal and complete your onboarding.</p>
-          <label className="block mt-5 text-sm font-medium text-slate-700">Create a password</label>
+          <h1 className="text-2xl font-bold text-slate-900">{returning ? `Welcome back${inviteInfo?.full_name ? ', ' + inviteInfo.full_name.split(' ')[0] : ''}` : 'Welcome to Pulse Fitness'}</h1>
+          <p className="text-slate-500 mt-1 text-sm">{returning ? 'Enter your password to get back into your portal.' : 'Set a password to access your New Starter Portal and complete your onboarding.'}</p>
+          <label className="block mt-5 text-sm font-medium text-slate-700">{returning ? 'Your password' : 'Create a password'}</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="nsp-password"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="At least 8 characters" />
+            onKeyDown={(e) => { if (e.key === 'Enter' && password.length >= 8) acceptInvite(); }}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder={returning ? 'Enter your password' : 'At least 8 characters'} />
           {err && <div className="text-red-500 text-sm mt-2" data-testid="nsp-error">{err}</div>}
           <button onClick={acceptInvite} disabled={busy || password.length < 8} data-testid="nsp-signin-btn"
             className="mt-4 w-full rounded-lg py-2.5 font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
-            {busy ? 'Setting up…' : 'Enter my portal'}
+            {busy ? (returning ? 'Logging in…' : 'Setting up…') : (returning ? 'Log in' : 'Enter my portal')}
           </button>
         </div>
       </Shell>

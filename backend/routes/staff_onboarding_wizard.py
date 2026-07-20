@@ -24,7 +24,7 @@ from fastapi.responses import Response as FileResponse
 from pydantic import BaseModel
 
 from utils.database import db
-from utils.auth import get_current_user, hash_password, create_token
+from utils.auth import get_current_user, hash_password, create_token, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -1383,6 +1383,42 @@ async def _recruit_case(user: dict) -> dict:
     return case, staff
 
 
+@router.get("/new-starter/invite/{token}")
+async def invite_status(token: str):
+    """Public: lets the portal show 'Create a password' (first time) vs
+    'Welcome back, log in' (returning) without exposing sensitive data."""
+    inv = await db.staff_onboarding_invites.find_one({"token": token})
+    if not inv:
+        return {"found": False}
+    expired = bool(inv.get("expires_at") and inv["expires_at"] < _now())
+    staff = await db.staff_members.find_one({"id": inv["staff_id"]}) or {}
+    user = await db.users.find_one({"id": staff.get("user_id")}) if staff.get("user_id") else None
+    has_password = bool(user and user.get("password"))
+    return {"found": True, "expired": expired,
+            "accepted": inv.get("status") == "accepted" and has_password,
+            "full_name": staff.get("full_name"),
+            "activated": bool(staff.get("active"))}
+
+
+@router.post("/new-starter/login")
+async def recruit_login(body: AcceptInvite, response: Response):
+    """Returning recruit logs in on the invite URL by verifying their password."""
+    inv = await db.staff_onboarding_invites.find_one({"token": body.token})
+    if not inv:
+        raise HTTPException(404, "Invalid invitation link")
+    if inv.get("expires_at") and inv["expires_at"] < _now():
+        raise HTTPException(410, "This invitation link has expired — please ask your HR contact to resend it.")
+    staff = await db.staff_members.find_one({"id": inv["staff_id"]}) or {}
+    uid = staff.get("user_id")
+    user = await db.users.find_one({"id": uid}) if uid else None
+    if not user or not user.get("password"):
+        raise HTTPException(400, "Please set up your portal password first.")
+    if not verify_password(body.password or "", user["password"]):
+        raise HTTPException(401, "Incorrect password — please try again.")
+    token = create_token(uid, expires_hours=24)
+    return {"token": token, "user": {"id": uid, "full_name": staff.get("full_name"), "role": "recruit"}}
+
+
 @router.post("/new-starter/accept-invite")
 async def accept_invite(body: AcceptInvite, response: Response):
     inv = await db.staff_onboarding_invites.find_one({"token": body.token})
@@ -1395,6 +1431,10 @@ async def accept_invite(body: AcceptInvite, response: Response):
     staff = await db.staff_members.find_one({"id": inv["staff_id"]})
     org = inv["organization_id"]
     uid = staff.get("user_id")
+    existing = await db.users.find_one({"id": uid}) if uid else None
+    # Portal already set up → don't reset the password; ask them to log in.
+    if inv.get("status") == "accepted" and existing and existing.get("password"):
+        raise HTTPException(409, "You've already set up your portal — please log in with your password.")
     if not uid:
         uid = str(uuid.uuid4())
         await db.users.insert_one({

@@ -1,0 +1,33 @@
+{
+  "summary": "Verified the New Starter Portal 'returning-user login' bug fix end-to-end. Backend: 9/9 pytest cases pass (invite status flip false→true, first-time accept-invite 200, repeat accept-invite 409, login 401 on wrong pw / 200 on correct pw, /me works with the returning JWT, unknown-token 404). Frontend (Playwright at /new-starter/<token>): first-time card shows 'Welcome to Pulse Fitness' + 'Create a password' + 'Enter my portal'; after clicking Log out the same card correctly re-renders as 'Welcome back, UIT' + 'Your password' + 'Log in' (core bug fix — no longer offers to Create a password); wrong password shows 'Incorrect password — please try again.' via nsp-error and does NOT enter the portal; correct password logs back into nsp-portal.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/new-starter/<token> (portal, after re-login)", "issues": ["A global 'Your session has expired — Sign in again' toast overlays the recruit portal after re-login (likely bleeding in from the main-app AuthContext even though the recruit portal is a separate white-branded page). Cosmetic only — did not block interactions in the automated run — but recruits will see it and may be confused. Recommend suppressing the main-app session-expired toast on the /new-starter/* route."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_starter_returning_login_jan2026.py",
+    "/app/test_reports/pytest/nsp_returning_login.xml"
+  ],
+  "action_items": [
+    "Optional: hide the main-app 'Session expired — Sign in again' toast on the /new-starter/* route so the recruit portal stays cleanly white-branded."
+  ],
+  "critical_code_review_comments": [
+    "routes/staff_onboarding_wizard.py: invite_status() correctly gates 'accepted' on BOTH invite.status=='accepted' AND user.password existing — good defence-in-depth against a partial state where the invite row was flipped but the user record wasn't.",
+    "accept-invite now short-circuits with 409 only when status=='accepted' AND user has a password; if for any reason the user row is missing/blank it will (re)set the password. This is a sensible fallback but worth an audit_log entry when the fallback path fires so ops can spot corrupt invites.",
+    "Frontend: sessionStorage key is per-token (nsp:<token>) — good, doesn't leak across different recruit links on the same browser. logout() clears password state as well.",
+    "Frontend uses `returning = !!inviteInfo?.accepted` — if the /invite/{token} call fails, inviteInfo stays null and the UI falls back to first-time copy. That's the safer default (a POST to accept-invite for an already-accepted token now returns 409, so no silent reset) but worth noting so future changes preserve that ordering."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_starter_returning_login_jan2026.py (new — 9 pytest cases + cleanup fixture)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all critical assertions passed)"},
+  "test_credentials": "HR: owner@isodemo.com / IsoDemo123!  |  Recruit pw used in tests: Recruit123!",
+  "seed_data_creation": "Each pytest run creates a unique TEST_nsp_<uuid>@example.com staff/case/user/invite via the API and deletes them in an autouse module-scoped teardown (pymongo). The Playwright case (case_id 32d3b125..., token f66c604...) was also fully cleaned up via direct db calls after the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The 'returning login' regression suite lives at /app/backend/tests/test_new_starter_returning_login_jan2026.py — re-run it after ANY change to /new-starter/invite/*, /new-starter/login, /new-starter/accept-invite, or utils/auth.verify_password. It self-cleans TEST_nsp_* rows. Note HR /api/auth/login is rate-limited (~4/min → 429); the module-scoped hr_token fixture already retries once with a 35s sleep."
+}
