@@ -512,6 +512,171 @@ async def get_templates(user: dict = Depends(get_current_user)):
     }
 
 
+# ───────── company policies & agreements (multi-tenant document management) ─────────
+def _slugify(title: str) -> str:
+    base = "".join(ch if ch.isalnum() else "_" for ch in (title or "").lower()).strip("_")
+    return (base or "doc")[:32] + "_" + uuid.uuid4().hex[:6]
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    try:
+        import fitz
+        doc = fitz.open(stream=data, filetype="pdf")
+        return "\n".join(p.get_text() for p in doc)[:20000]
+    except Exception:
+        logger.exception("pdf text extraction failed")
+        return ""
+
+
+async def _detect_signature_fields(text: str, session: str) -> dict:
+    """AI reads an uploaded document's text and reports where signatures/initials/dates are required."""
+    if not (text or "").strip():
+        return {"requires_signature": False, "signature_fields": [], "summary": "No readable text found in document."}
+    system = ("You are a document analyst for a UK employer. Given the text of an HR / employment / policy "
+              "document, identify every place where a person must SIGN, INITIAL or DATE (e.g. 'Signature:', "
+              "'Signed', 'Initials', 'Employee signature', 'Date', signature blocks). Return STRICT JSON only: "
+              '{"requires_signature": true|false, "signature_fields": [{"label": "", "type": "signature|initial|date"}], '
+              '"summary": "one short sentence"}. If none are found, requires_signature=false with an empty list.')
+    try:
+        raw = await _ai_chat(system, text[:12000], session)
+        parsed = _ai_json(raw)
+        if not parsed:
+            return {"requires_signature": False, "signature_fields": [], "summary": (raw or "")[:150]}
+        parsed.setdefault("signature_fields", [])
+        parsed["requires_signature"] = bool(parsed.get("requires_signature")) or len(parsed["signature_fields"]) > 0
+        return parsed
+    except Exception as e:
+        return {"requires_signature": False, "signature_fields": [], "summary": f"AI detection unavailable: {e}"}
+
+
+class PolicyBody(BaseModel):
+    title: str
+    acknowledgement_required: bool = True
+    body: Optional[str] = None
+
+
+class PolicyPatch(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    acknowledgement_required: Optional[bool] = None
+
+
+class AgreementBody(BaseModel):
+    title: str
+    requires_signature: bool = True
+    body: Optional[str] = None
+
+
+class AgreementPatch(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    requires_signature: Optional[bool] = None
+
+
+_DOC_KIND = {
+    "policies": ("staff_policy_versions", "acknowledgement_required"),
+    "agreements": ("staff_agreement_versions", "requires_signature"),
+}
+
+
+def _doc_coll(kind: str):
+    if kind not in _DOC_KIND:
+        raise HTTPException(400, "kind must be 'policies' or 'agreements'")
+    return getattr(db, _DOC_KIND[kind][0]), _DOC_KIND[kind][1]
+
+
+@router.post("/staff-onboarding/policies")
+async def create_policy(body: PolicyBody, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    key = _slugify(body.title)
+    doc = {"id": str(uuid.uuid4()), "organization_id": org, "key": key, "title": body.title,
+           "version": 1, "effective_date": _now(), "acknowledgement_required": body.acknowledgement_required,
+           "summary": "", "body": body.body or "", "is_sample": False, "created_at": _now()}
+    await db.staff_policy_versions.insert_one(dict(doc))
+    return _strip(doc)
+
+
+@router.put("/staff-onboarding/policies/{key}")
+async def update_policy(key: str, body: PolicyPatch, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    pol = await db.staff_policy_versions.find_one({"organization_id": org, "key": key})
+    if not pol:
+        raise HTTPException(404, "Policy not found")
+    upd = {"updated_at": _now(), "is_sample": False}
+    if body.title is not None: upd["title"] = body.title
+    if body.body is not None: upd["body"] = body.body
+    if body.acknowledgement_required is not None: upd["acknowledgement_required"] = body.acknowledgement_required
+    await db.staff_policy_versions.update_one({"id": pol["id"]}, {"$set": upd})
+    return _strip(await db.staff_policy_versions.find_one({"id": pol["id"]}))
+
+
+@router.delete("/staff-onboarding/policies/{key}")
+async def delete_policy(key: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    r = await db.staff_policy_versions.delete_one({"organization_id": org, "key": key})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
+@router.post("/staff-onboarding/agreements")
+async def create_agreement(body: AgreementBody, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    key = _slugify(body.title)
+    doc = {"id": str(uuid.uuid4()), "organization_id": org, "key": key, "title": body.title,
+           "version": 1, "effective_date": _now(), "requires_signature": body.requires_signature,
+           "body": body.body or "", "is_sample": False, "created_at": _now()}
+    await db.staff_agreement_versions.insert_one(dict(doc))
+    return _strip(doc)
+
+
+@router.put("/staff-onboarding/agreements/{key}")
+async def update_agreement(key: str, body: AgreementPatch, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    ag = await db.staff_agreement_versions.find_one({"organization_id": org, "key": key})
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    upd = {"updated_at": _now(), "is_sample": False}
+    if body.title is not None: upd["title"] = body.title
+    if body.body is not None: upd["body"] = body.body
+    if body.requires_signature is not None: upd["requires_signature"] = body.requires_signature
+    await db.staff_agreement_versions.update_one({"id": ag["id"]}, {"$set": upd})
+    return _strip(await db.staff_agreement_versions.find_one({"id": ag["id"]}))
+
+
+@router.delete("/staff-onboarding/agreements/{key}")
+async def delete_agreement(key: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    r = await db.staff_agreement_versions.delete_one({"organization_id": org, "key": key})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
+@router.post("/staff-onboarding/{kind}/{key}/upload")
+async def upload_company_doc(kind: str, key: str, file: UploadFile = File(...),
+                             user: dict = Depends(get_current_user)):
+    """Upload a company's own policy/agreement PDF. Extracts the text so recruits can
+    read it, then runs AI to detect where signatures/initials/dates are required."""
+    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    coll, flag = _doc_coll(kind)
+    doc = await coll.find_one({"organization_id": org, "key": key})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    data = await file.read()
+    ext = (file.filename or "f.pdf").rsplit(".", 1)[-1].lower()
+    path = f"{APP_NAME}/onboarding/{org}/{kind}/{key}-{uuid.uuid4().hex[:8]}.{ext}"
+    result = _put_object(path, data, file.content_type or MIME.get(ext, "application/pdf"))
+    text = _extract_pdf_text(data) if ext == "pdf" else ""
+    ai = await _detect_signature_fields(text, f"{kind}-{org}-{key}")
+    upd = {"pdf_path": result["path"], "pdf_filename": file.filename, "updated_at": _now(),
+           "is_sample": False, "version": (doc.get("version", 1) + 1),
+           "signature_fields": ai.get("signature_fields", []), "ai_summary": ai.get("summary")}
+    if text:
+        upd["body"] = text
+    if kind == "agreements":
+        upd["requires_signature"] = bool(ai.get("requires_signature"))
+    await coll.update_one({"id": doc["id"]}, {"$set": upd})
+    return {"ok": True, "ai": ai, "text_chars": len(text), "filename": file.filename}
+
+
+
 # ───────────────────────── template builder (Phase 2) ─────────────────────────
 MERGE_FIELDS = [
     ("legal_name", "Employee legal full name"),

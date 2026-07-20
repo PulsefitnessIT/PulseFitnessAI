@@ -8,7 +8,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   Loader2, Upload, CheckCircle2, FileText, ShieldCheck, PenLine, Send, Circle, Download,
-  X, AlertCircle, BookOpen,
+  X, AlertCircle, BookOpen, LogOut,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -29,6 +29,7 @@ export default function NewStarterPortal() {
   const [err, setErr] = useState('');
   const [me, setMe] = useState(null);
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
+  const logout = () => { sessionStorage.removeItem(`nsp:${token}`); setJwt(''); setMe(null); setPassword(''); };
 
   const loadMe = useCallback(async (tk) => {
     try {
@@ -78,21 +79,39 @@ export default function NewStarterPortal() {
             <h1 className="text-2xl font-bold text-slate-900">{me.portal_name}</h1>
             <p className="text-slate-500 text-sm">Hello {me.person?.full_name} — {me.employment?.job_title || me.employment?.position || 'welcome aboard'}.</p>
           </div>
-          {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">Active employee ✓</span>}
+          <div className="flex items-center gap-2">
+            {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">Active employee ✓</span>}
+            <button onClick={logout} data-testid="nsp-logout"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-slate-400">
+              <LogOut size={14} /> Log out</button>
+          </div>
         </div>
 
-        {/* progress tracker */}
-        <div className="mt-5 flex flex-wrap gap-2" data-testid="nsp-progress">
-          {me.steps.map((s) => {
-            const v = me.progress[s];
-            const done = ['submitted', 'verified', 'accepted', 'fully_signed', 'complete'].includes(v);
-            return (
-              <div key={s} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${done ? 'bg-emerald-50 text-emerald-700' : v && v !== 'not_started' ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-400'}`}>
-                {done ? <CheckCircle2 size={13} /> : <Circle size={13} />} {STEP_LABELS[s]}
+        {/* progress checklist (click a step to jump to it) */}
+        {(() => {
+          const DONE = ['submitted', 'verified', 'accepted', 'fully_signed', 'complete'];
+          const TARGET = { forms: 'forms', documents: 'documents', policies: 'policies', agreements: 'agreements', offer: 'offer', contract: 'contract' };
+          const doneCount = me.steps.filter((s) => DONE.includes(me.progress[s])).length;
+          const jump = (s) => { const el = document.getElementById('sec-' + TARGET[s]); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+          return (
+            <div className="mt-5" data-testid="nsp-checklist">
+              <div className="text-xs font-semibold text-slate-500 mb-2">Your checklist — {doneCount} of {me.steps.length} complete</div>
+              <div className="flex flex-wrap gap-2" data-testid="nsp-progress">
+                {me.steps.map((s) => {
+                  const v = me.progress[s];
+                  const done = DONE.includes(v);
+                  const clickable = !!TARGET[s];
+                  return (
+                    <button key={s} onClick={() => clickable && jump(s)} disabled={!clickable} data-testid={`nsp-step-${s}`}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${clickable ? 'cursor-pointer hover:ring-2 hover:ring-cyan-300' : 'cursor-default'} ${done ? 'bg-emerald-50 text-emerald-700' : v && v !== 'not_started' ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {done ? <CheckCircle2 size={13} /> : <Circle size={13} />} {STEP_LABELS[s]}
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })()}
 
         <div className="mt-6 space-y-5">
           <YourDetails H={H} me={me} reload={() => loadMe(jwt)} />
@@ -108,9 +127,9 @@ export default function NewStarterPortal() {
   );
 }
 
-function Section({ title, icon: Icon, children, testId }) {
+function Section({ title, icon: Icon, children, testId, secId }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5" data-testid={testId}>
+    <div id={secId ? `sec-${secId}` : undefined} className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 scroll-mt-4" data-testid={testId}>
       <div className="flex items-center gap-2 mb-3"><Icon size={18} className="text-cyan-600" />
         <h2 className="font-bold text-slate-900">{title}</h2></div>
       {children}
@@ -125,7 +144,7 @@ function YourDetails({ H, me, reload }) {
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const save = async () => { setBusy(true); try { await axios.put(`${API}/new-starter/forms`, { form_key: 'new_starter', data: f }, { headers: H }); setOk(true); reload(); } finally { setBusy(false); } };
   return (
-    <Section title="Your Details, Emergency Contact & Payroll" icon={FileText} testId="nsp-details">
+    <Section title="Your Details, Emergency Contact & Payroll" icon={FileText} testId="nsp-details" secId="forms">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <PortalField label="Home address" k="home_address" value={f.home_address} onChange={set('home_address')} />
         <PortalField label="Date of birth" k="dob" type="date" value={f.dob} onChange={set('dob')} />
@@ -158,10 +177,11 @@ function Documents({ H, me, reload }) {
     const fd = new FormData(); fd.append('file', file); fd.append('document_type', type);
     try { await axios.post(`${API}/new-starter/upload`, fd, { headers: { ...H } }); reload(); } finally { setBusy(false); }
   };
-  const TYPES = [['passport', 'Passport / ID'], ['proof_of_address', 'Proof of address'], ['right_to_work', 'Right to Work'], ['qualification', 'Qualification']];
+  const TYPES = [['passport', 'Passport / ID'], ['proof_of_address', 'Proof of address'], ['right_to_work', 'Right to Work'], ['driving_licence', 'Driving Licence'], ['qualification', 'Qualification']];
   return (
-    <Section title="Identity & Proof-of-Address Documents" icon={Upload} testId="nsp-documents">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <Section title="Identity & Proof-of-Address Documents" icon={Upload} testId="nsp-documents" secId="documents">
+      <p className="text-xs text-slate-500 mb-2">Upload a clear photo or scan of each document. A driving licence is optional unless your role requires driving.</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {TYPES.map(([t, label]) => (
           <label key={t} className="cursor-pointer rounded-xl border border-dashed border-slate-300 p-3 text-center hover:border-cyan-400" data-testid={`nsp-upload-${t}`}>
             <Upload size={16} className="mx-auto text-slate-400" />
@@ -189,7 +209,7 @@ function Policies({ H, me, reload }) {
     finally { setBusy(''); }
   };
   return (
-    <Section title="Company Policies" icon={ShieldCheck} testId="nsp-policies">
+    <Section title="Company Policies" icon={ShieldCheck} testId="nsp-policies" secId="policies">
       <p className="text-xs text-slate-500 mb-2">Open each policy to read it, then acknowledge at the bottom.</p>
       <div className="space-y-2">
         {me.policies.map((p) => {
@@ -248,17 +268,25 @@ function Agreements({ H, me, reload }) {
   const [busy, setBusy] = useState('');
   const sign = async (key) => { setBusy(key); try { await axios.post(`${API}/new-starter/agreements/${key}/sign`, { signature_name: me.person?.full_name, acknowledge: true }, { headers: H }); reload(); } finally { setBusy(''); } };
   return (
-    <Section title="Agreements — Electronic Signature" icon={PenLine} testId="nsp-agreements">
+    <Section title="Agreements — Electronic Signature" icon={PenLine} testId="nsp-agreements" secId="agreements">
       <div className="space-y-2">
         {me.agreements.map((a) => {
           const signed = me.agreement_state?.[a.key]?.status === 'signed';
+          const sigFields = a.signature_fields || [];
           return (
-            <div key={a.key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
-              <div className="text-sm text-slate-700">{a.title}{a.is_sample && <span className="ml-1 text-[10px] text-amber-600">SAMPLE</span>}</div>
-              {signed ? <span className="text-emerald-600 text-xs font-semibold">Signed ✓</span>
-                : <button onClick={() => sign(a.key)} disabled={busy === a.key} data-testid={`nsp-sign-${a.key}`}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-900" style={{ background: CORE }}>
-                    {busy === a.key ? '…' : 'Sign'}</button>}
+            <div key={a.key} className="rounded-lg border border-slate-200 px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-slate-700">{a.title}{a.is_sample && <span className="ml-1 text-[10px] text-amber-600">SAMPLE</span>}</div>
+                {signed ? <span className="text-emerald-600 text-xs font-semibold">Signed ✓</span>
+                  : <button onClick={() => sign(a.key)} disabled={busy === a.key} data-testid={`nsp-sign-${a.key}`}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-900" style={{ background: CORE }}>
+                      {busy === a.key ? '…' : 'Sign'}</button>}
+              </div>
+              {sigFields.length > 0 && !signed && (
+                <div className="mt-1.5 text-[11px] text-slate-500" data-testid={`nsp-sigfields-${a.key}`}>
+                  Signature points detected: {sigFields.map((f) => f.label).join(', ')}
+                </div>
+              )}
             </div>
           );
         })}
@@ -344,7 +372,7 @@ function OfferCard({ H, me, reload }) {
     finally { setBusy(''); }
   };
   return (
-    <Section title="Your Offer Letter" icon={FileText} testId="nsp-offer">
+    <Section title="Your Offer Letter" icon={FileText} testId="nsp-offer" secId="offer">
       <div className="flex justify-end mb-2">
         <button onClick={() => openPdf(`${API}/new-starter/offer.pdf`, H)} data-testid="nsp-offer-pdf"
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400">
@@ -371,7 +399,7 @@ function ContractCard({ H, me, reload }) {
   const con = me.contract; const [name, setName] = useState(me.person?.full_name || ''); const [ackd, setAckd] = useState(false); const [busy, setBusy] = useState(false);
   const sign = async () => { setBusy(true); try { await axios.post(`${API}/new-starter/contract/sign`, { signature_name: name, signature_method: 'typed', acknowledge: true }, { headers: H }); reload(); } finally { setBusy(false); } };
   return (
-    <Section title="Your Employment Contract" icon={FileSignatureIcon} testId="nsp-contract">
+    <Section title="Your Employment Contract" icon={FileSignatureIcon} testId="nsp-contract" secId="contract">
       <div className="flex justify-end mb-2">
         <button onClick={() => openPdf(`${API}/new-starter/contract.pdf`, H)} data-testid="nsp-contract-pdf"
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400">

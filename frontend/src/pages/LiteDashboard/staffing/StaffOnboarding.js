@@ -904,8 +904,94 @@ function PackSettings({ headers, onClose }) {
           <Btn onClick={save} busy={busy} testId="pack-settings-save" primary>Save settings</Btn>
           <Btn onClick={onClose} testId="pack-settings-close">Close</Btn>
         </div>
+
+        <div className="pt-4 border-t" style={{ borderColor: 'var(--theme-border)' }}>
+          <DocsManager headers={headers} />
+        </div>
       </div>
     </Modal>
+  );
+}
+
+/* Company policies & agreements — upload your own docs; AI detects signature points. */
+function DocsManager({ headers }) {
+  const [docs, setDocs] = useState({ policies: [], agreements: [] });
+  const [newTitle, setNewTitle] = useState({ policies: '', agreements: '' });
+  const [busy, setBusy] = useState('');
+  const [ai, setAi] = useState({});
+
+  const load = useCallback(async () => {
+    const r = await axios.get(`${API}/staff-onboarding/templates`, { headers });
+    setDocs({ policies: r.data.policies || [], agreements: r.data.agreements || [] });
+  }, [headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async (kind) => {
+    const title = newTitle[kind].trim(); if (!title) return;
+    setBusy(`add-${kind}`);
+    try { await axios.post(`${API}/staff-onboarding/${kind}`, { title }, { headers }); setNewTitle((p) => ({ ...p, [kind]: '' })); await load(); }
+    finally { setBusy(''); }
+  };
+  const remove = async (kind, key) => {
+    setBusy(`del-${key}`);
+    try { await axios.delete(`${API}/staff-onboarding/${kind}/${key}`, { headers }); await load(); }
+    finally { setBusy(''); }
+  };
+  const upload = async (kind, key, e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setBusy(`up-${key}`); setAi((p) => ({ ...p, [key]: null }));
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const r = await axios.post(`${API}/staff-onboarding/${kind}/${key}/upload`, fd, { headers });
+      setAi((p) => ({ ...p, [key]: r.data.ai })); await load();
+    } finally { setBusy(''); }
+  };
+
+  const renderList = (kind, label) => (
+    <div>
+      <div className="font-semibold text-sm mb-2" style={{ color: 'var(--theme-text)' }}>{label}</div>
+      <div className="space-y-2">
+        {docs[kind].map((d) => (
+          <div key={d.key} className="rounded-lg border p-2.5" style={surface} data-testid={`doc-row-${d.key}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm flex-1" style={{ color: 'var(--theme-text)' }}>{d.title}
+                {d.is_sample && <span className="ml-1 text-[10px] text-amber-400">SAMPLE</span>}
+                {d.pdf_filename && <span className="ml-1 text-[10px] text-emerald-400">PDF ✓</span>}</span>
+              <label className="text-xs px-2 py-1 rounded-md border cursor-pointer" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} data-testid={`doc-upload-${d.key}`}>
+                {busy === `up-${d.key}` ? 'Analysing…' : 'Upload PDF'}
+                <input type="file" accept="application/pdf" className="hidden" onChange={(e) => upload(kind, d.key, e)} />
+              </label>
+              <button onClick={() => remove(kind, d.key)} disabled={busy === `del-${d.key}`} data-testid={`doc-del-${d.key}`}
+                className="text-slate-400 hover:text-red-400"><X size={15} /></button>
+            </div>
+            {(ai[d.key] || d.signature_fields?.length > 0) && (
+              <div className="mt-1.5 text-[11px]" style={{ color: 'var(--theme-text)', opacity: 0.7 }} data-testid={`doc-ai-${d.key}`}>
+                {ai[d.key]?.summary || (d.signature_fields?.length ? 'Signature points detected on upload.' : '')}
+                {(ai[d.key]?.signature_fields || d.signature_fields || []).length > 0 &&
+                  <span className="ml-1">Signature points: {(ai[d.key]?.signature_fields || d.signature_fields).map((f) => f.label).join(', ')}</span>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input value={newTitle[kind]} onChange={(e) => setNewTitle((p) => ({ ...p, [kind]: e.target.value }))} data-testid={`doc-new-${kind}`}
+          placeholder={`New ${kind === 'policies' ? 'policy' : 'agreement'} title`}
+          className="flex-1 rounded-lg px-3 py-1.5 text-sm border bg-transparent" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} />
+        <Btn onClick={() => add(kind)} busy={busy === `add-${kind}`} testId={`doc-add-${kind}`}><Plus size={13} /> Add</Btn>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4" data-testid="docs-manager">
+      <div>
+        <div className="font-semibold flex items-center gap-1.5" style={{ color: 'var(--theme-text)' }}><ScrollText size={15} /> Your policies & agreements</div>
+        <div className="text-xs opacity-60 mb-3" style={{ color: 'var(--theme-text)' }}>Upload your company's own documents. When you upload a PDF, AI reads it and flags where signatures/initials are required.</div>
+      </div>
+      {renderList('policies', 'Policies (read & acknowledge)')}
+      {renderList('agreements', 'Agreements (require signature)')}
+    </div>
   );
 }
 

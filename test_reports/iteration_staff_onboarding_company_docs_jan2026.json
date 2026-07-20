@@ -1,0 +1,34 @@
+{
+  "summary": "Verified Staff Onboarding company-docs multi-tenant + portal UX end-to-end. Backend pytest 7/7 pass (policies+agreements CRUD, PDF upload with live Emergent LLM signature detection returning requires_signature=true + signature_fields on a reportlab-generated PDF containing 'Employee signature/Date/Initials'). Frontend Playwright confirmed: (a) HR Settings modal → DocsManager renders (docs-manager), add policy/agreement work, doc-upload-* + doc-del-* buttons present per row; (b) New-Starter portal shows Driving Licence tile (nsp-upload-driving_licence), Log out button (nsp-logout), clickable checklist (nsp-checklist) with 'X of N complete' and all 6 chips (forms/documents/policies/agreements/offer/contract) — clicking policies chip scrolls sec-policies into view (top=16px). Logout returns to sign-in; re-entering password restores portal with saved progress.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verifications": {
+    "Backend AI upload": "POST /api/staff-onboarding/agreements/{key}/upload with PDF containing 'Employee signature: ___ Date: ___' + 'Employee initials: ___' → AI returned requires_signature=true, signature_fields non-empty (signature type present). text_chars > 20. Agreement doc post-upload persisted requires_signature=true + signature_fields.",
+    "Policies/Agreements CRUD": "POST/PUT/DELETE for both collections return 200 with expected shapes.",
+    "HR Settings DocsManager": "Login owner@isodemo.com → /dashboard → Staffing → People → Staff Onboarding → Settings modal opens, scrollable, 'Your policies & agreements' section renders with 5 seed policies + 4 seed agreements. doc-new-policies + doc-add-policies added TEST_UI_Pol_b0d42; doc-new-agreements + doc-add-agreements added TEST_UI_Ag_dbb5e. 11 doc-upload-* and 11 doc-del-* testids detected.",
+    "Portal driving licence": "nsp-upload-driving_licence tile visible alongside Passport/ID, Proof of address, Right to Work, Qualification.",
+    "Portal checklist": "nsp-checklist shows 'Your checklist — 0 of 8 complete' and all 6 step chips (nsp-step-forms/documents/policies/agreements/offer/contract). Section anchors sec-forms/documents/policies/agreements rendered. sec-offer & sec-contract not rendered until offer/contract issued — that is by design (conditional render), NOT a bug. Clicking nsp-step-policies scrolls sec-policies into view (getBoundingClientRect().top ≈ 16px).",
+    "Portal logout & re-login persistence": "nsp-logout returns user to nsp-signin. Re-entering password (Recruit123!) restores portal with checklist visible (progress retained via server-side recruit_me payload)."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_onboarding_company_docs_jan2026.py",
+    "/app/test_reports/pytest/company_docs_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "staff_onboarding_wizard.py is now 2046 lines (previously flagged at 1880). URGENT to split into sub-routers (cases/invites/offer/contract/portal/docs) — well past the 700-line guideline.",
+    "StaffOnboarding.js frontend continues to grow; DocsManager inside PackSettings should be its own component file to keep the Settings modal maintainable.",
+    "_slugify collisions: if HR renames a policy to the same title as an existing one, the new key clashes and the PUT will overwrite the wrong doc. Consider appending a short uuid suffix if key already exists in the org.",
+    "No max-file-size guard on POST /staff-onboarding/{kind}/{key}/upload — a 100 MB PDF would be read entirely into memory + sent to the LLM. Add a size ceiling (e.g. 10 MB) + reject non-PDF types with a 415 rather than silently skipping AI.",
+    "DELETE /api/staff-onboarding/cases/{id} still missing (405) — flagged in previous iteration; blocks test cleanup."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_onboarding_company_docs_jan2026.py (new)"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100%"},
+  "test_credentials": "HR: owner@isodemo.com / IsoDemo123! · Recruit portal: dynamic invite via /api/staff-onboarding/cases/{id}/invite (password Recruit123!).",
+  "seed_data_creation": "Created 1 staff+case (TESTUI Recruit298c56 → case 22091951-116a-437b-9b91-9511396dcf3c) + 1 portal invite. Added TEST_UI_Pol_b0d42 policy and TEST_UI_Ag_dbb5e agreement via UI + several TEST_docs_* policies/agreements via pytest (deleted by tests). Test-created UI docs remain (no delete run) — prefixed TEST_UI_ for easy cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest file test_staff_onboarding_company_docs_jan2026.py generates its own signature PDF via reportlab and hits the live AI. Portal invite must be created via API; the /new-starter/<token> URL then requires an 8+ char password on first visit."
+}
