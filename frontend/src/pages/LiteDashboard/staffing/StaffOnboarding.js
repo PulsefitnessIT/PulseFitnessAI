@@ -196,6 +196,45 @@ function WizardField({ label, k, on, val, type = 'text' }) {
   );
 }
 
+function WizardSelect({ label, k, val, on, options, placeholder = 'Select…' }) {
+  return (
+    <label className="block">
+      <span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>{label}</span>
+      <select value={val} onChange={on} data-testid={`wizard-${k}`}
+        className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
+        style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+        <option value="" style={{ color: '#111' }}>{placeholder}</option>
+        {options.map((o) => <option key={o} value={o} style={{ color: '#111' }}>{o}</option>)}
+      </select>
+    </label>
+  );
+}
+
+// Editable dropdown (native datalist) — HR can pick a suggestion or type a custom value.
+function WizardCombo({ label, k, val, on, options, placeholder }) {
+  const listId = `dl-${k}`;
+  return (
+    <label className="block">
+      <span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>{label}</span>
+      <input list={listId} value={val} onChange={on} data-testid={`wizard-${k}`} placeholder={placeholder}
+        className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
+        style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} />
+      <datalist id={listId}>{options.map((o) => <option key={o} value={o} />)}</datalist>
+    </label>
+  );
+}
+
+const DEPARTMENTS = ['Service', 'Sales', 'Operations', 'Installation', 'Warehouse / Stores',
+  'Finance', 'HR', 'Marketing', 'IT', 'Customer Support', 'Management', 'Admin'];
+const EMPLOYMENT_TYPES = ['Permanent full time', 'Permanent part time', 'Fixed-term contract',
+  'Temporary', 'Apprenticeship', 'Zero-hours', 'Consultant / Contractor'];
+const PROBATION_PERIODS = ['None', '1 month', '3 months', '6 months', '12 months'];
+const NOTICE_PERIODS = ['1 week', '2 weeks', '1 month', '2 months', '3 months', '6 months'];
+const HOLIDAY_OPTIONS = ['20 days', '22 days', '25 days', '28 days (incl. bank holidays)',
+  '30 days', '33 days (incl. bank holidays)'];
+const SITE_OPTIONS = ['Head Office', 'Remote', 'Field-based', 'Hybrid'];
+const COMPANY_OPTIONS = ['Pulse Fitness'];
+
 /* ───────────────── Create Onboarding Case Wizard ───────────────── */
 function CaseWizard({ headers, onClose, onCreated }) {
   const [step, setStep] = useState(1);
@@ -203,6 +242,7 @@ function CaseWizard({ headers, onClose, onCreated }) {
   const [prop, setProp] = useState({ employing_company: 'Pulse Fitness', job_title: '', department: '', site: '', line_manager: '', salary: '', hours_per_week: '', employment_type: 'Permanent full time', probation_period: '', notice_period: '', holiday_entitlement: '', authorised_signatory: '' });
   const [pkg, setPkg] = useState('standard');
   const [packages, setPackages] = useState([]);
+  const [staffNames, setStaffNames] = useState([]);
   const [dup, setDup] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -211,6 +251,7 @@ function CaseWizard({ headers, onClose, onCreated }) {
 
   useEffect(() => {
     axios.get(`${API}/staff-onboarding/packages`, { headers }).then(r => setPackages(r.data.packages || [])).catch(() => {});
+    axios.get(`${API}/staffing/staff`, { headers }).then(r => setStaffNames((r.data.staff || []).map(s => s.full_name).filter(Boolean))).catch(() => {});
   }, [headers]);
 
   const checkDup = async () => {
@@ -276,18 +317,18 @@ function CaseWizard({ headers, onClose, onCreated }) {
       {step === 2 && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Employing company" k="ec" on={setP('employing_company')} val={prop.employing_company} />
+            <WizardCombo label="Employing company" k="ec" on={setP('employing_company')} val={prop.employing_company} options={COMPANY_OPTIONS} />
             <Field label="Job title" k="job_title" on={setP('job_title')} val={prop.job_title} />
-            <Field label="Department" k="department" on={setP('department')} val={prop.department} />
-            <Field label="Site / place of work" k="site" on={setP('site')} val={prop.site} />
-            <Field label="Line manager" k="line_manager" on={setP('line_manager')} val={prop.line_manager} />
+            <WizardSelect label="Department" k="department" on={setP('department')} val={prop.department} options={DEPARTMENTS} />
+            <WizardCombo label="Site / place of work" k="site" on={setP('site')} val={prop.site} options={SITE_OPTIONS} placeholder="Select or type…" />
+            <WizardCombo label="Line manager" k="line_manager" on={setP('line_manager')} val={prop.line_manager} options={staffNames} placeholder="Select or type…" />
             <Field label="Salary" k="salary" on={setP('salary')} val={prop.salary} />
-            <Field label="Hours per week" k="hours" on={setP('hours_per_week')} val={prop.hours_per_week} />
-            <Field label="Employment type" k="etype" on={setP('employment_type')} val={prop.employment_type} />
-            <Field label="Probation period" k="probation" on={setP('probation_period')} val={prop.probation_period} />
-            <Field label="Notice period" k="notice" on={setP('notice_period')} val={prop.notice_period} />
-            <Field label="Holiday entitlement" k="holiday" on={setP('holiday_entitlement')} val={prop.holiday_entitlement} />
-            <Field label="Authorised signatory" k="signatory" on={setP('authorised_signatory')} val={prop.authorised_signatory} />
+            <Field label="Hours per week" k="hours" on={setP('hours_per_week')} val={prop.hours_per_week} type="number" />
+            <WizardSelect label="Employment type" k="etype" on={setP('employment_type')} val={prop.employment_type} options={EMPLOYMENT_TYPES} />
+            <WizardSelect label="Probation period" k="probation" on={setP('probation_period')} val={prop.probation_period} options={PROBATION_PERIODS} />
+            <WizardSelect label="Notice period" k="notice" on={setP('notice_period')} val={prop.notice_period} options={NOTICE_PERIODS} />
+            <WizardSelect label="Holiday entitlement" k="holiday" on={setP('holiday_entitlement')} val={prop.holiday_entitlement} options={HOLIDAY_OPTIONS} />
+            <WizardCombo label="Authorised signatory" k="signatory" on={setP('authorised_signatory')} val={prop.authorised_signatory} options={staffNames} placeholder="Select or type…" />
           </div>
           <div className="flex justify-between">
             <button onClick={() => setStep(1)} className="px-4 py-2 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>Back</button>

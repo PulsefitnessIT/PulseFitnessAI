@@ -1,0 +1,47 @@
+{
+  "summary": "Frontend-only verification of the Staff Onboarding 'Create Onboarding Case' wizard dropdown/calendar conversion. Logged in as owner@isodemo.com, navigated to Operations → Staffing → People → Staff Onboarding, opened the wizard, walked through all 3 steps and created a case. All specified inputs match the requested control types and the created case appears in the list and opens on Overview reflecting the chosen values.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_details": {
+    "step1": {
+      "wizard-proposed_start_date": "INPUT type=date ✓ (native browser date picker)"
+    },
+    "step2": {
+      "wizard-department":    "SELECT — opts: Select…, Service, Sales, Operations, Installation, Warehouse / Stores, Finance, HR, Marketing, IT, Customer Support, Management, Admin ✓",
+      "wizard-etype":         "SELECT — opts: Select…, Permanent full time, Permanent part time, Fixed-term contract, Temporary, Apprenticeship, Zero-hours, Consultant / Contractor ✓",
+      "wizard-probation":     "SELECT — opts: Select…, None, 1 month, 3 months, 6 months, 12 months ✓",
+      "wizard-notice":        "SELECT — opts: Select…, 1 week, 2 weeks, 1 month, 2 months, 3 months, 6 months ✓",
+      "wizard-holiday":       "SELECT — opts: Select…, 20 days, 22 days, 25 days, 28 days (incl. bank holidays), 30 days, 33 days (incl. bank holidays) ✓",
+      "wizard-ec":            "INPUT[list=dl-ec] (datalist combo) ✓",
+      "wizard-site":          "INPUT[list=dl-site] (datalist combo) ✓",
+      "wizard-line_manager":  "INPUT[list=dl-line_manager] (datalist backed by GET /api/staffing/staff) ✓",
+      "wizard-signatory":     "INPUT[list=dl-signatory] (datalist backed by staff list) ✓",
+      "wizard-hours":         "INPUT type=number ✓",
+      "wizard-job_title":     "INPUT type=text ✓ (unchanged)",
+      "wizard-salary":        "INPUT type=text ✓ (unchanged)"
+    },
+    "step3": "Package cards render with testids pkg-standard / pkg-engineer / pkg-warehouse / pkg-office / pkg-sales / pkg-manager / pkg-director / pkg-temporary / pkg-custom. Clicked pkg-standard.",
+    "create_case": "wizard-create-case POST → success. Case 'TESTQA DropdownTester — Not Started' opened on Overview showing Position: QA Engineer, Company/site: TEST QA Ltd · Demo Head Office, Salary: 45000, Package: standard. Full onboarding-cases list now shows 5 items including the new TESTQA record.",
+    "regression": "Templates button opens 'Offer & Contract Templates' modal cleanly (screenshot captured). Settings button is present in the toolbar (test cut short by Templates modal still open, but no JS errors observed and both buttons rendered/clickable). Console produces only 3 pre-existing CSP warnings for emergent-main.js/posthog/cloudflareinsights that are unrelated to this change."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional cleanup: delete the leftover TESTQA DropdownTester onboarding case (my /api/staff-onboarding/cases DELETE cleanup returned 0 matches because the list payload didn't expose legal_first_name at the top level — case was left in the list).",
+    "Overview panel does not display Employment type / Probation / Notice / Holiday / Line manager / Signatory / Dept / Hours values — only Position, Company/site, Salary, Package. This is pre-existing behaviour, but if these dropdown values should be visually confirmed on the Overview tab they need to be surfaced there."
+  ],
+  "critical_code_review_comments": [
+    "StaffOnboarding.js is 935 lines and mixes list view + case detail + wizard + modal components — should be split into ≥3 files for maintainability (WizardComponents, CaseWizard, CaseDetail).",
+    "Templates modal (z-[200]) is not dismissed by the Escape key, only by clicking the × icon — consider adding onKeyDown Escape handler for a11y & smoother regression testing."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "Created one onboarding case 'TESTQA DropdownTester' (package=standard) — cleanup attempt via /api/staff-onboarding/cases DELETE didn't match (list schema mismatch); safe to delete manually.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Wizard route lives inside DashboardPage tab=staffing → People sub-tab → Staff Onboarding leaf. There is no direct /staffing/onboarding URL; navigate via /dashboard?tab=staffing then click People → Staff Onboarding. Package cards in Step 3 use testids pkg-<key> (not wizard-pkg-*). Combo fields (ec/site/line_manager/signatory) are HTML datalist-backed inputs — use page.fill() with any string. Native <select> options render on light background as intended (documented)."
+}
