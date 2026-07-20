@@ -1,0 +1,46 @@
+{
+  "summary": "Full backend + frontend E2E validation of Staff Portal login (/staff-login), guard (/staff-portal), forgot-password and reset-password (/staff-reset/:token) flows plus invite-based regression. 15/15 pytest cases pass; all UI flows verified with correct data-testid selectors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/staff-portal after fresh staff-login", "issues": ["A global 'Your session has expired — Sign in again' toast overlays the portal on first load. The nsp-portal renders correctly and works, but the modal is misleading because the staff JWT is valid. Likely triggered by another global hook calling /api/auth/me with no auth token and mapping 401→session-expired banner. Low priority but should be scoped so it does not fire on the staff portal."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_login_portal.py",
+    "/app/test_reports/pytest/staff_login_portal.xml"
+  ],
+  "action_items": [
+    "Consider suppressing the global 'Your session has expired' toast/modal on /staff-portal (it uses staff_jwt in sessionStorage, not the main auth token). Not a blocker — the portal still renders and works."
+  ],
+  "critical_code_review_comments": [
+    "backend/routes/staff_onboarding_wizard.py is ~2160 lines — approaching split threshold; consider moving the staff-login/forgot/reset endpoints into their own module.",
+    "forgot-password + reset-password rely on ISO string comparison for expiry (`rec['expires_at'] < _now()`). Works while both are stored as ISO strings in UTC, but a stored `datetime` (from `datetime.now(...) + timedelta`) coerced elsewhere could break; safer to always compare parsed datetimes.",
+    "No rate-limiting on /api/new-starter/staff-login or /api/new-starter/forgot-password — could be abused for brute-force or email flood.",
+    "Frontend StaffLogin/StaffReset use axios without an Authorization header, good; but staff_jwt is never validated on portal load (only presence checked). Backend GET /new-starter/me is protected via get_current_user, so a stale/tampered token will 401 → the global banner triggers (see design issue above)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_login_portal.py (new)",
+    "/app/backend/tests/_seed_ui_staff.py (new — helper to seed a staff account for UI runs)"
+  ],
+  "success_rate": { "backend": "100% (15/15)", "frontend": "100% (all critical flows)" },
+  "test_credentials": "HR/owner: owner@isodemo.com / IsoDemo123!. Test staff created dynamically per run via invite flow; all test rows cleaned up after run (users, staff_members, cases, invites, staff_password_resets).",
+  "seed_data_creation": "Each pytest run creates a case + invite + accepts it to establish a fresh staff account (email test_staff_TEST_*@example.com) then deletes it in autouse teardown. UI test seed script (_seed_ui_staff.py) prints creds+invite token for manual/browser runs; cleanup done post-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend module `staff_onboarding_wizard.py` lines ~1457-1526 hold the three new endpoints (staff-login, forgot-password, reset-password). Frontend pages at src/pages/StaffLogin.js, StaffResetPassword.js; NewStarterPortal receives staffMode prop for /staff-portal. sessionStorage key = 'staff_jwt'. staff_password_resets is single-use — a valid token is consumed on first success. Reset link email is actually sent via Resend; do not use real inboxes.",
+  "verified_scenarios": [
+    "GET /staff-login card shows heading 'Pulse Fitness Staff Portal' with email/password/login-btn/forgot-link (data-testids present).",
+    "Wrong email or password → 401 → staff-login-error visible, stays on /staff-login (no nav).",
+    "Correct credentials → 200 + JWT stored in sessionStorage → nav to /staff-portal, nsp-portal element renders with recruit-specific sections.",
+    "GET /staff-portal without staff_jwt → redirects to /staff-login (guard OK).",
+    "Forgot flow: submit unknown and known email → identical generic message via staff-login-info; no account enumeration.",
+    "Reset page /staff-reset/:token with VALID token → success state staff-reset-done shown; Go-to-signin button navigates back to /staff-login.",
+    "Login with NEW password after reset → success; login with OLD password → 401 error.",
+    "Reused reset token → 400 'invalid or already used' shown as staff-reset-error.",
+    "Invalid token via API → 400; short password → 400.",
+    "Regression: /api/new-starter/login (invite-based returning login) still works with the same account."
+  ]
+}

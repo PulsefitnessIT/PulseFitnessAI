@@ -21,16 +21,20 @@ async function openPdf(url, headers) {
 const CORE = '#19CDFF';
 const STEP_LABELS = { forms: 'Forms', documents: 'Documents', verification: 'Verification', policies: 'Policies', agreements: 'Agreements', offer: 'Offer', contract: 'Contract', ready_to_start: 'Ready to Start' };
 
-export default function NewStarterPortal() {
+export default function NewStarterPortal({ staffMode = false }) {
   const { token } = useParams();
-  const [jwt, setJwt] = useState(() => sessionStorage.getItem(`nsp:${token}`) || '');
+  const storeKey = staffMode ? 'staff_jwt' : `nsp:${token}`;
+  const [jwt, setJwt] = useState(() => sessionStorage.getItem(storeKey) || '');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [me, setMe] = useState(null);
   const [inviteInfo, setInviteInfo] = useState(null);
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
-  const logout = () => { sessionStorage.removeItem(`nsp:${token}`); setJwt(''); setMe(null); setPassword(''); };
+  const logout = () => {
+    sessionStorage.removeItem(storeKey); setJwt(''); setMe(null); setPassword('');
+    if (staffMode && typeof window !== 'undefined') window.location.href = '/staff-login';
+  };
 
   const fmtErr = (d) => (typeof d === 'string' ? d : Array.isArray(d) ? d.map((e) => e?.msg || '').join(' ') : d?.msg || 'Something went wrong.');
 
@@ -38,13 +42,14 @@ export default function NewStarterPortal() {
     try {
       const r = await axios.get(`${API}/new-starter/me`, { headers: { Authorization: `Bearer ${tk}` } });
       setMe(r.data);
-    } catch (e) { setErr('Could not load your portal. Please sign in again.'); setJwt(''); sessionStorage.removeItem(`nsp:${token}`); }
-  }, [token]);
+    } catch (e) { setErr('Could not load your portal. Please sign in again.'); setJwt(''); sessionStorage.removeItem(storeKey); }
+  }, [storeKey]);
 
   useEffect(() => { if (jwt) loadMe(jwt); }, [jwt, loadMe]);
   useEffect(() => {
+    if (staffMode) { if (!jwt && typeof window !== 'undefined') window.location.href = '/staff-login'; return; }
     if (!jwt) axios.get(`${API}/new-starter/invite/${token}`).then((r) => setInviteInfo(r.data)).catch(() => setInviteInfo({ found: false }));
-  }, [jwt, token]);
+  }, [jwt, token, staffMode]);
 
   const returning = !!inviteInfo?.accepted;
 
@@ -53,13 +58,14 @@ export default function NewStarterPortal() {
     try {
       const url = returning ? 'login' : 'accept-invite';
       const r = await axios.post(`${API}/new-starter/${url}`, { token, password });
-      sessionStorage.setItem(`nsp:${token}`, r.data.token);
+      sessionStorage.setItem(storeKey, r.data.token);
       setJwt(r.data.token);
     } catch (e) { setErr(fmtErr(e?.response?.data?.detail) || 'Invalid or expired invitation'); }
     finally { setBusy(false); }
   };
 
   if (!jwt) {
+    if (staffMode) return null; // redirecting to /staff-login
     return (
       <Shell>
         <div className="max-w-md mx-auto mt-16 rounded-2xl bg-white shadow-xl p-8 border border-slate-200" data-testid="nsp-signin">

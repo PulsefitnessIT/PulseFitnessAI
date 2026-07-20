@@ -14,6 +14,7 @@ import hashlib
 import json
 import logging
 import os
+import secrets
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -1451,6 +1452,79 @@ async def accept_invite(body: AcceptInvite, response: Response):
                  {"id": uid, "full_name": staff.get("full_name"), "role": "recruit"})
     token = create_token(uid, expires_hours=24)
     return {"token": token, "user": {"id": uid, "full_name": staff.get("full_name"), "role": "recruit"}}
+
+
+# ───────────── staff portal login + password reset (email + password) ─────────────
+class StaffLoginBody(BaseModel):
+    email: str
+    password: str
+
+
+class ForgotBody(BaseModel):
+    email: str
+
+
+class ResetBody(BaseModel):
+    token: str
+    password: str
+
+
+@router.post("/new-starter/staff-login")
+async def staff_login(body: StaffLoginBody):
+    """Activated employees (and recruits) log in with email + password at /staff-login."""
+    email = (body.email or "").strip().lower()
+    user = await db.users.find_one({"email": email}) if email else None
+    if not user or not user.get("password") or not verify_password(body.password or "", user["password"]):
+        raise HTTPException(401, "Incorrect email or password.")
+    staff = await db.staff_members.find_one({"user_id": user["id"]})
+    if not staff:
+        raise HTTPException(403, "This account does not have a staff portal.")
+    token = create_token(user["id"], expires_hours=24)
+    return {"token": token, "user": {"id": user["id"], "full_name": staff.get("full_name"),
+                                     "role": user.get("role"), "activated": bool(staff.get("active"))}}
+
+
+@router.post("/new-starter/forgot-password")
+async def forgot_password(body: ForgotBody):
+    """Emails a reset link. Always returns a generic success (no account enumeration)."""
+    email = (body.email or "").strip().lower()
+    user = await db.users.find_one({"email": email}) if email else None
+    if user and user.get("password"):
+        staff = await db.staff_members.find_one({"user_id": user["id"]})
+        if staff:
+            reset_token = secrets.token_urlsafe(32)
+            await db.staff_password_resets.insert_one({
+                "id": str(uuid.uuid4()), "user_id": user["id"], "token": reset_token,
+                "organization_id": user.get("organization_id"), "used": False,
+                "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "created_at": _now()})
+            link = f"{FRONTEND_URL}/staff-reset/{reset_token}"
+            html = _email_shell("Reset your Pulse Fitness portal password",
+                                [f"Hi {staff.get('full_name', 'there')},",
+                                 "We received a request to reset your staff portal password. This link expires in 1 hour.",
+                                 "If you didn't request this, you can safely ignore this email."],
+                                cta_url=link, cta_label="Reset my password")
+            try:
+                await send_email(user["email"], "Reset your Pulse Fitness portal password", html,
+                                 organization_id=user.get("organization_id"), kind="staff_onboarding")
+            except Exception:
+                logger.exception("password reset email failed")
+    return {"ok": True, "message": "If an account exists for that email, a reset link has been sent."}
+
+
+@router.post("/new-starter/reset-password")
+async def reset_password(body: ResetBody):
+    if len(body.password or "") < 8:
+        raise HTTPException(400, "Password must be at least 8 characters.")
+    rec = await db.staff_password_resets.find_one({"token": body.token})
+    if not rec or rec.get("used"):
+        raise HTTPException(400, "This reset link is invalid or has already been used.")
+    if rec.get("expires_at") and rec["expires_at"] < _now():
+        raise HTTPException(410, "This reset link has expired — please request a new one.")
+    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password": hash_password(body.password)}})
+    await db.staff_password_resets.update_one({"id": rec["id"]}, {"$set": {"used": True, "used_at": _now()}})
+    return {"ok": True, "message": "Your password has been reset — you can now log in."}
+
 
 
 PROGRESS_STEPS = ["forms", "documents", "verification", "policies", "agreements", "offer", "contract", "ready_to_start"]
