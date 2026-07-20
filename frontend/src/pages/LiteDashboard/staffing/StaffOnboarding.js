@@ -322,6 +322,9 @@ function CaseDetail({ headers, caseId, onClose }) {
   const [templates, setTemplates] = useState({ offer: [], contract: [] });
   const [audit, setAudit] = useState([]);
   const [msg, setMsg] = useState('');
+  const [dupResult, setDupResult] = useState(null);
+  const [consResult, setConsResult] = useState(null);
+  const [aiBusy, setAiBusy] = useState('');
 
   const load = useCallback(async () => {
     const [d, t] = await Promise.all([
@@ -354,6 +357,8 @@ function CaseDetail({ headers, caseId, onClose }) {
   const countersign = () => act(() => axios.post(`${API}/staff-onboarding/cases/${caseId}/contract/countersign`, { signature_name: 'Authorised Signatory', signature_method: 'typed' }, { headers }), 'Contract countersigned & locked');
   const activate = () => act(() => axios.post(`${API}/staff-onboarding/cases/${caseId}/activate`, {}, { headers }), 'Employee activated');
   const loadAudit = () => axios.get(`${API}/staff-onboarding/cases/${caseId}/audit`, { headers }).then(r => setAudit(r.data.events || []));
+  const dupScan = async () => { setAiBusy('dup'); setDupResult(null); try { const r = await axios.post(`${API}/staff-onboarding/cases/${caseId}/ai/duplicate-scan`, {}, { headers }); setDupResult(r.data); } catch (e) { setDupResult({ error: e?.response?.data?.detail || 'AI scan failed' }); } finally { setAiBusy(''); } };
+  const aiConsistency = async () => { setAiBusy('cons'); setConsResult(null); try { const r = await axios.post(`${API}/staff-onboarding/cases/${caseId}/ai/consistency`, {}, { headers }); setConsResult(r.data); } catch (e) { setConsResult({ error: e?.response?.data?.detail || 'AI check failed' }); } finally { setAiBusy(''); } };
 
   if (!data) return <Modal onClose={onClose} title="Loading…" testId="case-detail-loading"><Loader2 className="animate-spin mx-auto" style={{ color: 'var(--theme-text)' }} /></Modal>;
 
@@ -388,6 +393,36 @@ function CaseDetail({ headers, caseId, onClose }) {
               <div className="w-full mt-2 p-3 rounded-lg text-xs" style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)' }} data-testid="invite-link">
                 New Starter Portal link (share securely):<br />
                 <code className="text-cyan-300 break-all">{window.location.origin}/new-starter/{invite.invite_token}</code>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-3 border-t" style={{ borderColor: 'var(--theme-border)' }}>
+            <div className="text-xs opacity-70 mb-2">Documents (PDF)</div>
+            <div className="flex gap-2 flex-wrap">
+              <Btn onClick={() => openPdf(`${API}/staff-onboarding/cases/${caseId}/forms.pdf`, headers)} testId="btn-forms-pdf"><Download size={13} /> Completed forms</Btn>
+              <Btn onClick={() => openPdf(`${API}/staff-onboarding/cases/${caseId}/pack.pdf`, headers)} testId="btn-pack-pdf" primary><Download size={13} /> Onboarding pack</Btn>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t" style={{ borderColor: 'var(--theme-border)' }}>
+            <div className="flex items-center gap-2 mb-2"><span className="text-xs opacity-70">AI assist</span></div>
+            <Btn onClick={dupScan} busy={aiBusy === 'dup'} testId="btn-ai-duplicate-scan"><ShieldAlert size={13} /> AI duplicate scan</Btn>
+            {dupResult && (
+              <div className="mt-2 p-3 rounded-lg text-xs" data-testid="ai-duplicate-result" style={{ background: 'var(--theme-surface)' }}>
+                {dupResult.error ? <span className="text-red-400">{dupResult.error}</span> : (
+                  <>
+                    <div className="opacity-80 mb-1">{dupResult.summary || `${(dupResult.matches || []).length} possible match(es)`}</div>
+                    {(dupResult.matches || []).map((m, i) => (
+                      <div key={i} className="flex items-start gap-2 py-1">
+                        <Pill tone={m.confidence >= 75 ? 'red' : 'amber'}>{m.confidence}%</Pill>
+                        <div><span className="font-medium">{m.full_name}</span>{m.active_employee && <span className="ml-1 text-emerald-400">(active)</span>}
+                          <div className="opacity-60">{(m.reasons || []).join('; ')}</div></div>
+                      </div>
+                    ))}
+                    {(dupResult.matches || []).length === 0 && <div className="text-emerald-400">No likely duplicates found ✓</div>}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -479,6 +514,23 @@ function CaseDetail({ headers, caseId, onClose }) {
                 {(contract.status === 'employee_signed' || c.status === 'awaiting_employer_signature') && <Btn onClick={countersign} busy={busy} testId="btn-countersign" primary>Employer countersign</Btn>}
                 {contract.status === 'fully_signed' && <Pill tone="green">Fully signed & locked ✓</Pill>}
               </div>
+              <div className="pt-1">
+                <Btn onClick={aiConsistency} busy={aiBusy === 'cons'} testId="btn-ai-consistency"><ShieldAlert size={13} /> AI consistency check</Btn>
+                {consResult && (
+                  <div className="mt-2 p-3 rounded-lg text-xs" data-testid="ai-consistency-result" style={{ background: 'var(--theme-surface)' }}>
+                    {consResult.error ? <span className="text-red-400">{consResult.error}</span> : (
+                      <>
+                        <div className="flex items-center gap-2 mb-1">Risk:
+                          <Pill tone={consResult.risk_level === 'high' ? 'red' : consResult.risk_level === 'medium' ? 'amber' : 'green'}>{consResult.risk_level || 'n/a'}</Pill></div>
+                        <div className="opacity-80">{consResult.summary}</div>
+                        {(consResult.inconsistencies || []).map((x, i) => (
+                          <div key={i} className="opacity-70 mt-1">• <b>{x.field}</b>: offer “{x.offer}” vs contract “{x.contract}” — {x.note}</div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -541,19 +593,21 @@ function ActivatePanel({ headers, caseId, onActivate, busy, status }) {
 function ChecksPanel({ headers, caseId }) {
   const [opts, setOpts] = useState(null);
   const [state, setState] = useState(null);
+  const [providers, setProviders] = useState([]);
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
-  const [rtw, setRtw] = useState({ method: 'share_code', result: 'verified', document_type: '', share_code: '', expiry: '', notes: '' });
-  const [dbs, setDbs] = useState({ level: 'basic', status: 'requested', certificate_number: '', issue_date: '', notes: '' });
+  const [rtw, setRtw] = useState({ method: 'share_code', result: 'verified', document_type: '', share_code: '', expiry: '', notes: '', provider: 'manual', provider_reference: '' });
+  const [dbs, setDbs] = useState({ level: 'basic', status: 'requested', certificate_number: '', issue_date: '', notes: '', provider: 'manual', provider_reference: '' });
 
   const load = useCallback(async () => {
-    const [o, s] = await Promise.all([
+    const [o, s, p] = await Promise.all([
       axios.get(`${API}/staff-onboarding/checks/options`, { headers }),
       axios.get(`${API}/staff-onboarding/cases/${caseId}/checks`, { headers }),
+      axios.get(`${API}/staff-onboarding/verification/providers`, { headers }).catch(() => ({ data: { providers: [] } })),
     ]);
-    setOpts(o.data); setState(s.data);
-    if (s.data.right_to_work) setRtw((p) => ({ ...p, ...pick(s.data.right_to_work, ['result', 'document_type', 'share_code', 'expiry', 'notes']), method: s.data.right_to_work.check_method || p.method }));
-    if (s.data.dbs) setDbs((p) => ({ ...p, ...pick(s.data.dbs, ['level', 'status', 'certificate_number', 'issue_date', 'notes']) }));
+    setOpts(o.data); setState(s.data); setProviders(p.data.providers || []);
+    if (s.data.right_to_work) setRtw((pv) => ({ ...pv, ...pick(s.data.right_to_work, ['result', 'document_type', 'share_code', 'expiry', 'notes', 'provider', 'provider_reference']), method: s.data.right_to_work.check_method || pv.method }));
+    if (s.data.dbs) setDbs((pv) => ({ ...pv, ...pick(s.data.dbs, ['level', 'status', 'certificate_number', 'issue_date', 'notes', 'provider', 'provider_reference']) }));
   }, [caseId, headers]);
   useEffect(() => { load(); }, [load]);
 
@@ -581,6 +635,8 @@ function ChecksPanel({ headers, caseId }) {
           <TextIn label="Document type" testId="rtw-doc" value={rtw.document_type} onChange={(v) => setRtw((p) => ({ ...p, document_type: v }))} />
           <TextIn label="Share code" testId="rtw-share" value={rtw.share_code} onChange={(v) => setRtw((p) => ({ ...p, share_code: v }))} />
           <TextIn label="Expiry (if time-limited)" testId="rtw-expiry" type="date" value={rtw.expiry} onChange={(v) => setRtw((p) => ({ ...p, expiry: v }))} />
+          <Select label="Provider" testId="rtw-provider" value={rtw.provider} onChange={(v) => setRtw((p) => ({ ...p, provider: v }))} options={providers.filter((p) => p.types.includes('rtw')).map((p) => ({ id: p.key, label: p.name + (p.configured ? '' : ' (manual)') }))} />
+          <TextIn label="Provider reference" testId="rtw-provider-ref" value={rtw.provider_reference} onChange={(v) => setRtw((p) => ({ ...p, provider_reference: v }))} />
           <TextIn label="Notes" testId="rtw-notes" value={rtw.notes} onChange={(v) => setRtw((p) => ({ ...p, notes: v }))} />
         </div>
         <Btn onClick={saveRtw} busy={busy === 'Right to Work saved'} testId="btn-save-rtw" primary>Save Right to Work</Btn>
@@ -601,6 +657,8 @@ function ChecksPanel({ headers, caseId }) {
           <Select label="Status" testId="dbs-status" value={dbs.status} onChange={(v) => setDbs((p) => ({ ...p, status: v }))} options={opts.dbs_statuses} />
           <TextIn label="Certificate number" testId="dbs-cert" value={dbs.certificate_number} onChange={(v) => setDbs((p) => ({ ...p, certificate_number: v }))} />
           <TextIn label="Issue date" testId="dbs-issue" type="date" value={dbs.issue_date} onChange={(v) => setDbs((p) => ({ ...p, issue_date: v }))} />
+          <Select label="Provider" testId="dbs-provider" value={dbs.provider} onChange={(v) => setDbs((p) => ({ ...p, provider: v }))} options={providers.filter((p) => p.types.includes('dbs')).map((p) => ({ id: p.key, label: p.name + (p.configured ? '' : ' (manual)') }))} />
+          <TextIn label="Provider reference" testId="dbs-provider-ref" value={dbs.provider_reference} onChange={(v) => setDbs((p) => ({ ...p, provider_reference: v }))} />
           <TextIn label="Notes" testId="dbs-notes" value={dbs.notes} onChange={(v) => setDbs((p) => ({ ...p, notes: v }))} />
         </div>
         <Btn onClick={saveDbs} busy={busy === 'DBS check saved'} testId="btn-save-dbs" primary>Save DBS Check</Btn>

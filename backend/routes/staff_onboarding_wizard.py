@@ -10,6 +10,7 @@ is a clearly-marked NON-BINDING SAMPLE placeholder.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -1428,6 +1429,9 @@ class RTWBody(BaseModel):
     share_code: Optional[str] = None
     expiry: Optional[str] = None
     notes: Optional[str] = None
+    provider: Optional[str] = None          # manual | <provider key> (scaffold)
+    provider_reference: Optional[str] = None
+    provider_status: Optional[str] = None
 
 
 class DBSBody(BaseModel):
@@ -1436,6 +1440,9 @@ class DBSBody(BaseModel):
     certificate_number: Optional[str] = None
     issue_date: Optional[str] = None
     notes: Optional[str] = None
+    provider: Optional[str] = None          # manual | <provider key> (scaffold)
+    provider_reference: Optional[str] = None
+    provider_status: Optional[str] = None
 
 
 @router.get("/staff-onboarding/checks/options")
@@ -1469,6 +1476,8 @@ async def set_rtw(case_id: str, body: RTWBody, user: dict = Depends(get_current_
         "id": str(uuid.uuid4()), "organization_id": org, "onboarding_case_id": case_id,
         "staff_id": c["staff_id"], "check_method": body.method, "result": body.result,
         "document_type": body.document_type, "share_code": body.share_code,
+        "provider": body.provider or "manual", "provider_reference": body.provider_reference,
+        "provider_status": body.provider_status,
         "checker": user.get("full_name"), "check_date": _now(), "expiry": body.expiry, "notes": body.notes})
     await _audit(org, case_id, "right_to_work_verified", user, new_value=body.result)
     return {"ok": True, "result": body.result}
@@ -1485,6 +1494,8 @@ async def set_dbs(case_id: str, body: DBSBody, user: dict = Depends(get_current_
         "id": str(uuid.uuid4()), "organization_id": org, "onboarding_case_id": case_id,
         "staff_id": c["staff_id"], "level": body.level, "status": body.status,
         "certificate_number": body.certificate_number, "issue_date": body.issue_date,
+        "provider": body.provider or "manual", "provider_reference": body.provider_reference,
+        "provider_status": body.provider_status,
         "checker": user.get("full_name"), "updated_at": _now(), "notes": body.notes})
     await _audit(org, case_id, "dbs_updated", user, new_value=f"{body.level}/{body.status}")
     return {"ok": True, "status": body.status, "level": body.level}
@@ -1499,6 +1510,88 @@ async def set_dbs_required(case_id: str, required: bool = True, user: dict = Dep
     rr = {**(c.get("role_requirements") or {}), "dbs_required": bool(required)}
     await db.staff_onboarding_cases.update_one({"id": case_id}, {"$set": {"role_requirements": rr, "updated_at": _now()}})
     return {"ok": True, "dbs_required": bool(required)}
+
+
+# ───────────── verification provider scaffold (RTW/DBS integrations) ─────────────
+# Provider-agnostic: manual workflow works today; a real provider is wired by
+# setting its API key env var + implementing an initiate call. Statuses flow back
+# via the signed webhook below (matched on provider_reference).
+VERIFICATION_PROVIDERS = [
+    {"key": "manual", "name": "Manual / in-person check", "types": ["rtw", "dbs"],
+     "env_key": None, "always_available": True},
+    {"key": "govuk_rtw", "name": "GOV.UK — View a job applicant's right to work (share code)",
+     "types": ["rtw"], "env_key": "GOVUK_RTW_API_KEY"},
+    {"key": "idsp", "name": "Identity Service Provider (IDVT)", "types": ["rtw"], "env_key": "IDSP_API_KEY"},
+    {"key": "dbs_umbrella", "name": "DBS umbrella body (Basic/Standard/Enhanced)",
+     "types": ["dbs"], "env_key": "DBS_PROVIDER_API_KEY"},
+]
+
+
+@router.get("/staff-onboarding/verification/providers")
+async def verification_providers(user: dict = Depends(get_current_user)):
+    _require_hr(user)
+    out = []
+    for p in VERIFICATION_PROVIDERS:
+        configured = bool(p.get("always_available")) or bool(os.environ.get(p.get("env_key") or ""))
+        out.append({"key": p["key"], "name": p["name"], "types": p["types"], "configured": configured})
+    return {"providers": out, "webhook_path": "/api/staff-onboarding/verification/webhook",
+            "webhook_secured": bool(os.environ.get("ONBOARDING_WEBHOOK_SECRET"))}
+
+
+class VerificationWebhook(BaseModel):
+    check_type: str                       # rtw | dbs
+    provider: str
+    provider_reference: str
+    status: Optional[str] = None          # raw provider status
+    result: Optional[str] = None          # mapped result (rtw) / dbs status
+    expiry: Optional[str] = None
+    certificate_number: Optional[str] = None
+    raw: dict = {}
+
+
+def _verify_webhook_sig(raw_body: bytes, signature: str | None) -> bool:
+    secret = os.environ.get("ONBOARDING_WEBHOOK_SECRET")
+    if not secret:
+        # No secret configured yet (scaffold): accept only outside production.
+        return os.environ.get("APP_ENV") != "production"
+    if not signature:
+        return False
+    import hmac
+    expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature.strip().replace("sha256=", ""))
+
+
+@router.post("/staff-onboarding/verification/webhook")
+async def verification_webhook(request: Request):
+    """Provider status callback (public). Matches an existing RTW/DBS record by
+    provider_reference and updates its status. Verifies an HMAC-SHA256 signature
+    from the X-Onboarding-Signature header when ONBOARDING_WEBHOOK_SECRET is set."""
+    raw = await request.body()
+    if not _verify_webhook_sig(raw, request.headers.get("X-Onboarding-Signature")):
+        raise HTTPException(401, "Invalid webhook signature")
+    try:
+        payload = VerificationWebhook(**(await request.json()))
+    except Exception:
+        raise HTTPException(400, "Malformed webhook payload")
+    coll = db.staff_right_to_work_checks if payload.check_type == "rtw" else db.staff_dbs_checks
+    rec = await coll.find_one({"provider_reference": payload.provider_reference, "provider": payload.provider})
+    if not rec:
+        raise HTTPException(404, "No matching verification record")
+    upd = {"provider_status": payload.status, "provider_callback_at": _now(), "provider_raw": payload.raw}
+    if payload.check_type == "rtw" and payload.result:
+        upd["result"] = payload.result
+    if payload.check_type == "dbs" and payload.result:
+        upd["status"] = payload.result
+    if payload.expiry:
+        upd["expiry"] = payload.expiry
+    if payload.certificate_number:
+        upd["certificate_number"] = payload.certificate_number
+    await coll.update_one({"id": rec["id"]}, {"$set": upd})
+    await _audit(rec["organization_id"], rec["onboarding_case_id"], f"{payload.check_type}_provider_update",
+                 {"id": None, "full_name": f"provider:{payload.provider}", "role": "system"},
+                 new_value=payload.status)
+    return {"ok": True, "matched": rec["id"]}
+
 
 
 # ───────────────────────── offer / contract PDF (Phase 2) ─────────────────────────
@@ -1529,6 +1622,44 @@ async def hr_contract_pdf(case_id: str, user: dict = Depends(get_current_user)):
     return _pdf_response(build_contract_pdf(c, staff, c["contract"]), f"contract-{case_id}.pdf")
 
 
+async def _gather_pack_data(case: dict) -> dict:
+    cid = case["id"]
+    forms = {f["form_key"]: _strip(f) for f in await db.staff_form_submissions.find({"onboarding_case_id": cid}).to_list(50)}
+    docs = [_strip(d) for d in await db.staff_onboarding_documents.find({"onboarding_case_id": cid, "is_deleted": {"$ne": True}}).to_list(100)]
+    acks = [_strip(a) for a in await db.staff_policy_acknowledgements.find({"onboarding_case_id": cid}).to_list(50)]
+    agr = [_strip(a) for a in await db.staff_agreement_assignments.find({"onboarding_case_id": cid}).to_list(50)]
+    rtw = await db.staff_right_to_work_checks.find_one({"onboarding_case_id": cid})
+    dbs = await db.staff_dbs_checks.find_one({"onboarding_case_id": cid})
+    return {"forms": forms, "documents": docs, "policy_acknowledgements": acks, "agreements": agr,
+            "right_to_work": _strip(rtw) if rtw else {}, "dbs": _strip(dbs) if dbs else {}}
+
+
+@router.get("/staff-onboarding/cases/{case_id}/forms.pdf")
+async def hr_forms_pdf(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    forms = {f["form_key"]: _strip(f) for f in await db.staff_form_submissions.find({"onboarding_case_id": case_id}).to_list(50)}
+    from utils.onboarding_pdf import build_forms_pdf
+    return _pdf_response(build_forms_pdf(c, staff, forms), f"new-starter-form-{case_id}.pdf")
+
+
+@router.get("/staff-onboarding/cases/{case_id}/pack.pdf")
+async def hr_pack_pdf(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    data = await _gather_pack_data(c)
+    from utils.onboarding_pdf import build_pack_pdf
+    await _audit(org, case_id, "onboarding_pack_generated", user)
+    return _pdf_response(build_pack_pdf(c, staff, data), f"onboarding-pack-{case_id}.pdf")
+
+
+
 @router.get("/new-starter/offer.pdf")
 async def recruit_offer_pdf(user: dict = Depends(get_current_user)):
     case, staff = await _recruit_case(user)
@@ -1547,6 +1678,117 @@ async def recruit_contract_pdf(user: dict = Depends(get_current_user)):
         raise HTTPException(404, "No contract available")
     from utils.onboarding_pdf import build_contract_pdf
     return _pdf_response(build_contract_pdf(case, staff, con), "your-contract.pdf")
+
+
+# ───────────────────────── AI assist (Emergent LLM key) ─────────────────────────
+AI_MODEL = ("anthropic", "claude-sonnet-4-5-20250929")
+
+
+def _llm_key() -> str:
+    k = os.environ.get("EMERGENT_LLM_KEY") or ""
+    if not k:
+        raise HTTPException(503, "AI service not configured (EMERGENT_LLM_KEY missing)")
+    return k
+
+
+async def _ai_chat(system: str, user_text: str, session_id: str) -> str:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    chat = LlmChat(api_key=_llm_key(), session_id=session_id, system_message=system).with_model(*AI_MODEL)
+    return await chat.send_message(UserMessage(text=user_text))
+
+
+def _ai_json(text: str):
+    if not text:
+        return None
+    s = text.strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s
+        if s.endswith("```"):
+            s = s[:-3]
+        if s.lstrip().startswith("json"):
+            s = s.lstrip()[4:]
+    try:
+        return json.loads(s)
+    except Exception:
+        a, b = s.find("{"), s.rfind("}")
+        if a >= 0 and b > a:
+            try:
+                return json.loads(s[a:b + 1])
+            except Exception:
+                return None
+    return None
+
+
+@router.post("/staff-onboarding/cases/{case_id}/ai/duplicate-scan")
+async def ai_duplicate_scan(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    subject = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    # candidate pool: other people in the org (cap 60 for prompt size)
+    pool = await db.staff_members.find(
+        {"organization_id": org, "id": {"$ne": c["staff_id"]}}).to_list(60)
+    subj = {"full_name": subject.get("full_name"), "email": subject.get("email"),
+            "mobile": subject.get("mobile"), "dob": (subject.get("date_of_birth") or "")}
+    pool_slim = [{"staff_id": p["id"], "full_name": p.get("full_name"), "email": p.get("email"),
+                  "mobile": p.get("mobile"), "active": bool(p.get("active")),
+                  "lifecycle_stage": p.get("lifecycle_stage")} for p in pool]
+    system = ("You are an HR data-quality assistant for a UK employer. Identify likely DUPLICATE person "
+              "records for a new recruit versus existing staff. Consider name variants/typos, shared or "
+              "similar email/mobile, and nicknames. Return STRICT JSON only: "
+              '{"matches":[{"staff_id":"","full_name":"","confidence":0-100,"reasons":["..."]}],'
+              '"summary":"one sentence"}. Only include matches with confidence >= 40. If none, return an empty list.')
+    user_text = json.dumps({"recruit": subj, "existing_staff": pool_slim})[:12000]
+    try:
+        raw = await _ai_chat(system, user_text, f"onb-dup-{case_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"AI request failed: {e}")
+    parsed = _ai_json(raw) or {"matches": [], "summary": raw[:200]}
+    # enrich matches with a live record snapshot (id validity guard)
+    valid = {p["id"]: p for p in pool}
+    for m in parsed.get("matches", []):
+        rec = valid.get(m.get("staff_id"))
+        if rec:
+            m["active_employee"] = bool(rec.get("active"))
+            m["lifecycle_stage"] = rec.get("lifecycle_stage")
+    await _audit(org, case_id, "ai_duplicate_scan", user, matches=len(parsed.get("matches", [])))
+    return parsed
+
+
+@router.post("/staff-onboarding/cases/{case_id}/ai/consistency")
+async def ai_consistency(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    offer = c.get("offer") or {}
+    contract = c.get("contract") or {}
+    if not offer.get("rendered") and not contract.get("rendered"):
+        raise HTTPException(400, "Create an offer and/or contract first")
+    offer_terms = _offer_terms(offer) if offer else {}
+    contract_terms = {k: (contract.get("merge_context") or {}).get(k) for k in CONSISTENCY_FIELDS} if contract else {}
+    deterministic = contract.get("differences", []) if contract else []
+    system = ("You are an HR compliance assistant for a UK employer. Compare the key terms of an OFFER LETTER "
+              "with the EMPLOYMENT CONTRACT and flag any inconsistencies (salary, hours, start date, job title, "
+              "probation, notice, holiday, benefits, employment type, site, company). Return STRICT JSON only: "
+              '{"risk_level":"low|medium|high","inconsistencies":[{"field":"","offer":"","contract":"","note":""}],'
+              '"summary":"plain-English HR summary (max 3 sentences)"}.')
+    user_text = json.dumps({"offer_terms": offer_terms, "contract_terms": contract_terms,
+                            "deterministic_differences": deterministic})[:8000]
+    try:
+        raw = await _ai_chat(system, user_text, f"onb-cons-{case_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"AI request failed: {e}")
+    parsed = _ai_json(raw) or {"risk_level": "unknown", "inconsistencies": [], "summary": raw[:300]}
+    parsed["deterministic_differences"] = deterministic
+    await _audit(org, case_id, "ai_consistency_check", user, risk=parsed.get("risk_level"))
+    return parsed
+
 
 
 # ───────────────────────── notifications ─────────────────────────
