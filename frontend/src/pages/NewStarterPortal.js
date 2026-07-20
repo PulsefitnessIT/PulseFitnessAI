@@ -3,10 +3,12 @@
  * Route: /new-starter/:token. Same account becomes the Staff Portal after activation.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   Loader2, Upload, CheckCircle2, FileText, ShieldCheck, PenLine, Send, Circle, Download,
+  X, AlertCircle, BookOpen,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -180,9 +182,15 @@ function Documents({ H, me, reload }) {
 
 function Policies({ H, me, reload }) {
   const [busy, setBusy] = useState('');
-  const ack = async (key) => { setBusy(key); try { await axios.post(`${API}/new-starter/policies/${key}/acknowledge`, { signature_name: me.person?.full_name }, { headers: H }); reload(); } finally { setBusy(''); } };
+  const [reading, setReading] = useState(null);
+  const ack = async (key) => {
+    setBusy(key);
+    try { await axios.post(`${API}/new-starter/policies/${key}/acknowledge`, { signature_name: me.person?.full_name }, { headers: H }); setReading(null); reload(); }
+    finally { setBusy(''); }
+  };
   return (
     <Section title="Company Policies" icon={ShieldCheck} testId="nsp-policies">
+      <p className="text-xs text-slate-500 mb-2">Open each policy to read it, then acknowledge at the bottom.</p>
       <div className="space-y-2">
         {me.policies.map((p) => {
           const acked = !!me.acknowledgements?.[p.key];
@@ -190,14 +198,49 @@ function Policies({ H, me, reload }) {
             <div key={p.key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
               <div className="text-sm text-slate-700">{p.title}{p.is_sample && <span className="ml-1 text-[10px] text-amber-600">SAMPLE</span>}</div>
               {acked ? <span className="text-emerald-600 text-xs font-semibold">Acknowledged ✓</span>
-                : <button onClick={() => ack(p.key)} disabled={busy === p.key} data-testid={`nsp-ack-${p.key}`}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-900" style={{ background: CORE }}>
-                    {busy === p.key ? '…' : 'Read & acknowledge'}</button>}
+                : <button onClick={() => setReading(p)} data-testid={`nsp-read-${p.key}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-900" style={{ background: CORE }}>
+                    <BookOpen size={13} /> Read policy</button>}
             </div>
           );
         })}
       </div>
+      {reading && (
+        <PortalModal title={reading.title} onClose={() => setReading(null)}>
+          <pre className="whitespace-pre-wrap text-sm bg-slate-50 rounded-lg p-4 max-h-[55vh] overflow-auto text-slate-700 border border-slate-200" data-testid="nsp-policy-body">
+{reading.body || reading.summary || 'The full policy text will be provided by Pulse Fitness HR.'}
+          </pre>
+          <div className="mt-4 flex justify-end gap-2">
+            <button onClick={() => setReading(null)} className="text-sm font-semibold px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Close</button>
+            <button onClick={() => ack(reading.key)} disabled={busy === reading.key} data-testid={`nsp-ack-${reading.key}`}
+              className="text-sm font-semibold px-4 py-2 rounded-lg text-slate-900 disabled:opacity-50" style={{ background: CORE }}>
+              {busy === reading.key ? 'Saving…' : 'I have read & acknowledge'}</button>
+          </div>
+        </PortalModal>
+      )}
     </Section>
+  );
+}
+
+function PortalModal({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+  return createPortal(
+    <div className="fixed inset-0 z-[300] bg-black/60 flex items-start justify-center p-4 overflow-y-auto"
+      data-testid="nsp-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl my-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 sticky top-0 bg-white z-10">
+          <h3 className="font-bold text-slate-900">{title}</h3>
+          <button onClick={onClose} data-testid="portal-modal-close"><X size={18} className="text-slate-500" /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -226,14 +269,69 @@ function Agreements({ H, me, reload }) {
 
 function SubmitPack({ H, me, reload }) {
   const [busy, setBusy] = useState(false);
-  const submit = async () => { setBusy(true); try { await axios.post(`${API}/new-starter/submit`, {}, { headers: H }); reload(); } finally { setBusy(false); } };
+  const [err, setErr] = useState('');
+
+  const details = me.forms?.new_starter?.data || {};
+  const detailsOk = !!(details.home_address && details.dob && details.ni_number);
+  const reqPolicies = (me.policies || []).filter((p) => p.acknowledgement_required !== false);
+  const policiesOk = reqPolicies.length === 0 || reqPolicies.every((p) => me.acknowledgements?.[p.key]);
+  const agreementsOk = (me.agreements || []).every((a) => me.agreement_state?.[a.key]?.status === 'signed');
+  const docsOk = (me.documents || []).length > 0;
+
+  // Required (block submit) vs recommended (warn but allow — you can return later)
+  const checklist = [
+    { label: 'Your details, emergency contact & payroll', ok: detailsOk, required: true },
+    { label: 'Company policies acknowledged', ok: policiesOk, required: true },
+    { label: 'Agreements signed', ok: agreementsOk, required: true },
+    { label: 'Identity & proof-of-address documents', ok: docsOk, required: false },
+  ];
+  const blocking = checklist.filter((c) => c.required && !c.ok);
+  const recommendedMissing = checklist.filter((c) => !c.required && !c.ok);
+  const submitted = !!me.submitted;
+
+  const submit = async () => {
+    setBusy(true); setErr('');
+    try { await axios.post(`${API}/new-starter/submit`, {}, { headers: H }); reload(); }
+    catch (e) { setErr(e?.response?.data?.detail || 'Could not submit — please try again.'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <Section title="Review & Submit" icon={Send} testId="nsp-submit">
-      <p className="text-sm text-slate-500 mb-3">Once your details, documents, policies and agreements are complete, submit your pack to Pulse Fitness HR for review.</p>
-      <button onClick={submit} disabled={busy} data-testid="nsp-submit-btn"
-        className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-900" style={{ background: CORE }}>
-        {busy ? 'Submitting…' : 'Submit my onboarding pack'}
-      </button>
+      {submitted ? (
+        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4" data-testid="nsp-submitted-banner">
+          <div className="flex items-center gap-2 text-emerald-700 font-semibold"><CheckCircle2 size={18} /> Pack submitted to Pulse Fitness HR ✓</div>
+          <p className="text-sm text-emerald-700/80 mt-1">Thank you — HR will now review your pack. You can still return here any time to upload outstanding documents.</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-slate-500 mb-3">Submit your pack to Pulse Fitness HR for review. Required items must be complete; documents can be uploaded now or after you submit.</p>
+          <div className="space-y-1.5 mb-3" data-testid="nsp-submit-checklist">
+            {checklist.map((c) => (
+              <div key={c.label} className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${c.ok ? 'text-emerald-700 bg-emerald-50' : c.required ? 'text-red-600 bg-red-50' : 'text-amber-700 bg-amber-50'}`}>
+                {c.ok ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+                <span>{c.label}</span>
+                {!c.ok && <span className="ml-auto text-xs font-semibold">{c.required ? 'Required — outstanding' : 'Recommended — you can return later'}</span>}
+              </div>
+            ))}
+          </div>
+          {blocking.length > 0 && (
+            <div className="text-sm text-red-600 mb-2" data-testid="nsp-submit-reason">
+              You can’t submit yet — please complete: {blocking.map((b) => b.label).join(', ')}.
+            </div>
+          )}
+          {blocking.length === 0 && recommendedMissing.length > 0 && (
+            <div className="text-xs text-amber-700 mb-2" data-testid="nsp-submit-warn">
+              You can submit now and return later to upload: {recommendedMissing.map((b) => b.label).join(', ')}.
+            </div>
+          )}
+          {err && <div className="text-sm text-red-500 mb-2" data-testid="nsp-submit-error">{err}</div>}
+          <button onClick={submit} disabled={busy || blocking.length > 0} data-testid="nsp-submit-btn"
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
+            {busy ? 'Submitting…' : 'Submit my onboarding pack'}
+          </button>
+        </>
+      )}
     </Section>
   );
 }

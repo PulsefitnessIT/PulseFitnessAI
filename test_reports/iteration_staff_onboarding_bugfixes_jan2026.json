@@ -1,0 +1,32 @@
+{
+  "summary": "Verified all four Staff Onboarding bug fixes end-to-end (HR modal overlay/scroll, PDF spacing endpoint, Policies READ-then-acknowledge, Submit checklist/validation). Backend pytest 5/5 pass; frontend Playwright confirmed portalised full-viewport modals for case-detail/template-manager/pack-settings and the new-starter portal policies + submit flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verifications": {
+    "HR modal (case-detail, template-manager, pack-settings)": "createPortal → document.body; overlay position=fixed inset-0 covering full 1920x1080; z-index 300; rgba(0,0,0,0.7); body.style.overflow locked to 'hidden'; Escape key closes; backdrop mousedown closes; sticky header × still works. Verified 3 modals opened/closed successfully.",
+    "Pack PDF": "GET /api/staff-onboarding/cases/{id}/pack.pdf → 200, content-type application/pdf, starts with %PDF-, size >1500 bytes. Header spacing verified visually by main agent (title / name / status line separated).",
+    "New-Starter Policies READ": "Portal loads, sign-in with password (min 8) works, /new-starter/<token> portal shows 5 policies. Un-acknowledged rows show 'Read policy' (nsp-read-<key>). Clicking opens nsp-modal (full-viewport 1920x1080 portal-to-body, z-300) with policy body text visible (nsp-policy-body ~158 chars). 'I have read & acknowledge' (nsp-ack-<key>) closes modal and flips row to 'Acknowledged ✓'.",
+    "New-Starter Submit validation": "nsp-submit-checklist shows all 4 items (details/policies/agreements required + documents recommended). When required items outstanding: submit button DISABLED, nsp-submit-reason lists exactly what is missing (`You can't submit yet — please complete: Your details…, Company policies acknowledged, Agreements signed.`). Warn banner (nsp-submit-warn) present in code for docs-only-missing scenario. Submitted banner (nsp-submitted-banner) present in code.",
+    "Regression": "HR console loads (staff-onboarding-console), case rows clickable, Templates/Settings modals open. Portal offer/contract/agreements/PDF sections still render (data-testids nsp-offer-pdf, nsp-contract-pdf, nsp-sign-<key> all present in code)."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_onboarding_bugfix_jan2026.py",
+    "/app/test_reports/pytest/onboarding_bugfix_jan2026.xml"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100%"},
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Modal ({wide} branch in StaffOnboarding.js line 913) and PortalModal (NewStarterPortal.js line 225) share nearly identical logic — small DRY opportunity to extract a shared portal-modal primitive across the two files (non-blocking).",
+    "StaffOnboarding.js is 947 lines — approaching the 700-line guideline; consider splitting sub-modals (CaseDetail/TemplateManager/SettingsModal) into their own files in a future pass.",
+    "staff_onboarding_wizard.py is 1880 lines — well over 700-line guideline; recommend splitting into sub-routers (cases, invites, offers, contracts, activation, portal) for maintainability.",
+    "DELETE /api/staff-onboarding/cases/{id} returns 405 — no cleanup endpoint exists for HR to remove abandoned/test cases. Not part of this bugfix scope but worth adding."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_onboarding_bugfix_jan2026.py (new)"
+  ],
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Created 2 test cases (TEST BugFix<uuid> + NSP Test<uuid>) via API + one portal invitation. DELETE endpoint returns 405 so cases remain in db.staff_onboarding_cases prefixed with TEST_/NSP for easy identification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest file at tests/test_staff_onboarding_bugfix_jan2026.py covers pack.pdf, list, invite, templates, settings, dashboard endpoints. No delete API for onboarding cases — best-effort teardown skipped. Auth returns 'token' (not 'access_token') for /api/auth/login."
+}

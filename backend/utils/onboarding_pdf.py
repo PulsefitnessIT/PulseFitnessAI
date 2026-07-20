@@ -85,10 +85,10 @@ def _render_doc(title: str, subtitle: str, body_text: str,
     styles = pulse_styles()
     story = [pulse_header(styles), Spacer(1, 8)]
     story += pulse_title(styles, title, subtitle)
+    story.append(Spacer(1, 5))
     if status_note:
-        story.append(Spacer(1, 2))
         story.append(Paragraph(status_note, styles["muted"]))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 12))
     story += _body_flow(styles, body_text)
     story += _cert_block(styles, sig_title, signatures)
     doc.build(story)
@@ -211,9 +211,12 @@ def build_pack_pdf(case: dict, staff: dict, data: dict) -> bytes:
     contract = case.get("contract") or {}
 
     story = [pulse_header(styles), Spacer(1, 8)]
-    story += pulse_title(styles, "Employee Onboarding Pack", name)
+    story += pulse_title(styles, "Employee Onboarding Pack")
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(esc(name), styles["sectlabel"]))
     story.append(Paragraph(f"Case status: {esc((case.get('status') or '').replace('_', ' ').title())}"
                            f"  ·  Generated: {esc((case.get('updated_at') or '')[:10])}", styles["muted"]))
+    story.append(Spacer(1, 12))
 
     # Employment summary
     story += _status_table(styles, "Employment summary", [

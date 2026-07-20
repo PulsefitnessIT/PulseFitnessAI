@@ -4,6 +4,7 @@
  * Single person record (staff_members) progresses candidate→…→employee.
  */
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   UserPlus, Loader2, X, FileText, FileSignature, CheckCircle2, ShieldCheck,
@@ -910,16 +911,28 @@ function PackSettings({ headers, onClose }) {
 
 /* ───────────────── shared UI ───────────────── */
 function Modal({ children, onClose, title, testId, wide }) {
-  return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-auto" style={{ background: 'rgba(0,0,0,0.6)' }} data-testid={testId}>
-      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-2xl'} rounded-2xl border my-8`} style={{ background: 'var(--theme-bg, #0f1417)', borderColor: 'var(--theme-border)' }}>
-        <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-start justify-center p-4 overflow-y-auto"
+      style={{ background: 'rgba(0,0,0,0.7)' }} data-testid={testId}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-2xl'} rounded-2xl border my-8 max-h-[calc(100vh-4rem)] overflow-y-auto`}
+        style={{ background: 'var(--theme-bg, #0f1417)', borderColor: 'var(--theme-border)' }}>
+        <div className="flex items-center justify-between px-5 py-3 border-b sticky top-0 z-10"
+          style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg, #0f1417)' }}>
           <h3 className="font-bold" style={{ color: 'var(--theme-text)' }}>{title}</h3>
           <button onClick={onClose} data-testid="modal-close"><X size={18} style={{ color: 'var(--theme-text)' }} /></button>
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 function Row({ k, v }) {
