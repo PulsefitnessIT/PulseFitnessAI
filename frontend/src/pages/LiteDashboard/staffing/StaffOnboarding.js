@@ -8,7 +8,7 @@ import axios from 'axios';
 import {
   UserPlus, Loader2, X, FileText, FileSignature, CheckCircle2, ShieldCheck,
   ClipboardList, ScrollText, ArrowRight, AlertTriangle, History, Bell,
-  Download, Pencil, RotateCcw, Plus, ShieldAlert,
+  Download, Pencil, RotateCcw, Plus, ShieldAlert, Settings, Mail,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -46,6 +46,7 @@ export default function StaffOnboarding({ headers }) {
   const [notifs, setNotifs] = useState({ notifications: [], unread: 0 });
   const [showNotifs, setShowNotifs] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +117,11 @@ export default function StaffOnboarding({ headers }) {
             style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
             <ScrollText size={16} /> Templates
           </button>
+          <button onClick={() => setShowSettings(true)} data-testid="open-settings-btn"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold border"
+            style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+            <Settings size={16} /> Settings
+          </button>
           <button onClick={() => setShowWizard(true)} data-testid="new-onboarding-case-btn"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-slate-900"
             style={{ background: 'var(--color-brand-cyan, #19CDFF)' }}>
@@ -172,6 +178,7 @@ export default function StaffOnboarding({ headers }) {
       {showWizard && <CaseWizard headers={headers} onClose={() => setShowWizard(false)}
         onCreated={(id) => { setShowWizard(false); load(); setOpenCase(id); }} />}
       {showTemplates && <TemplateManager headers={headers} onClose={() => setShowTemplates(false)} />}
+      {showSettings && <PackSettings headers={headers} onClose={() => setShowSettings(false)} />}
       {openCase && <CaseDetail headers={headers} caseId={openCase}
         onClose={() => { setOpenCase(null); load(); }} />}
     </div>
@@ -805,6 +812,57 @@ function TemplateManager({ headers, onClose }) {
           )}
         </div>
       )}
+    </Modal>
+  );
+}
+
+/* ───────────────── Onboarding settings (pack email) ───────────────── */
+function PackSettings({ headers, onClose }) {
+  const [s, setS] = useState(null);
+  const [recips, setRecips] = useState('');
+  const [enabled, setEnabled] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    axios.get(`${API}/staff-onboarding/settings`, { headers }).then((r) => {
+      setS(r.data); setEnabled(r.data.email_pack_on_activation !== false);
+      setRecips((r.data.pack_recipient_emails || []).join('\n'));
+    });
+  }, [headers]);
+
+  const save = async () => {
+    setBusy(true); setMsg('');
+    const list = recips.split(/[\n,;]+/).map((x) => x.trim()).filter((x) => x.includes('@'));
+    try {
+      const r = await axios.put(`${API}/staff-onboarding/settings`,
+        { email_pack_on_activation: enabled, pack_recipient_emails: list }, { headers });
+      setRecips((r.data.pack_recipient_emails || []).join('\n')); setMsg('Saved ✓');
+    } catch (e) { setMsg('⚠ ' + (e?.response?.data?.detail || 'Save failed')); } finally { setBusy(false); }
+  };
+
+  if (!s) return null;
+  return (
+    <Modal onClose={onClose} title="Onboarding settings" testId="pack-settings">
+      <div className="space-y-4 text-sm" style={{ color: 'var(--theme-text)' }}>
+        <label className="flex items-start gap-3 cursor-pointer" data-testid="pack-email-toggle">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="mt-1" />
+          <span><span className="font-medium flex items-center gap-1.5"><Mail size={14} /> Email the Onboarding Pack on activation</span>
+            <span className="block opacity-60 text-xs mt-0.5">When an employee is activated, the audit-ready Onboarding Pack PDF is emailed to the recipients below (plus the person activating).</span></span>
+        </label>
+        <label className="block">
+          <span className="text-xs opacity-70">HR / payroll recipients (one per line)</span>
+          <textarea value={recips} onChange={(e) => setRecips(e.target.value)} data-testid="pack-recipients"
+            rows={5} placeholder="hr@company.com&#10;payroll@company.com"
+            className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
+            style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} />
+        </label>
+        {msg && <div className="text-xs" data-testid="pack-settings-msg">{msg}</div>}
+        <div className="flex gap-2">
+          <Btn onClick={save} busy={busy} testId="pack-settings-save" primary>Save settings</Btn>
+          <Btn onClick={onClose} testId="pack-settings-close">Close</Btn>
+        </div>
+      </div>
     </Modal>
   );
 }

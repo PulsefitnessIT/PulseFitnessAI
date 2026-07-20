@@ -9,8 +9,10 @@ is a clearly-marked NON-BINDING SAMPLE placeholder.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import logging
 import os
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -23,6 +25,8 @@ from pydantic import BaseModel
 
 from utils.database import db
 from utils.auth import get_current_user, hash_password, create_token
+
+logger = logging.getLogger(__name__)
 
 try:
     from utils.email import send_email
@@ -434,6 +438,7 @@ async def _ensure_seed(org: str, user: dict):
     await db.staff_onboarding_settings.insert_one({
         "id": str(uuid.uuid4()), "organization_id": org, "packages": PACKAGES,
         "mfa_default": False, "invite_expiry_days": 14, "sample_notice": SAMPLE_NOTE,
+        "email_pack_on_activation": True, "pack_recipient_emails": [],
         "created_at": _now(),
     })
     for tid, name, roles in SEED_OFFER_TEMPLATES:
@@ -465,6 +470,28 @@ async def _ensure_seed(org: str, user: dict):
 @router.get("/staff-onboarding/settings")
 async def get_settings(user: dict = Depends(get_current_user)):
     _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    s = await db.staff_onboarding_settings.find_one({"organization_id": org})
+    s = dict(s or {})
+    s.setdefault("email_pack_on_activation", True)
+    s.setdefault("pack_recipient_emails", [])
+    return _strip(s)
+
+
+class SettingsPatch(BaseModel):
+    email_pack_on_activation: Optional[bool] = None
+    pack_recipient_emails: Optional[list[str]] = None
+
+
+@router.put("/staff-onboarding/settings")
+async def update_settings(body: SettingsPatch, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    upd = {"updated_at": _now()}
+    if body.email_pack_on_activation is not None:
+        upd["email_pack_on_activation"] = body.email_pack_on_activation
+    if body.pack_recipient_emails is not None:
+        cleaned = [e.strip() for e in body.pack_recipient_emails if e and "@" in e]
+        upd["pack_recipient_emails"] = cleaned
+    await db.staff_onboarding_settings.update_one({"organization_id": org}, {"$set": upd})
     s = await db.staff_onboarding_settings.find_one({"organization_id": org})
     return _strip(s)
 
@@ -1135,7 +1162,41 @@ async def activate(case_id: str, user: dict = Depends(get_current_user)):
                            "All your completed documents, offer letter and contract remain available there.",
                            f"Your start date: {ep.get('proposed_start_date') or 'to be confirmed'}."],
                           cta_url=url, cta_label="Open my Staff Portal"))
+    # Email the audit-ready Onboarding Pack PDF to HR/payroll on activation.
+    try:
+        await _email_pack_on_activation(org, c, staff2, user)
+    except Exception:
+        logger.exception("onboarding pack email failed (non-fatal)")
     return {"status": "complete", "staff_id": c["staff_id"]}
+
+
+async def _email_pack_on_activation(org: str, case: dict, staff: dict, user: dict) -> None:
+    settings = await db.staff_onboarding_settings.find_one({"organization_id": org}) or {}
+    if settings.get("email_pack_on_activation") is False:
+        return
+    recipients = list(settings.get("pack_recipient_emails") or [])
+    if user.get("email"):
+        recipients.append(user["email"])
+    recipients = list(dict.fromkeys([r for r in recipients if r and "@" in r]))
+    if not recipients:
+        return
+    from utils.onboarding_pdf import build_pack_pdf
+    data = await _gather_pack_data(case)
+    pdf = build_pack_pdf(case, staff, data)
+    attachment = [{"filename": f"onboarding-pack-{staff.get('full_name', 'employee').replace(' ', '-')}.pdf",
+                   "content": base64.b64encode(pdf).decode("ascii")}]
+    name = staff.get("full_name") or "New employee"
+    ep = case.get("employment_proposal") or {}
+    html = _email_shell(
+        f"Onboarding complete — {name}",
+        [f"{name} has been activated as an employee. The audit-ready Onboarding Pack is attached (PDF).",
+         f"Role: {ep.get('job_title') or ep.get('position') or '—'}  ·  Start date: {ep.get('proposed_start_date') or 'to be confirmed'}.",
+         "It bundles the completed new-starter form, ID/RTW/DBS summary, policy acknowledgements, signed agreements, offer letter and contract."])
+    from utils.email import send_email
+    for rcpt in recipients:
+        await send_email(rcpt, f"Onboarding pack — {name}", html, attachments=attachment,
+                         organization_id=org, kind="staff_onboarding")
+    await _audit(org, case["id"], "onboarding_pack_emailed", user, recipients=len(recipients))
 
 
 @router.get("/staff-onboarding/cases/{case_id}/audit")
