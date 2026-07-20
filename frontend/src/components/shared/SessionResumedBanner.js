@@ -29,6 +29,9 @@ export default function SessionResumedBanner() {
       // user is already mid-relogin).
       const path = typeof window !== 'undefined' ? window.location.pathname : '/';
       if (path === '/login' || path === '/' || path.startsWith('/login/')) return;
+      // The New Starter Portal (/new-starter/*) has its own token-based auth and
+      // must not show the main-app session-expired banner.
+      if (path.startsWith('/new-starter/')) return;
       setShow(true);
     };
     const onResumed = () => setShow(false);

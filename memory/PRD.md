@@ -1,3 +1,26 @@
+# ═══ 2026-06 · NEW STARTER PORTAL — RETURNING-USER LOGIN FIX (VERIFIED: backend 9/9 + FE 100%) ═══
+Bug: after 'Log out', a recruit was shown 'Create a password' again (treated as first-time) and accept-invite RESET
+the password every visit. Fix (integration_expert consulted; reused utils/auth bcrypt verify_password/create_token):
+- NEW GET /api/new-starter/invite/{token} → {found, accepted, full_name} so the portal shows 'Create a password'
+  (first time) vs 'Welcome back — enter your password' (returning).
+- NEW POST /api/new-starter/login {token,password} → verifies existing password → JWT (401 on wrong pw).
+- accept-invite now only SETS the password the first time; returns 409 once the invite is accepted (no silent reset).
+- Frontend NewStarterPortal: fetches invite status when logged out; 'returning' mode → Welcome back + Log in
+  (/login); first-time → Create a password (/accept-invite). Logout clears sessionStorage token.
+- Cosmetic: suppressed the main-app 'session expired' banner on /new-starter/* (SessionResumedBanner) so it doesn't
+  bleed onto the recruit portal (one-line route guard; self-verified via compile).
+Also in this session (all VERIFIED): driving-licence upload tile (always shown), portal Log out + clickable
+checklist (scrolls to section), Submit checklist with reasons (docs optional), Policies read-then-acknowledge,
+HR modal portal fix (full-page overlay + scroll), pack/offer/contract PDF spacing, and company-doc upload +
+AI signature-point detection (Settings → DocsManager; backend 7/7).
+
+OPEN (user question): dedicated STAFF PORTAL URL for post-activation employees (email+password login without the
+invite token) — not built yet; proposed as next item.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF ONBOARDING — BUG FIXES (VERIFIED 100%: backend 5/5 + FE) ═══
 Fixed 4 user-reported issues (report iteration_staff_onboarding_bugfixes_jan2026.json):
 1. HR modals (case detail / Templates / Settings) now render via createPortal(document.body) → full-viewport dark
