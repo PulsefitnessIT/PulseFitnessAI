@@ -313,18 +313,39 @@ SEED_OFFER_TEMPLATES = [
     ("temp_offer", "Temporary Employment Offer", ["temporary"]),
 ]
 OFFER_BODY = (
+    "{{date}}\n\n"
+    "PRIVATE & CONFIDENTIAL\n"
+    "{{legal_name}}\n"
+    "{{home_address}}\n\n"
     "Dear {{preferred_name}},\n\n"
-    "[SAMPLE OFFER LETTER — replace with approved Pulse Fitness wording]\n\n"
-    "We are pleased to offer you the position of {{job_title}} in the {{department}} "
-    "department at {{company}}, based at {{site}}, reporting to {{line_manager}}.\n\n"
-    "Proposed start date: {{start_date}}\n"
-    "Salary: {{salary}} ({{pay_frequency}})\n"
-    "Hours: {{hours}} per week — {{employment_type}}\n"
-    "Probation: {{probation}}    Notice: {{notice_period}}\n"
-    "Holiday entitlement: {{holiday}}\n"
-    "Benefits: {{benefits}}\n\n"
-    "This offer is issued on {{date}}. Please review and respond via your Pulse Fitness "
-    "New Starter Portal.\n\nYours sincerely,\n{{signatory}} — {{company}}"
+    "OFFER OF EMPLOYMENT — {{job_title}}\n\n"
+    "We are delighted to offer you the position of {{job_title}} in the {{department}} "
+    "department at {{company}}, based at {{site}} and reporting to {{line_manager}}.\n\n"
+    "The principal terms of our offer are as follows:\n\n"
+    "  • Position: {{job_title}} ({{employment_type}})\n"
+    "  • Proposed start date: {{start_date}}\n"
+    "  • Salary: {{salary}}, paid {{pay_frequency}}\n"
+    "  • Hours of work: {{hours}} hours per week\n"
+    "  • Probationary period: {{probation}}\n"
+    "  • Notice period: {{notice_period}}\n"
+    "  • Holiday entitlement: {{holiday}}\n"
+    "  • Pension: {{pension}}\n"
+    "  • Other benefits: {{benefits}}\n\n"
+    "This offer is conditional upon:\n"
+    "  1. Receipt of satisfactory employment references;\n"
+    "  2. Verification of your right to work in the UK;\n"
+    "  3. Where applicable, a satisfactory DBS (Disclosure & Barring Service) check; and\n"
+    "  4. Completion of your onboarding documentation.\n\n"
+    "Your full terms and conditions will be set out in your Contract of Employment, which "
+    "will be issued once you have accepted this offer.\n\n"
+    "To accept, please review and sign this letter electronically in your Pulse Fitness "
+    "New Starter Portal.\n\n"
+    "We look forward to welcoming you to the team.\n\n"
+    "Yours sincerely,\n\n"
+    "{{signatory}}\n"
+    "For and on behalf of {{company}}\n\n"
+    "[Pulse Fitness placeholder wording — HR may edit this template in Operations → "
+    "Staffing → Staff Onboarding → Templates before issue.]"
 )
 
 SEED_CONTRACT_TEMPLATES = [
@@ -337,20 +358,58 @@ SEED_CONTRACT_TEMPLATES = [
     ("fixed_term", "Fixed-Term", ["temporary"]),
 ]
 CONTRACT_BODY = (
-    "CONTRACT OF EMPLOYMENT — [SAMPLE, non-binding]\n\n"
-    "Between {{company}} (the Employer) and {{legal_name}} (the Employee).\n\n"
-    "1. Job title: {{job_title}}, {{department}}.\n"
-    "2. Reporting to: {{line_manager}}.\n"
-    "3. Start date: {{start_date}}.  Place of work: {{site}}.\n"
-    "4. Salary: {{salary}} ({{pay_frequency}}).  Hours: {{hours}}/week — {{employment_type}}.\n"
-    "5. Probation: {{probation}}.  Notice: {{notice_period}}.\n"
-    "6. Holiday entitlement: {{holiday}}.  Pension: {{pension}}.\n"
-    "7. Benefits: {{benefits}}.  Bonus/commission: {{bonus}}.\n\n"
-    "This is a SAMPLE contract skeleton. Approved clauses (confidentiality, IP, restrictive "
-    "covenants, disciplinary, grievance, data protection, governing law) must be uploaded and "
-    "approved by Pulse Fitness HR and legal advisers before use.\n\n"
-    "Signed by the Employer: ____________________\n"
-    "Signed by the Employee: ____________________"
+    "CONTRACT OF EMPLOYMENT\n"
+    "(Written Statement of Employment Particulars — Employment Rights Act 1996)\n\n"
+    "This agreement is made between {{company}} (\"the Employer\") and {{legal_name}} "
+    "(\"the Employee\").\n\n"
+    "1. COMMENCEMENT\n"
+    "   Your employment begins on {{start_date}}. No previous employment counts towards "
+    "your period of continuous employment unless stated otherwise in writing.\n\n"
+    "2. JOB TITLE & DUTIES\n"
+    "   You are employed as {{job_title}} in the {{department}} department, reporting to "
+    "{{line_manager}}. You may be required to carry out other reasonable duties.\n\n"
+    "3. PLACE OF WORK\n"
+    "   Your normal place of work is {{site}}. You may be required to work at other "
+    "Company locations from time to time.\n\n"
+    "4. HOURS OF WORK\n"
+    "   Your normal hours of work are {{hours}} hours per week. This is a "
+    "{{employment_type}} position.\n\n"
+    "5. REMUNERATION\n"
+    "   Your salary is {{salary}}, paid {{pay_frequency}} in arrears by BACS.\n\n"
+    "6. PROBATIONARY PERIOD\n"
+    "   Your employment is subject to a probationary period of {{probation}}.\n\n"
+    "7. HOLIDAY\n"
+    "   Your holiday entitlement is {{holiday}} (inclusive of statutory bank holidays), "
+    "based on the Company's holiday year.\n\n"
+    "8. SICKNESS ABSENCE\n"
+    "   Sick pay arrangements, including Statutory Sick Pay, are set out in the Employee "
+    "Handbook.\n\n"
+    "9. PENSION\n"
+    "   {{pension}} You will be auto-enrolled into the Company's workplace pension scheme "
+    "in accordance with statutory requirements.\n\n"
+    "10. NOTICE\n"
+    "    Either party may terminate this employment by giving {{notice_period}} written "
+    "notice, subject to statutory minimum notice periods.\n\n"
+    "11. BENEFITS & VARIABLE PAY\n"
+    "    {{benefits}} {{bonus}}\n\n"
+    "12. POLICIES & PROCEDURES\n"
+    "    You must comply with the Company's policies and procedures (including "
+    "disciplinary, grievance, equality, data protection, IT and anti-bribery), as amended "
+    "from time to time.\n\n"
+    "13. CONFIDENTIALITY & INTELLECTUAL PROPERTY\n"
+    "    You must keep the Company's confidential information secure. All intellectual "
+    "property created in the course of your employment belongs to the Company.\n\n"
+    "14. DATA PROTECTION\n"
+    "    The Company processes your personal data in accordance with UK GDPR and the "
+    "Data Protection Act 2018.\n\n"
+    "15. GOVERNING LAW\n"
+    "    This contract is governed by the law of England and Wales.\n\n"
+    "By signing below, both parties agree to the terms set out above and in any schedules "
+    "attached to this contract.\n\n"
+    "Signed for and on behalf of {{company}}: ____________________   Date: __________\n"
+    "Employee ({{legal_name}}): ____________________   Date: __________\n\n"
+    "[Pulse Fitness placeholder wording — HR/Legal must review and adapt this template "
+    "before use. Edit in Operations → Staffing → Staff Onboarding → Templates.]"
 )
 
 SEED_POLICIES = [
@@ -423,6 +482,151 @@ async def get_templates(user: dict = Depends(get_current_user)):
         "policies": [_strip(t) for t in await db.staff_policy_versions.find({"organization_id": org}).to_list(100)],
         "agreements": [_strip(t) for t in await db.staff_agreement_versions.find({"organization_id": org}).to_list(100)],
     }
+
+
+# ───────────────────────── template builder (Phase 2) ─────────────────────────
+MERGE_FIELDS = [
+    ("legal_name", "Employee legal full name"),
+    ("preferred_name", "Preferred / first name"),
+    ("home_address", "Home address"),
+    ("date", "Document date (today)"),
+    ("company", "Employing company"),
+    ("job_title", "Job title"),
+    ("department", "Department"),
+    ("site", "Site / place of work"),
+    ("line_manager", "Line manager"),
+    ("start_date", "Proposed start date"),
+    ("salary", "Salary"),
+    ("pay_frequency", "Pay frequency"),
+    ("hours", "Hours per week"),
+    ("employment_type", "Employment type"),
+    ("probation", "Probation period"),
+    ("notice_period", "Notice period"),
+    ("holiday", "Holiday entitlement"),
+    ("benefits", "Benefits"),
+    ("pension", "Pension"),
+    ("bonus", "Bonus / commission"),
+    ("hr_contact", "HR contact name"),
+    ("signatory", "Authorised signatory"),
+]
+
+_TMPL_COLL = {"offer": "staff_offer_templates", "contract": "staff_contract_templates"}
+
+
+class TemplateCreate(BaseModel):
+    title: str
+    target_roles: list[str] = []
+    body: str
+
+
+class TemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    target_roles: Optional[list[str]] = None
+    body: Optional[str] = None
+
+
+class TemplatePreview(BaseModel):
+    body: str
+    case_id: Optional[str] = None
+
+
+def _tmpl_coll(kind: str):
+    coll = _TMPL_COLL.get(kind)
+    if not coll:
+        raise HTTPException(400, "kind must be 'offer' or 'contract'")
+    return getattr(db, coll)
+
+
+@router.get("/staff-onboarding/merge-fields")
+async def merge_fields(user: dict = Depends(get_current_user)):
+    _require_hr(user)
+    return {"fields": [{"key": k, "label": lbl, "token": "{{" + k + "}}"} for k, lbl in MERGE_FIELDS]}
+
+
+@router.post("/staff-onboarding/templates/preview")
+async def preview_template(body: TemplatePreview, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    if body.case_id:
+        c = await db.staff_onboarding_cases.find_one({"id": body.case_id, "organization_id": org})
+        staff = await db.staff_members.find_one({"id": c.get("staff_id")}) if c else None
+        ctx = _merge_ctx(c or {}, staff or {})
+    else:
+        ctx = {k: f"[{lbl}]" for k, lbl in MERGE_FIELDS}
+    return {"rendered": _render(body.body, ctx)}
+
+
+@router.post("/staff-onboarding/templates/reset-defaults")
+async def reset_default_templates(user: dict = Depends(get_current_user)):
+    """Re-seed the Pulse offer & contract templates to the latest built-in UK
+    placeholder wording (only touches the built-in seed keys, leaves any custom
+    or already-edited templates untouched)."""
+    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    reset = 0
+    for tid, name, roles in SEED_OFFER_TEMPLATES:
+        r = await db.staff_offer_templates.update_one(
+            {"organization_id": org, "key": tid},
+            {"$set": {"body": OFFER_BODY, "title": name, "target_roles": roles,
+                      "is_sample": True, "updated_at": _now()}})
+        reset += r.modified_count
+    for tid, name, roles in SEED_CONTRACT_TEMPLATES:
+        r = await db.staff_contract_templates.update_one(
+            {"organization_id": org, "key": tid},
+            {"$set": {"body": CONTRACT_BODY, "title": name, "target_roles": roles,
+                      "is_sample": True, "updated_at": _now()}})
+        reset += r.modified_count
+    return {"ok": True, "reset": reset}
+
+
+@router.post("/staff-onboarding/templates/{kind}")
+async def create_template(kind: str, body: TemplateCreate, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    coll = _tmpl_coll(kind)
+    key = "custom_" + uuid.uuid4().hex[:8]
+    doc = {
+        "id": str(uuid.uuid4()), "organization_id": org, "key": key, "title": body.title,
+        "target_roles": body.target_roles, "version": 1, "status": "published", "is_sample": False,
+        "body": body.body, "created_by": user.get("full_name"), "created_at": _now(), "updated_at": _now(),
+    }
+    await coll.insert_one(dict(doc))
+    return _strip(doc)
+
+
+@router.put("/staff-onboarding/templates/{kind}/{template_id}")
+async def update_template(kind: str, template_id: str, body: TemplateUpdate, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    coll = _tmpl_coll(kind)
+    tmpl = await coll.find_one({"id": template_id, "organization_id": org})
+    if not tmpl:
+        raise HTTPException(404, "Template not found")
+    # snapshot the current version before editing (immutable history)
+    await db.staff_template_versions.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": org, "template_kind": kind,
+        "template_id": template_id, "key": tmpl.get("key"), "version": tmpl.get("version", 1),
+        "title": tmpl.get("title"), "body": tmpl.get("body"),
+        "archived_at": _now(), "archived_by": user.get("full_name"),
+    })
+    upd = {"updated_at": _now(), "version": (tmpl.get("version", 1) + 1),
+           "is_sample": False, "last_edited_by": user.get("full_name")}
+    if body.title is not None:
+        upd["title"] = body.title
+    if body.target_roles is not None:
+        upd["target_roles"] = body.target_roles
+    if body.body is not None:
+        upd["body"] = body.body
+    await coll.update_one({"id": template_id}, {"$set": upd})
+    return _strip(await coll.find_one({"id": template_id}))
+
+
+@router.get("/staff-onboarding/templates/{kind}/{template_id}/versions")
+async def template_versions(kind: str, template_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    vers = await db.staff_template_versions.find(
+        {"organization_id": org, "template_kind": kind, "template_id": template_id}
+    ).sort("version", -1).to_list(100)
+    return {"versions": [_strip(v) for v in vers]}
+
+
+
 
 
 @router.post("/staff-onboarding/cases/duplicate-check")
@@ -614,7 +818,7 @@ async def _paperwork_state(case: dict) -> dict:
         "emergency_contact": bool((forms.get("new_starter", {}).get("data") or {}).get("emergency_contact_name")),
         "payroll": bool(forms.get("new_starter") and (forms.get("new_starter", {}).get("data") or {}).get("bank_account")),
         "identity_documents": docs > 0,
-        "right_to_work": bool(rtw and rtw.get("result") == "verified"),
+        "right_to_work": bool(rtw and rtw.get("result") in ("verified", "time_limited")),
         "policies": pol_req == 0 or pol_done >= pol_req,
         "agreements": all(a.get("status") == "signed" for a in agr) if agr else True,
     }
@@ -879,9 +1083,12 @@ async def activation_state(case_id: str, user: dict = Depends(get_current_user))
     checks = {
         "offer_accepted": offer.get("status") == "accepted",
         "contract_fully_signed": con.get("status") == "fully_signed",
-        "right_to_work_verified": bool(rtw and rtw.get("result") == "verified"),
+        "right_to_work_verified": bool(rtw and rtw.get("result") in ("verified", "time_limited")),
         "paperwork_complete": bool(c.get("paperwork_complete")),
     }
+    if (c.get("role_requirements") or {}).get("dbs_required"):
+        dbs = await db.staff_dbs_checks.find_one({"onboarding_case_id": case_id})
+        checks["dbs_cleared"] = bool(dbs and dbs.get("status") == "clear")
     return {"checks": checks, "ready": all(checks.values())}
 
 
@@ -1186,12 +1393,69 @@ async def download_file(doc_id: str, user: dict = Depends(get_current_user)):
     return FileResponse(content=data, media_type=doc.get("content_type", ct))
 
 
-# ───────────────────────── right to work (light Phase 1) ─────────────────────────
+# ───────────── Right to Work + DBS verification workflow (Phase 2) ─────────────
+RTW_METHODS = [
+    {"id": "share_code", "label": "Online right-to-work check (share code)"},
+    {"id": "manual_document", "label": "Manual document check (passport / BRP)"},
+    {"id": "idsp", "label": "Identity Service Provider (IDVT)"},
+]
+RTW_RESULTS = [
+    {"id": "verified", "label": "Verified — has right to work"},
+    {"id": "time_limited", "label": "Verified — time-limited (follow-up required)"},
+    {"id": "follow_up", "label": "Follow-up check required"},
+    {"id": "not_verified", "label": "Not verified"},
+]
+DBS_LEVELS = [
+    {"id": "none", "label": "Not required"},
+    {"id": "basic", "label": "Basic"},
+    {"id": "standard", "label": "Standard"},
+    {"id": "enhanced", "label": "Enhanced"},
+    {"id": "enhanced_barred", "label": "Enhanced with barred list"},
+]
+DBS_STATUSES = [
+    {"id": "not_required", "label": "Not required"},
+    {"id": "requested", "label": "Requested"},
+    {"id": "in_progress", "label": "In progress"},
+    {"id": "clear", "label": "Cleared"},
+    {"id": "not_clear", "label": "Not clear — review required"},
+]
+
+
 class RTWBody(BaseModel):
     method: Optional[str] = None
-    result: str = "verified"    # verified | follow_up | not_verified
+    result: str = "verified"    # verified | time_limited | follow_up | not_verified
+    document_type: Optional[str] = None
+    share_code: Optional[str] = None
     expiry: Optional[str] = None
     notes: Optional[str] = None
+
+
+class DBSBody(BaseModel):
+    level: str = "basic"        # none | basic | standard | enhanced | enhanced_barred
+    status: str = "requested"   # not_required | requested | in_progress | clear | not_clear
+    certificate_number: Optional[str] = None
+    issue_date: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@router.get("/staff-onboarding/checks/options")
+async def check_options(user: dict = Depends(get_current_user)):
+    _require_hr(user)
+    return {"rtw_methods": RTW_METHODS, "rtw_results": RTW_RESULTS,
+            "dbs_levels": DBS_LEVELS, "dbs_statuses": DBS_STATUSES}
+
+
+@router.get("/staff-onboarding/cases/{case_id}/checks")
+async def get_checks(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    rtw = await db.staff_right_to_work_checks.find_one({"onboarding_case_id": case_id})
+    dbs = await db.staff_dbs_checks.find_one({"onboarding_case_id": case_id})
+    dbs_required = bool((c.get("role_requirements") or {}).get("dbs_required"))
+    return {"right_to_work": _strip(rtw) if rtw else None,
+            "dbs": _strip(dbs) if dbs else None, "dbs_required": dbs_required}
 
 
 @router.post("/staff-onboarding/cases/{case_id}/right-to-work")
@@ -1204,9 +1468,85 @@ async def set_rtw(case_id: str, body: RTWBody, user: dict = Depends(get_current_
     await db.staff_right_to_work_checks.insert_one({
         "id": str(uuid.uuid4()), "organization_id": org, "onboarding_case_id": case_id,
         "staff_id": c["staff_id"], "check_method": body.method, "result": body.result,
+        "document_type": body.document_type, "share_code": body.share_code,
         "checker": user.get("full_name"), "check_date": _now(), "expiry": body.expiry, "notes": body.notes})
     await _audit(org, case_id, "right_to_work_verified", user, new_value=body.result)
     return {"ok": True, "result": body.result}
+
+
+@router.post("/staff-onboarding/cases/{case_id}/dbs")
+async def set_dbs(case_id: str, body: DBSBody, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    await db.staff_dbs_checks.delete_many({"onboarding_case_id": case_id})
+    await db.staff_dbs_checks.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": org, "onboarding_case_id": case_id,
+        "staff_id": c["staff_id"], "level": body.level, "status": body.status,
+        "certificate_number": body.certificate_number, "issue_date": body.issue_date,
+        "checker": user.get("full_name"), "updated_at": _now(), "notes": body.notes})
+    await _audit(org, case_id, "dbs_updated", user, new_value=f"{body.level}/{body.status}")
+    return {"ok": True, "status": body.status, "level": body.level}
+
+
+@router.post("/staff-onboarding/cases/{case_id}/dbs-required")
+async def set_dbs_required(case_id: str, required: bool = True, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    rr = {**(c.get("role_requirements") or {}), "dbs_required": bool(required)}
+    await db.staff_onboarding_cases.update_one({"id": case_id}, {"$set": {"role_requirements": rr, "updated_at": _now()}})
+    return {"ok": True, "dbs_required": bool(required)}
+
+
+# ───────────────────────── offer / contract PDF (Phase 2) ─────────────────────────
+def _pdf_response(data: bytes, filename: str) -> FileResponse:
+    return FileResponse(content=data, media_type="application/pdf",
+                        headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+
+@router.get("/staff-onboarding/cases/{case_id}/offer.pdf")
+async def hr_offer_pdf(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c or not c.get("offer"):
+        raise HTTPException(404, "Offer not found")
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    from utils.onboarding_pdf import build_offer_pdf
+    return _pdf_response(build_offer_pdf(c, staff, c["offer"]), f"offer-{case_id}.pdf")
+
+
+@router.get("/staff-onboarding/cases/{case_id}/contract.pdf")
+async def hr_contract_pdf(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c or not c.get("contract"):
+        raise HTTPException(404, "Contract not found")
+    staff = await db.staff_members.find_one({"id": c["staff_id"]}) or {}
+    from utils.onboarding_pdf import build_contract_pdf
+    return _pdf_response(build_contract_pdf(c, staff, c["contract"]), f"contract-{case_id}.pdf")
+
+
+@router.get("/new-starter/offer.pdf")
+async def recruit_offer_pdf(user: dict = Depends(get_current_user)):
+    case, staff = await _recruit_case(user)
+    offer = case.get("offer") or {}
+    if offer.get("status") not in ("issued", "accepted", "declined"):
+        raise HTTPException(404, "No offer available")
+    from utils.onboarding_pdf import build_offer_pdf
+    return _pdf_response(build_offer_pdf(case, staff, offer), "your-offer.pdf")
+
+
+@router.get("/new-starter/contract.pdf")
+async def recruit_contract_pdf(user: dict = Depends(get_current_user)):
+    case, staff = await _recruit_case(user)
+    con = case.get("contract") or {}
+    if con.get("status") not in ("issued", "employee_signed", "fully_signed"):
+        raise HTTPException(404, "No contract available")
+    from utils.onboarding_pdf import build_contract_pdf
+    return _pdf_response(build_contract_pdf(case, staff, con), "your-contract.pdf")
 
 
 # ───────────────────────── notifications ─────────────────────────

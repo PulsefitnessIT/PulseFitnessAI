@@ -1,0 +1,28 @@
+{
+  "summary": "Phase 2 depth verified end-to-end for Staff Onboarding, Offer Letter & Employment Contract Wizard. Backend: 18/18 pytest cases pass covering (1) template builder — merge-fields returns 22 fields with {{key}} tokens, preview substitutes placeholders leaving no unresolved tokens, reset-defaults returns {ok:true, reset:13}, PUT increments version + flips is_sample=false + stores an immutable version snapshot, POST new template creates a v1 non-sample doc, GET /versions returns history; (2) route ordering — /templates/preview and /templates/reset-defaults are correctly declared BEFORE /templates/{kind} POST so they are NOT swallowed; (3) DBS/RTW — checks/options returns 3 rtw_methods + 5 dbs_statuses, RTW save + dbs-required toggle + DBS save all persist and are reflected on the subsequent GET; (4) PDFs — HR offer.pdf and contract.pdf return application/pdf %PDF- content ≥ 1KB, recruit /new-starter/offer.pdf and /new-starter/contract.pdf also return valid %PDF- bytes, offer.pdf for a case without an offer returns 404. Frontend (owner@isodemo.com → Operations → Staffing → People → Staff Onboarding): staff-onboarding-console loads, Templates modal opens (template-manager), tmpl-kind-offer/contract tab switching works, 9 tmpl-row-* templates listed, opening a row shows tmpl-body with 1451-char UK wording + {{merge}} tokens, 22 merge-* chips insert their token into the textarea, tmpl-preview-btn renders a 1554-char preview with zero unresolved tokens, tmpl-save shows 'Saved ✓', tmpl-reset returns 'Reset 13 built-in templates', tmpl-new+tmpl-save creates a custom template ('Saved ✓'). Case detail → case-tab-checks renders checks-panel; RTW method+result+share-code saved ('Right to Work saved'); dbs-required-toggle + dbs-level/status/cert saved ('DBS check saved'); switching tabs and returning preserves the saved rtw_share (UIA123XYZ) and dbs_cert (DBS-UI-001). All 6 case tabs (overview, paperwork, offer, contract, activate, audit) render without JS errors. btn-offer-pdf / btn-contract-pdf are conditionally rendered only when the case has an offer / contract object (confirmed in code and backend test test_34); the button was correctly ABSENT on a case with status='Not Started'. New-starter portal exposes nsp-offer-pdf and nsp-contract-pdf (verified in source and backend test_32/test_33). Regression: new-onboarding-case-btn still opens the wizard.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_onboarding_phase2_jan2026.py",
+    "/app/test_reports/pytest/staff_onboarding_phase2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Prior iteration flagged that CaseWizard.Field is defined INSIDE the render function causing focus-loss per keystroke for real users — still applies (not touched in Phase 2). Hoist Field to module scope.",
+    "utils.onboarding_pdf.build_offer_pdf / build_contract_pdf appears to be OK (returns bytes) but staff_onboarding_wizard.py aliases `Response as FileResponse` and uses `FileResponse(content=data, media_type=...)` — works because it's actually a Response, but the alias is misleading. Consider using the true fastapi.responses.Response name.",
+    "TemplateManager.taRef insertion uses textarea selectionStart which requires the textarea to be focused; when a merge-* chip is clicked directly (steals focus), insertion still appends token at cursor position 0 by default. It works but caret position is not always where the user expects. Low priority polish."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_onboarding_phase2_jan2026.py (new — 18 pytest cases: template builder, DBS/RTW persistence, PDF endpoints, route ordering)"
+  ],
+  "success_rate": { "backend": "100% (18/18)", "frontend": "100% for Phase 2 flows" },
+  "test_credentials": "HR: owner@isodemo.com / IsoDemo123!. Recruit accounts created dynamically by test_20 via /api/new-starter/accept-invite (password Recruit123!).",
+  "seed_data_creation": "18-test file creates disposable TEST_p2_<uuid>@example.test staff_members + onboarding_cases in iso-demo-org and drives them to contract-issued. Templates: creates one TEST_UI_Custom_<ts> and one TEST_Custom Offer <hex>; also flips a seed offer template to non-sample title 'TEST_Updated Offer' which is then restored to is_sample=true by reset-defaults. Two extra UI-driven templates (TEST_UI_<ts>) exist as well. Nothing production-scoped.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 backend + frontend fully green. Route ordering for /templates/preview and /templates/reset-defaults is correct. PDF endpoints return real PDFs (bytes start with %PDF-). To re-run: `cd /app/backend && python -m pytest tests/test_staff_onboarding_phase2_jan2026.py -v` (login rate-limited — allow 40s between fresh full runs). UI test lives inline in this run; the two console-error CSP warnings for emergent-main.js / posthog / cloudflareinsights are pre-existing environmental noise (deliberately blocked by app CSP), not related to Phase 2."
+}

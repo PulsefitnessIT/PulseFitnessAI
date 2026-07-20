@@ -3,14 +3,21 @@
  * Mounted at Operations → Staffing → People → Staff Onboarding.
  * Single person record (staff_members) progresses candidate→…→employee.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import {
   UserPlus, Loader2, X, FileText, FileSignature, CheckCircle2, ShieldCheck,
   ClipboardList, ScrollText, ArrowRight, AlertTriangle, History, Bell,
+  Download, Pencil, RotateCcw, Plus, ShieldAlert,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+async function openPdf(url, headers) {
+  const r = await axios.get(url, { headers, responseType: 'blob' });
+  const blobUrl = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+  window.open(blobUrl, '_blank');
+}
 
 const surface = { background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' };
 const STATUS_LABELS = {
@@ -38,6 +45,7 @@ export default function StaffOnboarding({ headers }) {
   const [openCase, setOpenCase] = useState(null);
   const [notifs, setNotifs] = useState({ notifications: [], unread: 0 });
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +111,11 @@ export default function StaffOnboarding({ headers }) {
               </div>
             )}
           </div>
+          <button onClick={() => setShowTemplates(true)} data-testid="open-templates-btn"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold border"
+            style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+            <ScrollText size={16} /> Templates
+          </button>
           <button onClick={() => setShowWizard(true)} data-testid="new-onboarding-case-btn"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-slate-900"
             style={{ background: 'var(--color-brand-cyan, #19CDFF)' }}>
@@ -158,6 +171,7 @@ export default function StaffOnboarding({ headers }) {
 
       {showWizard && <CaseWizard headers={headers} onClose={() => setShowWizard(false)}
         onCreated={(id) => { setShowWizard(false); load(); setOpenCase(id); }} />}
+      {showTemplates && <TemplateManager headers={headers} onClose={() => setShowTemplates(false)} />}
       {openCase && <CaseDetail headers={headers} caseId={openCase}
         onClose={() => { setOpenCase(null); load(); }} />}
     </div>
@@ -345,6 +359,7 @@ function CaseDetail({ headers, caseId, onClose }) {
 
   const c = data.case, offer = c.offer, contract = c.contract;
   const TABS = [['overview', 'Overview', FileText], ['paperwork', 'Paperwork', ClipboardList],
+    ['checks', 'DBS / RTW', ShieldCheck],
     ['offer', 'Offer Letter', ScrollText], ['contract', 'Contract', FileSignature],
     ['activate', 'Activate', CheckCircle2], ['audit', 'Audit', History]];
 
@@ -389,6 +404,10 @@ function CaseDetail({ headers, caseId, onClose }) {
         </div>
       )}
 
+      {tab === 'checks' && (
+        <ChecksPanel headers={headers} caseId={caseId} />
+      )}
+
       {tab === 'offer' && (
         <div className="space-y-3 text-sm" style={{ color: 'var(--theme-text)' }}>
           {!offer && (
@@ -406,7 +425,10 @@ function CaseDetail({ headers, caseId, onClose }) {
           )}
           {offer && (
             <>
-              <div className="flex items-center gap-2"><Pill tone="blue">{offer.status}</Pill>{offer.conditional && <Pill tone="amber">Conditional</Pill>}</div>
+              <div className="flex items-center gap-2"><Pill tone="blue">{offer.status}</Pill>{offer.conditional && <Pill tone="amber">Conditional</Pill>}
+                <button onClick={() => openPdf(`${API}/staff-onboarding/cases/${caseId}/offer.pdf`, headers)} data-testid="btn-offer-pdf"
+                  className="ml-auto inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+                  <Download size={13} /> PDF</button></div>
               <pre className="whitespace-pre-wrap p-3 rounded-lg text-xs max-h-64 overflow-auto" data-testid="offer-preview"
                 style={{ background: 'var(--theme-surface)' }}>{offer.rendered}</pre>
               <div className="flex gap-2 flex-wrap">
@@ -444,7 +466,10 @@ function CaseDetail({ headers, caseId, onClose }) {
               <div className="flex items-center gap-2"><Pill tone="blue">{contract.status}</Pill>
                 {contract.differences?.length > 0
                   ? <Pill tone="red">Contract differs from offer ({contract.differences.length})</Pill>
-                  : <Pill tone="green">Matches accepted offer</Pill>}</div>
+                  : <Pill tone="green">Matches accepted offer</Pill>}
+                <button onClick={() => openPdf(`${API}/staff-onboarding/cases/${caseId}/contract.pdf`, headers)} data-testid="btn-contract-pdf"
+                  className="ml-auto inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+                  <Download size={13} /> PDF</button></div>
               <pre className="whitespace-pre-wrap p-3 rounded-lg text-xs max-h-64 overflow-auto" data-testid="contract-preview"
                 style={{ background: 'var(--theme-surface)' }}>{contract.rendered}</pre>
               <div className="flex gap-2 flex-wrap">
@@ -509,6 +534,220 @@ function ActivatePanel({ headers, caseId, onActivate, busy, status }) {
         ? <Pill tone="green">Employee activated — staff portal enabled ✓</Pill>
         : <Btn onClick={onActivate} busy={busy} testId="btn-activate" primary disabled={!st?.ready}>Activate Staff Member</Btn>}
     </div>
+  );
+}
+
+/* ───────────────── Checks: DBS + Right to Work ───────────────── */
+function ChecksPanel({ headers, caseId }) {
+  const [opts, setOpts] = useState(null);
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState('');
+  const [rtw, setRtw] = useState({ method: 'share_code', result: 'verified', document_type: '', share_code: '', expiry: '', notes: '' });
+  const [dbs, setDbs] = useState({ level: 'basic', status: 'requested', certificate_number: '', issue_date: '', notes: '' });
+
+  const load = useCallback(async () => {
+    const [o, s] = await Promise.all([
+      axios.get(`${API}/staff-onboarding/checks/options`, { headers }),
+      axios.get(`${API}/staff-onboarding/cases/${caseId}/checks`, { headers }),
+    ]);
+    setOpts(o.data); setState(s.data);
+    if (s.data.right_to_work) setRtw((p) => ({ ...p, ...pick(s.data.right_to_work, ['result', 'document_type', 'share_code', 'expiry', 'notes']), method: s.data.right_to_work.check_method || p.method }));
+    if (s.data.dbs) setDbs((p) => ({ ...p, ...pick(s.data.dbs, ['level', 'status', 'certificate_number', 'issue_date', 'notes']) }));
+  }, [caseId, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const run = async (fn, ok) => { setBusy(ok); setMsg(''); try { await fn(); setMsg(ok); await load(); } catch (e) { setMsg('⚠ ' + (e?.response?.data?.detail || 'Failed')); } finally { setBusy(''); } };
+  const saveRtw = () => run(() => axios.post(`${API}/staff-onboarding/cases/${caseId}/right-to-work`, rtw, { headers }), 'Right to Work saved');
+  const saveDbs = () => run(() => axios.post(`${API}/staff-onboarding/cases/${caseId}/dbs`, dbs, { headers }), 'DBS check saved');
+  const toggleReq = (v) => run(() => axios.post(`${API}/staff-onboarding/cases/${caseId}/dbs-required?required=${v}`, {}, { headers }), v ? 'DBS marked required' : 'DBS not required');
+
+  if (!opts || !state) return <Loader2 className="animate-spin" style={{ color: 'var(--theme-text)' }} />;
+  const cur = state.right_to_work, curD = state.dbs;
+
+  return (
+    <div className="space-y-5 text-sm" style={{ color: 'var(--theme-text)' }} data-testid="checks-panel">
+      {msg && <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'var(--theme-surface)' }} data-testid="checks-msg">{msg}</div>}
+
+      {/* Right to Work */}
+      <div className="rounded-xl border p-4" style={surface}>
+        <div className="flex items-center gap-2 mb-3"><ShieldCheck size={16} className="text-cyan-400" />
+          <span className="font-semibold">Right to Work</span>
+          {cur && <Pill tone={['verified', 'time_limited'].includes(cur.result) ? 'green' : cur.result === 'follow_up' ? 'amber' : 'red'}>{cur.result}</Pill>}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Method" testId="rtw-method" value={rtw.method} onChange={(v) => setRtw((p) => ({ ...p, method: v }))} options={opts.rtw_methods} />
+          <Select label="Result" testId="rtw-result" value={rtw.result} onChange={(v) => setRtw((p) => ({ ...p, result: v }))} options={opts.rtw_results} />
+          <TextIn label="Document type" testId="rtw-doc" value={rtw.document_type} onChange={(v) => setRtw((p) => ({ ...p, document_type: v }))} />
+          <TextIn label="Share code" testId="rtw-share" value={rtw.share_code} onChange={(v) => setRtw((p) => ({ ...p, share_code: v }))} />
+          <TextIn label="Expiry (if time-limited)" testId="rtw-expiry" type="date" value={rtw.expiry} onChange={(v) => setRtw((p) => ({ ...p, expiry: v }))} />
+          <TextIn label="Notes" testId="rtw-notes" value={rtw.notes} onChange={(v) => setRtw((p) => ({ ...p, notes: v }))} />
+        </div>
+        <Btn onClick={saveRtw} busy={busy === 'Right to Work saved'} testId="btn-save-rtw" primary>Save Right to Work</Btn>
+      </div>
+
+      {/* DBS */}
+      <div className="rounded-xl border p-4" style={surface}>
+        <div className="flex items-center gap-2 mb-3"><ShieldAlert size={16} className="text-cyan-400" />
+          <span className="font-semibold">DBS (Disclosure & Barring)</span>
+          {curD && <Pill tone={curD.status === 'clear' ? 'green' : curD.status === 'not_clear' ? 'red' : 'amber'}>{curD.status}</Pill>}
+          <label className="ml-auto inline-flex items-center gap-2 text-xs cursor-pointer" data-testid="dbs-required-toggle">
+            <input type="checkbox" checked={!!state.dbs_required} onChange={(e) => toggleReq(e.target.checked)} />
+            Required for this role
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Level" testId="dbs-level" value={dbs.level} onChange={(v) => setDbs((p) => ({ ...p, level: v }))} options={opts.dbs_levels} />
+          <Select label="Status" testId="dbs-status" value={dbs.status} onChange={(v) => setDbs((p) => ({ ...p, status: v }))} options={opts.dbs_statuses} />
+          <TextIn label="Certificate number" testId="dbs-cert" value={dbs.certificate_number} onChange={(v) => setDbs((p) => ({ ...p, certificate_number: v }))} />
+          <TextIn label="Issue date" testId="dbs-issue" type="date" value={dbs.issue_date} onChange={(v) => setDbs((p) => ({ ...p, issue_date: v }))} />
+          <TextIn label="Notes" testId="dbs-notes" value={dbs.notes} onChange={(v) => setDbs((p) => ({ ...p, notes: v }))} />
+        </div>
+        <Btn onClick={saveDbs} busy={busy === 'DBS check saved'} testId="btn-save-dbs" primary>Save DBS Check</Btn>
+      </div>
+    </div>
+  );
+}
+
+function pick(o, keys) { const r = {}; keys.forEach((k) => { if (o[k] != null) r[k] = o[k]; }); return r; }
+
+function Select({ label, value, onChange, options, testId }) {
+  return (
+    <label className="block"><span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId}
+        className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
+        style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
+        {options.map((o) => <option key={o.id} value={o.id} style={{ color: '#111' }}>{o.label}</option>)}
+      </select></label>
+  );
+}
+function TextIn({ label, value, onChange, testId, type = 'text' }) {
+  return (
+    <label className="block"><span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>{label}</span>
+      <input type={type} value={value || ''} onChange={(e) => onChange(e.target.value)} data-testid={testId}
+        className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
+        style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} /></label>
+  );
+}
+
+/* ───────────────── Template Builder (offer & contract) ───────────────── */
+function TemplateManager({ headers, onClose }) {
+  const [kind, setKind] = useState('offer');
+  const [templates, setTemplates] = useState({ offer: [], contract: [] });
+  const [fields, setFields] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [draft, setDraft] = useState({ title: '', target_roles: '', body: '' });
+  const [preview, setPreview] = useState('');
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState('');
+  const taRef = useRef(null);
+
+  const load = useCallback(async () => {
+    const [t, f] = await Promise.all([
+      axios.get(`${API}/staff-onboarding/templates`, { headers }),
+      axios.get(`${API}/staff-onboarding/merge-fields`, { headers }),
+    ]);
+    setTemplates({ offer: t.data.offer || [], contract: t.data.contract || [] });
+    setFields(f.data.fields || []);
+  }, [headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const openTmpl = (t) => { setSel(t); setPreview(''); setMsg(''); setDraft({ title: t.title || '', target_roles: (t.target_roles || []).join(', '), body: t.body || '' }); };
+  const newTmpl = () => { setSel({ id: null, key: 'new' }); setPreview(''); setMsg(''); setDraft({ title: '', target_roles: '', body: kind === 'offer' ? 'Dear {{preferred_name}},\n\n' : 'CONTRACT OF EMPLOYMENT\n\n' }); };
+
+  const insertField = (token) => {
+    const ta = taRef.current;
+    if (!ta) { setDraft((p) => ({ ...p, body: p.body + token })); return; }
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const nv = draft.body.slice(0, s) + token + draft.body.slice(e);
+    setDraft((p) => ({ ...p, body: nv }));
+    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + token.length; }, 0);
+  };
+
+  const doPreview = async () => {
+    setBusy('preview');
+    try { const r = await axios.post(`${API}/staff-onboarding/templates/preview`, { body: draft.body }, { headers }); setPreview(r.data.rendered); }
+    finally { setBusy(''); }
+  };
+  const save = async () => {
+    setBusy('save'); setMsg('');
+    const payload = { title: draft.title, target_roles: draft.target_roles.split(',').map((s) => s.trim()).filter(Boolean), body: draft.body };
+    try {
+      if (sel?.id) await axios.put(`${API}/staff-onboarding/templates/${kind}/${sel.id}`, payload, { headers });
+      else await axios.post(`${API}/staff-onboarding/templates/${kind}`, payload, { headers });
+      setMsg('Saved ✓'); await load(); setSel(null);
+    } catch (e) { setMsg('⚠ ' + (e?.response?.data?.detail || 'Save failed')); } finally { setBusy(''); }
+  };
+  const resetDefaults = async () => {
+    setBusy('reset');
+    try { const r = await axios.post(`${API}/staff-onboarding/templates/reset-defaults`, {}, { headers }); setMsg(`Reset ${r.data.reset} built-in templates`); await load(); }
+    finally { setBusy(''); }
+  };
+
+  const list = templates[kind] || [];
+
+  return (
+    <Modal onClose={onClose} title="Offer & Contract Templates" testId="template-manager" wide>
+      <div className="flex items-center gap-2 mb-3">
+        {['offer', 'contract'].map((k) => (
+          <button key={k} onClick={() => { setKind(k); setSel(null); }} data-testid={`tmpl-kind-${k}`}
+            className={`px-3 py-1.5 rounded-lg text-sm capitalize ${kind === k ? 'bg-cyan-500/20 text-cyan-300' : 'opacity-70'}`}
+            style={{ color: kind === k ? undefined : 'var(--theme-text)' }}>{k} letters</button>
+        ))}
+        <button onClick={newTmpl} data-testid="tmpl-new"
+          className="ml-auto inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}><Plus size={13} /> New</button>
+        <button onClick={resetDefaults} disabled={busy === 'reset'} data-testid="tmpl-reset"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}><RotateCcw size={13} /> Reset defaults</button>
+      </div>
+      {msg && <div className="mb-3 text-xs px-3 py-2 rounded-lg" data-testid="tmpl-msg" style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)' }}>{msg}</div>}
+
+      {!sel ? (
+        <div className="space-y-2" data-testid="tmpl-list">
+          {list.map((t) => (
+            <button key={t.id} onClick={() => openTmpl(t)} data-testid={`tmpl-row-${t.key}`}
+              className="w-full text-left px-3 py-2.5 rounded-lg border flex items-center justify-between gap-2 hover:bg-white/[0.03]" style={surface}>
+              <div>
+                <div className="font-medium" style={{ color: 'var(--theme-text)' }}>{t.title}
+                  {t.is_sample && <span className="ml-2 text-[10px] text-amber-300">PLACEHOLDER</span>}</div>
+                <div className="text-xs opacity-60" style={{ color: 'var(--theme-text)' }}>{(t.target_roles || []).join(', ') || 'all roles'} · v{t.version}</div>
+              </div>
+              <Pencil size={14} style={{ color: 'var(--theme-text)' }} />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <TextIn label="Template title" testId="tmpl-title" value={draft.title} onChange={(v) => setDraft((p) => ({ ...p, title: v }))} />
+            <TextIn label="Target roles (comma separated)" testId="tmpl-roles" value={draft.target_roles} onChange={(v) => setDraft((p) => ({ ...p, target_roles: v }))} />
+          </div>
+          <div>
+            <div className="text-xs opacity-70 mb-1" style={{ color: 'var(--theme-text)' }}>Merge fields (click to insert)</div>
+            <div className="flex flex-wrap gap-1.5" data-testid="tmpl-merge-fields">
+              {fields.map((f) => (
+                <button key={f.key} onClick={() => insertField(f.token)} data-testid={`merge-${f.key}`} title={f.label}
+                  className="text-[11px] px-2 py-1 rounded-md border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>{f.token}</button>
+              ))}
+            </div>
+          </div>
+          <label className="block">
+            <span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>Document body</span>
+            <textarea ref={taRef} value={draft.body} onChange={(e) => setDraft((p) => ({ ...p, body: e.target.value }))} data-testid="tmpl-body"
+              rows={14} className="mt-1 w-full rounded-lg px-3 py-2 text-xs font-mono border bg-transparent"
+              style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} />
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            <Btn onClick={() => setSel(null)} testId="tmpl-back">Back</Btn>
+            <Btn onClick={doPreview} busy={busy === 'preview'} testId="tmpl-preview-btn">Preview</Btn>
+            <Btn onClick={save} busy={busy === 'save'} testId="tmpl-save" primary>Save template</Btn>
+          </div>
+          {preview && (
+            <pre className="whitespace-pre-wrap p-3 rounded-lg text-xs max-h-64 overflow-auto" data-testid="tmpl-preview"
+              style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)' }}>{preview}</pre>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
 

@@ -6,10 +6,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Loader2, Upload, CheckCircle2, FileText, ShieldCheck, PenLine, Send, Circle,
+  Loader2, Upload, CheckCircle2, FileText, ShieldCheck, PenLine, Send, Circle, Download,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+async function openPdf(url, headers) {
+  const r = await axios.get(url, { headers, responseType: 'blob' });
+  const blobUrl = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+  window.open(blobUrl, '_blank');
+}
 const CORE = '#19CDFF';
 const STEP_LABELS = { forms: 'Forms', documents: 'Documents', verification: 'Verification', policies: 'Policies', agreements: 'Agreements', offer: 'Offer', contract: 'Contract', ready_to_start: 'Ready to Start' };
 
@@ -241,6 +247,11 @@ function OfferCard({ H, me, reload }) {
   };
   return (
     <Section title="Your Offer Letter" icon={FileText} testId="nsp-offer">
+      <div className="flex justify-end mb-2">
+        <button onClick={() => openPdf(`${API}/new-starter/offer.pdf`, H)} data-testid="nsp-offer-pdf"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400">
+          <Download size={13} /> Download PDF</button>
+      </div>
       <pre className="whitespace-pre-wrap text-xs bg-slate-50 rounded-lg p-3 max-h-60 overflow-auto text-slate-700" data-testid="nsp-offer-text">{offer.rendered}</pre>
       {offer.status === 'issued' ? (
         <div className="mt-3 space-y-2">
@@ -263,6 +274,11 @@ function ContractCard({ H, me, reload }) {
   const sign = async () => { setBusy(true); try { await axios.post(`${API}/new-starter/contract/sign`, { signature_name: name, signature_method: 'typed', acknowledge: true }, { headers: H }); reload(); } finally { setBusy(false); } };
   return (
     <Section title="Your Employment Contract" icon={FileSignatureIcon} testId="nsp-contract">
+      <div className="flex justify-end mb-2">
+        <button onClick={() => openPdf(`${API}/new-starter/contract.pdf`, H)} data-testid="nsp-contract-pdf"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400">
+          <Download size={13} /> Download PDF</button>
+      </div>
       <pre className="whitespace-pre-wrap text-xs bg-slate-50 rounded-lg p-3 max-h-60 overflow-auto text-slate-700" data-testid="nsp-contract-text">{con.rendered}</pre>
       {con.status === 'issued' ? (
         <div className="mt-3 space-y-2">
