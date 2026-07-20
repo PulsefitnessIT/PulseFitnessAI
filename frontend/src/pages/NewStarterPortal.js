@@ -114,28 +114,31 @@ function YourDetails({ H, me, reload }) {
   const saved = me.forms?.new_starter?.data || {};
   const [f, setF] = useState({ dob: saved.dob || '', ni_number: saved.ni_number || '', emergency_contact_name: saved.emergency_contact_name || '', emergency_contact_phone: saved.emergency_contact_phone || '', bank_account: saved.bank_account || '', home_address: saved.home_address || '' });
   const [busy, setBusy] = useState(false); const [ok, setOk] = useState(false);
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const save = async () => { setBusy(true); try { await axios.put(`${API}/new-starter/forms`, { form_key: 'new_starter', data: f }, { headers: H }); setOk(true); reload(); } finally { setBusy(false); } };
-  const I = ({ label, k, type = 'text' }) => (
-    <label className="block"><span className="text-xs text-slate-500">{label}</span>
-      <input type={type} value={f[k]} onChange={set(k)} data-testid={`nsp-field-${k}`}
-        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-  );
   return (
     <Section title="Your Details, Emergency Contact & Payroll" icon={FileText} testId="nsp-details">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <I label="Home address" k="home_address" />
-        <I label="Date of birth" k="dob" type="date" />
-        <I label="National Insurance number" k="ni_number" />
-        <I label="Emergency contact name" k="emergency_contact_name" />
-        <I label="Emergency contact phone" k="emergency_contact_phone" />
-        <I label="Bank account (masked)" k="bank_account" />
+        <PortalField label="Home address" k="home_address" value={f.home_address} onChange={set('home_address')} />
+        <PortalField label="Date of birth" k="dob" type="date" value={f.dob} onChange={set('dob')} />
+        <PortalField label="National Insurance number" k="ni_number" value={f.ni_number} onChange={set('ni_number')} />
+        <PortalField label="Emergency contact name" k="emergency_contact_name" value={f.emergency_contact_name} onChange={set('emergency_contact_name')} />
+        <PortalField label="Emergency contact phone" k="emergency_contact_phone" value={f.emergency_contact_phone} onChange={set('emergency_contact_phone')} />
+        <PortalField label="Bank account (masked)" k="bank_account" value={f.bank_account} onChange={set('bank_account')} />
       </div>
       <button onClick={save} disabled={busy} data-testid="nsp-save-details"
         className="mt-3 rounded-lg px-4 py-2 text-sm font-semibold text-slate-900" style={{ background: CORE }}>
         {busy ? 'Saving…' : ok ? 'Saved ✓' : 'Save my details'}
       </button>
     </Section>
+  );
+}
+
+function PortalField({ label, k, value, onChange, type = 'text' }) {
+  return (
+    <label className="block"><span className="text-xs text-slate-500">{label}</span>
+      <input type={type} value={value} onChange={onChange} data-testid={`nsp-field-${k}`}
+        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
   );
 }
 

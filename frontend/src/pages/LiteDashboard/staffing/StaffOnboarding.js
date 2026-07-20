@@ -131,6 +131,17 @@ export default function StaffOnboarding({ headers }) {
   );
 }
 
+function WizardField({ label, k, on, val, type = 'text' }) {
+  return (
+    <label className="block">
+      <span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>{label}</span>
+      <input type={type} value={val} onChange={on} data-testid={`wizard-${k}`}
+        className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
+        style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} />
+    </label>
+  );
+}
+
 /* ───────────────── Create Onboarding Case Wizard ───────────────── */
 function CaseWizard({ headers, onClose, onCreated }) {
   const [step, setStep] = useState(1);
@@ -141,8 +152,8 @@ function CaseWizard({ headers, onClose, onCreated }) {
   const [dup, setDup] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const setP = (k) => (e) => setProp({ ...prop, [k]: e.target.value });
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const setP = (k) => (e) => setProp((p) => ({ ...p, [k]: e.target.value }));
 
   useEffect(() => {
     axios.get(`${API}/staff-onboarding/packages`, { headers }).then(r => setPackages(r.data.packages || [])).catch(() => {});
@@ -172,14 +183,7 @@ function CaseWizard({ headers, onClose, onCreated }) {
     }
   };
 
-  const Field = ({ label, k, on, val, type = 'text' }) => (
-    <label className="block">
-      <span className="text-xs opacity-70" style={{ color: 'var(--theme-text)' }}>{label}</span>
-      <input type={type} value={val} onChange={on} data-testid={`wizard-${k}`}
-        className="mt-1 w-full rounded-lg px-3 py-2 text-sm border bg-transparent"
-        style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }} />
-    </label>
-  );
+  const Field = WizardField;
 
   return (
     <Modal onClose={onClose} title="Create Onboarding Case" testId="case-wizard">
@@ -304,7 +308,7 @@ function CaseDetail({ headers, caseId, onClose }) {
   const activate = () => act(() => axios.post(`${API}/staff-onboarding/cases/${caseId}/activate`, {}, { headers }), 'Employee activated');
   const loadAudit = () => axios.get(`${API}/staff-onboarding/cases/${caseId}/audit`, { headers }).then(r => setAudit(r.data.events || []));
 
-  if (!data) return <Modal onClose={onClose} title="Loading…" testId="case-detail"><Loader2 className="animate-spin mx-auto" style={{ color: 'var(--theme-text)' }} /></Modal>;
+  if (!data) return <Modal onClose={onClose} title="Loading…" testId="case-detail-loading"><Loader2 className="animate-spin mx-auto" style={{ color: 'var(--theme-text)' }} /></Modal>;
 
   const c = data.case, offer = c.offer, contract = c.contract;
   const TABS = [['overview', 'Overview', FileText], ['paperwork', 'Paperwork', ClipboardList],

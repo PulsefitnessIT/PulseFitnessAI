@@ -30376,3 +30376,7 @@ ITEM 2 — MOD users were 403'd on Reports → Performance KPIs:
 - Fix (`utils/feature_guard.py`): `_feature_default_for_account` now enables `kpi_engine` + `multi_site` for MOD account types (`MOD_ENABLED_PRO_FEATURES`). `ai_audits` intentionally left OFF for MOD (consistent with the MOD AI-triage removal).
 
 Verified: backend via curl (promote → 200, register_count 3→4, crm_only→linked; MOD kpi-dashboard → 200). Frontend via testing_agent 100% (2/2) — report `/app/test_reports/iteration_crm_promote_and_mod_kpi_jan2026.json`. PREVIEW only — redeploy for production.
+
+---
+## Staff Onboarding / Offer / Contract Wizard — Phase 1 DONE (2026-07-20)
+See CHANGELOG.md (2026-07-20) for full detail. Backend `routes/staff_onboarding_wizard.py`; HR UI `StaffOnboarding.js` (Staffing→People→Staff Onboarding); recruit portal `NewStarterPortal.js` at `/new-starter/:token`. Single `staff_members` record; native e-sign; SAMPLE legal wording pending HR/legal upload. Phase 2 backlog: deep RTW/DBS, knowledge-checks, approval matrices, field-level permissions, pre-start task automation, reporting, template admin UIs.
