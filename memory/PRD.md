@@ -1,3 +1,18 @@
+# ═══ 2026-06 · STAFF ONBOARDING — AUTO-EMAIL ONBOARDING PACK ON ACTIVATION (VERIFIED 100%) ═══
+Enhancement: when an employee is activated, the audit-ready Onboarding Pack PDF is automatically emailed to
+HR/payroll (configurable). Reuses build_pack_pdf + utils.email.send_email (LIVE Resend key) with a base64 PDF attachment.
+- Settings: staff_onboarding_settings now carries email_pack_on_activation (default true) + pack_recipient_emails ([]).
+  GET/PUT /api/staff-onboarding/settings (SettingsPatch); invalid emails filtered server-side.
+- activate() → _email_pack_on_activation(): sends to configured recipients + the activating HR user (deduped),
+  writes audit 'onboarding_pack_emailed'. Non-fatal try/except so a mail failure never blocks activation.
+- Frontend: 'Settings' header button (open-settings-btn) → PackSettings modal (pack-settings) with toggle
+  (pack-email-toggle) + recipients textarea (pack-recipients) + Save (pack-settings-save).
+VERIFIED: backend 3/3 pytest + frontend 100%, 0 issues. Report iteration_staff_onboarding_pack_email_settings_jan2026.json.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF ONBOARDING — PHASE 2 REMAINING BACKLOG (VERIFIED 100%, backend 12/12 + FE) ═══
 Delivered the three remaining Phase 2 backlog items (user chose: provider-agnostic scaffold, best-fit LLM =
 Claude Sonnet 4.5, both PDFs).
