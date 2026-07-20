@@ -68,10 +68,10 @@ const GROUPS_ALL = [
   // "Staff" tab was merged into HR (HRTab now has Add-staff); the other People
   // options are unchanged.
   { id: 'people', label: 'People', icon: Users, children: [
-    { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
     { id: 'hr',       label: 'HR',        icon: IdCard,  roles: MGR },
     { id: 'onboarding', label: 'Staff Onboarding', icon: UserPlus, roles: MGR },
     { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
+    { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
   ] },
   // Rota = everything schedule-related.
   { id: 'rota', label: 'Rota', icon: Calendar, children: [
