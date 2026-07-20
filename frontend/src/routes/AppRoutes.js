@@ -52,6 +52,7 @@ const PricingPage = lazy(() => import('@/pages/PricingPage'));
 const AboutPage = lazy(() => import('@/pages/AboutPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
+const NewStarterPortal = lazy(() => import('@/pages/NewStarterPortal'));
 const WhatsNewPage = lazy(() => import('@/pages/WhatsNewPage'));
 const StatusPage = lazy(() => import('@/pages/StatusPage'));
 const DpaPage = lazy(() => import('@/pages/legal/DpaPage'));
@@ -378,6 +379,7 @@ export default function AppRoutes({ user, login }) {
           Designed to be loaded inside an iframe on an engineer's or
           company's marketing website. Public, token-gated. */}
       <Route path="/embed/log-fault/:token" element={<EmbedFaultForm />} />
+      <Route path="/new-starter/:token" element={<NewStarterPortal />} />
       <Route path="/witness-statement/:token" element={<WitnessStatementPage />} />
       {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.
           Branded one-pager from a peer engineer's referral link. */}

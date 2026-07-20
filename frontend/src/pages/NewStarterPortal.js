@@ -1,0 +1,294 @@
+/**
+ * NewStarterPortal — secure recruit portal (invite → set password → onboarding).
+ * Route: /new-starter/:token. Same account becomes the Staff Portal after activation.
+ */
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import {
+  Loader2, Upload, CheckCircle2, FileText, ShieldCheck, PenLine, Send, Circle,
+} from 'lucide-react';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const CORE = '#19CDFF';
+const STEP_LABELS = { forms: 'Forms', documents: 'Documents', verification: 'Verification', policies: 'Policies', agreements: 'Agreements', offer: 'Offer', contract: 'Contract', ready_to_start: 'Ready to Start' };
+
+export default function NewStarterPortal() {
+  const { token } = useParams();
+  const [jwt, setJwt] = useState(() => sessionStorage.getItem(`nsp:${token}`) || '');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [me, setMe] = useState(null);
+  const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
+
+  const loadMe = useCallback(async (tk) => {
+    try {
+      const r = await axios.get(`${API}/new-starter/me`, { headers: { Authorization: `Bearer ${tk}` } });
+      setMe(r.data);
+    } catch (e) { setErr('Could not load your portal. Please sign in again.'); setJwt(''); sessionStorage.removeItem(`nsp:${token}`); }
+  }, [token]);
+
+  useEffect(() => { if (jwt) loadMe(jwt); }, [jwt, loadMe]);
+
+  const acceptInvite = async () => {
+    setBusy(true); setErr('');
+    try {
+      const r = await axios.post(`${API}/new-starter/accept-invite`, { token, password });
+      sessionStorage.setItem(`nsp:${token}`, r.data.token);
+      setJwt(r.data.token);
+    } catch (e) { setErr(e?.response?.data?.detail || 'Invalid or expired invitation'); }
+    finally { setBusy(false); }
+  };
+
+  if (!jwt) {
+    return (
+      <Shell>
+        <div className="max-w-md mx-auto mt-16 rounded-2xl bg-white shadow-xl p-8 border border-slate-200" data-testid="nsp-signin">
+          <h1 className="text-2xl font-bold text-slate-900">Welcome to Pulse Fitness</h1>
+          <p className="text-slate-500 mt-1 text-sm">Set a password to access your New Starter Portal and complete your onboarding.</p>
+          <label className="block mt-5 text-sm font-medium text-slate-700">Create a password</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="nsp-password"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="At least 8 characters" />
+          {err && <div className="text-red-500 text-sm mt-2" data-testid="nsp-error">{err}</div>}
+          <button onClick={acceptInvite} disabled={busy || password.length < 8} data-testid="nsp-signin-btn"
+            className="mt-4 w-full rounded-lg py-2.5 font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
+            {busy ? 'Setting up…' : 'Enter my portal'}
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!me) return <Shell><div className="flex justify-center mt-24"><Loader2 className="animate-spin text-cyan-500" size={32} /></div></Shell>;
+
+  return (
+    <Shell>
+      <div className="max-w-4xl mx-auto py-8 px-4" data-testid="nsp-portal">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{me.portal_name}</h1>
+            <p className="text-slate-500 text-sm">Hello {me.person?.full_name} — {me.employment?.job_title || me.employment?.position || 'welcome aboard'}.</p>
+          </div>
+          {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">Active employee ✓</span>}
+        </div>
+
+        {/* progress tracker */}
+        <div className="mt-5 flex flex-wrap gap-2" data-testid="nsp-progress">
+          {me.steps.map((s) => {
+            const v = me.progress[s];
+            const done = ['submitted', 'verified', 'accepted', 'fully_signed', 'complete'].includes(v);
+            return (
+              <div key={s} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${done ? 'bg-emerald-50 text-emerald-700' : v && v !== 'not_started' ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-400'}`}>
+                {done ? <CheckCircle2 size={13} /> : <Circle size={13} />} {STEP_LABELS[s]}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 space-y-5">
+          <YourDetails H={H} me={me} reload={() => loadMe(jwt)} />
+          <Documents H={H} me={me} reload={() => loadMe(jwt)} />
+          <Policies H={H} me={me} reload={() => loadMe(jwt)} />
+          <Agreements H={H} me={me} reload={() => loadMe(jwt)} />
+          <SubmitPack H={H} me={me} reload={() => loadMe(jwt)} />
+          {me.offer && <OfferCard H={H} me={me} reload={() => loadMe(jwt)} />}
+          {me.contract && <ContractCard H={H} me={me} reload={() => loadMe(jwt)} />}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+function Section({ title, icon: Icon, children, testId }) {
+  return (
+    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5" data-testid={testId}>
+      <div className="flex items-center gap-2 mb-3"><Icon size={18} className="text-cyan-600" />
+        <h2 className="font-bold text-slate-900">{title}</h2></div>
+      {children}
+    </div>
+  );
+}
+
+function YourDetails({ H, me, reload }) {
+  const saved = me.forms?.new_starter?.data || {};
+  const [f, setF] = useState({ dob: saved.dob || '', ni_number: saved.ni_number || '', emergency_contact_name: saved.emergency_contact_name || '', emergency_contact_phone: saved.emergency_contact_phone || '', bank_account: saved.bank_account || '', home_address: saved.home_address || '' });
+  const [busy, setBusy] = useState(false); const [ok, setOk] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const save = async () => { setBusy(true); try { await axios.put(`${API}/new-starter/forms`, { form_key: 'new_starter', data: f }, { headers: H }); setOk(true); reload(); } finally { setBusy(false); } };
+  const I = ({ label, k, type = 'text' }) => (
+    <label className="block"><span className="text-xs text-slate-500">{label}</span>
+      <input type={type} value={f[k]} onChange={set(k)} data-testid={`nsp-field-${k}`}
+        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+  );
+  return (
+    <Section title="Your Details, Emergency Contact & Payroll" icon={FileText} testId="nsp-details">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <I label="Home address" k="home_address" />
+        <I label="Date of birth" k="dob" type="date" />
+        <I label="National Insurance number" k="ni_number" />
+        <I label="Emergency contact name" k="emergency_contact_name" />
+        <I label="Emergency contact phone" k="emergency_contact_phone" />
+        <I label="Bank account (masked)" k="bank_account" />
+      </div>
+      <button onClick={save} disabled={busy} data-testid="nsp-save-details"
+        className="mt-3 rounded-lg px-4 py-2 text-sm font-semibold text-slate-900" style={{ background: CORE }}>
+        {busy ? 'Saving…' : ok ? 'Saved ✓' : 'Save my details'}
+      </button>
+    </Section>
+  );
+}
+
+function Documents({ H, me, reload }) {
+  const [busy, setBusy] = useState(false);
+  const upload = async (e, type) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setBusy(true);
+    const fd = new FormData(); fd.append('file', file); fd.append('document_type', type);
+    try { await axios.post(`${API}/new-starter/upload`, fd, { headers: { ...H } }); reload(); } finally { setBusy(false); }
+  };
+  const TYPES = [['passport', 'Passport / ID'], ['proof_of_address', 'Proof of address'], ['right_to_work', 'Right to Work'], ['qualification', 'Qualification']];
+  return (
+    <Section title="Identity & Proof-of-Address Documents" icon={Upload} testId="nsp-documents">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {TYPES.map(([t, label]) => (
+          <label key={t} className="cursor-pointer rounded-xl border border-dashed border-slate-300 p-3 text-center hover:border-cyan-400" data-testid={`nsp-upload-${t}`}>
+            <Upload size={16} className="mx-auto text-slate-400" />
+            <div className="text-xs mt-1 text-slate-600">{label}</div>
+            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => upload(e, t)} />
+          </label>
+        ))}
+      </div>
+      {busy && <div className="text-xs text-cyan-600 mt-2">Uploading…</div>}
+      {me.documents?.length > 0 && (
+        <div className="mt-3 text-sm text-slate-600" data-testid="nsp-doc-list">
+          {me.documents.map((d) => <div key={d.id} className="flex items-center gap-2 py-0.5"><CheckCircle2 size={13} className="text-emerald-500" /> {d.original_filename} <span className="text-xs text-slate-400">({d.document_type})</span></div>)}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function Policies({ H, me, reload }) {
+  const [busy, setBusy] = useState('');
+  const ack = async (key) => { setBusy(key); try { await axios.post(`${API}/new-starter/policies/${key}/acknowledge`, { signature_name: me.person?.full_name }, { headers: H }); reload(); } finally { setBusy(''); } };
+  return (
+    <Section title="Company Policies" icon={ShieldCheck} testId="nsp-policies">
+      <div className="space-y-2">
+        {me.policies.map((p) => {
+          const acked = !!me.acknowledgements?.[p.key];
+          return (
+            <div key={p.key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+              <div className="text-sm text-slate-700">{p.title}{p.is_sample && <span className="ml-1 text-[10px] text-amber-600">SAMPLE</span>}</div>
+              {acked ? <span className="text-emerald-600 text-xs font-semibold">Acknowledged ✓</span>
+                : <button onClick={() => ack(p.key)} disabled={busy === p.key} data-testid={`nsp-ack-${p.key}`}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-900" style={{ background: CORE }}>
+                    {busy === p.key ? '…' : 'Read & acknowledge'}</button>}
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function Agreements({ H, me, reload }) {
+  const [busy, setBusy] = useState('');
+  const sign = async (key) => { setBusy(key); try { await axios.post(`${API}/new-starter/agreements/${key}/sign`, { signature_name: me.person?.full_name, acknowledge: true }, { headers: H }); reload(); } finally { setBusy(''); } };
+  return (
+    <Section title="Agreements — Electronic Signature" icon={PenLine} testId="nsp-agreements">
+      <div className="space-y-2">
+        {me.agreements.map((a) => {
+          const signed = me.agreement_state?.[a.key]?.status === 'signed';
+          return (
+            <div key={a.key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+              <div className="text-sm text-slate-700">{a.title}{a.is_sample && <span className="ml-1 text-[10px] text-amber-600">SAMPLE</span>}</div>
+              {signed ? <span className="text-emerald-600 text-xs font-semibold">Signed ✓</span>
+                : <button onClick={() => sign(a.key)} disabled={busy === a.key} data-testid={`nsp-sign-${a.key}`}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-900" style={{ background: CORE }}>
+                    {busy === a.key ? '…' : 'Sign'}</button>}
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function SubmitPack({ H, me, reload }) {
+  const [busy, setBusy] = useState(false);
+  const submit = async () => { setBusy(true); try { await axios.post(`${API}/new-starter/submit`, {}, { headers: H }); reload(); } finally { setBusy(false); } };
+  return (
+    <Section title="Review & Submit" icon={Send} testId="nsp-submit">
+      <p className="text-sm text-slate-500 mb-3">Once your details, documents, policies and agreements are complete, submit your pack to Pulse Fitness HR for review.</p>
+      <button onClick={submit} disabled={busy} data-testid="nsp-submit-btn"
+        className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-900" style={{ background: CORE }}>
+        {busy ? 'Submitting…' : 'Submit my onboarding pack'}
+      </button>
+    </Section>
+  );
+}
+
+function OfferCard({ H, me, reload }) {
+  const offer = me.offer; const [name, setName] = useState(me.person?.full_name || ''); const [busy, setBusy] = useState('');
+  const respond = async (action) => {
+    setBusy(action);
+    try { await axios.post(`${API}/new-starter/offer/respond`, { action, signature_name: name }, { headers: H }); reload(); }
+    finally { setBusy(''); }
+  };
+  return (
+    <Section title="Your Offer Letter" icon={FileText} testId="nsp-offer">
+      <pre className="whitespace-pre-wrap text-xs bg-slate-50 rounded-lg p-3 max-h-60 overflow-auto text-slate-700" data-testid="nsp-offer-text">{offer.rendered}</pre>
+      {offer.status === 'issued' ? (
+        <div className="mt-3 space-y-2">
+          <input value={name} onChange={(e) => setName(e.target.value)} data-testid="nsp-offer-signature"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Type your legal name to accept" />
+          <div className="flex gap-2">
+            <button onClick={() => respond('accept')} disabled={busy || !name} data-testid="nsp-accept-offer"
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-900" style={{ background: CORE }}>{busy === 'accept' ? '…' : 'Accept offer'}</button>
+            <button onClick={() => respond('decline')} disabled={busy} data-testid="nsp-decline-offer"
+              className="rounded-lg px-4 py-2 text-sm font-semibold border border-slate-300 text-slate-600">Decline</button>
+          </div>
+        </div>
+      ) : <div className="mt-2 text-sm font-semibold text-emerald-600">Offer {offer.status} ✓</div>}
+    </Section>
+  );
+}
+
+function ContractCard({ H, me, reload }) {
+  const con = me.contract; const [name, setName] = useState(me.person?.full_name || ''); const [ackd, setAckd] = useState(false); const [busy, setBusy] = useState(false);
+  const sign = async () => { setBusy(true); try { await axios.post(`${API}/new-starter/contract/sign`, { signature_name: name, signature_method: 'typed', acknowledge: true }, { headers: H }); reload(); } finally { setBusy(false); } };
+  return (
+    <Section title="Your Employment Contract" icon={FileSignatureIcon} testId="nsp-contract">
+      <pre className="whitespace-pre-wrap text-xs bg-slate-50 rounded-lg p-3 max-h-60 overflow-auto text-slate-700" data-testid="nsp-contract-text">{con.rendered}</pre>
+      {con.status === 'issued' ? (
+        <div className="mt-3 space-y-2">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={ackd} onChange={(e) => setAckd(e.target.checked)} data-testid="nsp-contract-ack" />
+            I have read the contract and understand the schedules form part of it.
+          </label>
+          <input value={name} onChange={(e) => setName(e.target.value)} data-testid="nsp-contract-signature"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Type your legal name to sign" />
+          <button onClick={sign} disabled={busy || !ackd || !name} data-testid="nsp-sign-contract"
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
+            {busy ? 'Signing…' : 'Sign contract'}</button>
+        </div>
+      ) : <div className="mt-2 text-sm font-semibold text-emerald-600">Contract {con.status.replace(/_/g, ' ')} ✓</div>}
+    </Section>
+  );
+}
+function FileSignatureIcon(props) { return <PenLine {...props} />; }
+
+function Shell({ children }) {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2">
+          <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-6" onError={(e) => { e.target.style.display = 'none'; }} />
+          <span className="font-bold text-slate-800">Pulse Fitness</span>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}

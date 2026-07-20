@@ -63,6 +63,7 @@ from routes.staffing_clock import router as staffing_clock_router
 from routes.staffing_comms import router as staffing_comms_router
 from routes.staffing_tasks import router as staffing_tasks_router
 from routes.staffing_hr import router as staffing_hr_router
+from routes.staff_onboarding_wizard import router as staff_onboarding_wizard_router
 from routes.staffing_ai_phase6 import router as staffing_ai_phase6_router
 from routes.staffing_orgchart import router as staffing_orgchart_router
 from routes.staffing_orgchart_ai import router as staffing_orgchart_ai_router
@@ -295,6 +296,7 @@ _UNGATED_ROUTERS = (
     staffing_comms_router,
     staffing_tasks_router,
     staffing_hr_router,
+    staff_onboarding_wizard_router,
     staffing_ai_phase6_router,
     staffing_orgchart_router,
     staffing_orgchart_ai_router,

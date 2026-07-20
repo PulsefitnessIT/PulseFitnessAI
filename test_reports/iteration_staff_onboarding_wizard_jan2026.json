@@ -1,0 +1,39 @@
+{
+  "summary": "End-to-end verification of the Staff Onboarding / Offer Letter / Employment Contract Wizard (Phase 1 spine). Backend: 28/28 pytest cases pass (case→invite→recruit portal accept/forms/upload/policies/agreements/submit→RTW→paperwork-complete gate→offer create/approve/issue→offer gate→accept→contract create with differences[]→approve/issue→employee sign→employer countersign→activate→audit trail with 20+ events); duplicate-check works; SINGLE staff_members record is preserved throughout (candidate→recruit→onboarding→offer_issued→contract_issued→employee) and the SAME user account is reused when portal flips to 'Pulse Fitness Staff Portal' with activated=true. Frontend: Login (owner@isodemo.com) → /dashboard → 'Staffing' top nav → People group → 'Staff Onboarding' leaf loads the staff-onboarding-console; Create Onboarding Case wizard steps 1→2→3 accept input (values persisted, no focus-loss during fill); case-detail modal renders with all 6 tabs (overview/paperwork/offer/contract/activate/audit) and Send portal invitation produces a /new-starter/<token> link. Recruit portal /new-starter/<token>: nsp-password + nsp-signin-btn → nsp-portal with progress tracker + 5 policies + 4 agreements; nsp-save-details persists new_starter form; all 5 policy nsp-ack-* buttons clickable (0 remain after loop).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StaffOnboarding.js — CaseWizard.Field",
+        "issue": "The Field input component is defined INSIDE the CaseWizard render function (`const Field = ({...}) => (...)`). This creates a NEW component identity on every parent state update, so on every keystroke React unmounts + remounts the <input>, meaning the input loses focus after each character when a user types manually. Playwright page.fill() masks this (single .value + input event), so the test still passed. Hoist Field to module scope (or use useCallback + a stable component) to fix the typing UX.",
+        "selector": "[data-testid^=\"wizard-\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_onboarding_wizard_jan2026.py",
+    "/app/test_reports/pytest/staff_onboarding_wizard.xml"
+  ],
+  "action_items": [
+    "Optional UX fix: hoist the Field component out of CaseWizard's function body in /app/frontend/src/pages/LiteDashboard/staffing/StaffOnboarding.js so real users don't lose focus after each keystroke while typing into the 3-step wizard."
+  ],
+  "critical_code_review_comments": [
+    "Wizard's inline Field component (see UI bug above) will regress typing UX for real users even though automated fill works.",
+    "Case-detail modal reuses data-testid=\"case-detail\" for both the loading placeholder and the loaded modal — tests can spuriously assert on tab presence before data arrives. Consider a distinct data-testid (e.g., case-detail-loading) for the loading state.",
+    "StaffOnboarding CaseDetail: the recruit portal upload happens via a raw hidden <input type=file> — no visible file-size/type errors surfaced to the user (relies on server rejection).",
+    "Object-storage init caches _storage_key in a module-level global and refreshes on 403 only — safe for now but re-init is not thread-safe; low priority for single-worker deployments."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_onboarding_wizard_jan2026.py (new — 28 pytest cases covering the full spine)"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "95%" },
+  "test_credentials": "HR: owner@isodemo.com / IsoDemo123!. Recruits: dynamically created per invite; password used in tests: Recruit123! (min 8 chars). Portal accessed at /new-starter/<invite_token>.",
+  "seed_data_creation": "Tests create disposable TEST_recruit_<uuid>@example.test staff_members + onboarding_cases in iso-demo-org (visible in db.staff_members lifecycle_stage=employee, active=true). Idempotent (each run uses a fresh uuid suffix, no collisions).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend spine is fully green. Pytest file at /app/backend/tests/test_staff_onboarding_wizard_jan2026.py can be re-run any time (login is rate-limited so avoid running >4 times in 40s). UI happy-path is verified end-to-end from HR console through recruit portal policies. Not tested via UI (only via API): offer accept / contract sign / contract countersign / activate — these buttons only appear after preceding state transitions and would extend the UI script noticeably; backend tests cover them.",
+  "rca of the issue": "N/A — no functional bugs. Only a single UX degradation (wizard inputs lose focus per keystroke because Field is re-created on every parent state update). Fix: hoist Field out of CaseWizard."
+}
