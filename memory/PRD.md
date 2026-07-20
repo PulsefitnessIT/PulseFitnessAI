@@ -1,3 +1,52 @@
+# ═══ 2026-06 · STAFF ONBOARDING WIZARD — PHASE 2 DEPTH (VERIFIED 100%, backend 18/18 + FE) ═══
+Extended the Staff Onboarding, Offer & Employment Contract Wizard (Operations → Staffing → People →
+Staff Onboarding). User approved: do all three in sequence; use sensible UK placeholder wording HR can edit.
+
+1) TEMPLATE BUILDER (HR/Legal editable offer & contract wording).
+   - Replaced the "[SAMPLE …]" placeholders with realistic UK wording: OFFER_BODY (conditional offer letter
+     with RTW/DBS/references conditions) and CONTRACT_BODY (s.1 ERA 1996 written statement — 15 clauses).
+     Still flagged is_sample=true (placeholder to review), editable per org.
+   - Backend routes/staff_onboarding_wizard.py NEW endpoints (route order: /templates/preview and
+     /templates/reset-defaults declared BEFORE /templates/{kind} to avoid path capture):
+       GET  /api/staff-onboarding/merge-fields            (22 {{key}} merge tokens + labels)
+       POST /api/staff-onboarding/templates/preview       (renders body vs sample or case context)
+       POST /api/staff-onboarding/templates/reset-defaults(re-seeds built-in offer/contract wording)
+       POST /api/staff-onboarding/templates/{kind}        (create custom; kind=offer|contract)
+       PUT  /api/staff-onboarding/templates/{kind}/{id}   (edit → version++, is_sample=false, snapshot to
+                                                           staff_template_versions)
+       GET  /api/staff-onboarding/templates/{kind}/{id}/versions
+   - Frontend StaffOnboarding.js: TemplateManager modal (open-templates-btn) — offer/contract tabs, template
+     list, body textarea with clickable merge-field palette (inserts token at cursor), Preview, Save, New,
+     Reset defaults.
+
+2) BRANDED PDF GENERATION (offer letter + employment contract).
+   - NEW utils/onboarding_pdf.py — build_offer_pdf / build_contract_pdf on the shared Pulse doc shell
+     (pulse_doc_template): renders merged body + an e-signature certificate table (signer, role, method,
+     timestamp, IP) + SHA-256 document-integrity hash.
+   - Endpoints: GET /api/staff-onboarding/cases/{id}/offer.pdf and /contract.pdf (HR); GET
+     /api/new-starter/offer.pdf and /contract.pdf (recruit, gated on issued/accepted/signed status).
+   - Frontend: 'PDF' buttons in HR Offer/Contract tabs (btn-offer-pdf/btn-contract-pdf) + recruit portal
+     (nsp-offer-pdf/nsp-contract-pdf) — authenticated blob fetch → new tab.
+
+3) DBS + RIGHT TO WORK VERIFICATION WORKFLOW.
+   - Expanded RTW (methods share_code/manual_document/idsp; results verified/time_limited/follow_up/
+     not_verified; document_type, share_code, expiry). NEW DBS check (staff_dbs_checks): levels
+     none/basic/standard/enhanced/enhanced_barred; statuses not_required/requested/in_progress/clear/not_clear;
+     certificate_number, issue_date. Per-case role_requirements.dbs_required flag.
+   - Endpoints: GET /checks/options, GET /cases/{id}/checks, POST /cases/{id}/right-to-work,
+     POST /cases/{id}/dbs, POST /cases/{id}/dbs-required?required=bool.
+   - Gating: activation-state now requires DBS status=clear ONLY when dbs_required; RTW accepts
+     verified OR time_limited. Frontend: new 'DBS / RTW' tab (case-tab-checks → ChecksPanel).
+
+VERIFIED: backend 18/18 pytest (template builder, versioning, DBS/RTW persistence, PDF %PDF- bytes, route
+ordering) + frontend Phase 2 flows 100%, 0 issues. Report iteration_staff_onboarding_phase2_jan2026.json.
+Legal wording remains UK PLACEHOLDER — HR/Legal edit via Templates before real use.
+Pre-existing non-blocker (not touched): CaseWizard aliases a module-scope WizardField (stable, no focus loss).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-09 (pt.6) · ENGINEER "MY CUSTOMERS" FED FROM CRM TERRITORIES (Pulse-only) — DONE ═══
 Implemented the pt.5 backlog item. Internal (Pulse) engineers now see their customers driven by the CRM
 territories they're assigned to as a rep, alongside their own saved book.
