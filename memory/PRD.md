@@ -1,3 +1,41 @@
+# ═══ 2026-06 · STAFF ONBOARDING — PHASE 2 REMAINING BACKLOG (VERIFIED 100%, backend 12/12 + FE) ═══
+Delivered the three remaining Phase 2 backlog items (user chose: provider-agnostic scaffold, best-fit LLM =
+Claude Sonnet 4.5, both PDFs).
+
+1) COMPLETED-FORMS PDF + AUDIT-READY ONBOARDING PACK PDF.
+   - utils/onboarding_pdf.py: build_forms_pdf (New Starter form data as titled key/value tables) and
+     build_pack_pdf (cover + employment summary + completed forms + ID/evidence docs + RTW/DBS + policy
+     acknowledgements + signed agreements + full offer letter & contract with e-sig certificates) — all on the
+     shared Pulse doc shell.
+   - Endpoints: GET /api/staff-onboarding/cases/{id}/forms.pdf and /pack.pdf (HR). Frontend Overview tab:
+     'Completed forms' (btn-forms-pdf) + 'Onboarding pack' (btn-pack-pdf) buttons open the PDFs (authenticated blob).
+
+2) PROVIDER-AGNOSTIC RTW/DBS INTEGRATION SCAFFOLD (no keys needed today; manual workflow production-ready).
+   - RTWBody/DBSBody extended with provider / provider_reference / provider_status (persisted).
+   - GET /api/staff-onboarding/verification/providers → 4 providers (manual configured=true; govuk_rtw / idsp /
+     dbs_umbrella configured=false, each gated on an env key for future wiring) + webhook path + webhook_secured.
+   - POST /api/staff-onboarding/verification/webhook (PUBLIC) — HMAC-SHA256 verified via X-Onboarding-Signature
+     when ONBOARDING_WEBHOOK_SECRET is set (accepts unsigned only in non-production); matches an RTW/DBS record by
+     provider_reference and flows the provider status back (result/status/expiry/certificate + provider_raw).
+   - Frontend Checks tab: Provider select + Provider reference inputs on both RTW (rtw-provider/-ref) and DBS
+     (dbs-provider/-ref). TODO for go-live: set ONBOARDING_WEBHOOK_SECRET + implement a provider 'initiate' call.
+
+3) AI ASSIST (Emergent LLM key, Claude Sonnet 4.5 via emergentintegrations).
+   - POST /cases/{id}/ai/duplicate-scan → LLM scans the recruit vs existing staff (name variants/typos, similar
+     email/mobile) → {matches:[{staff_id,full_name,confidence,reasons,active_employee}],summary}. Enriched/guarded
+     against a live record snapshot. Frontend: 'AI duplicate scan' in Overview (btn-ai-duplicate-scan → ai-duplicate-result).
+   - POST /cases/{id}/ai/consistency → compares offer vs contract terms → {risk_level, inconsistencies[], summary,
+     deterministic_differences[]} (combines the existing deterministic diff with an LLM narrative). Frontend:
+     'AI consistency check' in Contract tab (btn-ai-consistency → ai-consistency-result).
+   - Fixed a missing top-level `import json` (was causing 500s on the AI endpoints).
+
+VERIFIED: backend 12/12 pytest + frontend 100% for all backlog testids, 0 issues. Report
+iteration_staff_onboarding_phase2_backlog_jan2026.json. Legal wording remains UK PLACEHOLDER (HR edits).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF ONBOARDING WIZARD — PHASE 2 DEPTH (VERIFIED 100%, backend 18/18 + FE) ═══
 Extended the Staff Onboarding, Offer & Employment Contract Wizard (Operations → Staffing → People →
 Staff Onboarding). User approved: do all three in sequence; use sensible UK placeholder wording HR can edit.
