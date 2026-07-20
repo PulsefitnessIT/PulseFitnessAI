@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="3" failures="0" skipped="0" tests="9" time="45.636" timestamp="2026-07-20T16:31:37.299888+00:00" hostname="agent-env-4aa5de94-b277-4cc5-b8eb-3b67878d03c5"><testcase classname="tests.test_staff_portal.TestEmployeePortal" name="test_me_activated" time="2.884" /><testcase classname="tests.test_staff_portal.TestEmployeePortal" name="test_rota" time="0.171" /><testcase classname="tests.test_staff_portal.TestEmployeePortal" name="test_timesheet_and_edit" time="0.642" /><testcase classname="tests.test_staff_portal.TestEmployeePortal" name="test_holidays_get_and_create_cancel" time="0.626" /><testcase classname="tests.test_staff_portal.TestEmployeePortal" name="test_documents" time="0.224" /><testcase classname="tests.test_staff_portal.TestEmployeePortal" name="test_access" time="0.176" /><testcase classname="tests.test_staff_portal.TestHR" name="test_list_managers" time="0.359"><error message="failed on setup with &quot;KeyError: 'access_token'&quot;">backend/tests/test_staff_portal.py:45: in hr_token
+    return r.json()["access_token"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'access_token'</error></testcase><testcase classname="tests.test_staff_portal.TestHR" name="test_get_and_assign_line_manager" time="0.000"><error message="failed on setup with &quot;KeyError: 'access_token'&quot;">backend/tests/test_staff_portal.py:45: in hr_token
+    return r.json()["access_token"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'access_token'</error></testcase><testcase classname="tests.test_staff_portal.TestLineManager" name="test_my_reports_and_grant" time="40.451"><error message="failed on setup with &quot;KeyError: 'access_token'&quot;">backend/tests/test_staff_portal.py:58: in mgr_token
+    return r.json()["access_token"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'access_token'</error></testcase></testsuite></testsuites>

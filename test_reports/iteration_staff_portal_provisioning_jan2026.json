@@ -1,0 +1,52 @@
+{
+  "summary": "E2E validation of Staff Portal (5 employee tabs) + provisioning UIs (Line Manager Team Access, HR Line Manager assignment). Backend: 9/9 pytest cases pass (rota, timesheet+edit→disputed, holidays get/create/cancel, documents, access, HR list/assign managers, line-manager my-reports + grant-modules with staff-side reflection). Frontend: staff-login → /staff-portal loads with Active-employee badge; My Rota shows 4 shifts 09:00–17:00; Timesheet renders 4 lines / 32h scheduled with prev/next nav; correction request POSTs successfully and status flips to Disputed; Holidays shows allowance 28/28, existing pending 'Family trip', Jamie Fox in dept team calendar; new holiday adds pending row; trash icon cancels; Documents shows Offer + Contract; System Access shows 'Morgan Lee (Manager)' + 4 module rows. Line Manager (main app) → Operations/Staffing/People/Team Access shows Alex Rivera direct report and Operations/CRM toggles activate (button turns cyan, 'Provisioned' badge shows). HR line-manager-panel data-testids verified in code and backend endpoints confirmed (idempotent re-assign + case update).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StaffPortal → TimesheetsTab.submitEdit",
+        "issue": "Success confirmation banner data-testid='ts-edit-ok' flickers and disappears immediately. submitEdit does setOk(true); setNote(''); load() — and load() calls setOk(false) synchronously, so the confirmation never actually stays visible in DOM long enough for the user to read it. Backend correctly persists status=disputed and the Status pill in the header updates. Fix: either drop the setOk(false) from load(), delay it (setTimeout), or don't call load() until after the ok is visible.",
+        "selector": "[data-testid=\"ts-edit-ok\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/staff-portal (all tabs)",
+        "issues": [
+          "Cookie consent banner ('Accept All') overlays the bottom of the portal — must be dismissed before interacting with holiday-submit / ts-edit-submit on lower resolutions.",
+          "Header still shows 'Pulse Fitness' generic branding even though the seeded org is 'Iso Demo Fitness'. Non-blocking, matches design of scoped portal."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_portal.py",
+    "/app/test_reports/pytest/staff_portal.xml",
+    "/app/test_reports/pytest/staff_portal_hr.xml"
+  ],
+  "action_items": [
+    "Fix ts-edit-ok flash bug in StaffPortal.js TimesheetsTab.submitEdit — success confirmation never stays visible because load() clears the ok flag on the same tick.",
+    "Consider suppressing the cookie banner on the scoped /staff-portal (it can overlay Submit buttons on smaller viewports)."
+  ],
+  "critical_code_review_comments": [
+    "Rate limit on /api/auth/login is aggressive (~4/min) and prevents rapid E2E testing of manager+HR flows in the same run. Backend fixtures have to sleep 40s between login rounds. Consider excluding known service accounts (owner@isodemo.com, portal.manager@…) or raising the ceiling for demo orgs.",
+    "backend/routes/staff_portal.py:398-429 grant_report_modules writes module_overrides to users only if report.user_id exists — a report who hasn't accepted their invite yet will have status=granted in provisions but no override applied. Consider marking the provision status distinctly (e.g. 'granted_pending_activation') so HR can see the gap.",
+    "portal_timesheet_edit does not validate that body.week_start is a real ISO Monday — a malformed value causes _week_bounds to fall through; guard with try/except.",
+    "portal_request_holiday accepts any date range (including past dates and overlapping already-approved leave). Consider a duplicate/overlap check to prevent accidental double-booking.",
+    "assign_line_manager (POST /staff-onboarding/cases/{id}/line-manager) does not enforce that the assigned manager is themselves 'active' or has a real user_id — the endpoint currently only checks that the doc exists in staff_members. Combined with the list_managers filter (user_id !=null), it's fine today but could drift.",
+    "_org_available_modules is called on every my-reports fetch AND for each report inside grant_report_modules — cheap on 4 modules, but consider caching per request.",
+    "Staff portal AccessTab does not surface 'Not started' vs 'awaiting_manager' distinctly when line_manager is unassigned — verified path shows 'Awaiting line-manager approval' regardless."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_portal.py (new)"
+  ],
+  "success_rate": { "backend": "100% (9/9)", "frontend": "~95% (all 5 employee tabs + line-manager Team Access verified end-to-end; HR panel verified via code + backend tests, not via UI due to owner landing on service-desk area and login rate limits)" },
+  "test_credentials": "portal.staff@pulsedemo.test / Staff123! · portal.manager@pulsedemo.test / Manager123! · owner@isodemo.com / IsoDemo123! (all live in existing test_credentials.md; re-seed with `cd /app/backend && PYTHONPATH=/app/backend python scripts/seed_staff_portal_demo.py`)",
+  "seed_data_creation": "Re-ran seed_staff_portal_demo.py once before frontend UI test to reset staff_members/onboarding case/rota/leave/access-provisions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All backend endpoints under /api/new-starter/portal/*, /api/staff-onboarding/managers, /api/staff-onboarding/cases/{id}/line-manager, and /api/staffing/access/* are working. The employee's staff login token is issued by /api/new-starter/staff-login (stored in sessionStorage 'staff_jwt'); main-app owner/manager use /api/auth/login and the response key is 'token' (NOT 'access_token'). Owner (owner@isodemo.com) lands on /service-desk after login (they have is_service_desk=true) — to reach Operations/Staffing/People they must click 'Switch area' first, then Operations → Staffing → People → Staff Onboarding. Manager login lands directly on /dashboard = Operations org. Rate-limit note: /api/auth/login is aggressively throttled — sleep 40s between fresh logins in the same run. The ts-edit-ok flicker bug is a client-only fix in StaffPortal.js.",
+  "rca of the issue": "ts-edit-ok flash: TimesheetsTab.submitEdit sets ok=true then calls load(); load() unconditionally does setOk(false) as its first action, which happens on the same render cycle. React batches state updates in event handlers, so the net effect is ok stays false and the '<div data-testid=ts-edit-ok>' element is never mounted. Reproduction: click 'Send correction request' → back-end returns 200 (verified in Network tab) and status in the Timesheet header changes to 'Disputed', but no green 'Sent to your manager for review ✓' banner ever appears. Fix suggestion: remove `setOk(false)` from the load callback, or set it to false only when the user navigates weeks (i.e. in the prev/next handlers), or use setTimeout(()=>setOk(false), 4000) after submit."
+}

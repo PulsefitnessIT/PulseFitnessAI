@@ -1,0 +1,429 @@
+"""Staff Portal (activated employees) + module-access provisioning.
+
+Two audiences share these endpoints:
+
+  • The activated employee, logged into `/staff-portal` with the scoped
+    staff JWT (a real `users` row, role `staff`/`recruit`, linked to a
+    `staff_members` doc). They reach `/api/new-starter/portal/*` for their
+    rota, timesheet, holidays, documents and system-access status.
+
+  • HR + Line Managers, logged into the main app with a platform token,
+    reach the provisioning endpoints:
+      - HR assigns a Line Manager to an employee
+        (`/api/staff-onboarding/managers`, `.../line-manager`).
+      - The Line Manager grants that report the org's modules
+        (`/api/staffing/access/my-reports`, `.../modules`).
+
+All data reuses the EXISTING collections (`staff_shifts`,
+`staff_clock_events`, `staff_timesheets`, `staff_leave_requests`,
+`staff_members`, `staff_onboarding_*`). Only `staff_access_provisions`
+is new (one doc per provisioned employee).
+"""
+from __future__ import annotations
+
+import re
+import uuid
+from datetime import datetime, timezone, date, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from pydantic import BaseModel
+
+from utils.database import db
+from utils.auth import get_current_user
+from utils.module_access import org_module_access
+
+router = APIRouter()
+
+HR_ROLES = {"owner", "manager", "master_admin"}
+MODULE_LABELS = {
+    "operations": "Operations",
+    "memberships": "Memberships",
+    "marketing": "Marketing",
+    "crm": "CRM",
+}
+BOLT_ON = ("memberships", "marketing", "crm")
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _today() -> str:
+    return date.today().isoformat()
+
+
+def _clean(d: dict | None) -> dict | None:
+    if not isinstance(d, dict):
+        return d
+    return {k: v for k, v in d.items() if k != "_id"}
+
+
+def _is_manager(user: dict) -> bool:
+    if user.get("is_master_admin") or user.get("is_pulse_admin"):
+        return True
+    return (user.get("role") or "").lower() in {"owner", "manager", "master_admin"}
+
+
+def _require_hr(user: dict) -> None:
+    if not _is_manager(user):
+        raise HTTPException(403, "HR / managers only")
+
+
+def _org(user: dict) -> str:
+    oid = user.get("organization_id")
+    if not oid:
+        raise HTTPException(400, "No organization context")
+    return oid
+
+
+async def _portal_staff(user: dict) -> dict:
+    """Resolve the staff_members doc for a logged-in staff-portal user."""
+    staff = await db.staff_members.find_one({"user_id": user.get("id")})
+    if not staff:
+        raise HTTPException(404, "No staff record for this account.")
+    return staff
+
+
+async def _case_for(staff_id: str) -> dict | None:
+    return await db.staff_onboarding_cases.find_one({"staff_id": staff_id})
+
+
+async def _department(staff: dict) -> str:
+    dept = (staff.get("department") or "").strip()
+    if dept:
+        return dept
+    case = await _case_for(staff["id"])
+    if case:
+        return ((case.get("employment_proposal") or {}).get("department") or "").strip()
+    return ""
+
+
+async def _org_available_modules(org_id: str) -> list[str]:
+    org = await db.organizations.find_one({"id": org_id})
+    access = org_module_access(org)
+    return [k for k in MODULE_LABELS if access.get(k)]
+
+
+# ══════════════════════════ EMPLOYEE PORTAL ══════════════════════════
+
+@router.get("/new-starter/portal/rota")
+async def portal_rota(days: int = Query(21, ge=1, le=90), user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    end = (date.today() + timedelta(days=days)).isoformat()
+    rows = await db.staff_shifts.find(
+        {"organization_id": org, "staff_id": staff["id"],
+         "date": {"$gte": _today(), "$lte": end},
+         "status": {"$nin": ["cancelled"]}},
+        {"_id": 0},
+    ).sort([("date", 1), ("start_time", 1)]).to_list(300)
+    return {"shifts": rows, "staff_id": staff["id"]}
+
+
+@router.get("/new-starter/portal/timesheet")
+async def portal_timesheet(week_start: str = Query(...), user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    from routes.staffing_clock import _ensure_timesheet_doc, _week_bounds  # lazy — avoid import cycle
+    ws, we = _week_bounds(week_start)
+    ts = await _ensure_timesheet_doc(staff["organization_id"], staff["id"], ws, we)
+    return _clean(ts)
+
+
+class TimesheetEdit(BaseModel):
+    week_start: str
+    note: str | None = None
+    edits: list[dict] = []
+
+
+@router.post("/new-starter/portal/timesheet/edit")
+async def portal_timesheet_edit(body: TimesheetEdit, user: dict = Depends(get_current_user)):
+    """Employee submits corrections to their week — flags the timesheet as
+    disputed so a manager reviews and approves in Time Clock ▸ Timesheets."""
+    staff = await _portal_staff(user)
+    from routes.staffing_clock import _ensure_timesheet_doc, _week_bounds
+    ws, we = _week_bounds(body.week_start)
+    ts = await _ensure_timesheet_doc(staff["organization_id"], staff["id"], ws, we)
+    reason = (body.note or "").strip() or "Employee requested corrections to their hours."
+    await db.staff_timesheets.update_one(
+        {"id": ts["id"]},
+        {"$set": {
+            "approval_status": "disputed",
+            "dispute_reason": reason,
+            "staff_requested_edits": body.edits,
+            "disputed_by": staff.get("full_name") or user.get("email"),
+            "disputed_at": _now(),
+        }},
+    )
+    return {"ok": True, "status": "disputed"}
+
+
+def _days_between(start: str, end: str) -> int:
+    try:
+        s = datetime.fromisoformat(start).date()
+        e = datetime.fromisoformat(end).date()
+        return max(1, (e - s).days + 1)
+    except Exception:
+        return 1
+
+
+@router.get("/new-starter/portal/holidays")
+async def portal_holidays(user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    mine = await db.staff_leave_requests.find(
+        {"organization_id": org, "staff_id": staff["id"]},
+        {"_id": 0},
+    ).sort("start_date", -1).to_list(200)
+
+    # Allowance — parsed from the employment proposal (best-effort).
+    case = await _case_for(staff["id"])
+    ent = ((case or {}).get("employment_proposal") or {}).get("holiday_entitlement") or ""
+    m = re.search(r"\d+", str(ent))
+    total = int(m.group()) if m else 28
+    yr = date.today().year
+    used = sum(
+        _days_between(r["start_date"], r["end_date"])
+        for r in mine
+        if r.get("leave_type") == "holiday" and r.get("status") == "approved"
+        and str(r.get("start_date", "")).startswith(str(yr))
+    )
+
+    # Team calendar — APPROVED holidays of same-department colleagues only.
+    dept = await _department(staff)
+    team: list[dict] = []
+    if dept:
+        colleagues = await db.staff_members.find(
+            {"organization_id": org, "active": True, "department": dept,
+             "id": {"$ne": staff["id"]}},
+            {"_id": 0, "id": 1, "full_name": 1},
+        ).to_list(500)
+        by_id = {c["id"]: c.get("full_name") for c in colleagues}
+        if by_id:
+            rows = await db.staff_leave_requests.find(
+                {"organization_id": org, "staff_id": {"$in": list(by_id)},
+                 "leave_type": "holiday", "status": "approved"},
+                {"_id": 0, "staff_id": 1, "start_date": 1, "end_date": 1},
+            ).sort("start_date", 1).to_list(500)
+            team = [{"full_name": by_id.get(r["staff_id"]), "start_date": r["start_date"],
+                     "end_date": r["end_date"]} for r in rows]
+
+    return {
+        "mine": mine,
+        "department": dept,
+        "allowance": {"total": total, "used": used, "remaining": max(0, total - used)},
+        "team": team,
+    }
+
+
+class HolidayRequest(BaseModel):
+    start_date: str
+    end_date: str
+    note: str | None = None
+
+
+@router.post("/new-starter/portal/holidays")
+async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    if not body.start_date or not body.end_date:
+        raise HTTPException(400, "Start and end dates are required.")
+    if body.end_date < body.start_date:
+        raise HTTPException(400, "End date can't be before the start date.")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "organization_id": staff["organization_id"],
+        "staff_id": staff["id"],
+        "status": "pending",
+        "leave_type": "holiday",
+        "start_date": body.start_date,
+        "end_date": body.end_date,
+        "reason": body.note,
+        "created_at": _now(),
+        "requested_via": "staff_portal",
+    }
+    await db.staff_leave_requests.insert_one(doc.copy())
+    return _clean(doc)
+
+
+@router.delete("/new-starter/portal/holidays/{leave_id}")
+async def portal_cancel_holiday(leave_id: str, user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    rec = await db.staff_leave_requests.find_one({"id": leave_id, "staff_id": staff["id"]})
+    if not rec:
+        raise HTTPException(404, "Request not found.")
+    if rec.get("status") not in ("pending", None):
+        raise HTTPException(400, "Only pending requests can be cancelled.")
+    await db.staff_leave_requests.delete_one({"id": leave_id})
+    return {"ok": True}
+
+
+@router.get("/new-starter/portal/documents")
+async def portal_documents(user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    case = await _case_for(staff["id"])
+    docs: list[dict] = []
+    offer_available = contract_available = False
+    if case:
+        rows = await db.staff_onboarding_documents.find(
+            {"onboarding_case_id": case["id"], "is_deleted": {"$ne": True}},
+            {"_id": 0, "id": 1, "original_filename": 1, "document_type": 1, "upload_date": 1},
+        ).to_list(200)
+        docs = rows
+        offer_available = (case.get("offer") or {}).get("status") in ("issued", "accepted")
+        contract_available = (case.get("contract") or {}).get("status") in (
+            "issued", "employee_signed", "fully_signed")
+    return {"documents": docs, "offer_available": offer_available,
+            "contract_available": contract_available}
+
+
+@router.get("/new-starter/portal/access")
+async def portal_access(user: dict = Depends(get_current_user)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    prov = await db.staff_access_provisions.find_one({"staff_id": staff["id"]}) or {}
+    granted = set(prov.get("granted_modules") or [])
+    avail = await _org_available_modules(org)
+    lm_name = staff.get("line_manager_name")
+    if not lm_name and staff.get("line_manager_staff_id"):
+        lm = await db.staff_members.find_one({"id": staff["line_manager_staff_id"]}, {"_id": 0, "full_name": 1})
+        lm_name = (lm or {}).get("full_name")
+    return {
+        "line_manager": lm_name,
+        "status": prov.get("status") or ("awaiting_manager" if lm_name else "not_started"),
+        "modules": [{"key": k, "label": MODULE_LABELS[k], "granted": k in granted} for k in avail],
+        "updated_at": prov.get("updated_at"),
+    }
+
+
+# ══════════════════════════ HR — LINE MANAGER ══════════════════════════
+
+@router.get("/staff-onboarding/managers")
+async def list_managers(user: dict = Depends(get_current_user)):
+    """Active staff with a real login — eligible to be a Line Manager."""
+    _require_hr(user)
+    org = _org(user)
+    rows = await db.staff_members.find(
+        {"organization_id": org, "active": True, "user_id": {"$nin": [None, ""]}},
+        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1},
+    ).sort("full_name", 1).to_list(1000)
+    return {"managers": [{"staff_id": r["id"], "full_name": r.get("full_name"),
+                          "role": r.get("primary_role")} for r in rows]}
+
+
+class LineManagerAssign(BaseModel):
+    line_manager_staff_id: str
+
+
+@router.get("/staff-onboarding/cases/{case_id}/line-manager")
+async def get_line_manager(case_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user)
+    org = _org(user)
+    case = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    staff = await db.staff_members.find_one({"id": case["staff_id"]}) or {}
+    return {"line_manager_staff_id": staff.get("line_manager_staff_id"),
+            "line_manager_name": staff.get("line_manager_name")}
+
+
+@router.post("/staff-onboarding/cases/{case_id}/line-manager")
+async def assign_line_manager(case_id: str, body: LineManagerAssign,
+                              user: dict = Depends(get_current_user)):
+    _require_hr(user)
+    org = _org(user)
+    case = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    mgr = await db.staff_members.find_one(
+        {"id": body.line_manager_staff_id, "organization_id": org})
+    if not mgr:
+        raise HTTPException(404, "Line manager not found")
+    await db.staff_members.update_one(
+        {"id": case["staff_id"]},
+        {"$set": {"line_manager_staff_id": mgr["id"], "line_manager_name": mgr.get("full_name")}},
+    )
+    ep = {**(case.get("employment_proposal") or {}), "line_manager": mgr.get("full_name")}
+    await db.staff_onboarding_cases.update_one(
+        {"id": case_id}, {"$set": {"employment_proposal": ep, "updated_at": _now()}})
+    await db.staff_access_provisions.update_one(
+        {"staff_id": case["staff_id"]},
+        {"$set": {"organization_id": org, "staff_id": case["staff_id"],
+                  "line_manager_staff_id": mgr["id"], "status": "awaiting_manager",
+                  "updated_at": _now()},
+         "$setOnInsert": {"id": str(uuid.uuid4()), "granted_modules": []}},
+        upsert=True,
+    )
+    return {"ok": True, "line_manager_name": mgr.get("full_name")}
+
+
+# ══════════════════════════ LINE MANAGER — ACCESS GRANTS ══════════════════════════
+
+@router.get("/staffing/access/my-reports")
+async def my_reports(user: dict = Depends(get_current_user)):
+    org = _org(user)
+    me = await db.staff_members.find_one({"organization_id": org, "user_id": user.get("id")},
+                                         {"_id": 0, "id": 1})
+    q = {"organization_id": org, "active": True}
+    see_all = _is_manager(user)
+    if me:
+        q_reports = {**q, "line_manager_staff_id": me["id"]}
+    else:
+        q_reports = {**q, "line_manager_staff_id": "__none__"}
+    # Owners/master admins can review every provisioned employee; a plain
+    # line manager sees only their own direct reports.
+    if see_all and (user.get("is_master_admin") or user.get("is_pulse_admin")
+                    or (user.get("role") or "").lower() == "owner"):
+        q_reports = {**q, "line_manager_staff_id": {"$nin": [None, ""]}}
+    reports = await db.staff_members.find(
+        q_reports, {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1,
+                    "department": 1, "line_manager_name": 1},
+    ).sort("full_name", 1).to_list(1000)
+    avail = await _org_available_modules(org)
+    out = []
+    for r in reports:
+        prov = await db.staff_access_provisions.find_one({"staff_id": r["id"]}) or {}
+        out.append({
+            "staff_id": r["id"], "full_name": r.get("full_name"),
+            "role": r.get("primary_role"), "department": r.get("department"),
+            "line_manager_name": r.get("line_manager_name"),
+            "granted_modules": prov.get("granted_modules") or [],
+            "status": prov.get("status") or "awaiting_manager",
+        })
+    return {"reports": out,
+            "available_modules": [{"key": k, "label": MODULE_LABELS[k]} for k in avail]}
+
+
+class ModuleGrant(BaseModel):
+    modules: list[str] = []
+
+
+@router.post("/staffing/access/reports/{staff_id}/modules")
+async def grant_report_modules(staff_id: str, body: ModuleGrant,
+                               user: dict = Depends(get_current_user)):
+    org = _org(user)
+    report = await db.staff_members.find_one({"id": staff_id, "organization_id": org})
+    if not report:
+        raise HTTPException(404, "Team member not found")
+    me = await db.staff_members.find_one({"organization_id": org, "user_id": user.get("id")},
+                                         {"_id": 0, "id": 1})
+    owner_level = (user.get("is_master_admin") or user.get("is_pulse_admin")
+                   or (user.get("role") or "").lower() == "owner")
+    if not owner_level and (not me or report.get("line_manager_staff_id") != me["id"]):
+        raise HTTPException(403, "You can only manage access for your own direct reports.")
+    avail = await _org_available_modules(org)
+    granted = [m for m in body.modules if m in avail]
+    await db.staff_access_provisions.update_one(
+        {"staff_id": staff_id},
+        {"$set": {"organization_id": org, "staff_id": staff_id, "granted_modules": granted,
+                  "status": "granted", "updated_by": user.get("email"), "updated_at": _now()},
+         "$setOnInsert": {"id": str(uuid.uuid4()),
+                          "line_manager_staff_id": report.get("line_manager_staff_id")}},
+        upsert=True,
+    )
+    # Reflect on the user's module_overrides (overrides can only REVOKE, so we
+    # switch OFF any bolt-on the manager did not grant; granted bolt-ons fall
+    # back to the org-level entitlement).
+    if report.get("user_id"):
+        overrides = {m: (m in granted) for m in BOLT_ON if m in avail}
+        await db.users.update_one({"id": report["user_id"]},
+                                  {"$set": {"module_overrides": overrides}})
+    return {"ok": True, "granted_modules": granted}

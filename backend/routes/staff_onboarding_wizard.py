@@ -1303,6 +1303,7 @@ async def activate(case_id: str, user: dict = Depends(get_current_user)):
     await db.staff_members.update_one({"id": c["staff_id"]}, {"$set": {
         "active": True, "lifecycle_stage": "employee", "primary_role": ep.get("job_title") or "staff",
         "contract_type": ep.get("employment_type"), "activated_at": _now(),
+        "department": ep.get("department") or "",
     }})
     # pre-start tasks (light)
     tasks = [("HR", "Confirm start date"), ("Manager", "Prepare induction & first-day plan"),

@@ -586,7 +586,10 @@ function CaseDetail({ headers, caseId, onClose }) {
       )}
 
       {tab === 'activate' && (
-        <ActivatePanel headers={headers} caseId={caseId} onActivate={activate} busy={busy} status={c.status} />
+        <div className="space-y-4">
+          <ActivatePanel headers={headers} caseId={caseId} onActivate={activate} busy={busy} status={c.status} />
+          <LineManagerPanel headers={headers} caseId={caseId} />
+        </div>
       )}
 
       {tab === 'audit' && (
@@ -634,6 +637,43 @@ function ActivatePanel({ headers, caseId, onActivate, busy, status }) {
       {status === 'complete'
         ? <Pill tone="green">Employee activated — staff portal enabled ✓</Pill>
         : <Btn onClick={onActivate} busy={busy} testId="btn-activate" primary disabled={!st?.ready}>Activate Staff Member</Btn>}
+    </div>
+  );
+}
+
+function LineManagerPanel({ headers, caseId }) {
+  const [managers, setManagers] = useState([]);
+  const [current, setCurrent] = useState(null);
+  const [sel, setSel] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    axios.get(`${API}/staff-onboarding/managers`, { headers }).then(r => setManagers(r.data.managers || [])).catch(() => {});
+    axios.get(`${API}/staff-onboarding/cases/${caseId}/line-manager`, { headers })
+      .then(r => { setCurrent(r.data); setSel(r.data.line_manager_staff_id || ''); }).catch(() => {});
+  }, [caseId, headers]);
+  const save = async () => {
+    if (!sel) return;
+    setBusy(true); setOk(false);
+    try {
+      const r = await axios.post(`${API}/staff-onboarding/cases/${caseId}/line-manager`, { line_manager_staff_id: sel }, { headers });
+      setCurrent({ line_manager_staff_id: sel, line_manager_name: r.data.line_manager_name }); setOk(true);
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="rounded-xl p-4 border" style={{ borderColor: 'var(--theme-border)' }} data-testid="line-manager-panel">
+      <div className="text-sm font-semibold mb-1" style={{ color: 'var(--theme-text)' }}>Line manager (system access)</div>
+      <p className="text-xs mb-3" style={{ color: 'var(--theme-text-muted)' }}>Assign a line manager — they approve which modules this employee can use, in Staffing → People → Team Access.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={sel} onChange={(e) => setSel(e.target.value)} data-testid="line-manager-select"
+          className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)', color: 'var(--theme-text)' }}>
+          <option value="">Select a line manager…</option>
+          {managers.map((m) => <option key={m.staff_id} value={m.staff_id}>{m.full_name}{m.role ? ` — ${m.role}` : ''}</option>)}
+        </select>
+        <Btn onClick={save} busy={busy} testId="line-manager-save" primary disabled={!sel}>Assign</Btn>
+        {ok && <span className="text-xs text-emerald-400" data-testid="line-manager-ok">Assigned ✓</span>}
+      </div>
+      {current?.line_manager_name && !ok && <div className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>Current: {current.line_manager_name}</div>}
     </div>
   );
 }

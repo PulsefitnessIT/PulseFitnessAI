@@ -36,6 +36,7 @@ import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
+import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
 import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
@@ -71,6 +72,7 @@ const GROUPS_ALL = [
     { id: 'hr',       label: 'HR',        icon: IdCard,  roles: MGR },
     { id: 'onboarding', label: 'Staff Onboarding', icon: UserPlus, roles: MGR },
     { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
+    { id: 'team-access', label: 'Team Access', icon: KeyRound, roles: MGR },
     { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
   ] },
   // Rota = everything schedule-related.
@@ -302,6 +304,7 @@ export default function StaffingConsole() {
         {tab === 'operations'  && <OperationsTab   headers={headers} isManager={isManager} />}
         {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
         {tab === 'onboarding'  && <StaffOnboarding headers={headers} />}
+        {tab === 'team-access' && <TeamAccessTab   headers={headers} />}
         {tab === 'orgchart'    && <OrgChartTab />}
         {tab === 'ai-rota'     && <AIWorkforceTab  headers={headers} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}
