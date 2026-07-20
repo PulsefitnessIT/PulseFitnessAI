@@ -1,3 +1,26 @@
+# ═══ 2026-06 · STAFF ONBOARDING — BUG FIXES (VERIFIED 100%: backend 5/5 + FE) ═══
+Fixed 4 user-reported issues (report iteration_staff_onboarding_bugfixes_jan2026.json):
+1. HR modals (case detail / Templates / Settings) now render via createPortal(document.body) → full-viewport dark
+   overlay + scrollable body (max-h calc, sticky header) + Escape/backdrop close. Fixes "overlay didn't cover
+   page / couldn't scroll" (was trapped inside a transformed ancestor).
+2. Onboarding Pack PDF (+ offer/contract PDFs): title → name → status now spaced correctly (utils/onboarding_pdf
+   build_pack_pdf + _render_doc). Verified by rendering page 1.
+3. New Starter Portal Policies: 'Read policy' opens a PortalModal showing the policy body, then 'I have read &
+   acknowledge' (nsp-read-<key> → nsp-modal → nsp-ack-<key>). Previously acknowledged with no read step.
+4. New Starter Portal Submit: shows a checklist with clear reasons (nsp-submit-checklist/reason/warn); required =
+   details+policies+agreements (button disabled + red reason when outstanding); documents are RECOMMENDED so the
+   recruit can submit now and return later to upload; green submitted banner on success. recruit_me returns 'submitted'.
+
+OPEN (awaiting user decision):
+- "Paperwork uniform template": PDFs now use the shared Pulse doc template; confirm if the HR Paperwork tab / portal
+  styling also needs changes.
+- FEATURE request: let companies upload their own policies in Settings + AI to detect where signatures are required.
+  Not built yet — needs scoping (upload + parse + AI signature-anchor detection).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF ONBOARDING — WIZARD DROPDOWNS/CALENDARS (VERIFIED 100% FE) ═══
 Per user request, converted the 'Create Onboarding Case' wizard from free-text to dropdowns/combos + calendars:
 - Native <select>: Department, Employment type, Probation period, Notice period, Holiday entitlement.
