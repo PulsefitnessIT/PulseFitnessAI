@@ -260,6 +260,25 @@ export function UnifiedAuthProvider({ children }) {
     return () => { cancelled = true; };
   }, [tokens.crm]);
 
+  // ── Org-mismatch guard (multi-tenant isolation, CRITICAL). ──────────
+  // When a master admin switches org portals / starts an impersonation,
+  // the MAIN session rebinds to the new org but the previously-minted
+  // `crm_token` for the OLD org lingers in localStorage (it's still a
+  // valid token, so the stale-token effect above won't strip it). Result:
+  // the CRM keeps reading the PREVIOUS org's data (e.g. Documents) under
+  // the new tenant's header. If the two identities disagree on
+  // organization_id, the CRM token is stale for THIS session — drop it so
+  // the auto-cross-login re-mints one bound to the current org.
+  useEffect(() => {
+    const mainOrg = identity.main?.organization_id;
+    const crmOrg = identity.crm?.organization_id;
+    if (mainOrg && crmOrg && mainOrg !== crmOrg) {
+      writeToken('crm', null);
+      broadcast();
+      setIdentity((id) => ({ ...id, crm: null }));
+    }
+  }, [identity.main, identity.crm]);
+
   // ── API surface.
   const login = useCallback(({ scope, token, identity: nextIdentity }) => {
     if (!scope || !token) return;

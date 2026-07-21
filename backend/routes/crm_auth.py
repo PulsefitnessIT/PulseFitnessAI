@@ -406,6 +406,7 @@ async def crm_cross_login(
     # ── Decode each candidate → resolve to a live user. Skip CRM/member
     #    tokens and revoked sessions. ─────────────────────────────────
     resolved_users: list[dict] = []
+    impersonation_user: dict | None = None
     saw_crm_token = False
     saw_member_token = False
     for tok in candidate_tokens:
@@ -427,6 +428,12 @@ async def crm_cross_login(
         u = await db.users.find_one({"id": uid}, {"_id": 0})
         if u and not any(x.get("id") == u.get("id") for x in resolved_users):
             resolved_users.append(u)
+        # An impersonation / portal-switch token means the master admin is
+        # actively "acting as" this tenant. CRM MUST bind to the tenant
+        # being impersonated (not the admin's own org) or documents/data
+        # from the admin's home org would leak into the tenant's CRM.
+        if u and p.get("impersonated_by") and impersonation_user is None:
+            impersonation_user = u
 
     if not resolved_users:
         if saw_crm_token:
@@ -451,11 +458,19 @@ async def crm_cross_login(
 
     main_user = None
     is_master = False
+    # 0) An active impersonation / portal-switch identity wins outright so
+    #    CRM binds to the tenant currently being viewed (multi-tenant
+    #    isolation). Without this, lingering admin session cookies would
+    #    make CRM resolve the admin's own org.
+    if impersonation_user is not None:
+        main_user = impersonation_user
+        is_master = _is_priv(impersonation_user)
     # 1) a privileged admin among the sessions wins outright.
-    for u in resolved_users:
-        if _is_priv(u):
-            main_user, is_master = u, True
-            break
+    if main_user is None:
+        for u in resolved_users:
+            if _is_priv(u):
+                main_user, is_master = u, True
+                break
     # 2) else the first CRM-entitled identity.
     if main_user is None:
         for u in resolved_users:
