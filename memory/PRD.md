@@ -12,6 +12,12 @@ MasterAdmin/SiteDetailDrawer.js. All compile clean; zero `sticky bottom-0` foote
 CRM Documents cross-org leak (2026-07-20): confirmed a stale-token DISPLAY bug (docs correctly org-stamped);
 user confirmed docs were uploaded by orgs' own users → NO backfill required. Both fixes ship on next redeploy.
 
+Follow-up (2026-07-21): Extracted a canonical shared modal primitive `components/shared/Modal.jsx`
+(`Modal` + `ModalFooter`) — the single source of truth for the header / scroll-body / fixed-footer
+structure that prevents footer cut-off by construction. Memberships `_shared.js` `ModalShell` now delegates
+to it (public API + `ModalActions` unchanged; verified Add member still renders + scrolls clear). New modals
+should use `<Modal … footer={<ModalFooter …/>}>` rather than hand-rolling a scroll container.
+
 ────────────────────────────────────────────────────────────────────────
 
 

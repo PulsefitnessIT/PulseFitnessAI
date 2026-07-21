@@ -9,8 +9,7 @@
  * is presentation-only.
  */
 import React from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { Modal } from '@/components/shared/Modal';
 
 export function Header() {
   return null;
@@ -103,78 +102,33 @@ export function Select({ label, value, onChange, options, testid }) {
 }
 
 /**
- * Page-scroll modal shell. Outer page scrolls so the header is always
- * reachable from the top; the body has NO internal overflow on purpose
- * (iter 215bp fix to prevent header clipping for long forms).
+ * ModalShell — thin adapter over the canonical shared <Modal> primitive
+ * (components/shared/Modal). Splits the ModalActions child into the
+ * primitive's footer slot so the body scrolls clear of the action row.
+ * Kept for API compatibility with the existing Memberships modals.
  */
 export function ModalShell({ title, eyebrow, testId, children, onClose, wide }) {
-  React.useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose && onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  // Iter — split the action footer (ModalActions) OUT of the scrollable
-  // body so it sits as a fixed sibling below it. A `sticky` footer inside
-  // the scroll area floats OVER the last field at max scroll (users
-  // reported the final consent line / checkbox being cut off). Keeping it
-  // a flex-shrink-0 sibling guarantees the body scrolls fully clear of it.
   const kids = React.Children.toArray(children);
   const footerKids = kids.filter((k) => React.isValidElement(k) && k.type === ModalActions);
   const bodyKids = kids.filter((k) => !(React.isValidElement(k) && k.type === ModalActions));
-  // Iter 215d6.2 — render into document.body via React portal so the
-  // modal escapes any transformed ancestor (e.g. `.module-fade-in`).
-  // Without this, position:fixed would be relative to <main> (1984px
-  // tall) instead of the 844px viewport on mobile.
-  if (typeof document === 'undefined') return null;
-  return createPortal((
-    // Iter 215d6 — on mobile the modal lives in the safe zone between the
-    // fixed Navbar (h-16) and the MobileBottomNav (h-16–20). The outer
-    // backdrop still covers the full viewport (bg-black/40) but the
-    // content area is inset to `top-16 bottom-16` so the card never hides
-    // behind the navs. Inside the card we use a flex-column layout so the
-    // header stays pinned, the body scrolls, and the action footer (the
-    // Save/Cancel children render last) is naturally at the bottom.
-    <div
-      className="fixed inset-0 z-[100] bg-black/40"
-      onClick={onClose}
-      data-testid={testId}
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={title}
+      eyebrow={eyebrow}
+      testId={testId || 'modal'}
+      size={wide ? 'lg' : 'sm'}
+      footer={footerKids.length > 0 ? footerKids : undefined}
     >
-      <div className="absolute inset-x-0 top-16 bottom-16 sm:inset-0 flex items-stretch sm:items-center justify-center p-3 sm:p-4">
-        <div
-          className={`relative w-full ${wide ? 'max-w-2xl' : 'max-w-md'} h-full sm:h-auto sm:max-h-[calc(100vh-6rem)] bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl shadow-xl flex flex-col overflow-hidden`}
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={`${testId || 'modal'}-title`}
-        >
-          <div className="flex-shrink-0 px-5 py-4 border-b border-[color:var(--theme-border)] bg-[color:var(--theme-surface)] rounded-t-2xl flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              {eyebrow && <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">{eyebrow}</div>}
-              <h3 id={`${testId || 'modal'}-title`} className="font-extrabold text-lg mt-1 truncate" style={{ color: 'var(--theme-text)' }}>{title}</h3>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 w-9 rounded-full flex items-center justify-center border border-[color:var(--theme-border)] bg-[color:var(--theme-bg,transparent)] text-[color:var(--theme-text)] hover:bg-[color:var(--theme-surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-brand-cyan)] focus:ring-offset-1 transition-colors shrink-0"
-              aria-label="Close"
-              data-testid={`${testId || 'modal'}-close`}
-            >
-              <X size={18} />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">{bodyKids}</div>
-          {footerKids.length > 0 && (
-            <div className="flex-shrink-0">{footerKids}</div>
-          )}
-        </div>
-      </div>
-    </div>
-  ), document.body);
+      {bodyKids}
+    </Modal>
+  );
 }
 
 export function ModalActions({ onCancel, onSave, saving, testId, saveLabel }) {
-  // Rendered by ModalShell as a fixed sibling BELOW the scroll body, so it
-  // never overlaps form content. Hugs the card's bottom edge.
+  // Rendered into the shared Modal's fixed footer slot (below the scroll
+  // body), so it never overlaps form content. Hugs the card's bottom edge.
   return (
     <div className="px-5 py-3 bg-[color:var(--theme-surface)] border-t border-[color:var(--theme-border)] rounded-b-2xl flex gap-2">
       <button onClick={onSave} disabled={saving} className="flex-1 rounded-lg py-2.5 text-sm font-extrabold disabled:opacity-60" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid={testId}>
