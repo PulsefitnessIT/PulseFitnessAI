@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { Modal } from '@/components/shared/Modal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -305,17 +306,18 @@ export default function PartnerApplicationDrawer({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/55 flex justify-end"
-      onClick={onClose}
-      data-testid="partner-application-backdrop"
-    >
-      <aside
-        className="bg-zinc-50 dark:bg-zinc-950 w-full sm:max-w-2xl h-full shadow-2xl overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="partner-application-drawer"
-      >
-        <header className="flex-shrink-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-4 flex items-start justify-between gap-3">
+    <Modal
+      open
+      onClose={onClose}
+      variant="drawer"
+      size="max-w-2xl"
+      zClassName="z-50"
+      testId="partner-application-backdrop"
+      panelTestId="partner-application-drawer"
+      panelClassName="border-l-0 bg-zinc-50 dark:bg-zinc-950"
+      bodyClassName="p-5 space-y-5"
+      header={(
+        <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-purple-600 dark:text-purple-400">
               Partner Engineer · Application
@@ -346,8 +348,78 @@ export default function PartnerApplicationDrawer({
             <X size={16} />
           </button>
         </header>
-
-        <div className="p-5 space-y-5 flex-1 overflow-y-auto min-h-0">
+      )}
+      footer={(
+        <footer
+          className="bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+          data-testid="partner-application-actions"
+        >
+          {isPending ? (
+            <>
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
+                Approve as
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  className="text-xs border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-900"
+                  data-testid="partner-application-level-select"
+                >
+                  {LEVEL_OPTIONS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                </select>
+              </label>
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={reject}
+                disabled={busy !== null || loading}
+                className="px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
+                data-testid="partner-application-reject-btn"
+              >
+                {busy === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />} Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => approve(false)}
+                disabled={busy !== null || loading}
+                className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
+                data-testid="partner-application-approve-btn"
+              >
+                {busy === 'approve' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => approve(true)}
+                disabled={busy !== null || loading}
+                className="px-4 py-2 rounded-lg bg-[var(--color-brand-blue-dark,#003DA5)] hover:opacity-90 text-white text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
+                data-testid="partner-application-approve-trial-btn"
+                title="Approve and immediately start the 10-day free trial"
+              >
+                {busy === 'approve_trial' ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />} Approve &amp; start trial
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 w-full">
+              <div className="text-xs text-zinc-500 flex-1">
+                This application has already been {app.status}.
+              </div>
+              {app.status === 'approved' ? (
+                <button
+                  type="button"
+                  onClick={sendSigninLink}
+                  disabled={busy !== null || loading}
+                  className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-sm font-bold inline-flex items-center gap-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
+                  data-testid="partner-application-resend-email-btn"
+                  title="Sends an activation link if the engineer hasn't signed up yet, or a password-reset link if they already have an account."
+                >
+                  {busy === 'resend' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  Send sign-in link
+                </button>
+              ) : null}
+            </div>
+          )}
+        </footer>
+      )}
+    >
           {loading ? (
             <div className="text-sm text-zinc-500 flex items-center gap-2 py-12 justify-center">
               <Loader2 size={14} className="animate-spin" /> Loading application…
@@ -527,79 +599,7 @@ export default function PartnerApplicationDrawer({
               </Section>
             </>
           )}
-        </div>
-
-        {/* Sticky decision bar */}
-        <footer
-          className="flex-shrink-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
-          data-testid="partner-application-actions"
-        >
-          {isPending ? (
-            <>
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
-                Approve as
-                <select
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value)}
-                  className="text-xs border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-900"
-                  data-testid="partner-application-level-select"
-                >
-                  {LEVEL_OPTIONS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-                </select>
-              </label>
-              <div className="flex-1" />
-              <button
-                type="button"
-                onClick={reject}
-                disabled={busy !== null || loading}
-                className="px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
-                data-testid="partner-application-reject-btn"
-              >
-                {busy === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />} Reject
-              </button>
-              <button
-                type="button"
-                onClick={() => approve(false)}
-                disabled={busy !== null || loading}
-                className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
-                data-testid="partner-application-approve-btn"
-              >
-                {busy === 'approve' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Approve
-              </button>
-              <button
-                type="button"
-                onClick={() => approve(true)}
-                disabled={busy !== null || loading}
-                className="px-4 py-2 rounded-lg bg-[var(--color-brand-blue-dark,#003DA5)] hover:opacity-90 text-white text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
-                data-testid="partner-application-approve-trial-btn"
-                title="Approve and immediately start the 10-day free trial"
-              >
-                {busy === 'approve_trial' ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />} Approve &amp; start trial
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2 w-full">
-              <div className="text-xs text-zinc-500 flex-1">
-                This application has already been {app.status}.
-              </div>
-              {app.status === 'approved' ? (
-                <button
-                  type="button"
-                  onClick={sendSigninLink}
-                  disabled={busy !== null || loading}
-                  className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-sm font-bold inline-flex items-center gap-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
-                  data-testid="partner-application-resend-email-btn"
-                  title="Sends an activation link if the engineer hasn't signed up yet, or a password-reset link if they already have an account."
-                >
-                  {busy === 'resend' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                  Send sign-in link
-                </button>
-              ) : null}
-            </div>
-          )}
-        </footer>
-      </aside>
-    </div>
+    </Modal>
   );
 }
 

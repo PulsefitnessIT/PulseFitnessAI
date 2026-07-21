@@ -45,6 +45,7 @@ export function Modal({
   size = 'md',
   variant = 'center',
   testId = 'modal',
+  panelTestId,
   closeOnBackdrop = true,
   hideClose = false,
   bodyClassName = 'p-5 flex flex-col gap-3',
@@ -153,6 +154,7 @@ export function Modal({
           role="dialog"
           aria-modal="true"
           aria-labelledby={`${testId}-title`}
+          data-testid={panelTestId}
         >
           {header ? <div className="flex-shrink-0">{header}</div> : defaultHeader}
 

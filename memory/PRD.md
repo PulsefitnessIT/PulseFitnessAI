@@ -42,6 +42,18 @@ Archive+Save footer intact, no regression) + a11y (focus trap/ESC/restore/scroll
 markup/data-testids preserved. Remaining drawers (PartnerApplicationDrawer, SiteDetailDrawer, EngineerCustomers,
 LeadConversionModal, PulseUpgradeRequestModal) can now follow the same pattern one-by-one with visual checks.
 
+MasterAdmin drawer migration (2026-07-21): migrated `MasterAdmin/PartnerApplicationDrawer.js` onto the
+`Modal` primitive (variant=drawer, custom header/footer nodes, dark-mode passthrough via panelClassName,
+new `panelTestId` prop to preserve the panel's test id, z-50). VERIFIED visually (right sheet, pills, scroll
+body, fixed Approve/Reject footer, no regression). `SiteDetailDrawer.js` was NOT migrated — its tabbed layout
+has TWO per-tab footers inside one scroll body, which doesn't map to the primitive's single `footer` slot
+without restructuring the tabs; left as-is (already cut-off-fixed). Remaining un-migrated: SiteDetailDrawer,
+EngineerCustomers (3-step wizard), LeadConversionModal (success state), PulseUpgradeRequestModal (framer-motion).
+
+OPS NOTE (2026-07-21): the `/app` volume (9.8G) hit 100% — cause was `frontend/node_modules/.cache`
+(webpack persistent cache) ballooning to 6.2G. Cleared it (safe, regenerates). If `/app` fills again,
+`rm -rf /app/frontend/node_modules/.cache` frees it.
+
 ────────────────────────────────────────────────────────────────────────
 
 
