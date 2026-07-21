@@ -1,3 +1,21 @@
+# ═══ 2026-07-21 · MODAL FOOTER CUT-OFF FIX (all consoles) ═══
+User reported the Memberships "Add member" and "New ad" modals cut off the last field/text behind the
+Save footer (couldn't scroll far enough). Root cause: footers used `sticky bottom-0` INSIDE the scroll
+container, so the pinned footer floated over the last content at max scroll.
+Fix pattern applied everywhere: flex-column card → header (fixed) → body `flex-1 overflow-y-auto min-h-0`
+→ footer `flex-shrink-0` (footer pulled OUT of the scroll area). No more overlap.
+Files: Memberships/_shared.js (ModalShell/ModalActions — covers Add member ✅ verified, New ad, Record
+payment + all Memberships modals), Memberships/FamilyTab.js, CRM/LeadConversionModal.js,
+CRM/CRMProductDrawer.js, ServiceOps/Engineer/EngineerCustomers.js, MasterAdmin/PartnerApplicationDrawer.js,
+MasterAdmin/SiteDetailDrawer.js. All compile clean; zero `sticky bottom-0` footers remain.
+
+CRM Documents cross-org leak (2026-07-20): confirmed a stale-token DISPLAY bug (docs correctly org-stamped);
+user confirmed docs were uploaded by orgs' own users → NO backfill required. Both fixes ship on next redeploy.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-20 · STAFF PORTAL DASHBOARD + MODULE-ACCESS PROVISIONING (VERIFIED: backend 9/9 + FE 100%, 0 issues) ═══
 Built the full self-serve Staff Portal for ACTIVATED employees (/staff-portal, scoped staff_jwt) + the
 HR→Line-Manager→Modules access-provisioning workflow. Report iteration_staff_portal_provisioning_jan2026.json.
