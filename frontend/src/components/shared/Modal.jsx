@@ -21,7 +21,7 @@
  * Renders through a portal so it escapes any transformed ancestor and the
  * fixed backdrop is measured against the viewport (not a tall <main>).
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -31,6 +31,8 @@ const SIZE = {
   lg: 'max-w-2xl',
   xl: 'max-w-3xl',
 };
+
+const FOCUSABLE = 'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   open = true,
@@ -44,6 +46,9 @@ export function Modal({
   closeOnBackdrop = true,
   hideClose = false,
 }) {
+  const cardRef = useRef(null);
+  const restoreRef = useRef(null);
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose && onClose(); };
@@ -58,6 +63,40 @@ export function Modal({
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
+  // A11y: remember what was focused, move focus into the dialog on open,
+  // and restore it when the dialog closes.
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined;
+    restoreRef.current = document.activeElement;
+    const t = setTimeout(() => {
+      const card = cardRef.current;
+      if (!card) return;
+      const first = card.querySelector(FOCUSABLE);
+      (first || card).focus({ preventScroll: true });
+    }, 30);
+    return () => {
+      clearTimeout(t);
+      const el = restoreRef.current;
+      if (el && typeof el.focus === 'function') {
+        try { el.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+      }
+    };
+  }, [open]);
+
+  // A11y: trap Tab / Shift+Tab focus within the dialog.
+  const onKeyDownTrap = (e) => {
+    if (e.key !== 'Tab') return;
+    const card = cardRef.current;
+    if (!card) return;
+    const nodes = Array.from(card.querySelectorAll(FOCUSABLE))
+      .filter((n) => n.offsetParent !== null || n === document.activeElement);
+    if (nodes.length === 0) { e.preventDefault(); card.focus({ preventScroll: true }); return; }
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+
   if (!open || typeof document === 'undefined') return null;
 
   return createPortal((
@@ -69,7 +108,10 @@ export function Modal({
       {/* Inset on mobile so the card sits between the fixed top/bottom navs. */}
       <div className="absolute inset-x-0 top-16 bottom-16 sm:inset-0 flex items-stretch sm:items-center justify-center p-3 sm:p-4">
         <div
-          className={`relative w-full ${SIZE[size] || SIZE.md} h-full sm:h-auto sm:max-h-[calc(100vh-6rem)] bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl shadow-xl flex flex-col overflow-hidden`}
+          ref={cardRef}
+          tabIndex={-1}
+          onKeyDown={onKeyDownTrap}
+          className={`relative w-full ${SIZE[size] || SIZE.md} h-full sm:h-auto sm:max-h-[calc(100vh-6rem)] bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl shadow-xl flex flex-col overflow-hidden focus:outline-none`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"

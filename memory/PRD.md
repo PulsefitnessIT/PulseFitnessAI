@@ -22,6 +22,18 @@ Guard script (2026-07-21): `frontend/scripts/check-modal-footers.js` (run `yarn 
 `sticky bottom-0` footer is reintroduced (the cut-off anti-pattern). Opt out with a `sticky-footer-ok`
 comment. Mirrors the existing `lint:overlays` guard. Currently PASSES (zero offenders).
 
+A11y hardening (2026-07-21): the shared `Modal` primitive now includes a focus trap (Tab/Shift+Tab cycle
+within the dialog), initial focus into the dialog on open, focus restore to the trigger on close, ESC-to-close
+and body scroll-lock. Verified on Add member (focus lands inside dialog; ESC closes; trigger re-focused).
+Every modal using the primitive (Memberships + future) inherits this automatically.
+
+NOTE on migrating the 6 remaining bespoke modals/drawers (CRM/ServiceOps/MasterAdmin): NOT done as a batch —
+they are structurally different (right-side DRAWERS vs centered modals), independently themed (prop-based
+`c`/`isDark` or explicit light/dark rather than the primitive's `--theme-*` CSS vars), and one uses
+framer-motion. They are already cut-off-fixed. Migrating them wholesale would risk visual regressions for
+little functional gain; recommend migrating individually with before/after visual checks if desired, or first
+extending the primitive with a `variant="drawer"` + theme passthrough.
+
 ────────────────────────────────────────────────────────────────────────
 
 
