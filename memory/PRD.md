@@ -18,6 +18,10 @@ structure that prevents footer cut-off by construction. Memberships `_shared.js`
 to it (public API + `ModalActions` unchanged; verified Add member still renders + scrolls clear). New modals
 should use `<Modal … footer={<ModalFooter …/>}>` rather than hand-rolling a scroll container.
 
+Guard script (2026-07-21): `frontend/scripts/check-modal-footers.js` (run `yarn lint:modals`) fails CI if any
+`sticky bottom-0` footer is reintroduced (the cut-off anti-pattern). Opt out with a `sticky-footer-ok`
+comment. Mirrors the existing `lint:overlays` guard. Currently PASSES (zero offenders).
+
 ────────────────────────────────────────────────────────────────────────
 
 
