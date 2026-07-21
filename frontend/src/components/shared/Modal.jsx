@@ -48,6 +48,7 @@ export function Modal({
   panelTestId,
   closeOnBackdrop = true,
   hideClose = false,
+  backdropClassName = 'bg-black/40',
   bodyClassName = 'p-5 flex flex-col gap-3',
   panelClassName = '',
   panelStyle,
@@ -138,7 +139,7 @@ export function Modal({
 
   return createPortal((
     <div
-      className={`fixed inset-0 ${zClassName} bg-black/40`}
+      className={`fixed inset-0 ${zClassName} ${backdropClassName}`}
       onMouseDown={closeOnBackdrop ? (e) => { if (e.target === e.currentTarget) onClose && onClose(); } : undefined}
       data-testid={testId}
     >

@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { CheckCircle, X as XIcon, Building2, User as UserIcon, MapPin, FileText, ArrowRight } from 'lucide-react';
+import { Modal } from '@/components/shared/Modal';
 
 const MODES = [
   { value: 'create', label: 'Create new' },
@@ -162,11 +163,18 @@ export default function LeadConversionModal({ opp, open, onClose, onConverted, A
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm" data-testid="lead-convert-modal" onClick={onClose}>
-      <div className="w-full max-w-2xl mx-4 rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
-           style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
-           onClick={e => e.stopPropagation()}>
-        <header className="flex-shrink-0 px-5 py-3 flex items-center justify-between border-b"
+    <Modal
+      open
+      onClose={onClose}
+      variant="center"
+      size="lg"
+      zClassName="z-[90]"
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      testId="lead-convert-modal"
+      bodyClassName="px-5 py-4 space-y-4"
+      panelStyle={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
+      header={(
+        <header className="px-5 py-3 flex items-center justify-between border-b"
                 style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
           <div>
             <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: c.textDim }}>Convert lead</p>
@@ -175,99 +183,9 @@ export default function LeadConversionModal({ opp, open, onClose, onConverted, A
           <button onClick={onClose} data-testid="lead-convert-close"
                   className="p-1.5" style={{ color: c.textDim }}><XIcon size={16} /></button>
         </header>
-
-        <div className="px-5 py-4 space-y-4 flex-1 overflow-y-auto min-h-0">
-          {/* Company */}
-          <SectionCard label="Company" icon={Building2} c={c} isDark={isDark} testId="convert-section-company">
-            <ModePicker value={form.company.mode} onChange={mode => setForm({ ...form, company: { ...form.company, mode } })} testIdPrefix="company" />
-            {form.company.mode === 'create' && (
-              <input value={form.company.data?.name || ''} placeholder="Company name *"
-                     onChange={e => setForm({ ...form, company: { ...form.company, data: { ...form.company.data, name: e.target.value } } })}
-                     {...inp} data-testid="convert-company-name" />
-            )}
-            {form.company.mode === 'existing' && (
-              <select value={form.company.company_id || ''}
-                      onChange={e => setForm({ ...form, company: { ...form.company, company_id: e.target.value } })}
-                      {...inp} data-testid="convert-company-select">
-                <option value="">Select existing customer…</option>
-                {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
-              </select>
-            )}
-          </SectionCard>
-
-          {/* Contact */}
-          <SectionCard label="Contact" icon={UserIcon} c={c} isDark={isDark} testId="convert-section-contact">
-            <ModePicker value={form.contact.mode} onChange={mode => setForm({ ...form, contact: { ...form.contact, mode } })} testIdPrefix="contact" />
-            {form.contact.mode === 'create' && (
-              <div className="grid grid-cols-2 gap-2">
-                <input value={form.contact.data?.first_name || ''} placeholder="First name"
-                       onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, first_name: e.target.value } } })}
-                       {...inp} data-testid="convert-contact-first-name" />
-                <input value={form.contact.data?.last_name || ''} placeholder="Last name"
-                       onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, last_name: e.target.value } } })}
-                       {...inp} data-testid="convert-contact-last-name" />
-                <input value={form.contact.data?.email || ''} placeholder="Email" type="email"
-                       onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, email: e.target.value } } })}
-                       {...inp} data-testid="convert-contact-email" />
-                <input value={form.contact.data?.phone || ''} placeholder="Phone"
-                       onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, phone: e.target.value } } })}
-                       {...inp} />
-              </div>
-            )}
-            {form.contact.mode === 'existing' && (
-              <select value={form.contact.contact_id || ''}
-                      onChange={e => setForm({ ...form, contact: { ...form.contact, contact_id: e.target.value } })}
-                      {...inp} data-testid="convert-contact-select">
-                <option value="">Select existing contact…</option>
-                {contacts.map(ct => <option key={ct.id} value={ct.id}>{ct.first_name} {ct.last_name}</option>)}
-              </select>
-            )}
-          </SectionCard>
-
-          {/* Site */}
-          <SectionCard label="Site (optional)" icon={MapPin} c={c} isDark={isDark} testId="convert-section-site">
-            <ModePicker value={form.site.mode} onChange={mode => setForm({ ...form, site: { ...form.site, mode } })} testIdPrefix="site" />
-            {form.site.mode === 'create' && (
-              <input value={form.site.data?.name || ''} placeholder="Site name"
-                     onChange={e => setForm({ ...form, site: { ...form.site, data: { ...form.site.data, name: e.target.value } } })}
-                     {...inp} data-testid="convert-site-name" />
-            )}
-            {form.site.mode === 'existing' && (
-              <select value={form.site.site_id || ''}
-                      onChange={e => setForm({ ...form, site: { ...form.site, site_id: e.target.value } })}
-                      {...inp} data-testid="convert-site-select" disabled={!form.company?.company_id}>
-                <option value="">{form.company?.company_id ? 'Select site…' : 'Pick an existing company first'}</option>
-                {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            )}
-          </SectionCard>
-
-          {/* Artifact */}
-          <SectionCard label="Starter artifact" icon={FileText} c={c} isDark={isDark} testId="convert-section-artifact">
-            <select value={form.artifact.kind}
-                    onChange={e => setForm({ ...form, artifact: { kind: e.target.value } })}
-                    {...inp} data-testid="convert-artifact-kind">
-              {ARTIFACTS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-            </select>
-          </SectionCard>
-
-          {/* Target stage */}
-          <SectionCard label="Move deal to" c={c} isDark={isDark} testId="convert-section-stage">
-            <select value={form.target_stage}
-                    onChange={e => setForm({ ...form, target_stage: e.target.value })}
-                    {...inp} data-testid="convert-target-stage">
-              {TARGET_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </SectionCard>
-
-          {error && (
-            <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-800" data-testid="convert-error">
-              {error}
-            </div>
-          )}
-        </div>
-
-        <footer className="flex-shrink-0 px-5 py-3 border-t flex justify-end gap-2"
+      )}
+      footer={(
+        <footer className="px-5 py-3 border-t flex justify-end gap-2"
                 style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
           <button onClick={onClose} className="px-3 py-1.5 text-xs font-semibold rounded-md" style={{ color: c.textMuted }}>
             Cancel
@@ -277,8 +195,97 @@ export default function LeadConversionModal({ opp, open, onClose, onConverted, A
             {submitting ? 'Converting…' : 'Convert lead'}
           </button>
         </footer>
-      </div>
-    </div>
+      )}
+    >
+      {/* Company */}
+      <SectionCard label="Company" icon={Building2} c={c} isDark={isDark} testId="convert-section-company">
+        <ModePicker value={form.company.mode} onChange={mode => setForm({ ...form, company: { ...form.company, mode } })} testIdPrefix="company" />
+        {form.company.mode === 'create' && (
+          <input value={form.company.data?.name || ''} placeholder="Company name *"
+                 onChange={e => setForm({ ...form, company: { ...form.company, data: { ...form.company.data, name: e.target.value } } })}
+                 {...inp} data-testid="convert-company-name" />
+        )}
+        {form.company.mode === 'existing' && (
+          <select value={form.company.company_id || ''}
+                  onChange={e => setForm({ ...form, company: { ...form.company, company_id: e.target.value } })}
+                  {...inp} data-testid="convert-company-select">
+            <option value="">Select existing customer…</option>
+            {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
+          </select>
+        )}
+      </SectionCard>
+
+      {/* Contact */}
+      <SectionCard label="Contact" icon={UserIcon} c={c} isDark={isDark} testId="convert-section-contact">
+        <ModePicker value={form.contact.mode} onChange={mode => setForm({ ...form, contact: { ...form.contact, mode } })} testIdPrefix="contact" />
+        {form.contact.mode === 'create' && (
+          <div className="grid grid-cols-2 gap-2">
+            <input value={form.contact.data?.first_name || ''} placeholder="First name"
+                   onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, first_name: e.target.value } } })}
+                   {...inp} data-testid="convert-contact-first-name" />
+            <input value={form.contact.data?.last_name || ''} placeholder="Last name"
+                   onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, last_name: e.target.value } } })}
+                   {...inp} data-testid="convert-contact-last-name" />
+            <input value={form.contact.data?.email || ''} placeholder="Email" type="email"
+                   onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, email: e.target.value } } })}
+                   {...inp} data-testid="convert-contact-email" />
+            <input value={form.contact.data?.phone || ''} placeholder="Phone"
+                   onChange={e => setForm({ ...form, contact: { ...form.contact, data: { ...form.contact.data, phone: e.target.value } } })}
+                   {...inp} />
+          </div>
+        )}
+        {form.contact.mode === 'existing' && (
+          <select value={form.contact.contact_id || ''}
+                  onChange={e => setForm({ ...form, contact: { ...form.contact, contact_id: e.target.value } })}
+                  {...inp} data-testid="convert-contact-select">
+            <option value="">Select existing contact…</option>
+            {contacts.map(ct => <option key={ct.id} value={ct.id}>{ct.first_name} {ct.last_name}</option>)}
+          </select>
+        )}
+      </SectionCard>
+
+      {/* Site */}
+      <SectionCard label="Site (optional)" icon={MapPin} c={c} isDark={isDark} testId="convert-section-site">
+        <ModePicker value={form.site.mode} onChange={mode => setForm({ ...form, site: { ...form.site, mode } })} testIdPrefix="site" />
+        {form.site.mode === 'create' && (
+          <input value={form.site.data?.name || ''} placeholder="Site name"
+                 onChange={e => setForm({ ...form, site: { ...form.site, data: { ...form.site.data, name: e.target.value } } })}
+                 {...inp} data-testid="convert-site-name" />
+        )}
+        {form.site.mode === 'existing' && (
+          <select value={form.site.site_id || ''}
+                  onChange={e => setForm({ ...form, site: { ...form.site, site_id: e.target.value } })}
+                  {...inp} data-testid="convert-site-select" disabled={!form.company?.company_id}>
+            <option value="">{form.company?.company_id ? 'Select site…' : 'Pick an existing company first'}</option>
+            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        )}
+      </SectionCard>
+
+      {/* Artifact */}
+      <SectionCard label="Starter artifact" icon={FileText} c={c} isDark={isDark} testId="convert-section-artifact">
+        <select value={form.artifact.kind}
+                onChange={e => setForm({ ...form, artifact: { kind: e.target.value } })}
+                {...inp} data-testid="convert-artifact-kind">
+          {ARTIFACTS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+        </select>
+      </SectionCard>
+
+      {/* Target stage */}
+      <SectionCard label="Move deal to" c={c} isDark={isDark} testId="convert-section-stage">
+        <select value={form.target_stage}
+                onChange={e => setForm({ ...form, target_stage: e.target.value })}
+                {...inp} data-testid="convert-target-stage">
+          {TARGET_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </SectionCard>
+
+      {error && (
+        <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-800" data-testid="convert-error">
+          {error}
+        </div>
+      )}
+    </Modal>
   );
 }
 
