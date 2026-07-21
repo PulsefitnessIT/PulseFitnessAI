@@ -279,7 +279,7 @@ const SiteDetailsForm = ({ form, set, dirty, saving, onSave }) => (
       <Field label="Site manager email" value={form.site_manager_email} onChange={(v) => set('site_manager_email', v)} type="email" testId="site-detail-manager-email" />
     </div>
 
-    <div className="sticky bottom-0 bg-white pt-3 pb-1 flex justify-end gap-2 border-t border-zinc-100">
+    <div className="mt-4 bg-white pt-3 pb-1 flex justify-end gap-2 border-t border-zinc-100">
       <button
         onClick={onSave}
         disabled={!dirty || saving}
@@ -539,7 +539,7 @@ const DIOContractForm = ({ siteId }) => {
           testId="site-detail-dio-email"
         />
       </div>
-      <div className="sticky bottom-0 bg-white pt-3 pb-1 flex justify-end gap-2 border-t border-zinc-100">
+      <div className="mt-4 bg-white pt-3 pb-1 flex justify-end gap-2 border-t border-zinc-100">
         <button
           onClick={save}
           disabled={saving}

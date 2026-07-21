@@ -113,6 +113,14 @@ export function ModalShell({ title, eyebrow, testId, children, onClose, wide }) 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+  // Iter — split the action footer (ModalActions) OUT of the scrollable
+  // body so it sits as a fixed sibling below it. A `sticky` footer inside
+  // the scroll area floats OVER the last field at max scroll (users
+  // reported the final consent line / checkbox being cut off). Keeping it
+  // a flex-shrink-0 sibling guarantees the body scrolls fully clear of it.
+  const kids = React.Children.toArray(children);
+  const footerKids = kids.filter((k) => React.isValidElement(k) && k.type === ModalActions);
+  const bodyKids = kids.filter((k) => !(React.isValidElement(k) && k.type === ModalActions));
   // Iter 215d6.2 — render into document.body via React portal so the
   // modal escapes any transformed ancestor (e.g. `.module-fade-in`).
   // Without this, position:fixed would be relative to <main> (1984px
@@ -154,22 +162,23 @@ export function ModalShell({ title, eyebrow, testId, children, onClose, wide }) 
               <X size={18} />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">{children}</div>
+          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">{bodyKids}</div>
+          {footerKids.length > 0 && (
+            <div className="flex-shrink-0">{footerKids}</div>
+          )}
         </div>
       </div>
     </div>
   ), document.body);
 }
 
-export function ModalActions({ onCancel, onSave, saving, testId }) {
-  // Iter 215d6 — `mt-auto` pushes the action row to the bottom of the
-  // flex-column body when the form is short; `sticky bottom-0` keeps it
-  // pinned when the form is long enough to scroll. Negative margins
-  // cancel ModalShell's body padding so the footer hits the card edges.
+export function ModalActions({ onCancel, onSave, saving, testId, saveLabel }) {
+  // Rendered by ModalShell as a fixed sibling BELOW the scroll body, so it
+  // never overlaps form content. Hugs the card's bottom edge.
   return (
-    <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 py-3 bg-[color:var(--theme-surface)] border-t border-[color:var(--theme-border)] flex gap-2">
-      <button onClick={onSave} disabled={saving} className="flex-1 rounded-lg py-2.5 text-sm font-extrabold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid={testId}>
-        {saving ? 'Saving…' : 'Save'}
+    <div className="px-5 py-3 bg-[color:var(--theme-surface)] border-t border-[color:var(--theme-border)] rounded-b-2xl flex gap-2">
+      <button onClick={onSave} disabled={saving} className="flex-1 rounded-lg py-2.5 text-sm font-extrabold disabled:opacity-60" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid={testId}>
+        {saving ? 'Saving…' : (saveLabel || 'Save')}
       </button>
       <button onClick={onCancel} className="rounded-lg px-4 py-2.5 text-sm font-bold border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white/5">Cancel</button>
     </div>

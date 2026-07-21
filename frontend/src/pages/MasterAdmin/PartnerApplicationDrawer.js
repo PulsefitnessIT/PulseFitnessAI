@@ -311,11 +311,11 @@ export default function PartnerApplicationDrawer({
       data-testid="partner-application-backdrop"
     >
       <aside
-        className="bg-zinc-50 dark:bg-zinc-950 w-full sm:max-w-2xl h-full shadow-2xl overflow-y-auto flex flex-col"
+        className="bg-zinc-50 dark:bg-zinc-950 w-full sm:max-w-2xl h-full shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
         data-testid="partner-application-drawer"
       >
-        <header className="sticky top-0 z-10 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-4 flex items-start justify-between gap-3">
+        <header className="flex-shrink-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-purple-600 dark:text-purple-400">
               Partner Engineer · Application
@@ -347,7 +347,7 @@ export default function PartnerApplicationDrawer({
           </button>
         </header>
 
-        <div className="p-5 space-y-5 flex-1">
+        <div className="p-5 space-y-5 flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <div className="text-sm text-zinc-500 flex items-center gap-2 py-12 justify-center">
               <Loader2 size={14} className="animate-spin" /> Loading application…
@@ -531,7 +531,7 @@ export default function PartnerApplicationDrawer({
 
         {/* Sticky decision bar */}
         <footer
-          className="sticky bottom-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+          className="flex-shrink-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
           data-testid="partner-application-actions"
         >
           {isPending ? (

@@ -166,8 +166,8 @@ export default function PulseUpgradeRequestModal({ open, onClose, seed = {} }) {
  </p>
  </div>
  ) : (
- <form onSubmit={submit} className="flex-1 overflow-y-auto" data-testid="pulse-upgrade-form">
- <div className="p-6 space-y-4">
+ <form onSubmit={submit} className="flex-1 min-h-0 flex flex-col overflow-hidden" data-testid="pulse-upgrade-form">
+ <div className="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
  {/* Contact details */}
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <Field label="Your name" required testId="upgrade-name">
@@ -284,7 +284,7 @@ export default function PulseUpgradeRequestModal({ open, onClose, seed = {} }) {
  </div>
 
  {/* Sticky submit bar */}
- <div className="sticky bottom-0 border-t border-slate-100 bg-white p-4">
+ <div className="flex-shrink-0 border-t border-slate-100 bg-white p-4">
  <button
  type="submit" disabled={loading}
  className="w-full h-12 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2 disabled:opacity-60"

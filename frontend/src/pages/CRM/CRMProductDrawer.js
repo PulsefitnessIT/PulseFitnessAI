@@ -77,8 +77,8 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
 
   return (
     <div className="fixed inset-0 z-[260] flex justify-end bg-black/40" onMouseDown={e => e.target === e.currentTarget && onClose()} data-testid="product-drawer">
-      <div className="w-full max-w-xl h-full overflow-y-auto shadow-2xl border-l" style={{ background: surface, borderColor: border }}>
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b" style={{ background: surface, borderColor: border }}>
+      <div className="w-full max-w-xl h-full overflow-hidden flex flex-col shadow-2xl border-l" style={{ background: surface, borderColor: border }}>
+        <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-b" style={{ background: surface, borderColor: border }}>
           <div>
             <h3 className="text-sm font-semibold" style={{ color: c.text }}>{product.name}</h3>
             <p className="text-[11px]" style={{ color: c.textDim }}>{product.sku || 'No code'} · {product.category}{product.active === false ? ' · Archived' : ''}</p>
@@ -86,7 +86,7 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
           <button type="button" onClick={onClose} className="opacity-60 hover:opacity-100" data-testid="product-drawer-close"><X size={16} /></button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-5 space-y-5 flex-1 overflow-y-auto min-h-0">
           {error && <div className="text-xs px-3 py-1.5 rounded-md" style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--color-danger-alt)' }}>{error}</div>}
 
           <div className="grid grid-cols-2 gap-3">
@@ -188,7 +188,7 @@ export default function CRMProductDrawer({ API, headers, c, isDark, product, can
         </div>
 
         {canEdit && (
-          <div className="sticky bottom-0 flex items-center justify-between px-5 py-3 border-t" style={{ background: surface, borderColor: border }}>
+          <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-t" style={{ background: surface, borderColor: border }}>
             <button type="button" onClick={toggleArchive} disabled={saving} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border" style={{ borderColor: border, color: product.active === false ? 'var(--color-success-alt)' : 'var(--color-danger-alt)' }} data-testid="product-drawer-archive">
               {product.active === false ? <><RotateCcw size={12} /> Restore</> : <><Archive size={12} /> Archive</>}
             </button>

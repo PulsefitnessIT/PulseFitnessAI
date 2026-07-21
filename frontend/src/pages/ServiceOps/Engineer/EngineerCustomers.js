@@ -851,8 +851,8 @@ export default function EngineerCustomers() {
           className="fixed inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center p-2 sm:p-4"
           data-testid="customer-form-backdrop"
         >
-          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            <header className="px-4 py-3 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl border border-slate-200 max-h-[90vh] overflow-hidden flex flex-col">
+            <header className="px-4 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
               <h2 className="font-bold text-slate-900 text-sm">
                 {editId ? 'Edit customer' : 'New customer'}
               </h2>
@@ -866,7 +866,7 @@ export default function EngineerCustomers() {
                 <X size={18} />
               </button>
             </header>
-            <div className="p-4">
+            <div className="p-4 flex-1 overflow-y-auto min-h-0">
               {/* Iter 220ck — Stepper */}
               <div className="mb-4 flex items-center gap-2" data-testid="customer-wizard-stepper">
                 {WIZARD_STEPS.map((s, idx) => (
@@ -1086,7 +1086,7 @@ export default function EngineerCustomers() {
                 </div>
               )}
             </div>
-            <footer className="px-4 py-3 border-t border-slate-200 flex items-center justify-between gap-2 sticky bottom-0 bg-white">
+            <footer className="px-4 py-3 border-t border-slate-200 flex items-center justify-between gap-2 flex-shrink-0 bg-white">
               <button
                 type="button"
                 onClick={wizardStep === 0 ? close : goBack}

@@ -163,10 +163,10 @@ export default function LeadConversionModal({ opp, open, onClose, onConverted, A
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm" data-testid="lead-convert-modal" onClick={onClose}>
-      <div className="w-full max-w-2xl mx-4 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+      <div className="w-full max-w-2xl mx-4 rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
            style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
            onClick={e => e.stopPropagation()}>
-        <header className="sticky top-0 z-10 px-5 py-3 flex items-center justify-between border-b"
+        <header className="flex-shrink-0 px-5 py-3 flex items-center justify-between border-b"
                 style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
           <div>
             <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: c.textDim }}>Convert lead</p>
@@ -176,7 +176,7 @@ export default function LeadConversionModal({ opp, open, onClose, onConverted, A
                   className="p-1.5" style={{ color: c.textDim }}><XIcon size={16} /></button>
         </header>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 flex-1 overflow-y-auto min-h-0">
           {/* Company */}
           <SectionCard label="Company" icon={Building2} c={c} isDark={isDark} testId="convert-section-company">
             <ModePicker value={form.company.mode} onChange={mode => setForm({ ...form, company: { ...form.company, mode } })} testIdPrefix="company" />
@@ -267,7 +267,7 @@ export default function LeadConversionModal({ opp, open, onClose, onConverted, A
           )}
         </div>
 
-        <footer className="sticky bottom-0 px-5 py-3 border-t flex justify-end gap-2"
+        <footer className="flex-shrink-0 px-5 py-3 border-t flex justify-end gap-2"
                 style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
           <button onClick={onClose} className="px-3 py-1.5 text-xs font-semibold rounded-md" style={{ color: c.textMuted }}>
             Cancel

@@ -159,10 +159,10 @@ function SubProfileEditor({ API, headers, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[80] bg-black/80 grid place-items-center p-3 overflow-y-auto" onClick={() => onClose(false)}>
-      <div className="w-full max-w-md bg-[color:var(--theme-surface)] dark:bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+      <div className="w-full max-w-md bg-[color:var(--theme-surface)] dark:bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         data-testid="member-family-editor">
-        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[color:var(--theme-surface)] dark:bg-zinc-900 z-10">
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between flex-shrink-0 bg-[color:var(--theme-surface)] dark:bg-zinc-900">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-brand-cyan)]">Your {vocab.member_plural}</p>
             <h2 className="text-lg font-extrabold text-white">
@@ -175,7 +175,7 @@ function SubProfileEditor({ API, headers, onClose }) {
             <X size={14} />
           </button>
         </div>
-        <div className="p-5 space-y-3">
+        <div className="p-5 space-y-3 flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
             <Field label="First name *">
               <input value={f.first_name} onChange={(e) => up('first_name')(e.target.value)}
@@ -236,7 +236,7 @@ function SubProfileEditor({ API, headers, onClose }) {
             </p>
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-white/10 flex justify-end gap-2 sticky bottom-0 bg-[color:var(--theme-surface)] dark:bg-zinc-900">
+        <div className="px-5 py-4 border-t border-white/10 flex justify-end gap-2 flex-shrink-0 bg-[color:var(--theme-surface)] dark:bg-zinc-900">
           <button onClick={() => onClose(false)}
             className="px-3 py-2 text-sm font-bold text-white/60 hover:text-white"
             data-testid="member-family-cancel">
