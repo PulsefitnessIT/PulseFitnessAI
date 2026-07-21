@@ -39,12 +39,18 @@ export function Modal({
   onClose,
   title,
   eyebrow,
+  header,
   footer,
   children,
   size = 'md',
+  variant = 'center',
   testId = 'modal',
   closeOnBackdrop = true,
   hideClose = false,
+  bodyClassName = 'p-5 flex flex-col gap-3',
+  panelClassName = '',
+  panelStyle,
+  zClassName = 'z-[100]',
 }) {
   const cardRef = useRef(null);
   const restoreRef = useRef(null);
@@ -99,47 +105,60 @@ export function Modal({
 
   if (!open || typeof document === 'undefined') return null;
 
+  const isDrawer = variant === 'drawer';
+
+  const wrapClass = isDrawer
+    ? 'absolute inset-0 flex justify-end'
+    : 'absolute inset-x-0 top-16 bottom-16 sm:inset-0 flex items-stretch sm:items-center justify-center p-3 sm:p-4';
+
+  const panelBase = isDrawer
+    ? `relative w-full ${SIZE[size] || size || SIZE.md} h-full flex flex-col overflow-hidden border-l shadow-2xl focus:outline-none ${panelClassName}`
+    : `relative w-full ${SIZE[size] || size || SIZE.md} h-full sm:h-auto sm:max-h-[calc(100vh-6rem)] bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl shadow-xl flex flex-col overflow-hidden focus:outline-none ${panelClassName}`;
+
+  const defaultHeader = (title || eyebrow || !hideClose) && (
+    <div className={`flex-shrink-0 px-5 py-4 border-b border-[color:var(--theme-border)] bg-[color:var(--theme-surface)] ${isDrawer ? '' : 'rounded-t-2xl'} flex items-start justify-between gap-3`}>
+      <div className="min-w-0">
+        {eyebrow && <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">{eyebrow}</div>}
+        {title && <h3 id={`${testId}-title`} className="font-extrabold text-lg mt-1 truncate" style={{ color: 'var(--theme-text)' }}>{title}</h3>}
+      </div>
+      {!hideClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-9 w-9 rounded-full flex items-center justify-center border border-[color:var(--theme-border)] bg-[color:var(--theme-bg,transparent)] text-[color:var(--theme-text)] hover:bg-[color:var(--theme-surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-brand-cyan)] focus:ring-offset-1 transition-colors shrink-0"
+          aria-label="Close"
+          data-testid={`${testId}-close`}
+        >
+          <X size={18} />
+        </button>
+      )}
+    </div>
+  );
+
   return createPortal((
     <div
-      className="fixed inset-0 z-[100] bg-black/40"
-      onClick={closeOnBackdrop ? onClose : undefined}
+      className={`fixed inset-0 ${zClassName} bg-black/40`}
+      onMouseDown={closeOnBackdrop ? (e) => { if (e.target === e.currentTarget) onClose && onClose(); } : undefined}
       data-testid={testId}
     >
-      {/* Inset on mobile so the card sits between the fixed top/bottom navs. */}
-      <div className="absolute inset-x-0 top-16 bottom-16 sm:inset-0 flex items-stretch sm:items-center justify-center p-3 sm:p-4">
+      {/* center: card between fixed top/bottom navs · drawer: right-side sheet */}
+      <div className={wrapClass}>
         <div
           ref={cardRef}
           tabIndex={-1}
           onKeyDown={onKeyDownTrap}
-          className={`relative w-full ${SIZE[size] || SIZE.md} h-full sm:h-auto sm:max-h-[calc(100vh-6rem)] bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl shadow-xl flex flex-col overflow-hidden focus:outline-none`}
+          className={panelBase}
+          style={panelStyle}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={`${testId}-title`}
         >
-          {(title || eyebrow || !hideClose) && (
-            <div className="flex-shrink-0 px-5 py-4 border-b border-[color:var(--theme-border)] bg-[color:var(--theme-surface)] rounded-t-2xl flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                {eyebrow && <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">{eyebrow}</div>}
-                {title && <h3 id={`${testId}-title`} className="font-extrabold text-lg mt-1 truncate" style={{ color: 'var(--theme-text)' }}>{title}</h3>}
-              </div>
-              {!hideClose && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="h-9 w-9 rounded-full flex items-center justify-center border border-[color:var(--theme-border)] bg-[color:var(--theme-bg,transparent)] text-[color:var(--theme-text)] hover:bg-[color:var(--theme-surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-brand-cyan)] focus:ring-offset-1 transition-colors shrink-0"
-                  aria-label="Close"
-                  data-testid={`${testId}-close`}
-                >
-                  <X size={18} />
-                </button>
-              )}
-            </div>
-          )}
+          {header ? <div className="flex-shrink-0">{header}</div> : defaultHeader}
 
           {/* Scroll body — the ONLY scrolling region. `min-h-0` lets it
               shrink inside the flex column so the footer stays visible. */}
-          <div className="flex-1 overflow-y-auto min-h-0 p-5 flex flex-col gap-3">{children}</div>
+          <div className={`flex-1 overflow-y-auto min-h-0 ${bodyClassName}`}>{children}</div>
 
           {footer && <div className="flex-shrink-0">{footer}</div>}
         </div>

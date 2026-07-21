@@ -34,6 +34,14 @@ framer-motion. They are already cut-off-fixed. Migrating them wholesale would ri
 little functional gain; recommend migrating individually with before/after visual checks if desired, or first
 extending the primitive with a `variant="drawer"` + theme passthrough.
 
+Drawer variant + first migration (2026-07-21): extended `Modal` primitive with `variant="center|drawer"`
+(right-side sheet), custom `header` node, `bodyClassName`, `panelClassName`/`panelStyle` (theme passthrough),
+and `zClassName` (drawers over modals, e.g. z-[260]). `size` now accepts a raw Tailwind width (e.g. "max-w-xl").
+Migrated `CRM/CRMProductDrawer.js` onto it — VERIFIED visually (right sheet, light theme, header/scroll-body/
+Archive+Save footer intact, no regression) + a11y (focus trap/ESC/restore/scroll-lock) inherited. All other
+markup/data-testids preserved. Remaining drawers (PartnerApplicationDrawer, SiteDetailDrawer, EngineerCustomers,
+LeadConversionModal, PulseUpgradeRequestModal) can now follow the same pattern one-by-one with visual checks.
+
 ────────────────────────────────────────────────────────────────────────
 
 
