@@ -1,0 +1,37 @@
+{
+  "summary": "Launch QA — money/critical-paths validation. 11/11 backend tests PASS covering Auth (master admin, operator owner, CRM login, Site-A manager restricted from Site-B via X-Site-Id → 403 site_access_denied), CRM v2 org-scoping (companies/opportunities, platform token rejected on CRM), Memberships (list + create with GDPR/phone required, persistence verified via GET), and Memberships Billing (monthly-invoice generate returned 200, no 500s; sample statement PDF renders via document-branding sample.pdf → %PDF bytes, >500B, content-type application/pdf). Frontend smoke: owner login succeeds and lands on /service-desk (owner has is_service_desk=true). Cookie banner overlays login button — dismiss 'Essential Only' first to click Sign In cleanly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CookieBanner", "issue": "Cookie consent banner (Essential Only / Accept All) overlaps the Sign In button area on /login. First click on Sign In can be intercepted until the banner is dismissed. Recommend auto-dismiss or z-index/positioning fix so the CTA is always clickable.", "selector": "button:has-text('Sign In')", "priority": "MEDIUM"},
+      {"component": "MembershipsRoute", "issue": "Direct navigation to /memberships/members returns the app 404 page for an owner logged into the Service Desk area (Pulse Fitness · 404). Owner needs to 'Switch area' to Memberships first; deep links to memberships sub-routes should either auto-switch area or resolve to the correct route.", "selector": "-", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_launch_qa_moneypaths_jan2026.py",
+    "/app/test_reports/pytest/launch_qa_moneypaths_jan2026.xml"
+  ],
+  "action_items": [
+    "Consider fixing cookie banner overlap on /login so Sign In is always immediately clickable.",
+    "Consider making /memberships/members a valid deep-link that auto-switches area (or redirect via router) so owner in Service Desk area doesn't hit 404.",
+    "PDF endpoint used for verification is /api/document-branding/sample.pdf (uses the same _render_invoice_pdf renderer). There is no per-invoice GET .../invoice/{id}/pdf endpoint — consider exposing one for on-demand download without triggering /send."
+  ],
+  "critical_code_review_comments": [
+    "studio_billing.py is ~1472 lines — approaching the >700-line split threshold; consider extracting rendering + email templating into a dedicated module for maintainability.",
+    "POST /api/memberships/members returns {member: {...}} wrapper while some other list endpoints return arrays or {items: [...]} — inconsistent envelope shapes across memberships routes make frontend/test code fragile.",
+    "No dedicated per-invoice PDF endpoint (invoice/{id}/pdf). Currently PDF bytes are only produced inside generate + send flows and the sample renderer. Adding a GET endpoint (owner-authenticated, org-scoped) would help operator workflow and simplify QA.",
+    "CRM/platform token separation confirmed working (platform bearer rejected on /api/crm/v2/* with 401/403). Good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_launch_qa_moneypaths_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "smoke only — login OK, service-desk dashboard renders; memberships console not deep-linked."},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg; owner@isodemo.com / IsoDemo123!; manager@isodemo.com / IsoDemo123! (Site A only). /api/auth/login is rate-limited (~4 rapid = 429); tests space fresh logins by 35s and reuse session tokens.",
+  "seed_data_creation": "Created 1 test member (TEST_qa_<hex>@example.com) in iso-demo-org on site A. Also triggered monthly-invoice generation for previous period on iso-demo-org (idempotent — safe to re-run).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend money-path test suite lives at /app/backend/tests/test_launch_qa_moneypaths_jan2026.py — reusable regression. Session-scoped fixtures cache tokens and self-space logins ~35s apart to dodge the aggressive /api/auth/login rate limit. If retesting quickly after another auth-heavy suite, expect the master/owner/manager login fixtures to take ~2 minutes total. For future PDF checks the sample.pdf endpoint (/api/document-branding/sample.pdf) is the fastest way to smoke the _render_invoice_pdf renderer.",
+  "rca of the issue": "N/A — no critical issues found on the QA-scoped surface. Two minor frontend UX findings (cookie banner overlap on /login and 404 on /memberships/members deep link when owner is in Service Desk area) documented above."
+}
