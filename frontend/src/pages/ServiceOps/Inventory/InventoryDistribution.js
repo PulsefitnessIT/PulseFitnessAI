@@ -45,7 +45,7 @@ const NAV = [
     { id: 'installations', label: 'Installations', Icon: MapPin, live: true },
   ] },
   { group: 'Service', items: [
-    { id: 'service-desks', label: 'Dealer Service Desks', Icon: Headphones, live: true },
+    { id: 'service-desks', label: 'Dealer Desk Setup', Icon: Headphones, live: true, pulseOnly: true },
   ] },
   { group: 'Intelligence', items: [
     { id: 'intel-dashboard', label: 'Monitoring', Icon: Radar, live: true },
@@ -405,6 +405,13 @@ export default function InventoryDistribution() {
   useEffect(() => { invApi.warehouses().then((d) => setWarehouses(d.warehouses || [])).catch(() => {}); }, [section]);
 
   const go = (id) => { setSp(id === 'dashboard' ? {} : { s: id }); setSidebarOpen(false); };
+  // Dealer-facing sale: some screens (Dealer Desk Setup — provisioning of dealer
+  // service desks) are Pulse-internal only. Dealers (inventory-only capability)
+  // never see them.
+  const isPulseSide = can(user, 'view_service_desk');
+  const visibleNav = NAV
+    .map((g) => ({ ...g, items: g.items.filter((it) => !it.pulseOnly || isPulseSide) }))
+    .filter((g) => g.items.length > 0);
 
   const findItem = () => { const sec = FULFILMENT_KEYS.includes(section) ? 'fulfilment' : section; for (const g of NAV) { const it = g.items.find((x) => x.id === sec); if (it) return it; } return null; };
   const item = findItem();
@@ -427,7 +434,13 @@ export default function InventoryDistribution() {
       case 'dealer-inventory': return <DealerInventory />;
       case 'allocations': return <CustomerAllocations />;
       case 'installations': return <Installations />;
-      case 'service-desks': return <DealerServiceDesks />;
+      case 'service-desks': return isPulseSide ? <DealerServiceDesks /> : (
+        <div className="flex flex-col items-center justify-center py-24 text-center" data-testid="inv-service-desks-forbidden">
+          <ShieldCheck className="w-9 h-9 text-slate-300 mb-2" />
+          <p className="text-slate-700 font-semibold">Not available</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-sm">Dealer Desk Setup is managed by the Pulse team. Contact your Pulse account manager for changes to service-desk coverage or routing.</p>
+        </div>
+      );
       case 'intel-dashboard': return <IntelDashboard go={go} />;
       case 'intel-alerts': return <IntelAlerts />;
       case 'intel-reports': return <IntelReports />;
@@ -481,7 +494,7 @@ export default function InventoryDistribution() {
 
         {/* Nav groups */}
         <nav className="flex-1 p-3 overflow-y-auto" data-testid="inv-nav">
-          {NAV.map((g) => (
+          {visibleNav.map((g) => (
             <div key={g.group}>
               <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold first:pt-1">{g.group}</p>
               {g.items.map((it) => {

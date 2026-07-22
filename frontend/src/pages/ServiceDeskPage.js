@@ -17,7 +17,7 @@
  */
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '@/App';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, ScrollText, Loader2,
@@ -108,14 +108,21 @@ const EmbedFallback = () => (
 export default function ServiceDeskPage() {
   const { user, logout, API } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('dashboard');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get('tab');
+    return TABS.some((x) => x.id === t) ? t : 'dashboard';
+  });
   const [selectedOrgId, setSelectedOrgId] = useState(null);
   // Iter 268 — dashboard stat cards deep-link to the Customers tab with the
   // matching status filter pre-applied (Active / Pending Invite / Archived).
   const [customerStatus, setCustomerStatus] = useState('');
   // Iter 290c — dashboard performance tiles can deep-link to the Cases queue
   // with a pre-applied filter (e.g. SLA breached / at-risk).
-  const [caseFilter, setCaseFilter] = useState(null);
+  const [caseFilter, setCaseFilter] = useState(() => {
+    const q = searchParams.get('q');
+    return q ? { search: q } : null;
+  });
   // Iter 216h256 — mobile-first: sidebar is an off-canvas drawer below
   // `md`. State drives the hamburger toggle + backdrop.
   const [sidebarOpen, setSidebarOpen] = useState(false);

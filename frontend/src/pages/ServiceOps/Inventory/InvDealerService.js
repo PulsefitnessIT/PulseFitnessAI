@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Headphones, Building2, Wrench, AlertTriangle, ArrowUpRight, Route } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, Headphones, Building2, Wrench, AlertTriangle, ArrowUpRight, Route, ExternalLink } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, fmtDate, statusLabel } from './api';
 import { Card, StatCard, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
@@ -93,6 +94,7 @@ function LogFaultModal({ desk, assets, onClose, onDone }) {
 }
 
 function DeskDetail({ deskId, onBack }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [logging, setLogging] = useState(false);
   const load = useCallback(() => invApi.desk(deskId).then(setData).catch(() => notify.error('Load failed')), [deskId]);
@@ -125,7 +127,12 @@ function DeskDetail({ deskId, onBack }) {
                 <td className="px-4 py-2.5 font-mono text-xs">{f.serial_number}</td><td>{f.title}</td>
                 <td><StatusBadge status={f.severity} /></td>
                 <td>{f.responsible === 'dealer' ? 'Dealer' : 'Pulse'}{f.escalated ? ' (escalated)' : ''}</td>
-                <td className="pr-4 text-right">{f.responsible === 'dealer' && !f.escalated && <Btn variant="secondary" onClick={() => escalate(f.id)} data-testid={`inv-desk-escalate-${f.serial_number}`}><ArrowUpRight size={13} /> Escalate</Btn>}</td>
+                <td className="pr-4 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    {f.responsible === 'dealer' && !f.escalated && <Btn variant="secondary" onClick={() => escalate(f.id)} data-testid={`inv-desk-escalate-${f.serial_number}`}><ArrowUpRight size={13} /> Escalate</Btn>}
+                    <Btn variant="ghost" onClick={() => navigate(`/service-desk?tab=cases&q=${encodeURIComponent(f.serial_number)}`)} data-testid={`inv-desk-open-servicedesk-${f.serial_number}`} title="Work this ticket in the main Service Desk"><ExternalLink size={13} /> Open in Service Desk</Btn>
+                  </div>
+                </td>
               </tr>
             ))}</tbody>
           </table>
@@ -147,8 +154,8 @@ export function DealerServiceDesks() {
   if (selected) return <DeskDetail deskId={selected} onBack={() => { setSelected(null); load(); }} />;
   return (
     <div className="space-y-4" data-testid="inv-service-desks">
-      <div className="flex items-center gap-3"><h2 className="text-xl font-bold text-slate-900">Dealer Service Desks</h2><Btn className="ml-auto" onClick={() => setCreating(true)} data-testid="inv-new-desk-btn"><Plus size={16} /> New service desk</Btn></div>
-      <p className="text-sm text-slate-500">Scoped service-desk workspaces over the shared platform — faults, customers, assets and engineers stay single shared records.</p>
+      <div className="flex items-center gap-3"><h2 className="text-xl font-bold text-slate-900">Dealer Desk Setup</h2><Btn className="ml-auto" onClick={() => setCreating(true)} data-testid="inv-new-desk-btn"><Plus size={16} /> New service desk</Btn></div>
+      <p className="text-sm text-slate-500">Provision and oversee per-dealer service desks — coverage, SLA, warranty routing and branding. Faults, customers, assets and engineers stay single shared records; agents work tickets in the main Service Desk.</p>
       {rows === null ? <Spinner /> : rows.length === 0 ? <Card className="p-10 text-center" testId="inv-desks-empty"><Headphones size={34} className="mx-auto mb-2 text-slate-300" /><p className="text-slate-500">No dealer service desks yet.</p><Btn className="mx-auto mt-3" onClick={() => setCreating(true)}><Plus size={16} /> Create one</Btn></Card> : (
         <Card testId="inv-desks-table"><table className="w-full text-sm"><thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Reference</th><th>Dealer</th><th>Country</th><th>Status</th></tr></thead>
           <tbody>{rows.map((d) => (

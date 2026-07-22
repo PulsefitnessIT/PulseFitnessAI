@@ -1,3 +1,24 @@
+# ═══ 2026-06 · DEALER DESK SETUP — SHARPENED BOUNDARY + DEALER-FACING GATING ═══
+Founder Q: does "Dealer Service Desks" belong in Inventory if Master Admin already has the Service Desk, and note
+the module will be SOLD TO DEALERS (so Pulse-side provisioning screens must not show to dealer users). Decision = keep
++ sharpen (option a):
+  • Renamed nav item + screen "Dealer Service Desks" → "Dealer Desk Setup"; copy reframed as PROVISIONING + oversight
+    (coverage/SLA/warranty-routing/branding + per-dealer shared faults/customers/assets), NOT a parallel ticket tool.
+  • Added an "Open in Service Desk" drill-through on every fault row (InvDealerService.js DeskDetail) →
+    /service-desk?tab=cases&q=<serial>. Agents work/resolve tickets in the MAIN Service Desk (single source of truth).
+  • ServiceDeskPage.js (shell) now reads initial ?tab= (validated against TABS) and ?q= (→ Cases search via
+    OpsCases initialFilters={search}), enabling the deep-link. Verified: lands on Cases tab with serial pre-filled.
+  • DEALER-FACING GATING: the Dealer Desk Setup nav item is pulseOnly. InventoryDistribution.js computes
+    isPulseSide = can(user,'view_service_desk') and filters NAV (empty groups dropped) + guards the render
+    (dealers hitting ?s=service-desks get a "managed by Pulse — contact your account manager" card, not the tool).
+    So a dealer (is_inventory only) opens /inventory fully but never sees Dealer Desk Setup.
+VERIFIED via screenshots + curl: (owner/service_desk) sees it & drill-through deep-link works; (manager granted
+is_inventory only) /inventory loads but Service group hidden + deep-link guarded; test grant revoked → clean.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · INVENTORY NAV DECLUTTER — FULFILMENT PIPELINE (scope A) ═══
 Founder feedback: nav felt stacked (24 items / 8 groups). Merged the 5 linear warehouse stages
 (Receiving/Picking/Quality Control/Packing/Dispatch) into ONE 'Fulfilment' workspace with numbered stage tabs
