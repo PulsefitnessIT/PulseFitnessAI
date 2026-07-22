@@ -502,6 +502,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/crm/setup" element={user ? <MODForbidden><ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/memberships" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/memberships/setup" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
+      <Route path="/memberships/:tab" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/gym-floor" element={<MODForbidden><GymFloorPage /></MODForbidden>} />
 
       {/* ─── Service Desk (unified — iter 216h53 full merge of Service Ops) ─── */}

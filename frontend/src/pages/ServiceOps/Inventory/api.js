@@ -96,6 +96,14 @@ export const invApi = {
   escalateFault: (id) => axios.post(`${base}/svc/faults/${id}/escalate`, {}, auth()).then((r) => r.data),
   warrantyParts: (dealerId) => axios.get(`${base}/svc/warranty-parts`, { ...auth(), params: { dealer_id: dealerId } }).then((r) => r.data),
   svcSummary: () => axios.get(`${base}/svc/summary`, auth()).then((r) => r.data),
+
+  // Phase 7 — intelligence
+  intelOverview: () => axios.get(`${base}/intel/overview`, auth()).then((r) => r.data),
+  intelScan: () => axios.post(`${base}/intel/scan`, {}, auth()).then((r) => r.data),
+  intelAlerts: (params) => axios.get(`${base}/intel/alerts`, { ...auth(), params }).then((r) => r.data),
+  intelSetAlertStatus: (id, status) => axios.post(`${base}/intel/alerts/${id}/status`, { status }, auth()).then((r) => r.data),
+  intelReport: (report) => axios.get(`${base}/intel/reports/${report}`, auth()).then((r) => r.data),
+  intelReplenishment: (reorderPoint) => axios.get(`${base}/intel/replenishment`, { ...auth(), params: { reorder_point: reorderPoint } }).then((r) => r.data),
 };
 
 export const CUR = { GBP: '£', EUR: '€', USD: '$' };

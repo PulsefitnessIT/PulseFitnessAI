@@ -158,7 +158,7 @@ export default function LoginPage() {
       </header>
 
       {/* Form card */}
-      <main className="flex-1 flex items-center justify-center px-4 py-10">
+      <main className="flex-1 flex items-center justify-center px-4 pt-10 pb-40 sm:pb-44">
         <div
           className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.25)] p-8 sm:p-10"
           data-testid="gx-login-card"

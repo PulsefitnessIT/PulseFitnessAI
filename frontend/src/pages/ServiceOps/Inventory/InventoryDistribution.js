@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Boxes, Warehouse, ClipboardList, PackageSearch, PlugZap,
   Settings as SettingsIcon, ArrowLeft, Plus, ScanLine, Truck, MapPin, ShieldCheck,
   FileText, Globe, ChevronRight, ArrowRightLeft, Headphones,
+  Radar, ShieldAlert, FileBarChart, PackagePlus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, statusLabel } from './api';
@@ -14,6 +15,7 @@ import { WarehouseQueue } from './InvFulfilment';
 import { Shipments, DealerInventory, TransferOrders } from './InvDealerDist';
 import { CustomerAllocations, Installations } from './InvAllocation';
 import { DealerServiceDesks } from './InvDealerService';
+import { IntelDashboard, IntelAlerts, IntelReports, IntelReplenishment } from './InvIntelligence';
 
 // Full roadmap nav — Phase-1 sections are live, later phases marked "soon".
 const NAV = [
@@ -43,6 +45,12 @@ const NAV = [
   ] },
   { group: 'Service', items: [
     { id: 'service-desks', label: 'Dealer Service Desks', Icon: Headphones, live: true },
+  ] },
+  { group: 'Intelligence', items: [
+    { id: 'intel-dashboard', label: 'Monitoring', Icon: Radar, live: true },
+    { id: 'intel-alerts', label: 'Alerts', Icon: ShieldAlert, live: true },
+    { id: 'intel-reports', label: 'Reports', Icon: FileBarChart, live: true },
+    { id: 'intel-replenishment', label: 'Replenishment', Icon: PackagePlus, live: true },
   ] },
   { group: 'Integration', items: [
     { id: 'sage', label: 'Sage 200 Connection', Icon: PlugZap, live: true },
@@ -377,6 +385,10 @@ export default function InventoryDistribution() {
       case 'allocations': return <CustomerAllocations />;
       case 'installations': return <Installations />;
       case 'service-desks': return <DealerServiceDesks />;
+      case 'intel-dashboard': return <IntelDashboard go={go} />;
+      case 'intel-alerts': return <IntelAlerts />;
+      case 'intel-reports': return <IntelReports />;
+      case 'intel-replenishment': return <IntelReplenishment />;
       case 'availability': return <StockAvailability warehouses={warehouses} />;
       case 'warehouses': return <Warehouses />;
       case 'sage': return <SageConnection />;

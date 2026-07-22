@@ -169,7 +169,7 @@ async def reports(report: str, user=Depends(get_current_user)):
         return {"report": report, "columns": ["status", "count"], "rows": rows}
     if report == "dealer_stock_ageing":
         rows = []
-        async for h in db.dealer_inventory_holdings.find(of, {"_id": 0, "serial_number": 1, "dealer_name": 1, "status": 1, "received_date": 1}).to_list(1000):
+        async for h in db.dealer_inventory_holdings.find(of, {"_id": 0, "serial_number": 1, "dealer_name": 1, "status": 1, "received_date": 1}):
             rows.append({**h, "age_days": round(_age_days(h.get("received_date")), 1)})
         return {"report": report, "columns": ["serial_number", "dealer_name", "status", "age_days"], "rows": rows}
     raise HTTPException(400, "Unknown report. Options: serial_register, stock_ledger, order_progress, dealer_stock_ageing")

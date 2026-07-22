@@ -9,7 +9,7 @@
  * refund, comms) land in Phase 1b.
  */
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -89,11 +89,25 @@ export default function MembershipsConsole() {
   );
 }
 
+// Canonical set of deep-linkable Memberships tab ids (path segment or ?tab=).
+const MBR_TAB_IDS = new Set([
+  'start', 'dashboard', 'schedule', 'studio-builder', 'timetable', 'classes',
+  'members', 'mobile-app', 'instructors', 'plans', 'invoicing', 'desk-sales',
+  'family-billing', 'events', 'promotions', 'emails', 'ads', 'analytics',
+  'crm-loop', 'recover', 'autopilot', 'privacy', 'booking-rules', 'checkin',
+]);
+
 function MembershipsConsoleInner() {
   const { user, logout, API, theme, toggleTheme } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [tab, setTab] = useState('start');
+  // Deep-link the active tab via path segment (/memberships/members) or ?tab= query.
+  const routeParams = useParams();
+  const [searchParams] = useSearchParams();
+  const urlTab = routeParams.tab || searchParams.get('tab') || null;
+  const [tab, setTab] = useState(urlTab && MBR_TAB_IDS.has(urlTab) ? urlTab : 'start');
+  // Keep the tab in sync if the URL deep-link changes while mounted.
+  useEffect(() => { if (urlTab && MBR_TAB_IDS.has(urlTab)) setTab(urlTab); }, [urlTab]);
   // Iter 215d8 — bumped by PullToRefresh to force child tabs to remount/refetch.
   const [reloadKey, setReloadKey] = useState(0);
   const [hideStart] = useUserPref('hideStartTabs', false);
