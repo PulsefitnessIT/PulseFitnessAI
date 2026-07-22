@@ -1,3 +1,43 @@
+# ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 3 (WAREHOUSE OPS) + PHASE 4 (DEALER DISTRIBUTION) — VERIFIED 100% ═══
+PHASE 3 — Warehouse Operations (routes/inventory_warehouse_ops.py, prefix /api/inventory/ops):
+  Order-driven fulfilment pipeline on Phase-1 orders/units: Release → Pick (scan exact serial) → QC → Pack →
+  Dispatch → stock In Transit. Endpoints: POST /orders/{id}/release (one pick task per serialised unit + qty task
+  per non-serial physical line), GET /orders/{id}/fulfilment, POST /pick-tasks/{id}/pick (409 wrong_serial),
+  POST /units/{id}/rack, GET/POST /qc/templates (auto-seeds Standard machine QC), POST /units/{id}/qc
+  (pass/pass_note→quality_checked; quarantine/failed→quarantined), POST /orders/{id}/packages,
+  POST /packages/{id}/add-unit (409 wrong_order/quarantined/not_ready), POST /packages/{id}/seal,
+  POST /orders/{id}/dispatch (creates inv_shipments, units→dispatched, order→dispatched), GET /queues/{stage}.
+  Collections: inv_pick_tasks, inv_qc_templates, inv_qc_checks, inv_packages, inv_shipments.
+  Frontend: InvFulfilment.js — OrderFulfilment step pipeline (scan-first) added as "Warehouse Fulfilment" tab in
+  order detail; WarehouseQueue cross-order queues (Receiving/Picking/QC/Packing/Dispatch nav sections live).
+  VERIFIED testing_agent 10/10 backend + 100% frontend, 0 issues (iteration_inventory_warehouse_ops_phase3_jan2026.json).
+
+PHASE 4 — Dealer Distribution (routes/inventory_distribution_dealer.py, prefix /api/inventory/dist):
+  Shipment tracking, international/customs data, VERSIONED paperwork, dealer receipt confirmation, dealer inventory,
+  transfer orders. Endpoints: GET /shipments, GET /shipments/{id}, POST /shipments/{id}/status,
+  PUT /shipments/{id}/customs, POST /shipments/{id}/documents {type} (revision++ per type; templates: packing_list,
+  delivery_note, commercial_invoice_support, export_packing_list), GET /shipments/{id}/documents,
+  POST /shipments/{id}/receive {confirmed_serials,damaged_serials,missing_serials} (409 if serial not in shipment;
+  confirmed→dealer_held + dealer_inventory_holdings; damaged→returned; sets receipt/shipment/order status;
+  THIS is the same action the Dealer Portal will call), GET /dealer-inventory, GET/POST /transfers,
+  POST /transfers/{id}/{action} (approve|dispatch|receive|cancel), GET /summary.
+  Collections: dealer_receipts, dealer_inventory_holdings, inv_transfer_orders, inv_documents (versioned).
+  Frontend: InvDealerDist.js — Shipments (+ ShipmentDetail: tracking, customs, docs, dealer-receipt scan/confirm/
+  damage), DealerInventory, TransferOrders. Nav additions: Shipments, Transfer Orders, Dealer Inventory (all live).
+  VERIFIED testing_agent 13/13 backend + 100% frontend, 0 issues (iteration_inventory_dealer_dist_phase4_jan2026.json).
+  Acceptance: French dealer EUR order → dispatch SHP → customs(DAP) → docs rev1+rev2 → receive(2 confirmed,1 damaged
+  →discrepancy; unknown serial 409) → dealer inventory 2 available → transfer approve→dispatch→receive. Data wiped.
+
+REMAINING: P5 (customer allocation → Ops Portal → install/warranty), P6 (dealer service desks), P7 (monitoring
+agents/dashboards). Sage live sync (P2) still BLOCKED on Sage/Sicon credentials.
+NOTE: Dealer receipt is Pulse-operable today; wiring it into the authenticated Dealer PORTAL UI is a P4→P6 follow-up
+(the receive ENGINE + dealer_inventory_holdings are real and reusable). Documents are structured records (not PDFs
+yet) — full PDF via the central document engine is a later refinement.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 2 · SAGE 200 ORDER SYNC (VERIFIED 100%) ═══
 Continued the distribution build with Phase 2 (Sage order sync). Live Sage is BLOCKED on creds, so the full
 idempotent import ENGINE runs today via a "Simulate Sage feed" path that exercises the EXACT same pipeline;
