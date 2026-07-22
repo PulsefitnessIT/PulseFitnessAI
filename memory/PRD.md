@@ -1,3 +1,43 @@
+# ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 7 · INTELLIGENCE (VERIFIED 100%) ═══
+routes/inventory_intelligence.py, prefix /api/inventory/intel. Non-autonomous monitoring: agents ANALYSE the
+shared distribution/asset data (existing inv_* + equipment + crm2_companies + issues + sage_* collections) and
+raise alerts that ALWAYS require human review — no order/stock/financial change is ever made automatically.
+7 read-only agents in _run_agents(): Serial & Asset Integrity (duplicate serials), Order Exception (orders stuck
+>3d in early states), Inventory Risk (quarantined units, low available stock <= reorder point, dealer-held stale),
+Dealer Allocation (installs overdue >7d, dealer stock unallocated >30d), Sage Integration Health (needs_mapping /
+open errors), Document Compliance (delivered shipments missing paperwork), Replenishment.
+Endpoints: GET /overview (severity counts + last scan), POST /scan (sweep → replaces prior 'new' alerts, keeps
+triaged ones; returns agents_run:7), GET /alerts?severity&status (+counts), POST /alerts/{id}/status
+(new|assigned|under_review|resolved|dismissed; invalid→400), GET /reports/{report} (serial_register, stock_ledger,
+order_progress, dealer_stock_ageing), GET /replenishment?reorder_point (advisory recs — NO auto Sage PO).
+Collection: inv_monitoring_alerts. LOW_STOCK_REORDER_POINT=2 aligned with replenishment default.
+Frontend: InvIntelligence.js — IntelDashboard (severity stat cards, Run scan, monitoring status, 7-agent list),
+IntelAlerts (filterable cards w/ evidence + suggested action + triage Assign/Under review/Resolve/Dismiss),
+IntelReports (4 report tabs), IntelReplenishment (reorder-point input + advisory note). Wired into
+InventoryDistribution.js as a new 'Intelligence' left-nav group (sections intel-dashboard/-alerts/-reports/
+-replenishment, all live). api.js has intel* methods.
+VERIFIED testing_agent backend 13/13 pytest + frontend 100%, 0 issues
+(iteration_inventory_intelligence_phase7_jan2026.json; pytest suite tests/test_inventory_intelligence_phase7.py).
+FIXED during test: dealer_stock_ageing report used `async for … .to_list()` (motor TypeError) → iterate cursor
+directly. QA seed data cleaned up.
+
+ALSO THIS SESSION — 2 P3 UX bug fixes (verified by testing_agent):
+  • /login cookie banner overlapped the Sign In CTA → LoginPage.js <main> padding pt-10 pb-40 sm:pb-44 clears the
+    fixed bottom banner.
+  • /memberships/members deep link 404'd → added route /memberships/:tab (AppRoutes.js) + MembershipsConsole reads
+    the tab from useParams()/useSearchParams (MBR_TAB_IDS whitelist). /memberships defaults to dashboard,
+    /memberships/setup still renders the wizard.
+
+STATUS: P1–P7 SHIPPED & VERIFIED — the full Global Dealer Distribution / Inventory & Asset Deployment lifecycle is
+complete. REMAINING (all BLOCKED on external creds or deferred): Sage 200 live sync wiring (Sage/Sicon creds),
+Sicon customer/equipment auto-import + write-back, Stripe module checkout (Stripe key). Deferred non-blockers:
+SEO audit subagent timeout, StaffOnboarding.js refactor, weekly System Health digest email, beta ribbons on
+Sicon/Orbit4/direct-debit tiles, interactive exploded-drawing hotspots, CSV cost backfill wizard.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 6 · DEALER SERVICE DESKS (VERIFIED 100%) ═══
 routes/inventory_dealer_service.py, prefix /api/inventory/svc. Pulse creates a SCOPED service-desk workspace over
 the existing platform (no duplicate dealer/customer/asset/engineer/service-desk records). Faults after allocation

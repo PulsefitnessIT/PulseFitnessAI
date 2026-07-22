@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 SEVERITIES = ["information", "monitor", "warning", "critical"]
 ALERT_STATES = ["new", "assigned", "under_review", "resolved", "dismissed"]
+LOW_STOCK_REORDER_POINT = 2  # aligned with the replenishment default reorder point
 
 
 def _age_days(iso: Optional[str]) -> float:
@@ -72,7 +73,7 @@ async def _run_agents(user) -> list:
                                {"count": quarantined}, "Inspect and release or dispose of quarantined units.", {}))
     async for h in db.inv_stock_holdings.find(of, {"_id": 0, "product_code": 1, "qty_on_hand": 1, "qty_reserved": 1, "warehouse_id": 1}):
         avail = (h.get("qty_on_hand", 0) - h.get("qty_reserved", 0))
-        if avail <= 1:
+        if avail <= LOW_STOCK_REORDER_POINT:
             findings.append(_alert("Inventory Risk", "monitor", f"Low available stock: {h['product_code']}",
                                    {"available": avail}, "Consider replenishment.", {"product": h["product_code"]}))
 
