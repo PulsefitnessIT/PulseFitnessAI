@@ -79,6 +79,8 @@
     "test": "craco test",
     "lint:overlays": "node scripts/check-overlay-clicks.js",
     "lint:modals": "node scripts/check-modal-footers.js",
+    "check:cache": "node scripts/check-cache-size.js",
+    "predeploy": "yarn lint:overlays && yarn lint:modals && yarn check:cache",
     "test:mobile-regression": "playwright test --config=playwright.config.js"
   },
   "browserslist": {

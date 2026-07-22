@@ -68,6 +68,11 @@ Added `GENERATE_SOURCEMAP=false` to frontend/.env (faster preview builds; ESLint
 User UPGRADED Emergent resources to 16 cores / 64GB RAM → frontend now cold-builds & serves in ~15s. All
 services healthy (frontend/backend 200), `/app` at 48%.
 
+Pre-deploy guard (2026-07-22): added `frontend/scripts/check-cache-size.js` (auto-prunes the webpack cache
+if it exceeds 3 GB, protecting the /app volume) and a single `yarn predeploy` script that chains
+`lint:overlays && lint:modals && check:cache`. Verified: all three pass (cache 1105 MB). Recommend wiring
+`yarn predeploy` into CI / the redeploy step so modal-cut-off regressions and disk-bloat are caught automatically.
+
 ────────────────────────────────────────────────────────────────────────
 
 
