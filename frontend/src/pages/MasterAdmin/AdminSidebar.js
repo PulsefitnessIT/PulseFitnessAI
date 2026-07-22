@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { X, Wrench, LogOut, HeadphonesIcon, Layers, HardHat, Loader2, Search, Building2, ChevronDown } from 'lucide-react';
+import { X, Wrench, LogOut, HeadphonesIcon, Layers, HardHat, Loader2, Search, Building2, ChevronDown, Boxes } from 'lucide-react';
 import { SIDEBAR_ITEMS, SECTION_TO_GROUP } from './SidebarConfig';
 
 /**
@@ -230,6 +230,14 @@ const AdminSidebar = ({
  data-testid="portal-switch-service-desk"
  >
  <HeadphonesIcon size={16} className="text-orange-500" /> Service Desk
+ </button>
+ {/* Inventory & Distribution — its own module (Sage order → warehouse → dealer → customer → service) */}
+ <button
+ onClick={() => { window.location.href = '/inventory'; }}
+ className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ data-testid="portal-switch-inventory"
+ >
+ <Boxes size={16} className="text-emerald-500" /> Inventory &amp; Distribution
  </button>
  {/* Iter 216h256 — Engineer App switch lets Master Admin demo the
      mobile-first engineer surface to prospective field engineers

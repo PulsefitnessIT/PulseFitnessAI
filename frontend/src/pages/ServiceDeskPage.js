@@ -355,9 +355,9 @@ export default function ServiceDeskPage() {
             </button>
           ))}
 
-          {/* Inventory & Distribution — dedicated Global Dealer Distribution area */}
+          {/* Inventory & Distribution — now its own top-level module */}
           <button
-            onClick={() => { navigate('/service-desk/inventory'); setSidebarOpen(false); }}
+            onClick={() => { navigate('/inventory'); setSidebarOpen(false); }}
             data-testid="desk-tab-inventory-distribution"
             className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
           >

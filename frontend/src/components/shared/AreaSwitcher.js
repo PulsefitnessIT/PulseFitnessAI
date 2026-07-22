@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check } from 'lucide-react';
+import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes } from 'lucide-react';
 
 /**
  * Iter 283 — "Switch area" button.
@@ -34,6 +34,10 @@ function accessibleAreas(user) {
   const canServiceDesk = isMaster || user.is_service_desk === true || user.role === 'service_desk';
   if (canServiceDesk) areas.push({ id: 'service-desk', label: 'Service Desk', path: '/service-desk', icon: Headphones });
 
+  // Inventory & Distribution is its own module, reachable by the same users who
+  // can access the Service Desk (Pulse-internal dealer distribution ops).
+  if (canServiceDesk) areas.push({ id: 'inventory', label: 'Inventory & Distribution', path: '/inventory', icon: Boxes });
+
   const canEngineer = isMaster || user.role === 'engineer' || user.is_engineer === true || !!user.engineer_id;
   if (canEngineer) areas.push({ id: 'engineer', label: 'Engineer app', path: '/svc/engineer', icon: HardHat });
 
@@ -42,6 +46,7 @@ function accessibleAreas(user) {
 
 function currentAreaId(pathname) {
   const p = pathname || '';
+  if (p.startsWith('/inventory') || p.startsWith('/service-desk/inventory')) return 'inventory';
   if (p.startsWith('/service-desk')) return 'service-desk';
   if (p.startsWith('/svc/engineer') || p.startsWith('/engineer')) return 'engineer';
   return 'main';

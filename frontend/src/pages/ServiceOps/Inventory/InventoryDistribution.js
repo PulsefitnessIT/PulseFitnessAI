@@ -4,9 +4,14 @@ import {
   LayoutDashboard, Boxes, Warehouse, ClipboardList, PackageSearch, PlugZap,
   Settings as SettingsIcon, ArrowLeft, Plus, ScanLine, Truck, MapPin, ShieldCheck,
   FileText, Globe, ChevronRight, ArrowRightLeft, Headphones,
-  Radar, ShieldAlert, FileBarChart, PackagePlus,
+  Radar, ShieldAlert, FileBarChart, PackagePlus, Menu, X, LogOut,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useAuth } from '@/App';
+import { can, isPulseAdmin } from '@/utils/capabilities';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import AreaSwitcher from '@/components/shared/AreaSwitcher';
 import { invApi, statusLabel } from './api';
 import { Card, StatCard, Spinner, Btn, Field, inputCls } from './ui';
 import InvOrders from './InvOrders';
@@ -355,14 +360,16 @@ function ComingSoon({ label }) {
 // ─────────────────────────── Shell ───────────────────────────
 export default function InventoryDistribution() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [sp, setSp] = useSearchParams();
   const section = sp.get('s') || 'dashboard';
   const orderId = sp.get('order') || null;
   const [warehouses, setWarehouses] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { invApi.warehouses().then((d) => setWarehouses(d.warehouses || [])).catch(() => {}); }, [section]);
 
-  const go = (id) => setSp(id === 'dashboard' ? {} : { s: id });
+  const go = (id) => { setSp(id === 'dashboard' ? {} : { s: id }); setSidebarOpen(false); };
 
   const findItem = () => { for (const g of NAV) { const it = g.items.find((x) => x.id === section); if (it) return it; } return null; };
   const item = findItem();
@@ -399,50 +406,119 @@ export default function InventoryDistribution() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50" data-testid="inventory-distribution-page">
-      <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6">
-        {/* Sidebar */}
-        <aside className="hidden w-60 shrink-0 lg:block">
-          <button onClick={() => navigate('/service-desk')} className="mb-4 flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700" data-testid="inv-back-to-desk"><ArrowLeft size={15} /> Service Desk</button>
-          <div className="mb-4">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B3D91]">Inventory &</p>
-            <p className="text-lg font-bold text-slate-900 -mt-0.5">Distribution</p>
-          </div>
-          <nav className="space-y-4" data-testid="inv-nav">
-            {NAV.map((g) => (
-              <div key={g.group}>
-                <p className="mb-1 px-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{g.group}</p>
-                {g.items.map((it) => {
-                  const active = it.id === section;
-                  return (
-                    <button
-                      key={it.id}
-                      onClick={() => go(it.id)}
-                      data-testid={`inv-nav-${it.id}`}
-                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${active ? 'bg-[#0B3D91] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'}`}
-                    >
-                      <it.Icon size={15} className={active ? 'text-white' : 'text-slate-400'} />
-                      <span className="truncate">{it.label}</span>
-                      {!it.live && <span className={`ml-auto rounded px-1 text-[9px] font-bold ${active ? 'bg-white/20' : 'bg-slate-200 text-slate-500'}`}>SOON</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-        </aside>
+    <div className="min-h-screen bg-[var(--gx-bg)] flex theme-gymaxis" data-testid="inventory-distribution-page" data-theme="light">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          data-testid="inv-sidebar-backdrop"
+        />
+      )}
 
-        {/* Mobile nav */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-20 border-b border-slate-200 bg-white px-3 py-2 overflow-x-auto">
-          <div className="flex gap-2">
-            {NAV.flatMap((g) => g.items).map((it) => (
-              <button key={it.id} onClick={() => go(it.id)} className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${it.id === section ? 'bg-[#0B3D91] text-white' : 'bg-slate-100 text-slate-600'}`}>{it.label}</button>
-            ))}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-60 bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      >
+        {/* Logo header */}
+        <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center overflow-hidden gx-grad-ring shadow-sm">
+              <img src="/brand/pulse-mark.svg" alt="Pulse Fitness" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-slate-900 tracking-tight">Inventory &amp; Distribution</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">Dealer distribution</div>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden text-slate-400 hover:text-slate-700"
+            aria-label="Close sidebar"
+            data-testid="inv-sidebar-close"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <main className="min-w-0 flex-1 pt-14 lg:pt-0" data-testid="inv-main">{render()}</main>
-      </div>
+        {/* Nav groups */}
+        <nav className="flex-1 p-3 overflow-y-auto" data-testid="inv-nav">
+          {NAV.map((g) => (
+            <div key={g.group}>
+              <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold first:pt-1">{g.group}</p>
+              {g.items.map((it) => {
+                const active = it.id === section;
+                return (
+                  <button
+                    key={it.id}
+                    onClick={() => go(it.id)}
+                    data-testid={`inv-nav-${it.id}`}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                      active
+                        ? 'bg-gradient-to-r from-[var(--gx-brand-from)]/10 to-[var(--gx-brand-to)]/10 text-[var(--gx-brand-from)] font-semibold ring-1 ring-[var(--gx-brand-from)]/15'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <it.Icon className="w-4 h-4" />
+                    <span className="flex-1 truncate">{it.label}</span>
+                    {!it.live && <span className="ml-auto rounded px-1 text-[9px] font-bold bg-slate-200 text-slate-500">SOON</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        {/* User footer */}
+        <div className="border-t border-slate-100 p-3 space-y-2">
+          <div className="text-xs text-slate-500 px-1">
+            <div className="font-medium text-slate-700 truncate">{user?.full_name || user?.email}</div>
+            <div className="truncate">{user?.email}</div>
+            {user?.is_master_admin && <Badge variant="outline" className="mt-1 text-[9px] border-slate-200">Master Admin</Badge>}
+            {!user?.is_master_admin && isPulseAdmin(user) && <Badge variant="outline" className="mt-1 text-[9px] border-slate-200">Pulse Master Admin</Badge>}
+          </div>
+          {/* Module selector — hop between Service Desk / Inventory / Main app */}
+          <AreaSwitcher user={user} tone="sidebar" className="mb-1" />
+          {(user?.is_master_admin || isPulseAdmin(user)) && (
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => navigate('/master-admin')}
+              className="w-full justify-start text-slate-600 hover:text-slate-900"
+              data-testid="inv-back-to-master-admin"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Master Admin
+            </Button>
+          )}
+          <Button
+            variant="ghost" size="sm"
+            onClick={() => { logout(); navigate('/login'); }}
+            className="w-full justify-start text-slate-600 hover:text-slate-900"
+            data-testid="inv-logout"
+          >
+            <LogOut className="w-4 h-4 mr-2" /> Log out
+          </Button>
+        </div>
+      </aside>
+
+      <main className="flex-1 md:ml-60 p-4 sm:p-6 md:p-8 max-w-[1400px] w-full" data-testid="inv-main">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center justify-between mb-4 sticky top-0 z-20 bg-[var(--gx-bg)] py-2">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            aria-label="Open navigation"
+            data-testid="inv-sidebar-open"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="text-sm font-bold text-slate-900 truncate">{item?.label || 'Inventory'}</div>
+          <div className="w-9" aria-hidden />
+        </div>
+        {render()}
+      </main>
     </div>
   );
 }
