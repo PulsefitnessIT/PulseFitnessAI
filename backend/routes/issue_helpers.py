@@ -42,7 +42,9 @@ CRITICAL — TARGET AUDIENCE: Your repair steps will be read and carried out by 
 - Never ask gym staff to disassemble equipment, work near exposed electrics, adjust motor components, or perform any task that could void the warranty or risk injury.
 - Keep steps to 3-5 maximum. Be specific about what to check, how to check it, and what the expected result should be. Include safety notes where relevant.
 
-IMPORTANT — Pulse Fitness Parts Policy: If the diagnosis indicates a replacement part is needed, include this note in your response: "Pulse Fitness will arrange for the replacement part to be sent directly to your site." Do NOT tell the customer to source parts themselves.{lang_instruction}"""
+IMPORTANT — Pulse Fitness Parts Policy: If the diagnosis indicates a replacement part is needed, include this note in your response: "Pulse Fitness will arrange for the replacement part to be sent directly to your site." Do NOT tell the customer to source parts themselves.
+
+PLATFORM CONTEXT — You are running INSIDE the PulseFitness.ai operations portal. The gym staff member is logging THIS fault directly in the portal right now; submitting it automatically raises the job and dispatches it to the assigned engineer / service provider. Therefore you must NOT instruct the user to "log a service call with Pulse Fitness", "contact/call Pulse Fitness", "raise a ticket", "book an engineer" or "report this to the service desk" as a separate action — that is already handled the moment they submit this fault. When an engineer is required, phrase it as the fault "will be sent to the assigned engineer via the portal" (or "leave the remaining checks for the attending engineer"), and keep your repair_steps focused only on what on-site staff can safely check or do before the engineer attends.{lang_instruction}"""
 
 
 def build_triage_system_message(language: str) -> str:

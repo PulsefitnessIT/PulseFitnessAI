@@ -1077,6 +1077,19 @@ async def get_issues(user: dict = Depends(get_current_user), site_id: str = None
     # Iter 216h120 — MOD HQ rebind. See utils.mod_scope.
     from utils.mod_scope import resolve_mod_query_filter
     org_filter = await resolve_mod_query_filter(user, site_id)
+    # Site-less heal — mirror the equipment endpoint: when a specific site is
+    # requested, also surface issues that carry no site_id (legacy rows, or a
+    # fault just logged against site-less equipment). Without this a
+    # newly-logged fault could silently vanish from the per-site Faults view
+    # ("I logged a fault but it shows no faults"). Only triggers for the
+    # non-MOD per-site path where the resolved filter is an exact site match.
+    if site_id and not user.get("_mod_scope_ids") and org_filter.get("site_id") == site_id:
+        org_filter.pop("site_id")
+        org_filter["$or"] = [
+            {"site_id": site_id},
+            {"site_id": {"$exists": False}},
+            {"site_id": None},
+        ]
     issues = await db.issues.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(1000)
 
     await _batch_enrich_supplier_cases(issues)

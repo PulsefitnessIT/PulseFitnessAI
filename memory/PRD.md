@@ -1,3 +1,32 @@
+# ═══ 2026-06 (this session) · BUGFIX · "Logged fault not showing" + AI triage portal-awareness ═══
+Two production-reported issues (pulsefitness.ai; impersonating somerslee@hotmail.com, Pulse Fitness Pro,
+Penkridge Leisure Centre HO). Fixed in PREVIEW code — REQUIRES REDEPLOY to reach production.
+
+1) FAULT LOGGED BUT NOT SHOWING in the Faults screen (shows "No faults logged"). ROOT CAUSE: asymmetry
+   between the equipment and issues per-site queries. `GET /equipment?site_id=X` HEALS the view with an
+   `$or` that also returns site-less rows (routes/equipment.py:183-188), but `GET /issues?site_id=X`
+   (routes/issues.py:1075) did an EXACT `{"site_id": X}` match via build_site_filter — no heal. A fault
+   logged against site-less equipment is stamped site-less (create_issue only inherits the equipment's
+   site_id, and falls back to the reporter site which is null for a privileged/owner user with no
+   allowed_site_ids), so the exact per-site filter dropped the just-logged fault. FIX: mirrored the
+   equipment `$or` heal in `GET /issues` — when a specific site is requested (non-MOD path), also surface
+   `{site_id:{$exists:false}}` / `{site_id:null}` rows. VERIFIED via preview API: a site-less issue now
+   appears in `?site_id=iso-demo-site-a` (contains new? True; previously excluded).
+
+2) AI TRIAGE told staff to "Log a service call with Pulse Fitness" — the triage LLM didn't know it runs
+   INSIDE the PulseFitness.ai portal where submitting the fault already dispatches the engineer. FIX: added
+   a "PLATFORM CONTEXT" block to `_TRIAGE_SYSTEM_TEMPLATE` (routes/issue_helpers.py) instructing the model
+   not to tell users to log a call / contact Pulse / raise a ticket / book an engineer as a separate action,
+   and to phrase engineer hand-off as "this fault will be sent to the assigned engineer via the portal".
+   VERIFIED via a live triage call (treadmill belt tear): step 4 now reads "…will be sent to the assigned
+   engineer via the portal", no forbidden external-call phrases.
+
+Both backend-only; self-tested via curl (small targeted fix, no testing_agent needed).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 (this session) · LAUNCH-READINESS: SECURITY AUDIT + MONEY-PATH QA ═══
 Founder requested a go/no-go safety check before full commercial launch. User choices: (1) Security audit
 FIRST then QA; (2) FULL application security surface; (3) beta/stubbed modules = REPORT ONLY (no code changes);
