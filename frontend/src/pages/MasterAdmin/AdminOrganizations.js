@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
  Building2, Search, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive, Edit2, Mail,
- CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen, Crown, MinusCircle,
+ CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, MoreHorizontal, Undo2, KeyRound, LockOpen, Crown, MinusCircle, Headphones, Boxes,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -43,6 +43,8 @@ const MODULE_OPTIONS = [
   { id: 'crm',         label: 'CRM',         icon: Users,     color: '#6366F1' },
   { id: 'memberships', label: 'Memberships', icon: Calendar,  color: '#8B5CF6' },
   { id: 'marketing',   label: 'Marketing',   icon: Megaphone, color: '#D946EF' },
+  { id: 'service_desk', label: 'Service Desk', icon: Headphones, color: '#F59E0B' },
+  { id: 'inventory',   label: 'Inventory & Distribution', icon: Boxes, color: '#10B981' },
 ];
 
 const modulesFromPortalType = (pt) => {
@@ -431,6 +433,8 @@ const AdminOrganizations = ({
  const [savingUser, setSavingUser] = useState(false);
  // Iter 280 — inline Service Desk grant/revoke toggle in the Edit-User drawer.
  const [deskBusy, setDeskBusy] = useState(false);
+ // Inventory & Distribution grant/revoke toggle (its own additive capability).
+ const [invBusy, setInvBusy] = useState(false);
  // Iter 215bi — temp password from in-dialog reset, surfaced inline.
  const [lastResetTempPw, setLastResetTempPw] = useState(null);
  const [lastInviteUrl, setLastInviteUrl] = useState(null);
@@ -2137,9 +2141,49 @@ useEffect(() => {
       )}
     </div>
   );
+  const hasInv = !!(editingUser.is_inventory || editingUser.is_service_desk || editingUser.role === 'service_desk');
+  const toggleInv = async () => {
+    if (!editingUser.email) return;
+    setInvBusy(true);
+    const grant = !editingUser.is_inventory;
+    try {
+      const tk = localStorage.getItem('token');
+      const path = grant ? 'grant' : 'revoke';
+      await axios.post(`${API}/master-admin/inventory-access/${path}`, { email: editingUser.email }, { headers: { Authorization: `Bearer ${tk}` } });
+      setEditingUser({ ...editingUser, is_inventory: grant });
+      notify.success(grant ? `Granted Inventory & Distribution to ${editingUser.email}` : `Revoked Inventory & Distribution from ${editingUser.email}`);
+    } catch (err) {
+      notifyApiError(notify, err, grant ? 'Grant failed' : 'Revoke failed');
+    } finally {
+      setInvBusy(false);
+    }
+  };
+  const InventoryRow = () => (
+    <div className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md" data-testid="edit-user-info-row-inventory">
+      <div className="min-w-0">
+        <p className="text-[12px] font-medium text-zinc-800">Inventory &amp; Distribution</p>
+        <p className="text-[10px] text-zinc-400 truncate">{editingUser.is_inventory ? 'Inventory module (/inventory)' : (hasInv ? 'Included via Service Desk' : 'Inventory module (/inventory)')}</p>
+      </div>
+      {privileged ? (
+        <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+      ) : (
+        <button
+          type="button"
+          onClick={toggleInv}
+          disabled={invBusy}
+          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors disabled:opacity-50 shrink-0 ${editingUser.is_inventory ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}`}
+          data-testid="edit-user-inventory-toggle"
+        >
+          {invBusy ? <Loader2 size={11} className="animate-spin" /> : (editingUser.is_inventory ? <MinusCircle size={11} /> : <CheckCircle2 size={11} />)}
+          {invBusy ? 'Saving…' : (editingUser.is_inventory ? 'Revoke' : 'Grant')}
+        </button>
+      )}
+    </div>
+  );
   const infoRows = (
     <div className="pt-1.5 mt-1 border-t border-zinc-200 space-y-0.5">
       <ServiceDeskRow />
+      <InventoryRow />
       <InfoRow label="Engineer app" desc="Field engineer app (/engineer)"
         on={hasEngineer} managedNote="Set via the Role dropdown above" />
     </div>

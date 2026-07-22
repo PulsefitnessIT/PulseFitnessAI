@@ -291,6 +291,17 @@ async def get_current_user(
     user["_jwt_jti"] = payload.get("jti")
     user["_jwt_exp"] = payload.get("exp")
     user["_jwt_iat"] = payload.get("iat")
+    # Impersonation grants (session-only): a master-admin org-portal switch into
+    # the Service Desk / Inventory areas carries additive capability grants in the
+    # JWT so the impersonated owner can render those shells without any DB change.
+    _imp_grants = payload.get("imp_grants") or []
+    if _imp_grants:
+        if "service_desk" in _imp_grants:
+            user["is_service_desk"] = True
+        if "inventory" in _imp_grants:
+            user["is_inventory"] = True
+        if not user.get("service_org_id"):
+            user["service_org_id"] = user.get("organization_id")
     # Iter 220au · F-17 — surface the MFA-verified claim so
     # ``require_mfa_verified`` / ``enforce_master_admin_mfa`` can
     # short-circuit without re-reading the JWT.

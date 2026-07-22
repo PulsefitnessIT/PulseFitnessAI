@@ -34,9 +34,10 @@ function accessibleAreas(user) {
   const canServiceDesk = isMaster || user.is_service_desk === true || user.role === 'service_desk';
   if (canServiceDesk) areas.push({ id: 'service-desk', label: 'Service Desk', path: '/service-desk', icon: Headphones });
 
-  // Inventory & Distribution is its own module, reachable by the same users who
-  // can access the Service Desk (Pulse-internal dealer distribution ops).
-  if (canServiceDesk) areas.push({ id: 'inventory', label: 'Inventory & Distribution', path: '/inventory', icon: Boxes });
+  // Inventory & Distribution — its own module; reachable by users with the
+  // inventory right OR Service Desk access (so existing operators keep it).
+  const canInventory = isMaster || user.is_inventory === true || canServiceDesk;
+  if (canInventory) areas.push({ id: 'inventory', label: 'Inventory & Distribution', path: '/inventory', icon: Boxes });
 
   const canEngineer = isMaster || user.role === 'engineer' || user.is_engineer === true || !!user.engineer_id;
   if (canEngineer) areas.push({ id: 'engineer', label: 'Engineer app', path: '/svc/engineer', icon: HardHat });

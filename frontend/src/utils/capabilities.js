@@ -38,6 +38,10 @@ const RULES = {
   // admins and Pulse master admins (Pulse runs the service operation).
   view_service_desk: (user) =>
     !!(user?.is_service_desk || user?.is_master_admin) || isPulseAdmin(user),
+  // Inventory & Distribution module (/inventory): its own additive capability,
+  // but Service Desk agents keep access so nobody working today is locked out.
+  view_inventory: (user) =>
+    !!(user?.is_inventory || user?.is_service_desk || user?.is_master_admin) || isPulseAdmin(user),
 };
 
 /**
@@ -68,4 +72,5 @@ export const CAPABILITY_LABELS = {
   view_capex: 'View CAPEX planner',
   manage_fault_templates: 'Manage fault templates',
   view_service_desk: 'Open the Service Desk hub',
+  view_inventory: 'Open the Inventory & Distribution module',
 };

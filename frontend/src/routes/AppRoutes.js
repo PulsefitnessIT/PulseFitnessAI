@@ -514,7 +514,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-desk/upgrade" element={user ? <ServiceProviderUpgrade /> : <Navigate to="/login?next=/service-desk/upgrade" replace />} />
       {/* Inventory & Distribution — Global Dealer Distribution (Phase 1) */}
       <Route path="/service-desk/inventory" element={<Navigate to="/inventory" replace />} />
-      <Route path="/inventory" element={can(user, 'view_service_desk') ? <div className="pulse-font" style={{ display: 'contents' }}><InventoryDistribution /></div> : <Navigate to="/login?next=/inventory" replace />} />
+      <Route path="/inventory" element={can(user, 'view_inventory') ? <div className="pulse-font" style={{ display: 'contents' }}><InventoryDistribution /></div> : <Navigate to="/login?next=/inventory" replace />} />
       {/* Legacy /service-ops/* URLs redirect to the unified hub. Deep links still work — the merged shell defaults to Dashboard. */}
       <Route path="/service-ops" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/scheduler" element={<Navigate to="/service-desk" replace />} />

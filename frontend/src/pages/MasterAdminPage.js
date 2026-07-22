@@ -222,12 +222,13 @@ const MasterAdminPage = ({ _onBack }) => {
   // (Lee Somers), which the master admin should not have to do just to view
   // the portal. `?as=operator` renders the operator surface for the admin.
   const handlePulseSwitch = () => { window.location.href = '/dashboard?as=operator'; };
-  const handleOrgSwitch = async (orgId) => {
-    const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true });
+  const handleOrgSwitch = async (orgId, area = 'operator') => {
+    const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true, params: { area } });
     const impToken = res.data?.token;
     if (!impToken) throw new Error('no token');
     localStorage.setItem('impersonation_return', '/master-admin');
-    window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
+    const dest = area === 'service_desk' ? '/service-desk' : area === 'inventory' ? '/inventory' : '/dashboard';
+    window.location.href = dest + '?impersonation_token=' + encodeURIComponent(impToken);
   };
   // Iter 292 — "Global Dashboard" shows the cross-gym collective view
   // (the master-admin DashboardPage). Plain /dashboard renders Global for

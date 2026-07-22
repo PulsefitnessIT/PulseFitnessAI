@@ -1361,7 +1361,7 @@ async def impersonate_user(user_id: str, request: Request, user: dict = Depends(
     return {"token": token, "user": target}
 
 
-async def _issue_org_portal_token(org: dict, actor: dict, request: Request) -> str:
+async def _issue_org_portal_token(org: dict, actor: dict, request: Request, grants: list | None = None) -> str:
     """Provision (idempotently) an impersonation-only owner in `org` and mint a
     short-lived, audited impersonation JWT for it. Shared by the dedicated
     Pulse Fitness button and the generic any-org portal switch."""
@@ -1397,6 +1397,7 @@ async def _issue_org_portal_token(org: dict, actor: dict, request: Request) -> s
         "organization_id": org_id,
         "role": target.get("role", "owner"),
         "impersonated_by": actor["email"],
+        "imp_grants": grants or [],
         "jti": jti,
         "exp": exp,
     }, _JWT_SECRET, algorithm=_JWT_ALGO)
@@ -1479,12 +1480,62 @@ async def pulse_portal_login(request: Request, user: dict = Depends(get_current_
 
 
 @router.post("/master-admin/org-portal-login/{org_id}")
-async def org_portal_login(org_id: str, request: Request, user: dict = Depends(get_current_user)):
+async def org_portal_login(org_id: str, request: Request, area: str = "operator", user: dict = Depends(get_current_user)):
     """Log a Pulse master admin into ANY organisation's operator portal as its
-    owner (one-click client portal switch from the admin console)."""
+    owner (one-click client portal switch from the admin console).
+
+    `area` picks which shell to grant for the impersonated session:
+      operator (default) → main app; service_desk → Service Desk hub;
+      inventory → Inventory & Distribution (also grants service_desk so the
+      shared desk/asset data resolves). Grants are session-only JWT claims."""
     require_master_admin(user)
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     if not org:
         raise HTTPException(status_code=404, detail="Organisation not found")
-    token = await _issue_org_portal_token(org, user, request)
-    return {"token": token, "organization_id": org["id"], "organization_name": org.get("name")}
+    grants = None
+    if area == "service_desk":
+        grants = ["service_desk"]
+    elif area == "inventory":
+        grants = ["service_desk", "inventory"]
+    token = await _issue_org_portal_token(org, user, request, grants=grants)
+    return {"token": token, "organization_id": org["id"], "organization_name": org.get("name"), "area": area}
+
+
+@router.post("/master-admin/inventory-access/grant")
+async def grant_inventory_access(body: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Grant the additive Inventory & Distribution right to an existing user."""
+    require_master_admin(user)
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    target = await db.users.find_one({"email": email}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail=f"User {email} not found")
+    now = datetime.now(timezone.utc).isoformat()
+    set_fields = {
+        "is_inventory": True,
+        "inventory_granted_at": now,
+        "inventory_granted_by_email": user["email"],
+    }
+    if not target.get("organization_id") and not target.get("service_org_id"):
+        svc_org = user.get("organization_id") or user.get("service_org_id")
+        if svc_org:
+            set_fields["service_org_id"] = svc_org
+    await db.users.update_one({"id": target["id"]}, {"$set": set_fields})
+    await log_activity("inventory_access_grant", f"Granted Inventory & Distribution to {email}", user["email"], "user", target["id"])
+    return {"success": True, "email": email}
+
+
+@router.post("/master-admin/inventory-access/revoke")
+async def revoke_inventory_access(body: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Revoke the Inventory & Distribution right from a user."""
+    require_master_admin(user)
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    target = await db.users.find_one({"email": email}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail=f"User {email} not found")
+    await db.users.update_one({"id": target["id"]}, {"$set": {"is_inventory": False}})
+    await log_activity("inventory_access_revoke", f"Revoked Inventory & Distribution from {email}", user["email"], "user", target["id"])
+    return {"success": True, "email": email}

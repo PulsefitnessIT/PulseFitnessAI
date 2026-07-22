@@ -27,8 +27,10 @@ const AdminSidebar = ({
  const [openCases, setOpenCases] = useState(0);
  // Org portal picker — switch into any client org's portal as its owner.
  const [orgPickerOpen, setOrgPickerOpen] = useState(false);
+ const [orgPickerArea, setOrgPickerArea] = useState('operator');
  const [orgQuery, setOrgQuery] = useState('');
  const [orgBusyId, setOrgBusyId] = useState('');
+ const openOrgPicker = (area) => { setOrgPickerArea(area); setOrgQuery(''); setOrgPickerOpen(true); };
  // Iter 220dh — Pending Review queue total (partner applications + PTW + parts).
  const [pendingReview, setPendingReview] = useState(0);
  // Iter 227 — "View as engineer" picker (Pulse Master Admin training/support).
@@ -213,7 +215,7 @@ const AdminSidebar = ({
  </button>
  {onOrgSwitch && (
  <button
- onClick={() => setOrgPickerOpen(true)}
+ onClick={() => openOrgPicker('operator')}
  title="Switch into any client portal"
  className="px-2 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
  data-testid="portal-switch-org-picker-btn"
@@ -224,21 +226,45 @@ const AdminSidebar = ({
  </div>
  {/* Iter 244 — Service Desk is the Sicon case hub for Pulse Fitness;
      visible to Pulse Master Admins as well as Pulse Fitness Master Admin. */}
+ <div className="flex items-center gap-1">
  <button
  onClick={() => { window.location.href = '/service-desk'; }}
- className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
  data-testid="portal-switch-service-desk"
  >
  <HeadphonesIcon size={16} className="text-orange-500" /> Service Desk
  </button>
+ {onOrgSwitch && (
+ <button
+ onClick={() => openOrgPicker('service_desk')}
+ title="Open a client's Service Desk"
+ className="px-2 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ data-testid="portal-switch-service-desk-org-picker-btn"
+ >
+ <ChevronDown size={16} />
+ </button>
+ )}
+ </div>
  {/* Inventory & Distribution — its own module (Sage order → warehouse → dealer → customer → service) */}
+ <div className="flex items-center gap-1">
  <button
  onClick={() => { window.location.href = '/inventory'; }}
- className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
  data-testid="portal-switch-inventory"
  >
  <Boxes size={16} className="text-emerald-500" /> Inventory &amp; Distribution
  </button>
+ {onOrgSwitch && (
+ <button
+ onClick={() => openOrgPicker('inventory')}
+ title="Open a client's Inventory & Distribution"
+ className="px-2 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ data-testid="portal-switch-inventory-org-picker-btn"
+ >
+ <ChevronDown size={16} />
+ </button>
+ )}
+ </div>
  {/* Iter 216h256 — Engineer App switch lets Master Admin demo the
      mobile-first engineer surface to prospective field engineers
      without logging in as an engineer. */}
@@ -353,8 +379,8 @@ const AdminSidebar = ({
  <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
  <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-3">
  <div>
- <p className="font-bold text-slate-900 text-sm flex items-center gap-2"><Building2 size={16} className="text-blue-500" /> Switch into a client portal</p>
- <p className="text-[11px] text-slate-500 mt-1">Open any organisation's operator portal as its admin. A secure, time-limited impersonation session — every action is logged.</p>
+ <p className="font-bold text-slate-900 text-sm flex items-center gap-2"><Building2 size={16} className="text-blue-500" /> {orgPickerArea === 'service_desk' ? "Open a client's Service Desk" : orgPickerArea === 'inventory' ? "Open a client's Inventory" : 'Switch into a client portal'}</p>
+ <p className="text-[11px] text-slate-500 mt-1">Open any organisation's {orgPickerArea === 'service_desk' ? 'Service Desk' : orgPickerArea === 'inventory' ? 'Inventory & Distribution' : 'operator'} portal as its admin. A secure, time-limited impersonation session — every action is logged.</p>
  </div>
  <button onClick={() => setOrgPickerOpen(false)} className="p-1 text-slate-400 hover:text-slate-700" data-testid="org-portal-close"><X size={18} /></button>
  </div>
@@ -387,7 +413,7 @@ const AdminSidebar = ({
  onClick={async () => {
  if (orgBusyId) return;
  setOrgBusyId(o.id);
- try { await onOrgSwitch(o.id); }
+ try { await onOrgSwitch(o.id, orgPickerArea); }
  catch (e) { toast.error(e?.response?.data?.detail || 'Could not open that portal'); setOrgBusyId(''); }
  }}
  disabled={!!orgBusyId}

@@ -300,6 +300,7 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
             or bool((org or {}).get("is_operator_company"))
         ),
         "is_service_desk": user.get('is_service_desk', False),
+        "is_inventory": user.get('is_inventory', False),
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "must_change_password": user.get('must_change_password', False),
         "is_shared_site_login": bool(user.get('is_shared_site_login')) or user.get('role') == 'site_staff',
@@ -992,6 +993,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "org_is_operator": org_is_operator,
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
+        "is_inventory": user.get('is_inventory', False),
         # Site Staff Shared Login — flags the shared kiosk account so the
         # Operations fault flow enforces the mandatory "who is logging
         # this fault?" staff dropdown and the UI hides management areas.
