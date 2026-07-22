@@ -1,3 +1,40 @@
+# ═══ 2026-06 (this session) · Platform Health PHASE 2 + Master Admin "System Health" consolidation ═══
+User: continue Phase 2, ensure no duplicated data in Master Admin, merge Maintenance jobs / Client Crashes
+(→ into a System Health hub). Choices: System Health group = Self-Healing + Status&uptime (renamed from the
+old "System Health"/trust) + Integration health + Client crashes + Maintenance jobs; ALL Phase-2 checks;
+nightly sweep ON.
+
+BACKEND — routes/platform_integrity.py expanded to 5 checks (registry-driven):
+  • site_less_records  (fix: backfill primary site)      — Phase 1.
+  • broken_site_refs   (fix: reassign primary site)      — equipment/faults whose site_id points at a deleted site.
+  • orphaned_users     (fix: delete, reversible)         — users with no org / deleted org (excludes master admins).
+  • orphaned_issues    (report-only)                     — OPEN faults whose serial isn't in the equipment register.
+  • duplicate_records  (report-only)                     — dup org names / dup equipment serials per org / dup user emails.
+  Fix endpoint now dispatches by fix_kind (backfill_site_id / reassign_site_id / delete_orphan_users); undo
+  restores per-row snapshots (site backfill→unset, reassign→per-row old site_id, user delete→reinsert doc).
+  Report-only findings (fix_kind None) reject /fix with 400. New reusable run_scan_internal(by) + run_forever(hours).
+  NIGHTLY SWEEP: server.py startup starts run_forever(PLATFORM_HEALTH_SWEEP_HOURS, default 24; 0 disables).
+  Verified in boot log: "[platform-health] nightly integrity sweep loop started (24h)".
+
+FRONTEND — Master Admin nav consolidation (SidebarConfig.js): NEW top-level group "System Health" (Activity
+icon) containing platform-health(→"Self-Healing"), trust(→relabelled "Status & uptime"), integration-health,
+client-errors, backfills. REMOVED those scattered entries from Overview / Integrations / Compliance & Security
+/ Platform Tools (SECTION_TO_GROUP + GROUP_SUBTABS auto-derive, so section ids/render switch unchanged — no
+data-routing changes, deep links still work). PlatformHealth.js header slimmed (page chrome now supplies the
+title/description; removed the duplicate in-component H2). Sidebar description + footer note updated for the
+5 checks + nightly cadence.
+
+VERIFIED (self-test, master admin via live API): seeded one anomaly per check → scan returned all 5 finding
+types (summary total 7: medium 3 / high 1 / low 3, real Claude diagnoses). Fix+undo cycles OK for
+orphaned_users (6 deleted → 6 restored — NOTE: 5 REAL pre-existing orphan users exist in the preview DB, all
+restored) and broken_site_refs (1 equipment reassigned → old site_id restored). duplicate_records /fix → 400
+(report-only). Screenshot: System Health group shows all 5 sub-tabs; Self-Healing panel renders. Seed data +
+findings/scans wiped after test. NEW WORK — needs REDEPLOY to reach production.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 (this session) · FEATURE · Platform Health / Self-Healing engine (Phase 1) ═══
 Founder wants the platform "as hands-off as possible" — AI to catch issues like the "logged fault not
 showing" bug, diagnose, and fix. Honest scope: AI can't self-rewrite production CODE, but the CLASS of

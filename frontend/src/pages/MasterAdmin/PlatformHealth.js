@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Activity, Loader2, RefreshCw, Wrench, Undo2, XCircle,
+  Loader2, RefreshCw, Wrench, Undo2, XCircle,
   ShieldCheck, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -83,18 +83,13 @@ export default function PlatformHealth() {
     <div className="space-y-6" data-testid="platform-health-panel">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Activity className="w-5 h-5 text-sky-500" /> Platform Health &amp; Self-Healing
-          </h2>
-          <p className="text-sm text-zinc-500 mt-1 max-w-2xl">
-            Scans for “invisible data” — records that exist but don’t surface in the product
-            (e.g. a fault logged against a site-less machine). Each finding is AI-diagnosed;
-            fixes are one-click and reversible. Nothing changes without your approval.
-          </p>
-          {lastScan && (
-            <p className="text-xs text-zinc-400 mt-1" data-testid="platform-health-last-scan">
+          {lastScan ? (
+            <p className="text-xs text-zinc-400" data-testid="platform-health-last-scan">
               Last scan: {new Date(lastScan.started_at).toLocaleString()} · {lastScan.findings_count} finding(s)
+              {lastScan.by ? ` · ${lastScan.by}` : ''}
             </p>
+          ) : (
+            <p className="text-xs text-zinc-400">No scan yet — run one to check the platform.</p>
           )}
         </div>
         <button onClick={scan} disabled={scanning}
@@ -195,8 +190,8 @@ export default function PlatformHealth() {
 
       <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 flex items-start gap-2">
         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-        Phase 1 covers the “missing site” class of invisible data. More checks (orphaned records,
-        broken references) and a scheduled nightly sweep are coming next.
+        Checks: missing-site & broken site references, orphaned users, faults on missing equipment, and
+        duplicate data (org names, equipment serials, user emails). Runs on demand and automatically once a night.
       </div>
     </div>
   );

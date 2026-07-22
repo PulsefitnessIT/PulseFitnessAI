@@ -505,6 +505,18 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"file validation self-check crashed: {e}")
 
+    # Platform Health — nightly self-healing integrity sweep. Detects
+    # invisible/broken/duplicate data, AI-diagnoses it, and stores findings
+    # for one-click (never auto) fixing. Idempotent (refreshes OPEN findings).
+    try:
+        from routes.platform_integrity import run_forever as _platform_health_loop
+        _ph_hours = int(os.environ.get("PLATFORM_HEALTH_SWEEP_HOURS", "24"))
+        if _ph_hours > 0:
+            asyncio.create_task(_platform_health_loop(_ph_hours))
+            logger.info("[platform-health] nightly integrity sweep loop started (%dh)", _ph_hours)
+    except Exception as e:
+        logger.error(f"platform-health sweep loop start failed: {e}")
+
     # Iter 216h281 — kick off the Partner Engineer compliance sweep.
     # Closes Gap 2 from the BA audit: insurance + cert expiry tracking.
     # 24h interval is fine because reminder fires once per window —
