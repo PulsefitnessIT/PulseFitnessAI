@@ -3,6 +3,7 @@ import { Plus, Search, ArrowLeft, ScanLine, CheckCircle2, PackageCheck, ShieldCh
 import { notify } from '@/components/notifications';
 import { invApi, money, fmtDate, statusLabel } from './api';
 import { Card, StatCard, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
+import OrderFulfilment from './InvFulfilment';
 
 const CURRENCIES = ['GBP', 'EUR', 'USD'];
 const COUNTRIES = [{ c: 'GB', n: 'United Kingdom' }, { c: 'FR', n: 'France' }, { c: 'US', n: 'United States' }];
@@ -187,6 +188,7 @@ function UnitRow({ unit, onAssigned }) {
 // ─────────────────────────── Order detail ───────────────────────────
 function OrderDetail({ orderId, onBack }) {
   const [data, setData] = useState(null);
+  const [tab, setTab] = useState('overview');
   const [busy, setBusy] = useState('');
 
   const load = useCallback(() => { invApi.order(orderId).then(setData).catch(() => notify.error('Could not load order')); }, [orderId]);
@@ -212,6 +214,15 @@ function OrderDetail({ orderId, onBack }) {
         <span className="ml-auto rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{order.sage_posting_status}</span>
       </div>
 
+      <div className="flex gap-1 border-b border-slate-200">
+        {[['overview', 'Overview'], ['fulfilment', 'Warehouse Fulfilment']].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} data-testid={`inv-order-tab-${id}`}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'border-[#0B3D91] text-[#0B3D91]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'fulfilment' ? <OrderFulfilment orderId={orderId} /> : (
+      <>
       <div className="flex flex-wrap gap-2">
         <Btn variant="secondary" onClick={() => run(() => invApi.validate(orderId), 'validate')} disabled={!!busy} data-testid="inv-order-validate"><ShieldCheck size={15} /> {busy === 'validate' ? 'Validating…' : 'Validate'}</Btn>
         <Btn variant="secondary" onClick={() => run(() => invApi.reserve(orderId), 'reserve')} disabled={!!busy} data-testid="inv-order-reserve"><PackageCheck size={15} /> {busy === 'reserve' ? 'Reserving…' : 'Reserve stock'}</Btn>
@@ -268,6 +279,8 @@ function OrderDetail({ orderId, onBack }) {
             </div>
           ))}
         </Card>
+      )}
+      </>
       )}
     </div>
   );

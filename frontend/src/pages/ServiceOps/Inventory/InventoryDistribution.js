@@ -10,6 +10,7 @@ import { invApi, statusLabel } from './api';
 import { Card, StatCard, Spinner, Btn, Field, inputCls } from './ui';
 import InvOrders from './InvOrders';
 import { SageOrders, OrderExceptions } from './InvSageSync';
+import { WarehouseQueue } from './InvFulfilment';
 
 // Full roadmap nav — Phase-1 sections are live, later phases marked "soon".
 const NAV = [
@@ -24,13 +25,13 @@ const NAV = [
   { group: 'Inventory', items: [
     { id: 'availability', label: 'Stock Availability', Icon: PackageSearch, live: true },
     { id: 'warehouses', label: 'Warehouses', Icon: Warehouse, live: true },
-    { id: 'receiving', label: 'Receiving', Icon: Truck, live: false },
-    { id: 'picking', label: 'Picking', Icon: Boxes, live: false },
-    { id: 'quality', label: 'Quality Control', Icon: ShieldCheck, live: false },
-    { id: 'packing', label: 'Packing', Icon: Boxes, live: false },
+    { id: 'receiving', label: 'Receiving', Icon: Truck, live: true },
+    { id: 'picking', label: 'Picking', Icon: Boxes, live: true },
+    { id: 'quality', label: 'Quality Control', Icon: ShieldCheck, live: true },
+    { id: 'packing', label: 'Packing', Icon: Boxes, live: true },
   ] },
   { group: 'Distribution', items: [
-    { id: 'shipments', label: 'Shipments', Icon: Truck, live: false },
+    { id: 'dispatch', label: 'Dispatch', Icon: Truck, live: true },
     { id: 'dealer-inventory', label: 'Dealer Inventory', Icon: Warehouse, live: false },
     { id: 'allocations', label: 'Customer Allocations', Icon: MapPin, live: false },
     { id: 'installations', label: 'Installations', Icon: MapPin, live: false },
@@ -357,6 +358,11 @@ export default function InventoryDistribution() {
       case 'sage-orders': return <SageOrders />;
       case 'orders': return <InvOrders warehouses={warehouses} initialOrderId={orderId} />;
       case 'exceptions': return <OrderExceptions />;
+      case 'receiving': return <WarehouseQueue stage="receiving" title="Receiving" />;
+      case 'picking': return <WarehouseQueue stage="picking" title="Picking Queue" />;
+      case 'quality': return <WarehouseQueue stage="qc" title="Quality Control Queue" />;
+      case 'packing': return <WarehouseQueue stage="packing" title="Packing Queue" />;
+      case 'dispatch': return <WarehouseQueue stage="dispatch" title="Dispatch Queue" />;
       case 'availability': return <StockAvailability warehouses={warehouses} />;
       case 'warehouses': return <Warehouses />;
       case 'sage': return <SageConnection />;

@@ -1,0 +1,28 @@
+{
+  "summary": "Phase 3 (Warehouse Operations) fully verified backend + frontend end-to-end. Backend pytest: 10/10 pass covering release → wrong-serial 409 → correct pick → QC pass/quarantine → pack (picked ok, quarantined 409) → seal → dispatch (SHP-*, in_transit, only 1 unit dispatched, order status=dispatched) → cross-order queues (all 5 stages) → QC templates auto-seed. UI E2E: logged in as owner@isodemo.com, created warehouse UI739847, created Distribution Order DO-000003 (1 line, qty=2, serialised_machine), assigned serials UISA739847 + UISB739847 via Overview tab. On Warehouse Fulfilment tab: Release generated 2 pick tasks. Wrong-serial scan (NOPE) → 409 error toast 'does not match' and NOT marked picked (picked count=0). Correct serials scanned → both tasks show 'Picked'. QC: unit 1 Pass, unit 2 Quarantine. Packing: created PKG-000002, scanned passed unit serial → shows '1 unit'; scanned quarantined serial → 409 rejection toast (backend error='quarantined'). Seal succeeded ('Sealed' badge). Dispatch: carrier=DHL, tracking=TRK739847 → shipment summary rendered — 'SHP-000002 · DHL · Tracking TRK739847 · 1 package(s) · In transit since 22 Jul 2026', order status = Dispatched (only 1 unit dispatched, quarantined unit NOT dispatched). All 5 warehouse queues (inv-queue-receiving/picking/qc/packing/dispatch) render (dispatched order correctly no longer appears in earlier queues — expected). Phase 1 & 2 regression: order create + serial assignment on Overview still work (used in the same flow); Sage Orders and Order Exceptions sections still navigable (verified indirectly via nav test in queues loop).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_inventory_warehouse_ops_phase3.py",
+    "/app/test_reports/pytest/warehouse_ops_phase3.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "release_order() uses inv_pick_tasks.count_documents to block re-release — a good idempotency guard, but if all pick tasks were externally deleted the order would be re-released without cleanup of prior state. Non-issue in normal flow.",
+    "add_unit_to_package accepts serial via normalised_serial (strip non-alphanumerics upper). Consistent with assign-serial dedupe path. Good.",
+    "dispatch_order aggregates unit_ids only from sealed/dispatched packages — quarantined un-packed units are correctly excluded (verified: order shows 1 unit dispatched even though 2 serialised units exist).",
+    "qc_unit sets unit status back to 'provisional' for non-pass results — this means a quarantined unit's status flips off 'picked' back to 'provisional'. This is why the pack path checks BOTH unit.quarantined AND unit.status ∈ (picked, quality_checked); the ordering of checks (quarantined first) yields the correct 409 error='quarantined'. Consider explicit 'quarantined' status value for clarity but current logic works correctly.",
+    "queues endpoint hard-codes STAGE_STATUSES map — order can appear in multiple queues simultaneously (e.g. status='picked' appears in both 'qc' and 'packing' queues). Acceptable given step overlap but worth documenting."
+  ],
+  "updated_files": ["/app/backend/tests/test_inventory_warehouse_ops_phase3.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (all requested Phase-3 flows verified end-to-end)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (iso-demo-org).",
+  "seed_data_creation": "Test warehouses UI739847 + P3WH<TAG> and Distribution Orders DO-000002 / DO-000003 with dispatched shipments SHP-000001/SHP-000002 remain in iso-demo-org. Also test dealers 'UI Dealer 739847', 'TEST P3 Dealer <TAG>' and quarantined equipment units. Acceptable per instructions (leftover demo data OK).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Phase 3 data-testids match spec (inv-ful-release, inv-ful-task-<id>, inv-ful-pick-<taskId>, inv-ful-qc-<unitId>[-pass|-quarantine|...], inv-ful-new-package, inv-ful-package-PKG-*, inv-ful-pack-<pkgId>, inv-ful-seal-<pkgId>, inv-ful-carrier, inv-ful-tracking, inv-ful-dispatch, inv-ful-shipment, inv-queue-<stage>, inv-nav-warehouses/orders/receiving/picking/quality/packing/dispatch). Backend collections created/used: inv_pick_tasks, inv_qc_templates, inv_qc_checks, inv_packages, inv_shipments, inv_stock_movements. Backend endpoint prefix: /api/inventory/ops. Wrong-serial and quarantined errors are returned as HTTP 409 with detail={'error': 'wrong_serial'|'quarantined'|'not_ready'|'wrong_order', 'message': str}. Only sealed packages count for dispatch; the shipment reference sequence is SHP-000001+."
+}

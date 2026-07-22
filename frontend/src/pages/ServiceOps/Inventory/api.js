@@ -48,6 +48,19 @@ export const invApi = {
   mapDealer: (body) => axios.post(`${base}/sage/mappings/dealer`, body, auth()).then((r) => r.data),
   mapProduct: (body) => axios.post(`${base}/sage/mappings/product`, body, auth()).then((r) => r.data),
   retrySageOrder: (mirrorId) => axios.post(`${base}/sage/orders/${mirrorId}/retry`, {}, auth()).then((r) => r.data),
+
+  // Phase 3 — warehouse ops
+  release: (id) => axios.post(`${base}/ops/orders/${id}/release`, {}, auth()).then((r) => r.data),
+  fulfilment: (id) => axios.get(`${base}/ops/orders/${id}/fulfilment`, auth()).then((r) => r.data),
+  pick: (taskId, body) => axios.post(`${base}/ops/pick-tasks/${taskId}/pick`, body, auth()).then((r) => r.data),
+  rack: (unitId, body) => axios.post(`${base}/ops/units/${unitId}/rack`, body, auth()).then((r) => r.data),
+  qcTemplates: () => axios.get(`${base}/ops/qc/templates`, auth()).then((r) => r.data),
+  qcUnit: (unitId, body) => axios.post(`${base}/ops/units/${unitId}/qc`, body, auth()).then((r) => r.data),
+  createPackage: (id, body) => axios.post(`${base}/ops/orders/${id}/packages`, body, auth()).then((r) => r.data),
+  addToPackage: (pkgId, body) => axios.post(`${base}/ops/packages/${pkgId}/add-unit`, body, auth()).then((r) => r.data),
+  sealPackage: (pkgId, body) => axios.post(`${base}/ops/packages/${pkgId}/seal`, body || {}, auth()).then((r) => r.data),
+  dispatch: (id, body) => axios.post(`${base}/ops/orders/${id}/dispatch`, body, auth()).then((r) => r.data),
+  queue: (stage) => axios.get(`${base}/ops/queues/${stage}`, auth()).then((r) => r.data),
 };
 
 export const CUR = { GBP: '£', EUR: '€', USD: '$' };
