@@ -54,6 +54,20 @@ OPS NOTE (2026-07-21): the `/app` volume (9.8G) hit 100% — cause was `frontend
 (webpack persistent cache) ballooning to 6.2G. Cleared it (safe, regenerates). If `/app` fills again,
 `rm -rf /app/frontend/node_modules/.cache` frees it.
 
+Modal migrations round 2 (2026-07-22): migrated `CRM/LeadConversionModal.js` onto the primitive
+(center variant + `panelStyle` theme override + `backdropClassName="bg-black/60 backdrop-blur-sm"` +
+`zClassName="z-[90]"`). VERIFIED visually (header, all sections, fixed Cancel/Convert footer, blurred
+backdrop, no cut-off). Added primitive props: `panelTestId`, `backdropClassName`. Success-state sub-modal
+left as-is (no scroll/footer, no cut-off risk).
+Still un-migrated (optional, already cut-off-fixed): SiteDetailDrawer (tabbed dual-footer),
+EngineerCustomers (3-step wizard), PulseUpgradeRequestModal (framer-motion).
+
+BUILD/RESOURCES (2026-07-22): cold webpack builds were extremely slow (CPU-throttled ~1.25 cores) after the
+cache wipe, and a gzip cache-compression experiment caused an OOM — reverted that craco tweak (known-good).
+Added `GENERATE_SOURCEMAP=false` to frontend/.env (faster preview builds; ESLint plugin already disabled).
+User UPGRADED Emergent resources to 16 cores / 64GB RAM → frontend now cold-builds & serves in ~15s. All
+services healthy (frontend/backend 200), `/app` at 48%.
+
 ────────────────────────────────────────────────────────────────────────
 
 
