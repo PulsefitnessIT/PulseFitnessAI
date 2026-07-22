@@ -1,3 +1,39 @@
+# ═══ 2026-06 · MASTER ADMIN: PER-AREA IMPERSONATION + SERVICE DESK/INVENTORY AS FIRST-CLASS RIGHTS (VERIFIED 100% FE) ═══
+Two founder-requested enhancements on top of the standalone Inventory module:
+
+(1) IMPERSONATION "same as Pulse Fitness Portal" — the Service Desk and Inventory & Distribution quick buttons in the
+    Master Admin sidebar now each have the client-org picker chevron (like the Pulse portal). Picking an org opens
+    THAT org's Service Desk / Inventory portal impersonated (secure, time-limited, logged).
+    • Backend: routes/master_admin_users.py org_portal_login now takes ?area=(operator|service_desk|inventory);
+      _issue_org_portal_token(grants) stamps a JWT 'imp_grants' claim. utils/auth.py get_current_user merges
+      imp_grants onto the SESSION user (is_service_desk/is_inventory + service_org_id) with NO DB write, so the
+      impersonated org owner can render those shells. routes/auth.py /auth/me now returns is_inventory.
+    • Frontend: MasterAdminPage.handleOrgSwitch(orgId, area) posts ?area and lands on /dashboard|/service-desk|
+      /inventory?impersonation_token=… (App.js consumes the token on any route). AdminSidebar target-aware picker
+      (orgPickerArea) + chevrons portal-switch-service-desk-org-picker-btn / portal-switch-inventory-org-picker-btn.
+
+(2) SERVICE DESK + INVENTORY AS MODULE SELECTORS (org + people rights), choice 2a:
+    • Inventory is its own capability. FE capabilities.js view_inventory = is_inventory || is_service_desk ||
+      is_master_admin || pulseAdmin. /inventory route + AreaSwitcher gate on it → existing Service Desk users keep
+      access (nobody locked out).
+    • Per-user: Edit User drawer now shows an 'Inventory & Distribution' grant/revoke row (edit-user-inventory-toggle)
+      alongside the Service Desk row, backed by NEW master-admin endpoints POST /master-admin/inventory-access/
+      {grant,revoke} (set is_inventory on the user; activity-logged).
+    • Org-level: the org module picker (MODULE_OPTIONS) now lists all SIX — Operations/CRM/Memberships/Marketing +
+      Service Desk + Inventory & Distribution (persisted to enabled_modules; access remains per-user so no gating
+      regressions; ModuleSwitcher pills are a fixed set so no rogue pills).
+
+ALSO: CookieConsent banner z-index lowered z-[100]→z-40 so it sits BELOW shadcn dialog/sheet overlays (z-50) and no
+longer intercepts clicks at the bottom of modals/drawers (this had briefly blocked the Edit-User Inventory toggle).
+
+VERIFIED testing_agent frontend 100% (6/6 scenarios; iteration_inventory_impersonation_rights_jan2026.json) + backend
+curl (org-portal-login?area=inventory → token whose /auth/me shows is_inventory+is_service_desk true; inventory-access
+grant/revoke → 200). 0 issues. Backlog note: AdminOrganizations.js (~2300 lines) is a refactor candidate.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · INVENTORY & DISTRIBUTION PROMOTED TO ITS OWN TOP-LEVEL MODULE (VERIFIED 100% FE) ═══
 Founder decision: the Inventory & Distribution build (P1–P7) is large enough to be its own module, separate from
 Service Desk, while keeping all cross-module data flow intact. Delivered (frontend structural refactor, no backend
