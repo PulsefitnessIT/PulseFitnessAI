@@ -1,3 +1,33 @@
+# ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 6 · DEALER SERVICE DESKS (VERIFIED 100%) ═══
+routes/inventory_dealer_service.py, prefix /api/inventory/svc. Pulse creates a SCOPED service-desk workspace over
+the existing platform (no duplicate dealer/customer/asset/engineer/service-desk records). Faults after allocation
+route to the responsible desk and stay ONE shared record in the EXISTING `issues` store.
+Endpoints: GET/POST /desks (POST 409 on duplicate per dealer_id — dedup), POST /desks/{id}/activate,
+GET /desks/{id} (scoped overview: customers via dealer_customer_allocations, assets, faults via issues where
+dealer_service_desk_id), GET /route?serial (resolver: allocation.service_responsibility + active dealer desk →
+dealer|pulse; defaults pulse), POST /faults {serial_number,title,severity} (inserts ONE record into `issues` with
+routing fields responsible/dealer_service_desk_id/routing_reason; equipment_id resolved from serial),
+POST /faults/{id}/escalate (SAME record → responsible=pulse, escalations[]; no duplicate),
+GET /warranty-parts?dealer_id (recommendations reading existing crm_products catalogue), GET /summary.
+Collection: dealer_service_desks. REUSES: crm2_companies, issues (fault store), dealer_customer_allocations, equipment.
+Frontend: InvDealerService.js — DealerServiceDesks list + CreateDeskModal (dealer picker, condensed wizard:
+country/languages/territories/SLA/warranty routing/branding/portal fault logging) + DeskDetail (stats, faults table
+with Escalate, dealer customers) + LogFaultModal (serial picker + live routing panel). Nav group 'Service' →
+Dealer Service Desks (live). api.js has svc methods.
+VERIFIED testing_agent backend 100% (11/12 pass, 1 skip, 0 fail) + frontend 100%, 0 issues
+(iteration_inventory_dealer_service_phase6_jan2026.json). Data wiped.
+FIX THIS SESSION: the P6 router import + _UNGATED_ROUTERS registration in route_registry/features.py had been left
+out by an interrupted edit (endpoints 404'd → felt like "build stopping"); now registered & confirmed reachable.
+
+STATUS: P1–P6 shipped & verified. REMAINING: P7 (monitoring agents, dashboards, reports, replenishment).
+Sage live sync (P2) BLOCKED on Sage/Sicon creds. Follow-ups: authenticated Dealer Portal UI for receipt/allocation/
+fault logging; branded/translated PDF paperwork; real CRM site records for customer sites; full Dealer Warranty Parts
+engine deep-link; assign engineers to dealer faults via existing Engineer App.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 5 · CUSTOMER ALLOCATION, INSTALLATION & WARRANTY (VERIFIED 100%) ═══
 routes/inventory_allocation.py, prefix /api/inventory/alloc. Dealer allocates dealer-held machines
 (dealer_inventory_holdings) to THEIR customers → creates the ACTIVE ASSET in the EXISTING equipment register
