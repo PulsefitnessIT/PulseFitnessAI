@@ -1,0 +1,33 @@
+{
+  "summary": "Phase 2 (Sage 200 order sync via Simulate) fully verified backend + frontend. Backend pytest: 7/7 pass. UI: login → Service Desk → Inventory & Distribution → Sage Orders → Simulate Sage feed produced exactly 2 mirrors (SO-1001 FR/EUR, SO-1002 US/USD), both in Needs Mapping, health=Warning, cards total=2 & needs-mapping=2. Ran Simulate 6x total → still exactly 2 rows (idempotency proven). Order Exceptions listed FITFR01+USGYM02 and TREAD-900/BIKE-500/ROWER-300/SPARE-BELT (DELIVERY correctly excluded). Mapped FITFR01→AlphaCo (existing CRM company, no duplicate) and mapped TREAD-900+BIKE-500. Retry mapped orders → new Distribution Order DO-000004 with source 'Imported From Sage' and dealer 'Fitness France SARL'. Post-retry Simulate reported Skipped=1, Duplicates Prevented=1, Needs Mapping=1 (SO-1001 skipped, SO-1002 still unmapped). Sage 200 Connection page shows credentials-not-configured banner + capability discovery. Live 'Run sync' with no Sage connection did NOT create/duplicate orders (total stayed at 2). Backend pytest also asserts 5 provisional equipment units on DO for SO-1001 (2 TREAD + 3 BIKE).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order Exceptions → Sync errors", "issues": ["Each Simulate run inserts a fresh needs_mapping error even when the SAME order remains unmapped, so the 'Sync errors' list grows with duplicates (7 identical SAGE-1002 rows after 7 runs). Consider upsert-by-(sage_order_id,type) or auto-resolve prior needs_mapping errors when the next run re-classifies the same order. Cosmetic/UX only — doesn't affect idempotency of mirrors/DOs."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_inventory_sage_sync_phase2.py",
+    "/app/test_reports/pytest/sage_sync_phase2.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: dedupe/auto-resolve stale 'needs_mapping' rows in sage_sync_errors so the Order Exceptions → Sync errors card doesn't accumulate identical entries across repeated Simulate runs.",
+    "OPTIONAL: OrderExceptions component reads dealer_name from mapping row but for a fresh unmapped account (empty results) the input placeholder search requires >=2 chars — consider seeding q with the CustomerName from the mirror for one-click linking on common cases."
+  ],
+  "critical_code_review_comments": [
+    "inventory_sage_sync._resolve_dealer does a regex match on company name for auto-linking. Building a regex from an untrusted external value (Sage CustomerName) without escaping is a latent ReDoS risk if a Sage record ever contains regex meta-chars; use re.escape() or an exact-match $eq.",
+    "_do_run computes health/telemetry per-run but sage_sync_errors are never cleared on a fresh Simulate run — over time the Order Exceptions → Sync errors card grows without bound. Consider soft-resolving prior needs_mapping errors at run start (or de-dupe by (sage_order_id,type,resolved:false) via upsert).",
+    "Retry endpoint blanks the mirror hash to force re-evaluation but does NOT clear the mirror.distribution_order_id — fine because _import_one recomputes, but worth a comment: correctness relies on inv_distribution_orders lookup by sage_order_id being the true idempotency check.",
+    "_sample_feed dates are hard-coded; that's exactly what makes repeat Simulate runs byte-identical (idempotency proven). Good design; keep the docstring."
+  ],
+  "updated_files": ["/app/backend/tests/test_inventory_sage_sync_phase2.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (all requested flows verified)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (iso-demo-org). CRM company used for mapping: iso-cA (AlphaCo (Site A)).",
+  "seed_data_creation": "Reset iso-demo-org sage collections + sage-sourced DOs before UI run so counts started at 0. After the test run: 2 sage mirrors, 1 sage-sourced DO (DO-000004 for SO-1001), 5 provisional equipment units, product mappings (TREAD-900, BIKE-500) and dealer mapping (FITFR01→iso-cA) persist. Acceptable per instructions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Phase-2 data-testids match spec (inv-sync-simulate, inv-sync-run, inv-sync-health, inv-sync-total, inv-sync-needs-mapping, inv-sage-order-<DocNo>, inv-ex-dealers/products, inv-ex-dealer-<acct>, inv-ex-dealer-input-<acct>, inv-ex-dealer-opt-<id>, inv-ex-product-<code>, inv-ex-product-input-<code>, inv-ex-product-map-<code>, inv-ex-retry-all). Backend collections created/used: sage_order_mirrors, sage_sync_runs, sage_sync_errors, sage_dealer_mappings, sage_product_mappings. iso-demo-org has only 1 CRM company (iso-cA) — the dealer picker returns exactly 1 option when searching 'Alpha'.",
+  "mocked_apis_note": "Live Sage 200 fetch remains MOCKED (authentication_required until creds wired). 'Simulate Sage feed' drives the same _import_one pipeline with _sample_feed() and is the tested path."
+}

@@ -37,6 +37,17 @@ export const invApi = {
   sageConnection: () => axios.get(`${base}/sage/connection`, auth()).then((r) => r.data),
   saveSageConnection: (body) => axios.post(`${base}/sage/connection`, body, auth()).then((r) => r.data),
   sageDiscover: () => axios.get(`${base}/sage/capabilities/discover`, auth()).then((r) => r.data),
+
+  // Phase 2 — Sage order sync
+  syncStatus: () => axios.get(`${base}/sage/sync/status`, auth()).then((r) => r.data),
+  runSync: (body) => axios.post(`${base}/sage/sync/run`, body || {}, auth()).then((r) => r.data),
+  syncRuns: () => axios.get(`${base}/sage/runs`, auth()).then((r) => r.data),
+  sageOrders: (state) => axios.get(`${base}/sage/orders`, { ...auth(), params: { state } }).then((r) => r.data),
+  sageExceptions: () => axios.get(`${base}/sage/exceptions`, auth()).then((r) => r.data),
+  sageFieldMap: () => axios.get(`${base}/sage/field-map`, auth()).then((r) => r.data),
+  mapDealer: (body) => axios.post(`${base}/sage/mappings/dealer`, body, auth()).then((r) => r.data),
+  mapProduct: (body) => axios.post(`${base}/sage/mappings/product`, body, auth()).then((r) => r.data),
+  retrySageOrder: (mirrorId) => axios.post(`${base}/sage/orders/${mirrorId}/retry`, {}, auth()).then((r) => r.data),
 };
 
 export const CUR = { GBP: '£', EUR: '€', USD: '$' };

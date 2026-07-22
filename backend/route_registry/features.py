@@ -88,6 +88,7 @@ from routes.admin_refunds import router as admin_refunds_router
 from routes.partners import router as partners_router
 # Inventory & Distribution (Global Dealer Distribution) — Phase 1
 from routes.inventory_distribution import router as inventory_distribution_router
+from routes.inventory_sage_sync import router as inventory_sage_sync_router
 
 # Iter 215dn — Service Operations Phase 1 (replaces Sicon Service)
 from routes.svc.cases import router as svc_cases_router
@@ -294,6 +295,7 @@ _UNGATED_ROUTERS = (
     admin_refunds_router,
     partners_router,
     inventory_distribution_router,
+    inventory_sage_sync_router,
     help_router,
     staffing_router,
     staffing_clock_router,

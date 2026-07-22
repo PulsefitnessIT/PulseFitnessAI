@@ -9,6 +9,7 @@ import { notify } from '@/components/notifications';
 import { invApi, statusLabel } from './api';
 import { Card, StatCard, Spinner, Btn, Field, inputCls } from './ui';
 import InvOrders from './InvOrders';
+import { SageOrders, OrderExceptions } from './InvSageSync';
 
 // Full roadmap nav — Phase-1 sections are live, later phases marked "soon".
 const NAV = [
@@ -16,9 +17,9 @@ const NAV = [
     { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, live: true },
   ] },
   { group: 'Orders', items: [
-    { id: 'sage-orders', label: 'Sage Orders', Icon: FileText, live: false },
+    { id: 'sage-orders', label: 'Sage Orders', Icon: FileText, live: true },
     { id: 'orders', label: 'Distribution Orders', Icon: ClipboardList, live: true },
-    { id: 'exceptions', label: 'Order Exceptions', Icon: ShieldCheck, live: false },
+    { id: 'exceptions', label: 'Order Exceptions', Icon: ShieldCheck, live: true },
   ] },
   { group: 'Inventory', items: [
     { id: 'availability', label: 'Stock Availability', Icon: PackageSearch, live: true },
@@ -353,7 +354,9 @@ export default function InventoryDistribution() {
     if (item && !item.live) return <ComingSoon label={item.label} />;
     switch (section) {
       case 'dashboard': return <Dashboard go={go} />;
+      case 'sage-orders': return <SageOrders />;
       case 'orders': return <InvOrders warehouses={warehouses} initialOrderId={orderId} />;
+      case 'exceptions': return <OrderExceptions />;
       case 'availability': return <StockAvailability warehouses={warehouses} />;
       case 'warehouses': return <Warehouses />;
       case 'sage': return <SageConnection />;
