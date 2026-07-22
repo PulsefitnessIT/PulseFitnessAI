@@ -85,6 +85,17 @@ export const invApi = {
   install: (id, body) => axios.post(`${base}/alloc/allocations/${id}/install`, body, auth()).then((r) => r.data),
   customerPortal: (companyId) => axios.get(`${base}/alloc/customer-portal/${companyId}/equipment`, auth()).then((r) => r.data),
   allocSummary: () => axios.get(`${base}/alloc/summary`, auth()).then((r) => r.data),
+
+  // Phase 6 — dealer service desks
+  desks: () => axios.get(`${base}/svc/desks`, auth()).then((r) => r.data),
+  createDesk: (body) => axios.post(`${base}/svc/desks`, body, auth()).then((r) => r.data),
+  activateDesk: (id) => axios.post(`${base}/svc/desks/${id}/activate`, {}, auth()).then((r) => r.data),
+  desk: (id) => axios.get(`${base}/svc/desks/${id}`, auth()).then((r) => r.data),
+  routeFault: (serial) => axios.get(`${base}/svc/route`, { ...auth(), params: { serial } }).then((r) => r.data),
+  logFault: (body) => axios.post(`${base}/svc/faults`, body, auth()).then((r) => r.data),
+  escalateFault: (id) => axios.post(`${base}/svc/faults/${id}/escalate`, {}, auth()).then((r) => r.data),
+  warrantyParts: (dealerId) => axios.get(`${base}/svc/warranty-parts`, { ...auth(), params: { dealer_id: dealerId } }).then((r) => r.data),
+  svcSummary: () => axios.get(`${base}/svc/summary`, auth()).then((r) => r.data),
 };
 
 export const CUR = { GBP: '£', EUR: '€', USD: '$' };

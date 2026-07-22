@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Boxes, Warehouse, ClipboardList, PackageSearch, PlugZap,
   Settings as SettingsIcon, ArrowLeft, Plus, ScanLine, Truck, MapPin, ShieldCheck,
-  FileText, Globe, ChevronRight, ArrowRightLeft,
+  FileText, Globe, ChevronRight, ArrowRightLeft, Headphones,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, statusLabel } from './api';
@@ -13,6 +13,7 @@ import { SageOrders, OrderExceptions } from './InvSageSync';
 import { WarehouseQueue } from './InvFulfilment';
 import { Shipments, DealerInventory, TransferOrders } from './InvDealerDist';
 import { CustomerAllocations, Installations } from './InvAllocation';
+import { DealerServiceDesks } from './InvDealerService';
 
 // Full roadmap nav — Phase-1 sections are live, later phases marked "soon".
 const NAV = [
@@ -39,6 +40,9 @@ const NAV = [
     { id: 'dealer-inventory', label: 'Dealer Inventory', Icon: Warehouse, live: true },
     { id: 'allocations', label: 'Customer Allocations', Icon: MapPin, live: true },
     { id: 'installations', label: 'Installations', Icon: MapPin, live: true },
+  ] },
+  { group: 'Service', items: [
+    { id: 'service-desks', label: 'Dealer Service Desks', Icon: Headphones, live: true },
   ] },
   { group: 'Integration', items: [
     { id: 'sage', label: 'Sage 200 Connection', Icon: PlugZap, live: true },
@@ -372,6 +376,7 @@ export default function InventoryDistribution() {
       case 'dealer-inventory': return <DealerInventory />;
       case 'allocations': return <CustomerAllocations />;
       case 'installations': return <Installations />;
+      case 'service-desks': return <DealerServiceDesks />;
       case 'availability': return <StockAvailability warehouses={warehouses} />;
       case 'warehouses': return <Warehouses />;
       case 'sage': return <SageConnection />;

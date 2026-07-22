@@ -1,0 +1,28 @@
+{
+  "summary": "Phase 6 Dealer Service Desks verified. Backend router registration fix confirmed: all /api/inventory/svc/* endpoints reachable (previously 404). 11/12 pytest passed (1 skipped, no failures). Frontend nav + list + create modal + dealer search + desk detail all render. Regression smoke on Dashboard/Shipments/Customer Allocations OK.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_inventory_dealer_service_phase6.py",
+    "/app/test_reports/pytest/phase6_results.xml"
+  ],
+  "action_items": [
+    "Optional: main agent may wire full active-asset flow (DO→Warehouse fulfil→Ship→Alloc→Install) to exercise dealer routing (responsible=dealer) end-to-end via UI; backend Log Fault + Escalate paths are already verified via pytest (routes to Pulse when no allocation, escalation flips SAME record — no duplicates)."
+  ],
+  "critical_code_review_comments": [
+    "inventory_dealer_service.py POST /desks: HTTPException with dict detail for 409 — clients must dig into response.detail.error==duplicate_desk. Frontend toast should surface the message field.",
+    "_resolve_routing branch: when service_responsibility=='pulse', dealer_name is filled from customer_company_name, which is semantically incorrect (should stay dealer name or null). Minor cosmetic — routing outcome is right."
+  ],
+  "updated_files": ["/app/backend/tests/test_inventory_dealer_service_phase6.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Created dealer_service_desks doc DSD-000001 (AlphaCo/iso-cA, active) and one issues record for PHASE6-TEST-SN-001 (routed to Pulse default, escalated). Both left in iso-demo-org (leftover acceptable per request).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 6 endpoints live at /api/inventory/svc/*. DSD-000001 for AlphaCo (iso-cA) is Active and will 409 on duplicate. To exercise responsible=dealer routing end-to-end, run the phase-3→5 UI to allocate + install an asset to a customer under dealer_id=iso-cA with service_responsibility='dealer'. Regression pytest available at /app/backend/tests/test_inventory_dealer_service_phase6.py.",
+  "rca of the issue": "The fix (router import + entry in _UNGATED_ROUTERS at route_registry/features.py L95 & L306) is present and effective. Endpoints GET /summary, GET /desks, GET /route, POST /desks, POST /desks/{id}/activate, GET /desks/{id}, GET /warranty-parts, POST /faults, POST /faults/{id}/escalate all return 200 (or 409/404 as expected). No 404s from prior router-not-registered state."
+}
