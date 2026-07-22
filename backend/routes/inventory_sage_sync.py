@@ -218,6 +218,10 @@ async def _import_one(user: dict, payload: dict, run: dict) -> str:
         await db.sage_order_mirrors.insert_one({**mirror_doc})
 
     if needs_mapping:
+        # Keep only ONE open needs_mapping error per order (don't accumulate on re-sync).
+        await db.sage_sync_errors.delete_many({
+            **of, "sage_order_id": sage_id, "type": "needs_mapping", "resolved": False,
+        })
         await db.sage_sync_errors.insert_one({
             "id": _uid(), "organization_id": user.get("organization_id"), "run_id": run["id"],
             "sage_order_id": sage_id, "type": "needs_mapping",

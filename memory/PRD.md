@@ -1,3 +1,41 @@
+# ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 2 · SAGE 200 ORDER SYNC (VERIFIED 100%) ═══
+Continued the distribution build with Phase 2 (Sage order sync). Live Sage is BLOCKED on creds, so the full
+idempotent import ENGINE runs today via a "Simulate Sage feed" path that exercises the EXACT same pipeline;
+live sync wires in the moment credentials + the Sage client fetch are enabled.
+
+BACKEND — routes/inventory_sage_sync.py (registered features.py _UNGATED_ROUTERS as inventory_sage_sync_router),
+prefix /api/inventory/sage/*, reuses Phase-1 helpers/collections from inventory_distribution:
+  • POST /sync/run {simulate?:bool, orders?:[]} — simulate/explicit feed runs _do_run → _import_one per order;
+    live run returns health=authentication_required (no fetch) until Sage connected. GET /sync/status (health +
+    counts), GET /runs (recent), GET /orders (sage_order_mirrors, raw excluded), GET /exceptions
+    (unmapped dealers/products + open errors), GET /field-map (Sage→Pulse header+line mapping matrix + state vocab).
+  • _import_one = the SINGLE idempotent pipeline. Idempotency key = (organization_id, sage_order_id); byte-hash of
+    the Sage payload → identical re-sync = skipped (duplicates_prevented). Preserves sage_order_id / sage_order_number
+    / sage_line_id permanently. Maps dealer via sage_dealer_mappings (auto-links to an EXISTING crm2_companies by
+    exact name, else needs_mapping) and products via sage_product_mappings (auto-links to crm_products.sku).
+    delivery_charge/service_item lines skip product-mapping. When fully mapped → creates/updates ONE operational
+    distribution order (source='sage', sage_posting_status='Posted to Sage') + lines + provisional equipment units
+    (reusing Phase-1 shapes). needs_mapping → writes exactly ONE open error per order (dedup on re-run).
+  • POST /mappings/dealer {sage_account,crm_company_id}, POST /mappings/product {sage_stock_code,product_code},
+    POST /orders/{mirror_id}/retry (re-imports after mappings resolved; auto-resolves related errors).
+  • New collections: sage_order_mirrors, sage_sync_runs, sage_sync_errors, sage_dealer_mappings,
+    sage_product_mappings. Sync states + integration-health states defined. Multi-currency preserved from Sage.
+FRONTEND — pages/ServiceOps/Inventory/InvSageSync.js: "Sage Orders" (sync console — health pill, Run sync +
+  Simulate Sage feed, last-run stats, imported-orders table, recent runs) and "Order Exceptions" (unmapped
+  dealer→CRM linker with typeahead, unmapped product mapper, Retry mapped orders). Both flipped live:true in
+  InventoryDistribution.js; api.js extended with sage sync methods.
+VERIFIED: testing_agent backend 7/7 + frontend 100%, 0 blocking issues (report
+iteration_inventory_sage_sync_phase2_jan2026.json). Idempotency proven: 10x simulate → only 2 mirrors; map
+FITFR01→existing CRM company + products → retry SO-1001 → exactly 1 sage-sourced DO with 5 provisional units;
+re-runs skip (duplicates_prevented). FIXED post-test: needs_mapping errors no longer accumulate across re-runs
+(delete-prior-open before insert → verified 2 open errors after 3 runs). Test data wiped after verification.
+NEXT: P2 goes LIVE once Sage/Sicon API creds provided (wire _do_run live fetch to sage_client/sicon_client +
+capability probe). Then P3 (warehouse ops + barcode/mobile scanning).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · GLOBAL DEALER DISTRIBUTION, INVENTORY & ASSET DEPLOYMENT — PHASE 1 (VERIFIED 100%) ═══
 Founder requested a full ERP-scale Global Dealer Distribution / Inventory & Asset Deployment system inside
 Service Desk → Inventory & Distribution (Sage order → warehouse → picking/QC/packing → international
