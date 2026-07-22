@@ -12,6 +12,7 @@ import InvOrders from './InvOrders';
 import { SageOrders, OrderExceptions } from './InvSageSync';
 import { WarehouseQueue } from './InvFulfilment';
 import { Shipments, DealerInventory, TransferOrders } from './InvDealerDist';
+import { CustomerAllocations, Installations } from './InvAllocation';
 
 // Full roadmap nav — Phase-1 sections are live, later phases marked "soon".
 const NAV = [
@@ -36,8 +37,8 @@ const NAV = [
     { id: 'shipments', label: 'Shipments', Icon: Truck, live: true },
     { id: 'transfers', label: 'Transfer Orders', Icon: ArrowRightLeft, live: true },
     { id: 'dealer-inventory', label: 'Dealer Inventory', Icon: Warehouse, live: true },
-    { id: 'allocations', label: 'Customer Allocations', Icon: MapPin, live: false },
-    { id: 'installations', label: 'Installations', Icon: MapPin, live: false },
+    { id: 'allocations', label: 'Customer Allocations', Icon: MapPin, live: true },
+    { id: 'installations', label: 'Installations', Icon: MapPin, live: true },
   ] },
   { group: 'Integration', items: [
     { id: 'sage', label: 'Sage 200 Connection', Icon: PlugZap, live: true },
@@ -369,6 +370,8 @@ export default function InventoryDistribution() {
       case 'shipments': return <Shipments />;
       case 'transfers': return <TransferOrders warehouses={warehouses} />;
       case 'dealer-inventory': return <DealerInventory />;
+      case 'allocations': return <CustomerAllocations />;
+      case 'installations': return <Installations />;
       case 'availability': return <StockAvailability warehouses={warehouses} />;
       case 'warehouses': return <Warehouses />;
       case 'sage': return <SageConnection />;

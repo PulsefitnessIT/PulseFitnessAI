@@ -74,6 +74,17 @@ export const invApi = {
   createTransfer: (body) => axios.post(`${base}/dist/transfers`, body, auth()).then((r) => r.data),
   transferAction: (id, action) => axios.post(`${base}/dist/transfers/${id}/${action}`, {}, auth()).then((r) => r.data),
   distSummary: () => axios.get(`${base}/dist/summary`, auth()).then((r) => r.data),
+
+  // Phase 5 — customer allocation
+  allocAvailable: (dealerId) => axios.get(`${base}/alloc/available`, { ...auth(), params: { dealer_id: dealerId } }).then((r) => r.data),
+  custSearch: (q) => axios.get(`${base}/alloc/customers/search`, { ...auth(), params: { q } }).then((r) => r.data),
+  createCustomer: (body) => axios.post(`${base}/alloc/customers`, body, auth()).then((r) => r.data),
+  allocate: (body) => axios.post(`${base}/alloc/allocate`, body, auth()).then((r) => r.data),
+  allocations: (status) => axios.get(`${base}/alloc/allocations`, { ...auth(), params: { status } }).then((r) => r.data),
+  allocation: (id) => axios.get(`${base}/alloc/allocations/${id}`, auth()).then((r) => r.data),
+  install: (id, body) => axios.post(`${base}/alloc/allocations/${id}/install`, body, auth()).then((r) => r.data),
+  customerPortal: (companyId) => axios.get(`${base}/alloc/customer-portal/${companyId}/equipment`, auth()).then((r) => r.data),
+  allocSummary: () => axios.get(`${base}/alloc/summary`, auth()).then((r) => r.data),
 };
 
 export const CUR = { GBP: '£', EUR: '€', USD: '$' };
