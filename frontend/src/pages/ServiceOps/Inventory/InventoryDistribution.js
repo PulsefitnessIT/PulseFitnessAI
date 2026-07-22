@@ -35,13 +35,9 @@ const NAV = [
   { group: 'Inventory', items: [
     { id: 'availability', label: 'Stock Availability', Icon: PackageSearch, live: true },
     { id: 'warehouses', label: 'Warehouses', Icon: Warehouse, live: true },
-    { id: 'receiving', label: 'Receiving', Icon: Truck, live: true },
-    { id: 'picking', label: 'Picking', Icon: Boxes, live: true },
-    { id: 'quality', label: 'Quality Control', Icon: ShieldCheck, live: true },
-    { id: 'packing', label: 'Packing', Icon: Boxes, live: true },
+    { id: 'fulfilment', label: 'Fulfilment', Icon: Boxes, live: true },
   ] },
   { group: 'Distribution', items: [
-    { id: 'dispatch', label: 'Dispatch', Icon: Truck, live: true },
     { id: 'shipments', label: 'Shipments', Icon: Truck, live: true },
     { id: 'transfers', label: 'Transfer Orders', Icon: ArrowRightLeft, live: true },
     { id: 'dealer-inventory', label: 'Dealer Inventory', Icon: Warehouse, live: true },
@@ -358,6 +354,45 @@ function ComingSoon({ label }) {
 }
 
 // ─────────────────────────── Shell ───────────────────────────
+const FULFILMENT_STAGES = [
+  { key: 'receiving', label: 'Receiving', stage: 'receiving', title: 'Receiving', Icon: Truck },
+  { key: 'picking', label: 'Picking', stage: 'picking', title: 'Picking Queue', Icon: PackageSearch },
+  { key: 'quality', label: 'Quality Control', stage: 'qc', title: 'Quality Control Queue', Icon: ShieldCheck },
+  { key: 'packing', label: 'Packing', stage: 'packing', title: 'Packing Queue', Icon: ScanLine },
+  { key: 'dispatch', label: 'Dispatch', stage: 'dispatch', title: 'Dispatch Queue', Icon: Truck },
+];
+const FULFILMENT_KEYS = FULFILMENT_STAGES.map((s) => s.key);
+
+function Fulfilment({ initialStage = 'receiving' }) {
+  const [active, setActive] = useState(FULFILMENT_KEYS.includes(initialStage) ? initialStage : 'receiving');
+  const st = FULFILMENT_STAGES.find((s) => s.key === active) || FULFILMENT_STAGES[0];
+  return (
+    <div className="space-y-4" data-testid="inv-fulfilment">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Fulfilment</h2>
+        <p className="text-sm text-slate-500">Work the warehouse pipeline end to end — receive, pick, QC, pack and dispatch.</p>
+      </div>
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" data-testid="inv-fulfilment-tabs">
+        {FULFILMENT_STAGES.map((s, i) => {
+          const on = s.key === active;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setActive(s.key)}
+              data-testid={`inv-fulfilment-tab-${s.key}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'bg-[#0B3D91] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${on ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-600'}`}>{i + 1}</span>
+              <s.Icon size={14} /> {s.label}
+            </button>
+          );
+        })}
+      </div>
+      <WarehouseQueue key={st.stage} stage={st.stage} title={st.title} />
+    </div>
+  );
+}
+
 export default function InventoryDistribution() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -371,7 +406,7 @@ export default function InventoryDistribution() {
 
   const go = (id) => { setSp(id === 'dashboard' ? {} : { s: id }); setSidebarOpen(false); };
 
-  const findItem = () => { for (const g of NAV) { const it = g.items.find((x) => x.id === section); if (it) return it; } return null; };
+  const findItem = () => { const sec = FULFILMENT_KEYS.includes(section) ? 'fulfilment' : section; for (const g of NAV) { const it = g.items.find((x) => x.id === sec); if (it) return it; } return null; };
   const item = findItem();
 
   const render = () => {
@@ -381,11 +416,12 @@ export default function InventoryDistribution() {
       case 'sage-orders': return <SageOrders />;
       case 'orders': return <InvOrders warehouses={warehouses} initialOrderId={orderId} />;
       case 'exceptions': return <OrderExceptions />;
-      case 'receiving': return <WarehouseQueue stage="receiving" title="Receiving" />;
-      case 'picking': return <WarehouseQueue stage="picking" title="Picking Queue" />;
-      case 'quality': return <WarehouseQueue stage="qc" title="Quality Control Queue" />;
-      case 'packing': return <WarehouseQueue stage="packing" title="Packing Queue" />;
-      case 'dispatch': return <WarehouseQueue stage="dispatch" title="Dispatch Queue" />;
+      case 'fulfilment': return <Fulfilment initialStage="receiving" />;
+      case 'receiving': return <Fulfilment initialStage="receiving" />;
+      case 'picking': return <Fulfilment initialStage="picking" />;
+      case 'quality': return <Fulfilment initialStage="quality" />;
+      case 'packing': return <Fulfilment initialStage="packing" />;
+      case 'dispatch': return <Fulfilment initialStage="dispatch" />;
       case 'shipments': return <Shipments />;
       case 'transfers': return <TransferOrders warehouses={warehouses} />;
       case 'dealer-inventory': return <DealerInventory />;
@@ -449,7 +485,7 @@ export default function InventoryDistribution() {
             <div key={g.group}>
               <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold first:pt-1">{g.group}</p>
               {g.items.map((it) => {
-                const active = it.id === section;
+                const active = it.id === section || (it.id === 'fulfilment' && FULFILMENT_KEYS.includes(section));
                 return (
                   <button
                     key={it.id}

@@ -1,3 +1,17 @@
+# ═══ 2026-06 · INVENTORY NAV DECLUTTER — FULFILMENT PIPELINE (scope A) ═══
+Founder feedback: nav felt stacked (24 items / 8 groups). Merged the 5 linear warehouse stages
+(Receiving/Picking/Quality Control/Packing/Dispatch) into ONE 'Fulfilment' workspace with numbered stage tabs
+(InventoryDistribution.js — new Fulfilment component wrapping the existing WarehouseQueue via FULFILMENT_STAGES).
+Nav 24→20: Inventory group now = Stock Availability, Warehouses, Fulfilment; Dispatch removed from Distribution.
+Deep-link back-compat preserved: ?s=receiving|picking|quality|packing|dispatch route to Fulfilment with that stage
+active; the Fulfilment nav item highlights for any stage. Verified via screenshot (5 tabs, tab-switch, 20 nav items).
+Nothing removed — only reorganised. (Scopes B — Exceptions→Orders tab, Allocations+Installs merge, Monitoring+Alerts
+merge, Field Ownership→Configure — offered but deferred by user.)
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · MASTER ADMIN: PER-AREA IMPERSONATION + SERVICE DESK/INVENTORY AS FIRST-CLASS RIGHTS (VERIFIED 100% FE) ═══
 Two founder-requested enhancements on top of the standalone Inventory module:
 
