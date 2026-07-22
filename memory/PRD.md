@@ -1,3 +1,44 @@
+# ═══ 2026-06 (this session) · LAUNCH-READINESS: SECURITY AUDIT + MONEY-PATH QA ═══
+Founder requested a go/no-go safety check before full commercial launch. User choices: (1) Security audit
+FIRST then QA; (2) FULL application security surface; (3) beta/stubbed modules = REPORT ONLY (no code changes);
+(4) "continue with your recommendations".
+
+SECURITY AUDIT — VERDICT: CONDITIONAL PASS (core tenancy SOUND; no confirmed cross-tenant leak or
+account-takeover path). Isolation verified on a representative high-value sample (crm_v2, equipment, issues,
+staffing, staff_portal, files) — every query org-scoped; admin powers checked against the DB record, not the
+token; CRM/platform/staff/dealer token scopes stay separated. Findings (all env-gated, NOT code bugs):
+- SEC-001 (P2): onboarding verification webhook (`routes/staff_onboarding_wizard.py:1894` `_verify_webhook_sig`)
+  accepts UNSIGNED callbacks only when APP_ENV != production. In production it REJECTS unsigned by default
+  (safe). LAUNCH ACTION: deploy with APP_ENV=production; set ONBOARDING_WEBHOOK_SECRET only when a real
+  RTW/DBS provider is wired.
+- SEC-002 (P1): non-production posture (CORS `["*"]`+credentials via `utils/security_plus.resolve_cors_origins`,
+  webhook bypass, non-aborting secrets audit `server.py:389`) — ALL auto-harden when APP_ENV=production.
+  LAUNCH ACTION (config, not code): set APP_ENV=production + explicit CORS_ORIGINS at deploy.
+- SEC-003 (P3): hard-coded demo/seed passwords (`crm_auth.py:762`, `mod_portal.py:2992`) — NOT reachable
+  (CRM_SEED_DEMO_ORGS=0; demo seed is master-admin-gated). Cosmetic cleanup only.
+- Hardening (P3): password reset doesn't revoke pre-reset sessions (`routes/auth.py:895`); CRM token not bound
+  to active platform session (only reachable by master admin → no cross-customer exposure); `dev_fake_connection`
+  (`pulse_stripe_phase2.py:512`) is admin-gated + refuses to overwrite real accounts but is not APP_ENV-gated.
+CONCLUSION: no code changes made — the relaxed posture is a preview/non-prod DESIGN that hardens automatically
+in production. Launch is a CONFIG gate (APP_ENV=production), not a code fix.
+
+MONEY-PATH QA — 11/11 backend PASS (report iteration_launch_qa_moneypaths_jan2026.json;
+regression suite tests/test_launch_qa_moneypaths_jan2026.py). Verified: Auth (master admin, operator owner,
+CRM login, Site-A manager blocked from Site-B via X-Site-Id → 403), CRM v2 org-scoping (+platform token
+rejected on CRM routes), Memberships create/list/persist, Memberships billing monthly-invoice generate (no
+500s) + statement PDF renders (%PDF). NO critical issues. Two MINOR frontend UX findings (REPORTED, not fixed
+per "report only"): (a) cookie banner overlaps the Sign In CTA on /login until dismissed (MEDIUM); (b)
+/memberships/members deep-link 404s when an owner is in the Service Desk area (should auto-switch area).
+
+STUBBED/BETA MODULES (report-only, flag before day-one so nothing is oversold): Sicon Service/Customer sync
+(`svc/integrations/sicon_sync.py` — enqueues to svc_sicon_outbox; no worker drains it; BLOCKED on Sage creds);
+Orbit 4 outbound sync (501 "not enabled"); Stripe module + Partner Plan checkout (501 until Price IDs set;
+BLOCKED on Stripe key/pricing); memberships direct-debit "DD / Stripe Connect coming soon — using manual".
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-21 · MODAL FOOTER CUT-OFF FIX (all consoles) ═══
 User reported the Memberships "Add member" and "New ad" modals cut off the last field/text behind the
 Save footer (couldn't scroll far enough). Root cause: footers used `sticky bottom-0` INSIDE the scroll
