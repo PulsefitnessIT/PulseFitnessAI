@@ -1,3 +1,36 @@
+# ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 5 · CUSTOMER ALLOCATION, INSTALLATION & WARRANTY (VERIFIED 100%) ═══
+routes/inventory_allocation.py, prefix /api/inventory/alloc. Dealer allocates dealer-held machines
+(dealer_inventory_holdings) to THEIR customers → creates the ACTIVE ASSET in the EXISTING equipment register
+(db.equipment, asset_source=dealer_distribution, source_unit_id links it; unit.asset_id set — the unit BECOMES the
+asset, never duplicated) → populates the Customer Operations Portal → install/commission (Engineer App calls the
+same endpoint) activates the asset + starts warranty.
+Endpoints: GET /available (dealer-held stock available), GET /customers/search (search crm2_companies — duplicate
+prevention), POST /customers {name,force} (returns {created:false,duplicates} on same-name unless force; else
+creates crm2_companies company_type=dealer_customer status=pending_validation — NO second customer DB), POST
+/allocate {unit_ids,customer_company_id,customer_site,planned_install_date,service_responsibility}, GET/GET-by-id
+/allocations, POST /allocations/{id}/install {engineer_name,checklist,software_version,customer_acceptance,...}
+(400 if acceptance false; else installation_commissioning_records + warranty_activation_events + equipment.status
+=active + warranty_expiry per settings.warranty_activation_rule + unit→active_asset), GET
+/customer-portal/{company_id}/equipment (customer-scoped view over db.equipment), GET /summary.
+Collections: dealer_customer_allocations, installation_commissioning_records, warranty_activation_events.
+REUSES: crm2_companies (customer), db.equipment (asset register), settings (warranty rule).
+Frontend: InvAllocation.js — CustomerAllocations (available stock, duplicate-checked CustomerPicker, allocate,
+Customer Portal preview, allocations table with Install), Installations queue, InstallModal (engineer + commissioning
+checklist + acceptance gate). Nav: Customer Allocations + Installations now LIVE (entire ~30-item nav now functional
+except P6/P7 groups not yet added). api.js has alloc methods.
+VERIFIED testing_agent 12/12 backend + 100% frontend, 0 issues (iteration_inventory_alloc_phase5_jan2026.json).
+Acceptance: US dealer → dealer receipt → allocate 2 to 'Downtown Fitness Club' (dup-checked) → portal awaiting_install
+→ install (acceptance gate 400 without) → asset active + warranty (installation_date rule) → portal active. Data wiped.
+
+REMAINING: P6 (dealer service desks + fault routing + Engineer App + Dealer Warranty Parts), P7 (monitoring agents,
+dashboards, reports, replenishment). Sage live sync (P2) BLOCKED on Sage/Sicon creds.
+FOLLOW-UPS carried: surface dealer receipt + allocation inside the authenticated Dealer Portal UI; branded/translated
+PDF paperwork via central doc engine; reuse real CRM site records for customer sites (currently free-text site label).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 3 (WAREHOUSE OPS) + PHASE 4 (DEALER DISTRIBUTION) — VERIFIED 100% ═══
 PHASE 3 — Warehouse Operations (routes/inventory_warehouse_ops.py, prefix /api/inventory/ops):
   Order-driven fulfilment pipeline on Phase-1 orders/units: Release → Pick (scan exact serial) → QC → Pack →
