@@ -53,10 +53,6 @@ const NAV = [
     { id: 'intel-reports', label: 'Reports', Icon: FileBarChart, live: true },
     { id: 'intel-replenishment', label: 'Replenishment', Icon: PackagePlus, live: true },
   ] },
-  { group: 'Integration', items: [
-    { id: 'sage', label: 'Sage 200 Connection', Icon: PlugZap, live: true },
-    { id: 'field-ownership', label: 'Field Ownership', Icon: Globe, live: true },
-  ] },
   { group: 'Configure', items: [
     { id: 'settings', label: 'Settings', Icon: SettingsIcon, live: true },
   ] },
@@ -306,10 +302,15 @@ function FieldOwnership() {
 }
 
 // ─────────────────────────── Settings ───────────────────────────
-function SettingsView({ warehouses }) {
+function SettingsView({ warehouses, initialTab = 'general' }) {
+  const SETTINGS_TABS = [
+    { id: 'general', label: 'General' },
+    { id: 'sage', label: 'Sage 200 Connection' },
+    { id: 'field-ownership', label: 'Field Ownership' },
+  ];
+  const [tab, setTab] = useState(SETTINGS_TABS.some((t) => t.id === initialTab) ? initialTab : 'general');
   const [s, setS] = useState(null);
   useEffect(() => { invApi.settings().then(setS).catch(() => {}); }, []);
-  if (!s) return <Spinner />;
   const save = async (patch) => { try { const d = await invApi.saveSettings(patch); setS(d); notify.success('Saved'); } catch (e) { notify.error('Failed'); } };
   const Toggle = ({ k, label }) => (
     <label className="flex items-center justify-between border-b border-slate-100 py-2.5" data-testid={`inv-setting-${k}`}>
@@ -319,25 +320,46 @@ function SettingsView({ warehouses }) {
   );
   return (
     <div className="space-y-5" data-testid="inv-settings">
-      <h2 className="text-xl font-bold text-slate-900">Settings</h2>
-      <Card className="p-4">
-        <Toggle k="sage_integration_enabled" label="Sage 200 integration enabled" />
-        <Toggle k="automatic_order_import" label="Automatic order import from Sage" />
-        <Toggle k="qc_required" label="Quality control required before dispatch" />
-        <Toggle k="dealer_receipt_required" label="Dealer receipt confirmation required" />
-        <Toggle k="dealer_allocation_required" label="Dealer must allocate to a customer" />
-        <div className="grid grid-cols-2 gap-3 pt-3 sm:grid-cols-3">
-          <Field label="Default warehouse"><select className={inputCls} value={s.default_warehouse_id || ''} data-testid="inv-setting-default-wh" onChange={(e) => save({ default_warehouse_id: e.target.value })}><option value="">—</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
-          <Field label="Currency display"><select className={inputCls} value={s.currency_display} data-testid="inv-setting-currency" onChange={(e) => save({ currency_display: e.target.value })}>{['GBP', 'EUR', 'USD'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-          <Field label="Warranty activation rule"><select className={inputCls} value={s.warranty_activation_rule} data-testid="inv-setting-warranty" onChange={(e) => save({ warranty_activation_rule: e.target.value })}>{['dispatch_date', 'dealer_receipt_date', 'delivery_date', 'installation_date', 'commissioning_date', 'invoice_date'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
-        </div>
-      </Card>
-      <Card className="p-4" testId="inv-country-profiles">
-        <h3 className="mb-2 text-sm font-bold text-slate-900">Country profiles</h3>
-        <table className="w-full text-sm"><thead><tr className="text-left text-xs uppercase text-slate-400"><th className="pb-2">Country</th><th>Language</th><th>Currency</th><th>Units</th><th>Date format</th></tr></thead>
-          <tbody>{(s.country_profiles || []).map((c) => <tr key={c.code} className="border-t border-slate-100"><td className="py-2 font-semibold">{c.name}</td><td>{c.language}</td><td>{c.currency}</td><td>{c.measurement}</td><td>{c.date_format}</td></tr>)}</tbody>
-        </table>
-      </Card>
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Settings</h2>
+        <p className="text-sm text-slate-500">Distribution rules, plus the occasional Sage 200 connection and field-ownership configuration.</p>
+      </div>
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" data-testid="inv-settings-tabs">
+        {SETTINGS_TABS.map((t) => {
+          const on = t.id === tab;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} data-testid={`inv-settings-tab-${t.id}`}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'bg-[#0B3D91] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === 'sage' ? <SageConnection /> : tab === 'field-ownership' ? <FieldOwnership /> : (
+        !s ? <Spinner /> : (
+          <div className="space-y-5">
+            <Card className="p-4">
+              <Toggle k="sage_integration_enabled" label="Sage 200 integration enabled" />
+              <Toggle k="automatic_order_import" label="Automatic order import from Sage" />
+              <Toggle k="qc_required" label="Quality control required before dispatch" />
+              <Toggle k="dealer_receipt_required" label="Dealer receipt confirmation required" />
+              <Toggle k="dealer_allocation_required" label="Dealer must allocate to a customer" />
+              <div className="grid grid-cols-2 gap-3 pt-3 sm:grid-cols-3">
+                <Field label="Default warehouse"><select className={inputCls} value={s.default_warehouse_id || ''} data-testid="inv-setting-default-wh" onChange={(e) => save({ default_warehouse_id: e.target.value })}><option value="">—</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
+                <Field label="Currency display"><select className={inputCls} value={s.currency_display} data-testid="inv-setting-currency" onChange={(e) => save({ currency_display: e.target.value })}>{['GBP', 'EUR', 'USD'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+                <Field label="Warranty activation rule"><select className={inputCls} value={s.warranty_activation_rule} data-testid="inv-setting-warranty" onChange={(e) => save({ warranty_activation_rule: e.target.value })}>{['dispatch_date', 'dealer_receipt_date', 'delivery_date', 'installation_date', 'commissioning_date', 'invoice_date'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
+              </div>
+            </Card>
+            <Card className="p-4" testId="inv-country-profiles">
+              <h3 className="mb-2 text-sm font-bold text-slate-900">Country profiles</h3>
+              <table className="w-full text-sm"><thead><tr className="text-left text-xs uppercase text-slate-400"><th className="pb-2">Country</th><th>Language</th><th>Currency</th><th>Units</th><th>Date format</th></tr></thead>
+                <tbody>{(s.country_profiles || []).map((c) => <tr key={c.code} className="border-t border-slate-100"><td className="py-2 font-semibold">{c.name}</td><td>{c.language}</td><td>{c.currency}</td><td>{c.measurement}</td><td>{c.date_format}</td></tr>)}</tbody>
+              </table>
+            </Card>
+          </div>
+        )
+      )}
     </div>
   );
 }
@@ -362,6 +384,7 @@ const FULFILMENT_STAGES = [
   { key: 'dispatch', label: 'Dispatch', stage: 'dispatch', title: 'Dispatch Queue', Icon: Truck },
 ];
 const FULFILMENT_KEYS = FULFILMENT_STAGES.map((s) => s.key);
+const SETTINGS_KEYS = ['sage', 'field-ownership'];
 
 function Fulfilment({ initialStage = 'receiving' }) {
   const [active, setActive] = useState(FULFILMENT_KEYS.includes(initialStage) ? initialStage : 'receiving');
@@ -413,7 +436,7 @@ export default function InventoryDistribution() {
     .map((g) => ({ ...g, items: g.items.filter((it) => !it.pulseOnly || isPulseSide) }))
     .filter((g) => g.items.length > 0);
 
-  const findItem = () => { const sec = FULFILMENT_KEYS.includes(section) ? 'fulfilment' : section; for (const g of NAV) { const it = g.items.find((x) => x.id === sec); if (it) return it; } return null; };
+  const findItem = () => { const sec = FULFILMENT_KEYS.includes(section) ? 'fulfilment' : (SETTINGS_KEYS.includes(section) ? 'settings' : section); for (const g of NAV) { const it = g.items.find((x) => x.id === sec); if (it) return it; } return null; };
   const item = findItem();
 
   const render = () => {
@@ -447,9 +470,9 @@ export default function InventoryDistribution() {
       case 'intel-replenishment': return <IntelReplenishment />;
       case 'availability': return <StockAvailability warehouses={warehouses} />;
       case 'warehouses': return <Warehouses />;
-      case 'sage': return <SageConnection />;
-      case 'field-ownership': return <FieldOwnership />;
-      case 'settings': return <SettingsView warehouses={warehouses} />;
+      case 'sage': return <SettingsView warehouses={warehouses} initialTab="sage" />;
+      case 'field-ownership': return <SettingsView warehouses={warehouses} initialTab="field-ownership" />;
+      case 'settings': return <SettingsView warehouses={warehouses} initialTab="general" />;
       default: return <ComingSoon label={item?.label || 'Section'} />;
     }
   };
@@ -498,7 +521,7 @@ export default function InventoryDistribution() {
             <div key={g.group}>
               <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold first:pt-1">{g.group}</p>
               {g.items.map((it) => {
-                const active = it.id === section || (it.id === 'fulfilment' && FULFILMENT_KEYS.includes(section));
+                const active = it.id === section || (it.id === 'fulfilment' && FULFILMENT_KEYS.includes(section)) || (it.id === 'settings' && SETTINGS_KEYS.includes(section));
                 return (
                   <button
                     key={it.id}

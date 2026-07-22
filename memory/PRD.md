@@ -1,3 +1,14 @@
+# ═══ 2026-06 · INVENTORY NAV — INTEGRATION FOLDED INTO SETTINGS ═══
+Founder: Sage 200 Connection + Field Ownership are rarely-touched config → moved them INTO Settings as tabs.
+SettingsView is now tabbed (General / Sage 200 Connection / Field Ownership) via initialTab prop; renders the
+existing SageConnection + FieldOwnership components inside. Removed the 'Integration' nav group; nav 20→18.
+Back-compat: ?s=sage and ?s=field-ownership deep-link straight to the matching Settings tab (SETTINGS_KEYS) and
+highlight the Settings nav item. Verified via screenshot (3 tabs, Sage tab renders, deep links work, 18 nav items).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER DESK SETUP — SHARPENED BOUNDARY + DEALER-FACING GATING ═══
 Founder Q: does "Dealer Service Desks" belong in Inventory if Master Admin already has the Service Desk, and note
 the module will be SOLD TO DEALERS (so Pulse-side provisioning screens must not show to dealer users). Decision = keep
