@@ -1,3 +1,65 @@
+# ═══ 2026-06 · GLOBAL DEALER DISTRIBUTION, INVENTORY & ASSET DEPLOYMENT — PHASE 1 (VERIFIED 100%) ═══
+Founder requested a full ERP-scale Global Dealer Distribution / Inventory & Asset Deployment system inside
+Service Desk → Inventory & Distribution (Sage order → warehouse → picking/QC/packing → international
+distribution → dealer receipt → dealer inventory → customer allocation → installation → warranty → service).
+Hard constraint: REUSE existing records, never duplicate (dealers=crm2_companies, products=crm_products,
+equipment/serial=equipment, parts/stock ledger=svc_*). Build in connected phases. User choices: UI = my call
+(built a dedicated area); START = Phase 1 (Foundation + Manual Orders); Sage = build manual + scaffold now,
+wire live later (BLOCKED on Sage/Sicon creds); FIRST deliverable = working Phase-1 slice; multi-currency + i18n
+baked into the data model from the start.
+
+DELIVERED PHASE 1 (this session):
+BACKEND — routes/inventory_distribution.py (registered route_registry/features.py _UNGATED_ROUTERS as
+inventory_distribution_router), org-scoped via get_current_user, prefix /api/inventory/*:
+  • Field-ownership matrix (GET /field-ownership) — static system-of-record matrix (Sage vs Pulse authoritative,
+    direction, override, reconciliation) + Sage posting states. GET /meta = enums (product types, order/unit statuses).
+  • Warehouses/locations: GET/POST /warehouses, GET/POST /warehouses/{id}/locations (zone/aisle/rack/shelf/bin + barcode).
+  • Distribution Orders (MANUAL, no Sage): POST /orders (classifies lines by product_type; auto-creates ONE
+    provisional equipment_unit per qty for serialised_machine lines), GET /orders(+filter/search), GET /orders/{id}
+    (order+lines+units+reservations), POST /orders/{id}/status, POST /orders/{id}/validate (dealer/currency/address/
+    products/qty checks → ready|ready_with_warnings|blocked), POST /orders/{id}/reserve (reserves available stock,
+    marks shortfall awaiting_stock, sets order partially_available/reserved).
+  • Serial control: GET /serials/check (dedupe across equipment + inv_equipment_units → exact/normalised/clear),
+    POST /units/{id}/assign-serial (binds serial to provisional unit; returns HTTP 409 on duplicate unless
+    override_duplicate=true; writes stock movement). Units lifecycle: provisional → serial_assigned → …
+  • Stock: POST /stock/receive (seeds inv_stock_holdings + movement), GET /stock/availability (on_hand/reserved/available).
+  • Sage scaffold: GET/POST /sage/connection, GET /sage/capabilities/discover (capability TEMPLATE — live probe
+    pending creds; write-back DISABLED by design). GET/PUT /settings (module flags, default warehouse, warranty
+    rule, currency display, country_profiles GB/FR/US).
+  • Collections (operational-only, prefix inv_): inv_warehouses, inv_locations, inv_distribution_orders,
+    inv_distribution_order_lines, inv_equipment_units, inv_reservations, inv_stock_holdings, inv_stock_movements,
+    inv_settings, inv_audit_log, sage_connections. Multi-currency: order stores original currency (never recalc).
+FRONTEND — pages/ServiceOps/Inventory/{api.js, ui.js, InvOrders.js, InventoryDistribution.js}. Dedicated area at
+  /service-desk/inventory (gated can(user,'view_service_desk')), Pulse-branded (navy #0B3D91, white bg), full
+  roadmap left-nav (Phase-1 sections LIVE: Dashboard, Distribution Orders, Stock Availability, Warehouses, Sage 200
+  Connection, Field Ownership, Settings; later phases marked "SOON" → ComingSoon placeholder). Entry link added to
+  the unified Service Desk sidebar (ServiceDeskPage.js, data-testid desk-tab-inventory-distribution).
+  Order create wizard (dealer typeahead from CRM, FR/EUR, multi-line), order detail with validate/reserve + serial
+  capture (scan/type → Bind, browser-confirm override on duplicate), warehouse+location builder, stock receive/
+  availability, field-ownership table, Sage connection + capability discovery, settings toggles + country profiles.
+VERIFIED: testing_agent backend 7/7 + frontend 100%, 0 issues
+(report iteration_inventory_distribution_phase1_jan2026.json). Owner test acct owner@isodemo.com / IsoDemo123!.
+
+PHASE ROADMAP (remaining, all to stay ONE connected architecture, reusing existing records):
+  P2 — Sage 200 order sync (BLOCKED on Sage/Sicon creds): capability probe, order/line import w/ idempotency keys,
+       sync states, reconciliation, exception queues. (crm_sage200.py + sicon_client.py already scaffolded.)
+  P3 — Warehouse ops: receiving, racking, picking (wave/zone), QC templates, packing/packages, dispatch, full
+       barcode/QR scan workflows + mobile scan-first UI + offline queue.
+  P4 — Distribution: shipments/tracking, dealer receipt confirmation (Dealer Portal), dealer inventory, transfer
+       orders, international customs/country doc profiles.
+  P5 — Customer allocation: dealer→customer duplicate-safe matching, asset population into Customer Ops Portal,
+       installation/commissioning via existing Engineer App, warranty activation rules.
+  P6 — Dealer Service Desks: creation wizard, scoped workspace over existing Service Desk, fault routing, Engineer
+       App integration, Dealer Warranty Parts connection.
+  P7 — Intelligence: monitoring agents (Sage health, inventory risk, order exception, serial/asset integrity,
+       allocation, distribution performance, warranty/failure, document compliance), dashboards, reports, replenishment.
+NOTE: Phase-1 review nits (non-blocking, defer to P2): duplicate-serial UX should become a branded modal (not
+  window.confirm); centralise _require_ops_role via shared RBAC helper; warehouse reload-per-section is minor perf.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 (this session) · Platform Health PHASE 2 + Master Admin "System Health" consolidation ═══
 User: continue Phase 2, ensure no duplicated data in Master Admin, merge Maintenance jobs / Client Crashes
 (→ into a System Health hub). Choices: System Health group = Self-Healing + Status&uptime (renamed from the
