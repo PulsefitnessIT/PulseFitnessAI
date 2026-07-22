@@ -1,3 +1,42 @@
+# ═══ 2026-06 (this session) · FEATURE · Platform Health / Self-Healing engine (Phase 1) ═══
+Founder wants the platform "as hands-off as possible" — AI to catch issues like the "logged fault not
+showing" bug, diagnose, and fix. Honest scope: AI can't self-rewrite production CODE, but the CLASS of
+problem (data that exists but doesn't surface — orphaned/site-less rows, broken refs) is exactly what an
+AI-assisted data-integrity monitor can detect, diagnose in plain English, and fix. User choices: DETECT +
+AI-diagnose everything but require one-click "Apply fix" (NO auto-heal); live under Master Admin →
+Compliance & Security; on-demand scan now (+ nightly sweep Phase 2); fixes REVERSIBLE via snapshot.
+
+BACKEND — routes/platform_integrity.py (registered route_registry/admin.py), master-admin gated,
+prefix /api/master-admin/platform-health/*:
+  * GET  /checks                         — check registry metadata
+  * POST /scan                           — runs all detectors, AI-diagnoses each finding (Claude Sonnet 4.5
+    via Emergent key, parallel asyncio.gather, deterministic fallback if AI unavailable), refreshes OPEN
+    findings (keeps fixed/dismissed history), writes a scan record.
+  * GET  /findings?status=open|fixed|dismissed|all
+  * POST /findings/{id}/fix              — applies fix, captures before-snapshot (affected ids) for undo.
+  * POST /findings/{id}/undo             — restores site-less state ONLY on rows still stamped with our
+    site_id (won't clobber a later legit re-assignment).
+  * POST /findings/{id}/dismiss
+  Collections: platform_integrity_findings, platform_integrity_scans. Every fix/undo writes admin_activity_log.
+  PHASE 1 CHECK `site_less_records`: for each MULTI-SITE org (2+ non-archived sites), finds equipment/issues
+  with no site_id → one finding/org. Fix = backfill the org's primary (head-office) site onto those rows.
+
+FRONTEND — pages/MasterAdmin/PlatformHealth.js; sidebar leaf "Platform Health" (Activity icon) added to
+Compliance & Security in SidebarConfig.js; lazy-loaded + rendered in MasterAdminPage.js. UI: "Run integrity
+scan" button, Open/Fixed/Dismissed tabs, per-finding card with severity dot, AI-diagnosis block, risk pill,
+and Apply-fix / Dismiss / Undo actions. testids: platform-health-panel, platform-health-scan-btn,
+platform-health-tab-*, finding-<id>, finding-fix-<id>, finding-dismiss-<id>, finding-undo-<id>.
+
+VERIFIED (self-test): seeded a site-less equipment+fault in the 2-site iso-demo org → POST /scan returned the
+finding with a real Claude diagnosis (risk=low) → /fix stamped 1 equipment + 1 fault with the head-office
+site → /undo reverted both to site-less. Master Admin UI renders the tab (screenshot). Findings/scans
+collections wiped clean after test so the user's first real scan starts fresh. NEW FEATURE — needs REDEPLOY
+to reach production.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 (this session) · BUGFIX · "Logged fault not showing" + AI triage portal-awareness ═══
 Two production-reported issues (pulsefitness.ai; impersonating somerslee@hotmail.com, Pulse Fitness Pro,
 Penkridge Leisure Centre HO). Fixed in PREVIEW code — REQUIRES REDEPLOY to reach production.

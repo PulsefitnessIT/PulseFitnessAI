@@ -13,6 +13,7 @@ from routes.master_admin_stats_audit import router as master_admin_stats_audit_r
 from routes.master_admin_org_create import router as master_admin_org_create_router
 from routes.master_admin_integration_health import router as master_admin_integration_health_router
 from routes.master_admin_integrity import router as master_admin_integrity_router
+from routes.platform_integrity import router as platform_integrity_router
 from routes.master_admin_org_branding import router as master_admin_org_branding_router
 from routes.master_admin_ops import router as master_admin_ops_router
 from routes.master_admin_trials import router as master_admin_trials_router
@@ -114,6 +115,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_org_create_router,
         master_admin_integration_health_router,
         master_admin_integrity_router,
+        platform_integrity_router,
         master_admin_org_branding_router,
         master_admin_ops_router,
         master_admin_trials_router,

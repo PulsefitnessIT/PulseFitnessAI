@@ -168,6 +168,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'archive',            label: 'Archive',             icon: FolderArchive },
       { id: 'org-cleanup',        label: 'Cleanup & operator',  icon: ShieldCheck },
       { id: 'test-data-purge',    label: 'Purge test data',     icon: FlaskConical },
+      { id: 'platform-health',    label: 'Platform Health',     icon: Activity },
     ],
   },
   // 12. Platform Tools — internal support, data, maintenance + brand config.
@@ -330,6 +331,7 @@ export const sectionTitles = {
   organizations: 'Organisations',
   'org-cleanup': 'Organisation cleanup',
   'test-data-purge': 'Purge test data',
+  'platform-health': 'Platform Health',
   backfills: 'Maintenance jobs',                // Iter 216h17 — terminology cleanup
   partners: 'Partner Engineers',                // Iter 219 — promoted to top-level
   // Group-level titles when no sub-tab is yet selected
@@ -394,6 +396,7 @@ export const sectionDescriptions = {
   organizations: 'Customer organisations — Pulse Fitness, Pulse Fitness. Click any row for a full drawer.',
   'org-cleanup': 'Pin your operator company and safely merge & delete duplicate / stray organisations.',
   'test-data-purge': 'Detect and remove regression/demo fixtures that leaked into this database. Dry-run first; system & operator orgs are protected.',
+  'platform-health': 'Self-healing data-integrity monitor. Scans for "invisible data" (records that exist but don\'t surface, like a fault logged against a site-less machine), diagnoses each in plain English, and lets you apply a reversible one-click fix.',
   backfills: 'One-off maintenance jobs — preview, then commit. Powers data clean-up.',
   partners: 'Approve incoming partner engineer applications, manage active partners, and queue commission payouts — a core revenue stream.',
   finance: 'Pricing, billing, payments, Stripe and CAPEX in one place.',
