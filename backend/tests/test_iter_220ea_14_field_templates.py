@@ -22,7 +22,7 @@ import pytest
 
 
 API_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-           or "https://dealer-parts-engine.preview.emergentagent.com").rstrip("/")
+           or "https://platform-doctor.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "admin@gymaxisai.com"
 ADMIN_PASS = "MasterAdmin123!"
 

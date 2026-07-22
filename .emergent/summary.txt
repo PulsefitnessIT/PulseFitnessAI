@@ -1,29 +1,30 @@
-<analysis>**original_problem_statement**: PRODUCT REQUIREMENTS: Build a complete Global Dealer Parts Management and Monitoring System inside Pulse Fitness AI (Service Desk → Parts). Specifically, build a spreadsheet-driven Dealer Parts Data Import, BOM Matching, and Most-Used Parts Recommendation Engine. The platform must import Parts Used and BOM spreadsheets, match them intelligently, create recommendation engines avoiding duplicates, provide AI invoice parsing, and integrate with a unified Stores department.
+<analysis><analysis>
+**original_problem_statement**: PRODUCT REQUIREMENTS: Build a complete Staff Onboarding, Offer Letter, Employment Contract Wizard, and a comprehensive Staff Portal inside PulseFitness.ai. The system must handle paperless recruitment, AI-driven document validations, customizable company policies with AI signature mapping, secure JWT portals, and a fully functional Staff Portal. *Additional requirement added in this session*: Build a self-healing AI engine to detect, diagnose, and fix orphaned/invisible data across the platform, and consolidate Master Admin health modules under a unified System Health dashboard.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A mature full-stack CRM, Service Desk, MOD Portal, and Dealer Parts platform. Includes file-chunk persistence, allowance-fitting algorithms, custom JWT Auth, deterministic PDF scanners, and UI features for Master Admin, Service Ops, and MOD users. In the latest updates, the MOD user UI was refined by placing the ASER component inside the Reports sub-menu, CRM users received a Promote to register feature for CRM-only assets, and MOD users had their KPI dashboard 403 access error resolved. 
+**what currently exists?**: A mature, live full-stack CRM and Staffing platform (PulseFitness.ai). The platform now features a consolidated Master Admin System Health group, which houses an AI-powered Self-Healing data integrity engine (with 1-click revertable fixes), Status & Uptime, Integration Health, Client Crashes, and Maintenance Jobs. Core money paths and multi-tenancy security isolation have been successfully audited.
 
 **Last working item**:
-    - Last item agent was working: Implementing Item 1 (CRM-only asset Promote to register action) and Item 2 (Fixing KPI dashboard 403 error for MOD users). 
-    - Status: COMPLETED
-    - Agent Testing Done: Y
-    - Which testing method agent to use?: Backend testing via  and Frontend .
+    - Last item agent was working: Building and refining the Self-Healing data integrity engine (Phase 2) and consolidating various Master Admin diagnostic screens into a single System Health navigation group. The agent successfully shipped 5 automated data anomaly checks, wired them into a nightly scheduler, and completed the UI consolidation. Agent proposed a new feature: a weekly System Health digest email summarizing findings.
+    - Status: NONE (Completed, awaiting user's next direction/approval on the weekly digest).
+    - Agent Testing Done: Y (E2E API testing for the scan/fix/undo cycles, and UI smoke testing via screenshot tool).
+    - Which testing method agent to use?: NA 
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
   Issue 1: Sicon Customer Auto-Import via Sage Core / CRM API (P1)
      - Attempted fixes: None (Awaiting credentials).
-     - Next debug checklist: Check Sicon integration requirements / wait for credentials from user.
+     - Next debug checklist: Wait for credentials from user.
      - Why fix this issue and what will be achieved with the fix?: Synchronization of customers with Sage.
      - Status: BLOCKED
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix?: Backend
-     - Blocked on other issue: Missing credentials from the user.
+     - Blocked on other issue: Missing Sicon API doc/credentials.
 
-  Issue 2: Stripe Module Subscription Checkout Blocked (P2)
-     - Attempted fixes: Previously built, but blocked by an expired Stripe key.
-     - Next debug checklist: Wait for user to provide pricing and a valid Stripe API key.
+  Issue 2: Stripe Module Subscription Checkout Blocked (P1)
+     - Attempted fixes: Previously built, blocked by expired Stripe key.
+     - Next debug checklist: Wait for user to provide valid Stripe API key.
      - Why fix this issue and what will be achieved with the fix?: Enables revenue collection.
      - Status: BLOCKED
      - Is recurring issue? N
@@ -32,125 +33,152 @@
 
   Issue 3: SEO Audit Subagent Timeout (P2)
      - Attempted fixes: None. Continuously deferred.
-     - Next debug checklist: Trigger the SEO Audit tool/subagent and track execution to ensure it completes without timing out.
-     - Why fix this issue and what will be achieved with the fix?: Fulfills earlier SEO marketing requirement.
+     - Next debug checklist: Check  for SEO audit scripts.
+     - Why fix this issue and what will be achieved with the fix?: Fulfills SEO marketing requirement.
      - Status: NOT STARTED
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix?: Backend logs.
+     - Should Test frontend/backend/both after fix?: Backend logs
      - Blocked on other issue: None.
 
-**In progress Task List**:
+  Issue 4: Minor Frontend UX bugs from QA (P3)
+     - Attempted fixes: None.
+     - Next debug checklist: Fix cookie banner overlapping the Sign In button on ; Fix 404 on  deep link when owner is in Service Desk area.
+     - Why fix this issue and what will be achieved with the fix?: Polish UI/UX.
+     - Status: NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix?: Frontend
+     - Blocked on other issue: None.
+
+**In progress Task List**: 
   None
 
-**Upcoming and Future Tasks**:
+**Upcoming and Future Tasks**
     Future Tasks:
-    - Task 1: Sicon Equipment API Auto-Import (Blocked - needs Sicon API doc) (P2)
-    - Task 2: Sicon Write-back for Service Cases / Customers (P2)
-    - Task 3: Interactive-hotspot version for exploded drawings (P2)
-    - Task 4: CSV cost backfill wizard for equipment (P2)
-    - Task 5: SEO Audit Subagent Execution (P2)
+    - Task 1: Beta / Coming soon UI ribbon for Sicon, Orbit 4, and direct-debit tiles (P1)
+    - Task 2: Weekly System Health digest email summary (Proposed by agent, pending user approval) (P2)
+    - Task 3: Sicon Equipment API Auto-Import (Blocked) (P2)
+    - Task 4: Sicon Write-back for Service Cases / Customers (Blocked) (P2)
+    - Task 5: Interactive-hotspot version for exploded drawings (P2)
+    - Task 6: CSV cost backfill wizard for equipment (P2)
 
-**Completed work in this session**:
-- Placed the ASER launcher pill inside the Reports sub-menu for MOD users ( overlay). (DONE)
-- Reverted mistakenly added ASER tab code from . (DONE)
-- Fixed a fatal  crash in  introduced during previous feedback-widget removal. (DONE)
-- Fixed 403 error for MOD users accessing the KPI Dashboard by whitelisting  in . (DONE)
-- Added  endpoint to create a canonical  row from a CRM asset. (DONE)
-- Added the corresponding frontend UI in  to allow users to promote CRM-only assets to the master equipment register. (DONE)
+**Completed work in this session**
+- Full-Platform Security & Tenancy Audit: Triggered audit. Returned CONDITIONAL PASS. Confirmed multi-tenant isolation is solid; unsigned webhooks and CORS are properly env-gated in production. (DONE)
+- Surface-Area QA Risk Assessment: Ran QA over money paths. 11/11 tests passed for Auth, CRM, and Memberships. (DONE)
+- Bug Fix: Fault logged but not showing: Fixed  query exact-matching  which excluded site-less records. Implemented a read-time heal matching equipment logic. (DONE)
+- Bug Fix: Triage AI hallucinating external links: Updated the triage AI prompt in  to be aware it is running inside the PulseFitness portal. (DONE)
+- AI Self-Healing Engine (Phase 1 & 2): Created  and  to automatically scan, diagnose (using Claude via Emergent LLM key), and offer 1-click revertable fixes for data anomalies (site-less records, broken site refs, orphaned users, duplicated orgs, orphaned teams). (DONE)
+- Master Admin Nav Consolidation: Restructured  to combine Self-Healing, Status & uptime, Integration health, Client crashes, and Maintenance jobs into a single System Health group. (DONE)
+- Nightly Health Sweep: Hooked the integrity scanner into the nightly backend loop ( & ). (DONE)
 
-**Earlier issues found/mentioned but not fixed**:
-   None additionally found.
+**Earlier issues found/mentioned but not fixed**
+   Issue 1: SEO Audit Subagent Timeout
+   - Debug checklist: Check  for SEO audit scripts and investigate execution timeouts.
+   - Why to solve this issue and what will be achieved with this?: Pending marketing requirement.
+   - Should Test frontend/backend/both after fix: Backend logs.
+   - Is recurring issue? Y
+   
+   Issue 2:  Refactor
+   - Debug checklist: Split the 900+ line file into Wizard/CaseDetail/Modal components.
+   - Why to solve this issue and what will be achieved with this?: Code maintainability.
+   - Should Test frontend/backend/both after fix: Frontend.
+   - Is recurring issue? N
 
-**Known issue recurrence from previous fork**:
+**Known issue recurrence from previous fork**
   - Issue recurrence in previous fork: SEO Audit Subagent Timeout
-  - Recurrence count: 6
+  - Recurrence count: 10
   - Status: NOT STARTED
 
-**Code Architecture**:
+**Code Architecture**
 /app
 ├── backend/
 │   ├── routes/
-│   │   ├── dealer_parts_data.py
-│   │   ├── crm_contracts.py
-│   │   ├── kpi_engine.py
+│   │   ├── platform_integrity.py (New: AI self-healing engine)
+│   │   ├── issues.py (Updated: fixed site-less query)
+│   │   ├── issue_helpers.py (Updated: AI triage prompt)
 │   ├── utils/
-│   │   ├── feature_guard.py
+│   │   ├── proactive_nudges.py (Updated: hooked nightly health scan)
+│   ├── server.py (Updated)
 ├── frontend/
 │   ├── src/
-│   │   ├── App.js
-│   │   ├── pages/CRM/CRMCompanies.js
-│   │   ├── pages/PulseReportsTab.js
-│   │   ├── pages/MODPortal/MODASERPortal.js
+│   │   ├── pages/
+│   │   │   ├── MasterAdmin/
+│   │   │   │   ├── PlatformHealth.js (New: UI for self-healing)
+│   │   │   │   ├── SidebarConfig.js (Updated: Consolidated System Health)
+│   │   │   ├── MasterAdminPage.js (Updated)
 
-**Key Technical Concepts**:
-React, FastAPI, MongoDB, Custom JWT Auth, File-chunk persistence via MongoDB, Feature-gating utilities, Context-based UI layout management.
+**Key Technical Concepts**
+React, FastAPI, MongoDB, Data Integrity/Reversible State Snapshots, AI-Assisted Data Diagnosis (Claude).
 
-**key DB schema**:
-  - : {id, name, serial_number, source}
-  - : {id, organization_id, name, equipment_type, serial_number}
-  - , , , 
+**key DB schema**
+  - , , , , 
 
-**changes in tech stack**:
-  - None
+**changes in tech stack**
+  - None.
 
-**All files of reference**:
-  -  (MOD Reports sub-menu containing the new ASER pill)
-  -  (Global logic and where the  fix resides)
-  -  (Controls MOD access to modules like KPI engine)
-  -  (Contains the Promote to Register API endpoint)
-  -  (Frontend Asset Reconciliation Panel UI)
+**All files of reference**
+  -  (Core logic for automated data integrity checks & revert logic).
+  -  (UI for new Self-Healing engine).
+  -  (Centralized Master Admin routing config).
+  -  (Contains the corrected query logic for fault visibility).
+  -  (Contains the updated ).
 
 **Areas that need refactoring**:
-  -  has grown very large (>1900 lines). Could benefit from modularization.
+  -  (~935 lines).
 
-**key api endpoints**:
+**key api endpoints**
   - 
   - 
-
-**Critical Info for New Agent**:
-  - **MOD Portal Architecture**: MOD Users use , NOT the standard .
-  - **Feature Guards**: Access to certain routes (like KPI reports) is blocked by account types via . If a valid user gets a 403 on a module they should see, check the  or  logic.
-  - **Login Rate Limiting**: The  endpoint is heavily rate-limited (429). When running screenshot tools or manual test logins, do so sparsely. Trust the  to handle these.
-  - **Theme Isolation**: When fixing theme issues in isolated areas, use scoping classes rather than overriding global utility classes like  to prevent breaking marketing pages.
-
-**documents and test reports created in this job**:
   - 
   - 
   - 
 
-**Last 10 User Messages and any pending HUMAN messages**:
- - *[User]*: MOD - remove the feedback button. Add the ASER report option to the main sub menu bar - remove the red card.
- - *[Agent]*: (In progress during previous fork, missed moving it correctly).
- - *[User]*: Please use ask_human tool and confirm your plan now.
- - *[Agent]*: Investigates , confirms ASER component.
- - *[User]*: Aser should be within the Sub-menu for Reports.
- - *[Agent]*: Edits  and , verifies via , completes task, suggests next actions - 1 and 2.
- - *[User]*: next action - 1 and 2
- - *[Agent]*: Investigates CRM asset promote flow and KPI 403 error for MOD users. Implements fixes, writes test script, verifies via curl and , and finishes the task.
+**Critical Info for New Agent**
+  - **Environment Awareness**: The user has deployed the application to PRODUCTION (). However, **you must only operate in the PREVIEW codebase**. If the user reports bugs, fix them in preview and the user will re-deploy later.
+  - **Self-Healing Engine**: The newly built engine uses the  to query Claude for plain-English diagnostics of data anomalies. Fixes are strictly manual (1-click) and keep a revert snapshot in MongoDB.
+  - **Unsigned Webhooks**: The Security Audit flagged  (Unsigned Onboarding Webhook), but this is by design. The prod environment blocks unsigned callbacks via the  flag; do not attempt code changes for this.
+  - **Pending Proposal**: The agent has just proposed creating a weekly System Health digest email to automatically alert the user to anomalies without needing to log in. You should wait for the user's response to this proposal.
+
+**documents and test reports created in this job**
+  - 
+
+**Last 10 User Messages and any pending HUMAN messages**
+ - *[Agent]*: Sent Security Audit ask_human clarifying scope.
+ - *[User]*: Approved full surface audit & just report beta module stubs.
+ - *[Agent]*: Ran  (Conditional Pass), ran  (11/11 Pass), finished task. Proposed beta ribbon UI.
+ - *[User]*: Reported 2 bugs from prod: Logged faults missing from UI, and AI triage hallucinating external contact links.
+ - *[Agent]*: Fixed both backend bugs. Validated via API. Suggested a backfill tool for site-less records.
+ - *[User]*: Is there a way that AI can pick up on issues like this across the platform, then self diagnose and self-fix the issue - we want the platform to as hands off as possible.
+ - *[Agent]*: Sent ask_human clarifying Phase 1 self-healing (Master Admin -> Compliance -> Platform Health).
+ - *[User]*: Approved Phase 1.
+ - *[Agent]*: Built Phase 1 (site-less checks). Verified E2E. Suggested Phase 2 (Nightly sweep).
+ - *[User]*: Approved Phase 2 and requested merging redundant health tabs into a System Health group.
+ - *[Agent]*: Consolidated the Master Admin sidebar into System Health, added 4 new integrity checks, hooked into the nightly sweep. Verified UI via screenshots. Finished task, asked if user wants a weekly email digest. *(Pending user response)*.
 
 **Project Health Check:**
   - Broken: None
-  - Mocked: Sicon Equipment API.
+  - Mocked: Sicon Equipment API, Stripe Connections.
 
 **3rd Party Integrations**:
-  - OpenAI GPT-5.2 (via ) — uses Emergent LLM Key
-  - Resend (Email) — requires User API Key
-  - Stripe (Payments) — requires User API Key (Blocked)
+  - Claude Sonnet 4.5 via Emergent LLM Key (Used for text extraction and Platform Integrity Diagnostics)
+  - Resend (Emails) (Requires User API Key)
+  - Stripe (Payments) (Requires User API Key - Currently Blocked)
+  - Sage/Sicon (Requires User API Key - Currently Blocked)
 
 **Testing status**:
   - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , 
-  - Known regressions: None currently.
+  - Test files created: Yes
+  - Known regressions: None
 
 **Credentials to test flow:**
-  - Check 
+  - 
 
-**What agent forgot to execute**:
-- The agent successfully implemented the explicit requests but still ignored the execution of the SEO Audit subagent.
+**What agent forgot to execute**
+- The agent continues to ignore executing the SEO Audit subagent task (Deferred for multiple sessions).
+- Fixing the minor frontend bugs reported by the testing agent (cookie banner overlap, 404 links).
+- Refactoring .
 
 **Debugging checklist for current issue**
-    Issue: SEO Audit Subagent continues to not be executed or is timing out.
-    Frontend files to check: NA
-    Backend files to check:  (Check for SEO audit scripts/subagents)
-    Database to check: NA</analysis>
+    Task: Awaiting user confirmation on System Health digest email / Beta Ribbon flagging.
+    Action: Analyze user's response in the next turn. If approved, add a cron job/Resend integration in  to compile the  sweep results and email them.
+</analysis></analysis>

@@ -20,7 +20,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://dealer-parts-engine.preview.emergentagent.com").rstrip("/")
+       or "https://platform-doctor.preview.emergentagent.com").rstrip("/")
 DB_NAME = os.environ.get("DB_NAME") or "test_database"
 
 

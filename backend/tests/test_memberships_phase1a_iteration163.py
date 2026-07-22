@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 # ─────────────────── Configuration ───────────────────
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://dealer-parts-engine.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://platform-doctor.preview.emergentagent.com").rstrip("/")
 
 # Credentials loaded from environment with safe local defaults.
 OPERATOR_EMAIL = os.environ.get("TEST_STUDIO_LEEDS_EMAIL", "studio.leeds@gymaxisai.com")

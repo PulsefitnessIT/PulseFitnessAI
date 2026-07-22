@@ -44,8 +44,8 @@ def test_production_respects_explicit_brand_override():
 
 
 def test_preview_still_uses_frontend_url():
-    env = {"FRONTEND_URL": "https://dealer-parts-engine.preview.emergentagent.com"}
-    assert _with_env(env, "pulse_pro") == "https://dealer-parts-engine.preview.emergentagent.com"
+    env = {"FRONTEND_URL": "https://platform-doctor.preview.emergentagent.com"}
+    assert _with_env(env, "pulse_pro") == "https://platform-doctor.preview.emergentagent.com"
 
 
 def test_preview_without_frontend_url_falls_back_to_brand_default():

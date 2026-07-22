@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://dealer-parts-engine.preview.emergentagent.com",
+    "https://platform-doctor.preview.emergentagent.com",
 )
 
 _CACHE: dict[str, str] = {}

@@ -6,7 +6,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://dealer-parts-engine.preview.emergentagent.com").rstrip("/")
+       or "https://platform-doctor.preview.emergentagent.com").rstrip("/")
 
 
 def _login(email, pwd):
