@@ -1,0 +1,27 @@
+{
+  "summary": "Phase 1 (Foundation + Manual Orders) of Global Dealer Distribution / Inventory & Distribution passed full backend + frontend E2E. Backend pytest: 7/7 passed. UI: all requested flows (nav → dashboard, warehouses+locations, order create with FR/EUR + serialised line qty=3 → 3 provisional units, validate, serial bind, duplicate serial confirm-dismiss dedupe, stock receive, reserve → partially_available, field ownership matrix, Sage connection + capability discovery, settings toggle persist, country profiles GB/FR/US) verified against owner@isodemo.com.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_inventory_distribution_phase1.py",
+    "/app/test_reports/pytest/inv_dist_phase1.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "InventoryDistribution.js reloads warehouses on every section change (useEffect dep on `section`) — minor perf waste; could load once and refresh on warehouse mutations only.",
+    "inv_distribution.py `_require_ops_role` accepts multiple string variants ('master','admin','master_admin') — consider centralising via existing RBAC helper for consistency across modules.",
+    "Duplicate-serial UX relies on browser window.confirm() — acceptable for Phase 1 but should become a modal for accessibility + branding in Phase 2.",
+    "validate_order treats missing dealer_id as a WARNING (not blocking) — correct for manual entry path, but flag in Phase 2 when Sage is wired.",
+    "Reserve endpoint sets order_status='partially_available' but only checks physical lines; if all lines are non-physical (service_item only) the order stays 'awaiting_stock' even though nothing to reserve — edge case worth handling."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_inventory_distribution_phase1.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (iso-demo-org, is_service_desk=true)",
+  "seed_data_creation": "Created test warehouses (WHUI35935, WHUI36262, WHUI36318), locations, one distribution order per stage run with dealer 'TEST Dealer UI*', product code 'PCUI*', and serial 'SN-UI*-001'. Sage connection row for iso-demo-org saved with company 'TEST Sage UI*'. Acceptable leftover per instructions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Phase-1 data-testids exist and match spec. Modal has 5 selects; first two are country+currency, and the warehouse is a later select — enumerate options to pick reliably. Duplicate-serial dedupe is confirmed both at API layer (HTTP 409) and UI layer (window.confirm; dismiss → not assigned). The mobile pill nav lacks data-testids but desktop nav (data-testid inv-nav-*) is what the spec requires.",
+  "mocked_apis_note": "Sage capability discovery returns a template (available=null) — expected per problem statement (MOCKED until credentials provided)."
+}

@@ -355,6 +355,16 @@ export default function ServiceDeskPage() {
             </button>
           ))}
 
+          {/* Inventory & Distribution — dedicated Global Dealer Distribution area */}
+          <button
+            onClick={() => { navigate('/service-desk/inventory'); setSidebarOpen(false); }}
+            data-testid="desk-tab-inventory-distribution"
+            className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Globe className="w-4 h-4" />
+            <span className="flex-1">Inventory &amp; Distribution</span>
+          </button>
+
           {/* Insights group (separated) */}
           <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold">Insights</p>
           {visibleInsights.map(({ id, label, icon: Icon }) => (

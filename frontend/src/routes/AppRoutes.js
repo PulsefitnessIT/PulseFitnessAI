@@ -115,6 +115,7 @@ const PublicUnsubscribePage = lazy(() => import('@/pages/Comms/PublicUnsubscribe
 const PublicEmailViewPage = lazy(() => import('@/pages/Comms/PublicEmailViewPage'));
 const PublicForwardPage = lazy(() => import('@/pages/Comms/PublicForwardPage'));
 const ServiceDeskPage = lazy(() => import('@/pages/ServiceDeskPage'));
+const InventoryDistribution = lazy(() => import('@/pages/ServiceOps/Inventory/InventoryDistribution'));
 const _ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
 const _ServiceOpsScheduler = lazy(() => import('@/pages/ServiceOps/ServiceScheduler'));
 const _ServiceOpsEngineers = lazy(() => import('@/pages/ServiceOps/EngineersAdminPage'));
@@ -510,6 +511,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-provider/signup" element={<ServiceProviderSignup />} />
       <Route path="/service-desk/setup" element={user ? <ServiceProviderSetup /> : <Navigate to="/login?next=/service-desk/setup" replace />} />
       <Route path="/service-desk/upgrade" element={user ? <ServiceProviderUpgrade /> : <Navigate to="/login?next=/service-desk/upgrade" replace />} />
+      {/* Inventory & Distribution — Global Dealer Distribution (Phase 1) */}
+      <Route path="/service-desk/inventory" element={can(user, 'view_service_desk') ? <div className="pulse-font" style={{ display: 'contents' }}><InventoryDistribution /></div> : <Navigate to="/login?next=/service-desk/inventory" replace />} />
       {/* Legacy /service-ops/* URLs redirect to the unified hub. Deep links still work — the merged shell defaults to Dashboard. */}
       <Route path="/service-ops" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/scheduler" element={<Navigate to="/service-desk" replace />} />
