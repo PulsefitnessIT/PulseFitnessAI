@@ -61,6 +61,19 @@ export const invApi = {
   sealPackage: (pkgId, body) => axios.post(`${base}/ops/packages/${pkgId}/seal`, body || {}, auth()).then((r) => r.data),
   dispatch: (id, body) => axios.post(`${base}/ops/orders/${id}/dispatch`, body, auth()).then((r) => r.data),
   queue: (stage) => axios.get(`${base}/ops/queues/${stage}`, auth()).then((r) => r.data),
+
+  // Phase 4 — dealer distribution
+  shipments: (status) => axios.get(`${base}/dist/shipments`, { ...auth(), params: { status } }).then((r) => r.data),
+  shipment: (id) => axios.get(`${base}/dist/shipments/${id}`, auth()).then((r) => r.data),
+  shipmentStatus: (id, body) => axios.post(`${base}/dist/shipments/${id}/status`, body, auth()).then((r) => r.data),
+  setCustoms: (id, body) => axios.put(`${base}/dist/shipments/${id}/customs`, body, auth()).then((r) => r.data),
+  genDocument: (id, body) => axios.post(`${base}/dist/shipments/${id}/documents`, body, auth()).then((r) => r.data),
+  dealerReceive: (id, body) => axios.post(`${base}/dist/shipments/${id}/receive`, body, auth()).then((r) => r.data),
+  dealerInventory: (params) => axios.get(`${base}/dist/dealer-inventory`, { ...auth(), params }).then((r) => r.data),
+  transfers: () => axios.get(`${base}/dist/transfers`, auth()).then((r) => r.data),
+  createTransfer: (body) => axios.post(`${base}/dist/transfers`, body, auth()).then((r) => r.data),
+  transferAction: (id, action) => axios.post(`${base}/dist/transfers/${id}/${action}`, {}, auth()).then((r) => r.data),
+  distSummary: () => axios.get(`${base}/dist/summary`, auth()).then((r) => r.data),
 };
 
 export const CUR = { GBP: '£', EUR: '€', USD: '$' };
