@@ -1,3 +1,32 @@
+# ═══ 2026-06 · INVENTORY & DISTRIBUTION PROMOTED TO ITS OWN TOP-LEVEL MODULE (VERIFIED 100% FE) ═══
+Founder decision: the Inventory & Distribution build (P1–P7) is large enough to be its own module, separate from
+Service Desk, while keeping all cross-module data flow intact. Delivered (frontend structural refactor, no backend
+changes — same data, same /api/inventory/* endpoints):
+  • NEW ROUTE /inventory (guard can(user,'view_service_desk')). Old /service-desk/inventory now <Navigate>→ /inventory
+    (backward-compatible; internal deep links regenerate under /inventory). AppRoutes.js.
+  • SHELL REBUILT to mirror the Service Desk shell exactly (ServiceDeskPage parity) on desktop AND mobile:
+    white w-60 left sidebar, pulse-mark logo header ('Inventory & Distribution' / 'Dealer distribution'), grouped nav
+    with the gymaxis gradient active state (from/to --gx-brand), off-canvas drawer on mobile (hamburger
+    inv-sidebar-open, backdrop inv-sidebar-backdrop, close inv-sidebar-close), footer with user + AreaSwitcher +
+    'Back to Master Admin' + 'Log out'. InventoryDistribution.js (NAV groups + render(section) unchanged; sections
+    still driven by ?s=). Uses useAuth, AreaSwitcher, Button/Badge, can/isPulseAdmin.
+  • MODULE / AREA SELECTOR: components/shared/AreaSwitcher.js — added an 'inventory' area (path /inventory, gated by
+    canServiceDesk, Boxes icon) and currentAreaId() now maps /inventory (and legacy /service-desk/inventory) →
+    'inventory'. Users hop freely between Main app / Service Desk / Inventory & Distribution. ServiceDeskPage sidebar
+    link 'Inventory & Distribution' (desk-tab-inventory-distribution) now → /inventory.
+  • MASTER ADMIN QUICK BUTTON: MasterAdmin/AdminSidebar.js — new portal-switch-inventory (Boxes) quick-launch button
+    right after portal-switch-service-desk → /inventory.
+  • IMPERSONATION: because Inventory is now a first-class area gated by service-desk capability, it is automatically
+    reachable inside impersonated/scoped customer sessions via the AreaSwitcher (same as operations/crm portals) —
+    no extra impersonation code needed. Verified the switcher exposes Inventory in a customer session.
+VERIFIED testing_agent frontend 100% (8/8 scenarios; iteration_inventory_standalone_module_jan2026.json): new route,
+redirect, area-switcher round-trips both directions, Service Desk link, Master Admin quick button, mobile drawer, and
+data-flow intact (6/6 inventory endpoints 200 incl. POST /intel/scan). 0 issues.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER DISTRIBUTION — PHASE 7 · INTELLIGENCE (VERIFIED 100%) ═══
 routes/inventory_intelligence.py, prefix /api/inventory/intel. Non-autonomous monitoring: agents ANALYSE the
 shared distribution/asset data (existing inv_* + equipment + crm2_companies + issues + sage_* collections) and
