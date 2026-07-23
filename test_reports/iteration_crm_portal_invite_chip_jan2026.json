@@ -1,0 +1,22 @@
+{
+  "summary": "E2E test of CRM Portal-Invite chip & Resend button in CompanyDetail header + backend endpoint verification. All acceptance criteria pass: INVITEDEMO shows 'Portal: Pending set-up' chip + 'Resend invite' button that triggers a success toast ('Portal invite re-sent to invite.demo@pulsedemo.test'); AlphaCo (iso-cA) shows 'Portal: Active' chip and the Resend button is HIDDEN as required; all existing tabs/KPIs render normally with the chip in place. Backend GET/POST portal-invite endpoints return correct payloads. Owner/manager 403 gating COULD NOT be directly verified because the only seeded non-owner CRM account (manager@isodemo.com) is site-restricted to Site A and cannot see INVITEDEMO — the endpoint returned 404 (org/site scope) before the role check fires. Code inspection of crm_v2.py confirms role gate is present (raises 403 for roles other than owner/manager unless is_org_owner/is_master_admin).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL: seed a non-owner/non-manager CRM user in iso-demo-org (e.g. role='member' or 'sales_rep' visible to INVITEDEMO) to allow direct assertion of the 403 gate; today's manager account is site-scoped away from INVITEDEMO and returns 404 first."
+  ],
+  "critical_code_review_comments": [
+    "crm_v2.py resend endpoint gate treats 'manager' as allowed — matches user choice (owners/managers only). Good.",
+    "CompanyDetail header renders chip only when showInvite && invite && INVITE_STYLES[status] — falsy states cleanly hide; Resend button also gated by invite.status !== 'active'. Matches requirement 2a.",
+    "portal-invite-chip has helpful title showing the contact email — nice UX touch."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (endpoints hit: portal-invite GET x2, resend POST x1)", "frontend": "100% (chip + button visibility + toast + active-state hide + regression tabs all pass)"},
+  "test_credentials": "CRM owner: owner@isodemo.com / IsoDemo123! at /crm",
+  "seed_data_creation": "None. Used pre-seeded INVITEDEMO (Portal Invite Demo Co, iso-demo-org) and iso-cA (AlphaCo Site A).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "CRM login is embedded in the /crm page (same-looking Pulse login card, but posts to /api/crm/auth/login and returns a CRM-scoped token). After login you land on the CRM Command Center — click the 'Companies' TAB (do NOT navigate to /crm/companies, that returns 404). Company detail chip has data-testid='portal-invite-chip', button data-testid='portal-invite-resend-btn'. Resend fires REAL Resend email to the customer contact — expected behaviour.",
+  "rca of the issue": "n/a — feature working as specified."
+}

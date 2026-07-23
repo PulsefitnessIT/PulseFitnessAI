@@ -343,6 +343,13 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
         if _sv:
             hs = _survey_hs_summary(_sv)
     cert = await generate_and_store_certificate({**a, **a_patch}, rec_doc, {"warranty_start": w_start, "warranty_end": w_end, "warranty_source": rule}, user, hs)
+    # Register the machine into the customer's own Pulse org (if linked) so they
+    # can see it and log faults on it from their Lite/Pro dashboard. Best-effort.
+    try:
+        from routes.pulse_onboarding import register_customer_equipment
+        await register_customer_equipment({**a, **a_patch}, {"warranty_start": w_start, "warranty_end": w_end})
+    except Exception:
+        logger.exception("[inventory] customer equipment registration failed")
     await _audit(user, "installation_commissioned", "allocation", alloc_id, {"warranty_end": w_end, "signed_off_by": data.get("customer_name")})
     return {"ok": True, "asset_status": "active", "warranty_start": w_start, "warranty_end": w_end, "warranty_rule": rule, "record_id": rec_id, "certificate": bool(cert.get("storage_path"))}
 

@@ -5,7 +5,7 @@ import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
   FileText, Calendar, Activity, CheckCircle, Edit2, Trash2, X,
-  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock
+  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock, Send
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
@@ -1104,6 +1104,42 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
   useEffect(() => { load(); }, [load]);
 
+  // Pulse customer portal onboarding status ("Portal invite" chip + resend).
+  const [invite, setInvite] = useState(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const showInvite = !!(company && (company.linked_operator_org_id || company.pulse_onboarding_state || company.company_type === 'dealer_customer'));
+  const loadInvite = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/crm/v2/companies/${companyId}/portal-invite`, { headers: headers() });
+      setInvite(res.data);
+    } catch (e) { /* non-blocking */ }
+  }, [API, headers, companyId]);
+  useEffect(() => { if (showInvite) loadInvite(); }, [showInvite, loadInvite]);
+  const resendInvite = async () => {
+    setInviteBusy(true);
+    try {
+      const res = await axios.post(`${API}/crm/v2/companies/${companyId}/portal-invite/resend`, {}, { headers: headers() });
+      const st = res.data?.status;
+      if (st === 'resent') toast.success(`Portal invite re-sent to ${res.data.email}`);
+      else if (st === 'provisioned') toast.success(`Portal account created — invite sent to ${res.data.email}`);
+      else if (st === 'linked_existing') toast.success('Linked to the customer\'s existing Pulse account.');
+      else if (st === 'missing_email') toast.error('No contact email on this customer — add one first.');
+      else if (st === 'already_active') toast.info('Customer has already set up their portal.');
+      else toast.success('Portal invite processed.');
+      loadInvite(); load();
+    } catch (e) {
+      toast.error(e?.response?.status === 403 ? 'Only owners or managers can resend invites.' : 'Could not resend the invite.');
+    }
+    setInviteBusy(false);
+  };
+  const INVITE_STYLES = {
+    active: { bg: 'var(--color-success-bg, #dcfce7)', fg: 'var(--color-success-alt, #16a34a)', label: 'Portal: Active' },
+    pending_setup: { bg: '#fef3c7', fg: '#b45309', label: 'Portal: Pending set-up' },
+    email_failed: { bg: '#fee2e2', fg: '#dc2626', label: 'Portal: Send failed' },
+    missing_email: { bg: '#fee2e2', fg: '#dc2626', label: 'Portal: No email' },
+    not_invited: { bg: 'var(--color-neutral-100, #f1f5f9)', fg: 'var(--color-text-faint-alt, #64748b)', label: 'Portal: Not invited' },
+  };
+
   const handleAddActivity = async () => {
     if (!noteForm.subject.trim()) return;
     setSaving(true);
@@ -1332,9 +1368,25 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
             <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${TYPE_COLORS[company.type] || 'var(--color-text-faint-alt)'}20`, color: TYPE_COLORS[company.type] || 'var(--color-text-faint-alt)' }}>{company.type}</span>
             {company.sector && <span className="text-xs" style={{ color: c.textDim }}>{company.sector}</span>}
             {company.sla_tier && <span className="text-xs" style={{ color: c.textDim }}>SLA: {company.sla_tier}</span>}
+            {showInvite && invite && (INVITE_STYLES[invite.status] || INVITE_STYLES.not_invited) && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                data-testid="portal-invite-chip"
+                title={invite.email ? `Contact: ${invite.email}` : 'No contact email'}
+                style={{ background: (INVITE_STYLES[invite.status] || INVITE_STYLES.not_invited).bg, color: (INVITE_STYLES[invite.status] || INVITE_STYLES.not_invited).fg }}>
+                {(INVITE_STYLES[invite.status] || INVITE_STYLES.not_invited).label}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
+          {showInvite && invite && invite.status !== 'active' && (
+            <button onClick={resendInvite} disabled={inviteBusy}
+              className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5 disabled:opacity-50"
+              style={{ borderColor: c.border, color: c.textMuted }} data-testid="portal-invite-resend-btn">
+              {inviteBusy ? <Loader2 size={12} className="inline mr-1 animate-spin" /> : <Send size={12} className="inline mr-1" />}
+              {invite.status === 'not_invited' ? 'Send invite' : 'Resend invite'}
+            </button>
+          )}
           {company.website && <EnrichFromWebsiteButton companyId={companyId} onEnriched={() => load()} />}
           <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="company-edit-btn">
             <Edit2 size={12} className="inline mr-1" /> Edit

@@ -484,6 +484,31 @@ async def get_company(company_id: str, user=Depends(get_crm_user)):
     return c
 
 
+@router.get("/companies/{company_id}/portal-invite")
+async def company_portal_invite(company_id: str, user=Depends(get_crm_user)):
+    """Pulse customer portal onboarding status for the CRM company record."""
+    c = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Company not found")
+    from routes.pulse_onboarding import compute_invite_status
+    status = await compute_invite_status(c)
+    return status
+
+
+@router.post("/companies/{company_id}/portal-invite/resend")
+async def company_portal_invite_resend(company_id: str, user=Depends(get_crm_user)):
+    """Resend (or provision) the customer's Pulse portal set-up invite.
+    Owners/managers only."""
+    role = (user.get("role") or "").lower()
+    if not (role in ("owner", "manager") or user.get("is_org_owner") or user.get("is_master_admin")):
+        raise HTTPException(403, "Only owners or managers can resend the portal invite")
+    c = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0, "id": 1})
+    if not c:
+        raise HTTPException(404, "Company not found")
+    from routes.pulse_onboarding import resend_portal_invite
+    return await resend_portal_invite(company_id, owner_email=user.get("email"))
+
+
 @router.get("/companies/{company_id}/service-activity")
 async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
     """Consolidated Service Desk view for a CRM account — so a sales

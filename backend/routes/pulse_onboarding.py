@@ -123,6 +123,8 @@ async def register_customer_equipment(alloc: dict, warranty: dict | None = None)
     await db.equipment.insert_one({**doc})
     return {"status": "created", "equipment_id": doc["id"], "organization_id": org_id}
 
+
+async def provision_customer_portal(company_id: str, order_ref: str = "", owner_email: str | None = None) -> dict:
     """Idempotently create a Pulse Lite tenant for a CRM customer and email a
     set-up link. Safe to call best-effort from the order flow."""
     now = _now()
@@ -184,3 +186,77 @@ async def register_customer_equipment(alloc: dict, warranty: dict | None = None)
     org_doc["_crm_company_id"] = company_id
     asyncio.create_task(_send_setup_email(to_email=email, name=name, org=org_doc, order_ref=order_ref, owner_email=owner_email))
     return {"status": "provisioned", "org_id": org_id, "email": email}
+
+
+async def compute_invite_status(company: dict) -> dict:
+    """Resolve a CRM customer's Pulse portal onboarding status for the record UI.
+
+    States: active | pending_setup | email_failed | missing_email | not_invited.
+    "active" = the customer already had (linked) or has since set their password.
+    """
+    org_id = company.get("linked_operator_org_id")
+    state = company.get("pulse_onboarding_state")
+    owner_id = company.get("pulse_onboarding_owner_user_id")
+    email, _name = await _resolve_contact(company)
+    if state == "linked_existing_account" and org_id:
+        return {"status": "active", "label": "Active", "org_id": org_id, "email": email}
+    if not org_id:
+        if state == "skipped_missing_email" or not email:
+            return {"status": "missing_email", "label": "Missing email", "email": email}
+        return {"status": "not_invited", "label": "Not invited", "email": email}
+    # Linked manually to an existing Pulse org (not provisioned via onboarding).
+    if not owner_id and not state:
+        return {"status": "active", "label": "Active", "org_id": org_id, "email": email}
+    # Provisioned Lite org — did the owner activate (set a password / logged in)?
+    activated = False
+    if owner_id:
+        used_tok = await db.password_reset_tokens.find_one(
+            {"user_id": owner_id, "purpose": "portal_setup", "used": True}, {"_id": 1})
+        if used_tok:
+            activated = True
+        else:
+            u = await db.users.find_one({"id": owner_id}, {"_id": 0, "last_login": 1})
+            if u and u.get("last_login"):
+                activated = True
+    if activated:
+        return {"status": "active", "label": "Active", "org_id": org_id, "email": email}
+    if state == "email_failed":
+        return {"status": "email_failed", "label": "Send failed", "org_id": org_id, "email": email,
+                "error": company.get("pulse_onboarding_email_error")}
+    return {"status": "pending_setup", "label": "Pending set-up", "org_id": org_id, "email": email,
+            "sent_at": company.get("pulse_onboarding_sent_at")}
+
+
+async def resend_portal_invite(company_id: str, owner_email: str | None = None) -> dict:
+    """Resend the Pulse portal set-up email for a CRM customer. Provisions a Lite
+    tenant if none exists yet, otherwise regenerates a fresh set-up link for the
+    pending owner. No-op if the customer has already activated their portal."""
+    company = await db.crm2_companies.find_one({"id": company_id}, {"_id": 0})
+    if not company:
+        return {"status": "not_found"}
+    status = await compute_invite_status(company)
+    if status.get("status") == "active":
+        return {"status": "already_active"}
+    org_id = company.get("linked_operator_org_id")
+    if not org_id:
+        # Not provisioned yet (or skipped for missing email) — clear the skip flag
+        # so the atomic claim guard passes, then provision fresh.
+        await db.crm2_companies.update_one(
+            {"id": company_id}, {"$unset": {"pulse_onboarding_state": ""}})
+        return await provision_customer_portal(
+            company_id, order_ref=company.get("pulse_onboarding_order_ref", ""), owner_email=owner_email)
+    # Provisioned — regenerate a fresh set-up link for the pending owner.
+    owner_id = company.get("pulse_onboarding_owner_user_id")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    if not org or not owner_id:
+        return {"status": "cannot_resend", "reason": "no_pending_owner"}
+    email, name = await _resolve_contact(company)
+    if not email:
+        await db.crm2_companies.update_one(
+            {"id": company_id}, {"$set": {"pulse_onboarding_state": "skipped_missing_email"}})
+        return {"status": "missing_email"}
+    org["owner_id"] = owner_id
+    org["_crm_company_id"] = company_id
+    await _send_setup_email(to_email=email, name=name, org=org,
+                            order_ref=company.get("pulse_onboarding_order_ref", ""), owner_email=owner_email)
+    return {"status": "resent", "email": email}
