@@ -28,8 +28,7 @@ const NAV = [
     { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, live: true },
   ] },
   { group: 'Orders', items: [
-    { id: 'sage-orders', label: 'Sage Orders', Icon: FileText, live: true },
-    { id: 'orders', label: 'Distribution Orders', Icon: ClipboardList, live: true },
+    { id: 'orders', label: 'Orders', Icon: ClipboardList, live: true },
     { id: 'exceptions', label: 'Order Exceptions', Icon: ShieldCheck, live: true },
   ] },
   { group: 'Inventory', items: [
@@ -336,7 +335,7 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
         })}
       </div>
 
-      {tab === 'sage' ? <SageConnection /> : tab === 'field-ownership' ? <FieldOwnership /> : (
+      {tab === 'sage' ? <div className="space-y-6"><SageConnection /><SageOrders /></div> : tab === 'field-ownership' ? <FieldOwnership /> : (
         !s ? <Spinner /> : (
           <div className="space-y-5">
             <Card className="p-4">
@@ -384,7 +383,7 @@ const FULFILMENT_STAGES = [
   { key: 'dispatch', label: 'Dispatch', stage: 'dispatch', title: 'Dispatch Queue', Icon: Truck },
 ];
 const FULFILMENT_KEYS = FULFILMENT_STAGES.map((s) => s.key);
-const SETTINGS_KEYS = ['sage', 'field-ownership'];
+const SETTINGS_KEYS = ['sage', 'field-ownership', 'sage-orders'];
 
 function Fulfilment({ initialStage = 'receiving' }) {
   const [active, setActive] = useState(FULFILMENT_KEYS.includes(initialStage) ? initialStage : 'receiving');
@@ -443,7 +442,7 @@ export default function InventoryDistribution() {
     if (item && !item.live) return <ComingSoon label={item.label} />;
     switch (section) {
       case 'dashboard': return <Dashboard go={go} />;
-      case 'sage-orders': return <SageOrders />;
+      case 'sage-orders': return <SettingsView warehouses={warehouses} initialTab="sage" />;
       case 'orders': return <InvOrders warehouses={warehouses} initialOrderId={orderId} />;
       case 'exceptions': return <OrderExceptions />;
       case 'fulfilment': return <Fulfilment initialStage="receiving" />;

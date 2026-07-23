@@ -29,7 +29,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -373,6 +373,7 @@ class OrderIn(BaseModel):
     sales_rep: Optional[str] = None
     notes: Optional[str] = None
     warehouse_id: Optional[str] = None
+    source: Optional[str] = "manual"
     lines: List[OrderLineIn] = Field(default_factory=list)
 
 
@@ -382,6 +383,74 @@ def _line_status(pt: str) -> str:
     if pt in PHYSICAL_TYPES:
         return "awaiting_stock"
     return "not_stock"  # service / delivery charge
+
+
+@router.post("/orders/parse-invoice")
+async def parse_order_invoice(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Read a supplier invoice / purchase order (PDF or image) with the
+    platform AI invoice reader and return a draft order (header + lines) for
+    the operator to review before creating. Lets dealers who don't run Sage
+    add orders in seconds. No persistence."""
+    _require_ops_role(user)
+    from utils.file_validation import validate_upload
+    from routes.equipment_import import extract_invoice_smart, _short_equipment_name, _short_model_code
+
+    data = await file.read()
+    allowed = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
+    try:
+        validate_upload(file_bytes=data, filename=file.filename, allowed=allowed, max_size=30 * 1024 * 1024)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(400, f"Upload rejected: {exc}")
+
+    try:
+        extracted = await extract_invoice_smart(data, file.content_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"AI extraction failed: {e}")
+
+    lines = []
+    agg = {}
+    order = []
+    for item in (extracted.get("equipment") or []):
+        code = (item.get("stock_item_code") or _short_model_code(item) or "").strip()
+        desc = (item.get("description") or item.get("model") or _short_equipment_name(item) or "").strip()
+        try:
+            qty = int(float(item.get("quantity") or 1)) or 1
+        except (TypeError, ValueError):
+            qty = 1
+        try:
+            price = float(item.get("unit_price") or 0)
+        except (TypeError, ValueError):
+            price = 0
+        key = (code, desc, round(price, 2))
+        if key in agg:
+            agg[key]["quantity"] += qty
+        else:
+            agg[key] = {
+                "product_code": code or (desc[:24] if desc else ""),
+                "description": desc or code,
+                "product_type": "serialised_machine",
+                "quantity": qty,
+                "unit_price": price,
+            }
+            order.append(key)
+    lines = [agg[k] for k in order]
+
+    header = {
+        "dealer_name": (extracted.get("customer_name") or extracted.get("supplier_name") or "").strip(),
+        "customer_po": (extracted.get("customer_reference") or extracted.get("invoice_number") or "").strip(),
+        "delivery_address": (extracted.get("delivery_address") or extracted.get("ship_to") or "").strip(),
+    }
+    return {
+        "header": header,
+        "lines": lines,
+        "line_count": len(lines),
+        "supplier_name": extracted.get("supplier_name", ""),
+        "invoice_number": extracted.get("invoice_number", ""),
+    }
 
 
 @router.post("/orders")
@@ -397,7 +466,7 @@ async def create_order(body: OrderIn, user=Depends(get_current_user)):
         "id": order_id,
         "organization_id": user.get("organization_id"),
         "reference": ref,
-        "source": "manual",
+        "source": (body.source or "manual"),
         "sage_order_id": None,
         "sage_order_number": None,
         "sage_status": None,

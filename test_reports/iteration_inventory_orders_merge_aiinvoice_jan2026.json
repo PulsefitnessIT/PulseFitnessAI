@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only regression for merged Orders screen + AI Invoice reader + Sage-in-Settings. All 5 acceptance criteria PASS end-to-end using owner@isodemo.com.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Orders list header CTAs", "issues": ["Minor spec deviation: 'Import from invoice' button is rendered as the secondary (white bg / slate text) variant, not cyan-brand. The primary 'New order' button IS cyan with white text and is clearly visible. The review_request expected both CTAs (and the modal's Create) to be cyan brand. This is only a stylistic mismatch — the Import button is still fully visible and functional. See InvOrders.js line 365 (variant=\"secondary\")."]}
+    ]
+  },
+  "verified_flows": [
+    "MERGED ORDERS: /inventory?s=orders renders title 'Orders' (H2). Nav no longer contains a 'Sage Orders' entry (verified data-testid inv-nav-sage-orders is absent; only 'Orders' and 'Order Exceptions' show under Orders group). Seeded DO-QA-SAGE row displays blue 'Sage 200' badge with data-testid=inv-order-source-sage. Source filter (inv-orders-source-filter) has 5 options (All/Manual/AI Invoice/Sage 200/CRM) and correctly filters to 1 row on 'sage'.",
+    "AI INVOICE READER: 'Import from invoice' opens the CreateOrderModal (title 'New order — from invoice' after parse). File input driven via set_input_files with /tmp/test_invoice.pdf; within ~6s the AI populated dealer='Northern Gyms Ltd', PO='PO-DLR-778', delivery='12 Dockside Rd, Manchester, M50 3AB', and exactly 3 consolidated lines: RUN-9000 qty=2 @4500, BIKE-500 qty=3 @899, ROW-200 qty=1 @1250. Green success toast 'Read 3 line(s)…' shown and violet 'Read from invoice — review the fields below, then create.' confirmation rendered. Submit created DO-000002 and opened order detail. Back on list, new row shows violet 'AI Invoice' badge (inv-order-source-invoice).",
+    "MANUAL ORDER: 'New order' opens the same modal titled just 'New order' with NO auto file-picker (verified by listening to page.filechooser event — no fire). Filling dealer/code/desc/qty/price and submitting creates an order that shows the slate 'Manual' badge (inv-order-source-manual) on the list.",
+    "SAGE IN SETTINGS: /inventory?s=settings → Sage 200 Connection tab (inv-settings-tab-sage) renders both the SageConnection panel (deployment details, capability discovery grid, Save connection) and the SageOrders sync console below it (Run sync, Simulate Sage feed, stat cards, Imported Sage orders table). Legacy deep link /inventory?s=sage-orders correctly lands on the Settings > Sage tab (no separate page)."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL/COSMETIC: Consider making the 'Import from invoice' button the primary cyan brand variant (or a distinctive violet AI variant) to match the review_request's expectation that the primary CTAs on the Orders screen be cyan with visible white text. Current secondary styling is still readable but not brand-primary."
+  ],
+  "critical_code_review_comments": [
+    "InvOrders.js CreateOrderModal is ~160 lines inside a 425-line file — acceptable size but consider splitting into a separate module for maintainability.",
+    "inputCls appears re-used across files; ensure consistent shared design tokens.",
+    "invApi.parseInvoiceOrder call has generic error handling — no progress indicator during 6-30s parse aside from the 'Reading…' button text (acceptable UX)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% (5/5 acceptance flows pass; 1 minor cosmetic deviation)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Cleaned up post-test: deleted qa-sage-order document and 2 test-created DO- orders (DO-000002 AI Invoice, DO-000003 Manual) plus any linked lines/units for org iso-demo-org. Remaining iso-demo-org orders: 0.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature is functionally complete. Only stylistic feedback is that 'Import from invoice' button uses secondary (white) style instead of cyan primary. AI invoice parse against /tmp/test_invoice.pdf returned all expected data in ~6s (well within 30-60s SLA)."
+}

@@ -23,6 +23,7 @@ export const invApi = {
 
   orders: (params) => axios.get(`${base}/orders`, { ...auth(), params }).then((r) => r.data),
   createOrder: (body) => axios.post(`${base}/orders`, body, auth()).then((r) => r.data),
+  parseInvoiceOrder: (file) => { const fd = new FormData(); fd.append('file', file); return axios.post(`${base}/orders/parse-invoice`, fd, auth()).then((r) => r.data); },
   order: (id) => axios.get(`${base}/orders/${id}`, auth()).then((r) => r.data),
   setStatus: (id, body) => axios.post(`${base}/orders/${id}/status`, body, auth()).then((r) => r.data),
   validate: (id) => axios.post(`${base}/orders/${id}/validate`, {}, auth()).then((r) => r.data),

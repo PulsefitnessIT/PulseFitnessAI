@@ -1,9 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, ArrowLeft, ScanLine, CheckCircle2, PackageCheck, ShieldCheck, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Plus, Search, ArrowLeft, ScanLine, CheckCircle2, PackageCheck, ShieldCheck, Trash2, FileUp, Sparkles, Loader2, RefreshCw, Play } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, money, fmtDate, statusLabel } from './api';
 import { Card, StatCard, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
 import OrderFulfilment from './InvFulfilment';
+
+const SOURCE_BADGE = {
+  sage: { label: 'Sage 200', cls: 'bg-blue-100 text-blue-700' },
+  invoice: { label: 'AI Invoice', cls: 'bg-violet-100 text-violet-700' },
+  crm: { label: 'CRM', cls: 'bg-emerald-100 text-emerald-700' },
+  manual: { label: 'Manual', cls: 'bg-slate-100 text-slate-600' },
+};
+function SourceBadge({ source }) {
+  const s = SOURCE_BADGE[source] || SOURCE_BADGE.manual;
+  return <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${s.cls}`} data-testid={`inv-order-source-${source || 'manual'}`}>{s.label}</span>;
+}
 
 const CURRENCIES = ['GBP', 'EUR', 'USD'];
 const COUNTRIES = [{ c: 'GB', n: 'United Kingdom' }, { c: 'FR', n: 'France' }, { c: 'US', n: 'United States' }];
@@ -17,7 +28,7 @@ const PRODUCT_TYPE_LABELS = {
 };
 
 // ─────────────────────────── Create order wizard ───────────────────────────
-function CreateOrderModal({ warehouses, onClose, onCreated }) {
+function CreateOrderModal({ warehouses, onClose, onCreated, autoInvoice }) {
   const [header, setHeader] = useState({
     dealer_id: '', dealer_name: '', dealer_country: 'GB', currency: 'GBP', language: 'en',
     customer_po: '', delivery_address: '', requested_delivery_date: '', sales_rep: '', notes: '',
@@ -27,6 +38,31 @@ function CreateOrderModal({ warehouses, onClose, onCreated }) {
   const [dealerResults, setDealerResults] = useState([]);
   const [lines, setLines] = useState([{ product_code: '', description: '', product_type: 'serialised_machine', quantity: 1, unit_price: 0 }]);
   const [saving, setSaving] = useState(false);
+  const [source, setSource] = useState('manual');
+  const [parsing, setParsing] = useState(false);
+  const fileRef = useRef(null);
+
+  const onInvoiceFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setParsing(true);
+    try {
+      const res = await invApi.parseInvoiceOrder(f);
+      setHeader((h) => ({
+        ...h,
+        dealer_name: res.header?.dealer_name || h.dealer_name,
+        customer_po: res.header?.customer_po || h.customer_po,
+        delivery_address: res.header?.delivery_address || h.delivery_address,
+      }));
+      if ((res.lines || []).length) setLines(res.lines);
+      setSource('invoice');
+      notify.success(`Read ${res.line_count || 0} line(s)${res.supplier_name ? ` from ${res.supplier_name}` : ''}. Review & create.`);
+    } catch (err) {
+      notify.error(err?.response?.data?.detail || 'Could not read that invoice');
+    } finally { setParsing(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
+  useEffect(() => { if (autoInvoice) { const t = setTimeout(() => fileRef.current?.click(), 250); return () => clearTimeout(t); } }, [autoInvoice]);
 
   useEffect(() => {
     if (dealerQuery.length < 2) { setDealerResults([]); return; }
@@ -44,7 +80,7 @@ function CreateOrderModal({ warehouses, onClose, onCreated }) {
   const submit = async () => {
     setSaving(true);
     try {
-      const res = await invApi.createOrder({ ...header, lines: lines.map((l) => ({ ...l, quantity: Number(l.quantity), unit_price: Number(l.unit_price) })) });
+      const res = await invApi.createOrder({ ...header, source, lines: lines.map((l) => ({ ...l, quantity: Number(l.quantity), unit_price: Number(l.unit_price) })) });
       notify.success(`Order ${res.order.reference} created — ${res.provisional_units} provisional unit(s)`);
       onCreated(res.order.id);
     } catch (e) {
@@ -56,12 +92,23 @@ function CreateOrderModal({ warehouses, onClose, onCreated }) {
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-create-order-modal">
       <div className="my-6 w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-bold text-slate-900">New Distribution Order</h2>
+          <h2 className="text-lg font-bold text-slate-900">{source === 'invoice' ? 'New order — from invoice' : 'New order'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600" data-testid="inv-create-close">✕</button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-5">
-          <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
-            Manual entry — no Sage 200 required. Sage-linked orders arrive automatically once the integration is wired.
+          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-100"><Sparkles size={18} className="text-violet-600" /></div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-900">Add from an invoice or PO</p>
+                <p className="text-[11px] text-slate-500">No Sage needed — upload a supplier invoice / purchase order (PDF or image) and AI fills the order for you to review.</p>
+              </div>
+              <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" data-testid="inv-order-invoice-file" onChange={onInvoiceFile} />
+              <Btn variant="secondary" onClick={() => fileRef.current?.click()} disabled={parsing} data-testid="inv-order-invoice-btn">
+                {parsing ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} {parsing ? 'Reading…' : 'Upload invoice'}
+              </Btn>
+            </div>
+            {source === 'invoice' && <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-violet-700"><CheckCircle2 size={12} /> Read from invoice — review the fields below, then create.</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -291,7 +338,9 @@ export default function InvOrders({ warehouses, initialOrderId }) {
   const [orders, setOrders] = useState(null);
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [creating, setCreating] = useState(false);
+  const [createMode, setCreateMode] = useState('manual');
   const [selected, setSelected] = useState(initialOrderId || null);
 
   const load = useCallback(() => {
@@ -299,13 +348,23 @@ export default function InvOrders({ warehouses, initialOrderId }) {
   }, [q, statusFilter]);
   useEffect(() => { const t = setTimeout(load, 200); return () => clearTimeout(t); }, [load]);
 
+  const openCreate = (mode) => { setCreateMode(mode); setCreating(true); };
+
   if (selected) return <OrderDetail orderId={selected} onBack={() => { setSelected(null); load(); }} />;
+
+  const shown = (orders || []).filter((o) => sourceFilter === 'all' || (o.source || 'manual') === sourceFilter);
 
   return (
     <div className="space-y-4" data-testid="inv-orders">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-bold text-slate-900">Distribution Orders</h2>
-        <Btn className="ml-auto" onClick={() => setCreating(true)} data-testid="inv-new-order-btn"><Plus size={16} /> New order</Btn>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Orders</h2>
+          <p className="text-sm text-slate-500">All distribution orders — manual, AI-invoice, CRM and Sage 200 (badged by source).</p>
+        </div>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Btn variant="secondary" onClick={() => openCreate('invoice')} data-testid="inv-import-invoice-btn"><Sparkles size={15} /> Import from invoice</Btn>
+          <Btn onClick={() => openCreate('manual')} data-testid="inv-new-order-btn"><Plus size={16} /> New order</Btn>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -313,6 +372,13 @@ export default function InvOrders({ warehouses, initialOrderId }) {
           <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
           <input className={`${inputCls} pl-9`} placeholder="Search reference, dealer, PO…" value={q} data-testid="inv-orders-search" onChange={(e) => setQ(e.target.value)} />
         </div>
+        <select className={inputCls + ' w-auto'} value={sourceFilter} data-testid="inv-orders-source-filter" onChange={(e) => setSourceFilter(e.target.value)}>
+          <option value="all">All sources</option>
+          <option value="manual">Manual</option>
+          <option value="invoice">AI Invoice</option>
+          <option value="sage">Sage 200</option>
+          <option value="crm">CRM</option>
+        </select>
         <select className={inputCls + ' w-auto'} value={statusFilter} data-testid="inv-orders-status-filter" onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All statuses</option>
           <option value="needs_validation">Needs validation</option>
@@ -323,19 +389,23 @@ export default function InvOrders({ warehouses, initialOrderId }) {
         </select>
       </div>
 
-      {orders === null ? <Spinner /> : orders.length === 0 ? (
+      {orders === null ? <Spinner /> : shown.length === 0 ? (
         <Card className="p-10 text-center" testId="inv-orders-empty">
-          <p className="text-slate-500">No distribution orders yet.</p>
-          <Btn className="mx-auto mt-3" onClick={() => setCreating(true)}><Plus size={16} /> Create your first order</Btn>
+          <p className="text-slate-500">No orders yet.</p>
+          <div className="mt-3 flex justify-center gap-2">
+            <Btn variant="secondary" onClick={() => openCreate('invoice')}><Sparkles size={16} /> Import from invoice</Btn>
+            <Btn onClick={() => openCreate('manual')}><Plus size={16} /> Create your first order</Btn>
+          </div>
         </Card>
       ) : (
         <Card testId="inv-orders-table">
           <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Reference</th><th>Dealer</th><th>Country</th><th>PO</th><th>Value</th><th>Status</th><th>Created</th></tr></thead>
+            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Reference</th><th>Source</th><th>Dealer</th><th>Country</th><th>PO</th><th>Value</th><th>Status</th><th>Created</th></tr></thead>
             <tbody>
-              {orders.map((o) => (
+              {shown.map((o) => (
                 <tr key={o.id} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" data-testid={`inv-order-row-${o.reference}`} onClick={() => setSelected(o.id)}>
                   <td className="px-4 py-3 font-semibold text-[#0B3D91]">{o.reference}</td>
+                  <td><SourceBadge source={o.source} /></td>
                   <td>{o.dealer_name}</td>
                   <td>{o.dealer_country}</td>
                   <td className="text-slate-500">{o.customer_po || '—'}</td>
@@ -349,7 +419,7 @@ export default function InvOrders({ warehouses, initialOrderId }) {
         </Card>
       )}
 
-      {creating && <CreateOrderModal warehouses={warehouses} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); setSelected(id); }} />}
+      {creating && <CreateOrderModal warehouses={warehouses} autoInvoice={createMode === 'invoice'} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); setSelected(id); }} />}
     </div>
   );
 }
