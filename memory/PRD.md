@@ -1,3 +1,43 @@
+# ═══ 2026-06 · LOGISTICS INSTALL-TEAM PORTAL + SEPARATE LOGIN/ROLE (PHASE 2 pt 1, VERIFIED 100% FE) ═══
+Follows the Install Pack work. User wants a dedicated logistics/install-team experience with a SEPARATE login.
+Choices: VIEW-ONLY (upcoming installs + full Install pack); owners/managers provision logins from the Inventory
+module Settings; logistics users see ALL their org's installs; LOCKED to installs only. Owners/managers keep full
+Distribution access. Modelled on the existing Dealer Portal pattern (dedicated role → normal /login → own portal).
+
+DELIVERED:
+  • NEW ROLE 'logistics' (records in db.users, org-scoped, bcrypt via utils.auth.hash_password). Reuses the existing
+    /api/auth/login unchanged — routed to integration_expert (JWT auth) before writing. Read-only BY CONSTRUCTION:
+    _require_ops_role (owner/manager/admin only) already 403s every inventory write for this role.
+  • BACKEND routes/inventory_logistics.py (registered in route_registry/features.py):
+    - Provisioning (require_ops_role): GET/POST /api/inventory/logistics/users, POST /users/{id}/status
+      (active|disabled), POST /users/{id}/reset-password. Idempotent on email, never leaks password hash.
+    - Portal reads (require_logistics_or_ops dep): GET /installs (org's awaiting/in-progress installs),
+      GET /installs/{id}/pack (reuses inventory_allocation.install_pack).
+  • FRONTEND:
+    - LogisticsPortal.js — standalone shell (/logistics): header + sign-out, search, installs grouped by planned
+      date, opens the read-only InstallPackModal (packFetcher=logisticsPack, readOnly hides the relink control).
+    - InstallPackModal exported from InvAllocation.js with readOnly + packFetcher props.
+    - InventoryDistribution.js SettingsView: new 'Logistics logins' tab (LogisticsLogins: create/list/disable/enable/
+      reset-password).
+    - Routing: AppRoutes lazy /logistics route; DashboardRoute + LoginPage both redirect role='logistics' → /logistics;
+      /inventory bounces a logistics user back to /logistics (UX parity). api.js: logistics* methods.
+  • ISOLATION verified: logistics user confined to /logistics; /dashboard & /inventory redirect away; cannot write.
+
+VERIFIED: backend curl (login role=logistics; installs+pack read; write & provisioning → 403; owner provisioning OK)
++ testing_agent frontend 100% (6/6 acceptance, 0 bugs — iteration_logistics_portal_phase2_jan2026.json). Post-test
+polish: relink now conditionally rendered (not display:none); /inventory→/logistics redirect for logistics role.
+
+TEST ACCOUNT: logi1@isodemo.com / LogiPass123! (role=logistics). One demo install kept (ALL-LOGQA2, AlphaCo, survey
+SUR-LOGQA2) so the portal shows data — safe to delete. See /app/memory/test_credentials.md.
+
+PHASE 2 pt 2 (NEXT): on-site customer SIGN-OFF at install completion → feeds warranty activation (this needs the
+logistics user to be able to mark started/completed + capture a signature — a scoped write path for role=logistics).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · INSTALL PACK — SITE SURVEY + H&S + DRAWINGS COLLATED ONTO INSTALLS (PHASE 1, VERIFIED FE) ═══
 Founder: when an install is arranged on the calendar, attach the customer's site survey to the install so all info
 (H&S questionnaire, access, site rules, drawings) is collated for everyone. Longer goal = a logistics app for the
