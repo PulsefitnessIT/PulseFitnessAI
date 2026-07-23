@@ -91,7 +91,7 @@ export default function ChoosePlanPage() {
       <header className="border-b border-zinc-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <span className="font-extrabold tracking-tight text-zinc-900 text-lg">
-            Pulse Fitness<span className="text-blue-600">.AI</span>
+            Pulse Fitness<span className="text-[#19CDFF]">.AI</span>
           </span>
           <button
             type="button"

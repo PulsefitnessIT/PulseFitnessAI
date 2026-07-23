@@ -1,3 +1,19 @@
+# ═══ 2026-06 · PRICING PAGE — BUNDLE REMOVED, OPERATIONS = "PULSE FITNESS PRO" (VERIFIED, 0 bugs) ═══
+Per founder: PulseFitness does NOT offer a bundle — modules sold separately; Operations is the flagship badged
+"Pulse Fitness Pro". Updated ChoosePlanPage.js: removed the entire bundle card + hero bundle copy; modules section
+is now primary ("Choose your modules"); Operations sorted first, rendered with a cyan "Recommended" badge
+(data-testid choose-plan-flagship-badge), title "Operations — Pulse Fitness Pro", CTA "Choose Pulse Fitness Pro",
+solid cyan button. Header logo ".AI" recoloured blue-600 -> #19CDFF. (unused bundle/siteCount vars remain as harmless
+lint warnings.) VERIFIED by testing_agent (iteration_choose_plan_multi_currency_jan2026.json) 100% pass:
+login->/choose-plan renders, no bundle card, Operations flagship correct, £/€/$ toggle updates prices
+(£69/€79/$99 monthly Operations), monthly/annual toggle -> /yr (£690), and "Choose Pulse Fitness Pro" redirects to a
+live Stripe TEST checkout (checkout.stripe.com/c/pay/cs_test_...). Supersedes the prior "bundle still shown / UI not
+visually confirmed" note.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STRIPE MULTI-CURRENCY (test mode) + PRICING PAGE REDESIGN + MASTER-ADMIN NAV ═══
 STRIPE TEST KEYS wired into preview .env (sk_test_/pk_test_/whsec_ for acct_1TwO0TR4sZnXWhFi, GB). Old expired
 sk_live key replaced. Webhook events to enable: checkout.session.completed, customer.subscription.updated/deleted,
