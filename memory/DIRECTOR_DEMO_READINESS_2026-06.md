@@ -107,8 +107,38 @@ install/warranty/asset lifecycle — it is the moat.
   checklist §B (MFA, strict AV/SSRF, CORS allow-list, bcrypt≥12, DEBUG=false, etc.)
   via `scripts/toggle_pentest_flags.sh --on`.
 
-**Pen-test verdict: internally ready.** The external tester's job is to prove the
-implemented controls hold under real tooling; no open High/Critical remains.
+**Pen-test verdict: internally ready — with one addendum below.**
+
+### 3.1 Post-May-28 focused security audit (2026-06) — NEW SURFACES
+
+The signed-off pack (Iter 220bg) predates the Inventory & Distribution module, the
+Logistics/Dealer/Staff portals, Customer Deliveries and the public pricing page. A focused
+read-only audit of those surfaces found and CLOSED the following:
+
+- **SEC-001 (HIGH) — FIXED & VERIFIED.** Low-trust portal logins (role `dealer_user`,
+  `logistics`, and staff/recruit portal accounts) were issued ordinary full-access platform
+  JWTs; many operator endpoints only checked "is logged in?" not "what kind of account?",
+  so a dealer contact or recruit could call e.g. `GET /api/equipment` and read the
+  operator org's asset register (same-tenant privilege escalation / broken function-level
+  authorization). FIX: `utils/auth.py` now splits auth into an operator-strict
+  `get_current_user` (rejects portal identities via `is_portal_only_user`, 403) and a
+  `get_current_user_portal` used only by the portals + `GET /auth/me`. VERIFIED by curl:
+  dealer/logistics/staff → 403 on `/api/equipment`; owner still 200; all three portals'
+  own endpoints + `/auth/me` still 200.
+- **SEC-002 (MEDIUM) — BY DESIGN (documented).** The `logistics` role can start/complete
+  an install (commission + warranty activation). This is INTENDED — Phase 2 pt2
+  deliberately gave the install team a scoped, org-gated on-site sign-off write path
+  (capturing the customer signature is the portal's purpose). The earlier Phase 2 pt1
+  "read-only by construction" wording is superseded. Logistics is a WRITE-CAPABLE
+  install role, confined to install start/complete within its own org. No change needed.
+- **SEC-003 (LOW/P3) — FIXED.** The two `stripe.checkout.Session.create` calls in
+  `routes/payments.py` now pass a short-lived, intent-scoped `idempotency_key`
+  (10-min bucket) so a double-click/retry cannot create duplicate checkout sessions.
+  VERIFIED: flex checkout still returns a valid `cs_test_` session.
+
+**Action for the pen-test pack:** re-issue `PEN_TEST_READINESS_CHECKLIST.md` as v1.3 with
+the new module coverage row (Inventory/Distribution, Logistics, Dealer, Staff, Customer
+Deliveries, Payments) reflecting the SEC-001/002/003 outcomes above.
 
 ---
 

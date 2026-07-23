@@ -1,3 +1,30 @@
+# ═══ 2026-06 · POST-AUDIT SECURITY FIX — PORTAL TOKEN SCOPING (SEC-001 HIGH, VERIFIED) ═══
+Founder asked if the platform is pen-test ready. Found the signed-off pack (Iter 220bg, 28 May 2026)
+PREDATES all post-May work (Inventory & Distribution, Logistics/Dealer/Staff portals, Customer
+Deliveries, public pricing). Ran a focused security_audit_agent on those NEW surfaces:
+
+- SEC-001 (HIGH) — FIXED & VERIFIED. Portal logins (role dealer_user, logistics, and staff/recruit
+  portal accounts) got ordinary full-access platform JWTs; operator endpoints (e.g. GET /api/equipment)
+  only checked get_current_user, so a dealer/recruit could read the operator org's asset register
+  (same-tenant broken-function-level-auth). Reproduced via curl: dealer_user read 15 equipment rows.
+  FIX (utils/auth.py): refactored auth into _load_user_core + operator-strict get_current_user (rejects
+  portal identities via new is_portal_only_user() → 403) + get_current_user_portal (portals + /auth/me
+  only). Repointed: routes/auth.py /auth/me; dealer_parts_portal.require_dealer_user;
+  inventory_logistics.require_logistics_or_ops; staff_portal.py 8 employee /new-starter/portal/* endpoints.
+  is_portal_only_user = role in {dealer_user,logistics,recruit} OR is_recruit_portal OR account_type==recruit.
+  VERIFIED curl: dealer/logistics/staff → 403 on /api/equipment; owner → 200 (no regression); all portals'
+  own endpoints + /auth/me → 200.
+- SEC-002 (MEDIUM) — BY DESIGN. logistics start/complete install (commission+warranty) is the intended
+  Phase-2-pt2 on-site sign-off write path (org+role gated). Documented; no change.
+- SEC-003 (P3) — FIXED. Added short-lived intent-scoped idempotency_key to both stripe.checkout.Session.
+  create calls in payments.py (10-min bucket). Verified flex checkout still returns cs_test_ session.
+
+TODO carried: re-issue PEN_TEST_READINESS_CHECKLIST.md v1.3 with the new-module coverage rows.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DIRECTOR-DEMO RELEASE-READINESS AUDIT + ROI CALC FIX (VERIFIED) ═══
 Founder asked (fork): is the platform ready for full release / director demo — processes, data
 flow, module independence (singular vs together), pen-test readiness, Sage/Sicon status. Chose B+D.
