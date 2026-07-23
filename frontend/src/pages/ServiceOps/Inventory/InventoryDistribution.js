@@ -5,6 +5,7 @@ import {
   Settings as SettingsIcon, ArrowLeft, Plus, ScanLine, Truck, MapPin, ShieldCheck,
   FileText, Globe, ChevronRight, ArrowRightLeft, Headphones,
   Radar, ShieldAlert, FileBarChart, PackagePlus, Menu, X, LogOut,
+  UserPlus, Users, KeyRound, Power,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useAuth } from '@/App';
@@ -301,9 +302,70 @@ function FieldOwnership() {
 }
 
 // ─────────────────────────── Settings ───────────────────────────
+function LogisticsLogins() {
+  const [users, setUsers] = useState(null);
+  const [form, setForm] = useState({ full_name: '', email: '', password: '' });
+  const [busy, setBusy] = useState(false);
+  const load = () => invApi.logisticsUsers().then((d) => setUsers(d.users || [])).catch(() => setUsers([]));
+  useEffect(() => { load(); }, []);
+  const create = async (e) => {
+    e.preventDefault();
+    if (!form.email || form.password.length < 8) { notify.error('Enter an email and a password of at least 8 characters'); return; }
+    setBusy(true);
+    try { await invApi.createLogisticsUser(form); notify.success('Logistics login created'); setForm({ full_name: '', email: '', password: '' }); load(); }
+    catch (e2) { notify.error(e2?.response?.data?.detail || 'Could not create login'); }
+    finally { setBusy(false); }
+  };
+  const toggle = async (u) => {
+    const next = u.status === 'active' ? 'disabled' : 'active';
+    try { await invApi.setLogisticsUserStatus(u.id, next); notify.success(next === 'active' ? 'Re-activated' : 'Disabled'); load(); }
+    catch { notify.error('Failed'); }
+  };
+  const resetPw = async (u) => {
+    const pw = window.prompt(`New password for ${u.email} (min 8 chars):`);
+    if (!pw) return;
+    try { await invApi.resetLogisticsPassword(u.id, pw); notify.success('Password reset'); }
+    catch (e2) { notify.error(e2?.response?.data?.detail || 'Failed'); }
+  };
+  return (
+    <div className="space-y-5" data-testid="inv-logistics-logins">
+      <Card className="p-4">
+        <div className="mb-3 flex items-center gap-2"><UserPlus size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900">Add a logistics team login</h3></div>
+        <p className="mb-3 text-sm text-slate-500">Install-team members sign in at <span className="font-mono text-slate-700">/login</span> and land straight on the Logistics portal — they only see upcoming installs and their install packs.</p>
+        <form onSubmit={create} className="grid gap-3 sm:grid-cols-4">
+          <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Full name" className={inputCls} data-testid="inv-logistics-name" />
+          <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" type="email" className={inputCls} data-testid="inv-logistics-email" />
+          <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Password (min 8)" type="text" className={inputCls} data-testid="inv-logistics-password" />
+          <Btn type="submit" disabled={busy} data-testid="inv-logistics-create"><UserPlus size={14} /> {busy ? 'Creating…' : 'Create login'}</Btn>
+        </form>
+      </Card>
+      <Card className="p-0">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3"><Users size={16} className="text-slate-500" /><h3 className="font-bold text-slate-900">Logistics logins</h3></div>
+        {users === null ? <div className="p-6"><Spinner /></div> : users.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-400">No logistics logins yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-100" data-testid="inv-logistics-users">
+            {users.map((u) => (
+              <div key={u.id} className="flex items-center justify-between px-4 py-3">
+                <div><p className="text-sm font-semibold text-slate-800">{u.full_name || u.email}</p><p className="text-xs text-slate-400">{u.email}</p></div>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${u.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{u.status === 'active' ? 'Active' : 'Disabled'}</span>
+                  <button onClick={() => resetPw(u)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`inv-logistics-reset-${u.email}`}><KeyRound size={12} /> Reset</button>
+                  <button onClick={() => toggle(u)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`inv-logistics-toggle-${u.email}`}><Power size={12} /> {u.status === 'active' ? 'Disable' : 'Enable'}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function SettingsView({ warehouses, initialTab = 'general' }) {
   const SETTINGS_TABS = [
     { id: 'general', label: 'General' },
+    { id: 'logistics-logins', label: 'Logistics logins' },
     { id: 'sage', label: 'Sage 200 Connection' },
     { id: 'field-ownership', label: 'Field Ownership' },
   ];
@@ -335,7 +397,7 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
         })}
       </div>
 
-      {tab === 'sage' ? <div className="space-y-6"><SageConnection /><SageOrders /></div> : tab === 'field-ownership' ? <FieldOwnership /> : (
+      {tab === 'sage' ? <div className="space-y-6"><SageConnection /><SageOrders /></div> : tab === 'field-ownership' ? <FieldOwnership /> : tab === 'logistics-logins' ? <LogisticsLogins /> : (
         !s ? <Spinner /> : (
           <div className="space-y-5">
             <Card className="p-4">

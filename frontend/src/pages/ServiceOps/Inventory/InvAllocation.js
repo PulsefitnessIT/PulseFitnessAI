@@ -222,15 +222,16 @@ function ScheduleModal({ alloc, onClose, onDone }) {
 const RISK_COLOR = { Low: 'bg-emerald-50 text-emerald-700 ring-emerald-200', Medium: 'bg-amber-50 text-amber-700 ring-amber-200', High: 'bg-orange-50 text-orange-700 ring-orange-200', Critical: 'bg-red-50 text-red-700 ring-red-200' };
 const YN = (v) => (v === true ? 'Yes' : v === false ? 'No' : '—');
 
-function InstallPackModal({ alloc, onClose, onChanged }) {
+export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, packFetcher }) {
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(true);
   const [relinking, setRelinking] = useState(false);
   const [candidates, setCandidates] = useState([]);
+  const fetchPack = packFetcher || invApi.installPack;
   const load = useCallback(() => {
     setLoading(true);
-    invApi.installPack(alloc.id).then(setPack).catch(() => notify.error('Could not load install pack')).finally(() => setLoading(false));
-  }, [alloc.id]);
+    fetchPack(alloc.id).then(setPack).catch(() => notify.error('Could not load install pack')).finally(() => setLoading(false));
+  }, [alloc.id, fetchPack]);
   useEffect(() => { load(); }, [load]);
 
   const openAuthed = async (relUrl) => {
@@ -269,7 +270,7 @@ function InstallPackModal({ alloc, onClose, onChanged }) {
             <div className="rounded-xl border border-slate-200">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
                 <div className="flex items-center gap-2"><FileText size={15} className="text-slate-500" /><span className="text-sm font-bold text-slate-800">Pre-install site survey</span></div>
-                <button onClick={openRelink} className="flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:underline" data-testid="inv-install-pack-relink"><RefreshCw size={12} /> {s ? 'Change' : 'Link survey'}</button>
+                <button onClick={openRelink} className="flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:underline" data-testid="inv-install-pack-relink" style={readOnly ? { display: 'none' } : undefined}><RefreshCw size={12} /> {s ? 'Change' : 'Link survey'}</button>
               </div>
               {!s ? (
                 <div className="px-4 py-4 text-sm text-slate-400" data-testid="inv-install-pack-no-survey">No site survey linked. The customer's survey (with the Health &amp; Safety questionnaire) should be completed before the install team arrives.</div>

@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend E2E test of PulseFitness.ai Logistics install-team portal (Phase 2 part 1). All six acceptance criteria pass: (1) Owner can provision a new logistics login via Inventory Settings → 'Logistics logins' tab (created logi2@isodemo.com/LogiPass123!, appeared with Active badge). (2) Disable/Enable toggle works (round-trip verified, 200 responses). (3) Logging in as logi1@isodemo.com from /login redirects straight to /logistics (NOT /service-desk or /dashboard); portal header shows email and Sign out. (4) Portal lists upcoming installs grouped by planned date; seeded install ALL-LOGQA2 (AlphaCo Site A · Main Floor, Elite Treadmill Runner 9000, 10 Aug 2026) visible; search filter narrows/hides items correctly. (5) Install pack modal opens read-only showing SUR-LOGQA2 (Approved For Installation, Auto-linked), High 'Manual handling' risk, Access/Site rules, and Machines & drawings; the relink control `inv-install-pack-relink` is present in DOM but computed display:none → correctly hidden for logistics view. (6) Access isolation: /dashboard→/logistics (DashboardRoute redirect); /inventory redirects to /login?next=/inventory (blocked). Owner regression: owner@isodemo.com continues to reach full /inventory module.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/inventory as logistics user", "issues": ["Navigating to /inventory redirects to /login?next=/inventory instead of back to /logistics (the DashboardRoute-style redirect). Access is still blocked so it satisfies the isolation requirement, but redirecting to /logistics would be a smoother UX and matches the /dashboard behaviour."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL/LOW: Consider redirecting authenticated logistics users away from /inventory back to /logistics (instead of /login?next=/inventory) for UX parity with the /dashboard redirect."
+  ],
+  "critical_code_review_comments": [
+    "InstallPackModal correctly hides relink via inline style display:none when readOnly — element remains in DOM (count>0) but is not visible. Tests using .count() for absence would false-positive; use is_visible() or getComputedStyle. Consider conditionally rendering (return null) so the testid isn't present at all in read-only mode — cleaner contract."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% of acceptance criteria"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  |  logi1@isodemo.com / LogiPass123!  |  logi2@isodemo.com / LogiPass123! (created during test)",
+  "seed_data_creation": "Created logistics user logi2@isodemo.com via the Settings → Logistics logins form (owner-provisioned). Main agent said cleanup will happen post-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The read-only pack modal keeps `inv-install-pack-relink` in DOM but sets display:none. When asserting hidden state, use `is_visible()` or getComputedStyle().display rather than .count(). /api/auth/login rate-limits after ~4 rapid logins — reuse the same browser session between checks or sleep ~35s.",
+  "rca of the issue": "N/A — no bugs found."
+}

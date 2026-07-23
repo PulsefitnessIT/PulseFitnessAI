@@ -90,6 +90,13 @@ export const invApi = {
   linkSurvey: (id, surveyId) => axios.post(`${base}/alloc/allocations/${id}/link-survey`, { survey_id: surveyId }, auth()).then((r) => r.data),
   surveyAttachmentUrl: (attId) => `${base}/alloc/survey-attachment/${attId}/download`,
   drawingFileUrl: (drawingId) => `${API}/exploded-drawings/${drawingId}/file`,
+  // Logistics portal + provisioning
+  logisticsUsers: () => axios.get(`${base}/logistics/users`, auth()).then((r) => r.data),
+  createLogisticsUser: (body) => axios.post(`${base}/logistics/users`, body, auth()).then((r) => r.data),
+  setLogisticsUserStatus: (id, status) => axios.post(`${base}/logistics/users/${id}/status`, { status }, auth()).then((r) => r.data),
+  resetLogisticsPassword: (id, password) => axios.post(`${base}/logistics/users/${id}/reset-password`, { password }, auth()).then((r) => r.data),
+  logisticsInstalls: () => axios.get(`${base}/logistics/installs`, auth()).then((r) => r.data),
+  logisticsPack: (id) => axios.get(`${base}/logistics/installs/${id}/pack`, auth()).then((r) => r.data),
   customerPortal: (companyId) => axios.get(`${base}/alloc/customer-portal/${companyId}/equipment`, auth()).then((r) => r.data),
   allocSummary: () => axios.get(`${base}/alloc/summary`, auth()).then((r) => r.data),
 

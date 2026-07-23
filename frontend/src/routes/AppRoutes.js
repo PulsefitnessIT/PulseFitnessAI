@@ -83,6 +83,7 @@ const PublicLandingPage = lazy(() => import('@/pages/PublicLandingPage'));
 const PartnershipProposalPage = lazy(() => import('@/pages/PartnershipProposalPage'));
 const IntegrationRequirementsPage = lazy(() => import('@/pages/IntegrationRequirementsPage'));
 const DealerPortalStandalone = lazy(() => import('@/pages/DealerWarrantyParts/DealerPortalStandalone'));
+const LogisticsPortal = lazy(() => import('@/pages/ServiceOps/Inventory/LogisticsPortal'));
 const LearnMorePage = lazy(() => import('@/pages/LearnMorePage'));
 const CompareIndex = lazy(() => import('@/pages/Marketing/Compare/CompareIndex'));
 const CompareMindbody = lazy(() => import('@/pages/Marketing/Compare/CompareMindbody'));
@@ -238,6 +239,8 @@ function DashboardRoute({ user }) {
   if (!user) return <Navigate to="/" />;
   // Dealer portal sub-users are confined to their own portal.
   if ((user.role || '').toLowerCase() === 'dealer_user') return <Navigate to="/dealer-portal" replace />;
+  // Logistics install-team users are confined to the logistics portal.
+  if ((user.role || '').toLowerCase() === 'logistics') return <Navigate to="/logistics" replace />;
   // Iter 274 — independent engineers are locked to the Engineer App.
   if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
   const params = new URLSearchParams(window.location.search);
@@ -587,6 +590,7 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 216h75 — Partner Engineer Network (Phase 1) — Iter 216h110: MOD-blocked */}
       <Route path="/partner-engineer" element={user ? <MODForbidden><PartnerDashboard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer" replace />} />
       <Route path="/dealer-portal" element={user ? <DealerPortalStandalone /> : <Navigate to="/login?next=/dealer-portal" replace />} />
+      <Route path="/logistics" element={user ? <LogisticsPortal /> : <Navigate to="/login?next=/logistics" replace />} />
       {/* Iter 216h282 — Gap 3/7 from BA audit. Single canonical
           application form lives at `/partners/engineers/apply`
           (the public `PartnerApplyPublic`). The duplicate logged-in
