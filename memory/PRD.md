@@ -1,3 +1,32 @@
+# ═══ 2026-06 · INVENTORY BRAND CTAs (BUG FIX) + INSTALLATIONS LOGISTICS CALENDAR (VERIFIED 100% FE) ═══
+Founder flagged: CTAs looked broken (e.g. "Add warehouse") + off-brand navy; wanted Installations as a logistics
+calendar and "commission" → "install checks".
+
+BUG ROOT CAUSE: index.css global rule `[data-theme="light"] .text-white { color:#18181B !important }` flips white
+labels dark in light theme, re-whitelisting white only for specific bg colours. The module's CTAs used
+`bg-[#0B3D91] text-white` (navy, NOT whitelisted) → labels rendered near-black (rgb 24,24,27) = looked broken/disabled.
+FIX (index.css): added `.inv-module .text-white{color:#fff!important}` + `.inv-cta` / `.inv-active` (Pulse cyan
+gradient #19CDFF→#0BB0DD + white, matching the Service Desk `.svc-btn-primary`). Shell root now carries `inv-module`.
+ui.js Btn primary → `inv-cta`; danger → bg-red-600. All active tab pills (Fulfilment/Settings/Intelligence-Reports/
+Fulfilment-step-badge) → `inv-active text-white`. Result: every CTA is now on-brand cyan with legible white text and
+works. Verified white=rgb(255,255,255) on cyan gradient; create-warehouse works end-to-end.
+
+INSTALLATIONS → LOGISTICS CALENDAR (InvAllocation.js):
+  • Month calendar (Mon-first) plotting awaiting_installation allocations on planned_install_date; today highlighted;
+    prev/today/next nav; Calendar/List view toggle. Chips open an actions dialog → Reschedule or Install checks.
+  • "To schedule" side panel lists unscheduled installs (allocated from CRM orders) → Schedule modal (date + AM/PM/
+    all-day window + logistics note).
+  • Rename: "Installations & Commissioning" → "Installations"; Install modal "Install & commission" → "Install checks";
+    checklist header + submit ("Complete install checks"); copy → "engineers complete install checks via the Engineer App".
+  • Backend: NEW POST /api/inventory/alloc/allocations/{id}/schedule sets planned_install_date (+window/note),
+    non-destructive (does not commission). api.js scheduleInstall.
+  • CRM flow: installs originate from Phase-5 allocations off Sage/CRM orders → the calendar is fed by CRM order data.
+VERIFIED testing_agent frontend 100% (iteration_inventory_brand_installcalendar_jan2026.json), 0 issues. QA seed cleaned.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · INVENTORY NAV — INTEGRATION FOLDED INTO SETTINGS ═══
 Founder: Sage 200 Connection + Field Ownership are rarely-touched config → moved them INTO Settings as tabs.
 SettingsView is now tabbed (General / Sage 200 Connection / Field Ownership) via initialTab prop; renders the
