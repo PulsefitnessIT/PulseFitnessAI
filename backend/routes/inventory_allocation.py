@@ -19,11 +19,90 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel
 
 from utils.auth import get_current_user
-from utils.database import db
+from utils.database import db, get_object
+from starlette.concurrency import run_in_threadpool
+from fastapi import Response
 from routes.inventory_distribution import _of, _now, _uid, _next_ref, _audit, _require_ops_role, _get_settings
 
 router = APIRouter(prefix="/inventory/alloc", tags=["Inventory & Distribution · Customer Allocation"])
 logger = logging.getLogger(__name__)
+
+# Shared collections reused across modules (never duplicated).
+SURVEYS = "pre_install_site_surveys"
+SURVEY_ATTACH = "pre_install_survey_attachments"
+DRAWINGS = "exploded_drawings"
+
+# Survey statuses that make a survey the best candidate to attach to an install.
+_SURVEY_PREFERRED = ("approved_for_installation", "completed", "installation_risk_identified")
+_SURVEY_EXCLUDE = ("archived", "superseded")
+
+
+async def _auto_match_survey(user: dict, company_id: str) -> Optional[dict]:
+    """Find the most relevant pre-install site survey for a customer company.
+    Prefers surveys marked ready/approved for installation, else the most recent
+    current survey. Org-scoped (surveys are not always site-stamped)."""
+    if not company_id:
+        return None
+    q = {
+        "organization_id": user.get("organization_id"),
+        "company_id": company_id,
+        "status": {"$nin": list(_SURVEY_EXCLUDE)},
+    }
+    surveys = await db[SURVEYS].find(q, {"_id": 0}).sort("created_at", -1).to_list(50)
+    if not surveys:
+        return None
+    # Prefer a current, install-approved survey; otherwise the most recent current one.
+    current = [s for s in surveys if s.get("is_current", True)] or surveys
+    preferred = [s for s in current if s.get("status") in _SURVEY_PREFERRED]
+    return (preferred or current)[0]
+
+
+def _survey_hs_summary(survey: dict) -> dict:
+    """Curate the Health & Safety / access parts of a survey for the install team."""
+    data = survey.get("data") or {}
+    risks = data.get("risks") or []
+    access = data.get("access") or {}
+    site_rules = data.get("site_rules") or {}
+    return {
+        "risks": [
+            {
+                "category": r.get("category"),
+                "description": r.get("description"),
+                "severity": r.get("severity"),
+                "risk_level": r.get("risk_level") or r.get("severity"),
+                "mitigation": r.get("mitigation"),
+                "status": r.get("status"),
+            }
+            for r in risks if isinstance(r, dict)
+        ],
+        "access_risk_level": access.get("access_risk_level"),
+        "access_risk_notes": access.get("access_risk_notes"),
+        "site_rules": {
+            "site_induction_required": site_rules.get("site_induction_required"),
+            "rams_required": site_rules.get("rams_required"),
+            "ppe_required": site_rules.get("ppe_required"),
+            "dbs_required": site_rules.get("dbs_required"),
+            "permit_to_work_required": site_rules.get("permit_to_work_required"),
+            "security_clearance_required": site_rules.get("security_clearance_required"),
+            "working_hours_restrictions": site_rules.get("working_hours_restrictions"),
+            "emergency_contact": site_rules.get("emergency_contact"),
+        },
+    }
+
+
+def _survey_brief(survey: dict) -> dict:
+    return {
+        "id": survey.get("id"),
+        "reference": survey.get("reference"),
+        "status": survey.get("status"),
+        "readiness_status": survey.get("readiness_status"),
+        "survey_type": survey.get("survey_type"),
+        "target_install_date": survey.get("target_install_date"),
+        "attachment_count": survey.get("attachment_count", 0),
+        "company_name": survey.get("company_name"),
+        "site_name": survey.get("site_name"),
+        "updated_at": survey.get("updated_at"),
+    }
 
 ALLOCATION_STATUSES = ["allocated", "awaiting_delivery", "awaiting_installation", "installation_in_progress", "installed", "active", "cancelled"]
 
@@ -221,9 +300,20 @@ async def schedule_installation(alloc_id: str, body: dict = Body(...), user=Depe
         patch["install_window"] = body.get("install_window")
     if body.get("logistics_note") is not None:
         patch["logistics_note"] = body.get("logistics_note")
+    # Auto-attach the customer's pre-install site survey to the installation so
+    # all H&S / access / drawings info is collated in one place for the team.
+    linked_survey = None
+    if not a.get("site_survey_id"):
+        survey = await _auto_match_survey(user, a.get("customer_company_id"))
+        if survey:
+            patch["site_survey_id"] = survey.get("id")
+            patch["site_survey_reference"] = survey.get("reference")
+            patch["site_survey_status"] = survey.get("status")
+            patch["site_survey_auto_linked"] = True
+            linked_survey = _survey_brief(survey)
     await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": patch})
-    await _audit(user, "installation_scheduled", "allocation", alloc_id, {"planned_install_date": planned})
-    return {"ok": True, "planned_install_date": planned}
+    await _audit(user, "installation_scheduled", "allocation", alloc_id, {"planned_install_date": planned, "site_survey_id": patch.get("site_survey_id")})
+    return {"ok": True, "planned_install_date": planned, "linked_survey": linked_survey}
 
 
 @router.post("/allocations/{alloc_id}/install")
@@ -261,6 +351,180 @@ async def install_commission(alloc_id: str, body: InstallIn, user=Depends(get_cu
     await db.dealer_inventory_holdings.update_one({**of, "unit_id": a["unit_id"]}, {"$set": {"status": "installed", "updated_at": _now()}})
     await _audit(user, "installation_commissioned", "allocation", alloc_id, {"warranty_end": w_end})
     return {"ok": True, "asset_status": "active", "warranty_start": w_start, "warranty_end": w_end, "warranty_rule": rule}
+
+
+# ──────────────────────────── Install pack (collated info for the logistics/install team) ────────────────────────────
+async def _drawings_for(user: dict, manufacturer: str = "", model: str = "") -> list:
+    """Match exploded/assembly drawings for a machine by model (and manufacturer
+    when known). Org-owned OR globally-published drawings."""
+    if not (model or "").strip() and not (manufacturer or "").strip():
+        return []
+    org = user.get("organization_id")
+    filters = []
+    if (model or "").strip():
+        filters.append({"model": {"$regex": re.escape(model.strip()), "$options": "i"}})
+    if (manufacturer or "").strip():
+        filters.append({"manufacturer": {"$regex": re.escape(manufacturer.strip()), "$options": "i"}})
+    q = {
+        "is_deleted": {"$ne": True},
+        "$and": [
+            {"$or": [{"organization_id": org}, {"organization_id": None}]},
+            {"$or": filters} if filters else {},
+        ],
+    }
+    docs = await db[DRAWINGS].find(q, {"_id": 0, "storage_path": 0}).sort("created_at", -1).limit(10).to_list(10)
+    return [
+        {
+            "drawing_id": d.get("id"),
+            "title": d.get("title"),
+            "manufacturer": d.get("manufacturer"),
+            "model": d.get("model"),
+            "file_url": f"/api/exploded-drawings/{d.get('id')}/file",
+        }
+        for d in docs
+    ]
+
+
+@router.get("/allocations/{alloc_id}/install-pack")
+async def install_pack(alloc_id: str, user=Depends(get_current_user)):
+    """Collated install pack for the logistics/install team: the machines in this
+    install visit, the linked pre-install site survey (H&S / access / site rules),
+    installer-visible survey attachments (photos, floor plans, CAD/drawings), and
+    exploded assembly drawings for each machine."""
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id}, {"_id": 0})
+    if not a:
+        raise HTTPException(404, "Allocation not found")
+
+    # The install visit = all allocations for the same customer on the same planned day.
+    visit_q = {"organization_id": user.get("organization_id"), "customer_company_id": a.get("customer_company_id")}
+    if a.get("planned_install_date"):
+        visit_q["planned_install_date"] = a.get("planned_install_date")
+    else:
+        visit_q["id"] = alloc_id
+    visit_allocs = await db.dealer_customer_allocations.find(visit_q, {"_id": 0}).to_list(200)
+    if not any(x.get("id") == alloc_id for x in visit_allocs):
+        visit_allocs.append(a)
+
+    machines = []
+    for m in visit_allocs:
+        machines.append({
+            "allocation_id": m.get("id"),
+            "reference": m.get("reference"),
+            "model": m.get("model"),
+            "product_code": m.get("product_code"),
+            "serial_number": m.get("serial_number"),
+            "status": m.get("status"),
+            "drawings": await _drawings_for(user, "", m.get("model") or m.get("product_code") or ""),
+        })
+
+    # Resolve the linked survey (explicit link on this allocation, else auto-match).
+    survey = None
+    if a.get("site_survey_id"):
+        survey = await db[SURVEYS].find_one(
+            {"organization_id": user.get("organization_id"), "id": a["site_survey_id"]}, {"_id": 0})
+    if not survey:
+        survey = await _auto_match_survey(user, a.get("customer_company_id"))
+
+    survey_block = None
+    attachments = []
+    if survey:
+        survey_block = {**_survey_brief(survey), "hs": _survey_hs_summary(survey), "auto_linked": not a.get("site_survey_id")}
+        raw = await db[SURVEY_ATTACH].find(
+            {"survey_id": survey.get("id"), "is_deleted": {"$ne": True}}, {"_id": 0}
+        ).sort("created_at", -1).to_list(200)
+        for att in raw:
+            if att.get("visible_to_installer") is False:
+                continue
+            attachments.append({
+                "id": att.get("id"),
+                "category": att.get("category"),
+                "description": att.get("description"),
+                "filename": att.get("original_filename"),
+                "content_type": att.get("content_type"),
+                "size": att.get("size"),
+                "download_url": f"/api/inventory/alloc/survey-attachment/{att.get('id')}/download",
+            })
+
+    return {
+        "allocation": a,
+        "visit": {
+            "customer_company_id": a.get("customer_company_id"),
+            "customer_company_name": a.get("customer_company_name"),
+            "customer_site": a.get("customer_site"),
+            "planned_install_date": a.get("planned_install_date"),
+            "install_window": a.get("install_window"),
+            "logistics_note": a.get("logistics_note"),
+            "machine_count": len(machines),
+        },
+        "machines": machines,
+        "survey": survey_block,
+        "survey_attachments": attachments,
+    }
+
+
+@router.get("/allocations/{alloc_id}/survey-candidates")
+async def survey_candidates(alloc_id: str, user=Depends(get_current_user)):
+    """List pre-install site surveys for this allocation's customer so the team
+    can pick/relink a different survey if the auto-match wasn't right."""
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id}, {"_id": 0, "customer_company_id": 1})
+    if not a:
+        raise HTTPException(404, "Allocation not found")
+    rows = await db[SURVEYS].find(
+        {"organization_id": user.get("organization_id"), "company_id": a.get("customer_company_id"),
+         "status": {"$nin": list(_SURVEY_EXCLUDE)}},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return {"candidates": [_survey_brief(s) for s in rows]}
+
+
+@router.post("/allocations/{alloc_id}/link-survey")
+async def link_survey(alloc_id: str, body: dict = Body(...), user=Depends(get_current_user)):
+    """Manually link (or clear) the pre-install site survey attached to an install."""
+    _require_ops_role(user)
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id})
+    if not a:
+        raise HTTPException(404, "Allocation not found")
+    survey_id = (body.get("survey_id") or "").strip() or None
+    if survey_id:
+        survey = await db[SURVEYS].find_one(
+            {"organization_id": user.get("organization_id"), "id": survey_id}, {"_id": 0})
+        if not survey:
+            raise HTTPException(404, "Survey not found")
+        patch = {
+            "site_survey_id": survey.get("id"),
+            "site_survey_reference": survey.get("reference"),
+            "site_survey_status": survey.get("status"),
+            "site_survey_auto_linked": False,
+            "updated_at": _now(),
+        }
+    else:
+        patch = {"site_survey_id": None, "site_survey_reference": None,
+                 "site_survey_status": None, "site_survey_auto_linked": False, "updated_at": _now()}
+    await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": patch})
+    await _audit(user, "install_survey_linked", "allocation", alloc_id, {"site_survey_id": survey_id})
+    return {"ok": True, "site_survey_id": survey_id}
+
+
+@router.get("/survey-attachment/{att_id}/download")
+async def download_survey_attachment(att_id: str, user=Depends(get_current_user)):
+    """Stream an installer-visible survey attachment (org-scoped) for the install pack."""
+    att = await db[SURVEY_ATTACH].find_one(
+        {"id": att_id, "organization_id": user.get("organization_id"), "is_deleted": {"$ne": True}}, {"_id": 0})
+    if not att:
+        raise HTTPException(404, "Attachment not found")
+    if att.get("visible_to_installer") is False:
+        raise HTTPException(403, "Attachment not shared with the install team")
+    if att.get("storage_path"):
+        data, ct = await run_in_threadpool(get_object, att["storage_path"])
+    else:
+        import base64
+        data = base64.b64decode(att.get("data_b64", ""))
+        ct = att.get("content_type", "application/octet-stream")
+    return Response(content=data, media_type=att.get("content_type") or ct,
+                    headers={"Content-Disposition": f'inline; filename="{att.get("original_filename", "file")}"'})
 
 
 # ──────────────────────────── Customer Operations Portal view (over the single asset register) ────────────────────────────

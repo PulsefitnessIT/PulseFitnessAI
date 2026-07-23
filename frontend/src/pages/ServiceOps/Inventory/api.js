@@ -85,6 +85,11 @@ export const invApi = {
   allocation: (id) => axios.get(`${base}/alloc/allocations/${id}`, auth()).then((r) => r.data),
   install: (id, body) => axios.post(`${base}/alloc/allocations/${id}/install`, body, auth()).then((r) => r.data),
   scheduleInstall: (id, body) => axios.post(`${base}/alloc/allocations/${id}/schedule`, body, auth()).then((r) => r.data),
+  installPack: (id) => axios.get(`${base}/alloc/allocations/${id}/install-pack`, auth()).then((r) => r.data),
+  surveyCandidates: (id) => axios.get(`${base}/alloc/allocations/${id}/survey-candidates`, auth()).then((r) => r.data),
+  linkSurvey: (id, surveyId) => axios.post(`${base}/alloc/allocations/${id}/link-survey`, { survey_id: surveyId }, auth()).then((r) => r.data),
+  surveyAttachmentUrl: (attId) => `${base}/alloc/survey-attachment/${attId}/download`,
+  drawingFileUrl: (drawingId) => `${API}/exploded-drawings/${drawingId}/file`,
   customerPortal: (companyId) => axios.get(`${base}/alloc/customer-portal/${companyId}/equipment`, auth()).then((r) => r.data),
   allocSummary: () => axios.get(`${base}/alloc/summary`, auth()).then((r) => r.data),
 

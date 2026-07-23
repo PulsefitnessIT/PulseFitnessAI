@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only verification of Inventory Installations 'Install pack' feature (Phase 1). List view row, Install pack modal (H&S risks, access, site rules, attachments, machines+drawings), Calendar chip → actions dialog → Install pack, and Relink flow (candidates + Unlink current) all work as specified. Two issues observed: 'Auto-linked' badge does not render on the survey card, and the exploded assembly drawing download returns HTTP 500 (shown as 'Could not open file' toast).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/inventory/alloc/survey-attachment/{drawing_id}/download (or exploded-drawing download endpoint)", "issue": "Returns HTTP 500 when clicking the exploded drawing button 'Elite Treadmill 9000 — assembly'. Attachment file download (floor.txt) succeeds and opens as blob in new tab, but drawing download fails."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "InstallPackModal – Pre-install site survey card", "issue": "'Auto-linked' badge is NOT displayed. Code renders it conditionally on s.auto_linked, but the survey payload returned from GET /allocations/{id}/install-pack does not include auto_linked=true, so the required 'Auto-linked' badge specified in the acceptance criteria never appears. Two status badges ('Approved For Installation' and 'Installation Approved') show instead, which look duplicative.", "selector": "InstallPackModal survey header (line ~282 of InvAllocation.js)", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Install pack → Machines & assembly drawings → click drawing", "issue": "Backend responds 500 for the exploded drawing download; UI surfaces a 'Could not open file' toast. No unhandled JS exception, but user cannot access the assembly drawing.", "affected_selectors": ["[data-testid^='inv-install-pack-drawing-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix exploded drawing download endpoint (500). Verify seeded exploded_drawings record for 'Elite Treadmill 9000 — assembly' has a valid file/asset and the download route serves it; check backend logs at time of GET drawing download for stack trace.",
+    "Populate/return 'auto_linked': true on the survey in GET /allocations/{id}/install-pack response for auto-linked surveys (schedule_installation sets it, but install-pack read may not propagate it) OR always render the badge when the link source is 'auto'.",
+    "Optional UX: 'Approved For Installation' and 'Installation Approved' badges appear together — consider consolidating to one status."
+  ],
+  "critical_code_review_comments": [
+    "InvAllocation.js line 282: Auto-linked badge relies on s.auto_linked flag but this appears missing from GET install-pack response payload — verify backend serializer.",
+    "Drawing download error surfaces only via generic toast 'Could not open file'; consider showing more informative message including HTTP status for easier debugging."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only run)", "frontend": "85%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None (used pre-seeded LOGQA data).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All six primary acceptance-criteria points verified via Playwright: (1) /inventory?s=installations loads with inv-installations testid, (2) List view row ALL-LOGQA present with inv-install-pack-ALL-LOGQA button, (3) Install pack modal shows planned 05 Aug 2026, AM window, 1 machine, note 'Rear entrance only'; SUR-LOGQA card with 'Approved For Installation' status; H&S risk 'Manual handling risk' High with 'Heavy treadmill up 2 flights' + 'Mitigation: Use 3-person lift + stair climber'; Access risk Medium 'Narrow rear corridor'; Site rules Induction=Yes, RAMS=Yes, Permit=No, PPE 'Steel toe boots, hi-vis'; one attachment 'floor.txt'; one machine 'Elite Treadmill Runner 9000' SN-LOGQA-1 with one exploded drawing 'Elite Treadmill 9000 — assembly'. (4) Calendar navigated to August 2026 via inv-cal-next, chip on 05 Aug present (data-testid inv-cal-chip-ALL-LOGQA), clicking opens inv-install-actions dialog with inv-install-actions-pack button that reopens the pack modal correctly. (5) Relink flow: inv-install-pack-relink opens inv-relink-survey-modal listing 1 candidate (inv-relink-candidate-*), Unlink current button (inv-relink-unlink) present; selecting candidate showed no error (toast not explicitly asserted). (6) Attachment click opens blob in new tab (OK); drawing click returns 500 → 'Could not open file' toast. Only issues are the missing Auto-linked badge and the drawing download 500."
+}
