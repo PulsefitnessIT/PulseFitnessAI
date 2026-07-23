@@ -87,7 +87,42 @@ async def _send_setup_email(*, to_email: str, name: str, org: dict, order_ref: s
                       f"<p>The account for <b>{org.get('name')}</b> was created but the invite email to <b>{to_email}</b> failed. Please resend from the customer record.</p>", org.get("id"))
 
 
-async def provision_customer_portal(*, company_id: str, order_ref: str = "", owner_email: str | None = None) -> dict:
+async def register_customer_equipment(alloc: dict, warranty: dict | None = None) -> dict:
+    """When an install is commissioned, register the machine in the customer's own
+    Pulse org (if linked) so it appears in their Lite/Pro Equipment list and they can
+    log faults on it. Idempotent by (organization_id, serial_number). Best-effort."""
+    company_id = alloc.get("customer_company_id")
+    if not company_id:
+        return {"status": "skipped", "reason": "no_company"}
+    company = await db.crm2_companies.find_one({"id": company_id}, {"_id": 0, "linked_operator_org_id": 1})
+    org_id = (company or {}).get("linked_operator_org_id")
+    if not org_id:
+        return {"status": "skipped", "reason": "not_linked"}
+    serial = alloc.get("serial_number")
+    existing = await db.equipment.find_one(
+        {"organization_id": org_id, "serial_number": serial}, {"_id": 0, "id": 1}) if serial else None
+    if existing:
+        return {"status": "exists", "equipment_id": existing["id"]}
+    now = _now()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "organization_id": org_id,
+        "name": alloc.get("model") or alloc.get("product_code") or "Pulse Fitness equipment",
+        "manufacturer": "Pulse Fitness",
+        "model": alloc.get("model") or alloc.get("product_code"),
+        "serial_number": serial,
+        "status": "operational",
+        "supplier": "Pulse Fitness",
+        "supplier_email": "service.dept@pulsefitness.com",
+        "warranty_expiry": (warranty or {}).get("warranty_end"),
+        "source": "distribution_install",
+        "source_allocation_id": alloc.get("id"),
+        "manuals": [],
+        "created_at": now, "updated_at": now,
+    }
+    await db.equipment.insert_one({**doc})
+    return {"status": "created", "equipment_id": doc["id"], "organization_id": org_id}
+
     """Idempotently create a Pulse Lite tenant for a CRM customer and email a
     set-up link. Safe to call best-effort from the order flow."""
     now = _now()
