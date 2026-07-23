@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only verification of /choose-plan multi-currency redesign. All acceptance criteria pass: login → choose-plan renders, no bundle card, Operations flagship 'Pulse Fitness Pro' with Recommended badge and correct CTA, currency toggle (GBP/EUR/USD) updates prices, monthly/annual toggle switches to /yr with correct amounts, and Choose Pulse Fitness Pro redirects to a live Stripe test checkout session (checkout.stripe.com/c/pay/cs_test_...).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/choose-plan header logo", "issues": ["Header brand 'Pulse Fitness.AI' still uses text-blue-600 for the '.AI' suffix (ChoosePlanPage.js line 94). Not a button/badge so review criterion technically passes, but for full Pulse cyan brand consistency consider swapping to text-[#19CDFF]."]}
+    ]
+  },
+  "verified_acceptance_criteria": {
+    "login_then_choose_plan_renders": true,
+    "no_bundle_card": true,
+    "flagship_badge_present": true,
+    "flagship_title_operations_pulse_fitness_pro": true,
+    "flagship_cta_text": "Choose Pulse Fitness Pro",
+    "gbp_ops_monthly": "£69/mo",
+    "eur_ops_monthly": "€79/mo",
+    "usd_ops_monthly": "$99/mo",
+    "gbp_ops_annual": "£690/yr",
+    "annual_all_modules_yr_suffix": {"operations": "£690/yr", "crm": "£690/yr", "marketing": "£490/yr", "memberships": "£790/yr"},
+    "stripe_checkout_redirect": "https://checkout.stripe.com/c/pay/cs_test_a1PxbXJlsJ253kdjf78Nf9acVOZOXkzBHIMJp0c3Z03HFkaJ8fc2x4Huav (Stripe TEST session, redirect confirmed, payment not completed)",
+    "pulse_cyan_branding_on_buttons_and_badges": true
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional polish: replace remaining text-blue-600 on the '.AI' logo text in /choose-plan header with text-[#19CDFF] for brand consistency (ChoosePlanPage.js:94)."
+  ],
+  "critical_code_review_comments": [
+    "ChoosePlanPage.js still fetches /payments/pricing (legacy) in addition to /payments/pricing/live purely to gate render (line 42-43, uses `pricing` truthy check + `modules` list). If /payments/pricing is being retired, guard rendering off `live` instead to avoid a redundant call.",
+    "Header logo uses hardcoded text-blue-600 alongside the Pulse cyan palette used elsewhere on the page — small brand inconsistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (logged in successfully; cookie banner 'Accept All' clicked pre-login).",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Choose-plan multi-currency + Stripe checkout flow verified end-to-end on 2026-01-23. Backend module checkout (module=operations) is live and returns a valid cs_test_ session. Only optional cosmetic nit: text-blue-600 on '.AI' brand text in the /choose-plan header."
+}

@@ -120,7 +120,7 @@ export default function ChoosePlanPage() {
           </h1>
           <p className="mt-4 text-base text-zinc-500 leading-relaxed">
             Your trial has ended. Pick the plan that fits and keep everything you&apos;ve already set up —
-            no re-import, instant access. Pick the full bundle or just the modules you actually use.
+            no re-import, instant access. Choose the modules you need — each one is a standalone subscription.
           </p>
           <div className="mt-5 inline-flex items-center gap-2 text-xs text-zinc-500">
             <ShieldCheck size={14} className="text-emerald-500" />
@@ -170,109 +170,25 @@ export default function ChoosePlanPage() {
 
         {pricing && (
           <>
-            {/* Recommended bundle */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-10 rounded-2xl border-2 border-[#19CDFF] bg-white shadow-lg overflow-hidden"
-              data-testid="choose-plan-bundle"
-            >
-              <div className="bg-[#19CDFF] px-6 py-2 text-center">
-                <span className="text-[11px] uppercase tracking-[0.18em] font-bold text-[#0A0C10]">
-                  Recommended · everything included
-                </span>
-              </div>
-              <div className="p-6 sm:p-8 grid gap-8 md:grid-cols-2 items-center">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-zinc-900">{bundle.name}</h2>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Every module — Operations, CRM, Marketing &amp; Memberships — in one subscription.
-                  </p>
-                  <ul className="mt-4 space-y-2">
-                    {['All four modules unlocked', 'AI features included', 'Priority support', 'Add sites anytime'].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm text-zinc-700">
-                        <Check size={15} className="text-emerald-500 flex-shrink-0" /> {f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-6">
-                  <div className="flex items-end gap-1">
-                    <span className="text-4xl font-extrabold text-zinc-900">£{bundleTotal.toFixed(0)}</span>
-                    <span className="text-sm text-zinc-500 mb-1">/month</span>
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    £{bundle.monthly.toFixed(0)} base + £{bundle.per_site.toFixed(0)}/mo per extra site
-                  </p>
-
-                  {/* Site count selector */}
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-sm font-medium text-zinc-700">Number of sites</span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setSiteCount((n) => Math.max(1, n - 1))}
-                        className="w-8 h-8 rounded-lg border border-zinc-300 flex items-center justify-center text-zinc-600 hover:bg-white disabled:opacity-40"
-                        disabled={siteCount <= 1}
-                        data-testid="choose-plan-site-minus"
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="w-6 text-center font-semibold text-zinc-900" data-testid="choose-plan-site-count">{siteCount}</span>
-                      <button
-                        type="button"
-                        onClick={() => setSiteCount((n) => Math.min(50, n + 1))}
-                        className="w-8 h-8 rounded-lg border border-zinc-300 flex items-center justify-center text-zinc-600 hover:bg-white disabled:opacity-40"
-                        disabled={siteCount >= 50}
-                        data-testid="choose-plan-site-plus"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Order summary — removes surprise at the Stripe screen */}
-                  <div
-                    className="mt-4 pt-4 border-t border-zinc-200 flex items-baseline justify-between"
-                    data-testid="choose-plan-bundle-summary"
-                  >
-                    <span className="text-sm text-zinc-600">
-                      {bundle.name} · {siteCount} site{siteCount !== 1 ? 's' : ''}
-                    </span>
-                    <span className="text-sm text-zinc-900">
-                      <strong className="text-base">£{bundleTotal.toFixed(0)}</strong>/mo, billed monthly
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => startCheckout('bundle', { site_count: siteCount })}
-                    disabled={busy === 'bundle'}
-                    className="mt-4 w-full h-12 rounded-full bg-[#19CDFF] hover:bg-[#4DDBFF] text-[#0A0C10] font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                    data-testid="choose-plan-bundle-checkout"
-                  >
-                    {busy === 'bundle' ? <Loader2 size={16} className="animate-spin" /> : null}
-                    Continue to secure payment <ArrowRight size={16} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-
             {/* Individual modules */}
             <div className="mt-12">
-              <h3 className="text-sm font-semibold text-zinc-900">Or pick just the modules you need</h3>
-              <p className="text-sm text-zinc-500 mt-1">Each module is a standalone monthly subscription.</p>
+              <h3 className="text-lg font-bold text-zinc-900" style={{ fontFamily: 'Nunito, sans-serif' }}>Choose your modules</h3>
+              <p className="text-sm text-zinc-500 mt-1">Every module is a standalone subscription — mix and match, cancel anytime.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {modules.map((m) => (
+                {[...modules].sort((a, b) => (a.id === 'operations' ? -1 : b.id === 'operations' ? 1 : 0)).map((m) => {
+                  const featured = m.id === 'operations';
+                  return (
                   <div
                     key={m.id}
-                    className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between gap-4 hover:border-[#19CDFF] transition-colors"
+                    className={`relative rounded-xl bg-white p-5 flex flex-col justify-between gap-4 transition-colors ${featured ? 'border-2 border-[#19CDFF] shadow-lg' : 'border border-zinc-200 hover:border-[#19CDFF]'}`}
                     data-testid={`choose-plan-module-${m.id}`}
                   >
+                    {featured ? (
+                      <span className="absolute -top-2.5 left-5 bg-[#19CDFF] text-[#0A0C10] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full" data-testid="choose-plan-flagship-badge">Recommended</span>
+                    ) : null}
                     <div>
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-semibold text-zinc-900 capitalize">{m.name}</span>
+                        <span className="font-semibold text-zinc-900 capitalize">{featured ? 'Operations — Pulse Fitness Pro' : m.name}</span>
                         <span className="text-sm text-zinc-500" data-testid={`choose-plan-module-price-${m.id}`}><strong className="text-zinc-900">{fmtPrice(m.id) || `£${m.monthly.toFixed(0)}/mo`}</strong></span>
                       </div>
                       <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{MODULE_BLURB[m.id] || ''}</p>
@@ -281,14 +197,15 @@ export default function ChoosePlanPage() {
                       type="button"
                       onClick={() => startCheckout('module', { module_id: m.id })}
                       disabled={busy === m.id}
-                      className="w-full h-10 rounded-full border border-zinc-300 text-zinc-800 font-medium text-sm flex items-center justify-center gap-2 hover:border-[#19CDFF] hover:bg-[#E6F9FF] transition-colors disabled:opacity-60"
+                      className={`w-full h-10 rounded-full font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60 ${featured ? 'bg-[#19CDFF] hover:bg-[#4DDBFF] text-[#0A0C10]' : 'border border-zinc-300 text-zinc-800 hover:border-[#19CDFF] hover:bg-[#E6F9FF]'}`}
                       data-testid={`choose-plan-module-checkout-${m.id}`}
                     >
                       {busy === m.id ? <Loader2 size={14} className="animate-spin" /> : null}
-                      Choose {m.name} <ArrowRight size={14} />
+                      Choose {featured ? 'Pulse Fitness Pro' : m.name} <ArrowRight size={14} />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
