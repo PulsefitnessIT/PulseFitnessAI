@@ -728,6 +728,28 @@
 }
 
 /* ============================================================
+   INVENTORY & DISTRIBUTION MODULE — Pulse brand CTAs
+   Matches the Service Desk primary button (cyan gradient, white
+   label) and guarantees white labels stay white on coloured
+   surfaces inside the module (the global light-mode `.text-white`
+   flip does not apply here). Keeps CTAs on-brand + always legible.
+   ============================================================ */
+.inv-module .text-white { color: #fff !important; }
+.inv-cta {
+  background: linear-gradient(135deg, #19CDFF, #0BB0DD) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 22px -12px rgba(25, 205, 255, 0.5);
+}
+.inv-cta:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 12px 26px -12px rgba(25, 205, 255, 0.68);
+}
+.inv-active {
+  background: linear-gradient(135deg, #19CDFF, #0BB0DD) !important;
+  color: #fff !important;
+}
+
+/* ============================================================
    Iter 287 — MOD report overlays (ASER register, etc.) were authored
    as always-dark consoles (bg ink-deep / surface-darker + translucent
    white text). In LIGHT mode the deep-dark backgrounds don't flip while

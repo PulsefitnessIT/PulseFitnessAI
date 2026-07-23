@@ -83,6 +83,7 @@ export const invApi = {
   allocations: (status) => axios.get(`${base}/alloc/allocations`, { ...auth(), params: { status } }).then((r) => r.data),
   allocation: (id) => axios.get(`${base}/alloc/allocations/${id}`, auth()).then((r) => r.data),
   install: (id, body) => axios.post(`${base}/alloc/allocations/${id}/install`, body, auth()).then((r) => r.data),
+  scheduleInstall: (id, body) => axios.post(`${base}/alloc/allocations/${id}/schedule`, body, auth()).then((r) => r.data),
   customerPortal: (companyId) => axios.get(`${base}/alloc/customer-portal/${companyId}/equipment`, auth()).then((r) => r.data),
   allocSummary: () => axios.get(`${base}/alloc/summary`, auth()).then((r) => r.data),
 

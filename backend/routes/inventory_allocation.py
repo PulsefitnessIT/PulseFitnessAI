@@ -15,7 +15,7 @@ import re
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel
 
 from utils.auth import get_current_user
@@ -202,6 +202,28 @@ async def _warranty_dates(user, event: str):
     start = datetime.now(timezone.utc)
     end = start + timedelta(days=WARRANTY_MONTHS_DEFAULT * 30)
     return rule, start.isoformat(), end.isoformat()
+
+
+@router.post("/allocations/{alloc_id}/schedule")
+async def schedule_installation(alloc_id: str, body: dict = Body(...), user=Depends(get_current_user)):
+    """Set or reschedule the planned installation date for the logistics team's
+    installation calendar. Non-destructive — does not commission the asset."""
+    _require_ops_role(user)
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id})
+    if not a:
+        raise HTTPException(404, "Allocation not found")
+    planned = (body.get("planned_install_date") or "").strip()
+    if not planned:
+        raise HTTPException(400, "planned_install_date is required")
+    patch = {"planned_install_date": planned, "updated_at": _now()}
+    if body.get("install_window"):
+        patch["install_window"] = body.get("install_window")
+    if body.get("logistics_note") is not None:
+        patch["logistics_note"] = body.get("logistics_note")
+    await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": patch})
+    await _audit(user, "installation_scheduled", "allocation", alloc_id, {"planned_install_date": planned})
+    return {"ok": True, "planned_install_date": planned}
 
 
 @router.post("/allocations/{alloc_id}/install")

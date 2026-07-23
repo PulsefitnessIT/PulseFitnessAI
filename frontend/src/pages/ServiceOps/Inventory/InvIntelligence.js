@@ -155,7 +155,7 @@ export function IntelReports() {
       <div className="flex flex-wrap gap-2">
         {REPORTS.map((r) => (
           <button key={r.id} onClick={() => setActive(r.id)} data-testid={`inv-intel-report-tab-${r.id}`}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${active === r.id ? 'bg-[#0B3D91] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${active === r.id ? 'inv-active text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
             <FileBarChart size={14} /> {r.label}
           </button>
         ))}

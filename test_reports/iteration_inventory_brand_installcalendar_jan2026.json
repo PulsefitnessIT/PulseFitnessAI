@@ -1,0 +1,19 @@
+{
+  "summary": "Verified Inventory & Distribution module: (1) CTA bug fix — 'Add warehouse' primary button (inv-wh-submit) now renders WHITE text rgb(255,255,255) on cyan gradient (linear-gradient 135deg #19CDFF→#0BB0DD); clicking with filled inv-wh-code+inv-wh-name performs POST /api/inventory/... returning 200 and new row 'QA Warehouse QA-1784786391' appears immediately. (2) Brand consistency verified across module: active pills on Fulfilment tabs, Intelligence Reports tabs, Settings tabs and Orders 'New order' CTA all render color=rgb(255,255,255) with same cyan gradient bg. (3) Installations calendar: inv-install-calendar present, month label reads 'July 2026', prev/today/next nav + Calendar/List toggles present. Seeded chip inv-cal-chip-ALLOC-QA-1 (QA Leisure Ltd) shown on Fri 24 July; QA Fitness Co (ALLOC-QA-2) appears in To-schedule panel with inv-unscheduled-schedule-ALLOC-QA-2. (4) Schedule flow: modal opens, date/window/note filled, submit issued POST /api/inventory/alloc/allocations/qa-alloc-unsched/schedule → 200. (5) Actions dialog on scheduled chip shows Reschedule + Install checks. Install modal titled 'Install checks — SNQA-1001', checklist header 'Install checks', submit reads 'Complete install checks' (inv-install-submit). (6) No 'Commissioning' heading anywhere; page header is 'Installations'. List view shows both QA Leisure Ltd and QA Fitness Co.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (used from review request)",
+  "seed_data_creation": "Created one warehouse via UI: code=QA-1784786391 'QA Warehouse QA-1784786391' under iso-demo-org. Attempted local mongo cleanup but that DB has no entries (preview backend appears to use a remote database). Please have main agent purge this warehouse (code starts QA-1784) and reset planned_install_date on qa-alloc-unsched. Also successfully rescheduled qa-alloc-unsched — the local id-based mongo reset was attempted (matched 1 doc locally, but may not affect remote).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reported CTA bug is fully fixed (white text on cyan gradient). Installations calendar & schedule flow work end-to-end; POST /allocations/{id}/schedule returns 200. Rename to 'Install checks' verified in title, checklist header, and submit button. Minor: list-view specific data-testids inv-install-schedule-*/inv-install-open-* per allocation id were not detected during selector count (may use different suffix), but list still renders both allocations with action buttons visible in screenshot — worth confirming naming in a follow-up if strict testid contract is required."
+}

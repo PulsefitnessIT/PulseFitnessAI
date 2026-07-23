@@ -329,7 +329,7 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
           const on = t.id === tab;
           return (
             <button key={t.id} onClick={() => setTab(t.id)} data-testid={`inv-settings-tab-${t.id}`}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'bg-[#0B3D91] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'inv-active text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               {t.label}
             </button>
           );
@@ -403,7 +403,7 @@ function Fulfilment({ initialStage = 'receiving' }) {
               key={s.key}
               onClick={() => setActive(s.key)}
               data-testid={`inv-fulfilment-tab-${s.key}`}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'bg-[#0B3D91] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'inv-active text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${on ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-600'}`}>{i + 1}</span>
               <s.Icon size={14} /> {s.label}
@@ -478,7 +478,7 @@ export default function InventoryDistribution() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--gx-bg)] flex theme-gymaxis" data-testid="inventory-distribution-page" data-theme="light">
+    <div className="min-h-screen bg-[var(--gx-bg)] flex theme-gymaxis inv-module" data-testid="inventory-distribution-page" data-theme="light">
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <button

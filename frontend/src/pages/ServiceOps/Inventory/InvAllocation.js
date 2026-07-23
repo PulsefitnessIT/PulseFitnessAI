@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, ShieldCheck, Building2 } from 'lucide-react';
+import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, ShieldCheck, Building2, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Clock, List } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, fmtDate, statusLabel } from './api';
 import { Card, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
@@ -65,16 +65,16 @@ function InstallModal({ alloc, onClose, onDone }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-install-modal">
       <div className="my-8 w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">Install & commission — {alloc.serial_number}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">Install checks — {alloc.serial_number}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
         <div className="space-y-3 px-5 py-4">
-          <p className="text-xs text-slate-400">Via the Engineer App workflow. Activates the customer asset & starts warranty.</p>
+          <p className="text-xs text-slate-400">Completed via the Engineer App workflow. Activates the customer asset &amp; starts warranty.</p>
           <Field label="Engineer" required><input className={inputCls} value={form.engineer_name} data-testid="inv-install-engineer" onChange={(e) => setForm((f) => ({ ...f, engineer_name: e.target.value }))} /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Software / console version"><input className={inputCls} value={form.software_version} data-testid="inv-install-software" onChange={(e) => setForm((f) => ({ ...f, software_version: e.target.value }))} /></Field>
             <Field label="Condition"><input className={inputCls} value={form.condition} data-testid="inv-install-condition" onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))} /></Field>
           </div>
           <div className="rounded-lg border border-slate-200 p-3">
-            <p className="mb-2 text-xs font-semibold text-slate-600">Commissioning checklist</p>
+            <p className="mb-2 text-xs font-semibold text-slate-600">Install checks</p>
             {CHECKS.map(([k, label]) => (
               <label key={k} className="flex items-center gap-2 py-1 text-sm"><input type="checkbox" checked={!!form.checklist[k]} data-testid={`inv-install-check-${k}`} onChange={(e) => setForm((f) => ({ ...f, checklist: { ...f.checklist, [k]: e.target.checked } }))} /> {label}</label>
             ))}
@@ -83,7 +83,7 @@ function InstallModal({ alloc, onClose, onDone }) {
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
           <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={submit} disabled={busy || !form.engineer_name.trim() || !form.customer_acceptance} data-testid="inv-install-submit"><Wrench size={15} /> {busy ? 'Commissioning…' : 'Commission & activate'}</Btn>
+          <Btn onClick={submit} disabled={busy || !form.engineer_name.trim() || !form.customer_acceptance} data-testid="inv-install-submit"><Wrench size={15} /> {busy ? 'Saving…' : 'Complete install checks'}</Btn>
         </div>
       </div>
     </div>
@@ -186,35 +186,177 @@ export function CustomerAllocations() {
   );
 }
 
-// ───────────── Installations queue ─────────────
+// ───────────── Schedule (reschedule) modal ─────────────
+function ScheduleModal({ alloc, onClose, onDone }) {
+  const [date, setDate] = useState(alloc.planned_install_date ? alloc.planned_install_date.slice(0, 10) : '');
+  const [win, setWin] = useState(alloc.install_window || 'all_day');
+  const [note, setNote] = useState(alloc.logistics_note || '');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!date) return;
+    setBusy(true);
+    try { await invApi.scheduleInstall(alloc.id, { planned_install_date: date, install_window: win, logistics_note: note }); notify.success('Installation scheduled'); onDone(); }
+    catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-schedule-modal">
+      <div className="my-16 w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">Schedule installation — {alloc.serial_number}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
+        <div className="space-y-3 px-5 py-4">
+          <p className="text-xs text-slate-400">{alloc.customer_company_name}{alloc.customer_site ? ` · ${alloc.customer_site}` : ''}</p>
+          <Field label="Planned install date" required><input type="date" className={inputCls} value={date} data-testid="inv-schedule-date" onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Window"><select className={inputCls} value={win} data-testid="inv-schedule-window" onChange={(e) => setWin(e.target.value)}>{[['all_day', 'All day'], ['am', 'Morning (AM)'], ['pm', 'Afternoon (PM)']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+          <Field label="Logistics note"><textarea className={inputCls} rows={2} value={note} data-testid="inv-schedule-note" onChange={(e) => setNote(e.target.value)} placeholder="Access, crew, lift required…" /></Field>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy || !date} data-testid="inv-schedule-submit"><CalendarPlus size={15} /> {busy ? 'Saving…' : 'Save schedule'}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────── Install action chooser ─────────────
+function InstallActions({ alloc, onClose, onSchedule, onInstall }) {
+  return (
+    <div className="fixed inset-0 z-[190] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-install-actions" onClick={onClose}>
+      <div className="my-24 w-full max-w-sm rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">{alloc.serial_number}</h3><p className="text-xs text-slate-400">{alloc.customer_company_name}{alloc.customer_site ? ` · ${alloc.customer_site}` : ''}</p></div>
+        <div className="px-5 py-4 text-sm space-y-1">
+          <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-semibold">{alloc.reference}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Planned</span><span className="font-semibold">{alloc.planned_install_date ? fmtDate(alloc.planned_install_date) : 'Unscheduled'}</span></div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+          <Btn variant="secondary" onClick={onSchedule} data-testid="inv-install-actions-schedule"><CalendarDays size={14} /> {alloc.planned_install_date ? 'Reschedule' : 'Schedule'}</Btn>
+          <Btn onClick={onInstall} data-testid="inv-install-actions-install"><Wrench size={14} /> Install checks</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────── Installations — logistics calendar ─────────────
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const localKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export function Installations() {
   const [rows, setRows] = useState(null);
+  const [view, setView] = useState('calendar');
+  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [acting, setActing] = useState(null);
+  const [scheduling, setScheduling] = useState(null);
   const [installing, setInstalling] = useState(null);
   const load = useCallback(() => invApi.allocations('awaiting_installation').then((d) => setRows(d.allocations || [])).catch(() => setRows([])), []);
   useEffect(() => { load(); }, [load]);
+
+  const byDay = {};
+  const unscheduled = [];
+  (rows || []).forEach((a) => {
+    if (a.planned_install_date) { const k = a.planned_install_date.slice(0, 10); (byDay[k] = byDay[k] || []).push(a); }
+    else unscheduled.push(a);
+  });
+
+  // Build month grid (Mon-first)
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const lead = (first.getDay() + 6) % 7; // days before the 1st (Mon-first)
+  const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < lead; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(cursor.getFullYear(), cursor.getMonth(), d));
+  const todayKey = localKey(new Date());
+  const monthLabel = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  const doneAll = () => { setActing(null); setScheduling(null); setInstalling(null); load(); };
+
   return (
     <div className="space-y-4" data-testid="inv-installations">
-      <h2 className="text-xl font-bold text-slate-900">Installations & Commissioning</h2>
-      <p className="text-sm text-slate-500">Machines awaiting installation. Engineers commission via the Engineer App — activating the asset and warranty.</p>
-      {rows === null ? <Spinner /> : rows.length === 0 ? <Card className="p-10 text-center text-slate-400" testId="inv-install-empty">Nothing awaiting installation.</Card> : (
-        <Card testId="inv-install-table">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Ref</th><th>Serial</th><th>Customer</th><th>Site</th><th>Planned</th><th></th></tr></thead>
-            <tbody>
-              {rows.map((a) => (
-                <tr key={a.id} className="border-b border-slate-100" data-testid={`inv-install-row-${a.reference}`}>
-                  <td className="px-4 py-3 font-semibold text-[#0B3D91]">{a.reference}</td>
-                  <td className="font-mono text-xs">{a.serial_number}</td>
-                  <td>{a.customer_company_name}</td><td className="text-slate-500">{a.customer_site || '—'}</td>
-                  <td className="text-slate-400">{fmtDate(a.planned_install_date)}</td>
-                  <td className="pr-4 text-right"><Btn variant="secondary" onClick={() => setInstalling(a)} data-testid={`inv-install-open-${a.reference}`}><Wrench size={13} /> Install</Btn></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+      <div className="flex flex-wrap items-center gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Installations</h2>
+          <p className="text-sm text-slate-500">Logistics calendar for machines allocated from CRM orders. Schedule installs, then engineers complete <span className="font-semibold text-slate-600">install checks</span> via the Engineer App to activate the asset &amp; warranty.</p>
+        </div>
+        <div className="ml-auto flex rounded-lg border border-slate-200 bg-white p-0.5" data-testid="inv-install-viewtoggle">
+          {[['calendar', 'Calendar', CalendarDays], ['list', 'List', List]].map(([v, l, Ic]) => (
+            <button key={v} onClick={() => setView(v)} data-testid={`inv-install-view-${v}`} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${view === v ? 'inv-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}><Ic size={14} /> {l}</button>
+          ))}
+        </div>
+      </div>
+
+      {rows === null ? <Spinner /> : view === 'list' ? (
+        rows.length === 0 ? <Card className="p-10 text-center text-slate-400" testId="inv-install-empty">Nothing awaiting installation.</Card> : (
+          <Card testId="inv-install-table">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Ref</th><th>Serial</th><th>Customer</th><th>Site</th><th>Planned</th><th></th></tr></thead>
+              <tbody>
+                {rows.map((a) => (
+                  <tr key={a.id} className="border-b border-slate-100" data-testid={`inv-install-row-${a.reference}`}>
+                    <td className="px-4 py-3 font-semibold text-[#0B3D91]">{a.reference}</td>
+                    <td className="font-mono text-xs">{a.serial_number}</td>
+                    <td>{a.customer_company_name}</td><td className="text-slate-500">{a.customer_site || '—'}</td>
+                    <td className={a.planned_install_date ? 'text-slate-600' : 'text-amber-600 font-semibold'}>{a.planned_install_date ? fmtDate(a.planned_install_date) : 'Unscheduled'}</td>
+                    <td className="pr-4 text-right"><div className="flex justify-end gap-2"><Btn variant="secondary" onClick={() => setScheduling(a)} data-testid={`inv-install-schedule-${a.reference}`}><CalendarDays size={13} /> {a.planned_install_date ? 'Reschedule' : 'Schedule'}</Btn><Btn onClick={() => setInstalling(a)} data-testid={`inv-install-open-${a.reference}`}><Wrench size={13} /> Install checks</Btn></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
+          <Card className="p-4" testId="inv-install-calendar">
+            <div className="mb-3 flex items-center gap-2">
+              <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50" data-testid="inv-cal-prev"><ChevronLeft size={16} /></button>
+              <button onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)); }} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50" data-testid="inv-cal-today">Today</button>
+              <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50" data-testid="inv-cal-next"><ChevronRight size={16} /></button>
+              <span className="ml-2 text-sm font-bold text-slate-900" data-testid="inv-cal-month">{monthLabel}</span>
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {WEEKDAYS.map((w) => <div key={w} className="pb-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{w}</div>)}
+              {cells.map((d, i) => {
+                if (!d) return <div key={`b${i}`} />;
+                const k = localKey(d);
+                const items = byDay[k] || [];
+                const isToday = k === todayKey;
+                return (
+                  <div key={k} className={`min-h-[84px] rounded-lg border p-1 ${isToday ? 'border-[#19CDFF] bg-cyan-50/40' : 'border-slate-100'}`} data-testid={`inv-cal-day-${k}`}>
+                    <div className={`px-1 text-[11px] font-semibold ${isToday ? 'text-[#0BB0DD]' : 'text-slate-400'}`}>{d.getDate()}</div>
+                    <div className="space-y-1">
+                      {items.slice(0, 3).map((a) => (
+                        <button key={a.id} onClick={() => setActing(a)} title={`${a.customer_company_name} · ${a.serial_number}`} data-testid={`inv-cal-chip-${a.reference}`}
+                          className="block w-full truncate rounded bg-cyan-100 px-1.5 py-1 text-left text-[11px] font-medium text-cyan-900 hover:bg-cyan-200">
+                          {a.customer_company_name || a.serial_number}
+                        </button>
+                      ))}
+                      {items.length > 3 && <div className="px-1 text-[10px] text-slate-400">+{items.length - 3} more</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card className="p-4" testId="inv-install-unscheduled">
+            <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-900"><Clock size={14} className="text-amber-500" /> To schedule</h3>
+            <p className="mb-3 text-xs text-slate-400">Allocated from CRM orders, awaiting an install date.</p>
+            {unscheduled.length === 0 ? <p className="py-6 text-center text-xs text-slate-400">All installs are scheduled.</p> : (
+              <div className="space-y-2">
+                {unscheduled.map((a) => (
+                  <div key={a.id} className="rounded-lg border border-slate-200 p-2.5" data-testid={`inv-unscheduled-${a.reference}`}>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{a.customer_company_name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{a.serial_number}{a.customer_site ? ` · ${a.customer_site}` : ''}</p>
+                    <Btn variant="secondary" className="mt-2 w-full" onClick={() => setScheduling(a)} data-testid={`inv-unscheduled-schedule-${a.reference}`}><CalendarPlus size={13} /> Schedule</Btn>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       )}
-      {installing && <InstallModal alloc={installing} onClose={() => setInstalling(null)} onDone={() => { setInstalling(null); load(); }} />}
+
+      {acting && <InstallActions alloc={acting} onClose={() => setActing(null)} onSchedule={() => { setScheduling(acting); setActing(null); }} onInstall={() => { setInstalling(acting); setActing(null); }} />}
+      {scheduling && <ScheduleModal alloc={scheduling} onClose={() => setScheduling(null)} onDone={doneAll} />}
+      {installing && <InstallModal alloc={installing} onClose={() => setInstalling(null)} onDone={doneAll} />}
     </div>
   );
 }

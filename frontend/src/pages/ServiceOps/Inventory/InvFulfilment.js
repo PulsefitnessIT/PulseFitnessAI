@@ -30,7 +30,7 @@ function Step({ n, title, done, active, children }) {
   return (
     <Card className={`p-4 ${active ? 'ring-2 ring-[#0B3D91]/30' : ''}`} testId={`inv-ful-step-${n}`}>
       <div className="mb-3 flex items-center gap-2">
-        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${done ? 'bg-emerald-500 text-white' : active ? 'bg-[#0B3D91] text-white' : 'bg-slate-200 text-slate-500'}`}>{done ? '✓' : n}</span>
+        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${done ? 'bg-emerald-500 text-white' : active ? 'inv-active text-white' : 'bg-slate-200 text-slate-500'}`}>{done ? '✓' : n}</span>
         <h3 className="text-sm font-bold text-slate-900">{title}</h3>
       </div>
       {children}
