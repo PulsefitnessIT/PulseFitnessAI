@@ -185,6 +185,35 @@ class AllocateIn(BaseModel):
     service_responsibility: str = "dealer"  # dealer | pulse | third_party
 
 
+async def _unit_cost_and_type(user: dict, unit_id: str) -> dict:
+    """Resolve CAPEX enrichment for a distribution unit — (purchase_cost,
+    replacement_cost, equipment_type) — from its order line (unit_price) and
+    the product catalogue (category). Best-effort; returns only the fields it
+    can resolve so callers can spread it safely."""
+    of = _of(user)
+    unit = await db.inv_equipment_units.find_one(
+        {**of, "id": unit_id}, {"_id": 0, "line_id": 1, "product_code": 1})
+    if not unit:
+        return {}
+    out: dict = {}
+    line = None
+    if unit.get("line_id"):
+        line = await db.inv_distribution_order_lines.find_one(
+            {**of, "id": unit["line_id"]}, {"_id": 0, "unit_price": 1, "product_code": 1})
+    price = float((line or {}).get("unit_price") or 0)
+    if price > 0:
+        out["purchase_cost"] = price
+        out["replacement_cost"] = price
+    code = unit.get("product_code") or (line or {}).get("product_code")
+    if code:
+        prod = await db.crm_products.find_one(
+            {**of, "$or": [{"sku": code}, {"id": code}]}, {"_id": 0, "category": 1})
+        cat = (prod or {}).get("category")
+        if cat:
+            out["equipment_type"] = cat
+    return out
+
+
 @router.post("/allocate")
 async def allocate(body: AllocateIn, user=Depends(get_current_user)):
     _require_ops_role(user)
@@ -199,18 +228,20 @@ async def allocate(body: AllocateIn, user=Depends(get_current_user)):
             results.append({"unit_id": unit_id, "ok": False, "reason": "not available for allocation"})
             continue
         unit = await db.inv_equipment_units.find_one({**of, "id": unit_id}, {"_id": 0})
+        capex = await _unit_cost_and_type(user, unit_id)
         # 1) create the ACTIVE ASSET in the existing equipment register (single record; unit becomes asset)
         asset_id = _uid()
         await db.equipment.insert_one({
             "id": asset_id, "user_id": user.get("id"), "organization_id": user.get("organization_id"),
             "name": f"{unit.get('model') or unit.get('product_code')} — {unit.get('serial_number')}",
-            "equipment_type": "Fitness Machine", "model": unit.get("model"),
+            "equipment_type": capex.get("equipment_type") or "Fitness Machine", "model": unit.get("model"),
             "serial_number": unit.get("serial_number"), "manuals": [],
             "status": "awaiting_installation",
             "asset_source": "dealer_distribution", "source_unit_id": unit_id,
             "customer_company_id": company["id"], "customer_company_name": company["name"],
             "customer_site": body.customer_site, "dealer_id": holding.get("dealer_id"),
             "distribution_order_id": unit.get("order_id"),
+            **({"purchase_cost": capex["purchase_cost"], "replacement_cost": capex["replacement_cost"]} if "purchase_cost" in capex else {}),
             "created_at": _now(), "updated_at": _now(),
         })
         # 2) allocation record
@@ -324,9 +355,12 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
         "asset_id": a.get("asset_id"), "warranty_start": w_start, "warranty_end": w_end,
         "warranty_source": rule, "triggering_event": "commissioning", "created_at": _now(),
     })
+    capex = await _unit_cost_and_type(user, a["unit_id"])
     await db.equipment.update_one({**of, "id": a.get("asset_id")}, {"$set": {
         "status": "active", "warranty_expiry": w_end, "commissioned_at": _now(),
+        "install_date": signed_at, "purchase_date": signed_at,
         "software_version": data.get("software_version"), "updated_at": _now(),
+        **capex,
     }})
     await _touch_unit(user, a["unit_id"], "active_asset")
     a_patch = {
@@ -347,7 +381,7 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
     # can see it and log faults on it from their Lite/Pro dashboard. Best-effort.
     try:
         from routes.pulse_onboarding import register_customer_equipment
-        await register_customer_equipment({**a, **a_patch}, {"warranty_start": w_start, "warranty_end": w_end})
+        await register_customer_equipment({**a, **a_patch}, {"warranty_start": w_start, "warranty_end": w_end}, {**capex, "install_date": signed_at, "purchase_date": signed_at})
     except Exception:
         logger.exception("[inventory] customer equipment registration failed")
     await _audit(user, "installation_commissioned", "allocation", alloc_id, {"warranty_end": w_end, "signed_off_by": data.get("customer_name")})

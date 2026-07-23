@@ -1,3 +1,31 @@
+# ═══ 2026-06 · DISTRIBUTION → OPERATIONS CAPEX DATA ENRICHMENT (VERIFIED) ═══
+Founder asked: does Inventory & Distribution equipment flow to Operations with FULL data for CAPEX
+reporting? Finding: it flowed through but THIN — register_customer_equipment (pulse_onboarding.py) wrote
+name/model/serial/manufacturer/warranty only. Missing for CAPEX: purchase_cost, equipment_type/category,
+and install_date/purchase_date (so days_in_service=None → age/lifecycle scoring blank; cost fell back to
+capex.py generic default profile). All source data existed upstream (order line unit_price, crm_products
+category, install sign-off date) — a wiring gap.
+
+FIX (option A, going-forward, all data): 
+- NEW helper routes/inventory_allocation.py::_unit_cost_and_type(user, unit_id) resolves
+  {purchase_cost, replacement_cost, equipment_type} via unit.line_id → inv_distribution_order_lines.unit_price
+  + crm_products.category.
+- allocate(): dealer-side asset now gets real equipment_type + purchase_cost/replacement_cost (was hardcoded
+  "Fitness Machine", no cost).
+- commission_install(): dealer asset now also gets install_date + purchase_date = sign-off date; passes the
+  full capex dict (cost+type+dates) into register_customer_equipment.
+- register_customer_equipment(alloc, warranty, capex): customer-org equipment doc now carries equipment_type,
+  purchase_cost, replacement_cost, install_date, purchase_date.
+VERIFIED via /tmp/verify_capex.py direct-function test: resolver → {4500, Treadmill}; customer equipment doc
+written with equipment_type=Treadmill, purchase_cost=4500, install_date set. CAPEX (routes/capex.py) confirmed
+by code to consume purchase_cost/replacement_cost (cost), equipment_type (profile), install_date (age).
+NOTE: going-forward only (no backfill of pre-existing delivered assets — CSV backfill remains P2 backlog).
+Not yet run: full UI golden-path + CAPEX screenshot (demo distribution data was empty in this fork DB).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · POST-AUDIT SECURITY FIX — PORTAL TOKEN SCOPING (SEC-001 HIGH, VERIFIED) ═══
 Founder asked if the platform is pen-test ready. Found the signed-off pack (Iter 220bg, 28 May 2026)
 PREDATES all post-May work (Inventory & Distribution, Logistics/Dealer/Staff portals, Customer

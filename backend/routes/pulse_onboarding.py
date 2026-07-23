@@ -87,7 +87,7 @@ async def _send_setup_email(*, to_email: str, name: str, org: dict, order_ref: s
                       f"<p>The account for <b>{org.get('name')}</b> was created but the invite email to <b>{to_email}</b> failed. Please resend from the customer record.</p>", org.get("id"))
 
 
-async def register_customer_equipment(alloc: dict, warranty: dict | None = None) -> dict:
+async def register_customer_equipment(alloc: dict, warranty: dict | None = None, capex: dict | None = None) -> dict:
     """When an install is commissioned, register the machine in the customer's own
     Pulse org (if linked) so it appears in their Lite/Pro Equipment list and they can
     log faults on it. Idempotent by (organization_id, serial_number). Best-effort."""
@@ -104,22 +104,29 @@ async def register_customer_equipment(alloc: dict, warranty: dict | None = None)
     if existing:
         return {"status": "exists", "equipment_id": existing["id"]}
     now = _now()
+    capex = capex or {}
     doc = {
         "id": str(uuid.uuid4()),
         "organization_id": org_id,
         "name": alloc.get("model") or alloc.get("product_code") or "Pulse Fitness equipment",
         "manufacturer": "Pulse Fitness",
         "model": alloc.get("model") or alloc.get("product_code"),
+        "equipment_type": capex.get("equipment_type") or "Fitness Machine",
         "serial_number": serial,
         "status": "operational",
         "supplier": "Pulse Fitness",
         "supplier_email": "service.dept@pulsefitness.com",
         "warranty_expiry": (warranty or {}).get("warranty_end"),
+        "install_date": capex.get("install_date"),
+        "purchase_date": capex.get("purchase_date") or capex.get("install_date"),
         "source": "distribution_install",
         "source_allocation_id": alloc.get("id"),
         "manuals": [],
         "created_at": now, "updated_at": now,
     }
+    if capex.get("purchase_cost") is not None:
+        doc["purchase_cost"] = capex["purchase_cost"]
+        doc["replacement_cost"] = capex.get("replacement_cost", capex["purchase_cost"])
     await db.equipment.insert_one({**doc})
     return {"status": "created", "equipment_id": doc["id"], "organization_id": org_id}
 
