@@ -50,12 +50,12 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
     } catch { /* ignore */ }
     try {
       const [issuesRes, auditsRes, tasksRes, suppliersRes, equipmentRes, healthRes, expiryRes] = await Promise.all([
-        axios.get(`${API}/issues`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/issues${scopeSiteParam}`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/audit/history`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/maintenance/tasks`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/suppliers${scopeSiteParam}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { suppliers: [] } })),
-        axios.get(`${API}/equipment`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { equipment: [] } })),
-        axios.get(`${API}/gym-health-score`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
+        axios.get(`${API}/equipment${scopeSiteParam}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { equipment: [] } })),
+        axios.get(`${API}/gym-health-score${scopeSiteParam}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
         axios.get(`${API}/expiry-alerts`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { alerts: [], total: 0 } })),
       ]);
 

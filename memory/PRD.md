@@ -1,3 +1,30 @@
+# ═══ 2026-06 · P2/P3 PASS — SITE-SELECTOR CONSISTENCY (shipped) + verdicts ═══
+Founder asked to work the P2/P3 backlog. Outcome:
+
+#6 "404 endpoint paths" — NON-ISSUE. The audit's 404s were test-script errors (wrong names: it tried /warehouse,
+/allocation,/orgs; canonical are /warehouses, /inventory/alloc/..., /master-admin/organizations). No code change.
+
+#7 SITE-SELECTOR CONSISTENCY — SHIPPED (frontend-only, zero backend change, low risk).
+  Root cause: the Operations dashboard hook (pages/Dashboard/hooks/useDashboardData.js) computed scopeSiteParam
+  (?site_id=<id> when a non-default site is selected) but applied it ONLY to /suppliers. So picking a site left
+  equipment/issues/health-score showing org-wide data. FIX: also append scopeSiteParam to /issues, /equipment,
+  /gym-health-score (all three already accept site_id server-side and enforce RBAC — verified: owner?site_id=site-a
+  → 200; manager?site_id=site-b → 403 on all three). Single-site orgs unaffected (scopeSiteParam stays empty).
+  DELIBERATELY LEFT UNSCOPED: /maintenance/tasks + check-sheet templates (org-level definitions, NOT site data → not
+  site-scopable) and /audit/history + /expiry-alerts (site-scoping would need new backend params — logged as a
+  follow-up, not done). This is a genuine multi-site UX decision; scope creep avoided.
+
+#8 BACKLOG VERDICTS:
+  - SEO audit subagent timeout (recurred 12x): it's the seo_audit_agent TOOL timing out, NOT a codebase bug. The
+    backend SEO autopilot loop runs fine. Nothing to fix in code; out of main-agent scope.
+  - StaffOnboarding.js refactor (~935 lines): RECOMMEND DEFER to post-launch — maintainability only, zero user value,
+    real regression risk right before release.
+  - Weekly System Health digest email: a NEW FEATURE pending founder approval (offered).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · RELEASE-READINESS AUDIT (P1 verification) — DISTRIBUTION GOLDEN PATH ✅ / STRIPE ❌ EXPIRED KEY ═══
 Founder asked for a go/no-go release-readiness audit + to action P1 items. Results:
 
