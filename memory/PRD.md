@@ -31,6 +31,10 @@ Also flagged: Swagger /docs is publicly reachable (disable for the test env if u
 deferred: dealer/logistics portal shells fire /api/organization + /api/sites (now correctly 403 → console noise only).
 FOLLOW-UP DONE: added EXPOSE_API_DOCS env flag (server.py) — default true (preview), set false to hide
 Swagger/ReDoc/OpenAPI in the pen-test/prod env; documented in checklist §A + toggle script reminder.
+DELIVERABLE: scripts/gen_security_posture_pdf.py — generates a branded one-page "Security Posture" PDF
+(status, SEC-001/002/003, OWASP control map, pre-kickoff env flags, accepted limitations) for the pen-test
+handover + director demo. Generated /app/security_posture_2026-06.pdf (valid, layout verified). Re-run:
+cd /app/backend && python scripts/gen_security_posture_pdf.py [out.pdf].
 
 ────────────────────────────────────────────────────────────────────────
 
