@@ -45,6 +45,16 @@ via /capex/analysis: Pulse Runner GP (Treadmill £4500, 6.5y, at_risk, 12mo) + P
 at_risk) drive the £9k forecast; costs/ages flow from install_date + purchase_cost. Wipe: delete equipment/
 issues where demo_seed='capex_delivered'. UI already verified by testing_agent (iteration_capex_delivered_by_us_frontend).
 
+FOLLOW-UP (2026-06): REAL golden-path run validated the enrichment through the actual HTTP endpoints (not just
+unit test). Seeded pre-allocation state (available unit + linked customer, demo_seed='capex_golden'), then called
+the live POST /api/inventory/alloc/allocate → POST /api/inventory/alloc/allocations/{id}/install as owner.
+Result: allocate created asset (ALL-000003); commission activated it, generated warranty + certificate. VERIFIED
+via DB: dealer-side asset (iso-demo-org) AND customer-org asset (capex-golden-custorg) BOTH carry
+equipment_type=Treadmill, purchase_cost/replacement_cost=£4500 (from order-line unit_price), install_date +
+purchase_date, warranty_expiry, source/asset_source markers. Confirms allocate() + commission_install()
+enrichment works end-to-end through the real pipeline. CLEANUP: throwaway org 'capex-golden-custorg' + rows
+tagged demo_seed='capex_golden'; the live-created dealer asset (id f567a4aa...) is untagged (real allocate output).
+
 ────────────────────────────────────────────────────────────────────────
 
 
