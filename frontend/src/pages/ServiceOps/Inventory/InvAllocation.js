@@ -259,10 +259,13 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
           {loading && <div className="py-10"><Spinner /></div>}
           {!loading && pack && (<>
             {pack.completed && (
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200" data-testid="inv-install-pack-completed">
+              <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200" data-testid="inv-install-pack-completed">
                 <CheckCircle2 size={18} className="text-emerald-600" />
-                <div><p className="font-semibold text-emerald-800">Installation completed &amp; signed off{pack.installation?.customer_name ? ` by ${pack.installation.customer_name}` : ''}.</p>
+                <div className="flex-1"><p className="font-semibold text-emerald-800">Installation completed &amp; signed off{pack.installation?.customer_name ? ` by ${pack.installation.customer_name}` : ''}.</p>
                 {pack.warranty?.warranty_end && <p className="text-xs text-emerald-700">Warranty active to {fmtDate(pack.warranty.warranty_end)}.</p>}</div>
+                {pack.certificate_url && (
+                  <button onClick={() => openAuthed(pack.certificate_url)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700" data-testid="inv-install-pack-certificate"><Download size={13} /> Certificate (PDF)</button>
+                )}
               </div>
             )}
             {/* Visit header */}

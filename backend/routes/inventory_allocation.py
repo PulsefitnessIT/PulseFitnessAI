@@ -303,7 +303,7 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
         raise HTTPException(400, "Customer acceptance is required to commission the asset")
     rec_id = _uid()
     signed_at = _now()
-    await db.installation_commissioning_records.insert_one({
+    rec_doc = {
         "id": rec_id, "organization_id": user.get("organization_id"), "allocation_id": alloc_id,
         "unit_id": a["unit_id"], "asset_id": a.get("asset_id"),
         "engineer_name": data.get("engineer_name"),
@@ -316,7 +316,8 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
         "hs_acknowledged": bool(data.get("hs_acknowledged")),
         "signed_at": signed_at,
         "commissioned_at": signed_at, "recorded_by": user.get("email"),
-    })
+    }
+    await db.installation_commissioning_records.insert_one({**rec_doc})
     rule, w_start, w_end = await _warranty_dates(user, "installation_date")
     await db.warranty_activation_events.insert_one({
         "id": _uid(), "organization_id": user.get("organization_id"), "unit_id": a["unit_id"],
@@ -328,13 +329,22 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
         "software_version": data.get("software_version"), "updated_at": _now(),
     }})
     await _touch_unit(user, a["unit_id"], "active_asset")
-    await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": {
+    a_patch = {
         "status": "active", "installed_at": _now(),
         "signed_off_by": data.get("customer_name"), "signed_off_at": signed_at, "updated_at": _now(),
-    }})
+    }
+    await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": a_patch})
     await db.dealer_inventory_holdings.update_one({**of, "unit_id": a["unit_id"]}, {"$set": {"status": "installed", "updated_at": _now()}})
+    # Branded proof-of-install certificate (stored against the asset).
+    from routes.inventory_certificate import generate_and_store_certificate
+    hs = {}
+    if a.get("site_survey_id"):
+        _sv = await db[SURVEYS].find_one({"organization_id": user.get("organization_id"), "id": a["site_survey_id"]}, {"_id": 0})
+        if _sv:
+            hs = _survey_hs_summary(_sv)
+    cert = await generate_and_store_certificate({**a, **a_patch}, rec_doc, {"warranty_start": w_start, "warranty_end": w_end, "warranty_source": rule}, user, hs)
     await _audit(user, "installation_commissioned", "allocation", alloc_id, {"warranty_end": w_end, "signed_off_by": data.get("customer_name")})
-    return {"ok": True, "asset_status": "active", "warranty_start": w_start, "warranty_end": w_end, "warranty_rule": rule, "record_id": rec_id}
+    return {"ok": True, "asset_status": "active", "warranty_start": w_start, "warranty_end": w_end, "warranty_rule": rule, "record_id": rec_id, "certificate": bool(cert.get("storage_path"))}
 
 
 @router.post("/allocations/{alloc_id}/schedule")
@@ -492,7 +502,25 @@ async def install_pack(alloc_id: str, user=Depends(get_current_user)):
         "completed": a.get("status") == "active",
         "installation": install_rec,
         "warranty": warranty,
+        "certificate_url": (f"/api/inventory/alloc/allocations/{alloc_id}/certificate"
+                            if install_rec and install_rec.get("certificate_storage_path") else None),
     }
+
+
+@router.get("/allocations/{alloc_id}/certificate")
+async def download_certificate(alloc_id: str, user=Depends(get_current_user)):
+    """Stream the branded installation certificate PDF (org-scoped)."""
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id}, {"_id": 0, "id": 1})
+    if not a:
+        raise HTTPException(404, "Allocation not found")
+    rec = await db.installation_commissioning_records.find_one(
+        {"organization_id": user.get("organization_id"), "allocation_id": alloc_id}, {"_id": 0})
+    if not rec or not rec.get("certificate_storage_path"):
+        raise HTTPException(404, "No certificate available for this install")
+    data, _ct = await run_in_threadpool(get_object, rec["certificate_storage_path"])
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{rec.get("certificate_filename", "installation-certificate.pdf")}"'})
 
 
 @router.get("/allocations/{alloc_id}/survey-candidates")

@@ -1,3 +1,34 @@
+# ═══ 2026-06 · INSTALLATION CERTIFICATE (PROOF-OF-INSTALL PDF) + HUBSPOT BENCHMARK ═══
+Continuation of Phase 2. Benchmarked HubSpot (crawled knowledge.hubspot.com): HubSpot Service Hub + Commerce cover
+tickets/SLAs, customer portal, CSAT/feedback surveys, KB, quotes/invoices/payments/products — but have NO physical
+asset/install/warranty lifecycle and NO inventory/distribution. Our differentiator = the physical proof-of-install
+lifecycle. User picked (defaults): build the Installation Certificate (generate+download+store, email later — Resend
+key IS in .env but email deferred per user); NO CSAT yet; customer-portal LATER.
+
+DELIVERED — INSTALLATION CERTIFICATE (branded proof-of-install PDF):
+  • routes/inventory_certificate.py — reportlab builder (matches the service-report style): org header, customer/site,
+    equipment + serial, warranty start/end/basis, H&S acknowledgement + install checks, and the embedded CUSTOMER
+    SIGNATURE. generate_and_store_certificate() renders the PDF, stores it in object storage
+    ({APP_NAME}/install-certificates/{org}/{rec}.pdf) and stamps it on the commissioning record AND the equipment
+    asset (install_certificate_path/record_id) — so support/service have proof-of-install later.
+  • commission_install() now auto-generates the certificate on every sign-off (ops Install checks + logistics
+    Complete & sign-off). Non-fatal if PDF fails.
+  • Download: GET /api/inventory/alloc/allocations/{id}/certificate (org-scoped, streams PDF). install_pack returns
+    certificate_url when present. Frontend: "Certificate (PDF)" button in the completed banner of InstallPackModal
+    (data-testid=inv-install-pack-certificate), reusing the verified authed-blob download helper.
+
+VERIFIED: backend curl — complete→certificate:true; pack→certificate_url; download→HTTP 200 application/pdf, valid
+%PDF with /Page. Frontend compiles; cert button reuses the openAuthed pattern proven in the Phase 1 pack test.
+Demo: LOGQA2 (completed, has certificate) + LOGQA3 (pending, to try sign-off) under logi1@isodemo.com/LogiPass123!.
+
+ROADMAP (from HubSpot benchmark, deferred by user): post-install/service CSAT satisfaction survey; customer-facing
+tracking portal (upcoming install + pack summary + warranty). Email certificate via Resend (key in .env) — wire later.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · LOGISTICS ON-SITE CUSTOMER SIGN-OFF → WARRANTY ACTIVATION (PHASE 2 pt2, VERIFIED 100% FE) ═══
 Completes the logistics loop: the install team can now complete an install ON SITE with a captured CUSTOMER
 SIGNATURE + H&S acknowledgement, which commissions the asset and activates warranty — all from the /logistics portal.
