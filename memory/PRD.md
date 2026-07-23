@@ -1,3 +1,47 @@
+# ═══ 2026-06 · CRM "PORTAL INVITE" CHIP + RESEND + DELIVERED-MACHINE→LITE-ORG (VERIFIED 100% FE, 0 bugs) ═══
+Two linked deliverables + one CRITICAL REGRESSION FIX found at fork.
+
+REGRESSION FIXED (was breaking automated onboarding): the previous session's edit accidentally SWALLOWED the
+`provision_customer_portal()` body as dead code after the `return` inside the new `register_customer_equipment()`
+helper — so `provision_customer_portal` no longer existed, but inventory_distribution.push_quote_to_distribution
+(line ~484) still imported/called it → ImportError on every CRM quote push. RESTORED `provision_customer_portal`
+as its own function in routes/pulse_onboarding.py.
+
+(1) DELIVERED MACHINES → CUSTOMER'S LITE ORG. `register_customer_equipment(alloc, warranty)` existed but was
+    NEVER CALLED. Now invoked inside inventory_allocation.commission_install() (after certificate gen, best-effort,
+    try/except) → on every install sign-off (ops Install checks AND logistics on-site sign-off) the machine is
+    inserted into the customer's linked Pulse org (crm2_companies.linked_operator_org_id) as db.equipment
+    (status=operational, manufacturer 'Pulse Fitness', warranty_expiry, source=distribution_install). Idempotent by
+    (organization_id, serial_number). Skips cleanly when the customer isn't linked. RESULT: Lite/Pro customers can
+    now log faults on machines delivered to them.
+
+(2) "PORTAL INVITE" STATUS CHIP + "RESEND INVITE" on the CRM company record.
+    • Backend routes/pulse_onboarding.py: compute_invite_status(company) → active | pending_setup | email_failed |
+      missing_email | not_invited (active = linked_existing OR the pending owner used the portal_setup token /
+      logged in OR manually-linked to a pre-existing org). resend_portal_invite(company_id, owner_email) →
+      provisions if not yet linked (clears skip flag first so the atomic claim guard passes), else regenerates a
+      fresh set-up link for the pending owner via _send_setup_email; no-op if already active.
+    • Backend routes/crm_v2.py (CRM token): GET /companies/{id}/portal-invite (status) and
+      POST /companies/{id}/portal-invite/resend (OWNERS/MANAGERS ONLY → 403 for others; user choice 1b).
+    • Frontend CRMCompanies.js CompanyDetail: coloured chip (data-testid portal-invite-chip) + "Resend/Send invite"
+      button (data-testid portal-invite-resend-btn). Chip renders only for distribution customers (linked_operator_org_id
+      OR pulse_onboarding_state OR company_type dealer_customer). Resend button HIDDEN when status=active (user choice 2a).
+      Toasts on resent/provisioned/missing_email/already_active/403.
+
+VERIFIED: backend curl + programmatic (not_invited→provision→pending_setup→resend→equipment created in Lite org,
+status operational) + testing_agent frontend 100%, 0 bugs (iteration_crm_portal_invite_chip_jan2026.json):
+INVITEDEMO shows 'Portal: Pending set-up' + Resend (toast fires); AlphaCo iso-cA shows 'Portal: Active' + Resend
+HIDDEN; existing tabs/KPIs regress clean. 403 gate confirmed by code review (no non-owner CRM acct available to
+assert directly; manager account is site-scoped away → 404 before the role check). NOTE: resend/provision send via
+REAL Resend (best-effort). GAP SCAN: ran an unreachable-code-after-return scan across the recently-touched inv/
+onboarding files — no other orphaned edits found.
+DEMO: CRM owner@isodemo.com/IsoDemo123! → Companies → "Portal Invite Demo Co" (id INVITEDEMO, pending set-up, Resend
+visible) vs "AlphaCo (Site A)" (iso-cA, active, Resend hidden).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · EMAIL INSTALLATION CERTIFICATE TO CUSTOMER ON SIGN-OFF (VERIFIED, backend-only) ═══
 On every install sign-off, the generated Installation Certificate PDF is now emailed to the customer's main contact.
   • inventory_certificate._email_certificate_to_customer(alloc, rec, pdf, filename, user) — resolves the customer's
