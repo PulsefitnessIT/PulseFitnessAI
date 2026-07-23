@@ -64,6 +64,7 @@ export function Btn({ children, variant = 'primary', className = '', ...props })
     secondary: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
     ghost: 'text-slate-600 hover:bg-slate-100',
     danger: 'bg-red-600 text-white hover:bg-red-700',
+    ai: 'border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100',
   };
   return (
     <button className={`${base} ${variants[variant]} ${className}`} {...props}>

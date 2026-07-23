@@ -1,3 +1,31 @@
+# ═══ 2026-06 · ORDERS MERGE + AI INVOICE READER (no Sage needed) (VERIFIED 100% FE) ═══
+Founder: dealers may not run Sage → add orders fast via the platform AI invoice reader, or from a confirmed CRM order.
+Merge "Sage Orders" + "Distribution Orders" into one list with a source badge.
+
+MERGE: distribution orders already carried a `source` field, so Sage imports are the SAME records. One unified
+"Orders" screen (InvOrders.js) now lists everything with a SourceBadge (Sage 200=blue / AI Invoice=violet / CRM=green /
+Manual=slate) + a source filter. Removed the 'sage-orders' nav item; the Sage SYNC console moved into Settings →
+Sage 200 Connection tab (renders <SageConnection/> + <SageOrders/>); legacy ?s=sage-orders deep-links there. Kept
+Order Exceptions.
+
+AI INVOICE READER: NEW POST /api/inventory/orders/parse-invoice (UploadFile) reuses the platform engine
+equipment_import.extract_invoice_smart, CONSOLIDATES the one-per-unit equipment output into order lines (grouped by
+code+price, qty summed), and returns {header:{dealer_name,customer_po,delivery_address}, lines}. Frontend: "Import
+from invoice" (violet 'ai' Btn variant) opens the New Order modal, auto-opens the file picker, prefills header+lines,
+sets source='invoice'. OrderIn gains `source`; create_order persists it. Curl-verified on a sample PDF: dealer/PO/
+delivery + 3 consolidated lines (RUN-9000 x2, BIKE-500 x3, ROW-200 x1).
+
+CRM→INVENTORY: groundwork done — source='crm' is supported end-to-end (model + badge + filter). The actual CRM
+"confirm order → push to distribution" action (CRM-side button + create-order-from-CRM call with source='crm') is the
+next focused piece (touches the CRM module).
+
+VERIFIED testing_agent frontend 100% (5/5; iteration_inventory_orders_merge_aiinvoice_jan2026.json), 0 issues, QA seed
+cleaned. Post-fix: Import button restyled to a distinctive violet AI variant.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · INVENTORY BRAND CTAs (BUG FIX) + INSTALLATIONS LOGISTICS CALENDAR (VERIFIED 100% FE) ═══
 Founder flagged: CTAs looked broken (e.g. "Add warehouse") + off-brand navy; wanted Installations as a logistics
 calendar and "commission" → "install checks".

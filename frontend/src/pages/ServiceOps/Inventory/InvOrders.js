@@ -362,7 +362,7 @@ export default function InvOrders({ warehouses, initialOrderId }) {
           <p className="text-sm text-slate-500">All distribution orders — manual, AI-invoice, CRM and Sage 200 (badged by source).</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Btn variant="secondary" onClick={() => openCreate('invoice')} data-testid="inv-import-invoice-btn"><Sparkles size={15} /> Import from invoice</Btn>
+          <Btn variant="ai" onClick={() => openCreate("invoice")} data-testid="inv-import-invoice-btn"><Sparkles size={15} /> Import from invoice</Btn>
           <Btn onClick={() => openCreate('manual')} data-testid="inv-new-order-btn"><Plus size={16} /> New order</Btn>
         </div>
       </div>
@@ -393,7 +393,7 @@ export default function InvOrders({ warehouses, initialOrderId }) {
         <Card className="p-10 text-center" testId="inv-orders-empty">
           <p className="text-slate-500">No orders yet.</p>
           <div className="mt-3 flex justify-center gap-2">
-            <Btn variant="secondary" onClick={() => openCreate('invoice')}><Sparkles size={16} /> Import from invoice</Btn>
+            <Btn variant="ai" onClick={() => openCreate("invoice")}><Sparkles size={16} /> Import from invoice</Btn>
             <Btn onClick={() => openCreate('manual')}><Plus size={16} /> Create your first order</Btn>
           </div>
         </Card>
