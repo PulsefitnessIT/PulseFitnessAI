@@ -569,6 +569,24 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bo
                           s["body"]))
     flow.append(Spacer(1, 6 * mm))
 
+    # ─── Equipment we supplied & installed (distribution moat) ──
+    supplied = report.get("supplied_by_us") or {}
+    if supplied.get("count"):
+        flow.append(Paragraph("Equipment We Supplied &amp; Installed", s["h1"]))
+        flow.append(Paragraph(
+            f"{supplied['count']} of {supplied.get('total_assets', 0)} assets "
+            f"({supplied.get('share_pct', 0)}% of this estate) were delivered and commissioned "
+            f"through our own distribution pipeline — with full purchase cost, asset type and "
+            f"in-service date captured for accurate lifecycle forecasting.", s["body"]))
+        flow.append(Spacer(1, 3 * mm))
+        flow.append(_kpi_row(s, [
+            ("Delivered by us", str(supplied["count"])),
+            ("Share of estate", f"{supplied.get('share_pct', 0)}%"),
+            ("Replacement value", f"£{supplied.get('total_replacement_value', 0):,.0f}"),
+            ("12m forecast (ours)", f"£{supplied.get('forecast_12m', 0):,.0f}"),
+        ]))
+        flow.append(Spacer(1, 8 * mm))
+
     # ─── 2. Fleet KPIs ──────────────────────────────────────
     flow.append(Paragraph("2. Fleet Intelligence — Headline KPIs", s["h1"]))
     flow.append(_kpi_row(s, [

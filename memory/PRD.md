@@ -31,6 +31,12 @@ stat bar (capex-supplied-bar / capex-supplied-stat). VERIFIED: backend returns t
 count=1, 7% share); frontend compiles clean. Visual click-through not captured (CAPEX sits in the Operations
 area behind multi-area nav) — low risk, JSX mirrors the adjacent status-chip pattern.
 
+FOLLOW-UP (2026-06): "Delivered by us" now also in the BOARD CAPEX PDF. utils/capex_pdf_exporter.py adds an
+"Equipment We Supplied & Installed" subsection after the Executive Summary (shown only when supplied count>0)
+with a KPI row: delivered count, share %, replacement value, 12m forecast. board-report spreads the analysis
+so supplied_by_us is already in the payload. VERIFIED: GET /capex/board-report.pdf → HTTP 200, valid PDF,
+text extract confirms the section renders.
+
 ────────────────────────────────────────────────────────────────────────
 
 
