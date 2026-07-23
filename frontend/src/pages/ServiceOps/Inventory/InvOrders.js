@@ -171,13 +171,27 @@ function CreateOrderModal({ warehouses, onClose, onCreated, autoInvoice }) {
             </div>
             <div className="space-y-2">
               {lines.map((l, i) => (
-                <div key={i} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-slate-200 p-2" data-testid={`inv-line-${i}`}>
-                  <div className="col-span-2"><Field label="Code"><input className={inputCls} value={l.product_code} data-testid={`inv-line-code-${i}`} onChange={(e) => setLine(i, { product_code: e.target.value })} /></Field></div>
-                  <div className="col-span-3"><Field label="Description"><input className={inputCls} value={l.description} data-testid={`inv-line-desc-${i}`} onChange={(e) => setLine(i, { description: e.target.value })} /></Field></div>
-                  <div className="col-span-3"><Field label="Type"><select className={inputCls} value={l.product_type} data-testid={`inv-line-type-${i}`} onChange={(e) => setLine(i, { product_type: e.target.value })}>{Object.entries(PRODUCT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field></div>
-                  <div className="col-span-1"><Field label="Qty"><input type="number" min="1" className={inputCls} value={l.quantity} data-testid={`inv-line-qty-${i}`} onChange={(e) => setLine(i, { quantity: e.target.value })} /></Field></div>
-                  <div className="col-span-2"><Field label="Unit price"><input type="number" className={inputCls} value={l.unit_price} data-testid={`inv-line-price-${i}`} onChange={(e) => setLine(i, { unit_price: e.target.value })} /></Field></div>
-                  <div className="col-span-1 pb-2">{lines.length > 1 && <button onClick={() => removeLine(i)} className="text-rose-500 hover:text-rose-700" data-testid={`inv-line-remove-${i}`}><Trash2 size={16} /></button>}</div>
+                <div key={i} className="rounded-lg border border-slate-200 p-2" data-testid={`inv-line-${i}`}>
+                  <div className="grid grid-cols-12 items-end gap-2">
+                    <div className="col-span-2"><Field label="Code"><input className={inputCls} value={l.product_code} data-testid={`inv-line-code-${i}`} onChange={(e) => setLine(i, { product_code: e.target.value })} /></Field></div>
+                    <div className="col-span-3"><Field label="Description"><input className={inputCls} value={l.description} data-testid={`inv-line-desc-${i}`} onChange={(e) => setLine(i, { description: e.target.value })} /></Field></div>
+                    <div className="col-span-3"><Field label="Type"><select className={inputCls} value={l.product_type} data-testid={`inv-line-type-${i}`} onChange={(e) => setLine(i, { product_type: e.target.value })}>{Object.entries(PRODUCT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field></div>
+                    <div className="col-span-1"><Field label="Qty"><input type="number" min="1" className={inputCls} value={l.quantity} data-testid={`inv-line-qty-${i}`} onChange={(e) => setLine(i, { quantity: e.target.value })} /></Field></div>
+                    <div className="col-span-2"><Field label="Unit price"><input type="number" className={inputCls} value={l.unit_price} data-testid={`inv-line-price-${i}`} onChange={(e) => setLine(i, { unit_price: e.target.value })} /></Field></div>
+                    <div className="col-span-1 pb-2">{lines.length > 1 && <button onClick={() => removeLine(i)} className="text-rose-500 hover:text-rose-700" data-testid={`inv-line-remove-${i}`}><Trash2 size={16} /></button>}</div>
+                  </div>
+                  {l.catalogue_match ? (
+                    <div className={`mt-1 flex flex-wrap items-center gap-2 rounded-md px-2 py-1 text-[11px] ${l.matched ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`} data-testid={`inv-line-match-${i}`}>
+                      {l.matched ? <CheckCircle2 size={12} /> : <Search size={12} />}
+                      <span>Catalogue: <span className="font-semibold">{l.catalogue_match.sku || l.catalogue_match.name}</span>{l.catalogue_match.name && l.catalogue_match.sku ? ` — ${l.catalogue_match.name}` : ''} ({Math.round((l.catalogue_match.score || 0) * 100)}%)</span>
+                      {(l.product_code !== l.catalogue_match.sku) && l.catalogue_match.sku && (
+                        <button className="ml-1 rounded bg-white px-1.5 py-0.5 font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50" data-testid={`inv-line-apply-match-${i}`}
+                          onClick={() => setLine(i, { product_code: l.catalogue_match.sku, unit_price: l.catalogue_match.unit_price || l.unit_price })}>Apply</button>
+                      )}
+                    </div>
+                  ) : (l.catalogue_match === null && source === 'invoice') ? (
+                    <div className="mt-1 flex items-center gap-1.5 rounded-md bg-slate-50 px-2 py-1 text-[11px] text-slate-400" data-testid={`inv-line-nomatch-${i}`}><Search size={12} /> No catalogue match — will create a new product code.</div>
+                  ) : null}
                 </div>
               ))}
             </div>

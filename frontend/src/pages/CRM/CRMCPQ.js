@@ -126,6 +126,17 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
     try { await axios.post(`${API}/crm/v2/quotes/${quoteId}/sign`, { signature: sigData, signer_name: signerName }, { headers: headers() }); notify.success('Quote signed & accepted'); setShowSign(false); load(); } catch (e) { console.error(e); notify.error('Could not save signature'); }
     setActionLoading('');
   };
+  const sendToDistribution = async () => {
+    setActionLoading('distribution');
+    try {
+      const r = await axios.post(`${API}/inventory/orders/from-crm-quote/${quoteId}`, {}, { headers: headers() });
+      const ref = r.data?.reference || 'order';
+      notify.success(r.data?.already_existed ? `Already in Distribution as ${ref}` : `Sent to Inventory & Distribution as ${ref}`);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not send to Distribution');
+    }
+    setActionLoading('');
+  };
 
   const openRevise = () => {
     setReviseForm({
@@ -248,6 +259,11 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
             {quote.status !== 'superseded' && (
               <button onClick={openRevise} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: 'var(--color-info-ios)40', color: 'var(--color-info-ios)' }} data-testid="quote-revise-btn">
                 <Copy size={12} /> Revise
+              </button>
+            )}
+            {(quote.status === 'accepted' || quote.signature) && (
+              <button onClick={sendToDistribution} disabled={actionLoading === 'distribution'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-md text-white transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #19CDFF, #0BB0DD)' }} data-testid="quote-send-distribution-btn">
+                <Package size={12} /> {actionLoading === 'distribution' ? 'Sending…' : 'Send to Distribution'}
               </button>
             )}
             <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{quote.status?.replace('_', ' ')}</span>

@@ -29,7 +29,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -374,6 +374,7 @@ class OrderIn(BaseModel):
     notes: Optional[str] = None
     warehouse_id: Optional[str] = None
     source: Optional[str] = "manual"
+    crm_quote_id: Optional[str] = None
     lines: List[OrderLineIn] = Field(default_factory=list)
 
 
@@ -383,6 +384,95 @@ def _line_status(pt: str) -> str:
     if pt in PHYSICAL_TYPES:
         return "awaiting_stock"
     return "not_stock"  # service / delivery charge
+
+
+async def _attach_catalogue_matches(lines: list, user: dict) -> None:
+    """Enrich order lines with the closest crm_products catalogue match so AI/
+    manually-imported codes map cleanly to stock. Adds `catalogue_match`
+    (product_id/sku/name/unit_price/score) or None + `matched` flag per line."""
+    import difflib
+    prods = await db.crm_products.find(
+        _of(user), {"_id": 0, "id": 1, "sku": 1, "name": 1, "unit_price": 1, "price": 1}
+    ).limit(2000).to_list(2000)
+    for p in prods:
+        p["_sku"] = (p.get("sku") or "").strip().lower()
+        p["_name"] = (p.get("name") or "").strip().lower()
+    for ln in lines:
+        code = (ln.get("product_code") or "").strip().lower()
+        desc = (ln.get("description") or "").strip().lower()
+        best, best_score = None, 0.0
+        for p in prods:
+            score = 0.0
+            if code and p["_sku"] and (code == p["_sku"] or code in p["_sku"] or p["_sku"] in code):
+                score = 0.97 if code == p["_sku"] else 0.85
+            else:
+                if desc and p["_name"]:
+                    score = difflib.SequenceMatcher(None, desc, p["_name"]).ratio()
+                if code and p["_name"]:
+                    score = max(score, difflib.SequenceMatcher(None, code, p["_name"]).ratio())
+            if score > best_score:
+                best, best_score = p, score
+        if best and best_score >= 0.55:
+            ln["catalogue_match"] = {
+                "product_id": best.get("id"),
+                "sku": best.get("sku"),
+                "name": best.get("name"),
+                "unit_price": best.get("unit_price") or best.get("price") or 0,
+                "score": round(best_score, 2),
+            }
+            ln["matched"] = best_score >= 0.9
+        else:
+            ln["catalogue_match"] = None
+            ln["matched"] = False
+
+
+@router.post("/orders/match-lines")
+async def match_order_lines(body: dict = Body(...), user=Depends(get_current_user)):
+    """Suggest catalogue matches for a set of order lines (manual entry helper)."""
+    _require_ops_role(user)
+    lines = [dict(l) for l in (body.get("lines") or [])]
+    await _attach_catalogue_matches(lines, user)
+    return {"lines": lines}
+
+
+@router.post("/orders/from-crm-quote/{quote_id}")
+async def order_from_crm_quote(quote_id: str, user=Depends(get_current_user)):
+    """Push a confirmed CRM quote through to Inventory & Distribution as an order
+    (source=crm). Idempotent — returns the existing order if already pushed."""
+    _require_ops_role(user)
+    of = _of(user)
+    existing = await db.inv_distribution_orders.find_one({**of, "crm_quote_id": quote_id}, {"_id": 0, "id": 1, "reference": 1})
+    if existing:
+        return {"ok": True, "order_id": existing["id"], "reference": existing["reference"], "already_existed": True}
+    quote = await db.crm2_quotes.find_one({**of, "id": quote_id}, {"_id": 0})
+    if not quote:
+        raise HTTPException(404, "Quote not found")
+    company = None
+    if quote.get("company_id"):
+        company = await db.crm2_companies.find_one({**of, "id": quote["company_id"]}, {"_id": 0, "id": 1, "name": 1, "country": 1})
+    items = quote.get("line_items") or []
+    if not items:
+        raise HTTPException(400, "Quote has no line items to send")
+    order_lines = []
+    for li in items:
+        order_lines.append(OrderLineIn(
+            product_code=(li.get("sku") or (li.get("name") or "")[:24] or "ITEM"),
+            description=(li.get("name") or li.get("description") or li.get("sku") or "Item"),
+            product_type="serialised_machine",
+            quantity=int(float(li.get("quantity") or 1)) or 1,
+            unit_price=float(li.get("unit_price") or 0),
+        ))
+    body = OrderIn(
+        dealer_id=(company or {}).get("id"),
+        dealer_name=(company or {}).get("name") or quote.get("company_name") or "CRM Customer",
+        dealer_country=(company or {}).get("country") or "GB",
+        customer_po=quote.get("quote_number"),
+        source="crm",
+        crm_quote_id=quote_id,
+        notes=f"Created from CRM quote {quote.get('quote_number', quote_id)}",
+        lines=order_lines,
+    )
+    return await create_order(body, user)
 
 
 @router.post("/orders/parse-invoice")
@@ -438,6 +528,7 @@ async def parse_order_invoice(file: UploadFile = File(...), user=Depends(get_cur
             }
             order.append(key)
     lines = [agg[k] for k in order]
+    await _attach_catalogue_matches(lines, user)
 
     header = {
         "dealer_name": (extracted.get("customer_name") or extracted.get("supplier_name") or "").strip(),
@@ -467,6 +558,7 @@ async def create_order(body: OrderIn, user=Depends(get_current_user)):
         "organization_id": user.get("organization_id"),
         "reference": ref,
         "source": (body.source or "manual"),
+        "crm_quote_id": body.crm_quote_id,
         "sage_order_id": None,
         "sage_order_number": None,
         "sage_status": None,
