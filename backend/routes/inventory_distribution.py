@@ -435,10 +435,11 @@ async def match_order_lines(body: dict = Body(...), user=Depends(get_current_use
     return {"lines": lines}
 
 
-@router.post("/orders/from-crm-quote/{quote_id}")
-async def order_from_crm_quote(quote_id: str, user=Depends(get_current_user)):
-    """Push a confirmed CRM quote through to Inventory & Distribution as an order
-    (source=crm). Idempotent — returns the existing order if already pushed."""
+async def push_quote_to_distribution(quote_id: str, user: dict) -> dict:
+    """Core logic to push a confirmed CRM quote into Inventory & Distribution
+    as an order (source=crm). Idempotent — returns the existing order if already
+    pushed. Callable from both the inventory route (platform token) and the CRM
+    route (CRM token) so the CRM console 'Send to Distribution' button works."""
     _require_ops_role(user)
     of = _of(user)
     existing = await db.inv_distribution_orders.find_one({**of, "crm_quote_id": quote_id}, {"_id": 0, "id": 1, "reference": 1})
@@ -450,14 +451,15 @@ async def order_from_crm_quote(quote_id: str, user=Depends(get_current_user)):
     company = None
     if quote.get("company_id"):
         company = await db.crm2_companies.find_one({**of, "id": quote["company_id"]}, {"_id": 0, "id": 1, "name": 1, "country": 1})
-    items = quote.get("line_items") or []
+    # CRM quotes store line items under `lines` (legacy `line_items` kept as a fallback).
+    items = quote.get("lines") or quote.get("line_items") or []
     if not items:
         raise HTTPException(400, "Quote has no line items to send")
     order_lines = []
     for li in items:
         order_lines.append(OrderLineIn(
-            product_code=(li.get("sku") or (li.get("name") or "")[:24] or "ITEM"),
-            description=(li.get("name") or li.get("description") or li.get("sku") or "Item"),
+            product_code=(li.get("sku") or li.get("product_code") or (li.get("description") or li.get("name") or "")[:24] or "ITEM"),
+            description=(li.get("description") or li.get("name") or li.get("sku") or "Item"),
             product_type="serialised_machine",
             quantity=int(float(li.get("quantity") or 1)) or 1,
             unit_price=float(li.get("unit_price") or 0),
@@ -472,7 +474,22 @@ async def order_from_crm_quote(quote_id: str, user=Depends(get_current_user)):
         notes=f"Created from CRM quote {quote.get('quote_number', quote_id)}",
         lines=order_lines,
     )
-    return await create_order(body, user)
+    created = await create_order(body, user)
+    order = created.get("order") or {}
+    return {
+        "ok": True,
+        "order_id": order.get("id"),
+        "reference": order.get("reference"),
+        "already_existed": False,
+        "line_count": created.get("line_count"),
+    }
+
+
+@router.post("/orders/from-crm-quote/{quote_id}")
+async def order_from_crm_quote(quote_id: str, user=Depends(get_current_user)):
+    """Push a confirmed CRM quote through to Inventory & Distribution as an order
+    (source=crm). Idempotent — returns the existing order if already pushed."""
+    return await push_quote_to_distribution(quote_id, user)
 
 
 @router.post("/orders/parse-invoice")

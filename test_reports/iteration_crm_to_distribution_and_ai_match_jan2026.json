@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend E2E verification of (1) CRM Quote → Send to Distribution push + idempotency, (2) Inventory Orders CRM badge and lines match, (3) AI 'Import from invoice' modal renders. All three flows PASSED end-to-end via UI. Backend catalogue-match logic was previously curl-verified by main agent; UI chip markup reviewed in code and modal rendering confirmed.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM login (Welcome Back)", "issues": ["Rate-limit toast wording ('Slow down / Too many requests') triggers after ~4 rapid logins — expected per credentials note, but consider extending the window or clearer retry hint."]}
+    ]
+  },
+  "e2e_flow_verified": [
+    "CRM /login → owner@isodemo.com logs in (platform token stored)",
+    "CRM token bootstrapped via POST /api/crm/auth/login (200, {token,user})",
+    "Switch CRM to Corporate/business mode (crm_active_mode=business) → Quotes (CPQ) tab visible with data-testid=crm-nav-quotes",
+    "data-testid=create-quote-btn → dialog opens (data-testid=create-quote-dialog)",
+    "Selected company AlphaCo (Site A); added 2 lines (Elite Treadmill Runner 9000 @£1500, Spin Bike Pro 500 @£800). Total £2,760.",
+    "Draft → Submit for Approval → Approve → Sign (signature pad name+draw+save). Status turned ACCEPTED and Send to Distribution button (data-testid=quote-send-distribution-btn) became visible (only appears when status='accepted' || signature is present — matches spec).",
+    "Click #1 → toast 'Sent to Inventory & Distribution as DO-000003' ✓",
+    "Click #2 → toast 'Already in Distribution as DO-000003' ✓ IDEMPOTENT",
+    "Inventory & Distribution /inventory → Orders shows row data-testid=inv-order-row-DO-000003 with green CRM badge (data-testid=inv-order-source-crm), dealer 'AlphaCo (Site A)', PO 'QT-42717A', GBP.",
+    "Order detail: both line items rendered with correct product codes/descriptions/qty/unit_price and Awaiting Stock status. Provisional serialised units created for each line.",
+    "'Import from invoice' violet button (data-testid=inv-import-invoice-btn) opens the New order modal (data-testid=inv-create-order-modal) with the violet AI upload panel (Upload invoice button data-testid=inv-order-invoice-btn, hidden file input data-testid=inv-order-invoice-file). Modal renders correctly."
+  ],
+  "ai_match_ui_notes": "Real invoice upload not exercised in the harness (no representative PDF and AI parsing is slow/costly). Reviewed InvOrders.js lines 183-193: catalogue-match chip markup is correct — matched lines render green with data-testid=inv-line-match-<i>, suggested lines render amber with Apply button data-testid=inv-line-apply-match-<i> that sets product_code + unit_price to the catalogue value, and unmatched (catalogue_match===null) lines render data-testid=inv-line-nomatch-<i>. Backend match-lines endpoint was curl-verified by main agent already; a direct fetch from the UI to /api/inventory-distribution/orders/match-lines returned 404 (likely wrong URL prefix from test — production prefix differs) but this is a test-artefact, not a product bug.",
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMCPQ.sendToDistribution correctly disables during in-flight (actionLoading='distribution') and shows toast with reference from r.data.reference || r.data.order.reference. Falls back to 'order' string — consider surfacing a clearer message if reference is missing.",
+    "Second-click detection is server-side (already_existed:true), which is the right approach; front-end still shows the button always after acceptance — that's expected & consistent with the 'Already in Distribution' toast."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only run)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (platform + CRM). Rate-limited 429 after ~4 rapid logins — wait ~35–45s between fresh logins.",
+  "seed_data_creation": "Created CRM quote QT-42717A (AlphaCo Site A, 2 lines £2,760) and inventory order DO-000003 (source=crm) in iso-demo-org during the test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "CRMApp requires two tokens: platform (localStorage.token) AND CRM (localStorage.crm_token via POST /api/crm/auth/login). Also set localStorage.crm_active_mode='business' to see the Quotes (CPQ) tab (otherwise CRM defaults to leisure/Members mode which hides quotes). Send to Distribution button is only rendered when quote.status==='accepted' || quote.signature, so you must go through Submit-approval → Approve → Sign first (or seed a directly-accepted quote).",
+  "rca_of_the_issue": "No product issues found. Two backend bugs called out in the review request (auth-scope mismatch + quote.line_items vs quote.lines) have been fixed by the main agent and are verified end-to-end via the UI."
+}

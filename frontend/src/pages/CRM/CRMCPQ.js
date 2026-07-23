@@ -129,8 +129,8 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
   const sendToDistribution = async () => {
     setActionLoading('distribution');
     try {
-      const r = await axios.post(`${API}/inventory/orders/from-crm-quote/${quoteId}`, {}, { headers: headers() });
-      const ref = r.data?.reference || 'order';
+      const r = await axios.post(`${API}/crm/v2/quotes/${quoteId}/push-to-distribution`, {}, { headers: headers() });
+      const ref = r.data?.reference || r.data?.order?.reference || 'order';
       notify.success(r.data?.already_existed ? `Already in Distribution as ${ref}` : `Sent to Inventory & Distribution as ${ref}`);
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Could not send to Distribution');

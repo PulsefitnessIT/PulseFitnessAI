@@ -4180,6 +4180,18 @@ async def sign_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
     return {"success": True, "status": "accepted", "signer": signer_name}
 
 
+@router.post("/quotes/{quote_id}/push-to-distribution")
+async def push_quote_to_distribution_route(quote_id: str, user=Depends(get_crm_user)):
+    """Push an accepted CRM quote into Inventory & Distribution as an order
+    (source=crm). Authenticated with the CRM token; delegates to the inventory
+    module's shared push helper. Idempotent."""
+    q = await db.crm2_quotes.find_one({"id": quote_id, **_of(user)}, {"_id": 0, "status": 1})
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    from routes.inventory_distribution import push_quote_to_distribution
+    return await push_quote_to_distribution(quote_id, user)
+
+
 # Iter 216h265 — Print + Email Quote ════════════════════════════════
 #
 # Customer asked for "ability to print quotes" and "distribution via
