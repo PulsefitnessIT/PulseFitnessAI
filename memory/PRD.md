@@ -1,3 +1,31 @@
+# ═══ 2026-06 · DIRECTOR-DEMO RELEASE-READINESS AUDIT + ROI CALC FIX (VERIFIED) ═══
+Founder asked (fork): is the platform ready for full release / director demo — processes, data
+flow, module independence (singular vs together), pen-test readiness, Sage/Sicon status. Chose B+D.
+
+FINDINGS:
+- The prior fork's "CRITICAL clear_demo_data vuln" was a FALSE ALARM / already fixed. The AI chat only
+  SUGGESTS the action (text); the only DB-mutating path POST /api/marketing/assistant/execute-action
+  (routes/marketing/assistant.py:334) is gated by assert_role([operator,owner,manager,admin,marketing_admin]).
+  EMPIRICALLY 403 for role=logistics (curl + testing_agent). Matches closed finding F-220bo-1. No code change.
+- Full readiness report written: /app/memory/DIRECTOR_DEMO_READINESS_2026-06.md (verdict: RELEASE-READY;
+  only external-cred blockers = live Stripe key rotation + Sage/Sicon creds; import ENGINE ready, runs via
+  Simulate feed; Sicon has NO equipment read API → 300k equipment needs CSV/Sage-export per SICON_API_AUDIT).
+- testing_agent (iteration_rbac_pulse_pricing_jan2026.json): backend RBAC + multi-site isolation 100% (7/7
+  pytest — 403 site_access_denied on /equipment,/issues,/gym-health-score for Site-A manager hitting site B).
+  Public /pulse-pricing renders 4 module cards, flagship badge (Pulse Fitness Pro), £/€/$ + monthly/annual
+  toggles, service-provider cards, FAQ. GET /api/payments/pricing/live public OK.
+
+BUG FIXED (HIGH): ROI calculator (components/pulse/PulsePricingExtras.js) — the `Slider` was defined INSIDE
+the component → new fn identity each render → React remounted the <input> mid-drag, breaking continued
+dragging so the derived saving looked "frozen". Hoisted to module-level `RoiSlider`. Also folded `machines`
+into the formula (was unused/non-responsive slider): monthlySaved = perMonth*callout*0.4 + machines*3.
+VERIFIED via screenshot: saving now reactive (£9,792 → £14,400 on slider drag). The "blurred number" the
+tester reported is a quality=20 JPEG artifact — computed styles confirm animation/filter/transform all none.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · "PRO" TERMINOLOGY SWEEP (A) + PRICING MARKETING SECTIONS (B) ═══
 A) Renamed the equipment-customer upgrade tier "Pro"/"Pulse Pro" -> "Managed" everywhere user-facing, so "Pulse
    Fitness Pro" now unambiguously = the Operations module. Edits (t() default strings, en shown by default):

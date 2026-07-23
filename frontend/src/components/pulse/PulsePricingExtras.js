@@ -9,6 +9,23 @@ import { ChevronDown, Headset, Wrench, ArrowRight, TrendingDown } from 'lucide-r
 
 const money = (n) => '£' + Math.round(n).toLocaleString();
 
+function RoiSlider({ label, value, set, min, max, step, prefix }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm text-[var(--color-text-slate)]">
+        <span>{label}</span>
+        <span className="font-bold text-[var(--color-surface-dark-panel-alt)]">{prefix || ''}{value}</span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => set(Number(e.target.value))}
+        className="w-full mt-2 accent-[var(--pulse-primary)]"
+        data-testid={`roi-${label.toLowerCase().replace(/[^a-z]+/g, '-')}`}
+      />
+    </div>
+  );
+}
+
 const FAQS = [
   { q: 'Can I buy just one module?', a: 'Yes. Every module — Operations, CRM, Marketing and Memberships — is a standalone subscription. Start with one and add more whenever you need them.' },
   { q: 'What’s the difference between Lite, Managed and the modules?', a: 'Lite is the free equipment portal included with every Pulse Fitness service agreement. Managed adds AI diagnostics and reporting handled by your account manager. The modules are the full self-serve software platform for running your gym.' },
@@ -24,23 +41,10 @@ export default function PulsePricingExtras({ onStart }) {
   const [perMonth, setPerMonth] = useState(12);
   const [open, setOpen] = useState(0);
 
-  const monthlySaved = perMonth * callout * 0.4; // AI triage resolves ~40% without a callout
+  // AI triage resolves ~40% of reactive callouts remotely, and proactive
+  // monitoring across the estate prevents ~£3/machine/month of downtime.
+  const monthlySaved = perMonth * callout * 0.4 + machines * 3;
   const annualSaved = monthlySaved * 12;
-
-  const Slider = ({ label, value, set, min, max, step, prefix }) => (
-    <div>
-      <div className="flex items-center justify-between text-sm text-[var(--color-text-slate)]">
-        <span>{label}</span>
-        <span className="font-bold text-[var(--color-surface-dark-panel-alt)]">{prefix || ''}{value}</span>
-      </div>
-      <input
-        type="range" min={min} max={max} step={step} value={value}
-        onChange={(e) => set(Number(e.target.value))}
-        className="w-full mt-2 accent-[var(--pulse-primary)]"
-        data-testid={`roi-${label.toLowerCase().replace(/[^a-z]+/g, '-')}`}
-      />
-    </div>
-  );
 
   return (
     <>
@@ -54,9 +58,9 @@ export default function PulsePricingExtras({ onStart }) {
           </div>
           <div className="grid gap-6 lg:grid-cols-2 items-stretch">
             <div className="rounded-2xl border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-7 space-y-6">
-              <Slider label="Machines in estate" value={machines} set={setMachines} min={10} max={500} step={5} />
-              <Slider label="Avg engineer callout" value={callout} set={setCallout} min={40} max={400} step={10} prefix="£" />
-              <Slider label="Callouts per month" value={perMonth} set={setPerMonth} min={1} max={60} step={1} />
+              <RoiSlider label="Machines in estate" value={machines} set={setMachines} min={10} max={500} step={5} />
+              <RoiSlider label="Avg engineer callout" value={callout} set={setCallout} min={40} max={400} step={10} prefix="£" />
+              <RoiSlider label="Callouts per month" value={perMonth} set={setPerMonth} min={1} max={60} step={1} />
             </div>
             <div className="rounded-2xl bg-[var(--color-surface-dark-panel-alt,#0f172a)] text-white p-7 flex flex-col justify-center">
               <div className="inline-flex items-center gap-2 text-[var(--pulse-primary)] text-sm font-semibold">
@@ -64,7 +68,7 @@ export default function PulsePricingExtras({ onStart }) {
               </div>
               <div className="mt-3 text-5xl font-extrabold tracking-tight" data-testid="roi-annual-saving">{money(annualSaved)}<span className="text-lg font-semibold text-white/60">/yr</span></div>
               <div className="mt-1 text-sm text-white/70">≈ {money(monthlySaved)} every month in avoided callouts</div>
-              <p className="mt-4 text-xs text-white/50">Illustrative — assumes AI triage resolves ~40% of faults remotely. Your results will vary.</p>
+              <p className="mt-4 text-xs text-white/50">Illustrative — assumes AI triage resolves ~40% of callouts remotely plus proactive monitoring across your estate. Your results will vary.</p>
               <button type="button" onClick={onStart} className="mt-6 h-11 rounded-full bg-[var(--pulse-primary)] text-[#0A0C10] font-semibold text-sm inline-flex items-center justify-center gap-2 hover:brightness-95 transition" data-testid="roi-cta">
                 Start your free trial <ArrowRight size={15} />
               </button>
