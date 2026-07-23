@@ -30,6 +30,9 @@ const MODULE_BLURB = {
 export default function ChoosePlanPage() {
   const { API, token, user, logout } = useAuth();
   const [pricing, setPricing] = useState(null);
+  const [live, setLive] = useState(null);
+  const [currency, setCurrency] = useState('gbp');
+  const [cycle, setCycle] = useState('monthly');
   const [siteCount, setSiteCount] = useState(1);
   const [busy, setBusy] = useState(null);
 
@@ -38,15 +41,32 @@ export default function ChoosePlanPage() {
     axios.get(`${API}/payments/pricing`)
       .then((r) => { if (!cancelled) setPricing(r.data); })
       .catch(() => { if (!cancelled) setPricing(null); });
+    axios.get(`${API}/payments/pricing/live`)
+      .then((r) => { if (!cancelled) { setLive(r.data); if (r.data?.detected_currency) setCurrency(r.data.detected_currency); } })
+      .catch(() => { if (!cancelled) setLive(null); });
     return () => { cancelled = true; };
   }, [API]);
+
+  const CCY = { gbp: '£', eur: '€', usd: '$' };
+  const annual = cycle === 'annual';
+  const priceFor = (moduleId) => {
+    const node = live?.pricing?.[moduleId]?.[currency];
+    if (!node) return null;
+    const minor = annual ? node.annual : node.monthly;
+    return minor == null ? null : minor / 100;
+  };
+  const fmtPrice = (moduleId) => {
+    const v = priceFor(moduleId);
+    if (v == null) return null;
+    return `${CCY[currency] || ''}${Math.round(v)}${annual ? '/yr' : '/mo'}`;
+  };
 
   const startCheckout = async (plan, opts = {}) => {
     setBusy(opts.module_id || plan);
     try {
       const { data } = await axios.post(
         `${API}/payments/checkout/flex`,
-        { plan, origin_url: window.location.origin, ...opts },
+        { plan, origin_url: window.location.origin, currency, billing_cycle: cycle, ...opts },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (data?.url) {
@@ -92,7 +112,7 @@ export default function ChoosePlanPage() {
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="max-w-2xl"
         >
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-blue-600 font-semibold mb-4">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[#0E7490] font-semibold mb-4">
             <Sparkles size={13} /> Keep your account active
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-zinc-900 leading-[1.08]">
@@ -108,6 +128,40 @@ export default function ChoosePlanPage() {
           </div>
         </motion.div>
 
+        {/* Currency + billing controls */}
+        <div className="mt-8 flex flex-wrap items-center gap-3" data-testid="choose-plan-controls">
+          <div className="inline-flex rounded-full border border-zinc-200 bg-white p-1" data-testid="currency-toggle">
+            {['gbp', 'eur', 'usd'].map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCurrency(c)}
+                className={`px-3.5 h-8 rounded-full text-sm font-semibold transition-colors ${currency === c ? 'bg-[#19CDFF] text-[#0A0C10]' : 'text-zinc-500 hover:text-zinc-900'}`}
+                data-testid={`currency-${c}`}
+              >
+                {CCY[c]} {c.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <div className="inline-flex items-center rounded-full border border-zinc-200 bg-white p-1" data-testid="billing-toggle">
+            {[['monthly', 'Monthly'], ['annual', 'Annual']].map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setCycle(v)}
+                className={`px-3.5 h-8 rounded-full text-sm font-semibold transition-colors ${cycle === v ? 'bg-[#19CDFF] text-[#0A0C10]' : 'text-zinc-500 hover:text-zinc-900'}`}
+                data-testid={`billing-${v}`}
+              >
+                {label}
+              </button>
+            ))}
+            {live?.annual_discount_pct ? (
+              <span className="px-2.5 text-xs font-semibold text-[#0E7490]">Save {live.annual_discount_pct}%</span>
+            ) : null}
+          </div>
+        </div>
+
+
         {!pricing && (
           <div className="mt-12 flex items-center gap-2 text-sm text-zinc-400" data-testid="choose-plan-loading">
             <Loader2 size={16} className="animate-spin" /> Loading plans…
@@ -121,11 +175,11 @@ export default function ChoosePlanPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-10 rounded-2xl border-2 border-blue-600 bg-white shadow-lg overflow-hidden"
+              className="mt-10 rounded-2xl border-2 border-[#19CDFF] bg-white shadow-lg overflow-hidden"
               data-testid="choose-plan-bundle"
             >
-              <div className="bg-blue-600 px-6 py-2 text-center">
-                <span className="text-[11px] uppercase tracking-[0.18em] font-bold text-white">
+              <div className="bg-[#19CDFF] px-6 py-2 text-center">
+                <span className="text-[11px] uppercase tracking-[0.18em] font-bold text-[#0A0C10]">
                   Recommended · everything included
                 </span>
               </div>
@@ -195,7 +249,7 @@ export default function ChoosePlanPage() {
                     type="button"
                     onClick={() => startCheckout('bundle', { site_count: siteCount })}
                     disabled={busy === 'bundle'}
-                    className="mt-4 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                    className="mt-4 w-full h-12 rounded-full bg-[#19CDFF] hover:bg-[#4DDBFF] text-[#0A0C10] font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
                     data-testid="choose-plan-bundle-checkout"
                   >
                     {busy === 'bundle' ? <Loader2 size={16} className="animate-spin" /> : null}
@@ -213,13 +267,13 @@ export default function ChoosePlanPage() {
                 {modules.map((m) => (
                   <div
                     key={m.id}
-                    className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between gap-4 hover:border-blue-300 transition-colors"
+                    className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between gap-4 hover:border-[#19CDFF] transition-colors"
                     data-testid={`choose-plan-module-${m.id}`}
                   >
                     <div>
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="font-semibold text-zinc-900 capitalize">{m.name}</span>
-                        <span className="text-sm text-zinc-500"><strong className="text-zinc-900">£{m.monthly.toFixed(0)}</strong>/mo</span>
+                        <span className="text-sm text-zinc-500" data-testid={`choose-plan-module-price-${m.id}`}><strong className="text-zinc-900">{fmtPrice(m.id) || `£${m.monthly.toFixed(0)}/mo`}</strong></span>
                       </div>
                       <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{MODULE_BLURB[m.id] || ''}</p>
                     </div>
@@ -227,7 +281,7 @@ export default function ChoosePlanPage() {
                       type="button"
                       onClick={() => startCheckout('module', { module_id: m.id })}
                       disabled={busy === m.id}
-                      className="w-full h-10 rounded-lg border border-zinc-300 text-zinc-800 font-medium text-sm flex items-center justify-center gap-2 hover:bg-zinc-50 transition-colors disabled:opacity-60"
+                      className="w-full h-10 rounded-full border border-zinc-300 text-zinc-800 font-medium text-sm flex items-center justify-center gap-2 hover:border-[#19CDFF] hover:bg-[#E6F9FF] transition-colors disabled:opacity-60"
                       data-testid={`choose-plan-module-checkout-${m.id}`}
                     >
                       {busy === m.id ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -241,8 +295,8 @@ export default function ChoosePlanPage() {
             {/* Talk to us */}
             <div className="mt-12 rounded-xl border border-zinc-200 bg-white p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <MessageCircle size={18} className="text-blue-600" />
+                <div className="w-10 h-10 rounded-lg bg-[#E6F9FF] flex items-center justify-center flex-shrink-0">
+                  <MessageCircle size={18} className="text-[#0E7490]" />
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900 text-sm">Prefer to talk it through first?</p>

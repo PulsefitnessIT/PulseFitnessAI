@@ -1,3 +1,39 @@
+# ═══ 2026-06 · STRIPE MULTI-CURRENCY (test mode) + PRICING PAGE REDESIGN + MASTER-ADMIN NAV ═══
+STRIPE TEST KEYS wired into preview .env (sk_test_/pk_test_/whsec_ for acct_1TwO0TR4sZnXWhFi, GB). Old expired
+sk_live key replaced. Webhook events to enable: checkout.session.completed, customer.subscription.updated/deleted,
+invoice.paid, invoice.payment_failed (endpoint /api/webhook/stripe; memberships uses a SEPARATE endpoint
+/api/memberships/webhook/stripe which needs its own signing secret — a 2nd env var if member billing is used).
+
+MULTI-CURRENCY MODULE SUBSCRIPTIONS (GBP/EUR/USD, monthly/annual):
+- utils/stripe_catalog.py — resolves (module,currency,interval)->price_id by auto-fetching the live Stripe catalog
+  (cached 10min), matched by Product NAME (Operations/CRM/Marketing/Memberships/Operations Extra Site). No 30
+  hard-coded price IDs. resolve_price_id(), pricing_summary().
+- routes/payments.py — create_flex_checkout now accepts currency + billing_cycle (module path resolves via catalog;
+  records real currency+amount). New PUBLIC endpoint GET /api/payments/pricing/live -> {detected_currency, currencies,
+  pricing, annual_discount_pct} with region auto-detect (cf-ipcountry / accept-language; US->usd, EU->eur, else gbp).
+  VERIFIED: pricing/live returns per-currency amounts; checkout module=operations currency=eur cycle=annual -> valid
+  cs_test_ session. .env STRIPE_PRICE_* GBP fallbacks updated to new-account price IDs.
+- .env STRIPE_PRICE_GYMAXIS_PRO/STARTER/PRO/ENTERPRISE still point to OLD account (no matching products in new acct);
+  the "bundle"/Pro flow has NO Stripe product in the new account -> bundle checkout will fail. Customer sells
+  PER-MODULE. Bundle card still shown in GBP (interim). To offer a bundle, create a "Pulse Fitness Pro" Stripe product.
+- FRONTEND ChoosePlanPage.js (/choose-plan): added £/€/$ currency toggle + Monthly/Annual toggle (auto-detect default),
+  currency-aware module prices (fmtPrice via /pricing/live), passes currency+billing_cycle to checkout. Re-branded from
+  blue-600 -> Pulse CYAN (#19CDFF fills w/ dark #0A0C10 text, #0E7490 accent), pill buttons. Reference layout:
+  gymaxisai.com/pricing. Compiles clean. data-testids: choose-plan-controls, currency-{gbp,eur,usd}, billing-{monthly,
+  annual}, choose-plan-module-price-{id}. NOTE: could NOT get a clean authenticated screenshot (headless Suspense hang
+  on lazy routes) — verified via clean compile + backend e2e only; UI not visually confirmed / testing_agent not yet run.
+- NOT YET BUILT from the reference: ROI/savings calculator, switching guarantee, FAQ accordion, service-provider tiers.
+
+MASTER-ADMIN NAV: AdminSidebar.js widened lg:w-64 -> lg:w-[19rem] + whitespace-nowrap on portal-switch buttons so
+"Inventory & Distribution" no longer stacks. (couldn't screenshot-confirm; deterministic CSS.)
+
+REMINDER: all changes are PREVIEW only. Production (fitness-ai-migrate.emergent.host) needs the LIVE Stripe key +
+STRIPE_PRICE_* live values set in the deploy Environment Variables panel, then redeploy.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · P2/P3 PASS — SITE-SELECTOR CONSISTENCY (shipped) + verdicts ═══
 Founder asked to work the P2/P3 backlog. Outcome:
 
