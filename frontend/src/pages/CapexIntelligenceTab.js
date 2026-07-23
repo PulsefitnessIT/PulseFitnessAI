@@ -1322,7 +1322,7 @@ const CapexIntelligenceTab = () => {
  ))}
  </div>
  <div className="text-xs text-[var(--color-text-muted)]" data-testid="capex-supplied-stat">
- <span className="text-[var(--color-brand-blue)] font-semibold">{data.supplied_by_us.count}</span> assets delivered by us ({data.supplied_by_us.share_pct}%) · 12-mo replacement forecast{' '}
+ <span className="text-[var(--color-brand-blue)] font-semibold">{data.supplied_by_us.count}</span> asset{data.supplied_by_us.count === 1 ? '' : 's'} delivered by us ({data.supplied_by_us.share_pct}%) · 12-mo replacement forecast{' '}
  <span className="text-white font-semibold">£{Number(data.supplied_by_us.forecast_12m || 0).toLocaleString()}</span>
  </div>
  </div>
