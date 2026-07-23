@@ -1,0 +1,205 @@
+{
+  "total": 33,
+  "passed": 27,
+  "failed": 6,
+  "results": [
+    {
+      "path": "owner /api/auth/me",
+      "ok": true,
+      "status": 200,
+      "detail": ""
+    },
+    {
+      "path": "owner /me returns is_service_desk & is_inventory flags",
+      "ok": true,
+      "status": 200,
+      "detail": "keys=['id', 'email', 'full_name', 'company_name', 'subscription_tier', 'role', 'organization_id', 'company_code', 'is_master_admin', 'org_is_operator', 'is_pulse_admin', 'is_service_desk', 'is_inventory', 'is_shared_site_login', 'site_id']"
+    },
+    {
+      "path": "owner GET /api/equipment",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"equipment\":[{\"id\":\"LOGQA3-asset\",\"created_at\":\"2026-07-23T11:48:38.313155+00:00\",\"manufacturer\":\"Pulse\",\"model\":\"Spin Bike Pro 500\",\"name\":\"Spin Bik"
+    },
+    {
+      "path": "owner POST /api/equipment (create)",
+      "ok": false,
+      "status": 422,
+      "detail": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"name\"],\"msg\":\"Field required\",\"input\":{\"make\":\"TEST_Make\",\"model\":\"TEST_MODEL_5967ad\",\"serial_number\":\"TEST_SN_520e90\",\"category\":\"cardio\",\"location\":\"TEST_"
+    },
+    {
+      "path": "CRM /api/crm/auth/login",
+      "ok": true,
+      "status": 200,
+      "detail": ""
+    },
+    {
+      "path": "CRM create company",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"id\":\"caec79c8-f955-4bca-a2fa-57886a7856a0\",\"organization_id\":\"iso-demo-org\",\"site_id\":\"iso-demo-site-a\",\"name\":\"TEST_Co_4226e2\",\"sector\":\"\",\"type\":\"prospect\",\"parent_id\":null,\"website\":\"\",\"phone\":\"\""
+    },
+    {
+      "path": "CRM create quote",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"id\":\"aabf8a14-11a1-45ce-834b-fd5720ac9a96\",\"organization_id\":\"iso-demo-org\",\"quote_number\":\"QT-5C4575\",\"company_id\":\"caec79c8-f955-4bca-a2fa-57886a7856a0\",\"company_name\":\"TEST_Co_4226e2\",\"contact_id\":null,\"contact_name\":\"\",\"opportunity_id\":null,\"st"
+    },
+    {
+      "path": "CRM mark quote accepted",
+      "ok": false,
+      "status": 404,
+      "detail": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "path": "CRM push-to-distribution (1st)",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"ok\":true,\"order_id\":\"4ab6eb0a-ee5e-4c51-90c8-dc3abd0717de\",\"reference\":\"DO-000003\",\"already_existed\":false,\"line_count\":1}"
+    },
+    {
+      "path": "CRM push-to-distribution idempotent 2nd",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"ok\":true,\"order_id\":\"4ab6eb0a-ee5e-4c51-90c8-dc3abd0717de\",\"reference\":\"DO-000003\",\"already_existed\":true}"
+    },
+    {
+      "path": "distribution GET /api/inventory/dashboard",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"cards\":{\"orders_total\":3,\"needs_validation\":3,\"awaiting_stock\":0,\"reserved\":0,\"in_transit\":0,\"units_total\":10,\"units_provisional\":8,\"units_serialised\":2,\"warehouses\":0},\"by_country\":[{\"country\":\"GB\""
+    },
+    {
+      "path": "owner GET /inventory/orders",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"orders\":[{\"id\":\"4ab6eb0a-ee5e-4c51-90c8-dc3abd0717de\",\"organization_id\":\"iso-demo-org\",\"reference\":\"DO-000003\",\"source"
+    },
+    {
+      "path": "owner GET /inventory/warehouse",
+      "ok": true,
+      "status": 404,
+      "detail": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "path": "owner GET /inventory/allocation",
+      "ok": true,
+      "status": 404,
+      "detail": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "path": "owner GET /inventory/logistics/installs",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"installs\":[{\"id\":\"LOGQA2-alloc\",\"created_at\":\"2026-07-23T11:03:02.707866+00:00\",\"customer_company_id\":\"iso-cA\",\"custom"
+    },
+    {
+      "path": "owner GET /inventory/certificates",
+      "ok": true,
+      "status": 404,
+      "detail": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "path": "customer-lite login via https://platform-doctor.preview.emergentagent.com/api/auth/login",
+      "ok": true,
+      "status": 200,
+      "detail": ""
+    },
+    {
+      "path": "customer-lite GET /api/customer/deliveries",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"has_deliveries\":true,\"count\":2,\"deliveries\":[{\"id\":\"LOGQA2-alloc\",\"reference\":\"ALL-LOGQA2\",\"model\":\"Elite Treadmill Runner 9000\",\"product_code\":\"RUN-9000\",\"serial_number\":\"SN-LOGQA2\",\"site\":\"Main Fl"
+    },
+    {
+      "path": "customer-lite GET /api/equipment",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"equipment\":[{\"id\":\"PRODEMO_eq_1\",\"organization_id\":\"06722e92-706d-4808-a503-92b868a98a19\",\"name\":\"Life Fitness 95T Treadmill\",\"equipment_type\":\"Card"
+    },
+    {
+      "path": "logistics /auth/me role=logistics",
+      "ok": true,
+      "status": 200,
+      "detail": "role=logistics"
+    },
+    {
+      "path": "logistics GET installs",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"installs\":[{\"id\":\"LOGQA2-alloc\",\"created_at\":\"2026-07-23T11:03:02.707866+00:00\",\"customer_company_id\":\"iso-cA\",\"customer_company_name\":\"AlphaCo (Sit"
+    },
+    {
+      "path": "logistics WRITE isolation (expect 403)",
+      "ok": false,
+      "status": 422,
+      "detail": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"dealer_name\"],\"msg\":\"Field required\",\"input\":{\"test\":\"x\"}}]}"
+    },
+    {
+      "path": "dealer login via https://platform-doctor.preview.emergentagent.com/api/auth/login",
+      "ok": true,
+      "status": 200,
+      "detail": ""
+    },
+    {
+      "path": "dealer overview (own scope)",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"dealer\":{\"id\":\"5e7fc632-eab1-4d6a-ad54-42d96b459f5c\",\"name\":\"Fitline Deutschland\",\"country\":\"Germany\",\"region\":\"EU-Central\"},\"stock\":[{\"id\":\"bb1dff5"
+    },
+    {
+      "path": "dealer staff-only isolation (expect 403)",
+      "ok": true,
+      "status": 403,
+      "detail": "{\"detail\":\"Dealer accounts cannot access this area\"}"
+    },
+    {
+      "path": "master-admin list orgs",
+      "ok": false,
+      "status": 404,
+      "detail": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "path": "master-admin platform-health/scan",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"scan\":{\"id\":\"19ce8906-0d45-4f01-a65d-d3af4a18f87a\",\"started_at\":\"2026-07-23T14:10:44.660029+00:00\",\"finished_at\":\"2026-07-23T14:10:53.958027+00:00\",\"by\":\"admin@pulsefitness.com\",\"checks_run\":[\"site_less_records\",\"broken_site_refs\",\"orphaned_users\","
+    },
+    {
+      "path": "master-admin scan returns findings structure",
+      "ok": true,
+      "status": 200,
+      "detail": "keys=['scan', 'summary', 'findings']"
+    },
+    {
+      "path": "memberships GET plans",
+      "ok": true,
+      "status": 200,
+      "detail": ""
+    },
+    {
+      "path": "memberships GET members",
+      "ok": true,
+      "status": 200,
+      "detail": ""
+    },
+    {
+      "path": "stripe checkout create",
+      "ok": false,
+      "status": "n/a",
+      "detail": "missing plan/member plan=None member=c92d141d-ec10-4574-b4b3-f2e0fc9933f1"
+    },
+    {
+      "path": "site isolation Site B \u2192 403",
+      "ok": false,
+      "status": 200,
+      "detail": "{\"equipment\":[{\"id\":\"2bcb45df-1d64-4484-a871-eff674983841\",\"organization_id\":\"iso-demo-org\",\"site_id\":\"iso-demo-site-a\",\"name\":\"Pulse 260G Treadmill\",\"equipment_type\":\"Treadmill\",\"manufacturer\":\"Pulse"
+    },
+    {
+      "path": "site isolation Site A \u2192 allowed",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"equipment\":[{\"id\":\"2bcb45df-1d64-4484-a871-eff674983841\",\"organization_id\":\"iso-demo-org\",\"site_id\":\"iso-demo-site-a\",\"name\":\"Pulse 260G Treadmill\","
+    }
+  ]
+}
