@@ -29,6 +29,8 @@ env-gated (ENFORCE_MASTER_ADMIN_MFA, ENFORCE_EMAIL_RECIPIENT_VALIDATION, STRICT_
 scripts/toggle_pentest_flags.sh (--on/--off/--check; safe python-dotenv set_key; print-only without a path).
 Also flagged: Swagger /docs is publicly reachable (disable for the test env if undesired). Cosmetic follow-up
 deferred: dealer/logistics portal shells fire /api/organization + /api/sites (now correctly 403 → console noise only).
+FOLLOW-UP DONE: added EXPOSE_API_DOCS env flag (server.py) — default true (preview), set false to hide
+Swagger/ReDoc/OpenAPI in the pen-test/prod env; documented in checklist §A + toggle script reminder.
 
 ────────────────────────────────────────────────────────────────────────
 

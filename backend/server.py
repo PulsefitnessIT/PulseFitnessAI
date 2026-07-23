@@ -38,7 +38,16 @@ from utils.database import db, init_storage, client
 from route_registration import register_routes
 from routes.supplier_api import router as supplier_api_router
 
-app = FastAPI()
+import os as _os
+# API schema/docs exposure — on by default (preview/dev). Set
+# EXPOSE_API_DOCS=false in the pen-test / production env to hide
+# Swagger UI, ReDoc and the OpenAPI schema (F-31 / tester note).
+_expose_docs = _os.environ.get("EXPOSE_API_DOCS", "true").lower() in ("1", "true", "yes")
+app = FastAPI(
+    docs_url="/docs" if _expose_docs else None,
+    redoc_url="/redoc" if _expose_docs else None,
+    openapi_url="/openapi.json" if _expose_docs else None,
+)
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 

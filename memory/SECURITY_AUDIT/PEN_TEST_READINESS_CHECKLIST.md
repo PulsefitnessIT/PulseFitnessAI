@@ -80,6 +80,7 @@ them in the deploy env panel:
 | `ENFORCE_EMAIL_RECIPIENT_VALIDATION` | `true` | F-22 | `utils/email.py` |
 | `STRICT_AV_MODE` | `true` | F-24 | `utils/malware_scan.py` |
 | `STRIPE_WEBHOOK_SECRET` | set (real signing secret) | F-27 | webhook handlers |
+| `EXPOSE_API_DOCS` | `false` (hide Swagger/ReDoc/OpenAPI) | F-31 | `server.py` |
 | `JWT_SECRET` | 64-hex random | W3 | `utils/database.py` |
 
 **B · Always-on controls (no flag — verify they behave, don't toggle).**
@@ -91,9 +92,10 @@ them in the deploy env panel:
 | bcrypt work factor | `bcrypt.gensalt()` — library default cost **12** | F-02 |
 | SSRF guard | Always-on (`utils/ssrf_guard.py`, `utils/equipment_image_lookup.py`); denylist extendable via `SSRF_EXTRA_DENYLIST_HOSTS` | F-26 |
 
-> **Tester note:** Swagger UI (`/docs`, `/redoc`, `/openapi.json`) is currently
-> reachable. If exposing the API schema in the production/staging test env is not
-> desired, disable it at the FastAPI app level before kickoff.
+> **Tester note:** Swagger UI (`/docs`, `/redoc`, `/openapi.json`) is exposed by
+> default (dev/preview). Set **`EXPOSE_API_DOCS=false`** in the tested environment
+> to hide the API schema/docs (server.py gates `docs_url`/`redoc_url`/`openapi_url`
+> on this flag).
 
 ---
 
