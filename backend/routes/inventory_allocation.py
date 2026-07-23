@@ -507,6 +507,53 @@ async def install_pack(alloc_id: str, user=Depends(get_current_user)):
     }
 
 
+@router.get("/customers/pulse-link/candidates")
+async def pulse_link_candidates(q: str = "", user=Depends(get_current_user)):
+    """Search Pulse operator organisations to link a distribution customer to
+    their own dashboard. Owner/manager only."""
+    _require_ops_role(user)
+    query = {"account_type": {"$in": ["lite", "pulse_pro", "pro"]}}
+    if (q or "").strip():
+        import re as _re
+        query["name"] = {"$regex": _re.escape(q.strip()), "$options": "i"}
+    rows = await db.organizations.find(query, {"_id": 0, "id": 1, "name": 1, "account_type": 1}).limit(20).to_list(20)
+    return {"candidates": rows}
+
+
+@router.get("/customers/{company_id}/pulse-link")
+async def get_pulse_link(company_id: str, user=Depends(get_current_user)):
+    _require_ops_role(user)
+    of = _of(user)
+    c = await db.crm2_companies.find_one({**of, "id": company_id}, {"_id": 0, "id": 1, "name": 1, "linked_operator_org_id": 1})
+    if not c:
+        raise HTTPException(404, "Customer not found")
+    linked = None
+    if c.get("linked_operator_org_id"):
+        org = await db.organizations.find_one({"id": c["linked_operator_org_id"]}, {"_id": 0, "id": 1, "name": 1, "account_type": 1})
+        linked = org
+    return {"company_id": company_id, "linked_org": linked}
+
+
+@router.post("/customers/{company_id}/pulse-link")
+async def set_pulse_link(company_id: str, body: dict = Body(...), user=Depends(get_current_user)):
+    """Link (or clear) the customer's Pulse account so they see their deliveries."""
+    _require_ops_role(user)
+    of = _of(user)
+    c = await db.crm2_companies.find_one({**of, "id": company_id}, {"_id": 0, "id": 1})
+    if not c:
+        raise HTTPException(404, "Customer not found")
+    org_id = (body.get("org_id") or "").strip() or None
+    linked = None
+    if org_id:
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1})
+        if not org:
+            raise HTTPException(404, "Pulse organisation not found")
+        linked = org
+    await db.crm2_companies.update_one({"id": company_id}, {"$set": {"linked_operator_org_id": org_id, "updated_at": _now()}})
+    await _audit(user, "customer_pulse_linked", "crm2_company", company_id, {"linked_operator_org_id": org_id})
+    return {"ok": True, "linked_org": linked}
+
+
 @router.get("/allocations/{alloc_id}/certificate")
 async def download_certificate(alloc_id: str, user=Depends(get_current_user)):
     """Stream the branded installation certificate PDF (org-scoped)."""

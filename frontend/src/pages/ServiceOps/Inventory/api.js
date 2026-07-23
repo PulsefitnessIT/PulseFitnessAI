@@ -99,6 +99,9 @@ export const invApi = {
   logisticsPack: (id) => axios.get(`${base}/logistics/installs/${id}/pack`, auth()).then((r) => r.data),
   logisticsStartInstall: (id) => axios.post(`${base}/logistics/installs/${id}/start`, {}, auth()).then((r) => r.data),
   logisticsCompleteInstall: (id, body) => axios.post(`${base}/logistics/installs/${id}/complete`, body, auth()).then((r) => r.data),
+  pulseLinkCandidates: (q) => axios.get(`${base}/alloc/customers/pulse-link/candidates`, { ...auth(), params: { q } }).then((r) => r.data),
+  getPulseLink: (companyId) => axios.get(`${base}/alloc/customers/${companyId}/pulse-link`, auth()).then((r) => r.data),
+  setPulseLink: (companyId, orgId) => axios.post(`${base}/alloc/customers/${companyId}/pulse-link`, { org_id: orgId }, auth()).then((r) => r.data),
   customerPortal: (companyId) => axios.get(`${base}/alloc/customer-portal/${companyId}/equipment`, auth()).then((r) => r.data),
   allocSummary: () => axios.get(`${base}/alloc/summary`, auth()).then((r) => r.data),
 

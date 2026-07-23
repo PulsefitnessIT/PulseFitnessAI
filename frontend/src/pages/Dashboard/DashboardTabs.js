@@ -22,7 +22,7 @@ import { useUserPref } from '@/utils/userPrefs';
  *
  *   Pulse Fitness /dashboard (this component) — identical order + labels.
  */
-const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole }) => {
+const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, hasDeliveries, t, _userRole }) => {
   const pillBarRef = useRef(null);
   const [scrollable, setScrollable] = useState(false);
   const [hideStart] = useUserPref('hideStartTabs', false);
@@ -58,6 +58,7 @@ const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole })
   // Suppliers is owner/manager only — mirrors Pulse staff-tier behaviour.
   if (showSuppliers) tabs.push({ id: 'suppliers', label: t('dashboard.suppliers_tab'), icon: Truck });
   tabs.push({ id: 'gym-design', label: t('dashboard.gym_layout'), icon: LayoutGrid });
+  if (hasDeliveries) tabs.push({ id: 'deliveries', label: t('dashboard.deliveries', 'Deliveries'), icon: Truck });
 
   const triggerClass = 'flex-shrink-0 inline-flex items-center gap-2 px-4 text-xs sm:text-sm py-2.5 rounded-full font-semibold data-[state=active]:bg-[var(--color-brand-blue)] data-[state=active]:text-white data-[state=active]:shadow-lg';
 

@@ -95,6 +95,7 @@ from routes.inventory_allocation import router as inventory_allocation_router
 from routes.inventory_dealer_service import router as inventory_dealer_service_router
 from routes.inventory_intelligence import router as inventory_intelligence_router
 from routes.inventory_logistics import router as inventory_logistics_router
+from routes.customer_deliveries import router as customer_deliveries_router
 
 # Iter 215dn — Service Operations Phase 1 (replaces Sicon Service)
 from routes.svc.cases import router as svc_cases_router
@@ -308,6 +309,7 @@ _UNGATED_ROUTERS = (
     inventory_dealer_service_router,
     inventory_intelligence_router,
     inventory_logistics_router,
+    customer_deliveries_router,
     help_router,
     staffing_router,
     staffing_clock_router,

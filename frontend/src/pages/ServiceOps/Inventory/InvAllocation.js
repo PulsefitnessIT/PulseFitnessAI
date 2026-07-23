@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, ShieldCheck, Building2, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Clock, List, ClipboardList, FileText, Layers, AlertTriangle, Download, HardHat, RefreshCw, ExternalLink } from 'lucide-react';
+import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, ShieldCheck, Building2, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Clock, List, ClipboardList, FileText, Layers, AlertTriangle, Download, HardHat, RefreshCw, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, fmtDate, statusLabel } from './api';
 import { Card, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
@@ -222,6 +222,44 @@ function ScheduleModal({ alloc, onClose, onDone }) {
 const RISK_COLOR = { Low: 'bg-emerald-50 text-emerald-700 ring-emerald-200', Medium: 'bg-amber-50 text-amber-700 ring-amber-200', High: 'bg-orange-50 text-orange-700 ring-orange-200', Critical: 'bg-red-50 text-red-700 ring-red-200' };
 const YN = (v) => (v === true ? 'Yes' : v === false ? 'No' : '—');
 
+function PulseLinkRow({ companyId, companyName }) {
+  const [linked, setLinked] = useState(undefined);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  useEffect(() => { if (companyId) invApi.getPulseLink(companyId).then((d) => setLinked(d.linked_org || null)).catch(() => setLinked(null)); }, [companyId]);
+  const search = async (v) => { setQ(v); if (v.trim().length < 2) { setResults([]); return; } try { const d = await invApi.pulseLinkCandidates(v); setResults(d.candidates || []); } catch { setResults([]); } };
+  const link = async (org) => { try { await invApi.setPulseLink(companyId, org ? org.id : null); notify.success(org ? `Linked to ${org.name}` : 'Unlinked'); setLinked(org || null); setOpen(false); setQ(''); setResults([]); } catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); } };
+  if (linked === undefined) return null;
+  return (
+    <div className="rounded-xl border border-slate-200" data-testid="inv-pulse-link">
+      <div className="flex items-center justify-between px-4 py-2.5">
+        <div className="flex items-center gap-2 text-sm"><LinkIcon size={14} className="text-slate-500" /><span className="font-bold text-slate-800">Customer's Pulse account</span></div>
+        <button onClick={() => setOpen((o) => !o)} className="text-xs font-semibold text-cyan-700 hover:underline" data-testid="inv-pulse-link-toggle">{linked ? 'Change' : 'Link account'}</button>
+      </div>
+      <div className="px-4 pb-3 text-sm">
+        {linked ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700" data-testid="inv-pulse-link-current">{linked.name} — they'll see this delivery in their dashboard</span>
+        ) : (
+          <span className="text-xs text-slate-400">Not linked. Link the customer's Pulse account so they can track this delivery, install &amp; warranty.</span>
+        )}
+        {open && (
+          <div className="mt-2 rounded-lg border border-slate-200 p-2">
+            <input value={q} onChange={(e) => search(e.target.value)} placeholder="Search Pulse organisations…" className={inputCls} data-testid="inv-pulse-link-search" autoFocus />
+            <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+              {results.map((org) => (
+                <button key={org.id} onClick={() => link(org)} className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50" data-testid={`inv-pulse-link-option-${org.id}`}><span className="font-medium text-slate-800">{org.name}</span><span className="text-[11px] text-slate-400">{org.account_type}</span></button>
+              ))}
+              {q.trim().length >= 2 && results.length === 0 && <p className="px-2 py-1 text-xs text-slate-400">No matches.</p>}
+            </div>
+            {linked && <button onClick={() => link(null)} className="mt-1 text-xs font-semibold text-red-600 hover:underline" data-testid="inv-pulse-unlink">Unlink</button>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, packFetcher, footerExtra }) {
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -277,6 +315,9 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
             </div>
 
             {/* Site survey + H&S */}
+            {!readOnly && pack.allocation?.customer_company_id && (
+              <PulseLinkRow companyId={pack.allocation.customer_company_id} companyName={pack.visit?.customer_company_name} />
+            )}
             <div className="rounded-xl border border-slate-200">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
                 <div className="flex items-center gap-2"><FileText size={15} className="text-slate-500" /><span className="text-sm font-bold text-slate-800">Pre-install site survey</span></div>

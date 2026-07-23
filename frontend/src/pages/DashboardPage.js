@@ -47,6 +47,7 @@ const DashboardTabFallback = () => (
 import MobileBottomNav from '../components/shared/MobileBottomNav';
 import OverviewTab from './Dashboard/OverviewTab';
 import DashboardTabs from './Dashboard/DashboardTabs';
+import CustomerDeliveriesTab from './Deliveries/CustomerDeliveriesTab';
 import FaultDialogs from './Dashboard/FaultDialogs';
 import DocumentQA from '../components/shared/DocumentQA';
 import PullToRefresh from '../components/shared/PullToRefresh';
@@ -88,6 +89,12 @@ const DashboardPage = () => {
     if (hideStartTabs && activeTab === 'start') setActiveTab('overview');
   }, [hideStartTabs, activeTab]);
   const [reportSubTab, setReportSubTab] = useState('performance');
+  const [hasDeliveries, setHasDeliveries] = useState(false);
+  useEffect(() => {
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/customer/deliveries/summary`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } })
+      .then((r) => setHasDeliveries(!!r.data?.has_deliveries))
+      .catch(() => setHasDeliveries(false));
+  }, []);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMasterAdmin, setShowMasterAdmin] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -242,7 +249,7 @@ const DashboardPage = () => {
             <div className="mb-4 flex justify-start" data-testid="gymaxis-module-switcher-wrap">
               <ModuleSwitcher user={user} current="operations" />
             </div>
-            <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} showSuppliers={showSuppliersTab} t={t} />
+            <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} showSuppliers={showSuppliersTab} hasDeliveries={hasDeliveries} t={t} />
 
             {/* Proactive nudges (warranty, PPM, supplier SLA drift) */}
             {!showGlobal && (
@@ -282,6 +289,12 @@ const DashboardPage = () => {
               )}
               </Suspense>
             </TabsContent>
+
+            {hasDeliveries && (
+              <TabsContent value="deliveries" data-testid="deliveries-content">
+                <CustomerDeliveriesTab />
+              </TabsContent>
+            )}
 
             {/* Iter 215d2 — Start tab mirrors Pulse Fitness Pro: guided onboarding
                 surface for first-time operators. Reuses OperationsStartTab so

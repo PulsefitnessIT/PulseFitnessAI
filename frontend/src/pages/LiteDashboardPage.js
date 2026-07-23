@@ -26,6 +26,7 @@ import OnboardingWizard from './OnboardingWizard';
 import AddEquipmentDialog from '../components/equipment/AddEquipmentDialog';
 import LiteOverviewTab from './LiteDashboard/LiteOverviewTab';
 import LiteEquipmentTab from './LiteDashboard/LiteEquipmentTab';
+import CustomerDeliveriesTab from './Deliveries/CustomerDeliveriesTab';
 import LiteFaultsTab from './LiteDashboard/LiteFaultsTab';
 import LiteDocumentsTab from './LiteDashboard/LiteDocumentsTab';
 import LiteDialogs from './LiteDashboard/LiteDialogs';
@@ -128,6 +129,12 @@ const LiteDashboardPage = () => {
   const [allSitesActive, setAllSitesActive] = useState(false);
   const { t } = useTranslation();
   const [equipment, setEquipment] = useState([]);
+  const [hasDeliveries, setHasDeliveries] = useState(false);
+  useEffect(() => {
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/customer/deliveries/summary`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } })
+      .then((r) => setHasDeliveries(!!r.data?.has_deliveries))
+      .catch(() => setHasDeliveries(false));
+  }, []);
   const [issues, setIssues] = useState([]);
   const [files, setFiles] = useState([]);
   const [search, setSearch] = useState('');
@@ -729,7 +736,10 @@ const LiteDashboardPage = () => {
       { id: 'gym-layout', label: t('dashboard.gym_layout', 'Gym Layout'), icon: LayoutGrid },
     ];
   };
-  const TABS = buildTabs();
+  const TABS = [
+    ...buildTabs(),
+    ...(hasDeliveries ? [{ id: 'deliveries', label: t('dashboard.deliveries', 'Deliveries'), icon: Truck }] : []),
+  ];
   // Iter 241 — INVARIANT: if a tab pill is offered, its content must
   // render. Content gates derive from the SAME list as the pills so the
   // two can never diverge again (the production blank-tab bug happened
@@ -956,6 +966,13 @@ const LiteDashboardPage = () => {
                 getSeverityLabel={getSeverityLabel}
               />
             </TabsContent>
+
+            {/* Deliveries & Installations Tab — only present when a delivery is expected */}
+            {hasDeliveries && (
+              <TabsContent value="deliveries" data-testid="deliveries-content">
+                <CustomerDeliveriesTab />
+              </TabsContent>
+            )}
 
             {/* Equipment Tab */}
             <TabsContent value="equipment" data-testid="equipment-content">

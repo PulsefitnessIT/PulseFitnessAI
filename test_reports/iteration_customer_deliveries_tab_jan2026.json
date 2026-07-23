@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend testing for PulseFitness.ai Customer Deliveries tab feature. Verified: (1) ops dealer pack modal has 'Customer's Pulse account' row with link/change/unlink/search flow working; (2) Pulse operator (lite.docs@pulsedemo.test) sees a 'Deliveries' tab appended at the END of dashboard tab bar; (3) Deliveries tab shows 2 items (Elite Treadmill Runner 9000 - Installed + certificate + warranty, Spin Bike Pro 500 - Scheduled, no cert); (4) certificate button opens a new tab with authenticated PDF fetch (200 OK); (5) other tabs (Equipment, Faults, Documents) still work. All acceptance criteria PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "InvAllocation.js: the 'Unlink' button (data-testid=inv-pulse-unlink) is only rendered inside the expanded search panel (when toggle is 'Change'). This is fine but a minor UX nit — after selecting an option the panel collapses so the unlink is hidden. Acceptable per test spec since the requirement is that unlink is reachable via 'Change' -> 'Unlink', which works."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped as instructed)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (ops dealer); lite.docs@pulsedemo.test / LiteDocs123! (Pulse Pro operator, org 'Lite Docs Demo Gym')",
+  "seed_data_creation": "None (used pre-seeded ALL-LOGQA2 installed and ALL-LOGQA3 scheduled)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Ops list view (Installations > List) only shows scheduled/upcoming rows (ALL-LOGQA3). ALL-LOGQA2 (Installed/Active) does NOT appear in the Installations list because it is already installed — this is expected. Use ALL-LOGQA3 to exercise the pack-modal pulse link toggle/search/unlink cycle. To make login work, use direct /inventory?s=installations URL after login (sidebar link works too). Sidebar 'Installations' link goes to /inventory?s=installations. Installations default view is Calendar; click 'List' button to see rows. Login rate-limits after ~4 rapid attempts.",
+  "verified_flows": {
+    "ops_pack_pulse_link": {
+      "inv-pulse-link present in pack modal": true,
+      "inv-pulse-link-current shows 'Lite Docs Demo Gym'": true,
+      "inv-pulse-link-toggle opens search field": true,
+      "inv-pulse-link-search returns org options on 'Lite'": true,
+      "re-link picks option and updates current": true,
+      "inv-pulse-unlink clears link (toast 'Unlinked')": true,
+      "re-link back to Lite Docs Demo Gym works": true
+    },
+    "customer_deliveries_tab": {
+      "lite-tab-deliveries appended at end of tab bar": true,
+      "mobile-pill-deliveries also present": true,
+      "deliveries-content and customer-deliveries-tab rendered": true,
+      "ALL-LOGQA2 Elite Treadmill Runner 9000 Installed with warranty Jul 12 2028": true,
+      "customer-delivery-cert-ALL-LOGQA2 present": true,
+      "ALL-LOGQA3 Spin Bike Pro 500 Scheduled, no cert button": true,
+      "certificate click opens new tab with authenticated /api/customer/deliveries/LOGQA2-alloc/certificate (200)": true,
+      "no JS console errors on certificate click": true
+    },
+    "regression_other_tabs": {"Equipment/Faults/Documents still work": true}
+  }
+}
