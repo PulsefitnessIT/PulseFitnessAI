@@ -19,7 +19,16 @@ Deliveries, public pricing). Ran a focused security_audit_agent on those NEW sur
 - SEC-003 (P3) — FIXED. Added short-lived intent-scoped idempotency_key to both stripe.checkout.Session.
   create calls in payments.py (10-min bucket). Verified flex checkout still returns cs_test_ session.
 
-TODO carried: re-issue PEN_TEST_READINESS_CHECKLIST.md v1.3 with the new-module coverage rows.
+TODO DONE: PEN_TEST_READINESS_CHECKLIST.md re-issued as v1.3 — added §C coverage rows for the 6 new
+module surfaces (Inventory/Distribution, Logistics, Dealer, Staff, Customer Deliveries, Payments) with
+SEC-001/002/003 outcomes, and CORRECTED §B: the v1.2 flag table listed 5 env vars the code never reads
+(STRICT_SSRF_MODE, DISABLE_DEBUG_SURFACES, ENFORCE_BCRYPT_ROUNDS_MIN_12, CORS_ALLOWLIST, RATE_LIMIT_ENABLED)
++ a non-existent toggle script. Reality: those controls are ALWAYS-ON (CORS via CORS_ORIGINS, rate-limit
+in utils/security.py, bcrypt gensalt default cost 12, SSRF utils/ssrf_guard.py). Only 3 flags are truly
+env-gated (ENFORCE_MASTER_ADMIN_MFA, ENFORCE_EMAIL_RECIPIENT_VALIDATION, STRICT_AV_MODE). Shipped a REAL
+scripts/toggle_pentest_flags.sh (--on/--off/--check; safe python-dotenv set_key; print-only without a path).
+Also flagged: Swagger /docs is publicly reachable (disable for the test env if undesired). Cosmetic follow-up
+deferred: dealer/logistics portal shells fire /api/organization + /api/sites (now correctly 403 → console noise only).
 
 ────────────────────────────────────────────────────────────────────────
 

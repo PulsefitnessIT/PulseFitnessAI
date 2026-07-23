@@ -1,9 +1,31 @@
-# Pen-Test Readiness — Final Checklist (Iter 220bg · May 28, 2026)
+# Pen-Test Readiness — Final Checklist (Iter 220bg · May 28, 2026 · rev v1.3 2026-06)
 
-> **Status: ✅ READY FOR EXTERNAL TEST**
+> **Status: ✅ READY FOR EXTERNAL TEST** (v1.3 — new modules audited & folded in)
 >
 > All 33 risk-register findings (F-01 → F-33) are closed and
 > regression-tested.
+
+> ### 🔄 2026-06 UPDATE (v1.3) — scope extended to post-May-28 modules
+> The original sign-off (28 May 2026) predated the Inventory & Distribution
+> module, the Dealer/Logistics/Staff portals, Customer Deliveries and the public
+> pricing page. A focused audit of those surfaces (2026-06) added findings
+> **SEC-001 → SEC-003** and the coverage rows in §C. Outcome:
+> - **SEC-001 (HIGH) — FIXED & VERIFIED.** Portal logins (dealer/logistics/staff)
+>   were issued full-access JWTs and could reach operator APIs (broken
+>   function-level authorization, same-tenant). Fixed via operator-strict
+>   `get_current_user` + `get_current_user_portal` split in `utils/auth.py`.
+> - **SEC-002 (MEDIUM) — BY DESIGN.** `logistics` role writing install sign-offs
+>   is the intended on-site warranty-activation path (org+role gated).
+> - **SEC-003 (LOW) — FIXED.** `idempotency_key` added to Stripe checkout create.
+>
+> ### ⚠️ v1.3 CORRECTION to §B (env flags)
+> The v1.2 §B table listed several env-var names the codebase does **not** read
+> (`STRICT_SSRF_MODE`, `DISABLE_DEBUG_SURFACES`, `ENFORCE_BCRYPT_ROUNDS_MIN_12`,
+> `CORS_ALLOWLIST`, `RATE_LIMIT_ENABLED`) and a toggle script that did not exist.
+> The underlying controls **do exist** — most are **always-on**, not flag-gated.
+> §B below is now corrected to the real mechanism, and a real
+> `scripts/toggle_pentest_flags.sh` has been added for the three flags that ARE
+> env-gated.
 
 ## Document index — pen-test handover pack
 
@@ -45,23 +67,33 @@
 
 ## B · Staging environment confirmation
 
-The pen-tester should see all of the following enabled on day 1:
+The pen-tester should see all of the following on day 1. **Corrected v1.3** to the
+mechanism actually implemented in the codebase:
 
-| Env flag | Setting | Closes |
+**A · Env-gated flags (set to `true` in the deploy Environment Variables panel).**
+Run `bash scripts/toggle_pentest_flags.sh --on <path-to-.env>` to set these, or set
+them in the deploy env panel:
+
+| Env flag (real, code-read) | Setting | Closes | Where read |
+|---|---|---|---|
+| `ENFORCE_MASTER_ADMIN_MFA` | `true` | F-17 | `utils/auth_guards.py` |
+| `ENFORCE_EMAIL_RECIPIENT_VALIDATION` | `true` | F-22 | `utils/email.py` |
+| `STRICT_AV_MODE` | `true` | F-24 | `utils/malware_scan.py` |
+| `STRIPE_WEBHOOK_SECRET` | set (real signing secret) | F-27 | webhook handlers |
+| `JWT_SECRET` | 64-hex random | W3 | `utils/database.py` |
+
+**B · Always-on controls (no flag — verify they behave, don't toggle).**
+
+| Control | Mechanism | Closes |
 |---|---|---|
-| `ENFORCE_MASTER_ADMIN_MFA` | `true` | F-17 |
-| `ENFORCE_EMAIL_RECIPIENT_VALIDATION` | `true` | F-22 |
-| `STRICT_AV_MODE` | `true` | F-24 |
-| `STRICT_SSRF_MODE` | `true` | F-26 |
-| `DISABLE_DEBUG_SURFACES` | `true` | F-31 |
-| `ENFORCE_BCRYPT_ROUNDS_MIN_12` | `true` | F-02 |
-| `CORS_ALLOWLIST` | comma list (no `*`) | F-05 |
-| `DEBUG` | `false` | F-31 |
-| `RATE_LIMIT_ENABLED` | `true` | F-09 |
-| `STRIPE_WEBHOOK_SECRET` | set | F-27 |
-| `JWT_SECRET` | 64-hex random | W3 |
+| CORS allow-list | `CORS_ORIGINS` env (comma list); `*` rejected in production, brand defaults | F-05 |
+| Rate limiting | Always-on in-memory per-IP limiter (`utils/security.py`); login tunable via `LOGIN_RATE_LIMIT_MAX`/`LOGIN_RATE_LIMIT_WINDOW`; break-glass via `RATE_LIMIT_BYPASS_SECRET` | F-09 |
+| bcrypt work factor | `bcrypt.gensalt()` — library default cost **12** | F-02 |
+| SSRF guard | Always-on (`utils/ssrf_guard.py`, `utils/equipment_image_lookup.py`); denylist extendable via `SSRF_EXTRA_DENYLIST_HOSTS` | F-26 |
 
-Toggle script: `/app/backend/scripts/toggle_pentest_flags.sh --on`.
+> **Tester note:** Swagger UI (`/docs`, `/redoc`, `/openapi.json`) is currently
+> reachable. If exposing the API schema in the production/staging test env is not
+> desired, disable it at the FastAPI app level before kickoff.
 
 ---
 
@@ -86,6 +118,12 @@ Toggle script: `/app/backend/scripts/toggle_pentest_flags.sh --on`.
 | Public Widget | ✅ | n/a (public) | ✅ | F-21 — 60/min/IP + access log |
 | Public Demo Form | ✅ | n/a (public) | ✅ | Honeypot + rate-limit + recipient validation |
 | AI surfaces (assistant, SEO, MOD triage, CRM AI, support AI) | ✅ | ✅ | ✅ | Prompt-injection guard + token budget cap |
+| Inventory & Distribution (P1–P7) | ✅ | ✅ | ✅ | Org-scoped find-by-id (404 cross-tenant); ops-role writes; cert/attachment downloads org-scoped |
+| Logistics portal (role=logistics) | ✅ | ✅ (SEC-002 by design) | ✅ | Confined to own portal (SEC-001 fix); write path = on-site sign-off only |
+| Dealer portal (role=dealer_user) | ✅ | ✅ (SEC-001 fix) | ✅ | Sees own dealer_id only; blocked from operator APIs |
+| Staff portal (recruit/employee) | ✅ | ✅ (SEC-001 fix) | ✅ | Own rota/timesheet/holidays/docs; blocked from operator APIs; single-use expiring invite/reset tokens |
+| Customer Deliveries | ✅ | n/a (customer) | ✅ | Strictly scoped to `linked_operator_org_id`; no internal fields leak |
+| Payments / multi-currency | ✅ | ✅ | ✅ | Public `pricing/live` = amounts only; checkout validates currency/module/cycle server-side; idempotency_key (SEC-003 fix) |
 
 ---
 
