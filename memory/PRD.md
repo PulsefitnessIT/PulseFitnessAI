@@ -19,8 +19,17 @@ FIX (option A, going-forward, all data):
 VERIFIED via /tmp/verify_capex.py direct-function test: resolver → {4500, Treadmill}; customer equipment doc
 written with equipment_type=Treadmill, purchase_cost=4500, install_date set. CAPEX (routes/capex.py) confirmed
 by code to consume purchase_cost/replacement_cost (cost), equipment_type (profile), install_date (age).
-NOTE: going-forward only (no backfill of pre-existing delivered assets — CSV backfill remains P2 backlog).
+NOTE: going-forward only (no backfill needed — confirmed no legacy machines in the system).
 Not yet run: full UI golden-path + CAPEX screenshot (demo distribution data was empty in this fork DB).
+
+FOLLOW-UP (2026-06): "Delivered by us" CAPEX filter shipped. Backend routes/capex.py: each equipment result
+now carries supplied_by_us (source==distribution_install OR asset_source==dealer_distribution), and
+/capex/analysis returns a supplied_by_us summary {count, total_assets, share_pct, total_replacement_value,
+forecast_12m}. Frontend pages/CapexIntelligenceTab.js: added a source segmented filter (Whole estate /
+Delivered by us / Rest of estate, testids capex-source-*) that composes with the status filter, plus a
+stat bar (capex-supplied-bar / capex-supplied-stat). VERIFIED: backend returns the block (iso demo org
+count=1, 7% share); frontend compiles clean. Visual click-through not captured (CAPEX sits in the Operations
+area behind multi-area nav) — low risk, JSX mirrors the adjacent status-chip pattern.
 
 ────────────────────────────────────────────────────────────────────────
 

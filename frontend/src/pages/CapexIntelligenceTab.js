@@ -1038,6 +1038,7 @@ const CapexIntelligenceTab = () => {
  const [downloadingPdf, setDownloadingPdf] = useState(false);
  const [expanded, setExpanded] = useState({});
  const [filter, setFilter] = useState('all');
+ const [sourceFilter, setSourceFilter] = useState('all');
  const [plan, setPlan] = useState(null);
  const [planYears, setPlanYears] = useState(5);
  const [planTaper, setPlanTaper] = useState(0);
@@ -1151,7 +1152,8 @@ const CapexIntelligenceTab = () => {
  if (loading) return <div className="text-[var(--color-text-muted)] text-center py-16"><Loader2 className="animate-spin mx-auto mb-2" size={24} />Loading CAPEX analysis...</div>;
  if (!data) return <div className="text-[var(--color-text-muted)] text-center py-16">Unable to load CAPEX data</div>;
 
- const filteredEquipment = filter === 'all' ? data.equipment : data.equipment.filter(e => e.capex.status === filter);
+ const bySource = (e) => sourceFilter === 'all' ? true : sourceFilter === 'supplied' ? !!e.supplied_by_us : !e.supplied_by_us;
+ const filteredEquipment = (filter === 'all' ? data.equipment : data.equipment.filter(e => e.capex.status === filter)).filter(bySource);
 
  return (
  <div className="space-y-6" data-testid="capex-intelligence-tab">
@@ -1299,6 +1301,32 @@ const CapexIntelligenceTab = () => {
  ))}
  </div>
  </div>
+ {data.supplied_by_us?.count > 0 && (
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 p-3 rounded-lg bg-[var(--color-brand-blue)]/5 border border-[var(--color-brand-blue)]/20" data-testid="capex-supplied-bar">
+ <div className="flex gap-1.5 flex-wrap">
+ {[
+ { key: 'all', label: 'Whole estate' },
+ { key: 'supplied', label: 'Delivered by us' },
+ { key: 'estate', label: 'Rest of estate' },
+ ].map(s => (
+ <button
+ key={s.key}
+ onClick={() => setSourceFilter(s.key)}
+ className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+ sourceFilter === s.key ? 'bg-[var(--color-brand-blue)] text-white' : 'bg-white/5 text-[var(--color-text-muted)] hover:bg-white/10'
+ }`}
+ data-testid={`capex-source-${s.key}`}
+ >
+ {s.label}
+ </button>
+ ))}
+ </div>
+ <div className="text-xs text-[var(--color-text-muted)]" data-testid="capex-supplied-stat">
+ <span className="text-[var(--color-brand-blue)] font-semibold">{data.supplied_by_us.count}</span> assets delivered by us ({data.supplied_by_us.share_pct}%) · 12-mo replacement forecast{' '}
+ <span className="text-white font-semibold">£{Number(data.supplied_by_us.forecast_12m || 0).toLocaleString()}</span>
+ </div>
+ </div>
+ )}
  <div className="max-h-[600px] overflow-y-auto">
  {filteredEquipment.length > 0 ? filteredEquipment.map(item => (
  <EquipmentRow

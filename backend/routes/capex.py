@@ -296,6 +296,13 @@ def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq
         "location": equip.get("location", "Unassigned") or "Unassigned",
         "site_id": equip.get("site_id"),
         "organization_id": equip.get("organization_id"),
+        # True when the asset was supplied & installed through our own
+        # distribution pipeline (moat) — lets the board isolate the
+        # replacement-forecast value of the kit we delivered.
+        "supplied_by_us": bool(
+            equip.get("source") == "distribution_install"
+            or equip.get("asset_source") == "dealer_distribution"
+        ),
         "purchase_date": equip.get("purchase_date"), "warranty_expiry": equip.get("warranty_expiry"),
         "service_contract_end": equip.get("service_contract_end"),
         "total_faults": stats.get("total_issues", 0), "open_faults": stats.get("open_issues", 0),
@@ -487,6 +494,21 @@ async def get_capex_analysis(
         "assets_missing_cost": missing_cost[:200],
     }
 
+    # "Delivered by us" — isolate the assets supplied through our own
+    # distribution pipeline so the board sees the replacement-forecast
+    # value of the estate we installed (vs. the rest).
+    supplied = [r for r in results if r.get("supplied_by_us")]
+    supplied_by_us = {
+        "count": len(supplied),
+        "total_assets": total,
+        "share_pct": round(100 * len(supplied) / total) if total else 0,
+        "total_replacement_value": round(sum((r.get("capex") or {}).get("replacement_cost", 0) or 0 for r in supplied), 2),
+        "forecast_12m": round(sum(
+            (r.get("capex") or {}).get("replacement_cost", 0) or 0
+            for r in supplied if (r.get("capex") or {}).get("replace_within_months")
+        ), 2),
+    }
+
     return {
         "equipment": results,
         "summary": summary,
@@ -508,6 +530,8 @@ async def get_capex_analysis(
         "capital_budget": capital_budget,
         # Completeness of the actual-cost data behind the valuations.
         "data_health": data_health,
+        # Replacement-forecast value of assets we supplied & installed.
+        "supplied_by_us": supplied_by_us,
     }
 
 
