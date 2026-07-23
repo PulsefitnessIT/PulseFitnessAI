@@ -1,0 +1,47 @@
+{
+  "summary": "Release-readiness re-verification for director demo. Backend RBAC + multi-site isolation gates confirmed. Public /pulse-pricing page renders all 4 modules, flagship badge, currency+billing toggles, service-provider cards, FAQ, and ROI CTA (opens login modal). One UI bug found: ROI calculator sliders do NOT recompute the 'Estimated annual saving' text — the value stays at £6,912/yr regardless of slider changes (though the individual slider labels DO update).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PulsePricingExtras — ROI Calculator",
+        "issue": "Adjusting any of the three sliders (Machines in estate / Avg engineer callout / Callouts per month) does not update the [data-testid=\"roi-annual-saving\"] value nor the sub-line 'X every month in avoided callouts'. Slider labels (e.g. '80' -> '85') do update, so the input state is bound but the derived saving calculation is NOT recomputed. Value stays frozen at £6,912/yr. Additionally the headline saving number in the dark card renders blurred/animated indefinitely (likely a CountUp animation stuck on initial mount).",
+        "selector": "[data-testid=\"pulse-roi-calculator\"] input[type=\"range\"], [data-testid=\"roi-annual-saving\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/pulse-pricing ROI card",
+        "issues": ["The large 'Estimated saving' number renders visually blurred (motion/CountUp animation appears not to settle) — the aria/textContent reads a static value while the visual shows a smeared number. Poor legibility for demo."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_rbac_site_isolation_jan2026.py",
+    "/app/test_reports/pytest/rbac_site_jan2026.xml"
+  ],
+  "action_items": [
+    "Fix ROI calculator: ensure Estimated annual saving recomputes on slider change (likely the useMemo/useEffect dependency array or the CountUp component is keyed to initial values only). Also verify the CountUp animation settles instead of rendering a blurred loop."
+  ],
+  "critical_code_review_comments": [
+    "RBAC gate for clear_demo_data returns HTTP 403 correctly for logistics role with message 'This action requires one of: admin, manager, marketing_admin, operator, owner' — verified via automated test. Owner is allowed (not 401/403).",
+    "Multi-site filter enforces 403 site_access_denied for /api/equipment, /api/issues, /api/gym-health-score when a Site-A-restricted manager passes site_id=iso-demo-site-b — all three endpoints verified.",
+    "GET /api/payments/pricing/live is publicly reachable and returns pricing payload; front-end binds correctly (GBP £69/49/79, EUR €79/59/89, USD $99/69/119; annual = monthly*10).",
+    "ROI calculator computes 12 * £120 * 0.4 * 12 = £6912 as a constant — the value is not reactive to slider state; needs investigation in PulsePricingExtras.js."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_rbac_site_isolation_jan2026.py (new)"
+  ],
+  "success_rate": {"backend": "100% (7/7 pytest)", "frontend": "~90% — all sections render & most interactions work; ROI slider→saving reactivity broken"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!, manager@isodemo.com / IsoDemo123!, logi1@isodemo.com / LogiPass123! (as provided in review request)",
+  "seed_data_creation": "None. Owner clear_demo_data call was made with params.dry_run=true; response was non-403 (gate confirmed to allow owner).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend RBAC + site isolation are solid; do not re-test unless routes change. For frontend, focus on retesting the ROI calculator after fix — the sliders update React state for the value displayed next to their label, but the derived useMemo for 'saving' appears stale. Cookie banner is dismissible via button:has-text('Accept'). All other /pulse-pricing sections (modules x4, flagship badge, currency toggles GBP/EUR/USD, billing monthly/annual, service provider cards sp-card-*, FAQ items faq-item-0..5 with toggle expand) work as spec'd.",
+  "rca_of_the_issue": "ROI annual saving frozen: the label numbers beside each slider update on drag/keyboard (so the range input is a controlled component with working onChange), but [data-testid=roi-annual-saving] never changes. Likely causes: (a) the annual saving is memoized against a stale dependency (e.g. hardcoded constants instead of the state variables), or (b) it's rendered inside a CountUp component whose 'end' prop is captured at mount and not re-keyed on value change. Fix location: /app/frontend/src/components/pulse/PulsePricingExtras.js — check the useMemo/useEffect and the CountUp end prop for the saving figure. Reproduction: open /pulse-pricing → scroll to 'See what Pulse pays back' → drag any slider; label updates but the black 'Estimated saving' card stays at £6,912/yr and £576/month."
+}
