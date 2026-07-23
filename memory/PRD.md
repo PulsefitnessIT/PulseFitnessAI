@@ -1,3 +1,38 @@
+# ═══ 2026-06 · CUSTOMER-FACING DELIVERIES & INSTALLATIONS (in the operator dashboard) — VERIFIED 100% FE ═══
+User: surface the customer's deliveries/installs/warranty INSIDE their existing operations portal (no new deliveries
+portal). Customers receiving Pulse equipment are eligible for Pulse Lite (can upgrade to Pro). Choices: manual link of
+a distribution customer → their Pulse org; customer sees a NEW top-line "Deliveries" tab ONLY when a delivery exists,
+showing upcoming installs + status + warranty + Installation Certificate; nothing internal; on Lite/Pro + Full
+dashboards. (Also ran a HubSpot benchmark — HubSpot has a customer portal but NO physical install/warranty lifecycle,
+so this is a differentiator.)
+
+DELIVERED:
+  • LINK: crm2_companies.linked_operator_org_id maps a distribution customer to their Pulse organisation. Ops-only
+    endpoints (inventory_allocation.py): GET /customers/pulse-link/candidates?q=, GET/POST /customers/{id}/pulse-link.
+    UI: "Customer's Pulse account" row (PulseLinkRow) inside the Install pack modal — ops-only (hidden in the read-only
+    logistics view): search Pulse orgs, link/unlink.
+  • CUSTOMER VIEW: routes/customer_deliveries.py (prefix /api/customer, registered) — GET /deliveries (customer-safe:
+    model/serial/site/planned date/status/warranty/certificate; NO H&S/drawings/notes), /deliveries/summary (nav
+    flag), /deliveries/{id}/certificate (streams the PDF). Strictly scoped: only companies with
+    linked_operator_org_id == the signed-in user's org.
+  • FRONTEND: shared CustomerDeliveriesTab.js (cards grouped by status, warranty chip, certificate download via authed
+    blob fetch). Wired into LiteDashboardPage (Lite/Pro) and DashboardPage/DashboardTabs (Full) — a "Deliveries" tab is
+    APPENDED AT THE END only when GET /deliveries/summary.has_deliveries is true.
+
+VERIFIED: backend curl (link candidates/set; operator sees 2 deliveries — LOGQA2 installed+cert+warranty, LOGQA3
+scheduled) + testing_agent frontend 100%, 0 bugs (iteration_customer_deliveries_tab_jan2026.json — link/change/unlink,
+Deliveries tab appended, both items render, certificate opens 200, regression OK).
+DEMO: dealer owner@isodemo.com links from the pack; customer lite.docs@pulsedemo.test/LiteDocs123! (org Lite Docs Demo
+Gym) sees the Deliveries tab on /pulse. AlphaCo (iso-cA) pre-linked.
+
+ROADMAP (deferred): email certificate via Resend (key in .env); post-install/service CSAT survey; full customer
+self-serve portal (this tab is the in-dashboard version).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · INSTALLATION CERTIFICATE (PROOF-OF-INSTALL PDF) + HUBSPOT BENCHMARK ═══
 Continuation of Phase 2. Benchmarked HubSpot (crawled knowledge.hubspot.com): HubSpot Service Hub + Commerce cover
 tickets/SLAs, customer portal, CSAT/feedback surveys, KB, quotes/invoices/payments/products — but have NO physical
