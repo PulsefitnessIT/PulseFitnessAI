@@ -129,10 +129,10 @@ export default function PulseUpgradeRequestModal({ open, onClose, seed = {} }) {
  <div className="relative flex items-start justify-between gap-4">
  <div>
  <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--pulse-primary)] mb-2">
- <Zap size={11} /> Pulse Pro · Upgrade
+ <Zap size={11} /> Managed · Upgrade
  </div>
  <h2 className="text-white text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.01em' }}>
- {done ? 'Request received' : 'Upgrade to Pulse Pro'}
+ {done ? 'Request received' : 'Upgrade to Managed'}
  </h2>
  <p className="text-white/70 text-sm mt-1">
  {done

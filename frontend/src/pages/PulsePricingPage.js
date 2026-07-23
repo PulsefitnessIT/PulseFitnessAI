@@ -13,6 +13,7 @@ import { ArrowLeft, ShieldCheck, Sparkles } from 'lucide-react';
 
 import PulseUpgradeRequestModal from '@/components/pulse/PulseUpgradeRequestModal';
 import PulseModulePricing from '@/components/pulse/PulseModulePricing';
+import PulsePricingExtras from '@/components/pulse/PulsePricingExtras';
 import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
 
@@ -109,6 +110,9 @@ export default function PulsePricingPage({ onLogin }) {
 
         {/* Lite tier for existing Pulse Fitness equipment customers */}
         <PlansLitePro onSignIn={openLogin} onUpgrade={openUpgrade} />
+
+        {/* ROI calculator · service-provider tiers · FAQ */}
+        <PulsePricingExtras onStart={openLogin} />
 
         <PulseFooter />
         <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLogin={onLogin} />

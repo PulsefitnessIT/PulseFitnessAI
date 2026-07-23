@@ -1079,7 +1079,7 @@ function GymFloorShowcase() {
         <Reveal className="lg:col-span-7" testId="gym-floor-copy-col">
           <motion.div variants={FADE_UP} className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-4">
             <span className="h-px w-6 bg-[rgb(var(--rgb-pulse-primary)/0.5)]" />
-            {t('pulse.gf_eyebrow', 'New for Pulse Pro')}
+            {t('pulse.gf_eyebrow', 'New for Managed')}
           </motion.div>
           <motion.h2 variants={FADE_UP} className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-[1.15] mb-5">
             {t('pulse.gf_title', 'Gym Floor — every fault, attributed to a real person.')}
@@ -1141,7 +1141,7 @@ function GymFloorShowcase() {
               {t('pulse.gf_cta', 'See how it fits the workflow')} <ArrowRight size={14} />
             </a>
             <span className="text-[11px] text-white/40">
-              {t('pulse.gf_note', 'Included on Pulse Pro · No extra cost')}
+              {t('pulse.gf_note', 'Included on Managed · No extra cost')}
             </span>
           </motion.div>
         </Reveal>
@@ -1761,7 +1761,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
             {t('pulse.lm_forgot', 'Forgot password?')}
           </button>
           <p className="text-[11px] text-[var(--color-slate-400)] text-center pt-1">
-            {t('pulse.lm_note', 'Access level (Lite or Pro) is determined by your account')}
+            {t('pulse.lm_note', 'Access level (Lite or Managed) is determined by your account')}
           </p>
         </form>
       </DialogContent>

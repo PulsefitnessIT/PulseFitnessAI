@@ -1,3 +1,28 @@
+# ═══ 2026-06 · "PRO" TERMINOLOGY SWEEP (A) + PRICING MARKETING SECTIONS (B) ═══
+A) Renamed the equipment-customer upgrade tier "Pro"/"Pulse Pro" -> "Managed" everywhere user-facing, so "Pulse
+   Fitness Pro" now unambiguously = the Operations module. Edits (t() default strings, en shown by default):
+   PulseLandingPage.js gf_eyebrow ('New for Managed'), gf_note ('Included on Managed'), cta_sub ('upgrade to
+   Managed'), lm_note ('Lite or Managed'), PlansLitePro card title 'Managed' + 'Managed includes' + footnote;
+   PulseUpgradeRequestModal.js ('Managed · Upgrade', 'Upgrade to Managed'). Kept "Pulse Fitness Pro" in
+   PulseModulePricing (Operations flagship). Code COMMENTS mentioning Pro left as-is (non-user-facing).
+
+B) NEW components/pulse/PulsePricingExtras.js added to /pulse-pricing (after PlansLitePro), on-brand Pulse cyan:
+   - ROI/savings calculator (sliders: machines / avg callout £ / callouts per month -> annual saving, assumes AI
+     triage resolves ~40% remotely; dark panel result card + CTA). testids: pulse-roi-calculator, roi-annual-saving, roi-cta.
+   - Service-provider tiers (Service Desk, Engineer App feature cards + "Talk to us" CTA). testids pulse-service-provider, sp-card-*, sp-cta-*.
+   - FAQ accordion (6 Q&As, expand/collapse). testids pulse-faq, faq-item-N, faq-toggle-N.
+   All CTAs -> onStart (openLogin).
+
+VERIFIED: compiles clean; /pulse-pricing module section visually confirmed (Operations £69 "Pulse Fitness Pro"
+Recommended, CRM £69, Marketing £49, Memberships £79, £/€/$ + Monthly/Annual "Save 16.7%"). The ROI/service/FAQ
+sections COMPILE + are wired but NOT visually screenshot-confirmed (screenshot tool won't scroll past the sticky
+cookie banner on this page). Module prices load async — brief delay before they populate.
+REMINDER: preview only; production needs redeploy.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · PUBLIC UNIFIED PRICING PAGE (/pulse-pricing) — MODULES + LITE/MANAGED ═══
 Founder: landing "Plans" nav pointed at the old Lite/Pro page; the new module pricing wasn't public. Decision:
 ONE public pricing page = modules as the product (primary) + Lite tier for equipment customers (secondary); "Pulse
