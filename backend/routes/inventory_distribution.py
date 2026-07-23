@@ -476,6 +476,15 @@ async def push_quote_to_distribution(quote_id: str, user: dict) -> dict:
     )
     created = await create_order(body, user)
     order = created.get("order") or {}
+    # Automated customer portal onboarding (best-effort — never blocks the order).
+    if company and company.get("id"):
+        try:
+            import asyncio
+            from routes.pulse_onboarding import provision_customer_portal
+            asyncio.create_task(provision_customer_portal(
+                company_id=company["id"], order_ref=order.get("reference", ""), owner_email=user.get("email")))
+        except Exception:
+            logger.exception("[pulse-onboarding] dispatch failed")
     return {
         "ok": True,
         "order_id": order.get("id"),

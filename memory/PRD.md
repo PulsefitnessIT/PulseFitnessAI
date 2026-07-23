@@ -1,3 +1,38 @@
+# ═══ 2026-06 · AUTOMATED CUSTOMER PORTAL ONBOARDING ON ORDER CONFIRMATION (VERIFIED E2E, backend-only) ═══
+User: once an order is confirmed on CRM, automatically email the main customer to set up their portal access — remove
+human interaction. Choices (all defaults confirmed): trigger = "Send to Distribution"; recipient = CRM company's
+primary contact email (skip+flag if none); auto-create a Pulse LITE org + owner + email a set-up link; skip if already
+linked; notify the order owner.
+
+DELIVERED (routes/pulse_onboarding.py — best-effort, in-process, never blocks the order):
+  • provision_customer_portal(company_id, order_ref, owner_email) — atomically CLAIMS the company (find_one_and_update
+    guard) so it's idempotent/no duplicates. Resolves the main contact (company.primary_contact_email, else first
+    crm2_contact with an email). Then:
+    - No email → state 'skipped_missing_email' + notify order owner to add one.
+    - Email already has a Pulse account → link crm2_companies.linked_operator_org_id to it, state
+      'linked_existing_account', notify owner (no invite).
+    - Otherwise → create a Pulse LITE organization (account_type='lite', created_via='distribution_onboarding') + a
+      pending OWNER user (unusable random bcrypt hash until they set one), a password_reset_tokens doc
+      (purpose='portal_setup', 72h, single-use), link the CRM company to the new org, and email a branded
+      "Set up your Pulse portal access" link → {app_url}/reset-password?token=... (existing reset page). Order owner
+      notified on send / on failure.
+  • Hook: inventory_distribution.push_quote_to_distribution fires provision_customer_portal via asyncio.create_task
+    (try/except) right after order creation. Reuses existing Resend send_email/wrap_branded + password_reset flow.
+
+VERIFIED E2E via curl: push→provision creates Lite org+owner+setup token+link, state 'sent_pending_password';
+re-run → skipped (already_linked); missing-email path → 'skipped_missing_email' + flag; POST /auth/reset-password
+(fields: token, password) sets the password; login → role owner, account_type lite, token issued → lands on /pulse
+where the Deliveries tab shows their install. No new frontend (uses existing /reset-password page). QA data wiped.
+NOTE: onboarding email sends via REAL Resend (key in .env); it's best-effort and won't block the order.
+
+Full circle now automated: accepted CRM quote → Send to Distribution → order + AUTO customer onboarding email →
+customer self-sets-up Pulse Lite → sees Deliveries/install/warranty → sign-off → certificate.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · CUSTOMER-FACING DELIVERIES & INSTALLATIONS (in the operator dashboard) — VERIFIED 100% FE ═══
 User: surface the customer's deliveries/installs/warranty INSIDE their existing operations portal (no new deliveries
 portal). Customers receiving Pulse equipment are eligible for Pulse Lite (can upgrade to Pro). Choices: manual link of
