@@ -14,6 +14,7 @@ from utils.database import (
     RESEND_API_KEY,
 )
 from utils.auth import get_current_user
+from utils.stripe_catalog import resolve_price_id, pricing_summary, SUPPORTED_CURRENCIES, get_catalog
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -103,6 +104,49 @@ async def get_pricing_catalog() -> dict:
             PRICING_CATALOG["bundle"]["stripe_price_id"]
             and PRICING_CATALOG["bundle"]["site_addon_stripe_price_id"]
         ),
+    }
+
+
+# Eurozone / EU-EEA countries -> price in EUR. US -> USD. Everything else -> GBP.
+_EUR_COUNTRIES = {
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU",
+    "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES",
+    "SE", "IS", "LI", "NO",
+}
+
+
+def detect_currency(request: Request) -> str:
+    """Best-effort currency from the request's region (edge country header,
+    else Accept-Language). Falls back to GBP."""
+    country = (
+        request.headers.get("cf-ipcountry")
+        or request.headers.get("x-vercel-ip-country")
+        or request.headers.get("x-ipcountry")
+        or ""
+    ).upper()
+    if not country or country in ("XX", "T1"):
+        import re
+        m = re.search(r"[a-zA-Z]{2}-([A-Z]{2})", request.headers.get("accept-language", "") or "")
+        country = m.group(1).upper() if m else ""
+    if country == "US":
+        return "usd"
+    if country in _EUR_COUNTRIES:
+        return "eur"
+    return "gbp"
+
+
+@router.get("/payments/pricing/live")
+async def get_live_pricing(request: Request, currency: str | None = None) -> dict:
+    """Public: per-currency module pricing pulled live from Stripe + the
+    visitor's auto-detected currency (overridable via ?currency=)."""
+    detected = (currency or detect_currency(request)).lower()
+    if detected not in SUPPORTED_CURRENCIES:
+        detected = "gbp"
+    return {
+        "detected_currency": detected,
+        "currencies": list(SUPPORTED_CURRENCIES),
+        "pricing": pricing_summary(),
+        "annual_discount_pct": PRICING_CATALOG["annual_discount_pct"],
     }
 
 
@@ -202,6 +246,11 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
     origin_url = body.get("origin_url", "").rstrip("/")
     if not origin_url:
         raise HTTPException(status_code=400, detail="origin_url is required")
+    currency = (body.get("currency") or "gbp").lower()
+    if currency not in SUPPORTED_CURRENCIES:
+        currency = "gbp"
+    billing_cycle = "annual" if str(body.get("billing_cycle", "monthly")).lower() in ("annual", "year", "yearly") else "monthly"
+    is_annual = billing_cycle == "annual"
     plan = body.get("plan")
     line_items: list[dict] = []
     package_name = ""
@@ -224,11 +273,14 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
         mod = next((m for m in PRICING_CATALOG["modules"] if m["id"] == module_id), None)
         if not mod:
             raise HTTPException(status_code=400, detail=f"Unknown module: {module_id}")
-        if not mod["stripe_price_id"]:
-            raise HTTPException(status_code=501, detail=f"Stripe Price ID for {module_id} not configured")
-        line_items.append({"price": mod["stripe_price_id"], "quantity": 1})
+        price_id, resolved_ccy = resolve_price_id(module_id, currency, billing_cycle)
+        if not price_id:
+            raise HTTPException(status_code=501, detail=f"Stripe Price for {module_id} ({currency}/{billing_cycle}) not configured")
+        currency = resolved_ccy or currency
+        line_items.append({"price": price_id, "quantity": 1})
         package_name = f"Pulse Fitness · {mod['name']}"
-        total_amount = mod["monthly"]
+        _node = get_catalog().get(module_id, {}).get(currency, {}).get("year" if is_annual else "month", {})
+        total_amount = (_node.get("unit_amount") or 0) / 100 or (mod["annual"] if is_annual else mod["monthly"])
     else:
         raise HTTPException(status_code=400, detail="plan must be 'bundle' or 'module'")
 
@@ -236,6 +288,7 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
     metadata = {
         "user_id": user["id"], "user_email": user["email"],
         "plan_kind": plan, "package_name": package_name,
+        "currency": currency, "billing_cycle": billing_cycle,
         **({**trial_meta, "tier": plan} if trial_meta else {}),
         **({"site_count": str(body.get("site_count", 1))} if plan == "bundle" else {}),
         **({"module_id": body.get("module_id", "")} if plan == "module" else {}),
@@ -262,7 +315,7 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
         "plan_kind": plan,
         "package_name": package_name,
         "amount": total_amount,
-        "currency": "gbp",
+        "currency": currency,
         "payment_status": "pending",
         "metadata": metadata,
         "created_at": datetime.now(timezone.utc).isoformat(),

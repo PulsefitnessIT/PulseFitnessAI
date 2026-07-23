@@ -112,7 +112,7 @@ const AdminSidebar = ({
  : SIDEBAR_ITEMS;
  return (
  <aside
- className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col transform transition-transform duration-200 ease-in-out lg:static lg:w-64 lg:translate-x-0 lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+ className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col transform transition-transform duration-200 ease-in-out lg:static lg:w-[19rem] lg:translate-x-0 lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
  data-testid="admin-sidebar"
  >
  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -208,7 +208,7 @@ const AdminSidebar = ({
  <div className="flex items-center gap-1">
  <button
  onClick={onPulseSwitch}
- className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors whitespace-nowrap"
  data-testid="portal-switch-pulse"
  >
  <Wrench size={16} className="text-blue-500" /> Pulse Fitness Portal
@@ -229,7 +229,7 @@ const AdminSidebar = ({
  <div className="flex items-center gap-1">
  <button
  onClick={() => { window.location.href = '/service-desk'; }}
- className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors whitespace-nowrap"
  data-testid="portal-switch-service-desk"
  >
  <HeadphonesIcon size={16} className="text-orange-500" /> Service Desk
@@ -249,7 +249,7 @@ const AdminSidebar = ({
  <div className="flex items-center gap-1">
  <button
  onClick={() => { window.location.href = '/inventory'; }}
- className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ className="flex-1 flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors whitespace-nowrap"
  data-testid="portal-switch-inventory"
  >
  <Boxes size={16} className="text-emerald-500" /> Inventory &amp; Distribution
