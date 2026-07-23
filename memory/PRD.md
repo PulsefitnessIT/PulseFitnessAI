@@ -1,3 +1,34 @@
+# ═══ 2026-06 · RELEASE-READINESS AUDIT (P1 verification) — DISTRIBUTION GOLDEN PATH ✅ / STRIPE ❌ EXPIRED KEY ═══
+Founder asked for a go/no-go release-readiness audit + to action P1 items. Results:
+
+P1(b) DISTRIBUTION GOLDEN PATH — VERIFIED E2E via REAL API (script /tmp/gp_dist.py): seed dealer-held unit →
+POST /inventory/alloc/allocate (200, asset created) → /schedule (200) → /allocations/{id}/install
+(200: asset active, ~2yr warranty, certificate generated) → GET /allocations/{id}/certificate (200 application/pdf,
+valid %PDF) → machine auto-registered into the customer's linked Lite org (equipment status operational,
+source=distribution_install). The moat lifecycle works end-to-end. QA data cleaned up.
+
+P1(a) MEMBERSHIPS + STRIPE — PARTIAL: membership plan CRUD + GET /api/memberships/plans listing = ✅ works.
+Stripe checkout create-session = ❌ BLOCKED. Confirmed via live API: POST /api/memberships/checkout →
+400 "Stripe error: Expired API Key provided: sk_live_...MXfE". The CODE PATH IS CORRECT (it reaches Stripe and
+Stripe rejects the credential) — this is a CREDENTIAL blocker, not a bug. utils/database.py deliberately overrides
+the pod's sk_test_emergent stub with the .env key, so the EXPIRED sk_live key wins everywhere (preview AND prod).
+==> P0 RELEASE BLOCKER: ALL Stripe revenue paths (memberships checkout + module subscriptions) are down until a
+    valid Stripe key is provided/rotated. No valid key exists in the pod (the sk_test_emergent stub is a non-functional
+    placeholder). Do NOT swap to the stub — it won't work. Requires founder to rotate the live key in Stripe dashboard
+    and update the deploy env, OR move to Emergent-managed Stripe ("claim your account") flow.
+
+TENANCY ISOLATION: the audit's "critical X-Site-Id bypass" was a FALSE POSITIVE — GET /api/equipment scopes via the
+?site_id= QUERY PARAM (build_site_filter → 403 site_access_denied for a disallowed site, EMPIRICALLY CONFIRMED:
+manager?site_id=site-b → 403; X-Site-Id:site-b header → 200 but 12 items ALL site-a, zero site-b = no leak). The route
+simply ignores the X-Site-Id header (safe; RBAC narrows regardless). Isolation is SOUND.
+
+Other audit passes: operator loop, CRM CPQ→push-to-distribution (idempotent), customer-lite deliveries, logistics/dealer
+403 isolation, master-admin platform-health scan. Sage200/Sicon remain SIMULATED (blocked on creds).
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · CRM "PORTAL INVITE" CHIP + RESEND + DELIVERED-MACHINE→LITE-ORG (VERIFIED 100% FE, 0 bugs) ═══
 Two linked deliverables + one CRITICAL REGRESSION FIX found at fork.
 
