@@ -20,10 +20,12 @@ function CompleteInstallModal({ alloc, onClose, onDone }) {
   const [sig, setSig] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!form.customer_name.trim()) { notify.error('Enter the customer name'); return; }
-    if (!sig) { notify.error('Capture the customer signature'); return; }
-    if (!form.hs_acknowledged) { notify.error('Confirm the Health & Safety acknowledgement'); return; }
-    if (!form.customer_acceptance) { notify.error('Confirm the customer accepts the installation'); return; }
+    const errs = [];
+    if (!form.customer_name.trim()) errs.push('customer name');
+    if (!sig) errs.push('customer signature');
+    if (!form.hs_acknowledged) errs.push('Health & Safety acknowledgement');
+    if (!form.customer_acceptance) errs.push('customer acceptance');
+    if (errs.length) { notify.error(`Please complete: ${errs.join(', ')}.`); return; }
     setBusy(true);
     try {
       const r = await invApi.logisticsCompleteInstall(alloc.id, { ...form, customer_signature: sig });

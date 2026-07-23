@@ -1,3 +1,38 @@
+# ═══ 2026-06 · LOGISTICS ON-SITE CUSTOMER SIGN-OFF → WARRANTY ACTIVATION (PHASE 2 pt2, VERIFIED 100% FE) ═══
+Completes the logistics loop: the install team can now complete an install ON SITE with a captured CUSTOMER
+SIGNATURE + H&S acknowledgement, which commissions the asset and activates warranty — all from the /logistics portal.
+
+DELIVERED:
+  • BACKEND (scoped WRITE path for role=logistics; ops role also allowed):
+    - refactored inventory_allocation.commission_install(alloc_id, data, user) — shared helper (no internal role
+      check; caller gates). Records sign-off on installation_commissioning_records (customer_name,
+      customer_signature[data-url], hs_acknowledged, signed_at), activates warranty (warranty_activation_events),
+      sets equipment.status=active + warranty_expiry, allocation.status=active + signed_off_by/at. Guards: already-
+      completed → 409; missing unit/asset → 400. The ops POST /allocations/{id}/install now delegates to it.
+    - inventory_logistics.py: POST /installs/{id}/start (→ installation_in_progress) and POST /installs/{id}/complete
+      (require_logistics_or_ops) — validates customer_name + signature(data:image) + hs_acknowledged +
+      customer_acceptance, then commissions. install_pack now returns completed/installation(sans signature)/warranty.
+    - GET /installs now also returns installs COMPLETED in the last 7 days (so the team can review the sign-off).
+  • FRONTEND: LogisticsPortal CompleteInstallModal (reuses IncidentSignaturePad canvas) — install checks, installer
+    name, condition, customer name, signature pad, H&S ack + acceptance; single consolidated validation toast.
+    InstallPackModal footer slot (footerExtra) shows Start install + Complete & sign-off (hidden once completed);
+    green "completed & signed off by X — warranty to Y" banner (inv-install-pack-completed). api.js:
+    logisticsStartInstall/logisticsCompleteInstall.
+
+VERIFIED: backend curl (start; complete→asset active + ~2yr warranty; 400s for missing sign-off fields; 400 guard for
+unlinked allocation; pack shows completed/warranty) + testing_agent frontend 100%, 0 defects
+(iteration_logistics_signoff_phase2pt2_jan2026.json — signature drawn, validation, warranty toast, drop-off).
+Post-test polish: consolidated validation toast + keep 7-day completed installs visible. Demo install LOGQA2 reset to
+pending so logi1@isodemo.com can try the full flow.
+
+PHASE 2 COMPLETE (portal + install pack + sign-off→warranty). OPTIONAL NEXT: branded PDF "installation certificate"
+(machines/serials, H&S ack, signature, warranty) emailed to the customer + stored against the asset.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · LOGISTICS INSTALL-TEAM PORTAL + SEPARATE LOGIN/ROLE (PHASE 2 pt 1, VERIFIED 100% FE) ═══
 Follows the Install Pack work. User wants a dedicated logistics/install-team experience with a SEPARATE login.
 Choices: VIEW-ONLY (upcoming installs + full Install pack); owners/managers provision logins from the Inventory

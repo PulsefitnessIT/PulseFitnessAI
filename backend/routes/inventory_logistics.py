@@ -127,8 +127,14 @@ async def reset_logistics_password(user_id: str, body: dict = Body(...), user=De
 # ──────────────────────────── Portal (logistics OR ops) — VIEW ONLY ────────────────────────────
 @router.get("/installs")
 async def logistics_installs(user=Depends(require_logistics_or_ops)):
-    """Upcoming installs for the logistics team's organisation (view-only)."""
-    flt = {**_of(user), "status": {"$in": ["awaiting_installation", "installation_in_progress"]}}
+    """Upcoming installs for the logistics team's organisation (view-only), plus
+    installs completed in the last 7 days so the team can review the sign-off."""
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    flt = {**_of(user), "$or": [
+        {"status": {"$in": ["awaiting_installation", "installation_in_progress"]}},
+        {"status": "active", "installed_at": {"$gte": cutoff}},
+    ]}
     rows = await db.dealer_customer_allocations.find(flt, {"_id": 0}).sort("planned_install_date", 1).limit(500).to_list(500)
     return {"installs": rows}
 
