@@ -1,3 +1,34 @@
+# ═══ 2026-06 · CRM QUOTE → DISTRIBUTION PUSH + AI-INVOICE CATALOGUE MATCH (VERIFIED 100% FE) ═══
+Completes the CRM→Inventory link left as TESTING-PENDING at fork. Two features shipped & verified:
+
+(1) SEND TO DISTRIBUTION (CRM CPQ → Inventory). An accepted/signed CRM quote can be pushed into Inventory &
+    Distribution as an operational order (source='crm'), idempotently.
+    • Frontend CRMCPQ.js sendToDistribution() now POSTs to `${API}/crm/v2/quotes/${quoteId}/push-to-distribution`
+      (was hitting the platform-token inventory route → 401). Button (quote-send-distribution-btn) only shows when
+      quote.status==='accepted' || quote.signature.
+    • Backend: NEW CRM-scoped route POST /api/crm/v2/quotes/{quote_id}/push-to-distribution (crm_v2.py, get_crm_user)
+      delegates to the shared helper inventory_distribution.push_quote_to_distribution(quote_id, user). Refactored the
+      former /orders/from-crm-quote route to call the same helper so both token scopes work.
+    • TWO BUGS FIXED (both would have broken the button in prod): (a) AUTH-SCOPE MISMATCH — CRMCPQ uses the CRM token
+      but the old endpoint used platform get_current_user (crm_users id absent from db.users → 401 'User not found').
+      Fixed via the CRM-router route. (b) CRM quotes store line items under `lines`, but the endpoint read `line_items`
+      → 'Quote has no line items'. Fixed to read `quote.get('lines') or quote.get('line_items')` and map sku/description.
+
+(2) AI-INVOICE CATALOGUE MATCHING. /api/inventory/orders/parse-invoice and /orders/match-lines enrich each line via
+    _attach_catalogue_matches() (fuzzy match vs crm_products: exact-SKU 0.97 / substring 0.85 / difflib name ratio;
+    matched flag at >=0.9, suggested 0.55–0.9). InvOrders.js renders green matched chip (inv-line-match-<i>), amber
+    suggested chip + Apply (inv-line-apply-match-<i> sets product_code+unit_price), or 'no match' (inv-line-nomatch-<i>).
+
+VERIFIED: backend curl (CRM-token push → DO created 200; 2nd push already_existed:true; order lists source='crm';
+match-lines: RUN-9000→0.97 matched, 'Spin Bike Pro'→BIKE-500 0.87 suggested, unknown→null) + testing_agent frontend
+100%, 0 issues (iteration_crm_to_distribution_and_ai_match_jan2026.json — full CRM CPQ create→approve→sign→push→
+idempotent, CRM badge in Orders, lines correct, import-invoice modal renders). QA seed/test data wiped after.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · ORDERS MERGE + AI INVOICE READER (no Sage needed) (VERIFIED 100% FE) ═══
 Founder: dealers may not run Sage → add orders fast via the platform AI invoice reader, or from a confirmed CRM order.
 Merge "Sage Orders" + "Distribution Orders" into one list with a source badge.
