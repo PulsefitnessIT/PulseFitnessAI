@@ -1,19 +1,85 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Truck, LogOut, Search, CalendarDays, MapPin, ClipboardList, PackageCheck } from 'lucide-react';
+import { Truck, LogOut, Search, CalendarDays, MapPin, ClipboardList, PackageCheck, Play, PenLine, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/App';
+import { notify } from '@/components/notifications';
+import IncidentSignaturePad from '@/pages/IncidentSignaturePad';
 import { invApi, fmtDate, statusLabel } from './api';
 import { InstallPackModal } from './InvAllocation';
-import { Spinner, StatusBadge, Btn } from './ui';
+import { Spinner, StatusBadge, Btn, inputCls } from './ui';
+
+const INSTALL_CHECKS = [
+  { key: 'positioned', label: 'Machine positioned & levelled' },
+  { key: 'power', label: 'Power / network connected' },
+  { key: 'safety', label: 'Safety checks completed' },
+  { key: 'test_run', label: 'Test run passed' },
+  { key: 'customer_walkthrough', label: 'Customer walkthrough done' },
+];
+
+function CompleteInstallModal({ alloc, onClose, onDone }) {
+  const [form, setForm] = useState({ installer_name: '', condition: 'Good', notes: '', customer_name: '', hs_acknowledged: false, customer_acceptance: false, checklist: {} });
+  const [sig, setSig] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!form.customer_name.trim()) { notify.error('Enter the customer name'); return; }
+    if (!sig) { notify.error('Capture the customer signature'); return; }
+    if (!form.hs_acknowledged) { notify.error('Confirm the Health & Safety acknowledgement'); return; }
+    if (!form.customer_acceptance) { notify.error('Confirm the customer accepts the installation'); return; }
+    setBusy(true);
+    try {
+      const r = await invApi.logisticsCompleteInstall(alloc.id, { ...form, customer_signature: sig });
+      notify.success(`Signed off — asset active, warranty to ${fmtDate(r.warranty_end)}`);
+      onDone();
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Could not complete sign-off'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[205] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="logistics-complete-modal" onClick={onClose}>
+      <div className="my-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b border-slate-200 px-5 py-3"><h3 className="flex items-center gap-2 font-bold text-slate-900"><PenLine size={16} className="text-cyan-600" /> Complete &amp; customer sign-off</h3><p className="text-xs text-slate-400">{alloc.customer_company_name}{alloc.customer_site ? ` · ${alloc.customer_site}` : ''} · {alloc.model || alloc.product_code}</p></div>
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4">
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase text-slate-500">Install checks</p>
+            <div className="rounded-lg border border-slate-200 px-3 py-1">
+              {INSTALL_CHECKS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 py-1.5 text-sm"><input type="checkbox" checked={!!form.checklist[key]} onChange={(e) => setForm((f) => ({ ...f, checklist: { ...f.checklist, [key]: e.target.checked } }))} data-testid={`logistics-check-${key}`} /> {label}</label>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input value={form.installer_name} onChange={(e) => setForm({ ...form, installer_name: e.target.value })} placeholder="Installer name" className={inputCls} data-testid="logistics-installer-name" />
+            <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} className={inputCls} data-testid="logistics-condition"><option>Good</option><option>Fair</option><option>Damaged on arrival</option></select>
+          </div>
+          <input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} placeholder="Customer name (signing off)" className={inputCls} data-testid="logistics-customer-name" />
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase text-slate-500">Customer signature</p>
+            <IncidentSignaturePad onChange={setSig} testId="logistics-signature-pad" />
+          </div>
+          <label className="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.hs_acknowledged} onChange={(e) => setForm({ ...form, hs_acknowledged: e.target.checked })} className="mt-0.5" data-testid="logistics-hs-ack" /> The Health &amp; Safety requirements were followed and the site was left safe.</label>
+          <label className="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.customer_acceptance} onChange={(e) => setForm({ ...form, customer_acceptance: e.target.checked })} className="mt-0.5" data-testid="logistics-acceptance" /> The customer accepts the installation as complete and satisfactory.</label>
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-3">
+          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy} data-testid="logistics-complete-submit"><CheckCircle2 size={14} /> {busy ? 'Signing off…' : 'Confirm sign-off & activate warranty'}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LogisticsPortal() {
   const { user, logout } = useAuth();
   const [installs, setInstalls] = useState(null);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(null);
+  const [completing, setCompleting] = useState(null);
 
-  useEffect(() => {
-    invApi.logisticsInstalls().then((d) => setInstalls(d.installs || [])).catch(() => setInstalls([]));
-  }, []);
+  const load = () => invApi.logisticsInstalls().then((d) => setInstalls(d.installs || [])).catch(() => setInstalls([]));
+  useEffect(() => { load(); }, []);
+
+  const startInstall = async (id) => {
+    try { await invApi.logisticsStartInstall(id); notify.success('Install marked in progress'); load(); }
+    catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); }
+  };
 
   const groups = useMemo(() => {
     const list = (installs || []).filter((i) => {
@@ -86,7 +152,16 @@ export default function LogisticsPortal() {
         )}
       </main>
 
-      {active && <InstallPackModal alloc={active} onClose={() => setActive(null)} readOnly packFetcher={invApi.logisticsPack} />}
+      {active && <InstallPackModal alloc={active} onClose={() => setActive(null)} readOnly packFetcher={invApi.logisticsPack}
+        footerExtra={(pack) => pack.completed ? null : (
+          <>
+            {pack.allocation?.status !== 'installation_in_progress' && (
+              <Btn variant="secondary" onClick={() => { startInstall(pack.allocation.id); }} data-testid="logistics-start-install"><Play size={14} /> Start install</Btn>
+            )}
+            <Btn onClick={() => { setCompleting(pack.allocation); setActive(null); }} data-testid="logistics-open-complete"><PenLine size={14} /> Complete &amp; sign-off</Btn>
+          </>
+        )} />}
+      {completing && <CompleteInstallModal alloc={completing} onClose={() => setCompleting(null)} onDone={() => { setCompleting(null); load(); }} />}
     </div>
   );
 }

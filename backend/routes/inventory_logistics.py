@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from utils.auth import get_current_user, hash_password
 from utils.database import db
 from routes.inventory_distribution import _of, _now, _uid, _audit, _require_ops_role
-from routes.inventory_allocation import install_pack as _install_pack_impl
+from routes.inventory_allocation import install_pack as _install_pack_impl, commission_install
 
 router = APIRouter(prefix="/inventory/logistics", tags=["Inventory & Distribution · Logistics Portal"])
 logger = logging.getLogger(__name__)
@@ -137,3 +137,45 @@ async def logistics_installs(user=Depends(require_logistics_or_ops)):
 async def logistics_install_pack(alloc_id: str, user=Depends(require_logistics_or_ops)):
     """Full install pack (survey + H&S + drawings + docs) for a scheduled install."""
     return await _install_pack_impl(alloc_id, user)
+
+
+@router.post("/installs/{alloc_id}/start")
+async def logistics_start_install(alloc_id: str, user=Depends(require_logistics_or_ops)):
+    """Mark an install as in-progress when the team arrives on site."""
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id})
+    if not a:
+        raise HTTPException(404, "Install not found")
+    if a.get("status") == "active":
+        raise HTTPException(409, "This installation is already completed")
+    await db.dealer_customer_allocations.update_one(
+        {"id": alloc_id}, {"$set": {"status": "installation_in_progress", "installation_started_at": _now(), "updated_at": _now()}})
+    await _audit(user, "installation_started", "allocation", alloc_id, {})
+    return {"ok": True, "status": "installation_in_progress"}
+
+
+@router.post("/installs/{alloc_id}/complete")
+async def logistics_complete_install(alloc_id: str, body: dict = Body(...), user=Depends(require_logistics_or_ops)):
+    """On-site completion + CUSTOMER SIGN-OFF. Records the signature and H&S
+    acknowledgement, then commissions the asset and activates warranty."""
+    customer_name = (body.get("customer_name") or "").strip()
+    signature = (body.get("customer_signature") or "").strip()
+    if not customer_name:
+        raise HTTPException(400, "Customer name is required for sign-off")
+    if not signature.startswith("data:image"):
+        raise HTTPException(400, "A customer signature is required for sign-off")
+    if not body.get("hs_acknowledged"):
+        raise HTTPException(400, "The Health & Safety acknowledgement must be confirmed")
+    if not body.get("customer_acceptance"):
+        raise HTTPException(400, "Customer acceptance is required to complete the install")
+    data = {
+        "engineer_name": (body.get("installer_name") or user.get("full_name") or user.get("email")),
+        "checklist": body.get("checklist") or {},
+        "condition": body.get("condition") or "Good",
+        "notes": body.get("notes"),
+        "customer_acceptance": True,
+        "customer_name": customer_name,
+        "customer_signature": signature,
+        "hs_acknowledged": True,
+    }
+    return await commission_install(alloc_id, data, user)

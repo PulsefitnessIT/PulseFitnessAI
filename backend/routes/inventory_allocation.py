@@ -273,6 +273,10 @@ class InstallIn(BaseModel):
     condition: Optional[str] = None
     customer_acceptance: bool = False
     notes: Optional[str] = None
+    # Phase 2 pt2 — on-site customer sign-off (also supplied by the logistics portal).
+    customer_name: Optional[str] = None
+    customer_signature: Optional[str] = None
+    hs_acknowledged: bool = False
 
 
 async def _warranty_dates(user, event: str):
@@ -281,6 +285,56 @@ async def _warranty_dates(user, event: str):
     start = datetime.now(timezone.utc)
     end = start + timedelta(days=WARRANTY_MONTHS_DEFAULT * 30)
     return rule, start.isoformat(), end.isoformat()
+
+
+async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
+    """Commission an installed asset, recording the on-site customer sign-off and
+    activating warranty. Role is enforced by the CALLER (ops route requires an ops
+    role; the logistics portal route requires the logistics/ops dependency)."""
+    of = _of(user)
+    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id})
+    if not a:
+        raise HTTPException(404, "Allocation not found")
+    if a.get("status") == "active":
+        raise HTTPException(409, "This installation is already completed")
+    if not a.get("unit_id") or not a.get("asset_id"):
+        raise HTTPException(400, "This allocation is not linked to a unit/asset and cannot be commissioned")
+    if not data.get("customer_acceptance"):
+        raise HTTPException(400, "Customer acceptance is required to commission the asset")
+    rec_id = _uid()
+    signed_at = _now()
+    await db.installation_commissioning_records.insert_one({
+        "id": rec_id, "organization_id": user.get("organization_id"), "allocation_id": alloc_id,
+        "unit_id": a["unit_id"], "asset_id": a.get("asset_id"),
+        "engineer_name": data.get("engineer_name"),
+        "checklist": data.get("checklist") or {}, "software_version": data.get("software_version"),
+        "condition": data.get("condition"), "customer_acceptance": bool(data.get("customer_acceptance")),
+        "notes": data.get("notes"),
+        # sign-off
+        "customer_name": data.get("customer_name"),
+        "customer_signature": data.get("customer_signature"),
+        "hs_acknowledged": bool(data.get("hs_acknowledged")),
+        "signed_at": signed_at,
+        "commissioned_at": signed_at, "recorded_by": user.get("email"),
+    })
+    rule, w_start, w_end = await _warranty_dates(user, "installation_date")
+    await db.warranty_activation_events.insert_one({
+        "id": _uid(), "organization_id": user.get("organization_id"), "unit_id": a["unit_id"],
+        "asset_id": a.get("asset_id"), "warranty_start": w_start, "warranty_end": w_end,
+        "warranty_source": rule, "triggering_event": "commissioning", "created_at": _now(),
+    })
+    await db.equipment.update_one({**of, "id": a.get("asset_id")}, {"$set": {
+        "status": "active", "warranty_expiry": w_end, "commissioned_at": _now(),
+        "software_version": data.get("software_version"), "updated_at": _now(),
+    }})
+    await _touch_unit(user, a["unit_id"], "active_asset")
+    await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": {
+        "status": "active", "installed_at": _now(),
+        "signed_off_by": data.get("customer_name"), "signed_off_at": signed_at, "updated_at": _now(),
+    }})
+    await db.dealer_inventory_holdings.update_one({**of, "unit_id": a["unit_id"]}, {"$set": {"status": "installed", "updated_at": _now()}})
+    await _audit(user, "installation_commissioned", "allocation", alloc_id, {"warranty_end": w_end, "signed_off_by": data.get("customer_name")})
+    return {"ok": True, "asset_status": "active", "warranty_start": w_start, "warranty_end": w_end, "warranty_rule": rule, "record_id": rec_id}
 
 
 @router.post("/allocations/{alloc_id}/schedule")
@@ -319,38 +373,7 @@ async def schedule_installation(alloc_id: str, body: dict = Body(...), user=Depe
 @router.post("/allocations/{alloc_id}/install")
 async def install_commission(alloc_id: str, body: InstallIn, user=Depends(get_current_user)):
     _require_ops_role(user)
-    of = _of(user)
-    a = await db.dealer_customer_allocations.find_one({**of, "id": alloc_id})
-    if not a:
-        raise HTTPException(404, "Allocation not found")
-    if not body.customer_acceptance:
-        raise HTTPException(400, "Customer acceptance is required to commission the asset")
-    # installation record
-    rec_id = _uid()
-    await db.installation_commissioning_records.insert_one({
-        "id": rec_id, "organization_id": user.get("organization_id"), "allocation_id": alloc_id,
-        "unit_id": a["unit_id"], "asset_id": a.get("asset_id"), "engineer_name": body.engineer_name,
-        "checklist": body.checklist, "software_version": body.software_version, "condition": body.condition,
-        "customer_acceptance": body.customer_acceptance, "notes": body.notes,
-        "commissioned_at": _now(), "recorded_by": user.get("email"),
-    })
-    # warranty activation
-    rule, w_start, w_end = await _warranty_dates(user, "installation_date")
-    await db.warranty_activation_events.insert_one({
-        "id": _uid(), "organization_id": user.get("organization_id"), "unit_id": a["unit_id"],
-        "asset_id": a.get("asset_id"), "warranty_start": w_start, "warranty_end": w_end,
-        "warranty_source": rule, "triggering_event": "commissioning", "created_at": _now(),
-    })
-    # activate the ASSET in the existing register + mark unit active
-    await db.equipment.update_one({**of, "id": a.get("asset_id")}, {"$set": {
-        "status": "active", "warranty_expiry": w_end, "commissioned_at": _now(),
-        "software_version": body.software_version, "updated_at": _now(),
-    }})
-    await _touch_unit(user, a["unit_id"], "active_asset")
-    await db.dealer_customer_allocations.update_one({"id": alloc_id}, {"$set": {"status": "active", "installed_at": _now(), "updated_at": _now()}})
-    await db.dealer_inventory_holdings.update_one({**of, "unit_id": a["unit_id"]}, {"$set": {"status": "installed", "updated_at": _now()}})
-    await _audit(user, "installation_commissioned", "allocation", alloc_id, {"warranty_end": w_end})
-    return {"ok": True, "asset_status": "active", "warranty_start": w_start, "warranty_end": w_end, "warranty_rule": rule}
+    return await commission_install(alloc_id, body.model_dump(), user)
 
 
 # ──────────────────────────── Install pack (collated info for the logistics/install team) ────────────────────────────
@@ -446,6 +469,12 @@ async def install_pack(alloc_id: str, user=Depends(get_current_user)):
                 "download_url": f"/api/inventory/alloc/survey-attachment/{att.get('id')}/download",
             })
 
+    # Completion / warranty state so the portal can show a "completed" install.
+    install_rec = await db.installation_commissioning_records.find_one(
+        {"organization_id": user.get("organization_id"), "allocation_id": alloc_id}, {"_id": 0, "customer_signature": 0})
+    warranty = await db.warranty_activation_events.find_one(
+        {"organization_id": user.get("organization_id"), "unit_id": a.get("unit_id")}, {"_id": 0})
+
     return {
         "allocation": a,
         "visit": {
@@ -460,6 +489,9 @@ async def install_pack(alloc_id: str, user=Depends(get_current_user)):
         "machines": machines,
         "survey": survey_block,
         "survey_attachments": attachments,
+        "completed": a.get("status") == "active",
+        "installation": install_rec,
+        "warranty": warranty,
     }
 
 

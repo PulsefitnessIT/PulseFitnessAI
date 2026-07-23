@@ -222,7 +222,7 @@ function ScheduleModal({ alloc, onClose, onDone }) {
 const RISK_COLOR = { Low: 'bg-emerald-50 text-emerald-700 ring-emerald-200', Medium: 'bg-amber-50 text-amber-700 ring-amber-200', High: 'bg-orange-50 text-orange-700 ring-orange-200', Critical: 'bg-red-50 text-red-700 ring-red-200' };
 const YN = (v) => (v === true ? 'Yes' : v === false ? 'No' : '—');
 
-export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, packFetcher }) {
+export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, packFetcher, footerExtra }) {
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(true);
   const [relinking, setRelinking] = useState(false);
@@ -258,6 +258,13 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
         <div className="max-h-[75vh] space-y-4 overflow-y-auto px-5 py-4">
           {loading && <div className="py-10"><Spinner /></div>}
           {!loading && pack && (<>
+            {pack.completed && (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200" data-testid="inv-install-pack-completed">
+                <CheckCircle2 size={18} className="text-emerald-600" />
+                <div><p className="font-semibold text-emerald-800">Installation completed &amp; signed off{pack.installation?.customer_name ? ` by ${pack.installation.customer_name}` : ''}.</p>
+                {pack.warranty?.warranty_end && <p className="text-xs text-emerald-700">Warranty active to {fmtDate(pack.warranty.warranty_end)}.</p>}</div>
+              </div>
+            )}
             {/* Visit header */}
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-4">
               <div><p className="text-[11px] uppercase text-slate-400">Planned</p><p className="font-semibold text-slate-800">{pack.visit.planned_install_date ? fmtDate(pack.visit.planned_install_date) : 'Unscheduled'}</p></div>
@@ -350,7 +357,7 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
             </div>
           </>)}
         </div>
-        <div className="flex justify-end border-t border-slate-200 px-5 py-3"><Btn variant="secondary" onClick={onClose}>Close</Btn></div>
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-3">{footerExtra && !loading && pack ? footerExtra(pack) : null}<Btn variant="secondary" onClick={onClose}>Close</Btn></div>
       </div>
 
       {/* Relink survey picker */}

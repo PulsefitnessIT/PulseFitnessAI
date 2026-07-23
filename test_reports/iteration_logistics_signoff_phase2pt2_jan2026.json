@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend E2E for Logistics install customer sign-off & warranty activation flow. All acceptance criteria pass: login → /logistics portal → ALL-LOGQA2 pending install visible → Install pack modal opens with Start install + Complete & sign-off buttons (relink hidden) → Start install shows 'Install marked in progress' toast → Complete modal opens with all fields (checks, installer name, condition, customer name, signature pad canvas, H&S ack, acceptance) → validation blocks submit with distinct error toasts for missing customer name, signature, H&S ack, and acceptance → happy path (name + drawn signature + H&S + acceptance + checks) triggers success toast 'Signed off — asset active, warranty to 12 Jul 2028' → completion modal closes → install drops off the upcoming list. Signature canvas captured via mouse drag successfully.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Complete sign-off modal", "issues": ["Sonner error toasts stack vertically at top and partially overlay the modal header ('Complete & customer sign-off' title obscured). Consider bottom-right placement or de-dup toast when multiple validation errors fire simultaneously."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Validation errors are emitted as separate toasts per missing field; UX would be cleaner with a single consolidated error toast or inline field errors.",
+    "Completed banner (inv-install-pack-completed) could not be visually verified inline because the install disappears from the upcoming list after commissioning (no reopen path in the logistics portal); backend already curl-verified. If desired, keep completed installs in the list for a short window so installer can review the banner immediately."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "logi1@isodemo.com / LogiPass123!",
+  "seed_data_creation": "Used pre-seeded ALL-LOGQA2. NOTE: install was consumed by happy-path (now active). Main agent must reseed a fresh pending install for any re-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Flow is verified end-to-end. Reseed ALL-LOGQA2 (or equivalent) before re-testing. Signature pad drawing works with playwright mouse.move+down/up sequences on the canvas inside [data-testid=logistics-signature-pad]. Rate limit ~4 rapid logins — reuse session.",
+  "rca of the issue": "n/a — no defects found."
+}
