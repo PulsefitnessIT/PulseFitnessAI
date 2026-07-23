@@ -228,9 +228,27 @@ async def record_user_session(user_id: str, token: str, request: Request,
         pass
 
 
-async def get_current_user(
+PORTAL_ONLY_ROLES = {"dealer_user", "logistics", "recruit"}
+
+
+def is_portal_only_user(user: dict) -> bool:
+    """True for low-trust portal identities (dealer contacts, logistics
+    install team, staff/recruit portal) that must NEVER reach operator API
+    routes. They authenticate via the shared JWT but are confined to their
+    own portal endpoints, which use ``get_current_user_portal``."""
+    role = (user.get("role") or "").lower()
+    if role in PORTAL_ONLY_ROLES:
+        return True
+    if user.get("is_recruit_portal") is True:
+        return True
+    if (user.get("account_type") or "").lower() == "recruit":
+        return True
+    return False
+
+
+async def _load_user_core(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials],
 ) -> dict:
     from utils.security_plus import is_jwt_revoked
     token = _extract_token(request, credentials)
@@ -345,6 +363,31 @@ async def get_current_user(
     return user
 
 
+async def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> dict:
+    """Operator-scoped auth dependency (default for all main-app routes).
+    Rejects low-trust portal identities (dealer/logistics/staff-portal) so
+    their shared JWT cannot read operator org data — fixes the
+    broken-function-level-authorization gap (SEC-001)."""
+    user = await _load_user_core(request, credentials)
+    if is_portal_only_user(user):
+        raise HTTPException(status_code=403, detail="Portal accounts cannot access this resource")
+    return user
+
+
+async def get_current_user_portal(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> dict:
+    """Auth dependency for portal + bootstrap endpoints (dealer portal,
+    logistics portal, staff portal, GET /auth/me). Authenticates the token
+    but does NOT apply the operator-only block. Each portal route still
+    enforces its own role (e.g. ``require_dealer_user``)."""
+    return await _load_user_core(request, credentials)
+
+
 async def optional_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -355,7 +398,7 @@ async def optional_current_user(
     happy path, so endpoints can fall back to the refresh cookie when the
     access token has expired."""
     try:
-        return await get_current_user(request, credentials)
+        return await _load_user_core(request, credentials)
     except HTTPException:
         return None
 

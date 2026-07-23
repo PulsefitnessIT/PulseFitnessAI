@@ -190,6 +190,10 @@ def _create_stripe_session(package: dict, package_id: str, user: dict,
             cancel_url=f"{origin_url}/pricing",
             customer_email=user["email"],
             metadata=metadata,
+            idempotency_key=str(uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                f"checkout:{user['id']}:{package['price_id']}:{int(datetime.now(timezone.utc).timestamp() // 600)}",
+            )),
         )
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -303,6 +307,10 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
             cancel_url=f"{origin_url}/pricing",
             customer_email=user["email"],
             metadata=metadata,
+            idempotency_key=str(uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                f"checkout-flex:{user['id']}:{plan}:{currency}:{int(datetime.now(timezone.utc).timestamp() // 600)}",
+            )),
         )
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))

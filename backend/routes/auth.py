@@ -8,7 +8,7 @@ import logging
 import re
 
 from utils.database import db
-from utils.auth import get_current_user, optional_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
+from utils.auth import get_current_user, get_current_user_portal, optional_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
 from utils.refresh_tokens import issue_refresh_token, clear_refresh_cookie, renew_access_from_refresh, revoke_refresh_cookie
 from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
@@ -954,7 +954,7 @@ async def reset_password(body: dict, request: Request) -> dict:
 
 
 @router.get("/auth/me")
-async def get_me(user: dict = Depends(get_current_user)) -> dict:
+async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
     org = await db.organizations.find_one({"id": user.get('organization_id')}, {"_id": 0})
 
     from utils.trial_lifecycle import compute_trial_state

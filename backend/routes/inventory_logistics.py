@@ -15,7 +15,7 @@ import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Body
 
-from utils.auth import get_current_user, hash_password
+from utils.auth import get_current_user, get_current_user_portal, hash_password
 from utils.database import db
 from routes.inventory_distribution import _of, _now, _uid, _audit, _require_ops_role
 from routes.inventory_allocation import install_pack as _install_pack_impl, commission_install
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 LOGISTICS_ROLE = "logistics"
 
 
-def require_logistics_or_ops(user=Depends(get_current_user)):
+def require_logistics_or_ops(user=Depends(get_current_user_portal)):
     """Allow the logistics role OR the operational roles (owner/manager/admin) so
     owners keep full Distribution access while logistics staff use the portal."""
     role = (user.get("role") or "").lower()

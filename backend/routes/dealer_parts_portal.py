@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from utils.database import db
-from utils.auth import get_current_user, hash_password
+from utils.auth import get_current_user, get_current_user_portal, hash_password
 from utils.dealer_parts_ai import parse_invoice_text, dealer_summary
 
 from routes.dealer_parts import _of, _now, _audit, _dealer_or_404, _get_settings, require_staff
@@ -24,7 +24,7 @@ from routes.dealer_parts import _of, _now, _audit, _dealer_or_404, _get_settings
 router = APIRouter(prefix="/dealer-parts", tags=["Dealer Warranty Parts"])
 
 
-async def require_dealer_user(user=Depends(get_current_user)):
+async def require_dealer_user(user=Depends(get_current_user_portal)):
     """Dealer sub-user only; must have a linked dealer_id."""
     if (user.get("role") or "").lower() != "dealer_user" or not user.get("dealer_id"):
         raise HTTPException(403, "Dealer account required")

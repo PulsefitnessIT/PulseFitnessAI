@@ -29,7 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from pydantic import BaseModel
 
 from utils.database import db
-from utils.auth import get_current_user
+from utils.auth import get_current_user, get_current_user_portal
 from utils.module_access import org_module_access
 
 router = APIRouter()
@@ -107,7 +107,7 @@ async def _org_available_modules(org_id: str) -> list[str]:
 # ══════════════════════════ EMPLOYEE PORTAL ══════════════════════════
 
 @router.get("/new-starter/portal/rota")
-async def portal_rota(days: int = Query(21, ge=1, le=90), user: dict = Depends(get_current_user)):
+async def portal_rota(days: int = Query(21, ge=1, le=90), user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     org = staff["organization_id"]
     end = (date.today() + timedelta(days=days)).isoformat()
@@ -121,7 +121,7 @@ async def portal_rota(days: int = Query(21, ge=1, le=90), user: dict = Depends(g
 
 
 @router.get("/new-starter/portal/timesheet")
-async def portal_timesheet(week_start: str = Query(...), user: dict = Depends(get_current_user)):
+async def portal_timesheet(week_start: str = Query(...), user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     from routes.staffing_clock import _ensure_timesheet_doc, _week_bounds  # lazy — avoid import cycle
     ws, we = _week_bounds(week_start)
@@ -136,7 +136,7 @@ class TimesheetEdit(BaseModel):
 
 
 @router.post("/new-starter/portal/timesheet/edit")
-async def portal_timesheet_edit(body: TimesheetEdit, user: dict = Depends(get_current_user)):
+async def portal_timesheet_edit(body: TimesheetEdit, user: dict = Depends(get_current_user_portal)):
     """Employee submits corrections to their week — flags the timesheet as
     disputed so a manager reviews and approves in Time Clock ▸ Timesheets."""
     staff = await _portal_staff(user)
@@ -167,7 +167,7 @@ def _days_between(start: str, end: str) -> int:
 
 
 @router.get("/new-starter/portal/holidays")
-async def portal_holidays(user: dict = Depends(get_current_user)):
+async def portal_holidays(user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     org = staff["organization_id"]
     mine = await db.staff_leave_requests.find(
@@ -222,7 +222,7 @@ class HolidayRequest(BaseModel):
 
 
 @router.post("/new-starter/portal/holidays")
-async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_current_user)):
+async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     if not body.start_date or not body.end_date:
         raise HTTPException(400, "Start and end dates are required.")
@@ -245,7 +245,7 @@ async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_
 
 
 @router.delete("/new-starter/portal/holidays/{leave_id}")
-async def portal_cancel_holiday(leave_id: str, user: dict = Depends(get_current_user)):
+async def portal_cancel_holiday(leave_id: str, user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     rec = await db.staff_leave_requests.find_one({"id": leave_id, "staff_id": staff["id"]})
     if not rec:
@@ -257,7 +257,7 @@ async def portal_cancel_holiday(leave_id: str, user: dict = Depends(get_current_
 
 
 @router.get("/new-starter/portal/documents")
-async def portal_documents(user: dict = Depends(get_current_user)):
+async def portal_documents(user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     case = await _case_for(staff["id"])
     docs: list[dict] = []
@@ -276,7 +276,7 @@ async def portal_documents(user: dict = Depends(get_current_user)):
 
 
 @router.get("/new-starter/portal/access")
-async def portal_access(user: dict = Depends(get_current_user)):
+async def portal_access(user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     org = staff["organization_id"]
     prov = await db.staff_access_provisions.find_one({"staff_id": staff["id"]}) or {}
