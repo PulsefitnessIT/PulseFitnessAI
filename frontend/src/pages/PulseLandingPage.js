@@ -1271,9 +1271,9 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
 
       <div className="relative max-w-6xl mx-auto px-6">
         <SectionHeading
-          eyebrow="Lite & Pro"
-          title={t('pulse.plans_title', 'Two tiers, one portal.')}
-          description={t('pulse.plans_desc', 'Pulse Fitness customers get Lite for free. Upgrade to Pro any time for AI diagnostics, automated check sheets, and operational reporting.')}
+          eyebrow="For Pulse Fitness equipment customers"
+          title={t('pulse.plans_title', 'Your equipment portal — included.')}
+          description={t('pulse.plans_desc', 'Every Pulse Fitness equipment customer gets the Lite portal free. Upgrade to Managed any time for AI diagnostics, automated check sheets, and operational reporting handled by your account manager.')}
           align="center"
           testId="pulse-plans-heading"
         />
@@ -1367,7 +1367,7 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
                     <Sparkles size={11} /> {t('pulse.plan_ai_powered', 'AI-Powered')}
                   </div>
                   <h3 className="text-[var(--color-surface-dark-panel-alt)] font-extrabold text-2xl tracking-tight" style={{ letterSpacing: '-0.01em' }}>
-                    Pro
+                    Managed
                   </h3>
                 </div>
                 <span className="bg-white border border-slate-200 text-[var(--color-surface-dark-panel-alt)] text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
@@ -1400,7 +1400,7 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
               </Button>
 
               <div className="mt-8 pt-6 border-t border-slate-100">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--pulse-primary)] mb-4">{t('pulse.plan_pro_includes', 'Pro includes')}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--pulse-primary)] mb-4">{t('pulse.plan_pro_includes', 'Managed includes')}</div>
                 <ul className="space-y-2.5">
                   {PRO_FEATURES.map((f, i) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm text-[var(--color-surface-dark-panel-alt)] leading-relaxed">
@@ -1417,7 +1417,7 @@ export function PlansLitePro({ onSignIn, onUpgrade }) {
         {/* Footnote */}
         <div className="mt-10 text-center">
           <p className="text-xs text-[var(--color-text-slate)] max-w-xl mx-auto">
-            {t('pulse.plan_footnote', 'Lite is free for active Pulse Fitness customers. Upgrades are handled by your Pulse Fitness account manager. Already using Pro?')}{' '}
+            {t('pulse.plan_footnote', 'Lite is free for active Pulse Fitness equipment customers. Managed upgrades are handled by your Pulse Fitness account manager. Already upgraded?')}{' '}
             <button
               type="button"
               onClick={onSignIn}

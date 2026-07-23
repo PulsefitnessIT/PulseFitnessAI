@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Sparkles } from 'lucide-react';
 
 import PulseUpgradeRequestModal from '@/components/pulse/PulseUpgradeRequestModal';
+import PulseModulePricing from '@/components/pulse/PulseModulePricing';
 import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
 
@@ -86,7 +87,7 @@ export default function PulsePricingPage({ onLogin }) {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
               className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-[-0.02em] text-[var(--color-surface-dark-panel-alt)] leading-[1.08]"
             >
-              {t('pulse.pp_title', 'Two tiers built for Pulse Fitness customers.')}
+              {t('pulse.pp_title', 'Pricing that scales with your gym.')}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 18 }}
@@ -94,16 +95,19 @@ export default function PulsePricingPage({ onLogin }) {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.12 }}
               className="mt-5 max-w-2xl mx-auto text-sm sm:text-lg text-[var(--color-text-slate)]"
             >
-              {t('pulse.pp_desc', 'Lite is included with every Pulse Fitness service agreement. Upgrade to Pro for AI triage, automated check sheets, KPI tracking and operational reports — handled by your account manager.')}
+              {t('pulse.pp_desc', 'Pick the modules you need — Operations, CRM, Marketing and Memberships — each a standalone subscription in your currency. Already a Pulse Fitness equipment customer? Your Lite portal is included free.')}
             </motion.p>
             <div className="mt-8 inline-flex items-center gap-2 text-xs text-[var(--color-text-slate)]">
               <ShieldCheck size={13} className="text-emerald-500" />
-              {t('pulse.pp_note', 'No card required for Lite · Pro pricing tailored to your estate')}
+              {t('pulse.pp_note', '14-day free trial · no card required to start · cancel anytime')}
             </div>
           </div>
         </section>
 
-        {/* Plan cards (reuses the Lite/Pro section from the homepage) */}
+        {/* Modules — the product (public, multi-currency) */}
+        <PulseModulePricing onStart={openLogin} />
+
+        {/* Lite tier for existing Pulse Fitness equipment customers */}
         <PlansLitePro onSignIn={openLogin} onUpgrade={openUpgrade} />
 
         <PulseFooter />

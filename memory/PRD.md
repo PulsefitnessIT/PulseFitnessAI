@@ -1,3 +1,28 @@
+# ═══ 2026-06 · PUBLIC UNIFIED PRICING PAGE (/pulse-pricing) — MODULES + LITE/MANAGED ═══
+Founder: landing "Plans" nav pointed at the old Lite/Pro page; the new module pricing wasn't public. Decision:
+ONE public pricing page = modules as the product (primary) + Lite tier for equipment customers (secondary); "Pulse
+Fitness Pro" = Operations everywhere; rename the old Lite/Pro "Pro" tier; make it publicly viewable with sign-in CTAs.
+
+DONE:
+- NEW components/pulse/PulseModulePricing.js — PUBLIC multi-currency modules section. Fetches GET /api/payments/
+  pricing/live (public). £/€/$ + Monthly/Annual toggles (auto-detect currency). Operations = flagship "Pulse Fitness
+  Pro" (Recommended badge, cyan border). CTAs: logged-in -> /choose-plan; logged-out -> onStart (opens login modal).
+  Pulse cyan brand (var(--pulse-primary)). testids: pulse-module-pricing, pulse-currency-{gbp,eur,usd},
+  pulse-billing-{monthly,annual}, pulse-module-card-{id}, pulse-module-price-{id}, pulse-module-start-{id}, pulse-flagship-badge.
+- pages/PulsePricingPage.js — inserted <PulseModulePricing onStart={openLogin}/> as PRIMARY section above PlansLitePro;
+  hero copy now modules-first ("Pricing that scales with your gym."). "Plans" nav already -> /pulse-pricing (public, no auth).
+- pages/PulseLandingPage.js PlansLitePro — renamed the equipment-customer upgrade tier "Pro" -> "Managed" (card title,
+  eyebrow -> "For Pulse Fitness equipment customers", "Managed includes", footnote). Lite unchanged.
+- VISUALLY VERIFIED on /pulse-pricing: Operations £69/mo (Pulse Fitness Pro, Recommended), CRM £69, Marketing £49,
+  Memberships £79; toggles + Save 16.7% render; cyan brand. (Prices load async — allow the fetch a moment.)
+- NOTE: other site-wide "Pro" mentions on the landing page (e.g. "New for Pulse Pro" feature callouts) were NOT
+  renamed — only the pricing tier. A full "Pro" terminology sweep can be done if wanted.
+- REMINDER: preview only; production (pulsefitness.ai / fitness-ai-migrate.emergent.host) needs a redeploy.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · PRICING PAGE — BUNDLE REMOVED, OPERATIONS = "PULSE FITNESS PRO" (VERIFIED, 0 bugs) ═══
 Per founder: PulseFitness does NOT offer a bundle — modules sold separately; Operations is the flagship badged
 "Pulse Fitness Pro". Updated ChoosePlanPage.js: removed the entire bundle card + hero bundle copy; modules section
