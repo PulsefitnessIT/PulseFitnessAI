@@ -83,7 +83,7 @@ function SignaturePad({ onSave, onCancel, isDark, c }) {
 }
 
 /* ═══ QUOTE DETAIL ═══ */
-function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
+function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canInventory }) {
   const [quote, setQuote] = useState(null);
   const [showSign, setShowSign] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
@@ -261,7 +261,7 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
                 <Copy size={12} /> Revise
               </button>
             )}
-            {(quote.status === 'accepted' || quote.signature) && (
+            {(quote.status === 'accepted' || quote.signature) && canInventory && (
               <button onClick={sendToDistribution} disabled={actionLoading === 'distribution'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-md text-white transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #19CDFF, #0BB0DD)' }} data-testid="quote-send-distribution-btn">
                 <Package size={12} /> {actionLoading === 'distribution' ? 'Sending…' : 'Send to Distribution'}
               </button>

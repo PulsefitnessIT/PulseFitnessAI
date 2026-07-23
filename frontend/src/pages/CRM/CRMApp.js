@@ -3,6 +3,7 @@ import { useAuth } from '@/App';
 import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 import Navbar from '@/components/shared/Navbar';
 import ModuleSwitcher, { hasModuleAccess } from '@/components/shared/ModuleSwitcher';
+import { can as canCapability } from '@/utils/capabilities';
 import ModulePageHeader from '@/components/shared/ModulePageHeader';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
@@ -898,7 +899,7 @@ export default function CRMApp() {
   const showShell = !!platformUser;
 
   return (
-    <CRMContext.Provider value={{ user, API, headers, logout, activeTab, setActiveTab, navigateTo, navTarget, setNavTarget, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes }}>
+    <CRMContext.Provider value={{ user, API, headers, logout, activeTab, setActiveTab, navigateTo, navTarget, setNavTarget, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes, canInventory: canCapability(platformUser, 'view_inventory') }}>
       <div
         className={`min-h-screen overflow-x-hidden pulse-font-body module-fade-in ${!isPulseBrandedCRM && !isDark ? 'theme-gymaxis' : ''}`}
         style={{ background: c.bg }}
