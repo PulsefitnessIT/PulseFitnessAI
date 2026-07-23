@@ -278,7 +278,7 @@ function InstallPackModal({ alloc, onClose, onChanged }) {
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-slate-800">{s.reference}</span>
                     <StatusBadge status={s.status} />
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">{statusLabel(s.readiness_status)}</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">Readiness: {statusLabel(s.readiness_status)}</span>
                     {s.auto_linked && <span className="rounded bg-cyan-50 px-1.5 py-0.5 text-[11px] font-semibold text-cyan-700">Auto-linked</span>}
                   </div>
                   {/* H&S risks */}

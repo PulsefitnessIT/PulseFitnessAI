@@ -1,3 +1,42 @@
+# ═══ 2026-06 · INSTALL PACK — SITE SURVEY + H&S + DRAWINGS COLLATED ONTO INSTALLS (PHASE 1, VERIFIED FE) ═══
+Founder: when an install is arranged on the calendar, attach the customer's site survey to the install so all info
+(H&S questionnaire, access, site rules, drawings) is collated for everyone. Longer goal = a logistics app for the
+install team (upcoming installs, surveys, drawings, H&S, customer sign-off, separate login). User chose: Logistics
+workspace INSIDE the Inventory module; "case" = the installation (allocation) record; phase it. H&S already lives IN
+the site survey (schema has Health & Safety/Risks + Site Rules/RAMS/PPE + access risk) — no new questionnaire needed.
+Separate logistics login + on-site customer sign-off = PHASE 2.
+
+PHASE 1 DELIVERED (reuses existing records — no duplication):
+  • AUTO-LINK: POST /api/inventory/alloc/allocations/{id}/schedule now auto-matches the customer's pre-install site
+    survey (pre_install_site_surveys by company_id; prefers approved_for_installation/completed, else most recent
+    current) and stamps site_survey_id + site_survey_auto_linked on the allocation. Non-destructive.
+  • INSTALL PACK: GET /allocations/{id}/install-pack returns the collated pack — the install VISIT (all allocations
+    for the same customer + planned day), each machine with its exploded assembly drawings (matched from
+    exploded_drawings by model/manufacturer, file at /api/exploded-drawings/{id}/file), the linked survey with a
+    curated H&S summary (risks, access risk, site rules: induction/RAMS/PPE/permit/emergency contact), and
+    installer-visible survey attachments (photos/floor plans/CAD) with an org-scoped download proxy
+    GET /allocations/survey-attachment/{att_id}/download (respects visible_to_installer).
+  • RELINK: GET /allocations/{id}/survey-candidates + POST /allocations/{id}/link-survey (survey_id|null) to pick/
+    unlink a different survey (clears the auto-linked flag).
+  • FRONTEND (InvAllocation.js): new InstallPackModal (visit header, survey+H&S card with severity-coloured risks,
+    site-rules block, doc/photo download chips, machines+drawing chips, "Change/Link survey" relink picker). Opened
+    via an "Install pack" button in the Installations list rows and the calendar chip actions dialog. Authed blob
+    fetch opens drawings/attachments in a new tab. api.js: installPack/surveyCandidates/linkSurvey/url helpers.
+
+VERIFIED: backend curl (schedule auto-links; install-pack returns machines+drawings+H&S+attachments; downloads 200;
+relink/unlink; auto_linked flag correct) + testing_agent frontend (all 6 acceptance points; report
+iteration_inv_install_pack_jan2026.json). Two issues found & FIXED post-test: auto_linked badge now reads the
+allocation's site_survey_auto_linked flag (was mis-derived); exploded-drawing 500 was a seed artefact (no object file)
+— real uploads carry a storage_path. Readiness pill relabelled "Readiness: …". QA seed (LOGQA-*) wiped.
+
+PHASE 2 (next): dedicated logistics install-team view + SEPARATE logistics login/role (managers/owners keep
+Distribution access), on-site customer SIGN-OFF at completion feeding warranty activation.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · CRM QUOTE → DISTRIBUTION PUSH + AI-INVOICE CATALOGUE MATCH (VERIFIED 100% FE) ═══
 Completes the CRM→Inventory link left as TESTING-PENDING at fork. Two features shipped & verified:
 

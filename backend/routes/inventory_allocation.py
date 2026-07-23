@@ -429,7 +429,7 @@ async def install_pack(alloc_id: str, user=Depends(get_current_user)):
     survey_block = None
     attachments = []
     if survey:
-        survey_block = {**_survey_brief(survey), "hs": _survey_hs_summary(survey), "auto_linked": not a.get("site_survey_id")}
+        survey_block = {**_survey_brief(survey), "hs": _survey_hs_summary(survey), "auto_linked": bool(a.get("site_survey_auto_linked"))}
         raw = await db[SURVEY_ATTACH].find(
             {"survey_id": survey.get("id"), "is_deleted": {"$ne": True}}, {"_id": 0}
         ).sort("created_at", -1).to_list(200)
