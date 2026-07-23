@@ -1,3 +1,20 @@
+# ═══ 2026-06 · EMAIL INSTALLATION CERTIFICATE TO CUSTOMER ON SIGN-OFF (VERIFIED, backend-only) ═══
+On every install sign-off, the generated Installation Certificate PDF is now emailed to the customer's main contact.
+  • inventory_certificate._email_certificate_to_customer(alloc, rec, pdf, filename, user) — resolves the customer's
+    primary contact via pulse_onboarding._resolve_contact (crm2_companies.primary_contact_email → else first
+    crm2_contact with email), then send_email(...) with the PDF as a Resend base64 attachment, branded to the
+    distributor org (organization_id), kind='install_certificate'. Best-effort (wrapped in try/except — never blocks
+    commissioning). Stamps certificate_emailed_to/at on the commissioning record. No email → logged, skipped.
+  • Called at the end of generate_and_store_certificate (fires for both ops Install-checks and logistics sign-off).
+VERIFIED: completed LOGQA3 sign-off → certificate:true and commissioning record has certificate_emailed_to +
+certificate_emailed_at (send_email returned OK with the PDF attachment via real Resend). Fake test contact email
+reverted. NOTE: sends via REAL Resend.
+
+────────────────────────────────────────────────────────────────────────
+
+
+
+
 # ═══ 2026-06 · AUTOMATED CUSTOMER PORTAL ONBOARDING ON ORDER CONFIRMATION (VERIFIED E2E, backend-only) ═══
 User: once an order is confirmed on CRM, automatically email the main customer to set up their portal access — remove
 human interaction. Choices (all defaults confirmed): trigger = "Send to Distribution"; recipient = CRM company's

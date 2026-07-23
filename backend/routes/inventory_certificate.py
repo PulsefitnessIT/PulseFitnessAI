@@ -167,7 +167,47 @@ async def generate_and_store_certificate(alloc: dict, rec: dict, warranty: dict,
             await db.equipment.update_one(
                 {"id": alloc["asset_id"], "organization_id": user.get("organization_id")},
                 {"$set": {"install_certificate_path": storage_path, "install_certificate_record_id": cert_id}})
+        # Best-effort: email the certificate to the customer's main contact.
+        try:
+            await _email_certificate_to_customer(alloc, rec, pdf, filename, user)
+        except Exception as e:
+            logger.warning(f"[install-certificate] customer email skipped: {e!r}")
         return {"certificate_id": cert_id, "storage_path": storage_path, "filename": filename}
     except Exception as e:
         logger.exception(f"[install-certificate] generation failed: {e!r}")
         return {}
+
+
+async def _email_certificate_to_customer(alloc: dict, rec: dict, pdf: bytes, filename: str, user: dict):
+    """Email the branded certificate PDF to the customer's primary contact (best-effort)."""
+    import base64
+    from utils.email import send_email, wrap_branded
+    company = None
+    if alloc.get("customer_company_id"):
+        company = await db.crm2_companies.find_one({"id": alloc["customer_company_id"]}, {"_id": 0})
+    if not company:
+        return
+    from routes.pulse_onboarding import _resolve_contact
+    email, name = await _resolve_contact(company)
+    if not email:
+        logger.info("[install-certificate] no customer contact email — not emailing")
+        return
+    greeting = (name.split(" ")[0] if name else "there")
+    html = await wrap_branded(f"""
+      <p>Hi {greeting},</p>
+      <p>Your equipment has been installed and signed off. Your Installation Certificate is attached
+      — it confirms the install, the customer sign-off and your warranty cover. Please keep it for your records.</p>
+      <p><b>Equipment:</b> {alloc.get('model') or alloc.get('product_code') or 'Your equipment'}<br/>
+      <b>Serial:</b> {alloc.get('serial_number') or '—'}</p>
+      <p style="color:#64748b;font-size:13px">You can also view your installations and warranty any time in your Pulse dashboard.</p>
+    """, user.get("organization_id"))
+    await send_email(
+        to=email,
+        subject="Your Pulse Fitness Installation Certificate",
+        html=html,
+        attachments=[{"filename": filename, "content": base64.b64encode(pdf).decode()}],
+        organization_id=user.get("organization_id"),
+        kind="install_certificate",
+    )
+    await db.installation_commissioning_records.update_one(
+        {"id": rec.get("id")}, {"$set": {"certificate_emailed_to": email, "certificate_emailed_at": datetime.now(timezone.utc).isoformat()}})
