@@ -37,6 +37,14 @@ with a KPI row: delivered count, share %, replacement value, 12m forecast. board
 so supplied_by_us is already in the payload. VERIFIED: GET /capex/board-report.pdf → HTTP 200, valid PDF,
 text extract confirms the section renders.
 
+FOLLOW-UP (2026-06): demo data seeded so the "Delivered by us" view shows real numbers.
+scripts/seed_capex_delivered_demo.py (idempotent, tagged demo_seed='capex_delivered') inserts 4 realistic
+delivered machines into iso-demo-org (2 aged-with-fault-history → at_risk, 2 recent → healthy). CAPEX now
+reports supplied_by_us = {count:5, share:26%, total_replacement_value:£15,199, forecast_12m:£9,000}. Verified
+via /capex/analysis: Pulse Runner GP (Treadmill £4500, 6.5y, at_risk, 12mo) + Pulse Power Cable (£4500, 5y,
+at_risk) drive the £9k forecast; costs/ages flow from install_date + purchase_cost. Wipe: delete equipment/
+issues where demo_seed='capex_delivered'. UI already verified by testing_agent (iteration_capex_delivered_by_us_frontend).
+
 ────────────────────────────────────────────────────────────────────────
 
 
