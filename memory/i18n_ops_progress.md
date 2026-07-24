@@ -35,10 +35,19 @@ into i18n/locales/{en,fr,de}.json.
       map/filter/find t->th; translated KIND_META labels; dayLabel(iso,t))
 
 ## STILL TODO (P1/P2 backlog — all render English via fallback, functional)
-- [ ] staffing/HRTab.js (~1060) P1
-- [ ] staffing/StaffOnboarding.js (~1073) P1 (watch t shadows)
-- [ ] StaffingConsole.js DEEP inline panels (Rota schedule/Leave/Market/Rules/Announcements/
-      payroll drawers/staff-portal-preview) P1 — nav already done
+- [x] staffing/HRTab.js — DONE (staffing.hr_*; renamed SUB_TABS.map t->st; translated SUB_TABS +
+      field-arrays in Docs/Disciplinary/Training + JobRolesModal + AddStaffDialog)
+- [ ] staffing/StaffOnboarding.js (~1074) P1 — NOT DONE. NEEDS FULL REWRITE. CAUTION:
+      `t` SHADOWS to rename before adding useTranslation:
+        · CaseDetail load: `const [d, t] = await Promise.all(...)` -> rename t->tRes
+        · CaseDetail offer/contract template pickers: `templates.offer.map((t)=>` and
+          `templates.contract.map((t)=>` -> rename to `tpl`
+        · TemplateManager load: `const [t, f] = await Promise.all(...)` -> rename t->tRes
+      Helpers at tail (lines ~1034-1074, was clipped): Modal, Row, Btn — also have small strings
+      (e.g. Btn children, Modal close). Read the FULL file first. Suggested ns: staffing.onb_*
+- [ ] StaffingConsole.js DEEP inline panels P1 — nav already done. Read lines 176-1243 for the
+      Rota schedule / Leave / Shift Market / Rules / Announcements / payroll drawers /
+      staff-portal-preview strings. Suggested ns: staffing.sc_*
 - [ ] staffing/orgchart/* (14 files ~2000 lines) P2
 
 ## PIPELINE BUILT & VERIFIED (idempotent, re-runnable)

@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
   Trash2, X, Check, Search, AlertTriangle,
@@ -24,10 +25,8 @@ import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Iter 289 — Add Staff dialog lives here now that Staff + HR are one tab.
-// Mirrors the roster's create flow (POST /staffing/staff) so nothing was lost
-// when the duplicate "Staff" tab was removed.
 function AddStaffDialog({ headers, onClose, onCreated }) {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState(['manager', 'staff']);
   const [form, setForm] = useState({
     full_name: '', email: '', primary_role: 'staff',
@@ -47,14 +46,14 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
   }, [headers]);
 
   const submit = async () => {
-    if (!form.full_name.trim()) { setErr('Name is required'); return; }
+    if (!form.full_name.trim()) { setErr(t('staffing.hr_name_required', 'Name is required')); return; }
     setSaving(true); setErr('');
     try {
       const { data } = await axios.post(`${API}/staffing/staff`, form, { headers });
       onCreated(data?.id || data?.staff?.id || null);
       onClose();
     } catch (e) {
-      setErr(e?.response?.data?.detail || 'Could not add staff');
+      setErr(e?.response?.data?.detail || t('staffing.hr_could_not_add', 'Could not add staff'));
     } finally { setSaving(false); }
   };
 
@@ -65,20 +64,20 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
         style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
         data-testid="hr-add-staff-dialog">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Add staff</div>
+          <div className="text-sm font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.hr_add_staff', 'Add staff')}</div>
           <button type="button" onClick={onClose} data-testid="hr-add-staff-close"><X size={16} style={{ color: 'var(--theme-text-muted)' }} /></button>
         </div>
         <div className="space-y-2">
           <div>
-            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Full name</label>
-            <input placeholder="e.g. Jane Doe" value={form.full_name}
+            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_full_name', 'Full name')}</label>
+            <input placeholder={t('staffing.hr_name_ph', 'e.g. Jane Doe')} value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
               className="w-full rounded-lg px-3 py-2 text-sm border"
               style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="hr-add-staff-name" />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Email <span className="opacity-60 normal-case font-normal">(optional — links to existing user)</span></label>
+            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email', 'Email')} <span className="opacity-60 normal-case font-normal">{t('staffing.hr_email_hint', '(optional — links to existing user)')}</span></label>
             <input placeholder="jane@example.com" value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full rounded-lg px-3 py-2 text-sm border"
@@ -87,7 +86,7 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Job role</label>
+              <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_job_role', 'Job role')}</label>
               <select value={form.primary_role} onChange={(e) => setForm({ ...form, primary_role: e.target.value })}
                 className="w-full rounded-lg px-3 py-2 text-sm border"
                 style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
@@ -96,7 +95,7 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
               </select>
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contract type</label>
+              <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_contract_type', 'Contract type')}</label>
               <select value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })}
                 className="w-full rounded-lg px-3 py-2 text-sm border"
                 style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
@@ -108,11 +107,11 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
           {err && <p className="text-xs text-red-500" data-testid="hr-add-staff-error">{err}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-bold border"
-              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-add-staff-cancel">Cancel</button>
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-add-staff-cancel">{t('staffing.hr_cancel', 'Cancel')}</button>
             <button type="button" onClick={submit} disabled={saving}
               className="px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-add-staff-save">
-              {saving ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Add staff
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} {t('staffing.hr_add_staff', 'Add staff')}
             </button>
           </div>
         </div>
@@ -123,10 +122,10 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
 
 
 const SUB_TABS = [
-  { id: 'profile',      label: 'Profile',      icon: User },
-  { id: 'documents',    label: 'Documents',    icon: FileText },
-  { id: 'disciplinary', label: 'Disciplinary', icon: ShieldAlert },
-  { id: 'training',     label: 'Training',     icon: GraduationCap },
+  { id: 'profile',      labelKey: 'staffing.hr_tab_profile',      labelDefault: 'Profile',      icon: User },
+  { id: 'documents',    labelKey: 'staffing.hr_tab_documents',    labelDefault: 'Documents',    icon: FileText },
+  { id: 'disciplinary', labelKey: 'staffing.hr_tab_disciplinary', labelDefault: 'Disciplinary', icon: ShieldAlert },
+  { id: 'training',     labelKey: 'staffing.hr_tab_training',     labelDefault: 'Training',     icon: GraduationCap },
 ];
 
 const CONTRACT_TYPES = ['', 'permanent', 'fixed_term', 'casual', 'zero_hours', 'self_employed', 'apprentice'];
@@ -144,8 +143,6 @@ const SEVERITY_TINT = {
 
 function fmtDate(iso) { return iso ? iso.slice(0, 10) : '—'; }
 
-// Iter 279c — roles are stored as lower_snake tokens (e.g. "sales_manager");
-// present them as proper Title Case ("Sales Manager") wherever shown.
 function humanizeRole(role) {
   if (!role) return '—';
   return String(role)
@@ -156,16 +153,11 @@ function humanizeRole(role) {
 // ─────────────────────── Profile panel ───────────────────────────
 
 function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
-  // Iter 216h241 — multi-site allocation panel. Loads all org sites once
-  // on first render so the manager can tick which sites the staff
-  // member is authorised to work at. Persists to ``staff_members.site_ids``
-  // via the PATCH /staffing/staff/{id} endpoint (separate from the HR
-  // profile PATCH; profile fields are whitelisted in PROFILE_FIELDS
-  // and site_ids isn't an HR field, it's a core staff_members field).
   const [sites, setSites] = useState([]);
 
   const load = useCallback(async () => {
@@ -177,8 +169,6 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
   }, [staffId, headers]);
   useEffect(() => { load(); }, [load]);
 
-  // Iter 216h243 — dynamic role list for the Primary role field below.
-  // Mirrors the Add Staff dialog (StaffingConsole) — same endpoint.
   const DEFAULT_ROLES = useMemo(() => ['manager','engineer','technician','sales_manager','administrator','receptionist','supervisor','director','other'], []);
   const [roleOptions, setRoleOptions] = useState(DEFAULT_ROLES);
   const [addingRole, setAddingRole] = useState(false);
@@ -200,11 +190,10 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
       await loadRoles();
       set('primary_role', name);
     } catch (err) {
-      window.alert(err.response?.data?.detail || 'Could not add role');
+      window.alert(err.response?.data?.detail || t('staffing.hr_could_not_add_role', 'Could not add role'));
     }
   };
 
-  // One-shot site directory load. Stays warm for the whole session.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -243,29 +232,23 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
         payload.hours_per_week = parseFloat(payload.hours_per_week) || null;
       }
       await axios.patch(`${API}/staffing/hr/profile/${staffId}`, payload, { headers });
-      // Iter 216h241 — site_ids lives on the core staff_members doc
-      // (StaffUpdate model) not in the HR PROFILE_FIELDS whitelist, so
-      // ship it via the dedicated endpoint. Best-effort: a failure here
-      // shouldn't block the HR profile save above.
-      // Iter 216h243 — also ship primary_role via the same route since
-      // it's a core staff field, not an HR profile field.
       const staffPatch = {};
       if (Array.isArray(form.site_ids)) staffPatch.site_ids = form.site_ids;
       if (form.primary_role && form.primary_role !== profile.primary_role) staffPatch.primary_role = form.primary_role;
       if (Object.keys(staffPatch).length > 0) {
         try {
           await axios.patch(`${API}/staffing/staff/${staffId}`, staffPatch, { headers });
-        } catch (siteErr) { window.alert(siteErr.response?.data?.detail || 'Role / site allocation save failed'); }
+        } catch (siteErr) { window.alert(siteErr.response?.data?.detail || t('staffing.hr_role_site_save_failed', 'Role / site allocation save failed')); }
       }
       setEditing(false);
       load();
       onUpdated && onUpdated();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
     setSaving(false);
   };
 
   if (!profile) {
-    return <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading…</div>;
+    return <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.hr_loading', 'Loading…')}</div>;
   }
 
   const Field = ({ label, k, type = 'text', list }) => (
@@ -273,10 +256,6 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
       <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
       {editing ? (
         type === 'date' ? (
-          // Iter 216h241 — hybrid DatePicker (typeable DD/MM/YYYY +
-          // calendar). Native <input type="date"> made DOB entry
-          // unusable: the year segment auto-stored 0001 when the user
-          // typed a 2-digit year and the cursor jumped on focus.
           <DatePicker
             value={form[k] || ''}
             onChange={(iso) => set(k, iso || null)}
@@ -306,24 +285,24 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <p className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{profile.full_name}</p>
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(profile.primary_role)} · {profile.email || 'no email on file'}</p>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(profile.primary_role)} · {profile.email || t('staffing.hr_no_email', 'no email on file')}</p>
         </div>
         {isManager && !editing && (
           <button type="button" onClick={() => setEditing(true)}
             className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-edit">
-            <Pencil size={11} /> Edit
+            <Pencil size={11} /> {t('staffing.hr_edit', 'Edit')}
           </button>
         )}
         {editing && (
           <div className="flex gap-2">
             <button type="button" onClick={() => { setEditing(false); setForm(profile); }}
               className="h-8 rounded-full border px-3 text-xs font-bold"
-              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-cancel">Cancel</button>
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-cancel">{t('staffing.hr_cancel', 'Cancel')}</button>
             <button type="button" onClick={save} disabled={saving}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-profile-save">
-              {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
+              {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} {t('staffing.hr_save', 'Save')}
             </button>
           </div>
         )}
@@ -331,29 +310,24 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 rounded-xl border p-4"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
-        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Contact</p>
-        <Field label="Address line 1" k="address_line1" />
-        <Field label="Address line 2" k="address_line2" />
-        <Field label="City" k="city" />
-        <Field label="Postcode" k="postcode" />
-        <Field label="Date of birth" k="date_of_birth" type="date" />
+        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_contact', 'Contact')}</p>
+        <Field label={t('staffing.hr_address1', 'Address line 1')} k="address_line1" />
+        <Field label={t('staffing.hr_address2', 'Address line 2')} k="address_line2" />
+        <Field label={t('staffing.hr_city', 'City')} k="city" />
+        <Field label={t('staffing.hr_postcode', 'Postcode')} k="postcode" />
+        <Field label={t('staffing.hr_dob', 'Date of birth')} k="date_of_birth" type="date" />
 
-        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Emergency contact</p>
-        <Field label="Name"        k="emergency_contact_name" />
-        <Field label="Phone"       k="emergency_contact_phone" type="tel" />
-        {/* Iter 216h195 — Relationship dropdown for reporting consistency. */}
-        <Field label="Relationship" k="emergency_contact_relationship" list="hr-relationship-list" />
+        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_emergency', 'Emergency contact')}</p>
+        <Field label={t('staffing.hr_name', 'Name')}        k="emergency_contact_name" />
+        <Field label={t('staffing.hr_phone', 'Phone')}       k="emergency_contact_phone" type="tel" />
+        <Field label={t('staffing.hr_relationship', 'Relationship')} k="emergency_contact_relationship" list="hr-relationship-list" />
         <datalist id="hr-relationship-list">
           {RELATIONSHIP_OPTIONS.map((r) => <option key={r} value={r} />)}
         </datalist>
 
-        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Employment</p>
-        {/* Iter 216h243 — Primary role editable from HR with dynamic
-            org-custom roles. Persisted via the staff PATCH route (same
-            as site_ids below) since primary_role isn't an HR-only
-            field in PROFILE_FIELDS. */}
+        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_employment', 'Employment')}</p>
         <div className="flex flex-col gap-1" data-testid="hr-primary-role-field">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Primary role</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_primary_role', 'Primary role')}</span>
           {editing ? (addingRole ? (
             <div className="flex gap-1">
               <input
@@ -362,13 +336,13 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
                 maxLength={60}
                 value={newRoleName}
                 onChange={(e) => setNewRoleName(e.target.value)}
-                placeholder="e.g. Swim coach"
+                placeholder={t('staffing.hr_role_ph', 'e.g. Swim coach')}
                 className="flex-1 h-8 rounded-md bg-transparent border px-2 text-sm"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 onKeyDown={(e) => { if (e.key === 'Enter') submitNewRole(); if (e.key === 'Escape') { setAddingRole(false); setNewRoleName(''); } }}
                 data-testid="hr-primary-role-new-input"
               />
-              <button type="button" onClick={submitNewRole} className="text-xs font-semibold px-2 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="hr-primary-role-new-save">Add</button>
+              <button type="button" onClick={submitNewRole} className="text-xs font-semibold px-2 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="hr-primary-role-new-save">{t('staffing.hr_add', 'Add')}</button>
               <button type="button" onClick={() => { setAddingRole(false); setNewRoleName(''); }} className="text-xs px-2 rounded-md border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-primary-role-new-cancel">×</button>
             </div>
           ) : (
@@ -386,7 +360,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
                 ? roleOptions
                 : [form.primary_role, ...roleOptions]
               ).map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
-              <option value="__add_new__">+ Add new role…</option>
+              <option value="__add_new__">{t('staffing.hr_add_new_role', '+ Add new role…')}</option>
             </select>
           )) : (
             <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{humanizeRole(profile.primary_role) || '—'}</span>
@@ -394,7 +368,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Contract type</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_contract_type', 'Contract type')}</span>
           {editing ? (
             <select value={form.contract_type || ''} onChange={(e) => set('contract_type', e.target.value || null)}
               className="h-8 rounded-md bg-transparent border px-2 text-sm"
@@ -405,19 +379,13 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
             <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.contract_type || '—'}</span>
           )}
         </div>
-        <Field label="Hours / week" k="hours_per_week" type="number" />
-        <Field label="Hire date" k="hire_date" type="date" />
-        <Field label="Termination date" k="termination_date" type="date" />
+        <Field label={t('staffing.hr_hours_week', 'Hours / week')} k="hours_per_week" type="number" />
+        <Field label={t('staffing.hr_hire_date', 'Hire date')} k="hire_date" type="date" />
+        <Field label={t('staffing.hr_term_date', 'Termination date')} k="termination_date" type="date" />
 
-        {/* Iter 216h241 — Site allocation panel. Multi-site orgs (Pulse
-            Fitness Pro, MOD HQ + children) need to scope each staff
-            member to one or more sites; the scheduler and Sicon
-            engineer-routing both consume ``staff_members.site_ids``.
-            Hidden entirely for orgs with 0-1 sites to keep the form
-            tidy. */}
         {sites.length > 1 && (
           <div className="md:col-span-2 mt-2" data-testid="hr-site-allocation-panel">
-            <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Site allocation</p>
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_site_alloc', 'Site allocation')}</p>
             {editing ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-3" style={{ borderColor: 'var(--theme-border)' }}>
                 {sites.map((s) => {
@@ -432,7 +400,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
                         data-testid={`hr-site-allocation-toggle-${s.id}`}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate">{s.name || 'Unnamed site'}</span>
+                        <span className="block truncate">{s.name || t('staffing.hr_unnamed_site', 'Unnamed site')}</span>
                         <span className="block text-[10px] opacity-60 truncate">{s.address || s.postcode || '—'}</span>
                       </span>
                     </label>
@@ -443,7 +411,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
               <p className="text-sm" style={{ color: 'var(--theme-text)' }} data-testid="hr-site-allocation-readout">
                 {(() => {
                   const ids = Array.isArray(profile.site_ids) ? profile.site_ids : [];
-                  if (ids.length === 0) return 'All sites (no restriction)';
+                  if (ids.length === 0) return t('staffing.hr_all_sites', 'All sites (no restriction)');
                   return sites.filter((s) => ids.includes(s.id)).map((s) => s.name).filter(Boolean).join(', ') || '—';
                 })()}
               </p>
@@ -451,9 +419,9 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
           </div>
         )}
 
-        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Right to work</p>
+        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_rtw', 'Right to work')}</p>
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Status</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_status', 'Status')}</span>
           {editing ? (
             <select value={form.right_to_work_status || ''} onChange={(e) => set('right_to_work_status', e.target.value || null)}
               className="h-8 rounded-md bg-transparent border px-2 text-sm"
@@ -464,15 +432,15 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
             <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.right_to_work_status || '—'}</span>
           )}
         </div>
-        <Field label="NI number" k="ni_number" />
+        <Field label={t('staffing.hr_ni_number', 'NI number')} k="ni_number" />
 
-        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Bank (payroll)</p>
-        <Field label="Bank name" k="bank_name" />
-        <Field label="Sort code" k="bank_sort_code" />
-        <Field label="Account last 4" k="bank_account_last4" />
+        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_bank', 'Bank (payroll)')}</p>
+        <Field label={t('staffing.hr_bank_name', 'Bank name')} k="bank_name" />
+        <Field label={t('staffing.hr_sort_code', 'Sort code')} k="bank_sort_code" />
+        <Field label={t('staffing.hr_account_last4', 'Account last 4')} k="bank_account_last4" />
 
         <div className="md:col-span-2 mt-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Notes</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_notes', 'Notes')}</span>
           {editing ? (
             <textarea value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} rows={3}
               className="mt-1 w-full rounded-md bg-transparent border px-2 py-1.5 text-sm resize-none"
@@ -489,6 +457,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
 // ─────────────────────── Generic CRUD list ───────────────────────
 
 function CrudList({ title, items, columns, onAdd, onEdit, onDelete, isManager, emptyText, testId }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-3" data-testid={testId}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -498,7 +467,7 @@ function CrudList({ title, items, columns, onAdd, onEdit, onDelete, isManager, e
             className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
             data-testid={`${testId}-add`}>
-            <Plus size={11} /> Add
+            <Plus size={11} /> {t('staffing.hr_add', 'Add')}
           </button>
         )}
       </div>
@@ -532,13 +501,14 @@ function CrudList({ title, items, columns, onAdd, onEdit, onDelete, isManager, e
 }
 
 function MiniDialog({ open, title, fields, initial, onClose, onSubmit, testId }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({});
   useEffect(() => { setForm(initial || {}); }, [initial, open]);
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const submit = () => {
     for (const f of fields) {
-      if (f.required && !form[f.id]) { window.alert(`${f.label} is required`); return; }
+      if (f.required && !form[f.id]) { window.alert(`${f.label} ${t('staffing.hr_is_required', 'is required')}`); return; }
     }
     onSubmit(form);
   };
@@ -574,11 +544,11 @@ function MiniDialog({ open, title, fields, initial, onClose, onSubmit, testId })
         ))}
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.hr_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid={`${testId}-save`}>
-            <Check size={11} /> Save
+            <Check size={11} /> {t('staffing.hr_save', 'Save')}
           </button>
         </div>
       </div>
@@ -589,6 +559,7 @@ function MiniDialog({ open, title, fields, initial, onClose, onSubmit, testId })
 // ─────────────────────── Documents / Disciplinary / Training ────
 
 function DocumentsPanel({ staffId, headers, isManager }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -599,34 +570,34 @@ function DocumentsPanel({ staffId, headers, isManager }) {
   useEffect(() => { load(); }, [load]);
 
   const fields = [
-    { id: 'name', label: 'Name', required: true },
-    { id: 'kind', label: 'Kind', kind: 'select', options: DOC_KINDS, required: true },
-    { id: 'url',  label: 'URL',  required: true },
-    { id: 'expires_at', label: 'Expires', kind: 'date' },
-    { id: 'notes', label: 'Notes', kind: 'textarea' },
+    { id: 'name', label: t('staffing.hr_name', 'Name'), required: true },
+    { id: 'kind', label: t('staffing.hr_kind', 'Kind'), kind: 'select', options: DOC_KINDS, required: true },
+    { id: 'url',  label: t('staffing.hr_url', 'URL'),  required: true },
+    { id: 'expires_at', label: t('staffing.hr_expires', 'Expires'), kind: 'date' },
+    { id: 'notes', label: t('staffing.hr_notes', 'Notes'), kind: 'textarea' },
   ];
   const create = async (form) => {
     try {
       await axios.post(`${API}/staffing/hr/documents`, { ...form, staff_id: staffId, kind: form.kind || 'contract' }, { headers });
       setAdding(false); load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
   };
   const update = async (form) => {
     try {
       await axios.patch(`${API}/staffing/hr/documents/${form.id}`, form, { headers });
       setEditing(null); load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
   };
   const remove = async (it) => {
-    if (!window.confirm(`Delete "${it.name}"?`)) return;
+    if (!window.confirm(`${t('staffing.hr_delete', 'Delete')} "${it.name}"?`)) return;
     try { await axios.delete(`${API}/staffing/hr/documents/${it.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_delete_failed', 'Delete failed')); }
   };
 
   return (
     <>
-      <CrudList title="Documents" items={items} testId="hr-docs"
-        emptyText="No documents on file."
+      <CrudList title={t('staffing.hr_documents', 'Documents')} items={items} testId="hr-docs"
+        emptyText={t('staffing.hr_no_docs', 'No documents on file.')}
         onAdd={() => setAdding(true)} onEdit={setEditing} onDelete={remove} isManager={isManager}
         columns={(it) => (
           <>
@@ -635,18 +606,19 @@ function DocumentsPanel({ staffId, headers, isManager }) {
               <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ml-1" style={{ background: 'rgba(25,205,255,0.12)', color: 'var(--color-brand-cyan)' }}>{it.kind}</span>
             </p>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-              {it.expires_at ? `Expires ${fmtDate(it.expires_at)}` : 'No expiry'}
-              {it.url && <a href={it.url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 underline" data-testid={`hr-docs-link-${it.id}`}><ExternalLink size={10} /> open</a>}
+              {it.expires_at ? `${t('staffing.hr_expires_word', 'Expires')} ${fmtDate(it.expires_at)}` : t('staffing.hr_no_expiry', 'No expiry')}
+              {it.url && <a href={it.url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 underline" data-testid={`hr-docs-link-${it.id}`}><ExternalLink size={10} /> {t('staffing.hr_open', 'open')}</a>}
             </p>
           </>
         )} />
-      <MiniDialog open={adding}  title="Add document" fields={fields} initial={{ kind: 'contract' }} onClose={() => setAdding(false)}  onSubmit={create} testId="hr-docs-dialog" />
-      <MiniDialog open={!!editing} title="Edit document" fields={fields} initial={editing}     onClose={() => setEditing(null)}    onSubmit={update} testId="hr-docs-dialog-edit" />
+      <MiniDialog open={adding}  title={t('staffing.hr_add_doc', 'Add document')} fields={fields} initial={{ kind: 'contract' }} onClose={() => setAdding(false)}  onSubmit={create} testId="hr-docs-dialog" />
+      <MiniDialog open={!!editing} title={t('staffing.hr_edit_doc', 'Edit document')} fields={fields} initial={editing}     onClose={() => setEditing(null)}    onSubmit={update} testId="hr-docs-dialog-edit" />
     </>
   );
 }
 
 function DisciplinaryPanel({ staffId, headers, isManager }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -657,12 +629,12 @@ function DisciplinaryPanel({ staffId, headers, isManager }) {
   useEffect(() => { load(); }, [load]);
 
   const fields = [
-    { id: 'occurred_at', label: 'Date', kind: 'date', required: true },
-    { id: 'severity',    label: 'Severity', kind: 'select', options: SEVERITIES, required: true },
-    { id: 'summary',     label: 'Summary', kind: 'textarea', required: true },
-    { id: 'actions_agreed', label: 'Actions agreed', kind: 'textarea' },
-    { id: 'follow_up_at', label: 'Follow-up date', kind: 'date' },
-    { id: 'manager_note', label: 'Manager note (private)', kind: 'textarea' },
+    { id: 'occurred_at', label: t('staffing.hr_date', 'Date'), kind: 'date', required: true },
+    { id: 'severity',    label: t('staffing.hr_severity', 'Severity'), kind: 'select', options: SEVERITIES, required: true },
+    { id: 'summary',     label: t('staffing.hr_summary', 'Summary'), kind: 'textarea', required: true },
+    { id: 'actions_agreed', label: t('staffing.hr_actions_agreed', 'Actions agreed'), kind: 'textarea' },
+    { id: 'follow_up_at', label: t('staffing.hr_follow_up', 'Follow-up date'), kind: 'date' },
+    { id: 'manager_note', label: t('staffing.hr_manager_note', 'Manager note (private)'), kind: 'textarea' },
   ];
   const create = async (form) => {
     try {
@@ -671,22 +643,22 @@ function DisciplinaryPanel({ staffId, headers, isManager }) {
         confidential: true,
       }, { headers });
       setAdding(false); load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
   };
   const update = async (form) => {
     try { await axios.patch(`${API}/staffing/hr/disciplinary/${form.id}`, form, { headers }); setEditing(null); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
   };
   const remove = async (it) => {
-    if (!window.confirm('Delete this record?')) return;
+    if (!window.confirm(t('staffing.hr_delete_record', 'Delete this record?'))) return;
     try { await axios.delete(`${API}/staffing/hr/disciplinary/${it.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_delete_failed', 'Delete failed')); }
   };
 
   return (
     <>
-      <CrudList title="Disciplinary records" items={items} testId="hr-disc"
-        emptyText="No disciplinary history — clean slate."
+      <CrudList title={t('staffing.hr_disc_records', 'Disciplinary records')} items={items} testId="hr-disc"
+        emptyText={t('staffing.hr_no_disc', 'No disciplinary history — clean slate.')}
         onAdd={() => setAdding(true)} onEdit={setEditing} onDelete={remove} isManager={isManager}
         columns={(it) => {
           const tint = SEVERITY_TINT[it.severity] || '#94A3B8';
@@ -698,19 +670,20 @@ function DisciplinaryPanel({ staffId, headers, isManager }) {
               </p>
               <p className="text-[12px] mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--theme-text)' }}>{it.summary}</p>
               {it.actions_agreed && (
-                <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>Action: {it.actions_agreed}</p>
+                <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_action', 'Action')}: {it.actions_agreed}</p>
               )}
-              {it.follow_up_at && <p className="text-[10px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>Follow-up: {fmtDate(it.follow_up_at)}</p>}
+              {it.follow_up_at && <p className="text-[10px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_follow_up_label', 'Follow-up')}: {fmtDate(it.follow_up_at)}</p>}
             </>
           );
         }} />
-      <MiniDialog open={adding}    title="Add disciplinary record" fields={fields} initial={{ severity: 'verbal' }} onClose={() => setAdding(false)} onSubmit={create} testId="hr-disc-dialog" />
-      <MiniDialog open={!!editing} title="Edit disciplinary record" fields={fields} initial={editing}                 onClose={() => setEditing(null)}    onSubmit={update} testId="hr-disc-dialog-edit" />
+      <MiniDialog open={adding}    title={t('staffing.hr_add_disc', 'Add disciplinary record')} fields={fields} initial={{ severity: 'verbal' }} onClose={() => setAdding(false)} onSubmit={create} testId="hr-disc-dialog" />
+      <MiniDialog open={!!editing} title={t('staffing.hr_edit_disc', 'Edit disciplinary record')} fields={fields} initial={editing}                 onClose={() => setEditing(null)}    onSubmit={update} testId="hr-disc-dialog-edit" />
     </>
   );
 }
 
 function TrainingPanel({ staffId, headers, isManager }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -720,54 +693,52 @@ function TrainingPanel({ staffId, headers, isManager }) {
   }, [headers, staffId]);
   useEffect(() => { load(); }, [load]);
   const fields = [
-    { id: 'course_name', label: 'Course', required: true },
-    { id: 'provider',    label: 'Provider' },
-    { id: 'completed_at', label: 'Completed', kind: 'date' },
-    { id: 'expires_at',  label: 'Expires',   kind: 'date' },
-    { id: 'score',       label: 'Score',     kind: 'number' },
-    { id: 'notes',       label: 'Notes',     kind: 'textarea' },
+    { id: 'course_name', label: t('staffing.hr_course', 'Course'), required: true },
+    { id: 'provider',    label: t('staffing.hr_provider', 'Provider') },
+    { id: 'completed_at', label: t('staffing.hr_completed', 'Completed'), kind: 'date' },
+    { id: 'expires_at',  label: t('staffing.hr_expires', 'Expires'),   kind: 'date' },
+    { id: 'score',       label: t('staffing.hr_score', 'Score'),     kind: 'number' },
+    { id: 'notes',       label: t('staffing.hr_notes', 'Notes'),     kind: 'textarea' },
   ];
   const create = async (form) => {
     try { await axios.post(`${API}/staffing/hr/training`, { ...form, staff_id: staffId, score: form.score ? parseFloat(form.score) : null }, { headers }); setAdding(false); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
   };
   const update = async (form) => {
     try { await axios.patch(`${API}/staffing/hr/training/${form.id}`, { ...form, score: form.score ? parseFloat(form.score) : null }, { headers }); setEditing(null); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
   };
   const remove = async (it) => {
-    if (!window.confirm(`Delete "${it.course_name}"?`)) return;
+    if (!window.confirm(`${t('staffing.hr_delete', 'Delete')} "${it.course_name}"?`)) return;
     try { await axios.delete(`${API}/staffing/hr/training/${it.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_delete_failed', 'Delete failed')); }
   };
 
   return (
     <>
-      <CrudList title="Training history" items={items} testId="hr-training"
-        emptyText="No training recorded."
+      <CrudList title={t('staffing.hr_training_history', 'Training history')} items={items} testId="hr-training"
+        emptyText={t('staffing.hr_no_training', 'No training recorded.')}
         onAdd={() => setAdding(true)} onEdit={setEditing} onDelete={remove} isManager={isManager}
         columns={(it) => (
           <>
             <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{it.course_name}</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
               {it.provider ? `${it.provider} · ` : ''}
-              {it.completed_at ? `Done ${fmtDate(it.completed_at)}` : 'Not yet completed'}
-              {it.expires_at  ? ` · expires ${fmtDate(it.expires_at)}` : ''}
-              {typeof it.score === 'number' ? ` · score ${it.score}` : ''}
+              {it.completed_at ? `${t('staffing.hr_done', 'Done')} ${fmtDate(it.completed_at)}` : t('staffing.hr_not_completed', 'Not yet completed')}
+              {it.expires_at  ? ` · ${t('staffing.hr_expires_lc', 'expires')} ${fmtDate(it.expires_at)}` : ''}
+              {typeof it.score === 'number' ? ` · ${t('staffing.hr_score_lc', 'score')} ${it.score}` : ''}
             </p>
           </>
         )} />
-      <MiniDialog open={adding}    title="Add training" fields={fields} initial={{}}      onClose={() => setAdding(false)} onSubmit={create} testId="hr-training-dialog" />
-      <MiniDialog open={!!editing} title="Edit training" fields={fields} initial={editing} onClose={() => setEditing(null)}  onSubmit={update} testId="hr-training-dialog-edit" />
+      <MiniDialog open={adding}    title={t('staffing.hr_add_training', 'Add training')} fields={fields} initial={{}}      onClose={() => setAdding(false)} onSubmit={create} testId="hr-training-dialog" />
+      <MiniDialog open={!!editing} title={t('staffing.hr_edit_training', 'Edit training')} fields={fields} initial={editing} onClose={() => setEditing(null)}  onSubmit={update} testId="hr-training-dialog-edit" />
     </>
   );
 }
 
 // ─────────────────────── Job Roles manager ───────────────────────
-// Iter 279c — owners/managers maintain the company's shared job-role
-// catalogue (add / rename / delete custom roles). Platform defaults are
-// shown read-only. The same catalogue feeds every role dropdown.
 function JobRolesModal({ headers, onClose, onChanged }) {
+  const { t } = useTranslation();
   const [defaults, setDefaults] = useState([]);
   const [custom, setCustom] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -797,7 +768,7 @@ function JobRolesModal({ headers, onClose, onChanged }) {
       await axios.post(`${API}/staffing/roles`, { role: name }, { headers });
       setAdding('');
       await refresh();
-    } catch (err) { setError(err.response?.data?.detail || 'Could not add role'); }
+    } catch (err) { setError(err.response?.data?.detail || t('staffing.hr_could_not_add_role', 'Could not add role')); }
     setBusy(false);
   };
 
@@ -810,17 +781,17 @@ function JobRolesModal({ headers, onClose, onChanged }) {
       await axios.put(`${API}/staffing/roles/${encodeURIComponent(editing.role)}`, { new_name: next }, { headers });
       setEditing(null);
       await refresh();
-    } catch (err) { setError(err.response?.data?.detail || 'Could not rename role'); }
+    } catch (err) { setError(err.response?.data?.detail || t('staffing.hr_could_not_rename', 'Could not rename role')); }
     setBusy(false);
   };
 
   const removeRole = async (role) => {
-    if (!window.confirm(`Delete the "${humanizeRole(role)}" role? Staff already assigned to it keep the label.`)) return;
+    if (!window.confirm(`${t('staffing.hr_delete_role_q', 'Delete the')} "${humanizeRole(role)}" ${t('staffing.hr_delete_role_q2', 'role? Staff already assigned to it keep the label.')}`)) return;
     setBusy(true); setError('');
     try {
       await axios.delete(`${API}/staffing/roles/${encodeURIComponent(role)}`, { headers });
       await refresh();
-    } catch (err) { setError(err.response?.data?.detail || 'Could not delete role'); }
+    } catch (err) { setError(err.response?.data?.detail || t('staffing.hr_could_not_delete_role', 'Could not delete role')); }
     setBusy(false);
   };
 
@@ -831,7 +802,7 @@ function JobRolesModal({ headers, onClose, onChanged }) {
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--theme-border)' }}>
           <div className="inline-flex items-center gap-2">
             <Briefcase size={16} style={{ color: 'var(--color-brand-cyan)' }} />
-            <h3 className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Job roles</h3>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.hr_job_roles', 'Job roles')}</h3>
           </div>
           <button type="button" onClick={onClose} data-testid="job-roles-close" style={{ color: 'var(--theme-text-muted)' }}><X size={16} /></button>
         </div>
@@ -841,15 +812,14 @@ function JobRolesModal({ headers, onClose, onChanged }) {
             <p className="text-xs px-2 py-1 rounded-md" style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444' }} data-testid="job-roles-error">{error}</p>
           )}
 
-          {/* Add a custom role */}
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Add a role</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_add_a_role', 'Add a role')}</span>
             <div className="flex gap-1.5">
               <input
                 value={adding}
                 onChange={(e) => setAdding(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addRole(); }}
-                placeholder="e.g. Project Manager"
+                placeholder={t('staffing.hr_role_pm_ph', 'e.g. Project Manager')}
                 maxLength={60}
                 className="flex-1 h-9 rounded-md bg-transparent border px-2 text-sm"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
@@ -858,18 +828,17 @@ function JobRolesModal({ headers, onClose, onChanged }) {
               <button type="button" onClick={addRole} disabled={busy || !adding.trim()}
                 className="h-9 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1 disabled:opacity-50"
                 style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="job-roles-add-btn">
-                <Plus size={13} /> Add
+                <Plus size={13} /> {t('staffing.hr_add', 'Add')}
               </button>
             </div>
           </div>
 
-          {/* Custom roles */}
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Your custom roles</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_custom_roles', 'Your custom roles')}</span>
             {loading ? (
-              <p className="text-xs inline-flex items-center gap-1.5" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={12} className="animate-spin" /> Loading…</p>
+              <p className="text-xs inline-flex items-center gap-1.5" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={12} className="animate-spin" /> {t('staffing.hr_loading', 'Loading…')}</p>
             ) : custom.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No custom roles yet. The defaults below cover most companies.</p>
+              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_no_custom_roles', 'No custom roles yet. The defaults below cover most companies.')}</p>
             ) : (
               <div className="rounded-lg border divide-y" style={{ borderColor: 'var(--theme-border)' }}>
                 {custom.map((r) => (
@@ -888,8 +857,8 @@ function JobRolesModal({ headers, onClose, onChanged }) {
                     ) : (
                       <>
                         <span className="flex-1 text-sm" style={{ color: 'var(--theme-text)' }}>{humanizeRole(r)}</span>
-                        <button type="button" onClick={() => setEditing({ role: r, value: r })} title="Rename" style={{ color: 'var(--theme-text-muted)' }} data-testid={`job-roles-rename-${r}`}><Pencil size={14} /></button>
-                        <button type="button" onClick={() => removeRole(r)} title="Delete" style={{ color: '#EF4444' }} data-testid={`job-roles-delete-${r}`}><Trash2 size={14} /></button>
+                        <button type="button" onClick={() => setEditing({ role: r, value: r })} title={t('staffing.hr_rename', 'Rename')} style={{ color: 'var(--theme-text-muted)' }} data-testid={`job-roles-rename-${r}`}><Pencil size={14} /></button>
+                        <button type="button" onClick={() => removeRole(r)} title={t('staffing.hr_delete', 'Delete')} style={{ color: '#EF4444' }} data-testid={`job-roles-delete-${r}`}><Trash2 size={14} /></button>
                       </>
                     )}
                   </div>
@@ -898,9 +867,8 @@ function JobRolesModal({ headers, onClose, onChanged }) {
             )}
           </div>
 
-          {/* Platform defaults (read-only) */}
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Built-in roles</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_builtin_roles', 'Built-in roles')}</span>
             <div className="flex flex-wrap gap-1.5">
               {defaults.map((r) => (
                 <span key={r} className="text-[11px] px-2 py-1 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{humanizeRole(r)}</span>
@@ -916,6 +884,7 @@ function JobRolesModal({ headers, onClose, onChanged }) {
 
 // ─────────────────────── Hub ─────────────────────────────────────
 export default function HRTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [staffList, setStaffList] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [search, setSearch] = useState('');
@@ -952,13 +921,13 @@ export default function HRTab({ headers, isManager }) {
       {isManager && (
         <div className="flex items-center justify-between">
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            Roles set in Master Admin pull through automatically — managers can override them per person below.
+            {t('staffing.hr_roles_note', 'Roles set in Master Admin pull through automatically — managers can override them per person below.')}
           </p>
           <button type="button" onClick={() => setRolesOpen(true)}
             className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border shrink-0"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="hr-manage-roles-btn">
-            <Briefcase size={13} /> Manage job roles
+            <Briefcase size={13} /> {t('staffing.hr_manage_roles', 'Manage job roles')}
           </button>
         </div>
       )}
@@ -982,7 +951,7 @@ export default function HRTab({ headers, isManager }) {
           <div className="p-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--theme-border)' }}>
             <div className="relative flex-1">
               <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-50" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search staff…"
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('staffing.hr_search_staff', 'Search staff…')}
                 className="w-full h-8 rounded-md bg-transparent border pl-6 pr-2 text-xs"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="hr-search" />
@@ -991,19 +960,19 @@ export default function HRTab({ headers, isManager }) {
               <button type="button" onClick={() => setShowAdd(true)}
                 className="h-8 px-2.5 rounded-md text-xs font-bold inline-flex items-center gap-1 shrink-0"
                 style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
-                data-testid="hr-add-staff-btn" title="Add staff">
-                <UserPlus size={13} /> Add
+                data-testid="hr-add-staff-btn" title={t('staffing.hr_add_staff', 'Add staff')}>
+                <UserPlus size={13} /> {t('staffing.hr_add', 'Add')}
               </button>
             )}
           </div>
           <div className="flex-1 overflow-y-auto" data-testid="hr-staff-list">
             {loading && (
               <div className="p-3 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-                <Loader2 size={12} className="animate-spin" /> Loading…
+                <Loader2 size={12} className="animate-spin" /> {t('staffing.hr_loading', 'Loading…')}
               </div>
             )}
             {!loading && filtered.length === 0 && (
-              <p className="p-4 text-center text-xs" style={{ color: 'var(--theme-text-muted)' }}>No staff match.</p>
+              <p className="p-4 text-center text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_no_staff_match', 'No staff match.')}</p>
             )}
             {filtered.map((s) => {
               const on = s.id === active?.id;
@@ -1026,23 +995,23 @@ export default function HRTab({ headers, isManager }) {
         {/* Detail */}
         <div className="p-4 space-y-3">
           {!active ? (
-            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Pick a staff member.</p>
+            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_pick_staff', 'Pick a staff member.')}</p>
           ) : (
             <>
               <div className="inline-flex rounded-full border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
-                {SUB_TABS.map((t) => {
-                  const Icon = t.icon;
-                  const on = sub === t.id;
+                {SUB_TABS.map((st) => {
+                  const Icon = st.icon;
+                  const on = sub === st.id;
                   return (
-                    <button key={t.id} type="button" onClick={() => setSub(t.id)}
+                    <button key={st.id} type="button" onClick={() => setSub(st.id)}
                       className="h-8 px-3 text-xs font-bold inline-flex items-center gap-1.5"
                       style={{
                         background: on ? 'var(--color-brand-cyan)' : 'transparent',
                         color: on ? '#001219' : 'var(--theme-text-muted)',
-                        borderLeft: t.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
+                        borderLeft: st.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
                       }}
-                      data-testid={`hr-sub-${t.id}`}>
-                      <Icon size={11} /> {t.label}
+                      data-testid={`hr-sub-${st.id}`}>
+                      <Icon size={11} /> {t(st.labelKey, st.labelDefault)}
                     </button>
                   );
                 })}
