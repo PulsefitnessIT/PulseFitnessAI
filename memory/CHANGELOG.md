@@ -1,6 +1,13 @@
 # Changelog
 
 
+## Jun 2026 (fork) — i18n Phase 2 COMPLETE: Inventory & Distribution module (FR/DE)
+- Fully localized the authenticated operator **Inventory & Distribution** module into French & German (react-i18next). Added `inv.*` (589 keys/lang) + `invnav.grp_*` namespaces across en/fr/de.
+- Made `statusLabel()` (api.js) i18n-aware — translates all status/enum/warehouse-type/QC/severity/warranty tokens platform-wide via `inv.sl.*` with humanized-English fallback for dynamic report columns.
+- Wired `t()` into the shell + all 7 sub-files: InvOrders, InvSageSync, InvFulfilment, InvDealerDist, InvDealerService, InvIntelligence, InvAllocation (headings, buttons, table headers, empty states, toasts, modals, nav group headers, enum dropdowns).
+- Renamed shadowing `t` map/timeout variables (→ `pt`/`tr`/`dt`/`tmr`) to avoid clashing with the translation hook.
+- VERIFIED by frontend testing_agent: all 17 nav views + New Order modal + 4 Settings tabs render translated in FR/DE/EN with ZERO raw-key leaks (regex-scanned). Locale parity confirmed. success_rate frontend 100%.
+
 ## Jun 2026 (fork) — Cross-module data flow: Staffing → CRM & Service Desk + CRM Territories pill fix
 - **BUGFIX — CRM Territories faded pill sub-options** (`index.css`, `CRMTerritoryMap.js`, `CRMTerritories.js`):
   - Root cause: active segmented toggles used `bg-zinc-900 text-white`; the light-theme global rule neutralises `.bg-zinc-900` → `var(--theme-surface)` (`#FFFFFF`), but `text-white` on the same element wasn't caught by the descendant override → selected pill rendered white-on-white (invisible/faded).
