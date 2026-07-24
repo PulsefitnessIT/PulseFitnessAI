@@ -680,7 +680,24 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
     # MOD-branded shell of Third Space's tenant).
     requested_portal = (credentials.portal or "").lower().strip()
     user_at = (user.get("account_type") or "").lower()
-    is_mod_user = user_at.startswith("mod_")
+    # A user is MOD if their account_type is a mod_* tier OR they carry the
+    # denormalized `is_mod_user` flag (set server-side at creation). Relying on
+    # account_type alone locked out legitimately-created MOD users whose
+    # account_type field was never stamped (Iter — MOD login fix).
+    is_mod_user = user_at.startswith("mod_") or bool(user.get("is_mod_user"))
+    # Self-heal: a flagged MOD user missing account_type gets it backfilled from
+    # their org so downstream MOD route-guards/features stay consistent.
+    if is_mod_user and not user_at.startswith("mod_"):
+        org_doc = await db.organizations.find_one(
+            {"id": user.get("organization_id")}, {"_id": 0, "account_type": 1},
+        )
+        healed_at = (org_doc or {}).get("account_type") or "mod_site"
+        if not str(healed_at).lower().startswith("mod_"):
+            healed_at = "mod_site"
+        await db.users.update_one(
+            {"id": user.get("id")}, {"$set": {"account_type": healed_at, "is_mod_user": True}},
+        )
+        user["account_type"] = healed_at
     if requested_portal == "mod" and not is_mod_user:
         await _record_failed_login_with_trust(
             credentials.email, request,
