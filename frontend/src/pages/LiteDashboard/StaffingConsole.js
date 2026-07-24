@@ -218,7 +218,7 @@ export default function StaffingConsole() {
           data-testid="staff-portal-preview-banner"
         >
           <span className="font-semibold inline-flex items-center gap-1.5">
-            <Eye size={12} /> Previewing the staff portal — managers&apos; tabs are hidden.
+            <Eye size={12} /> {t('staffing.sc_preview_banner', "Previewing the staff portal — managers' tabs are hidden.")}
           </span>
           <a
             href="?"
@@ -229,20 +229,20 @@ export default function StaffingConsole() {
               u.searchParams.delete('as');
               window.location.href = u.toString();
             }}
-          >Exit preview</a>
+          >{t('staffing.sc_exit_preview', 'Exit preview')}</a>
         </div>
       )}
       <PageHeader
-        title={isManager ? 'Staffing' : 'My shifts'}
+        title={isManager ? t('staffing.sc_title_mgr', 'Staffing') : t('staffing.sc_title_staff', 'My shifts')}
         subtitle={isManager
-          ? 'Rota, performance, payroll, and AI workforce optimisation.'
-          : 'Your shifts, time off, and open shifts you can claim.'}
+          ? t('staffing.sc_subtitle_mgr', 'Rota, performance, payroll, and AI workforce optimisation.')
+          : t('staffing.sc_subtitle_staff', 'Your shifts, time off, and open shifts you can claim.')}
         icon={Users}
         helpId={isManager ? 'staffing-overview' : 'staffing-marketplace'}
         testId="staffing-header"
         actions={!isManager ? (
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] px-3 py-1 rounded-full" style={{ background: 'rgba(25,205,255,0.1)', color: 'var(--color-brand-cyan)' }} data-testid="staffing-staff-badge">
-            Staff view
+            {t('staffing.sc_staff_view', 'Staff view')}
           </div>
         ) : null}
       />
@@ -251,7 +251,7 @@ export default function StaffingConsole() {
       <PillTabBar
         activeId={activeGroup?.id}
         testId="staffing-tabs"
-        ariaLabel="Staffing sections"
+        ariaLabel={t('staffing.sc_sections_aria', 'Staffing sections')}
       >
         {groups.map(({ id, label, icon: Icon }) => (
           <button
@@ -345,6 +345,7 @@ function EmptyState({ icon: Icon, title, hint, testId }) {
 
 // ─── Rota (drag-and-drop week view, manager only) ───
 function RotaTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - d.getDay() + 1); // Monday
@@ -420,7 +421,7 @@ function RotaTab({ headers, isManager }) {
   };
 
   const deleteShift = async (id) => {
-    if (!window.confirm('Delete this shift?')) return;
+    if (!window.confirm(t('staffing.sc_rota_delete_confirm', 'Delete this shift?'))) return;
     try { await axios.delete(`${API}/staffing/shifts/${id}`, { headers }); load(); }
     catch { /* noop */ }
   };
@@ -476,22 +477,22 @@ function RotaTab({ headers, isManager }) {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="inline-flex items-center gap-1 rounded-full border" style={{ borderColor: 'var(--theme-border)' }}>
           <button type="button" onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d.toISOString().slice(0,10)); }} className="w-8 h-8 inline-flex items-center justify-center" data-testid="rota-prev-week"><ChevronLeft size={14} /></button>
-          <div className="text-xs font-semibold px-2" data-testid="rota-week-label">Week of {weekStart}</div>
+          <div className="text-xs font-semibold px-2" data-testid="rota-week-label">{t('staffing.sc_rota_week_of', 'Week of')} {weekStart}</div>
           <button type="button" onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d.toISOString().slice(0,10)); }} className="w-8 h-8 inline-flex items-center justify-center" data-testid="rota-next-week"><ChevronRight size={14} /></button>
         </div>
         <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
           <span data-testid="rota-week-hours">{weekHours.toFixed(1)}h</span>
           <span>·</span>
-          <span data-testid="rota-week-cost">{formatMoneySync(weekCost)} labour</span>
+          <span data-testid="rota-week-cost">{formatMoneySync(weekCost)} {t('staffing.sc_rota_labour', 'labour')}</span>
           {isManager && conflicts.length > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }} data-testid="rota-conflicts-badge">
-              <AlertTriangle size={10} /> {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
+              <AlertTriangle size={10} /> {conflicts.length} {conflicts.length === 1 ? t('staffing.sc_rota_conflict', 'conflict') : t('staffing.sc_rota_conflicts', 'conflicts')}
             </span>
           )}
         </div>
         {isManager && (
           <button type="button" onClick={copyWeek} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="rota-copy-week">
-            <RefreshCw size={12} /> Copy to next week
+            <RefreshCw size={12} /> {t('staffing.sc_rota_copy_next', 'Copy to next week')}
           </button>
         )}
       </div>
@@ -501,7 +502,7 @@ function RotaTab({ headers, isManager }) {
           <table className="w-full text-xs">
             <thead>
               <tr style={{ color: 'var(--theme-text-muted)' }}>
-                <th className="text-left py-2 font-semibold px-2">Staff</th>
+                <th className="text-left py-2 font-semibold px-2">{t('staffing.sc_rota_staff', 'Staff')}</th>
                 {days.map((d) => (
                   <th key={d} className="text-left py-2 font-semibold px-2 whitespace-nowrap">{d.slice(5)}</th>
                 ))}
@@ -509,7 +510,7 @@ function RotaTab({ headers, isManager }) {
             </thead>
             <tbody>
               {staff.length === 0 ? (
-                <tr><td colSpan={8} className="py-8 text-center" style={{ color: 'var(--theme-text-muted)' }}>No staff yet — add staff in the Staff tab.</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_rota_no_staff', 'No staff yet — add staff in the Staff tab.')}</td></tr>
               ) : staff.map((s) => (
                 <tr key={s.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
                   <td className="py-2 px-2" data-testid={`rota-row-${s.id}`}>
@@ -569,13 +570,13 @@ function RotaTab({ headers, isManager }) {
               {/* Day totals */}
               {staff.length > 0 && (
                 <tr className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
-                  <td className="py-2 px-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Day totals</td>
+                  <td className="py-2 px-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_rota_day_totals', 'Day totals')}</td>
                   {days.map((d) => {
-                    const t = dayTotals[d];
+                    const dt = dayTotals[d];
                     return (
                       <td key={d} className="py-2 px-2" data-testid={`rota-day-total-${d}`}>
-                        <div className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{t.hours.toFixed(1)}h</div>
-                        {isManager && <div className="text-[10px] tabular-nums" style={{ color: 'var(--theme-text-muted)' }}>{formatMoneySync(t.cost)}</div>}
+                        <div className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{dt.hours.toFixed(1)}h</div>
+                        {isManager && <div className="text-[10px] tabular-nums" style={{ color: 'var(--theme-text-muted)' }}>{formatMoneySync(dt.cost)}</div>}
                       </td>
                     );
                   })}
@@ -584,8 +585,8 @@ function RotaTab({ headers, isManager }) {
             </tbody>
           </table>
         </div>
-        {loading && <div className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>}
-        {isManager && <p className="text-[10px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>Tip: drag any shift tile onto another cell to reassign it.</p>}
+        {loading && <div className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_loading', 'Loading…')}</div>}
+        {isManager && <p className="text-[10px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_rota_tip', 'Tip: drag any shift tile onto another cell to reassign it.')}</p>}
       </Card>
 
       {adding && (
@@ -600,32 +601,33 @@ function RotaTab({ headers, isManager }) {
 }
 
 function AddShiftDialog({ initial, onCancel, onSubmit }) {
+  const { t } = useTranslation();
   const [start_time, setStart] = useState('09:00');
   const [end_time, setEnd]     = useState('17:00');
   const [role, setRole]        = useState('manager');
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" data-testid="add-shift-dialog" onClick={onCancel}>
       <div className="rounded-2xl border p-5 w-full max-w-sm" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} onClick={(e) => e.stopPropagation()}>
-        <div className="text-sm font-semibold pulse-font-heading mb-3" style={{ color: 'var(--theme-text)' }}>Add shift · {initial.date}</div>
+        <div className="text-sm font-semibold pulse-font-heading mb-3" style={{ color: 'var(--theme-text)' }}>{t('staffing.sc_add_shift', 'Add shift')} · {initial.date}</div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>Start</label>
+            <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_start', 'Start')}</label>
             <input type="time" value={start_time} onChange={(e) => setStart(e.target.value)} className="w-full rounded-lg px-2 py-1.5 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="add-shift-start" />
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>End</label>
+            <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_end', 'End')}</label>
             <input type="time" value={end_time} onChange={(e) => setEnd(e.target.value)} className="w-full rounded-lg px-2 py-1.5 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="add-shift-end" />
           </div>
           <div className="col-span-2">
-            <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>Role</label>
+            <label className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_role', 'Role')}</label>
             <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full rounded-lg px-2 py-1.5 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="add-shift-role">
               {['manager','engineer','technician','sales_manager','administrator','receptionist','supervisor','director','other'].map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
             </select>
           </div>
         </div>
         <div className="flex items-center gap-2 justify-end mt-4">
-          <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="add-shift-cancel">Cancel</button>
-          <button type="button" onClick={() => onSubmit({ ...initial, start_time, end_time, role })} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="add-shift-save">Save</button>
+          <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="add-shift-cancel">{t('staffing.sc_cancel', 'Cancel')}</button>
+          <button type="button" onClick={() => onSubmit({ ...initial, start_time, end_time, role })} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="add-shift-save">{t('staffing.sc_save', 'Save')}</button>
         </div>
       </div>
     </div>
@@ -634,6 +636,7 @@ function AddShiftDialog({ initial, onCancel, onSubmit }) {
 
 // ─── Staff directory (manager only) ───
 function StaffTab({ headers }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ full_name: '', email: '', primary_role: 'manager', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' });
   const [showAdd, setShowAdd] = useState(false);
@@ -672,7 +675,7 @@ function StaffTab({ headers }) {
       window.alert(err.response?.data?.detail || 'Could not add role');
     }
   };
-  const archive = async (id) => { if (!window.confirm('Archive staff?')) return; await axios.delete(`${API}/staffing/staff/${id}`, { headers }); load(); };
+  const archive = async (id) => { if (!window.confirm(t('staffing.sc_archive_confirm', 'Archive staff?'))) return; await axios.delete(`${API}/staffing/staff/${id}`, { headers }); load(); };
 
   // Iter 216h264 — issue or reset a staff member's portal credentials.
   // Backend creates / refreshes the matching users doc, returns a one-
@@ -717,17 +720,17 @@ function StaffTab({ headers }) {
             className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5 border"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
             data-testid="staff-preview-portal-btn"
-            title="Open the staff portal in a new tab as if you were a staff member"
+            title={t('staffing.sc_preview_portal_title', 'Open the staff portal in a new tab as if you were a staff member')}
           >
-            <ExternalLink size={12} /> Preview staff portal
+            <ExternalLink size={12} /> {t('staffing.sc_preview_portal', 'Preview staff portal')}
           </button>
           <button type="button" onClick={() => setShowAdd(true)} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-btn">
-            <UserPlus size={12} /> Add staff
+            <UserPlus size={12} /> {t('staffing.sc_add_staff', 'Add staff')}
           </button>
         </div>
       </div>
 
-      {rows.length === 0 ? <EmptyState icon={Users} title="No staff yet" hint="Click 'Add staff' to build your roster." testId="staff-empty" /> : (
+      {rows.length === 0 ? <EmptyState icon={Users} title={t('staffing.sc_no_staff_title', 'No staff yet')} hint={t('staffing.sc_no_staff_hint', "Click 'Add staff' to build your roster.")} testId="staff-empty" /> : (
         <Card testId="staff-list">
           {/* Iter 215dj — wrap in overflow-x-auto so columns don't get
               clipped on mobile (was hiding the Hourly column on phones). */}
@@ -735,17 +738,17 @@ function StaffTab({ headers }) {
           <table className="w-full text-sm min-w-[34rem]">
             <thead>
               <tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-                <th className="text-left py-2 px-2 font-semibold">Name</th>
-                <th className="text-left py-2 px-2 font-semibold">Role</th>
-                <th className="text-left py-2 px-2 font-semibold">Contract</th>
+                <th className="text-left py-2 px-2 font-semibold">{t('staffing.sc_col_name', 'Name')}</th>
+                <th className="text-left py-2 px-2 font-semibold">{t('staffing.sc_col_role', 'Role')}</th>
+                <th className="text-left py-2 px-2 font-semibold">{t('staffing.sc_col_contract', 'Contract')}</th>
                 {/* Iter 216h241 — surface both contracted hours and hourly
                     rate so operators can spot at a glance which is which.
                     Previously a row showing "£39.00" under "Hourly" was
                     mistaken for hours/week because the column header was
                     ambiguous. */}
-                <th className="text-right py-2 px-2 font-semibold">Hrs/wk</th>
-                <th className="text-right py-2 px-2 font-semibold">Hourly rate</th>
-                <th className="text-right py-2 px-2 font-semibold">Login</th>
+                <th className="text-right py-2 px-2 font-semibold">{t('staffing.sc_col_hrs_wk', 'Hrs/wk')}</th>
+                <th className="text-right py-2 px-2 font-semibold">{t('staffing.sc_col_hourly_rate', 'Hourly rate')}</th>
+                <th className="text-right py-2 px-2 font-semibold">{t('staffing.sc_col_login', 'Login')}</th>
                 <th className="w-8" />
               </tr>
             </thead>
@@ -765,12 +768,12 @@ function StaffTab({ headers }) {
                       className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-md px-2 py-1 border disabled:opacity-50"
                       style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
                       data-testid={`staff-issue-creds-${s.id}`}
-                      title={s.portal_credentials_issued_at ? 'Re-issue portal password' : 'Send portal login'}
+                      title={s.portal_credentials_issued_at ? t('staffing.sc_reissue_pw_title', 'Re-issue portal password') : t('staffing.sc_send_login_title', 'Send portal login')}
                     >
                       {credsBusy === s.id
                         ? <Loader2 size={11} className="animate-spin" />
                         : <KeyRound size={11} />}
-                      {s.portal_credentials_issued_at ? 'Re-issue' : 'Send login'}
+                      {s.portal_credentials_issued_at ? t('staffing.sc_reissue', 'Re-issue') : t('staffing.sc_send_login', 'Send login')}
                     </button>
                   </td>
                   <td className="py-2 px-2 text-right"><button type="button" onClick={() => archive(s.id)} className="opacity-60 hover:opacity-100" data-testid={`staff-archive-${s.id}`}><Trash2 size={12} /></button></td>
@@ -790,19 +793,19 @@ function StaffTab({ headers }) {
         // 1/3-of-screen un-dimmed white area below the page content.
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" onClick={() => setShowAdd(false)} data-testid="staff-add-backdrop">
           <div className="rounded-2xl border p-5 w-full max-w-md" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} onClick={(e) => e.stopPropagation()} data-testid="staff-add-dialog">
-            <div className="text-sm font-semibold mb-3 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Add staff</div>
+            <div className="text-sm font-semibold mb-3 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.sc_add_staff', 'Add staff')}</div>
             <div className="space-y-2">
               <div>
-                <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Full name</label>
-                <input placeholder="e.g. Jane Doe" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-name" />
+                <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_full_name', 'Full name')}</label>
+                <input placeholder={t('staffing.sc_full_name_ph', 'e.g. Jane Doe')} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-name" />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Email <span className="opacity-60 normal-case font-normal">(optional — links to existing user)</span></label>
+                <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_email', 'Email')} <span className="opacity-60 normal-case font-normal">{t('staffing.sc_email_hint', '(optional — links to existing user)')}</span></label>
                 <input placeholder="jane@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-email" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Primary role</label>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_primary_role', 'Primary role')}</label>
                   {addingRole ? (
                     <div className="flex gap-1" data-testid="staff-add-role-new">
                       <input
@@ -811,7 +814,7 @@ function StaffTab({ headers }) {
                         maxLength={60}
                         value={newRoleName}
                         onChange={(e) => setNewRoleName(e.target.value)}
-                        placeholder="e.g. Swim coach"
+                        placeholder={t('staffing.sc_new_role_ph', 'e.g. Swim coach')}
                         className="flex-1 rounded-lg px-3 py-2 text-sm border"
                         style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                         onKeyDown={(e) => { if (e.key === 'Enter') submitNewRole(); if (e.key === 'Escape') { setAddingRole(false); setNewRoleName(''); } }}
@@ -832,12 +835,12 @@ function StaffTab({ headers }) {
                       data-testid="staff-add-role"
                     >
                       {roleOptions.map((r) => <option key={r} value={r}>{humanizeRole(r)}</option>)}
-                      <option value="__add_new__">+ Add new role…</option>
+                      <option value="__add_new__">{t('staffing.sc_add_new_role', '+ Add new role…')}</option>
                     </select>
                   )}
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contract type</label>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_contract_type', 'Contract type')}</label>
                   <select value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-contract">
                     {['full_time','part_time','casual','contractor'].map((c) => <option key={c}>{c}</option>)}
                   </select>
@@ -852,14 +855,14 @@ function StaffTab({ headers }) {
                   <input type="number" step="0.5" min="0" value={form.hourly_cost} onChange={(e) => setForm({ ...form, hourly_cost: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hourly" />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contracted hours / week</label>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_contracted_hours', 'Contracted hours / week')}</label>
                   <input type="number" step="0.5" min="0" max="80" value={form.hours_per_week} onChange={(e) => setForm({ ...form, hours_per_week: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hours-per-week" />
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button type="button" onClick={() => setShowAdd(false)} className="text-xs px-3 py-1.5 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
-              <button type="button" onClick={save} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-save">Add</button>
+              <button type="button" onClick={() => setShowAdd(false)} className="text-xs px-3 py-1.5 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.sc_cancel', 'Cancel')}</button>
+              <button type="button" onClick={save} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-save">{t('staffing.sc_add', 'Add')}</button>
             </div>
           </div>
         </div>
@@ -870,32 +873,32 @@ function StaffTab({ headers }) {
           <div className="w-full max-w-md rounded-2xl p-5 shadow-2xl" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-brand-cyan)' }}>Portal credentials</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_portal_creds', 'Portal credentials')}</p>
                 <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{credsDialog.staffName}</h4>
               </div>
               <button type="button" onClick={() => setCredsDialog(null)} className="opacity-60 hover:opacity-100" data-testid="staff-creds-close" aria-label="Close"><X size={16} /></button>
             </div>
             <p className="text-xs mb-3" style={{ color: 'var(--theme-text-muted)' }}>
               {credsDialog.email_sent
-                ? 'We\u2019ve emailed the temporary password to the staff member. You can also share it below.'
+                ? t('staffing.sc_creds_msg_sent', 'We\u2019ve emailed the temporary password to the staff member. You can also share it below.')
                 : credsDialog.email
-                  ? 'Email delivery failed — please copy the temporary password below and share it with the staff member.'
-                  : 'Share the temporary password below with the staff member.'}
-              {' '}They&rsquo;ll be asked to change it on first login.
+                  ? t('staffing.sc_creds_msg_failed', 'Email delivery failed — please copy the temporary password below and share it with the staff member.')
+                  : t('staffing.sc_creds_msg_share', 'Share the temporary password below with the staff member.')}
+              {' '}{t('staffing.sc_creds_msg_change', "They'll be asked to change it on first login.")}
             </p>
             <div className="space-y-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Login email</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_login_email', 'Login email')}</p>
                 <CopyableField value={credsDialog.email} testid="staff-creds-email" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Temporary password</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_temp_password', 'Temporary password')}</p>
                 <CopyableField value={credsDialog.temp_password} mono testid="staff-creds-temp-password" />
               </div>
             </div>
             <div className="flex justify-end mt-4">
               <button type="button" onClick={() => setCredsDialog(null)} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-creds-done">
-                <Check size={11} className="inline-block mr-1" /> Done
+                <Check size={11} className="inline-block mr-1" /> {t('staffing.sc_done', 'Done')}
               </button>
             </div>
           </div>
@@ -906,6 +909,7 @@ function StaffTab({ headers }) {
 }
 
 function CopyableField({ value, mono, testid }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -925,7 +929,7 @@ function CopyableField({ value, mono, testid }) {
         data-testid={`${testid}-input`}
       />
       <button type="button" onClick={copy} className="h-9 px-2 rounded-md border inline-flex items-center gap-1 text-[11px] font-semibold" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }} data-testid={`${testid}-copy`}>
-        {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+        {copied ? <><Check size={11} /> {t('staffing.sc_copied', 'Copied')}</> : <><Copy size={11} /> {t('staffing.sc_copy', 'Copy')}</>}
       </button>
 
     </div>
@@ -934,6 +938,7 @@ function CopyableField({ value, mono, testid }) {
 
 // ─── Leave ───
 function LeaveTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ start_date: '', end_date: '', leave_type: 'holiday', reason: '' });
   const load = useCallback(async () => { const r = await axios.get(`${API}/staffing/leave`, { headers }); setRows(r.data.leave || []); }, [headers]);
@@ -944,22 +949,22 @@ function LeaveTab({ headers, isManager }) {
   return (
     <div className="space-y-3">
       <Card testId="leave-form">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Request time off</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_request_time_off', 'Request time off')}</div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="leave-start" />
           <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="leave-end" />
           <select value={form.leave_type} onChange={(e) => setForm({ ...form, leave_type: e.target.value })} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="leave-type">
-            {['holiday','sick','unpaid','training','other'].map((t) => <option key={t}>{t}</option>)}
+            {['holiday','sick','unpaid','training','other'].map((lt) => <option key={lt} value={lt}>{t(`staffing.sc_leave_type_${lt}`, lt)}</option>)}
           </select>
-          <button type="button" onClick={submit} className="text-xs font-semibold rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="leave-submit">Submit</button>
+          <button type="button" onClick={submit} className="text-xs font-semibold rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="leave-submit">{t('staffing.sc_submit', 'Submit')}</button>
         </div>
-        <input placeholder="Reason (optional)" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="mt-2 w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
+        <input placeholder={t('staffing.sc_reason_ph', 'Reason (optional)')} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="mt-2 w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
       </Card>
 
-      {rows.length === 0 ? <EmptyState icon={Plane} title="No leave requests yet" testId="leave-empty" /> : (
+      {rows.length === 0 ? <EmptyState icon={Plane} title={t('staffing.sc_no_leave', 'No leave requests yet')} testId="leave-empty" /> : (
         <Card testId="leave-list">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2">Dates</th><th className="text-left py-2 px-2">Type</th><th className="text-left py-2 px-2">Status</th>{isManager && <th className="w-32" />}</tr></thead>
+            <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2">{t('staffing.sc_dates', 'Dates')}</th><th className="text-left py-2 px-2">{t('staffing.sc_type', 'Type')}</th><th className="text-left py-2 px-2">{t('staffing.sc_status', 'Status')}</th>{isManager && <th className="w-32" />}</tr></thead>
             <tbody>
               {rows.map((l) => (
                 <tr key={l.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-row-${l.id}`}>
@@ -968,8 +973,8 @@ function LeaveTab({ headers, isManager }) {
                   <td className="py-2 px-2 text-xs"><StatusBadge status={l.status} /></td>
                   {isManager && l.status === 'pending' && (
                     <td className="py-2 px-2 text-right space-x-1">
-                      <button type="button" onClick={() => decide(l.id, 'approved')} className="text-[10px] font-semibold rounded-full px-2 py-1" style={{ background: 'var(--color-success)', color: 'var(--color-emerald-dark)' }} data-testid={`leave-approve-${l.id}`}>Approve</button>
-                      <button type="button" onClick={() => decide(l.id, 'rejected')} className="text-[10px] font-semibold rounded-full px-2 py-1 border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-reject-${l.id}`}>Reject</button>
+                      <button type="button" onClick={() => decide(l.id, 'approved')} className="text-[10px] font-semibold rounded-full px-2 py-1" style={{ background: 'var(--color-success)', color: 'var(--color-emerald-dark)' }} data-testid={`leave-approve-${l.id}`}>{t('staffing.sc_approve', 'Approve')}</button>
+                      <button type="button" onClick={() => decide(l.id, 'rejected')} className="text-[10px] font-semibold rounded-full px-2 py-1 border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-reject-${l.id}`}>{t('staffing.sc_reject', 'Reject')}</button>
                     </td>
                   )}
                 </tr>
@@ -989,6 +994,7 @@ function StatusBadge({ status }) {
 
 // ─── Shift Marketplace ───
 function MarketTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState([]);
   const [reqs, setReqs] = useState([]);
   const load = useCallback(async () => {
@@ -1005,22 +1011,22 @@ function MarketTab({ headers, isManager }) {
   return (
     <div className="space-y-3">
       <Card testId="market-open">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Open shifts · {open.length}</div>
-        {open.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No open shifts right now.</div> : (
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_open_shifts', 'Open shifts')} · {open.length}</div>
+        {open.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_no_open_shifts', 'No open shifts right now.')}</div> : (
           <div className="space-y-2">
             {open.map((s) => (
               <div key={s.id} className="flex items-center gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`market-open-${s.id}`}>
                 <Clock size={14} style={{ color: 'var(--color-brand-cyan)' }} />
                 <div className="flex-1 text-sm">{s.date} · {s.start_time}–{s.end_time}<span className="ml-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.role)}</span></div>
-                <button type="button" onClick={() => claim(s.id)} className="text-xs font-semibold rounded-full px-3 py-1" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid={`market-claim-${s.id}`}>Claim</button>
+                <button type="button" onClick={() => claim(s.id)} className="text-xs font-semibold rounded-full px-3 py-1" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid={`market-claim-${s.id}`}>{t('staffing.sc_claim', 'Claim')}</button>
               </div>
             ))}
           </div>
         )}
       </Card>
       <Card testId="market-requests">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Requests · {reqs.length}</div>
-        {reqs.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Nothing pending.</div> : (
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_requests', 'Requests')} · {reqs.length}</div>
+        {reqs.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_nothing_pending', 'Nothing pending.')}</div> : (
           <ul className="space-y-2">
             {reqs.map((r) => (
               <li key={r.id} className="rounded-lg border px-3 py-2 flex items-center gap-3" style={{ borderColor: 'var(--theme-border)' }} data-testid={`market-req-${r.id}`}>
@@ -1031,8 +1037,8 @@ function MarketTab({ headers, isManager }) {
                 <StatusBadge status={r.status} />
                 {isManager && r.status === 'pending' && (
                   <>
-                    <button type="button" onClick={() => decide(r.id, 'approved')} className="text-[10px] font-semibold rounded-full px-2 py-1" style={{ background: 'var(--color-success)', color: 'var(--color-emerald-dark)' }}>Approve</button>
-                    <button type="button" onClick={() => decide(r.id, 'rejected')} className="text-[10px] font-semibold rounded-full px-2 py-1 border" style={{ borderColor: 'var(--theme-border)' }}>Reject</button>
+                    <button type="button" onClick={() => decide(r.id, 'approved')} className="text-[10px] font-semibold rounded-full px-2 py-1" style={{ background: 'var(--color-success)', color: 'var(--color-emerald-dark)' }}>{t('staffing.sc_approve', 'Approve')}</button>
+                    <button type="button" onClick={() => decide(r.id, 'rejected')} className="text-[10px] font-semibold rounded-full px-2 py-1 border" style={{ borderColor: 'var(--theme-border)' }}>{t('staffing.sc_reject', 'Reject')}</button>
                   </>
                 )}
               </li>
@@ -1046,19 +1052,20 @@ function MarketTab({ headers, isManager }) {
 
 // ─── Performance ───
 function PerformanceTab({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   useEffect(() => {
     axios.get(`${API}/staffing/performance`, { headers }).then((r) => setData(r.data)).catch(() => setData({ staff: [] }));
   }, [headers]);
-  if (!data) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>;
-  if (!data.staff || data.staff.length === 0) return <EmptyState icon={BarChart3} title="No performance data yet" hint="Add staff and shifts to see breakdowns." testId="perf-empty" />;
+  if (!data) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_loading', 'Loading…')}</div>;
+  if (!data.staff || data.staff.length === 0) return <EmptyState icon={BarChart3} title={t('staffing.sc_no_perf', 'No performance data yet')} hint={t('staffing.sc_no_perf_hint', 'Add staff and shifts to see breakdowns.')} testId="perf-empty" />;
   return (
     <Card testId="perf-list">
       {/* Iter 215dj — wrap in overflow-x-auto + min-width so labour £ /
           classes / attendees columns don't clip on mobile. */}
       <div className="overflow-x-auto -mx-2 sm:mx-0">
       <table className="w-full text-sm min-w-[36rem]">
-        <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2 whitespace-nowrap">Staff</th><th className="text-right py-2 px-2 whitespace-nowrap">Hours</th><th className="text-right py-2 px-2 whitespace-nowrap">Labour {getCachedLocalization().currency_symbol}</th><th className="text-right py-2 px-2 whitespace-nowrap">Classes</th><th className="text-right py-2 px-2 whitespace-nowrap">Attendees</th></tr></thead>
+        <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2 whitespace-nowrap">{t('staffing.sc_perf_staff', 'Staff')}</th><th className="text-right py-2 px-2 whitespace-nowrap">{t('staffing.sc_perf_hours', 'Hours')}</th><th className="text-right py-2 px-2 whitespace-nowrap">{t('staffing.sc_perf_labour', 'Labour')} {getCachedLocalization().currency_symbol}</th><th className="text-right py-2 px-2 whitespace-nowrap">{t('staffing.sc_perf_classes', 'Classes')}</th><th className="text-right py-2 px-2 whitespace-nowrap">{t('staffing.sc_perf_attendees', 'Attendees')}</th></tr></thead>
         <tbody>
           {data.staff.map((s) => (
             <tr key={s.staff_id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`perf-row-${s.staff_id}`}>
@@ -1078,6 +1085,7 @@ function PerformanceTab({ headers }) {
 
 // ─── Payroll (export only) ───
 function PayrollTab({ headers }) {
+  const { t } = useTranslation();
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10); });
   const [to, setTo] = useState(() => new Date().toISOString().slice(0,10));
   const download = async () => {
@@ -1089,47 +1097,48 @@ function PayrollTab({ headers }) {
   };
   return (
     <Card testId="payroll-card">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Export payroll CSV</div>
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_export_payroll', 'Export payroll CSV')}</div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="payroll-from" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="payroll-to" />
-        <button type="button" onClick={download} className="text-xs font-semibold rounded-full inline-flex items-center gap-1 justify-center" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="payroll-download"><Download size={12} /> Download CSV</button>
+        <button type="button" onClick={download} className="text-xs font-semibold rounded-full inline-flex items-center gap-1 justify-center" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="payroll-download"><Download size={12} /> {t('staffing.sc_download_csv', 'Download CSV')}</button>
       </div>
-      <p className="text-[11px] mt-3" style={{ color: 'var(--theme-text-muted)' }}>Non-cancelled shifts only. Hours multiply by each staff&apos;s hourly cost.</p>
+      <p className="text-[11px] mt-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_payroll_note', "Non-cancelled shifts only. Hours multiply by each staff's hourly cost.")}</p>
     </Card>
   );
 }
 
 // ─── Live Floor ───
 function LiveFloorTab({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const load = useCallback(async () => { try { const r = await axios.get(`${API}/staffing/live-floor`, { headers }); setData(r.data); } catch { /* noop */ } }, [headers]);
   useEffect(() => { load(); const iv = setInterval(load, 60000); return () => clearInterval(iv); }, [load]);
-  if (!data) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>;
+  if (!data) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_loading', 'Loading…')}</div>;
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-        <span className="inline-flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--color-success)' }} />Live · {new Date(data.as_of).toLocaleTimeString()}</span>
-        <span>{data.coverage.on_now} on now</span>
-        <span>{data.coverage.open_shifts_today} open today</span>
+        <span className="inline-flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--color-success)' }} />{t('staffing.sc_live', 'Live')} · {new Date(data.as_of).toLocaleTimeString()}</span>
+        <span>{data.coverage.on_now} {t('staffing.sc_on_now', 'on now')}</span>
+        <span>{data.coverage.open_shifts_today} {t('staffing.sc_open_today', 'open today')}</span>
       </div>
       <Card testId="live-now">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-success)' }}>On the floor now</div>
-        {data.on_now.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Nobody scheduled right now.</div> : (
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-success)' }}>{t('staffing.sc_on_floor_now', 'On the floor now')}</div>
+        {data.on_now.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_nobody_now', 'Nobody scheduled right now.')}</div> : (
           <ul className="space-y-1">
             {data.on_now.map((s) => (
               <li key={s.id} className="flex items-center gap-2 text-sm" data-testid={`live-now-${s.id}`}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'var(--color-success)22', color: 'var(--color-success)' }}>{(s.staff_name || '?').charAt(0).toUpperCase()}</div>
                 <div className="flex-1">{s.staff_name}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.role)} · until {s.end_time}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.role)} · {t('staffing.sc_until', 'until')} {s.end_time}</div>
               </li>
             ))}
           </ul>
         )}
       </Card>
       <Card testId="live-upcoming">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Up next today</div>
-        {data.upcoming.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Nothing else scheduled today.</div> : (
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_up_next', 'Up next today')}</div>
+        {data.upcoming.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_nothing_else', 'Nothing else scheduled today.')}</div> : (
           <ul className="space-y-1">
             {data.upcoming.map((s) => (
               <li key={s.id} className="flex items-center gap-2 text-sm" data-testid={`live-up-${s.id}`}>
@@ -1147,10 +1156,11 @@ function LiveFloorTab({ headers }) {
 
 // ─── Rules (compliance) ───
 function RulesTab({ headers }) {
+  const { t } = useTranslation();
   const [rules, setRules] = useState(null);
   useEffect(() => { axios.get(`${API}/staffing/rules`, { headers }).then((r) => setRules(r.data)); }, [headers]);
-  const save = async () => { await axios.put(`${API}/staffing/rules`, rules, { headers }); alert('Rules saved'); };
-  if (!rules) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>;
+  const save = async () => { await axios.put(`${API}/staffing/rules`, rules, { headers }); alert(t('staffing.sc_rules_saved', 'Rules saved')); };
+  if (!rules) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_loading', 'Loading…')}</div>;
   const F = ({ k, label, step = '0.5' }) => (
     <div>
       <label className="text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{label}</label>
@@ -1159,37 +1169,38 @@ function RulesTab({ headers }) {
   );
   return (
     <Card testId="rules-card">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Compliance rules</div>
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_compliance_rules', 'Compliance rules')}</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <F k="max_hours_per_week" label="Max hours per week" />
-        <F k="min_rest_hours_between_shifts" label="Min rest between shifts (h)" />
-        <F k="min_break_minutes_per_shift" label="Min break per shift (min)" step="1" />
-        <F k="max_days_consecutive" label="Max consecutive days" step="1" />
+        <F k="max_hours_per_week" label={t('staffing.sc_rule_max_hours', 'Max hours per week')} />
+        <F k="min_rest_hours_between_shifts" label={t('staffing.sc_rule_min_rest', 'Min rest between shifts (h)')} />
+        <F k="min_break_minutes_per_shift" label={t('staffing.sc_rule_min_break', 'Min break per shift (min)')} step="1" />
+        <F k="max_days_consecutive" label={t('staffing.sc_rule_max_days', 'Max consecutive days')} step="1" />
       </div>
-      <button type="button" onClick={save} className="mt-4 text-xs font-semibold rounded-full px-4 py-2" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="rules-save">Save rules</button>
+      <button type="button" onClick={save} className="mt-4 text-xs font-semibold rounded-full px-4 py-2" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="rules-save">{t('staffing.sc_save_rules', 'Save rules')}</button>
     </Card>
   );
 }
 
 // ─── Announcements ───
 function AnnouncementsTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ title: '', body: '' });
   const load = useCallback(async () => { const r = await axios.get(`${API}/staffing/announcements`, { headers }); setRows(r.data.announcements || []); }, [headers]);
   useEffect(() => { load(); }, [load]);
   const submit = async () => { await axios.post(`${API}/staffing/announcements`, { ...form, audience: 'all' }, { headers }); setForm({ title: '', body: '' }); load(); };
-  const remove = async (id) => { if (!window.confirm('Delete?')) return; await axios.delete(`${API}/staffing/announcements/${id}`, { headers }); load(); };
+  const remove = async (id) => { if (!window.confirm(t('staffing.sc_delete_q', 'Delete?'))) return; await axios.delete(`${API}/staffing/announcements/${id}`, { headers }); load(); };
   return (
     <div className="space-y-3">
       {isManager && (
         <Card testId="announce-form">
-          <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Post an announcement</div>
-          <input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border mb-2" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="announce-title" />
-          <textarea placeholder="Message to staff…" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={3} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="announce-body" />
-          <button type="button" onClick={submit} disabled={!form.title || !form.body} className="mt-2 text-xs font-semibold rounded-full px-4 py-2 disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="announce-post">Post</button>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_post_announcement', 'Post an announcement')}</div>
+          <input placeholder={t('staffing.sc_title', 'Title')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border mb-2" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="announce-title" />
+          <textarea placeholder={t('staffing.sc_message_ph', 'Message to staff…')} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={3} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="announce-body" />
+          <button type="button" onClick={submit} disabled={!form.title || !form.body} className="mt-2 text-xs font-semibold rounded-full px-4 py-2 disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="announce-post">{t('staffing.sc_post', 'Post')}</button>
         </Card>
       )}
-      {rows.length === 0 ? <EmptyState icon={Megaphone} title="No announcements yet" testId="announce-empty" /> : (
+      {rows.length === 0 ? <EmptyState icon={Megaphone} title={t('staffing.sc_no_announcements', 'No announcements yet')} testId="announce-empty" /> : (
         <div className="space-y-2">
           {rows.map((a) => (
             <Card key={a.id} testId={`announce-${a.id}`}>
@@ -1212,10 +1223,11 @@ function AnnouncementsTab({ headers, isManager }) {
 
 // ─── AI Insights ───
 function AIInsightsTab({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   useEffect(() => { axios.get(`${API}/staffing/ai/insights`, { headers }).then((r) => setData(r.data)).catch(() => setData({ flags: [], narrative: 'No data yet.' })); }, [headers]);
-  if (!data) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Analysing last 30 days…</div>;
-  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  if (!data) return <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_analysing', 'Analysing last 30 days…')}</div>;
+  const DAYS = [t('staffing.sc_day_mon', 'Mon'), t('staffing.sc_day_tue', 'Tue'), t('staffing.sc_day_wed', 'Wed'), t('staffing.sc_day_thu', 'Thu'), t('staffing.sc_day_fri', 'Fri'), t('staffing.sc_day_sat', 'Sat'), t('staffing.sc_day_sun', 'Sun')];
   return (
     <div className="space-y-3">
       <Card testId="ai-narrative">
@@ -1225,14 +1237,14 @@ function AIInsightsTab({ headers }) {
         </div>
       </Card>
       <Card testId="ai-flags">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Flagged slots · {data.flags.length}</div>
-        {data.flags.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No anomalies in the last 30 days. Nice.</div> : (
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_flagged_slots', 'Flagged slots')} · {data.flags.length}</div>
+        {data.flags.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_no_anomalies', 'No anomalies in the last 30 days. Nice.')}</div> : (
           <ul className="space-y-1">
             {data.flags.map((f, i) => (
               <li key={i} className="flex items-center gap-2 text-sm" data-testid={`ai-flag-${i}`}>
                 <AlertTriangle size={13} style={{ color: f.kind === 'understaffed' ? 'var(--color-danger)' : 'var(--color-warning)' }} />
-                <span className="flex-1">{DAYS[f.weekday]} at {String(f.hour).padStart(2, '0')}:00 · {f.kind}</span>
-                <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>demand {f.demand} / supply {f.supply}</span>
+                <span className="flex-1">{DAYS[f.weekday]} {t('staffing.sc_at', 'at')} {String(f.hour).padStart(2, '0')}:00 · {t(`staffing.sc_kind_${f.kind}`, f.kind)}</span>
+                <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_demand', 'demand')} {f.demand} / {t('staffing.sc_supply', 'supply')} {f.supply}</span>
               </li>
             ))}
           </ul>
@@ -1241,3 +1253,5 @@ function AIInsightsTab({ headers }) {
     </div>
   );
 }
+
+

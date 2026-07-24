@@ -419,7 +419,9 @@ function App() {
  });
  };
 
- const loadBranding = async (token) => {
+ const PORTAL_ONLY_ROLES = ['dealer_user', 'logistics', 'recruit'];
+ const loadBranding = async (token, role) => {
+ if (PORTAL_ONLY_ROLES.includes(role)) return;
  try {
  const res = await axios.get(`${API}/organization`, { headers: { Authorization: `Bearer ${token}` } });
  if (res.data?.branding || res.data?.theme_overrides) {
@@ -428,7 +430,8 @@ function App() {
  } catch {}
  };
 
-  const loadSites = async (token) => {
+  const loadSites = async (token, role) => {
+    if (PORTAL_ONLY_ROLES.includes(role)) return;
     try {
       const res = await axios.get(`${API}/sites`, { headers: { Authorization: `Bearer ${token}` } });
       const siteList = res.data?.sites || [];
@@ -539,8 +542,8 @@ function App() {
    setToken(storedToken);
  }
  try { localStorage.setItem('user_cache', JSON.stringify({ id: res.data?.id, is_master_admin: !!res.data?.is_master_admin, account_type: res.data?.account_type })); } catch { /* quota */ }
- loadBranding(storedToken || 'cookie');
- loadSites(storedToken || 'cookie');
+ loadBranding(storedToken || 'cookie', res.data?.role);
+ loadSites(storedToken || 'cookie', res.data?.role);
  setLoading(false);
 
  // Auto-refresh token (refresh every 12 hours)
@@ -661,7 +664,7 @@ function App() {
  setToken(e.newValue);
  const cfg = e.newValue !== 'cookie' ? { headers: { Authorization: `Bearer ${e.newValue}` } } : {};
  axios.get(`${API}/auth/me`, cfg)
- .then(res => { setUser(res.data); loadBranding(e.newValue); loadSites(e.newValue); })
+ .then(res => { setUser(res.data); loadBranding(e.newValue, res.data?.role); loadSites(e.newValue, res.data?.role); })
  .catch(() => { /* ignore — next refresh will heal */ });
  };
  window.addEventListener('storage', onStorage);
@@ -690,8 +693,8 @@ function App() {
  setToken('cookie');
  try { localStorage.setItem('user_cache', JSON.stringify({ id: userData?.id, is_master_admin: !!userData?.is_master_admin, account_type: userData?.account_type })); } catch { /* quota */ }
  setUser(userData);
- loadBranding('cookie');
- loadSites('cookie');
+ loadBranding('cookie', userData?.role);
+ loadSites('cookie', userData?.role);
  window.dispatchEvent(new Event('pwa-check-install'));
  };
 

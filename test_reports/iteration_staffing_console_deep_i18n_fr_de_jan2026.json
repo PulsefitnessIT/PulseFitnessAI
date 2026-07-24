@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only i18n verification for StaffingConsole DEEP panels + StaffOnboarding in EN/FR/DE for owner@isodemo.com. Logged in via cookie-dismiss + credentials, navigated /dashboard -> Operations -> Staffing, clicked through every top staffing-tab (dashboard, people, rota, timeclock, performance, payroll, expenses, comms, operations, rules) and every subtab discovered (people: hr, onboarding, orgchart, team-access, site-access; rota: rota, templates, leave, market, live, ai-rota; timeclock; performance: performance, ai; comms: announce, comms). For each tab/subtab in each of the 3 languages, ran regex scan for /staffing\\.(sc_|onb_)[a-z0-9_]+/ on document.body.innerText. Total ~80 tab-visits scanned.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CSP violation warnings for external analytics scripts (assets.emergent.sh/scripts/emergent-main.js, posthog, cloudflare beacon) are logged as console errors on every page load. Non-blocking for UX but noisy; consider CSP allowlist or removing the analytics tags.",
+    "Language switch works via localStorage.i18nextLng reload. In-app header language selector (FR/DE/EN globe) also visible and functional per screenshots."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  (dismiss 'Accept All' cookie banner first)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To repeat scan: login, /dashboard, click Staffing top-tab, iterate data-testid=staffing-tab-* and staffing-subtab-*, then evaluate regex on document.body.innerText. Set localStorage.i18nextLng to 'fr'|'de'|'en' + reload to switch language. No raw keys detected in this run across EN/FR/DE for sc_* or onb_* namespaces.",
+  "verification_details": {
+    "languages_tested": ["en", "fr", "de"],
+    "top_tabs_visited": ["dashboard","people","rota","timeclock","performance","payroll","expenses","comms","operations","rules"],
+    "subtabs_visited": {
+      "people": ["hr","onboarding","orgchart","team-access","site-access"],
+      "rota": ["rota","templates","leave","market","live","ai-rota"],
+      "timeclock": ["timeclock"],
+      "performance": ["performance","ai"],
+      "comms": ["announce","comms"]
+    },
+    "raw_key_leaks_per_language": { "en": 0, "fr": 0, "de": 0 },
+    "sample_localized_strings": {
+      "fr": "Personnel / Planning / Pointeuse / Performance / Paie / Dépenses / Communication / Ops · Formulaires / Règles / Connexion partagée du site / Activer la connexion partagée / Ajouter du personnel / Importation groupée / Rapport d'utilisation",
+      "de": "Personal / Dienstplan / Zeiterfassung / Leistung / Lohnabrechnung / Ausgaben / Kommunikation / Ops · Formulare / Regeln / Compliance-Regeln / Max. Stunden pro Woche / Min. Ruhezeit zwischen Schichten (Std.) / Min. Pause pro Schicht (Min.) / Max. aufeinanderfolgende Tage / Regeln speichern",
+      "en": "Dashboard / People / Rota / Time Clock / Performance / Payroll / Expenses / Comms / Ops · Forms / Rules / Compliance rules / Save rules"
+    },
+    "regression_notes": "Switching language does not break rendering, tab-switch navigation still works in all 3 languages, no blank screens, no JS crashes in console (only CSP warnings for 3rd-party analytics)."
+  }
+}
