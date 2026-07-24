@@ -277,6 +277,16 @@
   background-color: var(--theme-surface-2) !important;
 }
 
+/* Segmented-toggle active pill. In light mode `.bg-zinc-900` is neutralised
+   to white above, which made the active button's white label invisible
+   (white-on-white). This keeps the selected segment a solid brand island
+   with a legible white label in BOTH themes. */
+.seg-active {
+  background-color: var(--color-brand-blue) !important;
+  border-color: var(--color-brand-blue) !important;
+  color: #fff !important;
+}
+
 [data-theme="light"] .bg-white\/5,
 [data-theme="light"] .bg-white\/10,
 [data-theme="light"] .bg-white\/\[0\.02\],

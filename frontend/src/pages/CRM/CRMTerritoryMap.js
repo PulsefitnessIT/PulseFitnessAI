@@ -454,7 +454,7 @@ export default function CRMTerritoryMap() {
             <button
               type="button"
               onClick={() => setLayer('county')}
-              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'county' ? 'bg-zinc-900 text-white' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
+              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'county' ? 'seg-active' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
               data-testid="layer-county"
             >
               <MapIcon size={12} /> Counties
@@ -462,7 +462,7 @@ export default function CRMTerritoryMap() {
             <button
               type="button"
               onClick={() => setLayer('postcode_area')}
-              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'postcode_area' ? 'bg-zinc-900 text-white' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
+              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'postcode_area' ? 'seg-active' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
               data-testid="layer-postcode"
             >
               <Layers size={12} /> Postcode areas
@@ -488,7 +488,7 @@ export default function CRMTerritoryMap() {
                 key={v}
                 type="button"
                 onClick={() => setRoleFilter(v)}
-                className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${roleFilter === v ? 'bg-zinc-900 text-white' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
+                className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${roleFilter === v ? 'seg-active' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
                 data-testid={`role-filter-${v}`}
               >
                 <Icon size={12} /> {label}
@@ -497,7 +497,7 @@ export default function CRMTerritoryMap() {
           </div>
           <button
             onClick={() => setShowOffices((v) => !v)}
-            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showOffices ? 'bg-zinc-900 border-zinc-900 text-white' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
+            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showOffices ? 'seg-active' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
             title="Show or hide office pins on the map."
             data-testid="map-offices-toggle"
           >

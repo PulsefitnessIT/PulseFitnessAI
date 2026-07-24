@@ -112,7 +112,7 @@ export default function CRMTerritories() {
           <button
             type="button"
             onClick={() => setView('map')}
-            className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${view === 'map' ? 'bg-zinc-900 text-white' : 'text-zinc-900 hover:bg-zinc-100'}`}
+            className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${view === 'map' ? 'seg-active' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
             data-testid="territories-view-map"
           >
             <MapIcon size={12} /> Map
@@ -120,7 +120,7 @@ export default function CRMTerritories() {
           <button
             type="button"
             onClick={() => setView('list')}
-            className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${view === 'list' ? 'bg-zinc-900 text-white' : 'text-zinc-900 hover:bg-zinc-100'}`}
+            className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${view === 'list' ? 'seg-active' : 'text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'}`}
             data-testid="territories-view-list"
           >
             <List size={12} /> List & teams
