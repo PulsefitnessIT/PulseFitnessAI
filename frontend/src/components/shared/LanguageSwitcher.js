@@ -38,7 +38,7 @@ export const LanguageSwitcher = ({ className = '' }) => {
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border hover:opacity-80 transition-colors"
-        style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+        style={{ borderColor: 'var(--theme-border, #e2e8f0)', color: 'var(--theme-text-muted, #64748b)' }}
         data-testid="lang-switcher-btn"
         aria-label="Change language"
       >
@@ -50,7 +50,7 @@ export const LanguageSwitcher = ({ className = '' }) => {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
             className="absolute right-0 top-full mt-2 w-40 rounded-lg shadow-xl z-50 overflow-hidden"
-            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}
+            style={{ background: 'var(--theme-surface, #ffffff)', border: '1px solid var(--theme-border, #e2e8f0)' }}
             data-testid="lang-dropdown"
           >
             {LANGS.map((lang) => (
@@ -60,7 +60,7 @@ export const LanguageSwitcher = ({ className = '' }) => {
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                   current === lang.code ? 'font-medium' : 'opacity-70 hover:opacity-100'
                 }`}
-                style={{ color: 'var(--theme-text)' }}
+                style={{ color: 'var(--theme-text, #0f172a)' }}
                 data-testid={`lang-option-${lang.code}`}
               >
                 <span className="text-base">{lang.flag}</span>

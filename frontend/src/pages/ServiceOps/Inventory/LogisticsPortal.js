@@ -6,6 +6,7 @@ import IncidentSignaturePad from '@/pages/IncidentSignaturePad';
 import { invApi, fmtDate, statusLabel } from './api';
 import { InstallPackModal } from './InvAllocation';
 import { Spinner, StatusBadge, Btn, inputCls } from './ui';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
 const INSTALL_CHECKS = [
   { key: 'positioned', label: 'Machine positioned & levelled' },
@@ -107,6 +108,7 @@ export default function LogisticsPortal() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-slate-500 sm:inline" data-testid="logistics-portal-user">{user?.email}</span>
+            <LanguageSwitcher />
             <button onClick={logout} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50" data-testid="logistics-portal-logout"><LogOut size={14} /> Sign out</button>
           </div>
         </div>

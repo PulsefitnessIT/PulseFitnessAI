@@ -48,14 +48,20 @@ three locale files (sorted). Reuse for future namespaces.
   currency (ccyPicked flag), which then wins. VERIFIED: navigator=de-DE + cleared localStorage →
   German text with the € EUR toggle active and €79/€59/€89 prices.
 
-## Remaining phases (backlog, priority order)
-- P1: Spot-audit signup/login + rest of public marketing pages for hardcoded strings (mostly
-  already t()-wired) and fill gaps.
-- P1: Other portals — add switcher to Dealer, Logistics, Staff portal headers; translate their strings.
-- P2: Operator modules (the bulk) — CRM, Inventory & Distribution, Service Desk, Memberships,
-  dashboards, Master Admin. Only ~42/836 component files currently use t().
-- P2: Backend-sourced strings (module names/descriptions from APIs, emails) — decide per-locale strategy.
-- P3: Number/date/currency locale formatting (deferred by user — text only for now).
+## Phase 2a — Switcher in all sub-portals (DONE, switcher verified)
+- LanguageSwitcher added to Dealer (DealerPortalStandalone.js), Logistics (LogisticsPortal.js) and
+  Staff (StaffPortal.js) portal headers. LanguageSwitcher.js hardened with CSS-var fallbacks
+  (--theme-*, #… defaults) so it renders correctly on the standalone light-themed portals too.
+  VERIFIED: logistics portal shows the globe+FR switcher; selecting FR flipped the shared cookie
+  banner to French. NOTE: the portals' OWN content strings (e.g. "Upcoming installations",
+  "Install pack") are NOT yet translated — that's the P2 per-portal string pass.
+
+## Remaining (large) work
+- P2 per-portal strings: Dealer, Logistics, Staff, Customer portal content.
+- P2 operator modules (the bulk): CRM, Inventory & Distribution, Service Desk, Memberships,
+  dashboards, Master Admin — only ~42/836 components use t(). Multi-pass effort.
+- P2 backend-sourced strings & transactional emails.
+- P1 spot-audit: signup/login + remaining public marketing pages (mostly t()-wired already).
 
 ## Cleanup
 - 18 keys added to fr/de as English fallback during the drift fix (en-only inline defaults with

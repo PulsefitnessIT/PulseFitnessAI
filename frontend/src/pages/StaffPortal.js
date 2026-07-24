@@ -10,6 +10,7 @@ import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
 } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CORE = '#19CDFF';
@@ -64,6 +65,7 @@ export default function StaffPortal() {
           </div>
           <div className="flex items-center gap-2">
             {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">Active employee ✓</span>}
+            <LanguageSwitcher />
             <button onClick={logout} data-testid="staff-portal-logout"
               className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-slate-400">
               <LogOut size={14} /> Log out</button>

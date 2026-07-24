@@ -7,6 +7,7 @@ import { Store, PackagePlus, Truck, Wrench, LogOut, Globe } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { StatCard, Spinner, Modal, Field, input, money, StatusBadge } from './shared';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
 export default function DealerPortalStandalone() {
   const [data, setData] = useState(null);
@@ -40,6 +41,7 @@ export default function DealerPortalStandalone() {
             <div className="font-bold text-slate-900 leading-tight">Pulse Fitness — Dealer Parts Portal</div>
             <div className="text-xs text-slate-400">{data?.dealer?.name || 'Your dealer store'}</div>
           </div>
+          <LanguageSwitcher className="mr-1" />
           <button data-testid="dealer-portal-logout" onClick={logout} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"><LogOut size={15} /> Log out</button>
         </div>
       </header>
