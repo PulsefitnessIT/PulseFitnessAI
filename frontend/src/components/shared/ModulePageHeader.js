@@ -11,6 +11,7 @@
  * tenants, brand-blue for Pulse-branded tenants); the tenant name is muted.
  */
 import { format } from 'date-fns';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const ModulePageHeader = ({
   moduleName,
@@ -58,16 +59,19 @@ export const ModulePageHeader = ({
           ) : null}
         </div>
         <div className="flex flex-row items-center justify-between w-full gap-4 md:w-auto md:flex-col md:items-end md:justify-start md:gap-2 shrink-0">
+          <div className="flex items-center gap-2 order-1 md:order-2">
+            <LanguageSwitcher />
+            <p
+              data-testid="module-date"
+              className="text-sm font-semibold whitespace-nowrap"
+              style={{ color: 'var(--theme-text-muted)' }}
+            >
+              {today}
+            </p>
+          </div>
           {actionSlot ? (
             <div data-testid="module-action-slot" className="order-2 md:order-1">{actionSlot}</div>
           ) : null}
-          <p
-            data-testid="module-date"
-            className="text-sm font-semibold whitespace-nowrap order-1 md:order-2"
-            style={{ color: 'var(--theme-text-muted)' }}
-          >
-            {today}
-          </p>
         </div>
       </div>
     </header>

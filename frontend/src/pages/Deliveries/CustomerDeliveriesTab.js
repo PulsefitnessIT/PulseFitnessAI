@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Truck, CalendarDays, MapPin, ShieldCheck, Download, PackageCheck, Loader2, Clock } from 'lucide-react';
+import { LanguageSwitcher } from '../../components/shared/LanguageSwitcher';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const authHeaders = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -10,14 +12,15 @@ const fmtDate = (iso) => {
   try { return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return String(iso).slice(0, 10); }
 };
 
-const STATUS = {
-  awaiting_installation: { label: 'Scheduled', cls: 'bg-sky-50 text-sky-700 ring-sky-200', icon: CalendarDays },
-  installation_in_progress: { label: 'In progress', cls: 'bg-amber-50 text-amber-700 ring-amber-200', icon: Clock },
-  active: { label: 'Installed', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', icon: PackageCheck },
-};
-
 export default function CustomerDeliveriesTab() {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
+
+  const STATUS = {
+    awaiting_installation: { label: t('deliveries.status_scheduled', 'Scheduled'), cls: 'bg-sky-50 text-sky-700 ring-sky-200', icon: CalendarDays },
+    installation_in_progress: { label: t('deliveries.status_in_progress', 'In progress'), cls: 'bg-amber-50 text-amber-700 ring-amber-200', icon: Clock },
+    active: { label: t('deliveries.status_installed', 'Installed'), cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', icon: PackageCheck },
+  };
 
   useEffect(() => {
     axios.get(`${API}/customer/deliveries`, authHeaders())
@@ -37,18 +40,21 @@ export default function CustomerDeliveriesTab() {
 
   return (
     <div className="space-y-5" data-testid="customer-deliveries-tab">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #19CDFF, #0BB0DD)' }}><Truck size={20} className="text-white" /></div>
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Deliveries &amp; Installations</h2>
-          <p className="text-sm text-slate-500">Track your incoming equipment, installation status and warranty.</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #19CDFF, #0BB0DD)' }}><Truck size={20} className="text-white" /></div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">{t('deliveries.title', 'Deliveries & Installations')}</h2>
+            <p className="text-sm text-slate-500">{t('deliveries.subtitle', 'Track your incoming equipment, installation status and warranty.')}</p>
+          </div>
         </div>
+        <LanguageSwitcher />
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center" data-testid="customer-deliveries-empty">
           <PackageCheck size={32} className="mx-auto mb-2 text-slate-300" />
-          <p className="text-sm font-medium text-slate-500">No deliveries or installations to show right now.</p>
+          <p className="text-sm font-medium text-slate-500">{t('deliveries.empty', 'No deliveries or installations to show right now.')}</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2" data-testid="customer-deliveries-list">
@@ -66,12 +72,12 @@ export default function CustomerDeliveriesTab() {
                 </div>
                 <div className="mt-3 space-y-1.5 text-sm text-slate-600">
                   {d.site && <p className="flex items-center gap-2"><MapPin size={13} className="text-slate-400" /> {d.site}</p>}
-                  <p className="flex items-center gap-2"><CalendarDays size={13} className="text-slate-400" /> {d.status === 'active' ? `Installed ${fmtDate(d.installed_at)}` : `Planned ${fmtDate(d.planned_install_date)}${d.install_window ? ` · ${d.install_window}` : ''}`}</p>
-                  {d.warranty?.warranty_end && <p className="flex items-center gap-2"><ShieldCheck size={13} className="text-emerald-500" /> Warranty to {fmtDate(d.warranty.warranty_end)}</p>}
+                  <p className="flex items-center gap-2"><CalendarDays size={13} className="text-slate-400" /> {d.status === 'active' ? t('deliveries.installed_on', 'Installed {{date}}', { date: fmtDate(d.installed_at) }) : `${t('deliveries.planned_on', 'Planned {{date}}', { date: fmtDate(d.planned_install_date) })}${d.install_window ? ` · ${d.install_window}` : ''}`}</p>
+                  {d.warranty?.warranty_end && <p className="flex items-center gap-2"><ShieldCheck size={13} className="text-emerald-500" /> {t('deliveries.warranty_to', 'Warranty to {{date}}', { date: fmtDate(d.warranty.warranty_end) })}</p>}
                 </div>
                 {d.certificate_url && (
                   <button onClick={() => openCert(d.certificate_url)} className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800" data-testid={`customer-delivery-cert-${d.reference}`}>
-                    <Download size={13} /> Installation certificate
+                    <Download size={13} /> {t('deliveries.certificate', 'Installation certificate')}
                   </button>
                 )}
               </div>

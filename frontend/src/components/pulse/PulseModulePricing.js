@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/App';
@@ -15,15 +16,16 @@ import { useAuth } from '@/App';
 const CCY = { gbp: '£', eur: '€', usd: '$' };
 
 const MODULE_META = {
-  operations: { name: 'Operations', tag: 'Pulse Fitness Pro', blurb: 'Equipment, faults, check sheets, AI triage & engineer ops.' },
-  crm: { name: 'CRM', blurb: 'Pipeline, quoting, contracts & customer relationships.' },
-  marketing: { name: 'Marketing', blurb: 'Campaigns, social autopilot & growth tooling.' },
-  memberships: { name: 'Memberships', blurb: 'Members, plans, timetables & the member app.' },
+  operations: { name: 'Operations', tag: 'Pulse Fitness Pro', blurbKey: 'pulse_pricing.blurb_operations' },
+  crm: { name: 'CRM', blurbKey: 'pulse_pricing.blurb_crm' },
+  marketing: { name: 'Marketing', blurbKey: 'pulse_pricing.blurb_marketing' },
+  memberships: { name: 'Memberships', blurbKey: 'pulse_pricing.blurb_memberships' },
 };
 const ORDER = ['operations', 'crm', 'marketing', 'memberships'];
 
 export default function PulseModulePricing({ onStart }) {
   const { API, user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [live, setLive] = useState(null);
   const [currency, setCurrency] = useState('gbp');
@@ -59,12 +61,12 @@ export default function PulseModulePricing({ onStart }) {
     <section className="relative py-6" data-testid="pulse-module-pricing">
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-3">Modules</div>
+          <div className="text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-3">{t('pulse_pricing.modules_eyebrow', 'Modules')}</div>
           <h2 className="text-2xl sm:text-4xl font-bold tracking-[-0.02em] text-[var(--color-surface-dark-panel-alt)]">
-            Build your platform, one module at a time.
+            {t('pulse_pricing.heading', 'Build your platform, one module at a time.')}
           </h2>
           <p className="mt-3 text-sm sm:text-base text-[var(--color-text-slate)]">
-            Every module is a standalone subscription — mix and match, cancel anytime. Priced in your currency.
+            {t('pulse_pricing.subtitle', 'Every module is a standalone subscription — mix and match, cancel anytime. Priced in your currency.')}
           </p>
         </div>
 
@@ -79,14 +81,14 @@ export default function PulseModulePricing({ onStart }) {
             ))}
           </div>
           <div className="inline-flex items-center rounded-full border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-1" data-testid="pulse-billing-toggle">
-            {[['monthly', 'Monthly'], ['annual', 'Annual']].map(([v, label]) => (
+            {[['monthly', t('pulse_pricing.monthly', 'Monthly')], ['annual', t('pulse_pricing.annual', 'Annual')]].map(([v, label]) => (
               <button key={v} type="button" onClick={() => setCycle(v)}
                 className={`${pillBase} ${cycle === v ? activePill : idlePill}`} data-testid={`pulse-billing-${v}`}>
                 {label}
               </button>
             ))}
             {live?.annual_discount_pct ? (
-              <span className="px-2.5 text-xs font-semibold text-[var(--pulse-primary)]">Save {live.annual_discount_pct}%</span>
+              <span className="px-2.5 text-xs font-semibold text-[var(--pulse-primary)]">{t('pulse_pricing.save_pct', 'Save {{pct}}%', { pct: live.annual_discount_pct })}</span>
             ) : null}
           </div>
         </div>
@@ -109,15 +111,15 @@ export default function PulseModulePricing({ onStart }) {
               >
                 {featured ? (
                   <span className="absolute -top-2.5 left-6 bg-[var(--pulse-primary)] text-[#0A0C10] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full" data-testid="pulse-flagship-badge">
-                    Recommended
+                    {t('pulse_pricing.recommended', 'Recommended')}
                   </span>
                 ) : null}
                 <div className="font-bold text-lg text-[var(--color-surface-dark-panel-alt)]">{meta.name}</div>
                 {featured ? <div className="text-xs font-semibold text-[var(--pulse-primary)] mt-0.5">Pulse Fitness Pro</div> : null}
-                <p className="text-xs text-[var(--color-text-slate)] mt-2 leading-relaxed min-h-[48px]">{meta.blurb}</p>
+                <p className="text-xs text-[var(--color-text-slate)] mt-2 leading-relaxed min-h-[48px]">{t(meta.blurbKey)}</p>
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-[var(--color-surface-dark-panel-alt)]" data-testid={`pulse-module-price-${id}`}>{price || '—'}</span>
-                  <span className="text-sm text-[var(--color-text-slate)]">{annual ? '/yr' : '/mo'}</span>
+                  <span className="text-sm text-[var(--color-text-slate)]">{annual ? t('pulse_pricing.per_year', '/yr') : t('pulse_pricing.per_month', '/mo')}</span>
                 </div>
                 <button
                   type="button"
@@ -125,14 +127,14 @@ export default function PulseModulePricing({ onStart }) {
                   className={`mt-5 w-full h-11 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${featured ? 'bg-[var(--pulse-primary)] hover:brightness-95 text-[#0A0C10]' : 'border border-[var(--color-border-subtle,#d4d4d8)] text-[var(--color-surface-dark-panel-alt)] hover:border-[var(--pulse-primary)]'}`}
                   data-testid={`pulse-module-start-${id}`}
                 >
-                  {user ? 'Choose' : 'Start'} {featured ? 'Pulse Fitness Pro' : meta.name} <ArrowRight size={15} />
+                  {user ? t('pulse_pricing.cta_choose', 'Choose') : t('pulse_pricing.cta_start', 'Start')} {featured ? 'Pulse Fitness Pro' : meta.name} <ArrowRight size={15} />
                 </button>
               </motion.div>
             );
           })}
         </div>
         <p className="mt-5 text-center text-xs text-[var(--color-text-slate)]">
-          14-day free trial · no card required to start · cancel anytime
+          {t('pulse_pricing.trial_footer', '14-day free trial · no card required to start · cancel anytime')}
         </p>
       </div>
     </section>
