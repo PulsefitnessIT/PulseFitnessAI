@@ -35,7 +35,7 @@ import uuid
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
-from routes.crm_core import log_audit
+from routes.crm_core import log_audit, sync_staffing_to_crm_users
 
 router = APIRouter(prefix="/crm/territories", tags=["CRM Territories"])
 
@@ -321,6 +321,9 @@ async def staff_palette(user=Depends(get_crm_user)):
     record (with sensible defaults if the user hasn't been styled yet).
     """
     of = _org_filter(user)
+    # Cross-module flow: mirror Operations Staffing field staff into CRM so
+    # engineers / sales managers set up in Staffing are assignable here.
+    await sync_staffing_to_crm_users(user.get("organization_id"))
     users = await db.crm_users.find(
         of, {"_id": 0, "password": 0},
     ).sort("full_name", 1).to_list(500)

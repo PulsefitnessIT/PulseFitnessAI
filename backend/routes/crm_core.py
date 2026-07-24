@@ -760,9 +760,103 @@ def _humanize_role(role):
     return str(role).replace("_", " ").replace("-", " ").title()
 
 
+# ==================== STAFFING → CRM PEOPLE SYNC (cross-module flow) ====================
+
+def _territory_role_from_staff(primary_role):
+    """Map an Operations Staffing primary_role → a CRM territory role, or
+    None if the person isn't relevant to CRM coverage. Handles both the
+    snake_case tokens ("sales_manager", "engineer") and the display labels
+    the HR module stores ("Field Service Engineer", "Sales Manager")."""
+    r = (primary_role or "").strip().lower()
+    if not r:
+        return None
+    if "sales" in r or r in {"account_manager", "business_development", "bdm", "commercial_manager"}:
+        return "sales_manager"
+    if any(k in r for k in ("engineer", "technician", "service", "install", "fitter")):
+        return "engineer"
+    return None
+
+
+async def sync_staffing_to_crm_users(org_id: str) -> int:
+    """Mirror field staff (engineers / sales managers) set up in the
+    Operations Staffing module into db.crm_users so they flow into the CRM
+    team list AND become assignable on the Territory map.
+
+    Staffing stays the single source of truth: mirror records carry
+    source='staffing' + staff_id and no password (they cannot log into the
+    CRM). Idempotent + best-effort — safe to call on every CRM read. Stale
+    mirrors (staff archived or no longer a field role) are removed."""
+    if not org_id:
+        return 0
+    try:
+        staff = await db.staff_members.find(
+            {"organization_id": org_id, "active": {"$ne": False}},
+            {"_id": 0, "id": 1, "user_id": 1, "email": 1, "full_name": 1, "primary_role": 1},
+        ).to_list(2000)
+        existing = await db.crm_users.find(
+            {"organization_id": org_id},
+            {"_id": 0, "id": 1, "email": 1, "source": 1, "territory_role": 1, "staff_id": 1},
+        ).to_list(2000)
+        by_email = {(u.get("email") or "").lower().strip(): u for u in existing if u.get("email")}
+        by_staffid = {u.get("staff_id"): u for u in existing if u.get("staff_id")}
+        now = datetime.now(timezone.utc).isoformat()
+        qualifying_ids: list[str] = []
+        synced = 0
+        for s in staff:
+            trole = _territory_role_from_staff(s.get("primary_role"))
+            if not trole:
+                continue
+            qualifying_ids.append(s.get("id"))
+            em = (s.get("email") or "").lower().strip()
+            match = by_email.get(em) or by_staffid.get(s.get("id"))
+            if match:
+                # Link staffing → an EXISTING CRM user. Never overwrite a real
+                # login user's role/name; only backfill the link + a default
+                # territory role so they can be dropped onto the map.
+                patch = {"staff_id": s.get("id"), "updated_at": now}
+                if not match.get("territory_role"):
+                    patch["territory_role"] = trole
+                await db.crm_users.update_one({"id": match["id"]}, {"$set": patch})
+                continue
+            uid = f"staffsync-{s.get('id')}"
+            await db.crm_users.update_one(
+                {"id": uid},
+                {
+                    "$set": {
+                        "id": uid,
+                        "organization_id": org_id,
+                        "email": em or None,
+                        "full_name": s.get("full_name") or em or "Staff member",
+                        "role": "sales_rep",
+                        "territory_role": trole,
+                        "status": "synced",
+                        "source": "staffing",
+                        "staff_id": s.get("id"),
+                        "linked_user_id": s.get("user_id"),
+                        "updated_at": now,
+                    },
+                    "$setOnInsert": {"created_at": now},
+                },
+                upsert=True,
+            )
+            synced += 1
+        # Drop mirrors whose staff was archived or is no longer a field role.
+        await db.crm_users.delete_many({
+            "organization_id": org_id,
+            "source": "staffing",
+            "staff_id": {"$nin": qualifying_ids},
+        })
+        return synced
+    except Exception:
+        return 0
+
+
 @router.get("/users")
 async def list_crm_users(user=Depends(get_crm_user)):
     org_id = user.get("organization_id")
+    # Cross-module flow: pull Operations Staffing field staff (engineers /
+    # sales managers) into the CRM team before listing.
+    await sync_staffing_to_crm_users(org_id)
     query = {"organization_id": org_id} if org_id else {}
     users = await db.crm_users.find(query, {"_id": 0, "password": 0}).to_list(100)
 
