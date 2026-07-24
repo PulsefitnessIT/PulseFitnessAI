@@ -45,7 +45,17 @@ into i18n/locales/{en,fr,de}.json.
       LiveFloorTab/RulesTab/AnnouncementsTab/AIInsightsTab. Renamed shadows: RotaTab day-totals t->dt,
       LeaveTab leave-type map t->lt. Verified via testing_agent (100% FE, 0 raw-key leaks EN/FR/DE).
       Report: /app/test_reports/iteration_staffing_console_deep_i18n_fr_de_jan2026.json
-- [ ] staffing/orgchart/* (14 files ~2000 lines) P2
+- [x] staffing/orgchart/* (14 files ~2100 lines) P2 — DONE (orgchart.*, 257 keys FR/DE).
+      Localized: OrgChartTab, Canvas, OrgCard, ListView, Vacancies, Templates, AIPanel, HistoryTab,
+      ImportExport, DocumentImport, Settings, ShareModal, Presentation, panels (AddNodeModal/NodeDrawer/
+      MoveConfirmModal). Shadows renamed: Templates map t->tpl, AIPanel copyJd t->jdText,
+      Canvas setTimeout t->tid, panels EDGE_TYPES map/find t->et, RotaTab-style day map n/a.
+      Dynamic keys (node_/field_/col_/action_/subtab_/ie_field_) added to i18n_translate_ops.py
+      as explicit orgchart_dyn dict (48 keys). Verified via testing_agent: 100% (24/24 sub-tab
+      renders EN/FR/DE, 0 raw-key leaks). Testing agent fixed 1 latent crash (DocumentImport.js
+      missing useTranslation hook — an edit lost to the recurring trailing-duplicate corruption).
+      Report: /app/test_reports/iteration_orgchart_i18n_fr_de_jan2026.json
+      i18n Phase 3 (Operations/Staffing FR+DE) is now COMPLETE.
 
 ## PIPELINE BUILT & VERIFIED (idempotent, re-runnable)
 - /app/backend/scripts/i18n_translate_ops.py — extracts t('staffing/ops/orgchart.*','en')

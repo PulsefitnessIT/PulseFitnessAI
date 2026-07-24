@@ -1,3 +1,13 @@
+# ═══ 2026-06-24 · i18n PHASE 3 COMPLETE — Org Chart P2 DONE (VERIFIED EN/FR/DE) ═══
+The Org Chart module (staffing/orgchart/*, 14 UI components) is now fully localized under the 'orgchart.*' namespace (257 keys, all present in en/fr/de.json). Verified via testing_agent: 100% (24/24 sub-tab renders across EN/FR/DE, 0 raw-key leaks).
+  - Components: OrgChartTab, Canvas, OrgCard, ListView, Vacancies, Templates, AIPanel, HistoryTab, ImportExport, DocumentImport, Settings, ShareModal, Presentation, panels (AddNodeModal/NodeDrawer/MoveConfirmModal).
+  - Dynamic template-literal keys (node_/field_/col_/action_/subtab_/ie_field_) added to i18n_translate_ops.py as an explicit `orgchart_dyn` dict (48 keys) so they translate rather than English-fallback.
+  - Testing agent fixed 1 latent crash: DocumentImport.js was missing its useTranslation hook (an edit lost to a recurring trailing-duplicate file corruption seen this session on Canvas/OrgCard/StaffingConsole/App.js — always re-verify file tails after rapid edits).
+  - Report: /app/test_reports/iteration_orgchart_i18n_fr_de_jan2026.json
+  - i18n Phase 3 (entire Operations/Staffing module in FR+DE) is now COMPLETE. No i18n items remain for the demo.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06-24 · i18n PHASE 3 UPDATE — StaffOnboarding + StaffingConsole DEEP panels DONE (VERIFIED EN/FR/DE) ═══
 This session completed the two remaining P1 i18n items and verified all three languages via testing_agent (100% FE, 0 raw-key leaks):
   - staffing/StaffOnboarding.js — staffing.onb_* (174 keys FR/DE). Shadows renamed (CaseDetail load t->tRes, offer/contract map t->tpl, TemplateManager load t->tRes).
