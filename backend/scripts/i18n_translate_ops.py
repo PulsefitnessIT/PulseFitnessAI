@@ -146,7 +146,43 @@ async def main():
         "staffing.nav_transfers": "Transfers",
     }
     pairs.update(nav)
-    print(f"Extracted {len(pairs)} t() keys in namespaces {NAMESPACES} (incl. {len(nav)} nav)")
+    # Explicit orgchart dynamic keys (built via template literals in JSX — the
+    # scanner only sees static t('key','default') calls, so list them here).
+    orgchart_dyn = {
+        # NODE_LABELS
+        "orgchart.node_staff": "Staff", "orgchart.node_vacancy": "Vacancy",
+        "orgchart.node_placeholder": "Placeholder", "orgchart.node_contractor": "Contractor",
+        # Settings field toggles
+        "orgchart.field_photo": "Avatars", "orgchart.field_department": "Department",
+        "orgchart.field_site": "Site", "orgchart.field_email": "Email",
+        "orgchart.field_phone": "Phone", "orgchart.field_employment_type": "Employment type",
+        "orgchart.field_reports_count": "Direct reports count", "orgchart.field_status": "Status",
+        # Table columns (ListView / DocumentImport / AIPanel)
+        "orgchart.col_name": "Name", "orgchart.col_job_title": "Job title",
+        "orgchart.col_type": "Type", "orgchart.col_department": "Department",
+        "orgchart.col_site": "Site", "orgchart.col_manager": "Manager",
+        "orgchart.col_reports": "Reports", "orgchart.col_status": "Status",
+        "orgchart.col_linked": "Linked", "orgchart.col_reports_to": "Reports to",
+        "orgchart.col_title": "Title",
+        # Audit trail actions
+        "orgchart.action_card_added": "Card added", "orgchart.action_card_edited": "Card edited",
+        "orgchart.action_card_removed": "Card removed", "orgchart.action_reporting_changed": "Reporting line changed",
+        "orgchart.action_import": "Import", "orgchart.action_template_applied": "Template applied",
+        "orgchart.action_version_saved": "Version saved", "orgchart.action_version_restored": "Version restored",
+        "orgchart.action_edge_added": "Secondary line added",
+        # Sub-tabs
+        "orgchart.subtab_chart": "Org Chart", "orgchart.subtab_list": "List View",
+        "orgchart.subtab_vacancies": "Vacancies", "orgchart.subtab_ai": "AI Assist",
+        "orgchart.subtab_templates": "Templates", "orgchart.subtab_history": "History",
+        "orgchart.subtab_import": "Import / Export", "orgchart.subtab_settings": "Settings",
+        # CSV mapping field labels
+        "orgchart.ie_field_full_name": "Name", "orgchart.ie_field_email": "Email",
+        "orgchart.ie_field_phone": "Phone", "orgchart.ie_field_job_title": "Job title",
+        "orgchart.ie_field_department": "Department", "orgchart.ie_field_manager_name": "Manager (name)",
+        "orgchart.ie_field_employment_type": "Employment type", "orgchart.ie_field_vacancy": "Is vacancy (yes/no)",
+    }
+    pairs.update(orgchart_dyn)
+    print(f"Extracted {len(pairs)} t() keys in namespaces {NAMESPACES} (incl. {len(nav)} nav, {len(orgchart_dyn)} orgchart_dyn)")
     en, fr, de = load("en.json"), load("fr.json"), load("de.json")
 
     # ensure EN has all defaults

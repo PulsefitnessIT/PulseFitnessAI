@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trash2, Link2, UserPlus, Loader2, MessageSquare, GitBranch, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { humanize, NODE_LABELS, VACANCY_STAGES, ocApi, EDGE_TYPES } from './api';
 
 const overlay = {
@@ -33,6 +34,7 @@ const inputStyle = { background: 'var(--theme-bg, #fff)', borderColor: 'var(--th
 
 // ─── Add card ───
 export function AddNodeModal({ open, onClose, onCreate, staffOptions, sites, departments }) {
+  const { t } = useTranslation();
   const [type, setType] = useState('staff');
   const [staffId, setStaffId] = useState('');
   const [form, setForm] = useState({ full_name: '', job_title: '', department: '', site_id: '', employment_type: '' });
@@ -53,10 +55,10 @@ export function AddNodeModal({ open, onClose, onCreate, staffOptions, sites, dep
     <div style={center} onMouseDown={onClose}>
       <div style={modalBox} onMouseDown={(e) => e.stopPropagation()} data-testid="orgchart-add-modal">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold pulse-font-heading inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}><UserPlus size={16} /> Add to chart</h3>
+          <h3 className="text-base font-bold pulse-font-heading inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}><UserPlus size={16} /> {t('orgchart.add_to_chart', 'Add to chart')}</h3>
           <button onClick={onClose} data-testid="orgchart-add-close"><X size={18} style={{ color: 'var(--theme-text-muted)' }} /></button>
         </div>
-        <Field label="Card type">
+        <Field label={t('orgchart.card_type', 'Card type')}>
           <div className="flex flex-wrap gap-1.5">
             {Object.entries(NODE_LABELS).map(([k, lbl]) => (
               <button key={k} onClick={() => setType(k)}
@@ -64,38 +66,38 @@ export function AddNodeModal({ open, onClose, onCreate, staffOptions, sites, dep
                 style={type === k
                   ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', borderColor: 'var(--color-brand-cyan)' }
                   : { color: 'var(--theme-text-muted)', borderColor: 'var(--theme-border)' }}
-                data-testid={`orgchart-add-type-${k}`}>{lbl}</button>
+                data-testid={`orgchart-add-type-${k}`}>{t(`orgchart.node_${k}`, lbl)}</button>
             ))}
           </div>
         </Field>
 
         {type === 'staff' ? (
-          <Field label="Link an existing staff member">
+          <Field label={t('orgchart.link_existing_staff', 'Link an existing staff member')}>
             <select className={inputCls} style={inputStyle} value={staffId} onChange={(e) => setStaffId(e.target.value)} data-testid="orgchart-add-staff-select">
-              <option value="">— Select staff —</option>
+              <option value="">{t('orgchart.select_staff', '— Select staff —')}</option>
               {staffOptions.map((s) => (
                 <option key={s.id} value={s.id}>{s.full_name} {s.primary_role ? `· ${humanize(s.primary_role)}` : ''}</option>
               ))}
             </select>
-            {!staffOptions.length && <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>Everyone is already on the chart.</p>}
+            {!staffOptions.length && <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>{t('orgchart.everyone_on_chart', 'Everyone is already on the chart.')}</p>}
           </Field>
         ) : (
           <>
-            <Field label={type === 'vacancy' ? 'Role title' : 'Name'}>
-              <input className={inputCls} style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} data-testid="orgchart-add-name" placeholder={type === 'vacancy' ? 'e.g. Senior Field Engineer' : 'Full name'} />
+            <Field label={type === 'vacancy' ? t('orgchart.role_title', 'Role title') : t('orgchart.col_name', 'Name')}>
+              <input className={inputCls} style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} data-testid="orgchart-add-name" placeholder={type === 'vacancy' ? t('orgchart.role_title_ph', 'e.g. Senior Field Engineer') : t('orgchart.full_name', 'Full name')} />
             </Field>
-            <Field label="Job title"><input className={inputCls} style={inputStyle} value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} data-testid="orgchart-add-title" /></Field>
+            <Field label={t('orgchart.col_job_title', 'Job title')}><input className={inputCls} style={inputStyle} value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} data-testid="orgchart-add-title" /></Field>
           </>
         )}
 
-        <Field label="Department">
-          <input className={inputCls} style={inputStyle} list="oc-depts" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} data-testid="orgchart-add-dept" placeholder="e.g. Service & Aftersales" />
+        <Field label={t('orgchart.field_department', 'Department')}>
+          <input className={inputCls} style={inputStyle} list="oc-depts" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} data-testid="orgchart-add-dept" placeholder={t('orgchart.dept_ph', 'e.g. Service & Aftersales')} />
           <datalist id="oc-depts">{departments.map((d) => <option key={d} value={d} />)}</datalist>
         </Field>
         {!!sites.length && (
-          <Field label="Site">
+          <Field label={t('orgchart.field_site', 'Site')}>
             <select className={inputCls} style={inputStyle} value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })} data-testid="orgchart-add-site">
-              <option value="">— None —</option>
+              <option value="">{t('orgchart.none_opt', '— None —')}</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </Field>
@@ -104,7 +106,7 @@ export function AddNodeModal({ open, onClose, onCreate, staffOptions, sites, dep
         <button onClick={submit} disabled={!canSave || saving}
           className="w-full mt-2 py-2.5 rounded-lg text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
           style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-add-submit">
-          {saving ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} Add card
+          {saving ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} {t('orgchart.add_card', 'Add card')}
         </button>
       </div>
     </div>, document.body,
@@ -113,6 +115,7 @@ export function AddNodeModal({ open, onClose, onCreate, staffOptions, sites, dep
 
 // ─── Edit drawer ───
 export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, departments, chartId, edges, onEdgesChanged }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(node || {});
   const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState([]);
@@ -135,13 +138,13 @@ export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, depa
   const addNote = async () => {
     if (!noteBody.trim()) return;
     try { await ocApi.createNote(chartId, node.id, { body: noteBody, confidential: noteConfidential }); setNoteBody(''); setNoteConfidential(false); const r = await ocApi.listNotes(chartId, node.id); setNotes(r.notes || []); }
-    catch { toast.error('Could not add note'); }
+    catch { toast.error(t('orgchart.note_add_err', 'Could not add note')); }
   };
   const delNote = async (id) => { try { await ocApi.deleteNote(chartId, id); setNotes((ns) => ns.filter((n) => n.id !== id)); } catch { /* ignore */ } };
   const addEdge = async () => {
     if (!secMgr) return;
-    try { await ocApi.createEdge(chartId, { from_node_id: node.id, to_node_id: secMgr, line_type: secType }); setSecMgr(''); onEdgesChanged?.(); toast.success('Secondary line added'); }
-    catch (e) { toast.error(e?.response?.data?.detail || 'Could not add line'); }
+    try { await ocApi.createEdge(chartId, { from_node_id: node.id, to_node_id: secMgr, line_type: secType }); setSecMgr(''); onEdgesChanged?.(); toast.success(t('orgchart.sec_line_added', 'Secondary line added')); }
+    catch (e) { toast.error(e?.response?.data?.detail || t('orgchart.sec_line_err', 'Could not add line')); }
   };
   const delEdge = async (id) => { try { await ocApi.deleteEdge(chartId, id); onEdgesChanged?.(); } catch { /* ignore */ } };
   const save = async () => {
@@ -162,61 +165,61 @@ export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, depa
     <div style={overlay} onMouseDown={onClose}>
       <div style={sheet} onMouseDown={(e) => e.stopPropagation()} className="p-5" data-testid="orgchart-node-drawer">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Edit card</h3>
+          <h3 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('orgchart.edit_card', 'Edit card')}</h3>
           <button onClick={onClose} data-testid="orgchart-drawer-close"><X size={18} style={{ color: 'var(--theme-text-muted)' }} /></button>
         </div>
         {node.staff_id && (
           <div className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: 'rgba(25,205,255,0.12)', color: 'var(--color-brand-cyan)' }} data-testid="orgchart-linked-badge">
-            <Link2 size={12} /> Linked to staff record
+            <Link2 size={12} /> {t('orgchart.linked_to_staff', 'Linked to staff record')}
           </div>
         )}
-        <Field label="Name"><input className={inputCls} style={inputStyle} value={form.full_name || ''} onChange={(e) => set('full_name', e.target.value)} data-testid="orgchart-edit-name" /></Field>
-        <Field label="Job title"><input className={inputCls} style={inputStyle} value={form.job_title || ''} onChange={(e) => set('job_title', e.target.value)} data-testid="orgchart-edit-title" /></Field>
-        <Field label="Department">
+        <Field label={t('orgchart.col_name', 'Name')}><input className={inputCls} style={inputStyle} value={form.full_name || ''} onChange={(e) => set('full_name', e.target.value)} data-testid="orgchart-edit-name" /></Field>
+        <Field label={t('orgchart.col_job_title', 'Job title')}><input className={inputCls} style={inputStyle} value={form.job_title || ''} onChange={(e) => set('job_title', e.target.value)} data-testid="orgchart-edit-title" /></Field>
+        <Field label={t('orgchart.field_department', 'Department')}>
           <input className={inputCls} style={inputStyle} list="oc-depts-edit" value={form.department || ''} onChange={(e) => set('department', e.target.value)} data-testid="orgchart-edit-dept" />
           <datalist id="oc-depts-edit">{departments.map((d) => <option key={d} value={d} />)}</datalist>
         </Field>
         {!!sites.length && (
-          <Field label="Site">
+          <Field label={t('orgchart.field_site', 'Site')}>
             <select className={inputCls} style={inputStyle} value={form.site_id || ''} onChange={(e) => set('site_id', e.target.value)} data-testid="orgchart-edit-site">
-              <option value="">— None —</option>
+              <option value="">{t('orgchart.none_opt', '— None —')}</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </Field>
         )}
-        <Field label="Reports to">
+        <Field label={t('orgchart.reports_to', 'Reports to')}>
           <select className={inputCls} style={inputStyle} value={form.manager_node_id || ''}
             onChange={(e) => onSave(node.id, { manager_node_id: e.target.value || null }).then(() => set('manager_node_id', e.target.value || null))}
             data-testid="orgchart-edit-manager">
-            <option value="">— No manager —</option>
+            <option value="">{t('orgchart.no_manager', '— No manager —')}</option>
             {managerOptions.map((n) => <option key={n.id} value={n.id}>{n.full_name}</option>)}
           </select>
         </Field>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Email"><input className={inputCls} style={inputStyle} value={form.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
-          <Field label="Phone"><input className={inputCls} style={inputStyle} value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} /></Field>
+          <Field label={t('orgchart.field_email', 'Email')}><input className={inputCls} style={inputStyle} value={form.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
+          <Field label={t('orgchart.field_phone', 'Phone')}><input className={inputCls} style={inputStyle} value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} /></Field>
         </div>
         {node.type === 'vacancy' && (
           <>
-            <Field label="Recruitment stage">
+            <Field label={t('orgchart.recruitment_stage', 'Recruitment stage')}>
               <select className={inputCls} style={inputStyle} value={form.recruitment_stage || 'Planned'} onChange={(e) => set('recruitment_stage', e.target.value)} data-testid="orgchart-edit-stage">
                 {VACANCY_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Salary band"><input className={inputCls} style={inputStyle} value={form.salary_band || ''} onChange={(e) => set('salary_band', e.target.value)} /></Field>
-              <Field label="Target start"><input type="date" className={inputCls} style={inputStyle} value={form.target_start_date || ''} onChange={(e) => set('target_start_date', e.target.value)} /></Field>
+              <Field label={t('orgchart.salary_band', 'Salary band')}><input className={inputCls} style={inputStyle} value={form.salary_band || ''} onChange={(e) => set('salary_band', e.target.value)} /></Field>
+              <Field label={t('orgchart.target_start', 'Target start')}><input type="date" className={inputCls} style={inputStyle} value={form.target_start_date || ''} onChange={(e) => set('target_start_date', e.target.value)} /></Field>
             </div>
           </>
         )}
-        <Field label="Notes"><textarea rows={3} className={inputCls} style={inputStyle} value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} data-testid="orgchart-edit-notes" /></Field>
+        <Field label={t('orgchart.notes', 'Notes')}><textarea rows={3} className={inputCls} style={inputStyle} value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} data-testid="orgchart-edit-notes" /></Field>
 
         {/* Secondary / dotted-line reporting */}
         <div className="mt-1 mb-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}><GitBranch size={11} /> Secondary reporting</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}><GitBranch size={11} /> {t('orgchart.secondary_reporting', 'Secondary reporting')}</span>
           {myEdges.map((e) => {
             const tgt = nodes.find((n) => n.id === e.to_node_id);
-            const meta = EDGE_TYPES.find((t) => t.id === e.line_type);
+            const meta = EDGE_TYPES.find((et) => et.id === e.line_type);
             return (
               <div key={e.id} className="flex items-center justify-between mt-1.5 text-xs rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--theme-border)' }} data-testid={`orgchart-edge-${e.id}`}>
                 <span style={{ color: 'var(--theme-text)' }}><b style={{ color: meta?.color }}>{meta?.label}</b> → {tgt?.full_name || '—'}</span>
@@ -226,19 +229,19 @@ export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, depa
           })}
           <div className="flex gap-1.5 mt-1.5">
             <select value={secMgr} onChange={(ev) => setSecMgr(ev.target.value)} className="flex-1 px-2 py-1.5 rounded-lg text-xs border outline-none" style={inputStyle} data-testid="orgchart-edge-target">
-              <option value="">+ Add line to…</option>
+              <option value="">{t('orgchart.add_line_to', '+ Add line to…')}</option>
               {managerOptions.map((n) => <option key={n.id} value={n.id}>{n.full_name}</option>)}
             </select>
             <select value={secType} onChange={(ev) => setSecType(ev.target.value)} className="px-2 py-1.5 rounded-lg text-xs border outline-none" style={inputStyle} data-testid="orgchart-edge-type">
-              {EDGE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              {EDGE_TYPES.map((et) => <option key={et.id} value={et.id}>{et.label}</option>)}
             </select>
-            <button onClick={addEdge} disabled={!secMgr} className="px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-edge-add">Add</button>
+            <button onClick={addEdge} disabled={!secMgr} className="px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-edge-add">{t('orgchart.add', 'Add')}</button>
           </div>
         </div>
 
         {/* Notes thread */}
         <div className="mb-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}><MessageSquare size={11} /> Notes</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}><MessageSquare size={11} /> {t('orgchart.notes', 'Notes')}</span>
           <div className="space-y-1.5 mt-1.5" data-testid="orgchart-notes-list">
             {notes.map((nt) => (
               <div key={nt.id} className="text-xs rounded-lg border px-2.5 py-1.5" style={{ borderColor: 'var(--theme-border)' }} data-testid={`orgchart-note-${nt.id}`}>
@@ -250,18 +253,18 @@ export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, depa
               </div>
             ))}
           </div>
-          <textarea rows={2} className={inputCls + ' mt-1.5'} style={inputStyle} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note (succession, restructure…)" data-testid="orgchart-note-input" />
+          <textarea rows={2} className={inputCls + ' mt-1.5'} style={inputStyle} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder={t('orgchart.note_ph', 'Add a note (succession, restructure…)')} data-testid="orgchart-note-input" />
           <div className="flex items-center justify-between mt-1">
             <label className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
-              <input type="checkbox" checked={noteConfidential} onChange={(e) => setNoteConfidential(e.target.checked)} data-testid="orgchart-note-confidential" /> Confidential
+              <input type="checkbox" checked={noteConfidential} onChange={(e) => setNoteConfidential(e.target.checked)} data-testid="orgchart-note-confidential" /> {t('orgchart.confidential', 'Confidential')}
             </label>
-            <button onClick={addNote} disabled={!noteBody.trim()} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-note-add">Add note</button>
+            <button onClick={addNote} disabled={!noteBody.trim()} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-note-add">{t('orgchart.add_note', 'Add note')}</button>
           </div>
         </div>
 
         <div className="flex gap-2 mt-2">
           <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-drawer-save">
-            {saving ? <Loader2 size={15} className="animate-spin" /> : null} Save
+            {saving ? <Loader2 size={15} className="animate-spin" /> : null} {t('orgchart.set_save', 'Save')}
           </button>
           <button onClick={() => onDelete(node.id)} className="px-3 py-2.5 rounded-lg border" style={{ borderColor: '#fca5a5', color: '#dc2626' }} data-testid="orgchart-drawer-delete"><Trash2 size={15} /></button>
         </div>
@@ -272,27 +275,28 @@ export function NodeDrawer({ node, onClose, onSave, onDelete, sites, nodes, depa
 
 // ─── Move confirm ───
 export function MoveConfirmModal({ data, onChoose, onClose }) {
+  const { t } = useTranslation();
   if (!data) return null;
   const { childName, managerName, hasStaffLink } = data;
   return createPortal(
     <div style={center} onMouseDown={onClose}>
       <div style={modalBox} onMouseDown={(e) => e.stopPropagation()} data-testid="orgchart-move-modal">
-        <h3 className="text-base font-bold pulse-font-heading mb-2" style={{ color: 'var(--theme-text)' }}>Update reporting line?</h3>
+        <h3 className="text-base font-bold pulse-font-heading mb-2" style={{ color: 'var(--theme-text)' }}>{t('orgchart.move_title', 'Update reporting line?')}</h3>
         <p className="text-sm mb-5" style={{ color: 'var(--theme-text-muted)' }}>
-          You moved <b style={{ color: 'var(--theme-text)' }}>{childName}</b> under <b style={{ color: 'var(--theme-text)' }}>{managerName}</b>.
-          {hasStaffLink ? ' Do you want to update their manager in the Staffing record too?' : ''}
+          <span dangerouslySetInnerHTML={{ __html: t('orgchart.move_body', 'You moved <b>{{child}}</b> under <b>{{manager}}</b>.', { child: childName, manager: managerName }) }} />
+          {hasStaffLink ? ` ${t('orgchart.move_body_link', 'Do you want to update their manager in the Staffing record too?')}` : ''}
         </p>
         <div className="space-y-2">
           {hasStaffLink && (
             <button onClick={() => onChoose('update')} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-move-update">
-              Update Staffing record
+              {t('orgchart.move_update_staff', 'Update Staffing record')}
             </button>
           )}
           <button onClick={() => onChoose('visual')} className="w-full py-2.5 rounded-lg text-sm font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-move-visual">
-            Move on chart only
+            {t('orgchart.move_visual', 'Move on chart only')}
           </button>
           <button onClick={() => onChoose('cancel')} className="w-full py-2 rounded-lg text-sm font-semibold" style={{ color: 'var(--theme-text-muted)' }} data-testid="orgchart-move-cancel">
-            Cancel
+            {t('orgchart.set_cancel', 'Cancel')}
           </button>
         </div>
       </div>

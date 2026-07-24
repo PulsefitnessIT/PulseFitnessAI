@@ -11,6 +11,7 @@ import {
   Network, List, UserPlus, FileUp, Settings as SettingsIcon, Search,
   Loader2, RefreshCw, Plus, Users, Building2, AlertTriangle, X, Sparkles, LayoutTemplate, History, Presentation as PresentIcon, Share2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ocApi } from './api';
 import { computeLayout } from './layout';
 import Canvas from './Canvas';
@@ -37,9 +38,9 @@ const SUBTABS = [
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-function StatChip({ label, value, warn }) {
+function StatChip({ label, value, warn, sid }) {
   return (
-    <div className="rounded-xl border px-3 py-2 min-w-[88px]" style={{ borderColor: warn && value > 0 ? '#fcd34d' : 'var(--theme-border)', background: warn && value > 0 ? '#fffbeb' : 'transparent' }} data-testid={`orgchart-stat-${label}`}>
+    <div className="rounded-xl border px-3 py-2 min-w-[88px]" style={{ borderColor: warn && value > 0 ? '#fcd34d' : 'var(--theme-border)', background: warn && value > 0 ? '#fffbeb' : 'transparent' }} data-testid={`orgchart-stat-${sid}`}>
       <div className="text-lg font-bold leading-none" style={{ color: warn && value > 0 ? '#b45309' : 'var(--theme-text)' }}>{value}</div>
       <div className="text-[9px] uppercase tracking-wide mt-1" style={{ color: 'var(--theme-text-muted)' }}>{label}</div>
     </div>
@@ -47,6 +48,7 @@ function StatChip({ label, value, warn }) {
 }
 
 export default function OrgChartTab() {
+  const { t } = useTranslation();
   const headers = useMemo(() => ({ Authorization: `Bearer ${localStorage.getItem('token')}` }), []);
   const [loading, setLoading] = useState(true);
   const [charts, setCharts] = useState([]);
@@ -102,7 +104,7 @@ export default function OrgChartTab() {
       await loadChart(active);
       loadStaff();
     } catch (e) {
-      toast.error('Could not load org charts');
+      toast.error(t('orgchart.could_not_load', 'Could not load org charts'));
     } finally { setLoading(false); }
   }, [loadChart, loadStaff]);
 
@@ -118,22 +120,22 @@ export default function OrgChartTab() {
     const { charts: list } = await ocApi.listCharts();
     setCharts(list);
     await switchChart(c.id);
-    toast.success('Chart created');
+    toast.success(t('orgchart.chart_created', 'Chart created'));
   };
 
   const syncStaff = async () => {
     const r = await ocApi.syncStaff(chartId);
     await reload();
-    toast.success(r.added ? `Added ${r.added} staff` : 'Already up to date');
+    toast.success(r.added ? t('orgchart.staff_added', 'Added {{count}} staff', { count: r.added }) : t('orgchart.up_to_date', 'Already up to date'));
   };
 
   // ─── node ops ───
-  const createNode = async (body) => { await ocApi.createNode(chartId, body); await reload(); toast.success('Card added'); };
+  const createNode = async (body) => { await ocApi.createNode(chartId, body); await reload(); toast.success(t('orgchart.card_added', 'Card added')); };
   const updateNode = async (nid, body) => {
-    try { const updated = await ocApi.updateNode(chartId, nid, body); setNodes((ns) => ns.map((n) => (n.id === nid ? { ...n, ...updated } : n))); ocApi.insights(chartId).then(setInsights).catch(() => {}); return updated; } catch (e) { toast.error(e?.response?.data?.detail || 'Update failed'); throw e; }
+    try { const updated = await ocApi.updateNode(chartId, nid, body); setNodes((ns) => ns.map((n) => (n.id === nid ? { ...n, ...updated } : n))); ocApi.insights(chartId).then(setInsights).catch(() => {}); return updated; } catch (e) { toast.error(e?.response?.data?.detail || t('orgchart.update_failed', 'Update failed')); throw e; }
   };
   const moveNode = async (nid, posPatch) => { ocApi.updateNode(chartId, nid, posPatch).catch(() => {}); setNodes((ns) => ns.map((n) => (n.id === nid ? { ...n, ...posPatch } : n))); };
-  const deleteNode = async (nid) => { await ocApi.deleteNode(chartId, nid); setEditNode(null); await reload(); toast.success('Card removed'); };
+  const deleteNode = async (nid) => { await ocApi.deleteNode(chartId, nid); setEditNode(null); await reload(); toast.success(t('orgchart.card_removed', 'Card removed')); };
 
   const requestSetManager = (childId, managerId) => {
     const child = byId[childId]; const mgr = byId[managerId];
@@ -144,7 +146,7 @@ export default function OrgChartTab() {
     const { childId, managerId } = moveData;
     try {
       await updateNode(childId, { manager_node_id: managerId, write_back_staff: choice === 'update' });
-      toast.success(choice === 'update' ? 'Reporting line + staff record updated' : 'Reporting line updated');
+      toast.success(choice === 'update' ? t('orgchart.line_staff_updated', 'Reporting line + staff record updated') : t('orgchart.line_updated', 'Reporting line updated'));
     } catch { /* handled */ }
     setMoveData(null);
   };
@@ -152,18 +154,18 @@ export default function OrgChartTab() {
   const autoLayout = async () => {
     const laid = computeLayout(nodes, chart?.settings?.layout || 'vertical');
     setNodes(laid);
-    toast.success('Auto-arranged');
+    toast.success(t('orgchart.auto_arranged', 'Auto-arranged'));
     await Promise.all(laid.map((n) => ocApi.updateNode(chartId, n.id, { x: Math.round(n.x), y: Math.round(n.y) }).catch(() => {})));
   };
 
   const saveSettings = async (settings) => { const r = await ocApi.updateChart(chartId, { settings }); setChart(r); };
-  const renameChart = async (name) => { const r = await ocApi.updateChart(chartId, { name }); setChart(r); setCharts((cs) => cs.map((c) => (c.id === chartId ? { ...c, name } : c))); toast.success('Renamed'); };
+  const renameChart = async (name) => { const r = await ocApi.updateChart(chartId, { name }); setChart(r); setCharts((cs) => cs.map((c) => (c.id === chartId ? { ...c, name } : c))); toast.success(t('orgchart.renamed', 'Renamed')); };
   const deleteChart = async () => {
     await ocApi.deleteChart(chartId);
     const { charts: list } = await ocApi.listCharts();
     if (!list.length) { await boot(); } else { setCharts(list); await switchChart(list[0].id); }
     setSub('chart');
-    toast.success('Chart deleted');
+    toast.success(t('orgchart.chart_deleted', 'Chart deleted'));
   };
 
   // ─── export ───
@@ -184,8 +186,8 @@ export default function OrgChartTab() {
     return toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2, cacheBust: true, skipFonts: true });
   };
   const exportImage = async () => {
-    try { const url = await captureCanvas(); const a = document.createElement('a'); a.href = url; a.download = `${chart?.name || 'org-chart'}.png`; a.click(); toast.success('PNG exported'); }
-    catch (e) { console.error('orgchart PNG export failed', e); toast.error('Export failed'); }
+    try { const url = await captureCanvas(); const a = document.createElement('a'); a.href = url; a.download = `${chart?.name || 'org-chart'}.png`; a.click(); toast.success(t('orgchart.png_exported', 'PNG exported')); }
+    catch (e) { console.error('orgchart PNG export failed', e); toast.error(t('orgchart.export_failed', 'Export failed')); }
   };
   const exportPdf = async () => {
     try {
@@ -199,8 +201,8 @@ export default function OrgChartTab() {
       const ratio = Math.min((pw - 60) / img.width, (ph - 80) / img.height);
       pdf.addImage(url, 'PNG', 30, 60, img.width * ratio, img.height * ratio);
       pdf.save(`${chart?.name || 'org-chart'}.pdf`);
-      toast.success('PDF exported');
-    } catch (e) { console.error('orgchart PDF export failed', e); toast.error('Export failed'); }
+      toast.success(t('orgchart.pdf_exported', 'PDF exported'));
+    } catch (e) { console.error('orgchart PDF export failed', e); toast.error(t('orgchart.export_failed', 'Export failed')); }
   };
 
   // ─── filter / search ───
@@ -227,11 +229,11 @@ export default function OrgChartTab() {
     if (!q) return;
     const hit = nodes.find((n) => [n.full_name, n.job_title, n.department, n.site_name, n.email].some((f) => (f || '').toLowerCase().includes(q)));
     if (hit) { setSub('chart'); setFocusId(null); setTimeout(() => setFocusId(hit.id), 30); }
-    else toast.error('No match found');
+    else toast.error(t('orgchart.no_match', 'No match found'));
   };
 
   if (loading) {
-    return <div className="py-16 flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--theme-text-muted)' }} data-testid="orgchart-loading"><Loader2 size={16} className="animate-spin" /> Loading org chart…</div>;
+    return <div className="py-16 flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--theme-text-muted)' }} data-testid="orgchart-loading"><Loader2 size={16} className="animate-spin" /> {t('orgchart.loading', 'Loading org chart…')}</div>;
   }
 
   return (
@@ -242,30 +244,30 @@ export default function OrgChartTab() {
           <select value={chartId || ''} onChange={(e) => switchChart(e.target.value)} className="px-3 py-2 rounded-lg text-sm font-semibold border outline-none" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-chart-select">
             {charts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <button onClick={newChart} title="New chart" className="w-9 h-9 rounded-lg inline-flex items-center justify-center border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="orgchart-new-chart"><Plus size={16} /></button>
+          <button onClick={newChart} title={t('orgchart.new_chart', 'New chart')} className="w-9 h-9 rounded-lg inline-flex items-center justify-center border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="orgchart-new-chart"><Plus size={16} /></button>
         </div>
         <div className="flex items-center gap-2">
           <form onSubmit={runSearch} className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--theme-text-muted)' }} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="pl-8 pr-3 py-2 rounded-lg text-sm border outline-none w-44" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-search" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('orgchart.search_people', 'Search people…')} className="pl-8 pr-3 py-2 rounded-lg text-sm border outline-none w-44" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-search" />
           </form>
-          <button onClick={() => setSharing(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={chart?.is_public ? { borderColor: '#16a34a', color: '#16a34a' } : { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-share"><Share2 size={13} /> {chart?.is_public ? 'Shared' : 'Share'}</button>
-          <button onClick={() => setPresenting(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-present"><PresentIcon size={13} /> Present</button>
-          <button onClick={syncStaff} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-sync"><RefreshCw size={13} /> Sync staff</button>
+          <button onClick={() => setSharing(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={chart?.is_public ? { borderColor: '#16a34a', color: '#16a34a' } : { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-share"><Share2 size={13} /> {chart?.is_public ? t('orgchart.shared', 'Shared') : t('orgchart.share', 'Share')}</button>
+          <button onClick={() => setPresenting(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-present"><PresentIcon size={13} /> {t('orgchart.present', 'Present')}</button>
+          <button onClick={syncStaff} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="orgchart-sync"><RefreshCw size={13} /> {t('orgchart.sync_staff', 'Sync staff')}</button>
         </div>
       </div>
 
       {/* insights */}
       {insights && (
         <div className="flex flex-wrap gap-2" data-testid="orgchart-insights">
-          <StatChip label="People" value={insights.total_people} />
-          <StatChip label="Managers" value={insights.total_managers} />
-          <StatChip label="Engineers" value={insights.total_engineers} />
-          <StatChip label="Open roles" value={insights.open_vacancies} />
-          <StatChip label="Departments" value={insights.departments} />
-          <StatChip label="Avg reports" value={insights.avg_direct_reports} />
-          <StatChip label="No manager" value={insights.staff_without_manager} warn />
-          <StatChip label="No site" value={insights.staff_without_site} warn />
+          <StatChip sid="people" label={t('orgchart.stat_people', 'People')} value={insights.total_people} />
+          <StatChip sid="managers" label={t('orgchart.stat_managers', 'Managers')} value={insights.total_managers} />
+          <StatChip sid="engineers" label={t('orgchart.stat_engineers', 'Engineers')} value={insights.total_engineers} />
+          <StatChip sid="open-roles" label={t('orgchart.stat_open_roles', 'Open roles')} value={insights.open_vacancies} />
+          <StatChip sid="departments" label={t('orgchart.stat_departments', 'Departments')} value={insights.departments} />
+          <StatChip sid="avg-reports" label={t('orgchart.stat_avg_reports', 'Avg reports')} value={insights.avg_direct_reports} />
+          <StatChip sid="no-manager" label={t('orgchart.stat_no_manager', 'No manager')} value={insights.staff_without_manager} warn />
+          <StatChip sid="no-site" label={t('orgchart.stat_no_site', 'No site')} value={insights.staff_without_site} warn />
         </div>
       )}
 
@@ -273,7 +275,7 @@ export default function OrgChartTab() {
       <div className="flex items-center gap-1.5 flex-wrap border-b pb-2" style={{ borderColor: 'var(--theme-border)' }}>
         {SUBTABS.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setSub(id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={sub === id ? { background: 'rgba(25,205,255,0.12)', color: 'var(--color-brand-cyan)' } : { color: 'var(--theme-text-muted)' }} data-testid={`orgchart-subtab-${id}`}>
-            <Icon size={13} /> {label}
+            <Icon size={13} /> {t(`orgchart.subtab_${id}`, label)}
           </button>
         ))}
       </div>
@@ -282,24 +284,24 @@ export default function OrgChartTab() {
       {(sub === 'chart' || sub === 'list') && (
         <div className="flex flex-wrap items-center gap-2" data-testid="orgchart-filters">
           <select value={filter.department} onChange={(e) => setFilter({ ...filter, department: e.target.value })} className="px-2 py-1.5 rounded-lg text-xs border outline-none" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-filter-dept">
-            <option value="">All departments</option>
+            <option value="">{t('orgchart.all_departments', 'All departments')}</option>
             {departments.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
           {!!sites.length && (
             <select value={filter.site} onChange={(e) => setFilter({ ...filter, site: e.target.value })} className="px-2 py-1.5 rounded-lg text-xs border outline-none" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-filter-site">
-              <option value="">All sites</option>
+              <option value="">{t('orgchart.all_sites', 'All sites')}</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
           <select value={filter.flag} onChange={(e) => setFilter({ ...filter, flag: e.target.value })} className="px-2 py-1.5 rounded-lg text-xs border outline-none" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg,#fff)', color: 'var(--theme-text)' }} data-testid="orgchart-filter-flag">
-            <option value="">Everyone</option>
-            <option value="vacancies">Vacancies only</option>
-            <option value="engineers">Engineers only</option>
-            <option value="no_manager">Missing manager</option>
-            <option value="no_site">Missing site</option>
+            <option value="">{t('orgchart.everyone', 'Everyone')}</option>
+            <option value="vacancies">{t('orgchart.vacancies_only', 'Vacancies only')}</option>
+            <option value="engineers">{t('orgchart.engineers_only', 'Engineers only')}</option>
+            <option value="no_manager">{t('orgchart.missing_manager', 'Missing manager')}</option>
+            <option value="no_site">{t('orgchart.missing_site', 'Missing site')}</option>
           </select>
           {(filter.department || filter.site || filter.type || filter.flag) && (
-            <button onClick={() => setFilter({ department: '', site: '', type: '', flag: '' })} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg" style={{ color: 'var(--color-brand-cyan)' }} data-testid="orgchart-filter-clear"><X size={12} /> Clear</button>
+            <button onClick={() => setFilter({ department: '', site: '', type: '', flag: '' })} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg" style={{ color: 'var(--color-brand-cyan)' }} data-testid="orgchart-filter-clear"><X size={12} /> {t('orgchart.clear', 'Clear')}</button>
           )}
         </div>
       )}

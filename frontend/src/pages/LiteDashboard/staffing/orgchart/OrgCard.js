@@ -1,5 +1,6 @@
 /** A single org-chart card (person / vacancy / placeholder / contractor). */
 import { Briefcase, MapPin, Mail, Phone, Users, Wrench, UserX, UserPlus, Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { CARD_W, CARD_H } from './layout';
 import { deptColor, humanize } from './api';
 
@@ -17,6 +18,7 @@ function initials(name) {
 export default function OrgCard({
   node, toggles, reportsCount, selected, dragging, onPointerDown, onOpen,
 }) {
+  const { t } = useTranslation();
   const isVacancy = node.type === 'vacancy';
   const isPlaceholder = node.type === 'placeholder';
   const Meta = TYPE_META[node.type] || TYPE_META.staff;
@@ -49,8 +51,7 @@ export default function OrgCard({
         className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-md inline-flex items-center justify-center"
         style={{ background: 'rgba(2,12,40,0.04)', color: 'var(--theme-text-muted, #64748b)' }}
         title="Edit card"
-        data-testid={`orgcard-open-${node.id}`}
-      >
+        data-testid={`orgcard-open-${node.id}`}      >
         <Pencil size={12} />
       </button>
       <div className="p-3 pr-9 flex items-start gap-2.5">
@@ -70,7 +71,7 @@ export default function OrgCard({
             {node.full_name}
           </div>
           <div className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted, #64748b)' }} title={humanize(node.job_title)}>
-            {humanize(node.job_title) || (isVacancy ? 'Open role' : '—')}
+            {humanize(node.job_title) || (isVacancy ? t('orgchart.open_role', 'Open role') : '—')}
           </div>
           {toggles.department && node.department && (
             <div className="mt-1 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"

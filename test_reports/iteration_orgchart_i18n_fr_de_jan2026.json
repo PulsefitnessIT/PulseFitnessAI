@@ -1,0 +1,35 @@
+{
+  "summary": "Org Chart i18n P2 batch (EN/FR/DE) tested end-to-end. Logged in as owner@isodemo.com, navigated Operations → Staffing → People → Org Chart, and swept all 8 orgchart sub-tabs (chart, list, vacancies, ai, templates, history, import, settings) in EN, FR and DE. All 24 sub-tab renders passed with ZERO raw orgchart.* key leaks. Language switch does not break navigation/rendering. Found ONE critical crash bug (Import/Export tab -> 'TypeError: t is not a function') caused by DocumentImport.js missing useTranslation import — FIXED by testing agent, re-verified clean.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "orgchart/DocumentImport.js",
+        "issue": "Uncaught runtime error 'TypeError: t is not a function' when opening Import / Export sub-tab. Component used t(...) extensively but never imported/called useTranslation. Whole Org Chart Import/Export panel crashed the app.",
+        "selector": "[data-testid=\"orgchart-subtab-import\"]",
+        "priority": "HIGH",
+        "status": "FIXED_BY_TESTING_AGENT"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_orgchart_i18n_fr_de_jan2026.json"],
+  "action_items": [
+    "Verify testing-agent fix in DocumentImport.js (added `import { useTranslation } from 'react-i18next'` and `const { t } = useTranslation();`).",
+    "Consider adding an ESLint rule / grep-check in i18n batch PRs to catch files that call t(...) without a useTranslation() hook — this same pattern crashed the demo tab."
+  ],
+  "critical_code_review_comments": [
+    "DocumentImport.js was the only file in staffing/orgchart/*.js referencing t() without importing useTranslation — the rest of the folder (14 components) correctly imported it. A lightweight lint/grep guard would have caught this before merge."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/LiteDashboard/staffing/orgchart/DocumentImport.js"
+  ],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% (24/24 sub-tab renders across EN/FR/DE after fix)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Owner lands on /service-desk after login (has is_service_desk=true) — must navigate to /dashboard manually then click [data-testid=tab-staffing]. Org Chart lives under staffing People group: click [data-testid=staffing-tab-people] then [data-testid=staffing-subtab-orgchart]. Language switcher is the header pill (button[aria-label*=language]) with 'English/Français/Deutsch' menu. Raw-key regex used: /\\borgchart\\.[a-zA-Z0-9_.]+/.",
+  "rca_of_the_issue": "RCA: During Org Chart i18n P2 rollout, DocumentImport.js was updated to use t('orgchart.doc_*') strings but the author forgot to import useTranslation. Because DocumentImport is only rendered inside the Import/Export sub-tab (not on chart landing), the crash was latent and not caught by earlier smoke tests. Fix: added `import { useTranslation } from 'react-i18next'` and `const { t } = useTranslation();` inside the component. Re-tested all sub-tabs in EN/FR/DE — clean, no raw keys, no runtime errors."
+}

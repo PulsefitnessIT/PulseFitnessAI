@@ -1,9 +1,11 @@
 /** Org Chart — table/list view (admin-friendly). */
 import { useMemo } from 'react';
 import { Link2, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { humanize, NODE_LABELS } from './api';
 
 export default function ListView({ nodes, byId, onOpen }) {
+  const { t } = useTranslation();
   const reports = useMemo(() => {
     const m = {};
     nodes.forEach((n) => { if (n.manager_node_id) m[n.manager_node_id] = (m[n.manager_node_id] || 0) + 1; });
@@ -11,7 +13,7 @@ export default function ListView({ nodes, byId, onOpen }) {
   }, [nodes]);
 
   if (!nodes.length) {
-    return <div className="rounded-2xl p-10 border text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="orgchart-list-empty">No cards yet.</div>;
+    return <div className="rounded-2xl p-10 border text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="orgchart-list-empty">{t('orgchart.no_cards', 'No cards yet.')}</div>;
   }
 
   return (
@@ -19,8 +21,8 @@ export default function ListView({ nodes, byId, onOpen }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
-            {['Name', 'Job title', 'Type', 'Department', 'Site', 'Manager', 'Reports', 'Status', 'Linked'].map((h) => (
-              <th key={h} className="px-3 py-2.5 font-bold whitespace-nowrap">{h}</th>
+            {[['name', 'Name'], ['job_title', 'Job title'], ['type', 'Type'], ['department', 'Department'], ['site', 'Site'], ['manager', 'Manager'], ['reports', 'Reports'], ['status', 'Status'], ['linked', 'Linked']].map(([hk, hl]) => (
+              <th key={hk} className="px-3 py-2.5 font-bold whitespace-nowrap">{t(`orgchart.col_${hk}`, hl)}</th>
             ))}
           </tr>
         </thead>

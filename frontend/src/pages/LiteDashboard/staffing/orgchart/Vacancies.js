@@ -1,5 +1,6 @@
 /** Org Chart — vacancies / open roles manager. */
 import { UserPlus, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { VACANCY_STAGES, humanize } from './api';
 
 const STAGE_COLOR = {
@@ -8,20 +9,21 @@ const STAGE_COLOR = {
 };
 
 export default function Vacancies({ nodes, byId, onOpen, onAdd, onUpdate }) {
+  const { t } = useTranslation();
   const vacancies = nodes.filter((n) => n.type === 'vacancy');
   return (
     <div data-testid="orgchart-vacancies">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{vacancies.length} open role{vacancies.length === 1 ? '' : 's'}</p>
+        <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{vacancies.length} {vacancies.length === 1 ? t('orgchart.open_role', 'open role') : t('orgchart.open_roles', 'open roles')}</p>
         <button onClick={onAdd} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-vacancy-add">
-          <Plus size={14} /> New vacancy
+          <Plus size={14} /> {t('orgchart.new_vacancy', 'New vacancy')}
         </button>
       </div>
       {!vacancies.length ? (
         <div className="rounded-2xl p-10 border text-center" style={{ borderColor: 'var(--theme-border)' }}>
           <UserPlus size={22} className="mx-auto mb-2" style={{ color: 'var(--theme-text-muted)' }} />
-          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>No open roles</p>
-          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Add a vacancy to plan ahead and spot staffing gaps.</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{t('orgchart.no_open_roles', 'No open roles')}</p>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('orgchart.no_open_roles_hint', 'Add a vacancy to plan ahead and spot staffing gaps.')}</p>
         </div>
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -30,7 +32,7 @@ export default function Vacancies({ nodes, byId, onOpen, onAdd, onUpdate }) {
               <button onClick={() => onOpen(v)} className="text-left w-full">
                 <div className="text-sm font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{v.full_name}</div>
                 <div className="text-[11px] mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-                  {humanize(v.job_title) || 'Open role'}{v.department ? ` · ${v.department}` : ''}{v.site_name ? ` · ${v.site_name}` : ''}
+                  {humanize(v.job_title) || t('orgchart.open_role', 'Open role')}{v.department ? ` · ${v.department}` : ''}{v.site_name ? ` · ${v.site_name}` : ''}
                 </div>
               </button>
               <div className="flex items-center justify-between gap-2">

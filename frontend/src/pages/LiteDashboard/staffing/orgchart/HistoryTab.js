@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { History, Save, RotateCcw, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ocApi } from './api';
 
 const ACTION_LABEL = {
@@ -21,6 +22,7 @@ function ago(iso) {
 }
 
 export default function HistoryTab({ chartId, onRestored }) {
+  const { t } = useTranslation();
   const [versions, setVersions] = useState([]);
   const [audit, setAudit] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,13 +40,13 @@ export default function HistoryTab({ chartId, onRestored }) {
 
   const save = async () => {
     setSaving(true);
-    try { await ocApi.saveVersion(chartId, null); toast.success('Snapshot saved'); await load(); }
-    catch { toast.error('Save failed'); } finally { setSaving(false); }
+    try { await ocApi.saveVersion(chartId, null); toast.success(t('orgchart.hist_snap_saved', 'Snapshot saved')); await load(); }
+    catch { toast.error(t('orgchart.hist_save_failed', 'Save failed')); } finally { setSaving(false); }
   };
   const restore = async (vid) => {
     setRestoringId(vid);
-    try { await ocApi.restoreVersion(chartId, vid); toast.success('Version restored'); await load(); onRestored?.(); }
-    catch { toast.error('Restore failed'); } finally { setRestoringId(null); }
+    try { await ocApi.restoreVersion(chartId, vid); toast.success(t('orgchart.hist_restored', 'Version restored')); await load(); onRestored?.(); }
+    catch { toast.error(t('orgchart.hist_restore_failed', 'Restore failed')); } finally { setRestoringId(null); }
   };
 
   if (loading) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>;
@@ -53,13 +55,13 @@ export default function HistoryTab({ chartId, onRestored }) {
     <div className="grid md:grid-cols-2 gap-4" data-testid="orgchart-history">
       <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border)' }}>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-bold inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}><History size={15} /> Versions</h4>
+          <h4 className="text-sm font-bold inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}><History size={15} /> {t('orgchart.hist_versions', 'Versions')}</h4>
           <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="orgchart-version-save">
-            {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save snapshot
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} {t('orgchart.hist_save_snap', 'Save snapshot')}
           </button>
         </div>
         {!versions.length ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--theme-text-muted)' }}>No saved versions yet. Save a snapshot before big restructures.</p>
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('orgchart.hist_no_versions', 'No saved versions yet. Save a snapshot before big restructures.')}</p>
         ) : (
           <div className="space-y-2">
             {versions.map((v) => (
@@ -69,7 +71,7 @@ export default function HistoryTab({ chartId, onRestored }) {
                   <div className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{v.node_count} cards · {ago(v.created_at)} · {v.actor}</div>
                 </div>
                 <button onClick={() => restore(v.id)} disabled={restoringId === v.id} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border flex-shrink-0" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid={`orgchart-version-restore-${v.id}`}>
-                  {restoringId === v.id ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />} Restore
+                  {restoringId === v.id ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />} {t('orgchart.hist_restore', 'Restore')}
                 </button>
               </div>
             ))}
@@ -78,16 +80,16 @@ export default function HistoryTab({ chartId, onRestored }) {
       </div>
 
       <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border)' }}>
-        <h4 className="text-sm font-bold inline-flex items-center gap-2 mb-3" style={{ color: 'var(--theme-text)' }}><ShieldCheck size={15} /> Audit trail</h4>
+        <h4 className="text-sm font-bold inline-flex items-center gap-2 mb-3" style={{ color: 'var(--theme-text)' }}><ShieldCheck size={15} /> {t('orgchart.hist_audit', 'Audit trail')}</h4>
         {!audit.length ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--theme-text-muted)' }}>No activity recorded yet.</p>
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('orgchart.hist_no_activity', 'No activity recorded yet.')}</p>
         ) : (
           <div className="space-y-1.5 max-h-[60vh] overflow-y-auto" data-testid="orgchart-audit-list">
             {audit.map((e) => (
               <div key={e.id} className="flex items-start gap-2 text-xs">
                 <Clock size={12} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
                 <div className="min-w-0">
-                  <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{ACTION_LABEL[e.action] || e.action}</span>
+                  <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{t(`orgchart.action_${e.action}`, ACTION_LABEL[e.action] || e.action)}</span>
                   {e.detail ? <span style={{ color: 'var(--theme-text-muted)' }}> — {e.detail}</span> : null}
                   <div className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{e.actor} · {ago(e.at)}</div>
                 </div>

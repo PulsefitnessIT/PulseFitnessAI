@@ -1,5 +1,6 @@
 /** Org Chart visual canvas — pan, zoom, drag, reporting lines. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ZoomIn, ZoomOut, Maximize2, RotateCcw, Wand2, Plus, Crosshair,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ function ToolBtn({ onClick, title, children, testId }) {
 export default function Canvas({
   nodes, edges, settings, dimmedIds, focusId, fitSignal, onMoveNode, onRequestSetManager, onOpenNode, onAutoLayout, onAddCard,
 }) {
+  const { t } = useTranslation();
   const wrapRef = useRef(null);
   const [scale, setScale] = useState(0.8);
   const [tx, setTx] = useState(80);
@@ -73,13 +75,13 @@ export default function Canvas({
 
   // Fit once when node count goes from 0→n.
   const fitKey = nodes.length;
-  useEffect(() => { const t = setTimeout(fit, 60); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [fitKey]);
+  useEffect(() => { const tid = setTimeout(fit, 60); return () => clearTimeout(tid); /* eslint-disable-next-line */ }, [fitKey]);
 
   // On-demand fit (e.g. before an export) — parent bumps `fitSignal`.
   useEffect(() => {
     if (!fitSignal) return undefined;
-    const t = setTimeout(fit, 30);
-    return () => clearTimeout(t);
+    const tid = setTimeout(fit, 30);
+    return () => clearTimeout(tid);
   }, [fitSignal]); // eslint-disable-line
 
   // Focus a node (from search).
@@ -226,14 +228,14 @@ export default function Canvas({
     <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--theme-border)', height: '64vh', minHeight: 460 }} data-testid="orgchart-canvas">
       {/* toolbar */}
       <div className="absolute top-3 left-3 z-30 flex gap-1.5">
-        <ToolBtn onClick={onAddCard} title="Add card" testId="orgchart-toolbar-add"><Plus size={16} /></ToolBtn>
-        <ToolBtn onClick={onAutoLayout} title="Auto-layout" testId="orgchart-toolbar-autolayout"><Wand2 size={16} /></ToolBtn>
+        <ToolBtn onClick={onAddCard} title={t('orgchart.canvas_add_card', 'Add card')} testId="orgchart-toolbar-add"><Plus size={16} /></ToolBtn>
+        <ToolBtn onClick={onAutoLayout} title={t('orgchart.canvas_autolayout', 'Auto-layout')} testId="orgchart-toolbar-autolayout"><Wand2 size={16} /></ToolBtn>
       </div>
       <div className="absolute top-3 right-3 z-30 flex gap-1.5">
-        <ToolBtn onClick={() => zoom(1.15)} title="Zoom in" testId="orgchart-zoom-in"><ZoomIn size={16} /></ToolBtn>
-        <ToolBtn onClick={() => zoom(0.87)} title="Zoom out" testId="orgchart-zoom-out"><ZoomOut size={16} /></ToolBtn>
-        <ToolBtn onClick={fit} title="Fit to screen" testId="orgchart-fit"><Maximize2 size={16} /></ToolBtn>
-        <ToolBtn onClick={() => { setScale(0.8); setTx(80); setTy(40); }} title="Reset view" testId="orgchart-reset"><RotateCcw size={16} /></ToolBtn>
+        <ToolBtn onClick={() => zoom(1.15)} title={t('orgchart.canvas_zoom_in', 'Zoom in')} testId="orgchart-zoom-in"><ZoomIn size={16} /></ToolBtn>
+        <ToolBtn onClick={() => zoom(0.87)} title={t('orgchart.canvas_zoom_out', 'Zoom out')} testId="orgchart-zoom-out"><ZoomOut size={16} /></ToolBtn>
+        <ToolBtn onClick={fit} title={t('orgchart.canvas_fit', 'Fit to screen')} testId="orgchart-fit"><Maximize2 size={16} /></ToolBtn>
+        <ToolBtn onClick={() => { setScale(0.8); setTx(80); setTy(40); }} title={t('orgchart.canvas_reset', 'Reset view')} testId="orgchart-reset"><RotateCcw size={16} /></ToolBtn>
       </div>
       <div className="absolute bottom-3 right-3 z-30 text-[10px] font-semibold px-2 py-1 rounded-md" style={{ background: 'var(--theme-surface)', color: 'var(--theme-text-muted)', border: '1px solid var(--theme-border)' }}>
         {Math.round(scale * 100)}%
@@ -293,8 +295,8 @@ export default function Canvas({
       {!nodes.length && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6 z-20">
           <Crosshair size={26} style={{ color: 'var(--theme-text-muted)' }} />
-          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>No cards yet</p>
-          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Add a card or sync your staff to start building.</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{t('orgchart.canvas_no_cards', 'No cards yet')}</p>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('orgchart.canvas_no_cards_hint', 'Add a card or sync your staff to start building.')}</p>
         </div>
       )}
     </div>
