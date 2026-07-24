@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Headphones, Building2, Wrench, AlertTriangle, ArrowUpRight, Route, ExternalLink } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -7,16 +8,17 @@ import { Card, StatCard, Spinner, StatusBadge, Btn, Field, inputCls } from './ui
 
 // ───────────── Create desk wizard (condensed single card, dealer picker) ─────────────
 function CreateDeskModal({ onClose, onCreated }) {
+  const { t } = useTranslation();
   const [dealer, setDealer] = useState(null);
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [form, setForm] = useState({ country: 'GB', territories: '', languages: 'en', sla: '48h', warranty_routing: 'dealer', portal_fault_logging: true, branding: 'pulse' });
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (q.length < 2) { setResults([]); return; } const t = setTimeout(() => invApi.dealers(q).then((d) => setResults(d.dealers || [])).catch(() => {}), 250); return () => clearTimeout(t); }, [q]);
+  useEffect(() => { if (q.length < 2) { setResults([]); return; } const tmr = setTimeout(() => invApi.dealers(q).then((d) => setResults(d.dealers || [])).catch(() => {}), 250); return () => clearTimeout(tmr); }, [q]);
 
   const submit = async () => {
-    if (!dealer) { notify.error('Select a dealer'); return; }
+    if (!dealer) { notify.error(t('inv.desks.select_dealer', 'Select a dealer')); return; }
     setBusy(true);
     try {
       const d = await invApi.createDesk({
@@ -27,37 +29,37 @@ function CreateDeskModal({ onClose, onCreated }) {
         customer_portal: { fault_logging: form.portal_fault_logging, language: form.languages.split(',')[0] },
         branding: { mode: form.branding },
       });
-      notify.success(`Service desk ${d.reference} created`);
+      notify.success(t('inv.desks.created', 'Service desk {{ref}} created', { ref: d.reference }));
       onCreated(d.id);
-    } catch (e) { notify.error(e?.response?.data?.detail?.message || e?.response?.data?.detail || 'Failed'); } finally { setBusy(false); }
+    } catch (e) { notify.error(e?.response?.data?.detail?.message || e?.response?.data?.detail || t('inv.common.failed', 'Failed')); } finally { setBusy(false); }
   };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-desk-modal">
       <div className="my-8 w-full max-w-xl rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">New Dealer Service Desk</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">{t('inv.desks.new_modal', 'New Dealer Service Desk')}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
         <div className="space-y-4 px-5 py-4">
-          <Field label="Dealer (existing CRM company)" required>
+          <Field label={t('inv.desks.dealer_field', 'Dealer (existing CRM company)')} required>
             {dealer ? (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><Building2 size={15} className="text-emerald-600" /><span className="font-semibold">{dealer.name}</span><button className="ml-auto text-xs underline" data-testid="inv-desk-dealer-change" onClick={() => setDealer(null)}>change</button></div>
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><Building2 size={15} className="text-emerald-600" /><span className="font-semibold">{dealer.name}</span><button className="ml-auto text-xs underline" data-testid="inv-desk-dealer-change" onClick={() => setDealer(null)}>{t('inv.desks.change', 'change')}</button></div>
             ) : (
               <>
-                <input className={inputCls} placeholder="Search dealer…" value={q} data-testid="inv-desk-dealer-search" onChange={(e) => setQ(e.target.value)} />
+                <input className={inputCls} placeholder={t('inv.desks.search_dealer', 'Search dealer…')} value={q} data-testid="inv-desk-dealer-search" onChange={(e) => setQ(e.target.value)} />
                 {results.length > 0 && <div className="mt-1 rounded-lg border border-slate-200 bg-white shadow-sm">{results.map((r) => <button key={r.id} className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50" data-testid={`inv-desk-dealer-opt-${r.id}`} onClick={() => { setDealer(r); setResults([]); }}>{r.name} <span className="text-slate-400">· {r.country || '—'}</span></button>)}</div>}
               </>
             )}
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Country"><select className={inputCls} value={form.country} data-testid="inv-desk-country" onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}>{['GB', 'FR', 'US'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-            <Field label="Languages (csv)"><input className={inputCls} value={form.languages} data-testid="inv-desk-languages" onChange={(e) => setForm((f) => ({ ...f, languages: e.target.value }))} /></Field>
-            <Field label="Territories (csv)"><input className={inputCls} value={form.territories} data-testid="inv-desk-territories" onChange={(e) => setForm((f) => ({ ...f, territories: e.target.value }))} /></Field>
-            <Field label="SLA"><input className={inputCls} value={form.sla} data-testid="inv-desk-sla" onChange={(e) => setForm((f) => ({ ...f, sla: e.target.value }))} /></Field>
-            <Field label="Warranty routing"><select className={inputCls} value={form.warranty_routing} data-testid="inv-desk-warranty-routing" onChange={(e) => setForm((f) => ({ ...f, warranty_routing: e.target.value }))}>{['dealer', 'pulse', 'dealer_then_pulse'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
-            <Field label="Branding"><select className={inputCls} value={form.branding} data-testid="inv-desk-branding" onChange={(e) => setForm((f) => ({ ...f, branding: e.target.value }))}>{['pulse', 'co_branded'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
+            <Field label={t('inv.desks.country', 'Country')}><select className={inputCls} value={form.country} data-testid="inv-desk-country" onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}>{['GB', 'FR', 'US'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+            <Field label={t('inv.desks.languages', 'Languages (csv)')}><input className={inputCls} value={form.languages} data-testid="inv-desk-languages" onChange={(e) => setForm((f) => ({ ...f, languages: e.target.value }))} /></Field>
+            <Field label={t('inv.desks.territories', 'Territories (csv)')}><input className={inputCls} value={form.territories} data-testid="inv-desk-territories" onChange={(e) => setForm((f) => ({ ...f, territories: e.target.value }))} /></Field>
+            <Field label={t('inv.desks.sla', 'SLA')}><input className={inputCls} value={form.sla} data-testid="inv-desk-sla" onChange={(e) => setForm((f) => ({ ...f, sla: e.target.value }))} /></Field>
+            <Field label={t('inv.desks.warranty_routing', 'Warranty routing')}><select className={inputCls} value={form.warranty_routing} data-testid="inv-desk-warranty-routing" onChange={(e) => setForm((f) => ({ ...f, warranty_routing: e.target.value }))}>{['dealer', 'pulse', 'dealer_then_pulse'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
+            <Field label={t('inv.desks.branding', 'Branding')}><select className={inputCls} value={form.branding} data-testid="inv-desk-branding" onChange={(e) => setForm((f) => ({ ...f, branding: e.target.value }))}>{['pulse', 'co_branded'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
           </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.portal_fault_logging} data-testid="inv-desk-portal-fault" onChange={(e) => setForm((f) => ({ ...f, portal_fault_logging: e.target.checked }))} /> Allow customer fault logging in portal</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.portal_fault_logging} data-testid="inv-desk-portal-fault" onChange={(e) => setForm((f) => ({ ...f, portal_fault_logging: e.target.checked }))} /> {t('inv.desks.allow_fault', 'Allow customer fault logging in portal')}</label>
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3"><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={submit} disabled={busy || !dealer} data-testid="inv-desk-submit"><Plus size={15} /> Create desk</Btn></div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3"><Btn variant="secondary" onClick={onClose}>{t('inv.common.cancel', 'Cancel')}</Btn><Btn onClick={submit} disabled={busy || !dealer} data-testid="inv-desk-submit"><Plus size={15} /> {t('inv.desks.create_desk', 'Create desk')}</Btn></div>
       </div>
     </div>
   );
@@ -65,6 +67,7 @@ function CreateDeskModal({ onClose, onCreated }) {
 
 // ───────────── Desk detail (overview + log fault + escalate) ─────────────
 function LogFaultModal({ desk, assets, onClose, onDone }) {
+  const { t } = useTranslation();
   const [serial, setSerial] = useState(assets[0]?.serial_number || '');
   const [title, setTitle] = useState('');
   const [severity, setSeverity] = useState('medium');
@@ -72,65 +75,66 @@ function LogFaultModal({ desk, assets, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (serial) invApi.routeFault(serial).then(setRouting).catch(() => setRouting(null)); }, [serial]);
   const submit = async () => {
-    if (!serial || !title.trim()) { notify.error('Pick a machine and enter a fault title'); return; }
+    if (!serial || !title.trim()) { notify.error(t('inv.desks.fault_pick', 'Pick a machine and enter a fault title')); return; }
     setBusy(true);
-    try { const r = await invApi.logFault({ serial_number: serial, title, severity }); notify.success(`Fault logged — routed to ${r.routing.responsible === 'dealer' ? 'dealer desk' : 'Pulse'}`); onDone(); }
-    catch (e) { notify.error('Failed'); } finally { setBusy(false); }
+    try { const r = await invApi.logFault({ serial_number: serial, title, severity }); notify.success(t('inv.desks.fault_logged', 'Fault logged — routed to {{to}}', { to: r.routing.responsible === 'dealer' ? t('inv.desks.dealer_desk', 'dealer desk') : t('inv.desks.pulse', 'Pulse') })); onDone(); }
+    catch (e) { notify.error(t('inv.common.failed', 'Failed')); } finally { setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-fault-modal">
       <div className="my-8 w-full max-w-md rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">Log fault</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">{t('inv.desks.log_fault', 'Log fault')}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
         <div className="space-y-3 px-5 py-4">
-          <Field label="Machine (serial)"><select className={inputCls} value={serial} data-testid="inv-fault-serial" onChange={(e) => setSerial(e.target.value)}>{assets.map((a) => <option key={a.id} value={a.serial_number}>{a.serial_number} — {a.model}</option>)}</select></Field>
-          <Field label="Fault title" required><input className={inputCls} value={title} data-testid="inv-fault-title" onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="Severity"><select className={inputCls} value={severity} data-testid="inv-fault-severity" onChange={(e) => setSeverity(e.target.value)}>{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</select></Field>
-          {routing && <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-800" data-testid="inv-fault-routing"><Route size={14} className="mt-0.5" /><span><strong>{routing.responsible === 'dealer' ? 'Dealer service desk' : 'Pulse Service Desk'}</strong> — {routing.reason}</span></div>}
+          <Field label={t('inv.desks.fault_machine', 'Machine (serial)')}><select className={inputCls} value={serial} data-testid="inv-fault-serial" onChange={(e) => setSerial(e.target.value)}>{assets.map((a) => <option key={a.id} value={a.serial_number}>{a.serial_number} — {a.model}</option>)}</select></Field>
+          <Field label={t('inv.desks.fault_title', 'Fault title')} required><input className={inputCls} value={title} data-testid="inv-fault-title" onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label={t('inv.desks.fault_severity', 'Severity')}><select className={inputCls} value={severity} data-testid="inv-fault-severity" onChange={(e) => setSeverity(e.target.value)}>{['low', 'medium', 'high', 'critical'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</select></Field>
+          {routing && <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-800" data-testid="inv-fault-routing"><Route size={14} className="mt-0.5" /><span><strong>{routing.responsible === 'dealer' ? t('inv.desks.routing_dealer', 'Dealer service desk') : t('inv.desks.routing_pulse', 'Pulse Service Desk')}</strong> — {routing.reason}</span></div>}
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3"><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn onClick={submit} disabled={busy} data-testid="inv-fault-submit"><Wrench size={15} /> Log fault</Btn></div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3"><Btn variant="secondary" onClick={onClose}>{t('inv.common.cancel', 'Cancel')}</Btn><Btn onClick={submit} disabled={busy} data-testid="inv-fault-submit"><Wrench size={15} /> {t('inv.desks.log_fault', 'Log fault')}</Btn></div>
       </div>
     </div>
   );
 }
 
 function DeskDetail({ deskId, onBack }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [logging, setLogging] = useState(false);
-  const load = useCallback(() => invApi.desk(deskId).then(setData).catch(() => notify.error('Load failed')), [deskId]);
+  const load = useCallback(() => invApi.desk(deskId).then(setData).catch(() => notify.error(t('inv.common.load_failed', 'Load failed'))), [deskId]);
   useEffect(() => { load(); }, [load]);
   if (!data) return <Spinner />;
   const { desk, customers, assets, faults, stats } = data;
   const activeAssets = assets.filter((a) => a.status === 'active');
-  const escalate = async (id) => { try { await invApi.escalateFault(id); notify.success('Escalated to Pulse'); load(); } catch (e) { notify.error('Failed'); } };
+  const escalate = async (id) => { try { await invApi.escalateFault(id); notify.success(t('inv.desks.escalated_ok', 'Escalated to Pulse')); load(); } catch (e) { notify.error(t('inv.common.failed', 'Failed')); } };
   return (
     <div className="space-y-5" data-testid="inv-desk-detail">
       <div className="flex items-center gap-3">
-        <Btn variant="ghost" onClick={onBack} data-testid="inv-desk-back"><ArrowLeft size={16} /> Service desks</Btn>
+        <Btn variant="ghost" onClick={onBack} data-testid="inv-desk-back"><ArrowLeft size={16} /> {t('inv.desks.back', 'Service desks')}</Btn>
         <div><h2 className="text-xl font-bold text-slate-900">{desk.dealer_name}</h2><p className="text-sm text-slate-500">{desk.reference} · {desk.country}</p></div>
         <StatusBadge status={desk.status} className="ml-2" />
-        {desk.status !== 'active' && <Btn className="ml-auto" onClick={async () => { await invApi.activateDesk(deskId); load(); }} data-testid="inv-desk-activate">Activate desk</Btn>}
+        {desk.status !== 'active' && <Btn className="ml-auto" onClick={async () => { await invApi.activateDesk(deskId); load(); }} data-testid="inv-desk-activate">{t('inv.desks.activate', 'Activate desk')}</Btn>}
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Customers" value={stats.customers} testId="inv-desk-stat-customers" />
-        <StatCard label="Assets" value={stats.assets} testId="inv-desk-stat-assets" />
-        <StatCard label="Active assets" value={stats.active_assets} tone="green" />
-        <StatCard label="Open faults" value={stats.open_faults} tone={stats.open_faults ? 'amber' : 'green'} testId="inv-desk-stat-faults" />
+        <StatCard label={t('inv.desks.stat_customers', 'Customers')} value={stats.customers} testId="inv-desk-stat-customers" />
+        <StatCard label={t('inv.desks.stat_assets', 'Assets')} value={stats.assets} testId="inv-desk-stat-assets" />
+        <StatCard label={t('inv.desks.stat_active', 'Active assets')} value={stats.active_assets} tone="green" />
+        <StatCard label={t('inv.desks.stat_faults', 'Open faults')} value={stats.open_faults} tone={stats.open_faults ? 'amber' : 'green'} testId="inv-desk-stat-faults" />
       </div>
-      <div className="flex justify-end"><Btn onClick={() => setLogging(true)} disabled={activeAssets.length === 0} data-testid="inv-desk-log-fault"><Wrench size={15} /> Log fault</Btn></div>
+      <div className="flex justify-end"><Btn onClick={() => setLogging(true)} disabled={activeAssets.length === 0} data-testid="inv-desk-log-fault"><Wrench size={15} /> {t('inv.desks.log_fault', 'Log fault')}</Btn></div>
       <Card testId="inv-desk-faults">
-        <div className="border-b border-slate-200 px-4 py-3"><h3 className="text-sm font-bold text-slate-900">Faults (shared Service Desk records)</h3></div>
-        {faults.length === 0 ? <p className="px-4 py-6 text-center text-sm text-slate-400">No faults logged.</p> : (
-          <table className="w-full text-sm"><thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-4 py-2">Serial</th><th>Title</th><th>Severity</th><th>Responsible</th><th></th></tr></thead>
+        <div className="border-b border-slate-200 px-4 py-3"><h3 className="text-sm font-bold text-slate-900">{t('inv.desks.faults_title', 'Faults (shared Service Desk records)')}</h3></div>
+        {faults.length === 0 ? <p className="px-4 py-6 text-center text-sm text-slate-400">{t('inv.desks.no_faults', 'No faults logged.')}</p> : (
+          <table className="w-full text-sm"><thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-4 py-2">{t('inv.th.serial', 'Serial')}</th><th>{t('inv.th.title', 'Title')}</th><th>{t('inv.th.severity', 'Severity')}</th><th>{t('inv.th.responsible', 'Responsible')}</th><th></th></tr></thead>
             <tbody>{faults.map((f) => (
               <tr key={f.id} className="border-t border-slate-100" data-testid={`inv-desk-fault-${f.serial_number}`}>
                 <td className="px-4 py-2.5 font-mono text-xs">{f.serial_number}</td><td>{f.title}</td>
                 <td><StatusBadge status={f.severity} /></td>
-                <td>{f.responsible === 'dealer' ? 'Dealer' : 'Pulse'}{f.escalated ? ' (escalated)' : ''}</td>
+                <td>{f.responsible === 'dealer' ? t('inv.desks.dealer_lbl', 'Dealer') : t('inv.desks.pulse', 'Pulse')}{f.escalated ? t('inv.desks.escalated_suffix', ' (escalated)') : ''}</td>
                 <td className="pr-4 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {f.responsible === 'dealer' && !f.escalated && <Btn variant="secondary" onClick={() => escalate(f.id)} data-testid={`inv-desk-escalate-${f.serial_number}`}><ArrowUpRight size={13} /> Escalate</Btn>}
-                    <Btn variant="ghost" onClick={() => navigate(`/service-desk?tab=cases&q=${encodeURIComponent(f.serial_number)}`)} data-testid={`inv-desk-open-servicedesk-${f.serial_number}`} title="Work this ticket in the main Service Desk"><ExternalLink size={13} /> Open in Service Desk</Btn>
+                    {f.responsible === 'dealer' && !f.escalated && <Btn variant="secondary" onClick={() => escalate(f.id)} data-testid={`inv-desk-escalate-${f.serial_number}`}><ArrowUpRight size={13} /> {t('inv.desks.escalate', 'Escalate')}</Btn>}
+                    <Btn variant="ghost" onClick={() => navigate(`/service-desk?tab=cases&q=${encodeURIComponent(f.serial_number)}`)} data-testid={`inv-desk-open-servicedesk-${f.serial_number}`} title="Work this ticket in the main Service Desk"><ExternalLink size={13} /> {t('inv.desks.open_sd', 'Open in Service Desk')}</Btn>
                   </div>
                 </td>
               </tr>
@@ -138,7 +142,7 @@ function DeskDetail({ deskId, onBack }) {
           </table>
         )}
       </Card>
-      <Card className="p-4" testId="inv-desk-customers"><h3 className="mb-2 text-sm font-bold text-slate-900">Dealer customers</h3>{customers.length === 0 ? <p className="text-sm text-slate-400">No customers yet.</p> : customers.map((c) => <div key={c.id} className="flex items-center gap-2 border-b border-slate-100 py-1.5 text-sm last:border-0"><Building2 size={13} className="text-slate-400" />{c.name}<StatusBadge status={c.status || 'active'} className="ml-auto" /></div>)}</Card>
+      <Card className="p-4" testId="inv-desk-customers"><h3 className="mb-2 text-sm font-bold text-slate-900">{t('inv.desks.customers', 'Dealer customers')}</h3>{customers.length === 0 ? <p className="text-sm text-slate-400">{t('inv.desks.no_customers', 'No customers yet.')}</p> : customers.map((c) => <div key={c.id} className="flex items-center gap-2 border-b border-slate-100 py-1.5 text-sm last:border-0"><Building2 size={13} className="text-slate-400" />{c.name}<StatusBadge status={c.status || 'active'} className="ml-auto" /></div>)}</Card>
       {logging && <LogFaultModal desk={desk} assets={activeAssets} onClose={() => setLogging(false)} onDone={() => { setLogging(false); load(); }} />}
     </div>
   );
@@ -146,6 +150,7 @@ function DeskDetail({ deskId, onBack }) {
 
 // ───────────── Dealer service desks list ─────────────
 export function DealerServiceDesks() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(null);
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -154,10 +159,10 @@ export function DealerServiceDesks() {
   if (selected) return <DeskDetail deskId={selected} onBack={() => { setSelected(null); load(); }} />;
   return (
     <div className="space-y-4" data-testid="inv-service-desks">
-      <div className="flex items-center gap-3"><h2 className="text-xl font-bold text-slate-900">Dealer Desk Setup</h2><Btn className="ml-auto" onClick={() => setCreating(true)} data-testid="inv-new-desk-btn"><Plus size={16} /> New service desk</Btn></div>
-      <p className="text-sm text-slate-500">Provision and oversee per-dealer service desks — coverage, SLA, warranty routing and branding. Faults, customers, assets and engineers stay single shared records; agents work tickets in the main Service Desk.</p>
-      {rows === null ? <Spinner /> : rows.length === 0 ? <Card className="p-10 text-center" testId="inv-desks-empty"><Headphones size={34} className="mx-auto mb-2 text-slate-300" /><p className="text-slate-500">No dealer service desks yet.</p><Btn className="mx-auto mt-3" onClick={() => setCreating(true)}><Plus size={16} /> Create one</Btn></Card> : (
-        <Card testId="inv-desks-table"><table className="w-full text-sm"><thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Reference</th><th>Dealer</th><th>Country</th><th>Status</th></tr></thead>
+      <div className="flex items-center gap-3"><h2 className="text-xl font-bold text-slate-900">{t('inv.desks.title', 'Dealer Desk Setup')}</h2><Btn className="ml-auto" onClick={() => setCreating(true)} data-testid="inv-new-desk-btn"><Plus size={16} /> {t('inv.desks.new', 'New service desk')}</Btn></div>
+      <p className="text-sm text-slate-500">{t('inv.desks.subtitle', 'Provision and oversee per-dealer service desks — coverage, SLA, warranty routing and branding. Faults, customers, assets and engineers stay single shared records; agents work tickets in the main Service Desk.')}</p>
+      {rows === null ? <Spinner /> : rows.length === 0 ? <Card className="p-10 text-center" testId="inv-desks-empty"><Headphones size={34} className="mx-auto mb-2 text-slate-300" /><p className="text-slate-500">{t('inv.desks.empty', 'No dealer service desks yet.')}</p><Btn className="mx-auto mt-3" onClick={() => setCreating(true)}><Plus size={16} /> {t('inv.desks.create_one', 'Create one')}</Btn></Card> : (
+        <Card testId="inv-desks-table"><table className="w-full text-sm"><thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">{t('inv.th.reference', 'Reference')}</th><th>{t('inv.th.dealer', 'Dealer')}</th><th>{t('inv.th.country', 'Country')}</th><th>{t('inv.th.status', 'Status')}</th></tr></thead>
           <tbody>{rows.map((d) => (
             <tr key={d.id} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" data-testid={`inv-desk-row-${d.reference}`} onClick={() => setSelected(d.id)}>
               <td className="px-4 py-3 font-semibold text-[#0B3D91]">{d.reference}</td><td>{d.dealer_name}</td><td>{d.country}</td><td><StatusBadge status={d.status} /></td>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import i18n from '../../../i18n';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -135,5 +136,11 @@ export function fmtDate(v) {
   try { return new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return '—'; }
 }
 export function statusLabel(s) {
-  return (s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const key = (s || '').toString();
+  if (!key) return '';
+  const human = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  // Translate known status / enum tokens; unknown keys (e.g. dynamic report
+  // columns) fall back to the humanised English label.
+  const tr = i18n.t(`inv.sl.${key}`, { defaultValue: '' });
+  return tr || human;
 }

@@ -1,0 +1,79 @@
+{
+  "summary": "Frontend-only i18n render verification of the operator Inventory & Distribution module (/inventory) in FR, DE and EN. Logged in as owner@isodemo.com, set localStorage i18nextLng, reloaded, then walked ALL 17 left-nav items, opened the New order modal, and clicked through all 4 Settings tabs (General/Logistics logins/Sage 200 Connection/Field Ownership) in every language. Scanned body innerText with regex \\binv\\.[a-zA-Z0-9_.]+\\b and \\binvnav\\.[a-zA-Z0-9_.]+\\b to detect raw key leaks. Result: NO raw i18n key leaks in any language on any view. All headings, buttons, table column headers, empty states, badges and nav labels are correctly translated in FR and DE, and the English regression still renders cleanly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "views_verified_per_language": {
+    "fr": {
+      "dashboard": "Tableau de bord de la distribution",
+      "orders": "Commandes",
+      "exceptions": "Anomalies de commande",
+      "availability": "Disponibilité du stock",
+      "warehouses": "Entrepôts et emplacements",
+      "fulfilment": "Préparation",
+      "shipments": "Expéditions",
+      "transfers": "Ordres de transfert",
+      "dealer-inventory": "Stock revendeur",
+      "allocations": "Affectations clients",
+      "installations": "Installations",
+      "service-desks": "Configuration guichet revendeur",
+      "intel-dashboard": "Analyse et surveillance",
+      "intel-alerts": "Alertes de surveillance",
+      "intel-reports": "Rapports de distribution",
+      "intel-replenishment": "Réapprovisionnement",
+      "settings": "Paramètres",
+      "settings_tabs": ["Général","Comptes logistique","Connexion Sage 200","Propriété des champs"],
+      "new_order_modal_buttons": ["Importer depuis une facture","Nouvelle commande","Téléverser une facture","Ajouter une ligne","Annuler","Créer la commande"]
+    },
+    "de": {
+      "dashboard": "Distributions-Dashboard",
+      "orders": "Aufträge",
+      "exceptions": "Auftragsausnahmen",
+      "availability": "Bestandsverfügbarkeit",
+      "warehouses": "Lager & Standorte",
+      "fulfilment": "Abwicklung",
+      "shipments": "Sendungen",
+      "transfers": "Umlagerungsaufträge",
+      "dealer-inventory": "Händlerbestand",
+      "allocations": "Kundenzuordnungen",
+      "installations": "Installationen",
+      "service-desks": "Händler-Desk-Einrichtung",
+      "intel-dashboard": "Analyse & Überwachung",
+      "intel-alerts": "Überwachungswarnungen",
+      "intel-reports": "Distributionsberichte",
+      "intel-replenishment": "Wiederbeschaffung",
+      "settings": "Einstellungen",
+      "settings_tabs": ["Allgemein","Logistik-Logins","Sage 200-Verbindung","Feldverantwortung"],
+      "new_order_modal_buttons": ["Aus Rechnung importieren","Neuer Auftrag","Rechnung hochladen","Position hinzufügen","Abbrechen","Auftrag erstellen"]
+    },
+    "en": {
+      "dashboard": "Distribution Dashboard",
+      "settings_tabs": ["General","Logistics logins","Sage 200 Connection","Field Ownership"],
+      "note": "English regression clean — all 17 nav items and all Settings tabs render with English labels and zero raw keys."
+    }
+  },
+  "raw_key_leak_scan": {
+    "regex_used": ["\\\\binv\\\\.[a-zA-Z0-9_.]+\\\\b","\\\\binvnav\\\\.[a-zA-Z0-9_.]+\\\\b"],
+    "leaks_found_fr": [],
+    "leaks_found_de": [],
+    "leaks_found_en": [],
+    "note": "Scanned document.body.innerText after loading each of 17 nav views + New Order modal + each of 4 Settings tabs. Zero matches in all languages."
+  },
+  "locale_file_parity": {"en_inv_keys": 589, "fr_inv_keys": 589, "de_inv_keys": 589, "invnav_keys_all": 24, "status": "parity confirmed"},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "InventoryDistribution.js is 669 lines and imports 8+ view modules — consider splitting the module shell (sidebar/router/language switcher) into a separate file from the Dashboard component for maintainability, though nothing is broken.",
+    "All translated strings use t(key, fallback) form which correctly keeps EN fallbacks when a locale entry is missing — good defensive pattern."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (operator owner from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used pre-seeded iso-demo-org data (DO-000002/003 orders visible in Orders list).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "i18n coverage for the Inventory & Distribution module is complete and verified in FR/DE/EN. Approach used: page.evaluate(localStorage.setItem('i18nextLng', lang)) then reload /inventory, click each [data-testid=inv-nav-*] item, scan body.innerText with /\\binv\\.[a-zA-Z0-9_.]+\\b/ and /\\binvnav\\.[a-zA-Z0-9_.]+\\b/. The New order modal opens via [data-testid=inv-new-order-btn] on the Orders view. Settings tabs use text-based buttons under [data-testid=inv-main] (no per-tab data-testid); consider adding data-testid=\"inv-settings-tab-<slug>\" attributes for future automation. All headings/buttons/table columns/badges are translated end-to-end."
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, ShieldCheck, Building2, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Clock, List, ClipboardList, FileText, Layers, AlertTriangle, Download, HardHat, RefreshCw, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, fmtDate, statusLabel } from './api';
@@ -7,31 +8,32 @@ import { Card, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
 
 // ───────────── Customer picker with duplicate prevention ─────────────
 function CustomerPicker({ value, onPick }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [matches, setMatches] = useState([]);
   const [dupes, setDupes] = useState(null);
 
-  useEffect(() => { if (q.length < 2) { setMatches([]); return; } const t = setTimeout(() => invApi.custSearch(q).then((d) => setMatches(d.matches || [])).catch(() => {}), 250); return () => clearTimeout(t); }, [q]);
+  useEffect(() => { if (q.length < 2) { setMatches([]); return; } const tmr = setTimeout(() => invApi.custSearch(q).then((d) => setMatches(d.matches || [])).catch(() => {}), 250); return () => clearTimeout(tmr); }, [q]);
 
   const createNew = async (force = false) => {
     try {
       const r = await invApi.createCustomer({ name: q.trim(), force });
       if (!r.created && r.duplicates) { setDupes(r.duplicates); return; }
-      notify.success('Customer created (pending validation)');
+      notify.success(t('inv.alloc.cust_created', 'Customer created (pending validation)'));
       setDupes(null); onPick(r.company);
-    } catch (e) { notify.error('Failed'); }
+    } catch (e) { notify.error(t('inv.common.failed', 'Failed')); }
   };
 
   if (value) return (
     <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm" data-testid="inv-alloc-customer-selected">
       <Building2 size={15} className="text-emerald-600" /> <span className="font-semibold">{value.name}</span>
-      <button className="ml-auto text-xs text-slate-500 underline" data-testid="inv-alloc-customer-change" onClick={() => onPick(null)}>change</button>
+      <button className="ml-auto text-xs text-slate-500 underline" data-testid="inv-alloc-customer-change" onClick={() => onPick(null)}>{t('inv.alloc.cust_change', 'change')}</button>
     </div>
   );
 
   return (
     <div>
-      <input className={inputCls} placeholder="Search existing customer or type a new name…" value={q} data-testid="inv-alloc-customer-search" onChange={(e) => { setQ(e.target.value); setDupes(null); }} />
+      <input className={inputCls} placeholder={t('inv.alloc.cust_search_ph', 'Search existing customer or type a new name…')} value={q} data-testid="inv-alloc-customer-search" onChange={(e) => { setQ(e.target.value); setDupes(null); }} />
       {matches.length > 0 && (
         <div className="mt-1 rounded-lg border border-slate-200 bg-white shadow-sm">
           {matches.map((m) => <button key={m.id} className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50" data-testid={`inv-alloc-cust-opt-${m.id}`} onClick={() => onPick(m)}>{m.name} <span className="text-slate-400">· {m.country || '—'}</span></button>)}
@@ -41,11 +43,11 @@ function CustomerPicker({ value, onPick }) {
         <div className="mt-2">
           {dupes ? (
             <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800" data-testid="inv-alloc-dupes">
-              Possible existing customer(s): {dupes.map((d) => d.name).join(', ')}. Use the match above, or
-              <button className="ml-1 font-semibold underline" data-testid="inv-alloc-create-force" onClick={() => createNew(true)}>create anyway</button>.
+              {t('inv.alloc.cust_dupes', 'Possible existing customer(s): {{names}}. Use the match above, or', { names: dupes.map((d) => d.name).join(', ') })}
+              <button className="ml-1 font-semibold underline" data-testid="inv-alloc-create-force" onClick={() => createNew(true)}>{t('inv.alloc.cust_create_anyway', 'create anyway')}</button>.
             </div>
           ) : (
-            <Btn variant="secondary" onClick={() => createNew(false)} data-testid="inv-alloc-create-customer"><UserPlus size={14} /> Create "{q.trim()}"</Btn>
+            <Btn variant="secondary" onClick={() => createNew(false)} data-testid="inv-alloc-create-customer"><UserPlus size={14} /> {t('inv.alloc.cust_create', 'Create')} "{q.trim()}"</Btn>
           )}
         </div>
       )}
@@ -55,36 +57,37 @@ function CustomerPicker({ value, onPick }) {
 
 // ───────────── Install modal ─────────────
 function InstallModal({ alloc, onClose, onDone }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ engineer_name: '', software_version: '', condition: 'Good', customer_acceptance: false, checklist: {} });
   const [busy, setBusy] = useState(false);
-  const CHECKS = [['positioned', 'Positioned & levelled'], ['power', 'Power / network connected'], ['safety', 'Safety checks'], ['test_run', 'Test run passed'], ['customer_walkthrough', 'Customer walkthrough']];
+  const CHECKS = [['positioned', 'inv.inst.chk_positioned', 'Positioned & levelled'], ['power', 'inv.inst.chk_power', 'Power / network connected'], ['safety', 'inv.inst.chk_safety', 'Safety checks'], ['test_run', 'inv.inst.chk_test_run', 'Test run passed'], ['customer_walkthrough', 'inv.inst.chk_walkthrough', 'Customer walkthrough']];
   const submit = async () => {
     setBusy(true);
     try { const r = await invApi.install(alloc.id, form); notify.success(`Asset active — warranty to ${r.warranty_end?.slice(0, 10)}`); onDone(); }
-    catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); } finally { setBusy(false); }
+    catch (e) { notify.error(e?.response?.data?.detail || t('inv.common.failed', 'Failed')); } finally { setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-install-modal">
       <div className="my-8 w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">Install checks — {alloc.serial_number}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">{t('inv.inst.checks_title', 'Install checks — {{serial}}', { serial: alloc.serial_number })}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
         <div className="space-y-3 px-5 py-4">
-          <p className="text-xs text-slate-400">Completed via the Engineer App workflow. Activates the customer asset &amp; starts warranty.</p>
-          <Field label="Engineer" required><input className={inputCls} value={form.engineer_name} data-testid="inv-install-engineer" onChange={(e) => setForm((f) => ({ ...f, engineer_name: e.target.value }))} /></Field>
+          <p className="text-xs text-slate-400">{t('inv.inst.checks_note', 'Completed via the Engineer App workflow. Activates the customer asset & starts warranty.')}</p>
+          <Field label={t('inv.inst.engineer', 'Engineer')} required><input className={inputCls} value={form.engineer_name} data-testid="inv-install-engineer" onChange={(e) => setForm((f) => ({ ...f, engineer_name: e.target.value }))} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Software / console version"><input className={inputCls} value={form.software_version} data-testid="inv-install-software" onChange={(e) => setForm((f) => ({ ...f, software_version: e.target.value }))} /></Field>
-            <Field label="Condition"><input className={inputCls} value={form.condition} data-testid="inv-install-condition" onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))} /></Field>
+            <Field label={t('inv.inst.software', 'Software / console version')}><input className={inputCls} value={form.software_version} data-testid="inv-install-software" onChange={(e) => setForm((f) => ({ ...f, software_version: e.target.value }))} /></Field>
+            <Field label={t('inv.inst.condition', 'Condition')}><input className={inputCls} value={form.condition} data-testid="inv-install-condition" onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))} /></Field>
           </div>
           <div className="rounded-lg border border-slate-200 p-3">
-            <p className="mb-2 text-xs font-semibold text-slate-600">Install checks</p>
-            {CHECKS.map(([k, label]) => (
-              <label key={k} className="flex items-center gap-2 py-1 text-sm"><input type="checkbox" checked={!!form.checklist[k]} data-testid={`inv-install-check-${k}`} onChange={(e) => setForm((f) => ({ ...f, checklist: { ...f.checklist, [k]: e.target.checked } }))} /> {label}</label>
+            <p className="mb-2 text-xs font-semibold text-slate-600">{t('inv.inst.checks_group', 'Install checks')}</p>
+            {CHECKS.map(([k, lk, def]) => (
+              <label key={k} className="flex items-center gap-2 py-1 text-sm"><input type="checkbox" checked={!!form.checklist[k]} data-testid={`inv-install-check-${k}`} onChange={(e) => setForm((f) => ({ ...f, checklist: { ...f.checklist, [k]: e.target.checked } }))} /> {t(lk, def)}</label>
             ))}
           </div>
-          <label className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800"><input type="checkbox" checked={form.customer_acceptance} data-testid="inv-install-acceptance" onChange={(e) => setForm((f) => ({ ...f, customer_acceptance: e.target.checked }))} /> Customer acceptance obtained</label>
+          <label className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800"><input type="checkbox" checked={form.customer_acceptance} data-testid="inv-install-acceptance" onChange={(e) => setForm((f) => ({ ...f, customer_acceptance: e.target.checked }))} /> {t('inv.inst.acceptance', 'Customer acceptance obtained')}</label>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
-          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={submit} disabled={busy || !form.engineer_name.trim() || !form.customer_acceptance} data-testid="inv-install-submit"><Wrench size={15} /> {busy ? 'Saving…' : 'Complete install checks'}</Btn>
+          <Btn variant="secondary" onClick={onClose}>{t('inv.common.cancel', 'Cancel')}</Btn>
+          <Btn onClick={submit} disabled={busy || !form.engineer_name.trim() || !form.customer_acceptance} data-testid="inv-install-submit"><Wrench size={15} /> {busy ? t('inv.inst.saving', 'Saving…') : t('inv.inst.complete_checks', 'Complete install checks')}</Btn>
         </div>
       </div>
     </div>
@@ -93,6 +96,7 @@ function InstallModal({ alloc, onClose, onDone }) {
 
 // ───────────── Customer Allocations ─────────────
 export function CustomerAllocations() {
+  const { t } = useTranslation();
   const [available, setAvailable] = useState(null);
   const [allocations, setAllocations] = useState([]);
   const [sel, setSel] = useState({});
@@ -111,23 +115,23 @@ export function CustomerAllocations() {
 
   const selectedUnits = Object.keys(sel).filter((k) => sel[k]);
   const allocate = async () => {
-    if (!customer || selectedUnits.length === 0) { notify.error('Pick a customer and at least one machine'); return; }
+    if (!customer || selectedUnits.length === 0) { notify.error(t('inv.alloc.pick_error', 'Pick a customer and at least one machine')); return; }
     try {
       const r = await invApi.allocate({ unit_ids: selectedUnits, customer_company_id: customer.id, customer_site: site, planned_install_date: installDate, service_responsibility: service });
-      notify.success(`${r.allocated} machine(s) allocated to ${r.customer}`);
+      notify.success(t('inv.alloc.allocated_ok', '{{n}} machine(s) allocated to {{customer}}', { n: r.allocated, customer: r.customer }));
       setSel({}); setCustomer(null); setSite(''); load();
       invApi.customerPortal(customer.id).then(setPortal).catch(() => {});
-    } catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); }
+    } catch (e) { notify.error(e?.response?.data?.detail || t('inv.common.failed', 'Failed')); }
   };
 
   return (
     <div className="space-y-5" data-testid="inv-allocations">
-      <h2 className="text-xl font-bold text-slate-900">Customer Allocations</h2>
+      <h2 className="text-xl font-bold text-slate-900">{t('inv.alloc.title', 'Customer Allocations')}</h2>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card className="p-4" testId="inv-alloc-available">
-          <h3 className="mb-2 text-sm font-bold text-slate-900">Dealer stock available to allocate</h3>
-          {available === null ? <Spinner /> : available.length === 0 ? <p className="text-sm text-slate-400">No dealer-held stock available.</p> : available.map((a) => (
+          <h3 className="mb-2 text-sm font-bold text-slate-900">{t('inv.alloc.available_title', 'Dealer stock available to allocate')}</h3>
+          {available === null ? <Spinner /> : available.length === 0 ? <p className="text-sm text-slate-400">{t('inv.alloc.available_empty', 'No dealer-held stock available.')}</p> : available.map((a) => (
             <label key={a.unit_id} className="flex items-center gap-3 border-b border-slate-100 py-2 text-sm last:border-0" data-testid={`inv-alloc-stock-${a.serial_number}`}>
               <input type="checkbox" checked={!!sel[a.unit_id]} data-testid={`inv-alloc-pick-${a.serial_number}`} onChange={(e) => setSel((s) => ({ ...s, [a.unit_id]: e.target.checked }))} />
               <ScanLine size={13} className="text-[#0B3D91]" /> <span className="font-mono text-xs font-semibold">{a.serial_number}</span>
@@ -138,23 +142,23 @@ export function CustomerAllocations() {
         </Card>
 
         <Card className="p-4" testId="inv-alloc-form">
-          <h3 className="mb-2 text-sm font-bold text-slate-900">Allocate to customer</h3>
+          <h3 className="mb-2 text-sm font-bold text-slate-900">{t('inv.alloc.form_title', 'Allocate to customer')}</h3>
           <div className="space-y-3">
-            <Field label="Customer (duplicate-checked)"><CustomerPicker value={customer} onPick={setCustomer} /></Field>
-            <Field label="Installation site"><input className={inputCls} value={site} data-testid="inv-alloc-site" onChange={(e) => setSite(e.target.value)} placeholder="e.g. Main Club, 5th Ave" /></Field>
+            <Field label={t('inv.alloc.customer', 'Customer (duplicate-checked)')}><CustomerPicker value={customer} onPick={setCustomer} /></Field>
+            <Field label={t('inv.alloc.site', 'Installation site')}><input className={inputCls} value={site} data-testid="inv-alloc-site" onChange={(e) => setSite(e.target.value)} placeholder={t('inv.alloc.site_ph', 'e.g. Main Club, 5th Ave')} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Planned install date"><input type="date" className={inputCls} value={installDate} data-testid="inv-alloc-install-date" onChange={(e) => setInstallDate(e.target.value)} /></Field>
-              <Field label="Service responsibility"><select className={inputCls} value={service} data-testid="inv-alloc-service" onChange={(e) => setService(e.target.value)}>{['dealer', 'pulse', 'third_party'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</select></Field>
+              <Field label={t('inv.alloc.planned_date', 'Planned install date')}><input type="date" className={inputCls} value={installDate} data-testid="inv-alloc-install-date" onChange={(e) => setInstallDate(e.target.value)} /></Field>
+              <Field label={t('inv.alloc.service_resp', 'Service responsibility')}><select className={inputCls} value={service} data-testid="inv-alloc-service" onChange={(e) => setService(e.target.value)}>{['dealer', 'pulse', 'third_party'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</select></Field>
             </div>
-            <Btn onClick={allocate} disabled={!customer || selectedUnits.length === 0} data-testid="inv-alloc-submit"><MapPin size={15} /> Allocate {selectedUnits.length || ''} machine(s)</Btn>
+            <Btn onClick={allocate} disabled={!customer || selectedUnits.length === 0} data-testid="inv-alloc-submit"><MapPin size={15} /> {t('inv.alloc.allocate_btn', 'Allocate {{n}} machine(s)', { n: selectedUnits.length || '' })}</Btn>
           </div>
         </Card>
       </div>
 
       {portal && (
         <Card className="p-4" testId="inv-alloc-portal-preview">
-          <h3 className="mb-2 text-sm font-bold text-slate-900">Customer Operations Portal — {portal.company?.name}</h3>
-          <p className="mb-2 text-[11px] text-slate-400">Machines auto-populated into the customer's portal (single asset register — no duplicate).</p>
+          <h3 className="mb-2 text-sm font-bold text-slate-900">{t('inv.alloc.portal_title', 'Customer Operations Portal — {{name}}', { name: portal.company?.name })}</h3>
+          <p className="mb-2 text-[11px] text-slate-400">{t('inv.alloc.portal_note', "Machines auto-populated into the customer's portal (single asset register — no duplicate).")}</p>
           {portal.equipment.map((e) => (
             <div key={e.id} className="flex items-center gap-3 border-b border-slate-100 py-1.5 text-sm last:border-0"><span className="font-mono text-xs">{e.serial_number}</span><span>{e.model}</span><StatusBadge status={e.status} className="ml-auto" /></div>
           ))}
@@ -162,10 +166,10 @@ export function CustomerAllocations() {
       )}
 
       <Card testId="inv-alloc-list">
-        <div className="border-b border-slate-200 px-4 py-3"><h3 className="text-sm font-bold text-slate-900">Allocations</h3></div>
-        {allocations.length === 0 ? <p className="px-4 py-8 text-center text-sm text-slate-400">No allocations yet.</p> : (
+        <div className="border-b border-slate-200 px-4 py-3"><h3 className="text-sm font-bold text-slate-900">{t('inv.alloc.list_title', 'Allocations')}</h3></div>
+        {allocations.length === 0 ? <p className="px-4 py-8 text-center text-sm text-slate-400">{t('inv.alloc.list_empty', 'No allocations yet.')}</p> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-4 py-2">Ref</th><th>Serial</th><th>Customer</th><th>Site</th><th>Status</th><th></th></tr></thead>
+            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-4 py-2">{t('inv.alloc.th_ref', 'Ref')}</th><th>{t('inv.alloc.th_serial', 'Serial')}</th><th>{t('inv.alloc.th_customer', 'Customer')}</th><th>{t('inv.alloc.th_site', 'Site')}</th><th>{t('inv.th.status', 'Status')}</th><th></th></tr></thead>
             <tbody>
               {allocations.map((a) => (
                 <tr key={a.id} className="border-t border-slate-100" data-testid={`inv-alloc-row-${a.reference}`}>
@@ -174,7 +178,7 @@ export function CustomerAllocations() {
                   <td>{a.customer_company_name}</td>
                   <td className="text-slate-500">{a.customer_site || '—'}</td>
                   <td><StatusBadge status={a.status} /></td>
-                  <td className="pr-4 text-right">{a.status === 'awaiting_installation' ? <Btn variant="secondary" onClick={() => setInstalling(a)} data-testid={`inv-alloc-install-${a.reference}`}><Wrench size={13} /> Install</Btn> : a.status === 'active' ? <span className="text-emerald-600" title="Active asset"><CheckCircle2 size={16} className="inline" /></span> : null}</td>
+                  <td className="pr-4 text-right">{a.status === 'awaiting_installation' ? <Btn variant="secondary" onClick={() => setInstalling(a)} data-testid={`inv-alloc-install-${a.reference}`}><Wrench size={13} /> {t('inv.alloc.install', 'Install')}</Btn> : a.status === 'active' ? <span className="text-emerald-600" title="Active asset"><CheckCircle2 size={16} className="inline" /></span> : null}</td>
                 </tr>
               ))}
             </tbody>
@@ -189,6 +193,7 @@ export function CustomerAllocations() {
 
 // ───────────── Schedule (reschedule) modal ─────────────
 function ScheduleModal({ alloc, onClose, onDone }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState(alloc.planned_install_date ? alloc.planned_install_date.slice(0, 10) : '');
   const [win, setWin] = useState(alloc.install_window || 'all_day');
   const [note, setNote] = useState(alloc.logistics_note || '');
@@ -196,22 +201,22 @@ function ScheduleModal({ alloc, onClose, onDone }) {
   const submit = async () => {
     if (!date) return;
     setBusy(true);
-    try { await invApi.scheduleInstall(alloc.id, { planned_install_date: date, install_window: win, logistics_note: note }); notify.success('Installation scheduled'); onDone(); }
-    catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); } finally { setBusy(false); }
+    try { await invApi.scheduleInstall(alloc.id, { planned_install_date: date, install_window: win, logistics_note: note }); notify.success(t('inv.inst.scheduled_ok', 'Installation scheduled')); onDone(); }
+    catch (e) { notify.error(e?.response?.data?.detail || t('inv.common.failed', 'Failed')); } finally { setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-schedule-modal">
       <div className="my-16 w-full max-w-md rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">Schedule installation — {alloc.serial_number}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">{t('inv.inst.schedule_title', 'Schedule installation — {{serial}}', { serial: alloc.serial_number })}</h3><button onClick={onClose} className="text-slate-400">✕</button></div>
         <div className="space-y-3 px-5 py-4">
           <p className="text-xs text-slate-400">{alloc.customer_company_name}{alloc.customer_site ? ` · ${alloc.customer_site}` : ''}</p>
-          <Field label="Planned install date" required><input type="date" className={inputCls} value={date} data-testid="inv-schedule-date" onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="Window"><select className={inputCls} value={win} data-testid="inv-schedule-window" onChange={(e) => setWin(e.target.value)}>{[['all_day', 'All day'], ['am', 'Morning (AM)'], ['pm', 'Afternoon (PM)']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
-          <Field label="Logistics note"><textarea className={inputCls} rows={2} value={note} data-testid="inv-schedule-note" onChange={(e) => setNote(e.target.value)} placeholder="Access, crew, lift required…" /></Field>
+          <Field label={t('inv.alloc.planned_date', 'Planned install date')} required><input type="date" className={inputCls} value={date} data-testid="inv-schedule-date" onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label={t('inv.inst.window', 'Window')}><select className={inputCls} value={win} data-testid="inv-schedule-window" onChange={(e) => setWin(e.target.value)}>{[['all_day', t('inv.inst.win_all_day', 'All day')], ['am', t('inv.inst.win_am', 'Morning (AM)')], ['pm', t('inv.inst.win_pm', 'Afternoon (PM)')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+          <Field label={t('inv.inst.logistics_note', 'Logistics note')}><textarea className={inputCls} rows={2} value={note} data-testid="inv-schedule-note" onChange={(e) => setNote(e.target.value)} placeholder={t('inv.inst.logistics_note_ph', 'Access, crew, lift required…')} /></Field>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
-          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={submit} disabled={busy || !date} data-testid="inv-schedule-submit"><CalendarPlus size={15} /> {busy ? 'Saving…' : 'Save schedule'}</Btn>
+          <Btn variant="secondary" onClick={onClose}>{t('inv.common.cancel', 'Cancel')}</Btn>
+          <Btn onClick={submit} disabled={busy || !date} data-testid="inv-schedule-submit"><CalendarPlus size={15} /> {busy ? t('inv.inst.saving', 'Saving…') : t('inv.inst.save_schedule', 'Save schedule')}</Btn>
         </div>
       </div>
     </div>
@@ -223,36 +228,37 @@ const RISK_COLOR = { Low: 'bg-emerald-50 text-emerald-700 ring-emerald-200', Med
 const YN = (v) => (v === true ? 'Yes' : v === false ? 'No' : '—');
 
 function PulseLinkRow({ companyId, companyName }) {
+  const { t } = useTranslation();
   const [linked, setLinked] = useState(undefined);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   useEffect(() => { if (companyId) invApi.getPulseLink(companyId).then((d) => setLinked(d.linked_org || null)).catch(() => setLinked(null)); }, [companyId]);
   const search = async (v) => { setQ(v); if (v.trim().length < 2) { setResults([]); return; } try { const d = await invApi.pulseLinkCandidates(v); setResults(d.candidates || []); } catch { setResults([]); } };
-  const link = async (org) => { try { await invApi.setPulseLink(companyId, org ? org.id : null); notify.success(org ? `Linked to ${org.name}` : 'Unlinked'); setLinked(org || null); setOpen(false); setQ(''); setResults([]); } catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); } };
+  const link = async (org) => { try { await invApi.setPulseLink(companyId, org ? org.id : null); notify.success(org ? `Linked to ${org.name}` : 'Unlinked'); setLinked(org || null); setOpen(false); setQ(''); setResults([]); } catch (e) { notify.error(e?.response?.data?.detail || t('inv.common.failed', 'Failed')); } };
   if (linked === undefined) return null;
   return (
     <div className="rounded-xl border border-slate-200" data-testid="inv-pulse-link">
       <div className="flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-2 text-sm"><LinkIcon size={14} className="text-slate-500" /><span className="font-bold text-slate-800">Customer's Pulse account</span></div>
-        <button onClick={() => setOpen((o) => !o)} className="text-xs font-semibold text-cyan-700 hover:underline" data-testid="inv-pulse-link-toggle">{linked ? 'Change' : 'Link account'}</button>
+        <div className="flex items-center gap-2 text-sm"><LinkIcon size={14} className="text-slate-500" /><span className="font-bold text-slate-800">{t('inv.inst.pulse_account', "Customer's Pulse account")}</span></div>
+        <button onClick={() => setOpen((o) => !o)} className="text-xs font-semibold text-cyan-700 hover:underline" data-testid="inv-pulse-link-toggle">{linked ? t('inv.inst.pulse_change', 'Change') : t('inv.inst.pulse_link', 'Link account')}</button>
       </div>
       <div className="px-4 pb-3 text-sm">
         {linked ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700" data-testid="inv-pulse-link-current">{linked.name} — they'll see this delivery in their dashboard</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700" data-testid="inv-pulse-link-current">{linked.name} {t('inv.inst.pulse_linked_suffix', "— they'll see this delivery in their dashboard")}</span>
         ) : (
-          <span className="text-xs text-slate-400">Not linked. Link the customer's Pulse account so they can track this delivery, install &amp; warranty.</span>
+          <span className="text-xs text-slate-400">{t('inv.inst.pulse_not_linked', "Not linked. Link the customer's Pulse account so they can track this delivery, install & warranty.")}</span>
         )}
         {open && (
           <div className="mt-2 rounded-lg border border-slate-200 p-2">
-            <input value={q} onChange={(e) => search(e.target.value)} placeholder="Search Pulse organisations…" className={inputCls} data-testid="inv-pulse-link-search" autoFocus />
+            <input value={q} onChange={(e) => search(e.target.value)} placeholder={t('inv.inst.pulse_search_ph', 'Search Pulse organisations…')} className={inputCls} data-testid="inv-pulse-link-search" autoFocus />
             <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
               {results.map((org) => (
                 <button key={org.id} onClick={() => link(org)} className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50" data-testid={`inv-pulse-link-option-${org.id}`}><span className="font-medium text-slate-800">{org.name}</span><span className="text-[11px] text-slate-400">{org.account_type}</span></button>
               ))}
-              {q.trim().length >= 2 && results.length === 0 && <p className="px-2 py-1 text-xs text-slate-400">No matches.</p>}
+              {q.trim().length >= 2 && results.length === 0 && <p className="px-2 py-1 text-xs text-slate-400">{t('inv.inst.pulse_no_matches', 'No matches.')}</p>}
             </div>
-            {linked && <button onClick={() => link(null)} className="mt-1 text-xs font-semibold text-red-600 hover:underline" data-testid="inv-pulse-unlink">Unlink</button>}
+            {linked && <button onClick={() => link(null)} className="mt-1 text-xs font-semibold text-red-600 hover:underline" data-testid="inv-pulse-unlink">{t('inv.inst.pulse_unlink', 'Unlink')}</button>}
           </div>
         )}
       </div>
@@ -261,6 +267,7 @@ function PulseLinkRow({ companyId, companyName }) {
 }
 
 export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, packFetcher, footerExtra }) {
+  const { t } = useTranslation();
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(true);
   const [relinking, setRelinking] = useState(false);
@@ -268,7 +275,7 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
   const fetchPack = packFetcher || invApi.installPack;
   const load = useCallback(() => {
     setLoading(true);
-    fetchPack(alloc.id).then(setPack).catch(() => notify.error('Could not load install pack')).finally(() => setLoading(false));
+    fetchPack(alloc.id).then(setPack).catch(() => notify.error(t('inv.inst.pack_load_error', 'Could not load install pack'))).finally(() => setLoading(false));
   }, [alloc.id, fetchPack]);
   useEffect(() => { load(); }, [load]);
 
@@ -290,7 +297,7 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-install-pack-modal" onClick={onClose}>
       <div className="my-10 w-full max-w-2xl rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-          <div className="flex items-center gap-2"><ClipboardList size={18} className="text-slate-500" /><div><h3 className="font-bold text-slate-900">Install pack</h3><p className="text-xs text-slate-400">{pack?.visit?.customer_company_name}{pack?.visit?.customer_site ? ` · ${pack.visit.customer_site}` : ''}</p></div></div>
+          <div className="flex items-center gap-2"><ClipboardList size={18} className="text-slate-500" /><div><h3 className="font-bold text-slate-900">{t('inv.inst.pack_title', 'Install pack')}</h3><p className="text-xs text-slate-400">{pack?.visit?.customer_company_name}{pack?.visit?.customer_site ? ` · ${pack.visit.customer_site}` : ''}</p></div></div>
           <button onClick={onClose} className="text-slate-400" data-testid="inv-install-pack-close">✕</button>
         </div>
         <div className="max-h-[75vh] space-y-4 overflow-y-auto px-5 py-4">
@@ -431,18 +438,19 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
 
 // ───────────── Install action chooser ─────────────
 function InstallActions({ alloc, onClose, onSchedule, onInstall, onPack }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-[190] flex items-start justify-center overflow-y-auto bg-black/50 p-4" data-testid="inv-install-actions" onClick={onClose}>
       <div className="my-24 w-full max-w-sm rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-slate-200 px-5 py-3"><h3 className="font-bold text-slate-900">{alloc.serial_number}</h3><p className="text-xs text-slate-400">{alloc.customer_company_name}{alloc.customer_site ? ` · ${alloc.customer_site}` : ''}</p></div>
         <div className="px-5 py-4 text-sm space-y-1">
-          <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-semibold">{alloc.reference}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Planned</span><span className="font-semibold">{alloc.planned_install_date ? fmtDate(alloc.planned_install_date) : 'Unscheduled'}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">{t('inv.inst.reference', 'Reference')}</span><span className="font-semibold">{alloc.reference}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">{t('inv.inst.planned', 'Planned')}</span><span className="font-semibold">{alloc.planned_install_date ? fmtDate(alloc.planned_install_date) : t('inv.inst.unscheduled', 'Unscheduled')}</span></div>
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-3">
-          <Btn variant="secondary" onClick={onPack} data-testid="inv-install-actions-pack"><ClipboardList size={14} /> Install pack</Btn>
-          <Btn variant="secondary" onClick={onSchedule} data-testid="inv-install-actions-schedule"><CalendarDays size={14} /> {alloc.planned_install_date ? 'Reschedule' : 'Schedule'}</Btn>
-          <Btn onClick={onInstall} data-testid="inv-install-actions-install"><Wrench size={14} /> Install checks</Btn>
+          <Btn variant="secondary" onClick={onPack} data-testid="inv-install-actions-pack"><ClipboardList size={14} /> {t('inv.inst.pack', 'Install pack')}</Btn>
+          <Btn variant="secondary" onClick={onSchedule} data-testid="inv-install-actions-schedule"><CalendarDays size={14} /> {alloc.planned_install_date ? t('inv.inst.reschedule', 'Reschedule') : t('inv.inst.schedule', 'Schedule')}</Btn>
+          <Btn onClick={onInstall} data-testid="inv-install-actions-install"><Wrench size={14} /> {t('inv.inst.complete_checks', 'Install checks')}</Btn>
         </div>
       </div>
     </div>
@@ -454,6 +462,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const localKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export function Installations() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(null);
   const [view, setView] = useState('calendar');
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
@@ -487,29 +496,29 @@ export function Installations() {
     <div className="space-y-4" data-testid="inv-installations">
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Installations</h2>
-          <p className="text-sm text-slate-500">Logistics calendar for machines allocated from CRM orders. Schedule installs, then engineers complete <span className="font-semibold text-slate-600">install checks</span> via the Engineer App to activate the asset &amp; warranty.</p>
+          <h2 className="text-xl font-bold text-slate-900">{t('inv.inst.title', 'Installations')}</h2>
+          <p className="text-sm text-slate-500">{t('inv.inst.subtitle', 'Logistics calendar for machines allocated from CRM orders. Schedule installs, then engineers complete install checks via the Engineer App to activate the asset & warranty.')}</p>
         </div>
         <div className="ml-auto flex rounded-lg border border-slate-200 bg-white p-0.5" data-testid="inv-install-viewtoggle">
-          {[['calendar', 'Calendar', CalendarDays], ['list', 'List', List]].map(([v, l, Ic]) => (
+          {[['calendar', t('inv.inst.view_calendar', 'Calendar'), CalendarDays], ['list', t('inv.inst.view_list', 'List'), List]].map(([v, l, Ic]) => (
             <button key={v} onClick={() => setView(v)} data-testid={`inv-install-view-${v}`} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${view === v ? 'inv-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}><Ic size={14} /> {l}</button>
           ))}
         </div>
       </div>
 
       {rows === null ? <Spinner /> : view === 'list' ? (
-        rows.length === 0 ? <Card className="p-10 text-center text-slate-400" testId="inv-install-empty">Nothing awaiting installation.</Card> : (
+        rows.length === 0 ? <Card className="p-10 text-center text-slate-400" testId="inv-install-empty">{t('inv.inst.list_empty', 'Nothing awaiting installation.')}</Card> : (
           <Card testId="inv-install-table">
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Ref</th><th>Serial</th><th>Customer</th><th>Site</th><th>Planned</th><th></th></tr></thead>
+              <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">{t('inv.alloc.th_ref', 'Ref')}</th><th>{t('inv.alloc.th_serial', 'Serial')}</th><th>{t('inv.alloc.th_customer', 'Customer')}</th><th>{t('inv.alloc.th_site', 'Site')}</th><th>{t('inv.alloc.th_planned', 'Planned')}</th><th></th></tr></thead>
               <tbody>
                 {rows.map((a) => (
                   <tr key={a.id} className="border-b border-slate-100" data-testid={`inv-install-row-${a.reference}`}>
                     <td className="px-4 py-3 font-semibold text-[#0B3D91]">{a.reference}</td>
                     <td className="font-mono text-xs">{a.serial_number}</td>
                     <td>{a.customer_company_name}</td><td className="text-slate-500">{a.customer_site || '—'}</td>
-                    <td className={a.planned_install_date ? 'text-slate-600' : 'text-amber-600 font-semibold'}>{a.planned_install_date ? fmtDate(a.planned_install_date) : 'Unscheduled'}</td>
-                    <td className="pr-4 text-right"><div className="flex justify-end gap-2"><Btn variant="secondary" onClick={() => setPacking(a)} data-testid={`inv-install-pack-${a.reference}`}><ClipboardList size={13} /> Install pack</Btn><Btn variant="secondary" onClick={() => setScheduling(a)} data-testid={`inv-install-schedule-${a.reference}`}><CalendarDays size={13} /> {a.planned_install_date ? 'Reschedule' : 'Schedule'}</Btn><Btn onClick={() => setInstalling(a)} data-testid={`inv-install-open-${a.reference}`}><Wrench size={13} /> Install checks</Btn></div></td>
+                    <td className={a.planned_install_date ? 'text-slate-600' : 'text-amber-600 font-semibold'}>{a.planned_install_date ? fmtDate(a.planned_install_date) : t('inv.inst.unscheduled', 'Unscheduled')}</td>
+                    <td className="pr-4 text-right"><div className="flex justify-end gap-2"><Btn variant="secondary" onClick={() => setPacking(a)} data-testid={`inv-install-pack-${a.reference}`}><ClipboardList size={13} /> {t('inv.inst.pack', 'Install pack')}</Btn><Btn variant="secondary" onClick={() => setScheduling(a)} data-testid={`inv-install-schedule-${a.reference}`}><CalendarDays size={13} /> {a.planned_install_date ? t('inv.inst.reschedule', 'Reschedule') : t('inv.inst.schedule', 'Schedule')}</Btn><Btn onClick={() => setInstalling(a)} data-testid={`inv-install-open-${a.reference}`}><Wrench size={13} /> {t('inv.inst.complete_checks', 'Install checks')}</Btn></div></td>
                   </tr>
                 ))}
               </tbody>
@@ -521,7 +530,7 @@ export function Installations() {
           <Card className="p-4" testId="inv-install-calendar">
             <div className="mb-3 flex items-center gap-2">
               <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50" data-testid="inv-cal-prev"><ChevronLeft size={16} /></button>
-              <button onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)); }} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50" data-testid="inv-cal-today">Today</button>
+              <button onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)); }} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50" data-testid="inv-cal-today">{t('inv.inst.today', 'Today')}</button>
               <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50" data-testid="inv-cal-next"><ChevronRight size={16} /></button>
               <span className="ml-2 text-sm font-bold text-slate-900" data-testid="inv-cal-month">{monthLabel}</span>
             </div>
@@ -542,7 +551,7 @@ export function Installations() {
                           {a.customer_company_name || a.serial_number}
                         </button>
                       ))}
-                      {items.length > 3 && <div className="px-1 text-[10px] text-slate-400">+{items.length - 3} more</div>}
+                      {items.length > 3 && <div className="px-1 text-[10px] text-slate-400">{t('inv.inst.more', '+{{n}} more', { n: items.length - 3 })}</div>}
                     </div>
                   </div>
                 );
@@ -551,15 +560,15 @@ export function Installations() {
           </Card>
 
           <Card className="p-4" testId="inv-install-unscheduled">
-            <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-900"><Clock size={14} className="text-amber-500" /> To schedule</h3>
-            <p className="mb-3 text-xs text-slate-400">Allocated from CRM orders, awaiting an install date.</p>
-            {unscheduled.length === 0 ? <p className="py-6 text-center text-xs text-slate-400">All installs are scheduled.</p> : (
+            <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-900"><Clock size={14} className="text-amber-500" /> {t('inv.inst.to_schedule', 'To schedule')}</h3>
+            <p className="mb-3 text-xs text-slate-400">{t('inv.inst.to_schedule_note', 'Allocated from CRM orders, awaiting an install date.')}</p>
+            {unscheduled.length === 0 ? <p className="py-6 text-center text-xs text-slate-400">{t('inv.inst.all_scheduled', 'All installs are scheduled.')}</p> : (
               <div className="space-y-2">
                 {unscheduled.map((a) => (
                   <div key={a.id} className="rounded-lg border border-slate-200 p-2.5" data-testid={`inv-unscheduled-${a.reference}`}>
                     <p className="text-sm font-semibold text-slate-800 truncate">{a.customer_company_name}</p>
                     <p className="text-[11px] text-slate-400 truncate">{a.serial_number}{a.customer_site ? ` · ${a.customer_site}` : ''}</p>
-                    <Btn variant="secondary" className="mt-2 w-full" onClick={() => setScheduling(a)} data-testid={`inv-unscheduled-schedule-${a.reference}`}><CalendarPlus size={13} /> Schedule</Btn>
+                    <Btn variant="secondary" className="mt-2 w-full" onClick={() => setScheduling(a)} data-testid={`inv-unscheduled-schedule-${a.reference}`}><CalendarPlus size={13} /> {t('inv.inst.schedule', 'Schedule')}</Btn>
                   </div>
                 ))}
               </div>

@@ -61,35 +61,36 @@ const NAV = [
 
 // ─────────────────────────── Dashboard ───────────────────────────
 function Dashboard({ go }) {
+  const { t } = useTranslation();
   const [d, setD] = useState(null);
-  useEffect(() => { invApi.dashboard().then(setD).catch(() => notify.error('Could not load dashboard')); }, []);
+  useEffect(() => { invApi.dashboard().then(setD).catch(() => notify.error(t('inv.dash.load_error', 'Could not load dashboard'))); }, []);
   if (!d) return <Spinner />;
   const c = d.cards;
   return (
     <div className="space-y-5" data-testid="inv-dashboard">
-      <h2 className="text-xl font-bold text-slate-900">Distribution Dashboard</h2>
+      <h2 className="text-xl font-bold text-slate-900">{t('inv.dash.title', 'Distribution Dashboard')}</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Total orders" value={c.orders_total} testId="inv-card-orders" />
-        <StatCard label="Needs validation" value={c.needs_validation} tone="amber" testId="inv-card-validation" />
-        <StatCard label="Awaiting stock" value={c.awaiting_stock} tone="amber" testId="inv-card-awaiting" />
-        <StatCard label="Reserved" value={c.reserved} tone="green" testId="inv-card-reserved" />
-        <StatCard label="In transit" value={c.in_transit} tone="navy" testId="inv-card-transit" />
-        <StatCard label="Equipment units" value={c.units_total} testId="inv-card-units" />
-        <StatCard label="Provisional units" value={c.units_provisional} tone="amber" testId="inv-card-provisional" />
-        <StatCard label="Serialised units" value={c.units_serialised} tone="green" testId="inv-card-serialised" />
-        <StatCard label="Warehouses" value={c.warehouses} tone="slate" testId="inv-card-warehouses" />
+        <StatCard label={t('inv.dash.orders_total', 'Total orders')} value={c.orders_total} testId="inv-card-orders" />
+        <StatCard label={t('inv.dash.needs_validation', 'Needs validation')} value={c.needs_validation} tone="amber" testId="inv-card-validation" />
+        <StatCard label={t('inv.dash.awaiting_stock', 'Awaiting stock')} value={c.awaiting_stock} tone="amber" testId="inv-card-awaiting" />
+        <StatCard label={t('inv.dash.reserved', 'Reserved')} value={c.reserved} tone="green" testId="inv-card-reserved" />
+        <StatCard label={t('inv.dash.in_transit', 'In transit')} value={c.in_transit} tone="navy" testId="inv-card-transit" />
+        <StatCard label={t('inv.dash.units_total', 'Equipment units')} value={c.units_total} testId="inv-card-units" />
+        <StatCard label={t('inv.dash.units_provisional', 'Provisional units')} value={c.units_provisional} tone="amber" testId="inv-card-provisional" />
+        <StatCard label={t('inv.dash.units_serialised', 'Serialised units')} value={c.units_serialised} tone="green" testId="inv-card-serialised" />
+        <StatCard label={t('inv.dash.warehouses', 'Warehouses')} value={c.warehouses} tone="slate" testId="inv-card-warehouses" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card className="p-4" testId="inv-dash-country">
-          <h3 className="mb-3 text-sm font-bold text-slate-900">Orders by country</h3>
-          {d.by_country.length === 0 ? <p className="text-sm text-slate-400">No orders yet.</p> : d.by_country.map((r) => (
+          <h3 className="mb-3 text-sm font-bold text-slate-900">{t('inv.dash.by_country', 'Orders by country')}</h3>
+          {d.by_country.length === 0 ? <p className="text-sm text-slate-400">{t('inv.dash.no_orders', 'No orders yet.')}</p> : d.by_country.map((r) => (
             <div key={r.country} className="flex items-center gap-2 py-1 text-sm"><span className="w-16 font-semibold">{r.country}</span><div className="h-2 flex-1 rounded bg-slate-100"><div className="h-2 rounded bg-[#0B3D91]" style={{ width: `${Math.min(100, r.count * 20)}%` }} /></div><span className="tabular-nums text-slate-500">{r.count}</span></div>
           ))}
         </Card>
         <Card className="p-4" testId="inv-dash-recent">
-          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-bold text-slate-900">Recent orders</h3><button className="text-xs font-semibold text-[#0B3D91]" onClick={() => go('orders')}>View all →</button></div>
-          {d.recent_orders.length === 0 ? <p className="text-sm text-slate-400">No orders yet.</p> : d.recent_orders.map((o) => (
+          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-bold text-slate-900">{t('inv.dash.recent', 'Recent orders')}</h3><button className="text-xs font-semibold text-[#0B3D91]" onClick={() => go('orders')}>{t('inv.dash.view_all', 'View all →')}</button></div>
+          {d.recent_orders.length === 0 ? <p className="text-sm text-slate-400">{t('inv.dash.no_orders', 'No orders yet.')}</p> : d.recent_orders.map((o) => (
             <div key={o.id} className="flex items-center gap-2 border-b border-slate-100 py-2 text-sm last:border-0"><span className="font-semibold text-[#0B3D91]">{o.reference}</span><span className="truncate text-slate-600">{o.dealer_name}</span><span className="ml-auto text-xs text-slate-400">{statusLabel(o.status)}</span></div>
           ))}
         </Card>
@@ -100,6 +101,7 @@ function Dashboard({ go }) {
 
 // ─────────────────────────── Warehouses ───────────────────────────
 function Warehouses() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(null);
   const [form, setForm] = useState({ code: '', name: '', type: 'main', country: 'GB' });
   const [expanded, setExpanded] = useState(null);
@@ -111,8 +113,8 @@ function Warehouses() {
 
   const create = async () => {
     if (!form.code.trim() || !form.name.trim()) return;
-    try { await invApi.createWarehouse(form); notify.success('Warehouse created'); setForm({ code: '', name: '', type: 'main', country: 'GB' }); load(); }
-    catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); }
+    try { await invApi.createWarehouse(form); notify.success(t('inv.wh.created', 'Warehouse created')); setForm({ code: '', name: '', type: 'main', country: 'GB' }); load(); }
+    catch (e) { notify.error(e?.response?.data?.detail || t('inv.common.failed', 'Failed')); }
   };
   const toggle = async (id) => {
     if (expanded === id) { setExpanded(null); return; }
@@ -121,29 +123,29 @@ function Warehouses() {
   };
   const addLoc = async (id) => {
     if (!locForm.code.trim()) return;
-    await invApi.createLocation(id, locForm); notify.success('Location added'); setLocForm({ code: '', zone: '', aisle: '', rack: '', shelf: '', bin: '' });
+    await invApi.createLocation(id, locForm); notify.success(t('inv.wh.location_added', 'Location added')); setLocForm({ code: '', zone: '', aisle: '', rack: '', shelf: '', bin: '' });
     const d = await invApi.locations(id); setLocs((m) => ({ ...m, [id]: d.locations || [] })); load();
   };
 
   return (
     <div className="space-y-5" data-testid="inv-warehouses">
-      <h2 className="text-xl font-bold text-slate-900">Warehouses & Locations</h2>
+      <h2 className="text-xl font-bold text-slate-900">{t('inv.wh.title', 'Warehouses & Locations')}</h2>
       <Card className="p-4" testId="inv-wh-create">
-        <h3 className="mb-3 text-sm font-bold text-slate-900">Add warehouse</h3>
+        <h3 className="mb-3 text-sm font-bold text-slate-900">{t('inv.wh.add', 'Add warehouse')}</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label="Code" required><input className={inputCls} value={form.code} data-testid="inv-wh-code" onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} /></Field>
-          <Field label="Name" required><input className={inputCls} value={form.name} data-testid="inv-wh-name" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
-          <Field label="Type"><select className={inputCls} value={form.type} data-testid="inv-wh-type" onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>{['main', 'finished_goods', 'quarantine', 'returns', 'spare_parts', '3pl', 'dealer'].map((t) => <option key={t} value={t}>{statusLabel(t)}</option>)}</select></Field>
-          <Field label="Country"><select className={inputCls} value={form.country} data-testid="inv-wh-country" onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}>{['GB', 'FR', 'US'].map((t) => <option key={t} value={t}>{t}</option>)}</select></Field>
+          <Field label={t('inv.wh.code', 'Code')} required><input className={inputCls} value={form.code} data-testid="inv-wh-code" onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} /></Field>
+          <Field label={t('inv.wh.name', 'Name')} required><input className={inputCls} value={form.name} data-testid="inv-wh-name" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
+          <Field label={t('inv.wh.type', 'Type')}><select className={inputCls} value={form.type} data-testid="inv-wh-type" onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>{['main', 'finished_goods', 'quarantine', 'returns', 'spare_parts', '3pl', 'dealer'].map((t2) => <option key={t2} value={t2}>{statusLabel(t2)}</option>)}</select></Field>
+          <Field label={t('inv.wh.country', 'Country')}><select className={inputCls} value={form.country} data-testid="inv-wh-country" onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}>{['GB', 'FR', 'US'].map((t2) => <option key={t2} value={t2}>{t2}</option>)}</select></Field>
         </div>
-        <Btn className="mt-3" onClick={create} data-testid="inv-wh-submit"><Plus size={15} /> Add warehouse</Btn>
+        <Btn className="mt-3" onClick={create} data-testid="inv-wh-submit"><Plus size={15} /> {t('inv.wh.add', 'Add warehouse')}</Btn>
       </Card>
 
-      {rows === null ? <Spinner /> : rows.length === 0 ? <p className="text-sm text-slate-400">No warehouses yet.</p> : rows.map((w) => (
+      {rows === null ? <Spinner /> : rows.length === 0 ? <p className="text-sm text-slate-400">{t('inv.wh.none', 'No warehouses yet.')}</p> : rows.map((w) => (
         <Card key={w.id} className="p-4" testId={`inv-wh-row-${w.code}`}>
           <button className="flex w-full items-center gap-3 text-left" onClick={() => toggle(w.id)}>
             <Warehouse size={18} className="text-[#0B3D91]" />
-            <div><p className="font-semibold text-slate-900">{w.name}</p><p className="text-xs text-slate-400">{w.code} · {statusLabel(w.type)} · {w.country} · {w.location_count} locations</p></div>
+            <div><p className="font-semibold text-slate-900">{w.name}</p><p className="text-xs text-slate-400">{w.code} · {statusLabel(w.type)} · {w.country} · {w.location_count} {t('inv.wh.locations', 'locations')}</p></div>
             <ChevronRight size={16} className={`ml-auto text-slate-400 transition-transform ${expanded === w.id ? 'rotate-90' : ''}`} />
           </button>
           {expanded === w.id && (
@@ -153,7 +155,7 @@ function Warehouses() {
                   <Field key={k} label={statusLabel(k)}><input className={inputCls} value={locForm[k]} data-testid={`inv-loc-${k}`} onChange={(e) => setLocForm((f) => ({ ...f, [k]: e.target.value }))} /></Field>
                 ))}
               </div>
-              <Btn variant="secondary" className="mt-2" onClick={() => addLoc(w.id)} data-testid={`inv-loc-add-${w.code}`}><Plus size={14} /> Add location</Btn>
+              <Btn variant="secondary" className="mt-2" onClick={() => addLoc(w.id)} data-testid={`inv-loc-add-${w.code}`}><Plus size={14} /> {t('inv.wh.add_location', 'Add location')}</Btn>
               <div className="mt-3 flex flex-wrap gap-2">
                 {(locs[w.id] || []).map((l) => (
                   <span key={l.id} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-mono text-slate-700" data-testid={`inv-loc-chip-${l.code}`}><MapPin size={12} /> {l.code}</span>
@@ -169,6 +171,7 @@ function Warehouses() {
 
 // ─────────────────────────── Stock availability ───────────────────────────
 function StockAvailability({ warehouses }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(null);
   const [rec, setRec] = useState({ warehouse_id: warehouses[0]?.id || '', product_code: '', quantity: 1 });
 
@@ -176,29 +179,29 @@ function StockAvailability({ warehouses }) {
   useEffect(() => { load(); }, [load]);
 
   const receive = async () => {
-    if (!rec.warehouse_id || !rec.product_code.trim()) { notify.error('Warehouse + product code required'); return; }
-    try { await invApi.receiveStock({ ...rec, quantity: Number(rec.quantity) }); notify.success('Stock received'); setRec((r) => ({ ...r, product_code: '', quantity: 1 })); load(); }
-    catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); }
+    if (!rec.warehouse_id || !rec.product_code.trim()) { notify.error(t('inv.stock.required', 'Warehouse + product code required')); return; }
+    try { await invApi.receiveStock({ ...rec, quantity: Number(rec.quantity) }); notify.success(t('inv.stock.received', 'Stock received')); setRec((r) => ({ ...r, product_code: '', quantity: 1 })); load(); }
+    catch (e) { notify.error(e?.response?.data?.detail || t('inv.common.failed', 'Failed')); }
   };
   const whName = (id) => warehouses.find((w) => w.id === id)?.name || id;
 
   return (
     <div className="space-y-5" data-testid="inv-availability">
-      <h2 className="text-xl font-bold text-slate-900">Stock Availability</h2>
+      <h2 className="text-xl font-bold text-slate-900">{t('inv.stock.title', 'Stock Availability')}</h2>
       <Card className="p-4" testId="inv-receive">
-        <h3 className="mb-3 text-sm font-bold text-slate-900">Receive stock (quick seed)</h3>
+        <h3 className="mb-3 text-sm font-bold text-slate-900">{t('inv.stock.receive_title', 'Receive stock (quick seed)')}</h3>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[180px]"><Field label="Warehouse"><select className={inputCls} value={rec.warehouse_id} data-testid="inv-receive-wh" onChange={(e) => setRec((r) => ({ ...r, warehouse_id: e.target.value }))}><option value="">—</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field></div>
-          <div className="min-w-[140px]"><Field label="Product code"><input className={inputCls} value={rec.product_code} data-testid="inv-receive-code" onChange={(e) => setRec((r) => ({ ...r, product_code: e.target.value }))} /></Field></div>
-          <div className="w-24"><Field label="Qty"><input type="number" min="1" className={inputCls} value={rec.quantity} data-testid="inv-receive-qty" onChange={(e) => setRec((r) => ({ ...r, quantity: e.target.value }))} /></Field></div>
-          <Btn onClick={receive} data-testid="inv-receive-btn"><Truck size={15} /> Receive</Btn>
+          <div className="min-w-[180px]"><Field label={t('inv.stock.warehouse', 'Warehouse')}><select className={inputCls} value={rec.warehouse_id} data-testid="inv-receive-wh" onChange={(e) => setRec((r) => ({ ...r, warehouse_id: e.target.value }))}><option value="">—</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field></div>
+          <div className="min-w-[140px]"><Field label={t('inv.stock.product_code', 'Product code')}><input className={inputCls} value={rec.product_code} data-testid="inv-receive-code" onChange={(e) => setRec((r) => ({ ...r, product_code: e.target.value }))} /></Field></div>
+          <div className="w-24"><Field label={t('inv.stock.qty', 'Qty')}><input type="number" min="1" className={inputCls} value={rec.quantity} data-testid="inv-receive-qty" onChange={(e) => setRec((r) => ({ ...r, quantity: e.target.value }))} /></Field></div>
+          <Btn onClick={receive} data-testid="inv-receive-btn"><Truck size={15} /> {t('inv.stock.receive', 'Receive')}</Btn>
         </div>
       </Card>
 
-      {rows === null ? <Spinner /> : rows.length === 0 ? <Card className="p-8 text-center text-slate-400" testId="inv-stock-empty">No stock recorded yet.</Card> : (
+      {rows === null ? <Spinner /> : rows.length === 0 ? <Card className="p-8 text-center text-slate-400" testId="inv-stock-empty">{t('inv.stock.empty', 'No stock recorded yet.')}</Card> : (
         <Card testId="inv-stock-table">
           <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Product</th><th>Warehouse</th><th>On hand</th><th>Reserved</th><th>Available</th></tr></thead>
+            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">{t('inv.th.product', 'Product')}</th><th>{t('inv.th.warehouse', 'Warehouse')}</th><th>{t('inv.th.on_hand', 'On hand')}</th><th>{t('inv.th.reserved', 'Reserved')}</th><th>{t('inv.th.available', 'Available')}</th></tr></thead>
             <tbody>
               {rows.map((h) => (
                 <tr key={h.id} className="border-b border-slate-100" data-testid={`inv-stock-row-${h.product_code}`}>
@@ -219,6 +222,7 @@ function StockAvailability({ warehouses }) {
 
 // ─────────────────────────── Sage connection + capability discovery ───────────────────────────
 function SageConnection() {
+  const { t } = useTranslation();
   const [conn, setConn] = useState(null);
   const [form, setForm] = useState({ edition: 'standard', version: '', company: '', api_base: '', limitations: '' });
   const [caps, setCaps] = useState(null);
@@ -228,29 +232,29 @@ function SageConnection() {
     invApi.sageDiscover().then(setCaps).catch(() => {});
   }, []);
 
-  const save = async () => { try { const d = await invApi.saveSageConnection(form); setConn(d.connection); notify.success('Sage connection saved'); } catch (e) { notify.error('Failed'); } };
+  const save = async () => { try { const d = await invApi.saveSageConnection(form); setConn(d.connection); notify.success(t('inv.sage.saved', 'Sage connection saved')); } catch (e) { notify.error(t('inv.common.failed', 'Failed')); } };
 
   return (
     <div className="space-y-5" data-testid="inv-sage">
-      <h2 className="text-xl font-bold text-slate-900">Sage 200 Connection & Capability Discovery</h2>
+      <h2 className="text-xl font-bold text-slate-900">{t('inv.sage.title', 'Sage 200 Connection & Capability Discovery')}</h2>
       <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Credentials not yet configured — orders are entered manually. Save your Sage deployment details here so the integration can be wired the moment API access is provided. <strong>Write-back to Sage stays disabled by design.</strong>
+        {t('inv.sage.warn', 'Credentials not yet configured — orders are entered manually. Save your Sage deployment details here so the integration can be wired the moment API access is provided.')} <strong>{t('inv.sage.writeback', 'Write-back to Sage stays disabled by design.')}</strong>
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card className="p-4" testId="inv-sage-form">
-          <h3 className="mb-3 text-sm font-bold text-slate-900">Deployment details</h3>
+          <h3 className="mb-3 text-sm font-bold text-slate-900">{t('inv.sage.deployment', 'Deployment details')}</h3>
           <div className="space-y-3">
-            <Field label="Edition"><select className={inputCls} value={form.edition} data-testid="inv-sage-edition" onChange={(e) => setForm((f) => ({ ...f, edition: e.target.value }))}><option value="standard">Standard</option><option value="professional">Professional</option></select></Field>
-            <Field label="Version"><input className={inputCls} value={form.version || ''} data-testid="inv-sage-version" onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} /></Field>
-            <Field label="Connected company"><input className={inputCls} value={form.company || ''} data-testid="inv-sage-company" onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} /></Field>
-            <Field label="API base URL"><input className={inputCls} value={form.api_base || ''} placeholder="https://api.columbus.sage.com/uk/sage200…" data-testid="inv-sage-base" onChange={(e) => setForm((f) => ({ ...f, api_base: e.target.value }))} /></Field>
-            <Field label="Known limitations"><input className={inputCls} value={form.limitations || ''} data-testid="inv-sage-limits" onChange={(e) => setForm((f) => ({ ...f, limitations: e.target.value }))} /></Field>
+            <Field label={t('inv.sage.edition', 'Edition')}><select className={inputCls} value={form.edition} data-testid="inv-sage-edition" onChange={(e) => setForm((f) => ({ ...f, edition: e.target.value }))}><option value="standard">{t('inv.sage.standard', 'Standard')}</option><option value="professional">{t('inv.sage.professional', 'Professional')}</option></select></Field>
+            <Field label={t('inv.sage.version', 'Version')}><input className={inputCls} value={form.version || ''} data-testid="inv-sage-version" onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} /></Field>
+            <Field label={t('inv.sage.company', 'Connected company')}><input className={inputCls} value={form.company || ''} data-testid="inv-sage-company" onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} /></Field>
+            <Field label={t('inv.sage.api_base', 'API base URL')}><input className={inputCls} value={form.api_base || ''} placeholder="https://api.columbus.sage.com/uk/sage200…" data-testid="inv-sage-base" onChange={(e) => setForm((f) => ({ ...f, api_base: e.target.value }))} /></Field>
+            <Field label={t('inv.sage.limitations', 'Known limitations')}><input className={inputCls} value={form.limitations || ''} data-testid="inv-sage-limits" onChange={(e) => setForm((f) => ({ ...f, limitations: e.target.value }))} /></Field>
           </div>
-          <Btn className="mt-3" onClick={save} data-testid="inv-sage-save"><PlugZap size={15} /> Save connection</Btn>
-          {conn && <p className="mt-2 text-xs text-slate-400">Auth status: {conn.auth_status}</p>}
+          <Btn className="mt-3" onClick={save} data-testid="inv-sage-save"><PlugZap size={15} /> {t('inv.sage.save', 'Save connection')}</Btn>
+          {conn && <p className="mt-2 text-xs text-slate-400">{t('inv.sage.auth_status', 'Auth status:')} {conn.auth_status}</p>}
         </Card>
         <Card className="p-4" testId="inv-sage-caps">
-          <h3 className="mb-3 text-sm font-bold text-slate-900">Capability discovery</h3>
+          <h3 className="mb-3 text-sm font-bold text-slate-900">{t('inv.sage.caps', 'Capability discovery')}</h3>
           {!caps ? <Spinner /> : (
             <div className="space-y-2 text-sm">
               <p className="text-xs text-slate-400">{caps.message}</p>
@@ -270,16 +274,17 @@ function SageConnection() {
 
 // ─────────────────────────── Field ownership matrix ───────────────────────────
 function FieldOwnership() {
+  const { t } = useTranslation();
   const [d, setD] = useState(null);
   useEffect(() => { invApi.fieldOwnership().then(setD).catch(() => {}); }, []);
   if (!d) return <Spinner />;
   return (
     <div className="space-y-4" data-testid="inv-field-ownership">
-      <h2 className="text-xl font-bold text-slate-900">System-of-Record — Field Ownership Matrix</h2>
-      <p className="text-sm text-slate-500">Sage 200 stays authoritative for commercial/accounting fields; PulseFitness.ai owns the operational workflow. Sage data is never overwritten without an approved endpoint.</p>
+      <h2 className="text-xl font-bold text-slate-900">{t('inv.fo.title', 'System-of-Record — Field Ownership Matrix')}</h2>
+      <p className="text-sm text-slate-500">{t('inv.fo.intro', 'Sage 200 stays authoritative for commercial/accounting fields; PulseFitness.ai owns the operational workflow. Sage data is never overwritten without an approved endpoint.')}</p>
       <Card testId="inv-fo-table">
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">Field</th><th>Record</th><th>Authoritative</th><th>Direction</th><th>Override</th><th>Reconciliation</th></tr></thead>
+          <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">{t('inv.fo.field', 'Field')}</th><th>{t('inv.fo.record', 'Record')}</th><th>{t('inv.fo.authoritative', 'Authoritative')}</th><th>{t('inv.fo.direction', 'Direction')}</th><th>{t('inv.fo.override', 'Override')}</th><th>{t('inv.fo.reconciliation', 'Reconciliation')}</th></tr></thead>
           <tbody>
             {d.matrix.map((r, i) => (
               <tr key={i} className="border-b border-slate-100" data-testid={`inv-fo-row-${i}`}>
@@ -295,7 +300,7 @@ function FieldOwnership() {
         </table>
       </Card>
       <Card className="p-4" testId="inv-fo-states">
-        <h3 className="mb-2 text-sm font-bold text-slate-900">Sage posting states</h3>
+        <h3 className="mb-2 text-sm font-bold text-slate-900">{t('inv.fo.posting_states', 'Sage posting states')}</h3>
         <div className="flex flex-wrap gap-2">{d.sage_posting_states.map((s) => <span key={s} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{s}</span>)}</div>
       </Card>
     </div>
@@ -304,6 +309,7 @@ function FieldOwnership() {
 
 // ─────────────────────────── Settings ───────────────────────────
 function LogisticsLogins() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState(null);
   const [form, setForm] = useState({ full_name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -311,48 +317,48 @@ function LogisticsLogins() {
   useEffect(() => { load(); }, []);
   const create = async (e) => {
     e.preventDefault();
-    if (!form.email || form.password.length < 8) { notify.error('Enter an email and a password of at least 8 characters'); return; }
+    if (!form.email || form.password.length < 8) { notify.error(t('inv.logi.validation', 'Enter an email and a password of at least 8 characters')); return; }
     setBusy(true);
-    try { await invApi.createLogisticsUser(form); notify.success('Logistics login created'); setForm({ full_name: '', email: '', password: '' }); load(); }
-    catch (e2) { notify.error(e2?.response?.data?.detail || 'Could not create login'); }
+    try { await invApi.createLogisticsUser(form); notify.success(t('inv.logi.created_ok', 'Logistics login created')); setForm({ full_name: '', email: '', password: '' }); load(); }
+    catch (e2) { notify.error(e2?.response?.data?.detail || t('inv.logi.could_not', 'Could not create login')); }
     finally { setBusy(false); }
   };
   const toggle = async (u) => {
     const next = u.status === 'active' ? 'disabled' : 'active';
-    try { await invApi.setLogisticsUserStatus(u.id, next); notify.success(next === 'active' ? 'Re-activated' : 'Disabled'); load(); }
-    catch { notify.error('Failed'); }
+    try { await invApi.setLogisticsUserStatus(u.id, next); notify.success(next === 'active' ? t('inv.logi.reactivated', 'Re-activated') : t('inv.logi.disabled_ok', 'Disabled')); load(); }
+    catch { notify.error(t('inv.common.failed', 'Failed')); }
   };
   const resetPw = async (u) => {
-    const pw = window.prompt(`New password for ${u.email} (min 8 chars):`);
+    const pw = window.prompt(t('inv.logi.pw_prompt', 'New password for {{email}} (min 8 chars):', { email: u.email }));
     if (!pw) return;
-    try { await invApi.resetLogisticsPassword(u.id, pw); notify.success('Password reset'); }
-    catch (e2) { notify.error(e2?.response?.data?.detail || 'Failed'); }
+    try { await invApi.resetLogisticsPassword(u.id, pw); notify.success(t('inv.logi.pw_reset', 'Password reset')); }
+    catch (e2) { notify.error(e2?.response?.data?.detail || t('inv.common.failed', 'Failed')); }
   };
   return (
     <div className="space-y-5" data-testid="inv-logistics-logins">
       <Card className="p-4">
-        <div className="mb-3 flex items-center gap-2"><UserPlus size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900">Add a logistics team login</h3></div>
-        <p className="mb-3 text-sm text-slate-500">Install-team members sign in at <span className="font-mono text-slate-700">/login</span> and land straight on the Logistics portal — they only see upcoming installs and their install packs.</p>
+        <div className="mb-3 flex items-center gap-2"><UserPlus size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900">{t('inv.logi.add_title', 'Add a logistics team login')}</h3></div>
+        <p className="mb-3 text-sm text-slate-500">{t('inv.logi.add_desc', 'Install-team members sign in at /login and land straight on the Logistics portal — they only see upcoming installs and their install packs.')}</p>
         <form onSubmit={create} className="grid gap-3 sm:grid-cols-4">
-          <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Full name" className={inputCls} data-testid="inv-logistics-name" />
-          <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" type="email" className={inputCls} data-testid="inv-logistics-email" />
-          <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Password (min 8)" type="text" className={inputCls} data-testid="inv-logistics-password" />
-          <Btn type="submit" disabled={busy} data-testid="inv-logistics-create"><UserPlus size={14} /> {busy ? 'Creating…' : 'Create login'}</Btn>
+          <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder={t('inv.logi.full_name', 'Full name')} className={inputCls} data-testid="inv-logistics-name" />
+          <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('inv.logi.email', 'Email')} type="email" className={inputCls} data-testid="inv-logistics-email" />
+          <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={t('inv.logi.password', 'Password (min 8)')} type="text" className={inputCls} data-testid="inv-logistics-password" />
+          <Btn type="submit" disabled={busy} data-testid="inv-logistics-create"><UserPlus size={14} /> {busy ? t('inv.logi.creating', 'Creating…') : t('inv.logi.create', 'Create login')}</Btn>
         </form>
       </Card>
       <Card className="p-0">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3"><Users size={16} className="text-slate-500" /><h3 className="font-bold text-slate-900">Logistics logins</h3></div>
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3"><Users size={16} className="text-slate-500" /><h3 className="font-bold text-slate-900">{t('inv.logi.list_title', 'Logistics logins')}</h3></div>
         {users === null ? <div className="p-6"><Spinner /></div> : users.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-400">No logistics logins yet.</p>
+          <p className="px-4 py-6 text-sm text-slate-400">{t('inv.logi.none', 'No logistics logins yet.')}</p>
         ) : (
           <div className="divide-y divide-slate-100" data-testid="inv-logistics-users">
             {users.map((u) => (
               <div key={u.id} className="flex items-center justify-between px-4 py-3">
                 <div><p className="text-sm font-semibold text-slate-800">{u.full_name || u.email}</p><p className="text-xs text-slate-400">{u.email}</p></div>
                 <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${u.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{u.status === 'active' ? 'Active' : 'Disabled'}</span>
-                  <button onClick={() => resetPw(u)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`inv-logistics-reset-${u.email}`}><KeyRound size={12} /> Reset</button>
-                  <button onClick={() => toggle(u)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`inv-logistics-toggle-${u.email}`}><Power size={12} /> {u.status === 'active' ? 'Disable' : 'Enable'}</button>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${u.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{u.status === 'active' ? t('inv.logi.active', 'Active') : t('inv.logi.disabled', 'Disabled')}</span>
+                  <button onClick={() => resetPw(u)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`inv-logistics-reset-${u.email}`}><KeyRound size={12} /> {t('inv.logi.reset', 'Reset')}</button>
+                  <button onClick={() => toggle(u)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`inv-logistics-toggle-${u.email}`}><Power size={12} /> {u.status === 'active' ? t('inv.logi.disable', 'Disable') : t('inv.logi.enable', 'Enable')}</button>
                 </div>
               </div>
             ))}
@@ -364,16 +370,17 @@ function LogisticsLogins() {
 }
 
 function SettingsView({ warehouses, initialTab = 'general' }) {
+  const { t } = useTranslation();
   const SETTINGS_TABS = [
-    { id: 'general', label: 'General' },
-    { id: 'logistics-logins', label: 'Logistics logins' },
-    { id: 'sage', label: 'Sage 200 Connection' },
-    { id: 'field-ownership', label: 'Field Ownership' },
+    { id: 'general', label: t('inv.set.tab_general', 'General') },
+    { id: 'logistics-logins', label: t('inv.set.tab_logistics', 'Logistics logins') },
+    { id: 'sage', label: t('inv.set.tab_sage', 'Sage 200 Connection') },
+    { id: 'field-ownership', label: t('inv.set.tab_field', 'Field Ownership') },
   ];
-  const [tab, setTab] = useState(SETTINGS_TABS.some((t) => t.id === initialTab) ? initialTab : 'general');
+  const [tab, setTab] = useState(SETTINGS_TABS.some((t2) => t2.id === initialTab) ? initialTab : 'general');
   const [s, setS] = useState(null);
   useEffect(() => { invApi.settings().then(setS).catch(() => {}); }, []);
-  const save = async (patch) => { try { const d = await invApi.saveSettings(patch); setS(d); notify.success('Saved'); } catch (e) { notify.error('Failed'); } };
+  const save = async (patch) => { try { const d = await invApi.saveSettings(patch); setS(d); notify.success(t('inv.set.saved', 'Saved')); } catch (e) { notify.error(t('inv.common.failed', 'Failed')); } };
   const Toggle = ({ k, label }) => (
     <label className="flex items-center justify-between border-b border-slate-100 py-2.5" data-testid={`inv-setting-${k}`}>
       <span className="text-sm text-slate-700">{label}</span>
@@ -383,16 +390,16 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
   return (
     <div className="space-y-5" data-testid="inv-settings">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Settings</h2>
-        <p className="text-sm text-slate-500">Distribution rules, plus the occasional Sage 200 connection and field-ownership configuration.</p>
+        <h2 className="text-xl font-bold text-slate-900">{t('inv.set.title', 'Settings')}</h2>
+        <p className="text-sm text-slate-500">{t('inv.set.subtitle', 'Distribution rules, plus the occasional Sage 200 connection and field-ownership configuration.')}</p>
       </div>
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" data-testid="inv-settings-tabs">
-        {SETTINGS_TABS.map((t) => {
-          const on = t.id === tab;
+        {SETTINGS_TABS.map((t2) => {
+          const on = t2.id === tab;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} data-testid={`inv-settings-tab-${t.id}`}
+            <button key={t2.id} onClick={() => setTab(t2.id)} data-testid={`inv-settings-tab-${t2.id}`}
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'inv-active text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              {t.label}
+              {t2.label}
             </button>
           );
         })}
@@ -402,20 +409,20 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
         !s ? <Spinner /> : (
           <div className="space-y-5">
             <Card className="p-4">
-              <Toggle k="sage_integration_enabled" label="Sage 200 integration enabled" />
-              <Toggle k="automatic_order_import" label="Automatic order import from Sage" />
-              <Toggle k="qc_required" label="Quality control required before dispatch" />
-              <Toggle k="dealer_receipt_required" label="Dealer receipt confirmation required" />
-              <Toggle k="dealer_allocation_required" label="Dealer must allocate to a customer" />
+              <Toggle k="sage_integration_enabled" label={t('inv.set.sage_enabled', 'Sage 200 integration enabled')} />
+              <Toggle k="automatic_order_import" label={t('inv.set.auto_import', 'Automatic order import from Sage')} />
+              <Toggle k="qc_required" label={t('inv.set.qc_required', 'Quality control required before dispatch')} />
+              <Toggle k="dealer_receipt_required" label={t('inv.set.dealer_receipt', 'Dealer receipt confirmation required')} />
+              <Toggle k="dealer_allocation_required" label={t('inv.set.dealer_alloc', 'Dealer must allocate to a customer')} />
               <div className="grid grid-cols-2 gap-3 pt-3 sm:grid-cols-3">
-                <Field label="Default warehouse"><select className={inputCls} value={s.default_warehouse_id || ''} data-testid="inv-setting-default-wh" onChange={(e) => save({ default_warehouse_id: e.target.value })}><option value="">—</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
-                <Field label="Currency display"><select className={inputCls} value={s.currency_display} data-testid="inv-setting-currency" onChange={(e) => save({ currency_display: e.target.value })}>{['GBP', 'EUR', 'USD'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-                <Field label="Warranty activation rule"><select className={inputCls} value={s.warranty_activation_rule} data-testid="inv-setting-warranty" onChange={(e) => save({ warranty_activation_rule: e.target.value })}>{['dispatch_date', 'dealer_receipt_date', 'delivery_date', 'installation_date', 'commissioning_date', 'invoice_date'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
+                <Field label={t('inv.set.default_wh', 'Default warehouse')}><select className={inputCls} value={s.default_warehouse_id || ''} data-testid="inv-setting-default-wh" onChange={(e) => save({ default_warehouse_id: e.target.value })}><option value="">—</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
+                <Field label={t('inv.set.currency_display', 'Currency display')}><select className={inputCls} value={s.currency_display} data-testid="inv-setting-currency" onChange={(e) => save({ currency_display: e.target.value })}>{['GBP', 'EUR', 'USD'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+                <Field label={t('inv.set.warranty_rule', 'Warranty activation rule')}><select className={inputCls} value={s.warranty_activation_rule} data-testid="inv-setting-warranty" onChange={(e) => save({ warranty_activation_rule: e.target.value })}>{['dispatch_date', 'dealer_receipt_date', 'delivery_date', 'installation_date', 'commissioning_date', 'invoice_date'].map((c) => <option key={c} value={c}>{statusLabel(c)}</option>)}</select></Field>
               </div>
             </Card>
             <Card className="p-4" testId="inv-country-profiles">
-              <h3 className="mb-2 text-sm font-bold text-slate-900">Country profiles</h3>
-              <table className="w-full text-sm"><thead><tr className="text-left text-xs uppercase text-slate-400"><th className="pb-2">Country</th><th>Language</th><th>Currency</th><th>Units</th><th>Date format</th></tr></thead>
+              <h3 className="mb-2 text-sm font-bold text-slate-900">{t('inv.set.country_profiles', 'Country profiles')}</h3>
+              <table className="w-full text-sm"><thead><tr className="text-left text-xs uppercase text-slate-400"><th className="pb-2">{t('inv.set.cp_country', 'Country')}</th><th>{t('inv.set.cp_language', 'Language')}</th><th>{t('inv.set.cp_currency', 'Currency')}</th><th>{t('inv.set.cp_units', 'Units')}</th><th>{t('inv.set.cp_date', 'Date format')}</th></tr></thead>
                 <tbody>{(s.country_profiles || []).map((c) => <tr key={c.code} className="border-t border-slate-100"><td className="py-2 font-semibold">{c.name}</td><td>{c.language}</td><td>{c.currency}</td><td>{c.measurement}</td><td>{c.date_format}</td></tr>)}</tbody>
               </table>
             </Card>
@@ -428,34 +435,36 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
 
 // ─────────────────────────── "Coming soon" placeholder ───────────────────────────
 function ComingSoon({ label }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center" data-testid="inv-coming-soon">
       <Boxes size={40} className="mb-3 text-slate-300" />
       <h2 className="text-lg font-bold text-slate-700">{label}</h2>
-      <p className="mt-1 max-w-md text-sm text-slate-400">This part of the distribution lifecycle is being delivered in a later phase. The foundation, orders, stock, serial capture and Sage scaffold are live now.</p>
+      <p className="mt-1 max-w-md text-sm text-slate-400">{t('inv.soon.desc', 'This part of the distribution lifecycle is being delivered in a later phase. The foundation, orders, stock, serial capture and Sage scaffold are live now.')}</p>
     </div>
   );
 }
 
 // ─────────────────────────── Shell ───────────────────────────
 const FULFILMENT_STAGES = [
-  { key: 'receiving', label: 'Receiving', stage: 'receiving', title: 'Receiving', Icon: Truck },
-  { key: 'picking', label: 'Picking', stage: 'picking', title: 'Picking Queue', Icon: PackageSearch },
-  { key: 'quality', label: 'Quality Control', stage: 'qc', title: 'Quality Control Queue', Icon: ShieldCheck },
-  { key: 'packing', label: 'Packing', stage: 'packing', title: 'Packing Queue', Icon: ScanLine },
-  { key: 'dispatch', label: 'Dispatch', stage: 'dispatch', title: 'Dispatch Queue', Icon: Truck },
+  { key: 'receiving', labelKey: 'inv.ful.stage_receiving', label: 'Receiving', stage: 'receiving', titleKey: 'inv.ful.title_receiving', title: 'Receiving', Icon: Truck },
+  { key: 'picking', labelKey: 'inv.ful.stage_picking', label: 'Picking', stage: 'picking', titleKey: 'inv.ful.title_picking', title: 'Picking Queue', Icon: PackageSearch },
+  { key: 'quality', labelKey: 'inv.ful.stage_quality', label: 'Quality Control', stage: 'qc', titleKey: 'inv.ful.title_quality', title: 'Quality Control Queue', Icon: ShieldCheck },
+  { key: 'packing', labelKey: 'inv.ful.stage_packing', label: 'Packing', stage: 'packing', titleKey: 'inv.ful.title_packing', title: 'Packing Queue', Icon: ScanLine },
+  { key: 'dispatch', labelKey: 'inv.ful.stage_dispatch', label: 'Dispatch', stage: 'dispatch', titleKey: 'inv.ful.title_dispatch', title: 'Dispatch Queue', Icon: Truck },
 ];
 const FULFILMENT_KEYS = FULFILMENT_STAGES.map((s) => s.key);
 const SETTINGS_KEYS = ['sage', 'field-ownership', 'sage-orders'];
 
 function Fulfilment({ initialStage = 'receiving' }) {
+  const { t } = useTranslation();
   const [active, setActive] = useState(FULFILMENT_KEYS.includes(initialStage) ? initialStage : 'receiving');
   const st = FULFILMENT_STAGES.find((s) => s.key === active) || FULFILMENT_STAGES[0];
   return (
     <div className="space-y-4" data-testid="inv-fulfilment">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Fulfilment</h2>
-        <p className="text-sm text-slate-500">Work the warehouse pipeline end to end — receive, pick, QC, pack and dispatch.</p>
+        <h2 className="text-xl font-bold text-slate-900">{t('inv.ful.title', 'Fulfilment')}</h2>
+        <p className="text-sm text-slate-500">{t('inv.ful.subtitle', 'Work the warehouse pipeline end to end — receive, pick, QC, pack and dispatch.')}</p>
       </div>
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" data-testid="inv-fulfilment-tabs">
         {FULFILMENT_STAGES.map((s, i) => {
@@ -468,12 +477,12 @@ function Fulfilment({ initialStage = 'receiving' }) {
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${on ? 'inv-active text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${on ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-600'}`}>{i + 1}</span>
-              <s.Icon size={14} /> {s.label}
+              <s.Icon size={14} /> {t(s.labelKey, s.label)}
             </button>
           );
         })}
       </div>
-      <WarehouseQueue key={st.stage} stage={st.stage} title={st.title} />
+      <WarehouseQueue key={st.stage} stage={st.stage} title={t(st.titleKey, st.title)} />
     </div>
   );
 }
@@ -503,7 +512,7 @@ export default function InventoryDistribution() {
   const item = findItem();
 
   const render = () => {
-    if (item && !item.live) return <ComingSoon label={item.label} />;
+    if (item && !item.live) return <ComingSoon label={t(`invnav.${item.id}`, item.label)} />;
     switch (section) {
       case 'dashboard': return <Dashboard go={go} />;
       case 'sage-orders': return <SettingsView warehouses={warehouses} initialTab="sage" />;
@@ -523,8 +532,8 @@ export default function InventoryDistribution() {
       case 'service-desks': return isPulseSide ? <DealerServiceDesks /> : (
         <div className="flex flex-col items-center justify-center py-24 text-center" data-testid="inv-service-desks-forbidden">
           <ShieldCheck className="w-9 h-9 text-slate-300 mb-2" />
-          <p className="text-slate-700 font-semibold">Not available</p>
-          <p className="text-sm text-slate-400 mt-1 max-w-sm">Dealer Desk Setup is managed by the Pulse team. Contact your Pulse account manager for changes to service-desk coverage or routing.</p>
+          <p className="text-slate-700 font-semibold">{t('inv.desks.forbidden_title', 'Not available')}</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-sm">{t('inv.desks.forbidden_body', 'Dealer Desk Setup is managed by the Pulse team. Contact your Pulse account manager for changes to service-desk coverage or routing.')}</p>
         </div>
       );
       case 'intel-dashboard': return <IntelDashboard go={go} />;
@@ -536,7 +545,7 @@ export default function InventoryDistribution() {
       case 'sage': return <SettingsView warehouses={warehouses} initialTab="sage" />;
       case 'field-ownership': return <SettingsView warehouses={warehouses} initialTab="field-ownership" />;
       case 'settings': return <SettingsView warehouses={warehouses} initialTab="general" />;
-      default: return <ComingSoon label={item?.label || 'Section'} />;
+      default: return <ComingSoon label={item ? t(`invnav.${item.id}`, item.label) : 'Section'} />;
     }
   };
 
@@ -563,8 +572,8 @@ export default function InventoryDistribution() {
               <img src="/brand/pulse-mark.svg" alt="Pulse Fitness" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
             </div>
             <div>
-              <div className="text-sm font-bold text-slate-900 tracking-tight">Inventory &amp; Distribution</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">Dealer distribution</div>
+              <div className="text-sm font-bold text-slate-900 tracking-tight">{t('inv.brand.title', 'Inventory & Distribution')}</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">{t('inv.brand.sub', 'Dealer distribution')}</div>
             </div>
           </div>
           <button
@@ -582,7 +591,7 @@ export default function InventoryDistribution() {
         <nav className="flex-1 p-3 overflow-y-auto" data-testid="inv-nav">
           {visibleNav.map((g) => (
             <div key={g.group}>
-              <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold first:pt-1">{g.group}</p>
+              <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold first:pt-1">{t(`invnav.grp_${g.group.toLowerCase()}`, g.group)}</p>
               {g.items.map((it) => {
                 const active = it.id === section || (it.id === 'fulfilment' && FULFILMENT_KEYS.includes(section)) || (it.id === 'settings' && SETTINGS_KEYS.includes(section));
                 return (
@@ -623,7 +632,7 @@ export default function InventoryDistribution() {
               className="w-full justify-start text-slate-600 hover:text-slate-900"
               data-testid="inv-back-to-master-admin"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Master Admin
+              <ArrowLeft className="w-4 h-4 mr-2" /> {t('inv.common.back_master', 'Back to Master Admin')}
             </Button>
           )}
           <Button
@@ -632,7 +641,7 @@ export default function InventoryDistribution() {
             className="w-full justify-start text-slate-600 hover:text-slate-900"
             data-testid="inv-logout"
           >
-            <LogOut className="w-4 h-4 mr-2" /> Log out
+            <LogOut className="w-4 h-4 mr-2" /> {t('inv.common.logout', 'Log out')}
           </Button>
         </div>
       </aside>
@@ -649,7 +658,7 @@ export default function InventoryDistribution() {
           >
             <Menu size={18} />
           </button>
-          <div className="text-sm font-bold text-slate-900 truncate">{item?.label || 'Inventory'}</div>
+          <div className="text-sm font-bold text-slate-900 truncate">{item ? t(`invnav.${item.id}`, item.label) : t('brand.title', 'Inventory')}</div>
           <div className="w-9" aria-hidden />
         </div>
         {render()}
