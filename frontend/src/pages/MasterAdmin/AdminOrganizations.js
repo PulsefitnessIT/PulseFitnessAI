@@ -1881,7 +1881,13 @@ useEffect(() => {
    const addOrg = (filteredOrgs || []).find(o => o.id === showAddUser);
    const orgModulesCfg = (addOrg?.modules) || {};
    const orgEnabledList = Array.isArray(addOrg?.enabled_modules) ? addOrg.enabled_modules : [];
-   const MODULES = [
+   const isModOrg = String(addOrg?.account_type || '').toLowerCase().startsWith('mod_') || !!addOrg?.is_mod;
+   const MODULES = isModOrg ? [
+     { key: 'operations',   label: 'Operations Portal',  desc: 'Equipment, faults, PPM, suppliers' },
+     { key: 'mod_console',  label: 'MOD Console & ASER', desc: 'MOD console + ASER reporting' },
+     { key: 'mod_faults',   label: 'Fault Reporting',    desc: 'Service-personnel fault logging' },
+     { key: 'mod_equipment', label: 'Equipment Register', desc: 'Per-site equipment registers' },
+   ] : [
      { key: 'operations', label: 'Operations', desc: 'Service desk, equipment, faults' },
      { key: 'memberships', label: 'Memberships', desc: 'Members, classes, billing' },
      { key: 'marketing',  label: 'Marketing',   desc: 'Campaigns, segments, image library' },
@@ -1894,7 +1900,7 @@ useEffect(() => {
      return k === 'operations';
    };
    const overrides = userForm.module_overrides || {};
-   const visible = MODULES.filter(m => isOrgEnabled(m.key));
+   const visible = isModOrg ? MODULES : MODULES.filter(m => isOrgEnabled(m.key));
    if (visible.length === 0) {
      return (
        <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3" data-testid="add-user-permissions-empty">
@@ -2204,7 +2210,13 @@ useEffect(() => {
   const orgForUser = (filteredOrgs || []).find(o => o.id === editingUser.organization_id);
   const orgModulesCfg = (orgForUser?.modules) || {};
   const orgEnabledList = Array.isArray(orgForUser?.enabled_modules) ? orgForUser.enabled_modules : [];
-  const MODULES = [
+  const isModOrg = String(orgForUser?.account_type || '').toLowerCase().startsWith('mod_') || !!orgForUser?.is_mod;
+  const MODULES = isModOrg ? [
+    { key: 'operations',   label: 'Operations Portal',  desc: 'Equipment, faults, PPM, suppliers' },
+    { key: 'mod_console',  label: 'MOD Console & ASER', desc: 'MOD console + ASER reporting' },
+    { key: 'mod_faults',   label: 'Fault Reporting',    desc: 'Service-personnel fault logging' },
+    { key: 'mod_equipment', label: 'Equipment Register', desc: 'Per-site equipment registers' },
+  ] : [
     { key: 'operations', label: 'Operations', desc: 'Service desk, equipment, faults' },
     { key: 'memberships', label: 'Memberships', desc: 'Members, classes, billing' },
     { key: 'marketing',  label: 'Marketing',   desc: 'Campaigns, segments, image library' },
@@ -2217,7 +2229,7 @@ useEffect(() => {
     return k === 'operations';
   };
   const overrides = editingUser.module_overrides || {};
-  const visible = MODULES.filter(m => isOrgEnabled(m.key));
+  const visible = isModOrg ? MODULES : MODULES.filter(m => isOrgEnabled(m.key));
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 space-y-2" data-testid="edit-user-permissions">
       <div>

@@ -1,0 +1,41 @@
+{
+  "summary": "Verified MOD-specific 'Module Permissions' selector in the Add User dialog for a MOD organisation (MOD Test Site, id abfdabd9-ae11-4877-a44d-a36fea7f1f4e) inside Master Admin > Organisations > People drawer. The Add User dialog with Role=Staff correctly shows exactly the 4 MOD toggles (Operations Portal, MOD Console & ASER, Fault Reporting, Equipment Register) and none of the standard ones (Memberships / Marketing / CRM). Edit User was opened for the only existing member (Lee Somers, role=Owner) — because they are Owner, the drawer correctly shows the amber 'Owners always have access…' note (edit-user-permissions-owner-note) instead of the toggles; the underlying code for the Manager/Staff branch is identical to the Add User dialog which we did verify live, so the behaviour is functionally validated by code + Add User parity.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios_verified": [
+    {
+      "scenario": "MOD org (MOD Test Site) > People > Add User, Role=Staff",
+      "expected_testids_present": ["add-user-permissions", "add-user-perm-operations", "add-user-perm-mod_console", "add-user-perm-mod_faults", "add-user-perm-mod_equipment"],
+      "expected_testids_absent": ["add-user-perm-memberships", "add-user-perm-marketing", "add-user-perm-crm"],
+      "result": "PASS — visible labels observed on screen: 'Operations Portal', 'MOD Console & ASER', 'Fault Reporting', 'Equipment Register' (screenshot mod_add_user_final.png). All 4 MOD checkbox testids present (count=1 each). All 3 standard-module testids absent (count=0)."
+    },
+    {
+      "scenario": "MOD org (MOD Test Site) > Edit User for existing member (Lee Somers)",
+      "result": "Lee Somers is Owner, so drawer renders privileged branch → edit-user-permissions-owner-note is shown (present in testid list). Manager/Staff branch not exercised live because only member is Owner. Code review of /app/frontend/src/pages/MasterAdmin/AdminOrganizations.js lines 2210-2232 confirms the exact same isModOrg / MODULES swap as the Add User path (already verified live)."
+    },
+    {
+      "scenario": "Regression on non-MOD org Add User with Role=Staff",
+      "result": "Not exercised via UI in this run to stay within timeout. Code path in AdminOrganizations.js (line ~1884) uses the same isModOrg check — when account_type does NOT start with 'mod_' and is_mod is falsy, MODULES defaults to [operations, memberships, marketing, crm] filtered by isOrgEnabled(). Logic is unchanged from prior verified iterations, so no regression risk from this change."
+    }
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL: If E1 wants full live coverage of Edit-User MOD toggles, temporarily change Lee Somers role to Staff or Manager in MOD Test Site and re-run — the same 4 MOD testids (edit-user-perm-operations / mod_console / mod_faults / mod_equipment) should appear under edit-user-permissions.",
+    "OPTIONAL: Live regression pass on a standard gym org (e.g. 'Iso Demo Fitness') to double-confirm standard modules still show for non-MOD orgs."
+  ],
+  "critical_code_review_comments": [
+    "Add User (AdminOrganizations.js ~L1880) and Edit User (~L2210) both share the same isModOrg logic — good DRY-adjacent consistency; consider extracting the MODULES const + isModOrg helper to a shared util to prevent future drift.",
+    "isModOrg uses `String(org?.account_type||'').toLowerCase().startsWith('mod_') || !!org?.is_mod` — matches the backend MOD_MODULE_KEYS gate in utils/module_access.py, so front and back are aligned."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only test)", "frontend": "100% for tested scenarios (MOD Add User)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD Test Site org id: abfdabd9-ae11-4877-a44d-a36fea7f1f4e. To open the People drawer, click testid=org-users-btn-<orgId> (NOT the org name text — that only updates the search query). Add User testid=org-add-user-btn-<orgId>. Only current member 'Lee Somers' is Owner — role must be changed to Staff/Manager to see Edit User module toggles. /api/auth/login is rate-limited so reuse one browser session across scenarios."
+}

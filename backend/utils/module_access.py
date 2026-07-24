@@ -28,10 +28,29 @@ from typing import Optional
 
 # The 4 customer-facing modules the matrix controls
 MODULE_KEYS = ("operations", "memberships", "marketing", "crm")
+# MOD (defence) organisations don't use the gym modules — they get the
+# Operations Portal plus MOD-specific surfaces. These are the per-user module
+# keys the Master Admin selector offers for a mod_* org (Iter — MOD selector).
+MOD_MODULE_KEYS = ("operations", "mod_console", "mod_faults", "mod_equipment")
 # Modules that require Pulse Pro to bolt onto an org. Operations is
 # bundled with both Lite and Pro so it never appears here.
 BOLT_ON_MODULES = ("memberships", "marketing", "crm")
 TRIAL_DURATION_DAYS = 3
+
+
+def is_mod_org(org: Optional[dict]) -> bool:
+    """True for defence (MOD) organisations, by account_type or the is_mod flag."""
+    if not org:
+        return False
+    at = str(org.get("account_type") or "").lower()
+    return at.startswith("mod_") or bool(org.get("is_mod"))
+
+
+def allowed_module_keys(org: Optional[dict]) -> tuple:
+    """Which per-user module keys the Master Admin selector should offer for
+    this org — the MOD set for defence orgs, the standard 4 otherwise."""
+    return MOD_MODULE_KEYS if is_mod_org(org) else MODULE_KEYS
+
 
 
 def _is_platform_admin(user: Optional[dict]) -> bool:
@@ -256,8 +275,8 @@ def trial_status(org: Optional[dict]) -> dict:
 
 
 __all__ = [
-    "MODULE_KEYS", "BOLT_ON_MODULES", "TRIAL_DURATION_DAYS",
-    "CRM_MODE_KEYS",
+    "MODULE_KEYS", "MOD_MODULE_KEYS", "BOLT_ON_MODULES", "TRIAL_DURATION_DAYS",
+    "CRM_MODE_KEYS", "is_mod_org", "allowed_module_keys",
     "resolve_module_access", "has_module", "org_module_access", "trial_status",
     "crm_modes", "has_crm_access",
 ]

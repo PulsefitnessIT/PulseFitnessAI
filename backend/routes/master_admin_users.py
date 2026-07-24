@@ -484,8 +484,9 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
     # People-drawer "Module access" view agrees with the create form.
     raw_overrides = body.get("module_overrides")
     if isinstance(raw_overrides, dict) and role not in ("master_admin", "owner"):
-        from utils.module_access import MODULE_KEYS
-        overrides = {k: bool(v) for k, v in raw_overrides.items() if k in MODULE_KEYS}
+        from utils.module_access import allowed_module_keys
+        keys = allowed_module_keys(org)
+        overrides = {k: bool(v) for k, v in raw_overrides.items() if k in keys}
         if overrides:
             await db.users.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
             await db.crm_users.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
@@ -849,11 +850,16 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
         updates["permissions_updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if "module_overrides" in updates:
-        from utils.module_access import MODULE_KEYS as _MK
+        from utils.module_access import allowed_module_keys
         raw = updates["module_overrides"] or {}
         if not isinstance(raw, dict):
             raise HTTPException(400, "module_overrides must be an object")
-        updates["module_overrides"] = {k: bool(v) for k, v in raw.items() if k in _MK}
+        target_user = await db.users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1})
+        target_org = await db.organizations.find_one(
+            {"id": (target_user or {}).get("organization_id")}, {"_id": 0, "account_type": 1, "is_mod": 1},
+        )
+        keys = allowed_module_keys(target_org)
+        updates["module_overrides"] = {k: bool(v) for k, v in raw.items() if k in keys}
 
     if not updates:
         raise HTTPException(400, "No valid fields to update")
