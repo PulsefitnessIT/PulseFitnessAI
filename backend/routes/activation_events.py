@@ -246,6 +246,51 @@ async def record_event_endpoint(
     return {"recorded": inserted}
 
 
+MOD_MILESTONES_SITE = (
+    ("mod_first_login",          "Signed in to the MOD Service Portal"),
+    ("mod_equipment_registered", "Equipment register set up"),
+    ("mod_first_fault_reported", "Reported your first equipment fault"),
+    ("mod_first_incident_logged", "Logged your first incident report"),
+    ("mod_staff_added",          "Added a site service contact"),
+    ("mod_aser_submitted",       "Submitted an ASER return"),
+    ("mod_compliance_scheduled", "Scheduled a compliance check"),
+)
+
+
+async def _mod_activation_timeline(org_id: str, account_type: str) -> dict:
+    """Bespoke 'first wins' for MOD Service Portal users. Milestone state is
+    derived from real MOD records for the caller's site, so it self-heals for
+    existing data and needs no per-endpoint event wiring."""
+    async def _exists(coll: str, query: dict) -> bool:
+        return await db[coll].count_documents(query, limit=1) > 0
+
+    checks = {
+        # First login is implicit — they are authenticated to reach here.
+        "mod_first_login": True,
+        "mod_equipment_registered": await _exists("equipment", {"organization_id": org_id}),
+        "mod_first_fault_reported": await _exists("issues", {"organization_id": org_id}),
+        "mod_first_incident_logged": await _exists("mod_incidents", {"site_id": org_id}),
+        "mod_staff_added": await _exists("mod_site_staff", {"site_id": org_id}),
+        "mod_aser_submitted": await _exists("aser_entries", {"site_id": org_id}),
+        "mod_compliance_scheduled": await _exists("mod_compliance_events", {"site_id": org_id}),
+    }
+    timeline = [
+        {"event_type": et, "label": label, "fired": bool(checks.get(et)),
+         "occurred_at": None, "module": "mod"}
+        for et, label in MOD_MILESTONES_SITE
+    ]
+    fired_count = sum(1 for m in timeline if m["fired"])
+    return {
+        "timeline": timeline,
+        "fired_count": fired_count,
+        "total": len(timeline),
+        "modules_enabled": ["mod"],
+        "primary_module": "mod",
+        "is_mod": True,
+        "as_of": _iso_now(),
+    }
+
+
 @router.get("/activation/me")
 async def activation_for_me(user: dict = Depends(get_current_user)) -> dict:
     """Operator-facing timeline — returns which milestones the caller's
@@ -259,6 +304,13 @@ async def activation_for_me(user: dict = Depends(get_current_user)) -> dict:
     org_id = user.get("organization_id")
     if not org_id:
         return {"timeline": [], "fired_count": 0, "total": 0, "as_of": _iso_now()}
+
+    # MOD (defence) organisations run the MOD Service Portal, not the gym
+    # modules — their "first wins" are a bespoke timeline computed from real
+    # MOD records (equipment register, faults, incidents, ASER, compliance).
+    account_type = str(user.get("account_type") or "").lower()
+    if account_type.startswith("mod_") or user.get("is_mod_user"):
+        return await _mod_activation_timeline(org_id, account_type)
 
     # Resolve enabled modules from the user row first (cheap), fall
     # back to the org doc if missing. Iter 216h227 — also fetch

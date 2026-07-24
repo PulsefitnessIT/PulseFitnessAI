@@ -9,8 +9,10 @@
 import {
   AlertTriangle, ClipboardCheck, Dumbbell, ArrowRight, Truck,
   LayoutDashboard, BarChart3, EyeOff, ShieldCheck, Zap, Wrench, ClipboardList,
+  Boxes, Users, FileCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/App';
 import { useUserPref } from '@/utils/userPrefs';
 import ActivationMilestonesCard from '../../components/shared/ActivationMilestonesCard';
 
@@ -23,12 +25,28 @@ const OUTCOMES = [
   { k: 'prove-compliance',      icon: ShieldCheck,    title: 'Prove compliance',       note: 'Audit-ready reports for insurers & franchise HQ' },
 ];
 
+// MOD Service Portal — defence-tuned outcomes (no gyms/members/insurers).
+const MOD_OUTCOMES = [
+  { k: 'mod-report-faults',     icon: AlertTriangle,  title: 'Report faults fast',     note: 'Photo + severity, routed to the approved supplier' },
+  { k: 'mod-inspection-ready',  icon: ClipboardCheck, title: 'Stay inspection-ready',  note: 'Daily / weekly serviceability checks with sign-off' },
+  { k: 'mod-track-assets',      icon: Boxes,          title: 'Track every asset',      note: 'Equipment register: status, faults and CAPEX' },
+  { k: 'mod-prove-serviceability', icon: ShieldCheck, title: 'Prove serviceability',  note: 'Audit-ready ASER & compliance returns for HQ' },
+];
+
 const STEPS = [
   { n: 1, title: 'Add your equipment',  note: 'CSV import or manual — serials, suppliers, warranty' },
   { n: 2, title: 'Invite your team',    note: 'Owners, Managers, Staff, Gym Floor — each with the right access' },
   { n: 3, title: 'Log your first fault', note: 'Photo + severity + one tap routes to the supplier' },
   { n: 4, title: 'Schedule check-sheets', note: 'Daily opens, weekly deep cleans, monthly safety' },
   { n: 5, title: 'Monitor & decide',    note: 'Reports, CAPEX priority, nudges in the Dashboard' },
+];
+
+const MOD_STEPS = [
+  { n: 1, key: 'mod_step1', title: 'Set up your equipment register', note: 'Serials, locations, suppliers and warranty' },
+  { n: 2, key: 'mod_step2', title: 'Add your site service contacts', note: 'Owners, Managers, Staff — each with the right access' },
+  { n: 3, key: 'mod_step3', title: 'Report your first fault',        note: 'Photo + severity, one tap routes to the supplier' },
+  { n: 4, key: 'mod_step4', title: 'Schedule compliance checks',     note: 'Daily / weekly / monthly serviceability checks' },
+  { n: 5, key: 'mod_step5', title: 'Review reports & ASER',          note: 'CAPEX priority + annual serviceability returns' },
 ];
 
 const OutcomeCard = ({ k, icon: Icon, title, note }) => (
@@ -48,9 +66,36 @@ const OutcomeCard = ({ k, icon: Icon, title, note }) => (
 export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipmentImport }) {
    
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type) || !!user?.is_mod_user;
   const [, setHideStart] = useUserPref('hideStartTabs', false);
 
-  const quickStart = [
+  const outcomes = isMOD ? MOD_OUTCOMES : OUTCOMES;
+  const steps = isMOD ? MOD_STEPS : STEPS;
+
+  const quickStart = isMOD ? [
+    {
+      id: 'ops-qs-fault',
+      title: t('ops_start.mod_qs_fault', 'Report a fault'),
+      desc: t('ops_start.mod_qs_fault_desc', 'Photo + severity, routed to the supplier'),
+      icon: AlertTriangle,
+      cta: () => { setTab('faults'); onLogFault?.(); },
+    },
+    {
+      id: 'ops-qs-equipment',
+      title: t('ops_start.mod_qs_equipment', 'Set up equipment register'),
+      desc: t('ops_start.mod_qs_equipment_desc', 'Import from CSV or add manually'),
+      icon: Boxes,
+      cta: () => { setTab('equipment'); onOpenEquipmentImport?.(); },
+    },
+    {
+      id: 'ops-qs-checks',
+      title: t('ops_start.mod_qs_checks', 'Run a compliance check'),
+      desc: t('ops_start.mod_qs_checks_desc', 'Daily / weekly serviceability checks'),
+      icon: ClipboardCheck,
+      cta: () => setTab('check-sheets'),
+    },
+  ] : [
     {
       id: 'ops-qs-fault',
       title: t('ops_start.qs_fault', 'Log a fault'),
@@ -94,10 +139,12 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
       {/* Welcome */}
       <div>
         <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mb-1" style={{ color: 'var(--theme-text)' }}>
-          {t('ops_start.title', 'Your Operations Hub')}
+          {isMOD ? t('ops_start.mod_title', 'Your MOD Service Hub') : t('ops_start.title', 'Your Operations Hub')}
         </h2>
         <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>
-          {t('ops_start.subtitle', 'Equipment, faults, check-sheets, and compliance — one place for the whole floor team.')}
+          {isMOD
+            ? t('ops_start.mod_subtitle', 'Equipment, faults, serviceability checks and ASER — one place for your site\'s service team.')
+            : t('ops_start.subtitle', 'Equipment, faults, check-sheets, and compliance — one place for the whole floor team.')}
         </p>
         <button
           type="button"
@@ -114,7 +161,7 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
       <section>
         <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('ops_start.sec_outcomes', 'What you can achieve')}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {OUTCOMES.map((o) => <OutcomeCard key={o.k} {...o} title={t(`ops_start.${o.k}_title`, o.title)} note={t(`ops_start.${o.k}_note`, o.note)} />)}
+          {outcomes.map((o) => <OutcomeCard key={o.k} {...o} title={t(`ops_start.${o.k}_title`, o.title)} note={t(`ops_start.${o.k}_note`, o.note)} />)}
         </div>
       </section>
 
@@ -154,16 +201,16 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
           className="grid grid-cols-1 md:grid-cols-5 gap-2 rounded-2xl p-3 border"
           style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
         >
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <li key={s.n} className="flex items-start gap-3 p-2">
               <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold pulse-font-heading" style={{ background: 'var(--color-brand-cyan)22', color: 'var(--color-brand-cyan)' }}>
                 {s.n}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold truncate pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t(`ops_start.step${s.n}_title`, s.title)}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t(`ops_start.step${s.n}_note`, s.note)}</div>
+                <div className="text-sm font-semibold truncate pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t(`ops_start.${s.key || 'step' + s.n}_title`, s.title)}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t(`ops_start.${s.key || 'step' + s.n}_note`, s.note)}</div>
               </div>
-              {i < STEPS.length - 1 && <div className="hidden md:block flex-1 h-px self-center" style={{ background: 'var(--theme-border)' }} />}
+              {i < steps.length - 1 && <div className="hidden md:block flex-1 h-px self-center" style={{ background: 'var(--theme-border)' }} />}
             </li>
           ))}
         </ol>
@@ -209,10 +256,12 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
         </div>
         <div className="min-w-0">
           <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-            {t('ops_start.reassure_title', 'Pulse Fitness does the boring bits')}
+            {isMOD ? t('ops_start.mod_reassure_title', 'The MOD Service Portal does the heavy lifting') : t('ops_start.reassure_title', 'Pulse Fitness does the boring bits')}
           </div>
           <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            {t('ops_start.reassure_note', 'Auto-route faults to suppliers, auto-generate weekly reports, auto-flag at-risk machines — so your team focuses on members, not spreadsheets.')}
+            {isMOD
+              ? t('ops_start.mod_reassure_note', 'Auto-route faults to approved suppliers, auto-build serviceability returns, and flag equipment before it fails inspection — so your team stays mission-ready.')
+              : t('ops_start.reassure_note', 'Auto-route faults to suppliers, auto-generate weekly reports, auto-flag at-risk machines — so your team focuses on members, not spreadsheets.')}
           </div>
         </div>
         <Wrench size={14} className="opacity-40" style={{ color: 'var(--theme-text-muted)' }} />

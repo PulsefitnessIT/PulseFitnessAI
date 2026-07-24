@@ -58,6 +58,14 @@ const ACTION_HINTS = {
   first_brand_discovered:  { hint: 'Discover your brand',             ops: false, suffix: '/marketing?tab=brand-discovery' },
   first_audience_built:    { hint: 'Build your first audience',       ops: false, suffix: '/marketing?tab=audiences&add=1' },
   first_campaign_launched: { hint: 'Launch your first campaign',      ops: false, suffix: '/marketing?tab=campaigns&add=1' },
+  // MOD Service Portal — bespoke first wins (Iter — MOD start screen)
+  mod_first_login:          { hint: 'You\'re signed in to the MOD Service Portal.', ops: false, suffix: null },
+  mod_equipment_registered: { hint: 'Set up your equipment register',  ops: true,  suffix: '?tab=equipment&onboarding=1' },
+  mod_first_fault_reported: { hint: 'Report an equipment fault',       ops: true,  suffix: '?tab=faults' },
+  mod_first_incident_logged: { hint: 'Log an incident report',         ops: true,  suffix: '?tab=faults&incident=1' },
+  mod_staff_added:          { hint: 'Add a site service contact',      ops: true,  suffix: '?tab=staffing' },
+  mod_aser_submitted:       { hint: 'Submit an ASER return',           ops: true,  suffix: '?tab=equipment' },
+  mod_compliance_scheduled: { hint: 'Schedule a compliance check',     ops: true,  suffix: '?tab=check-sheets' },
 };
 
 export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
@@ -70,7 +78,8 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
   // Picking the right one here means the equipment CTA opens the
   // OnboardingWizard on the user's actual operations page rather than
   // a stale /dashboard route that 404s for Pulse customers.
-  const opsBase = (user?.account_type === 'pulse_pro' || user?.account_type === 'lite') ? '/pulse' : '/dashboard';
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type) || user?.is_mod_user;
+  const opsBase = (user?.account_type === 'pulse_pro' || user?.account_type === 'lite' || isMOD) ? '/pulse' : '/dashboard';
   const handleGo = (hint) => {
     if (!hint?.suffix && hint?.suffix !== '') return;
     const target = hint.ops ? `${opsBase}${hint.suffix}` : hint.suffix;
@@ -156,7 +165,9 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
               className="text-sm mt-0.5"
               style={{ color: 'var(--theme-text-muted)' }}
             >
-              {t('activation.subtitle', { fired, total, defaultValue: '{{fired}} of {{total}} milestones hit — teams that tick 3+ in week one stick around 4× longer.' })}
+              {isMOD
+                ? t('activation.mod_subtitle', { fired, total, defaultValue: '{{fired}} of {{total}} set-up steps done — complete these to get your site fully running on the MOD Service Portal.' })
+                : t('activation.subtitle', { fired, total, defaultValue: '{{fired}} of {{total}} milestones hit — teams that tick 3+ in week one stick around 4× longer.' })}
             </p>
           </div>
         </div>

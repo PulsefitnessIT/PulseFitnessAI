@@ -142,6 +142,7 @@ export default function StaffingConsole() {
       return [
         { id: 'staff', label: trLabel('Staff'), icon: Users, leaf: 'staff' },
         { id: 'mod-transfer', label: trLabel('Transfers'), icon: ArrowRightLeft, leaf: 'mod-transfer' },
+        { id: 'comms', label: trLabel('Handover Diary'), icon: MessageSquare, leaf: 'comms' },
       ];
     }
     const childOK = (c) => c.roles.includes(role);
@@ -179,7 +180,7 @@ export default function StaffingConsole() {
   const [tab, setTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(storageKey);
-      if (saved === 'staff') return 'hr';  // merged Staff → HR
+      if (saved === 'staff' && !isMOD) return 'hr';  // merged Staff → HR (gym tenants only)
       if (saved) return saved;
     }
     return firstLeaf(groups[0]) || 'leave';
@@ -187,7 +188,10 @@ export default function StaffingConsole() {
 
   // Keep `tab` valid when the role-filtered tree changes.
   useEffect(() => {
-    if (tab === 'staff') { setTab('hr'); return; }
+    // Gym tenants merged the old "Staff" leaf into "HR"; MOD tenants keep a
+    // real "staff" leaf, so only migrate when `staff` isn't a valid leaf
+    // (otherwise staff↔hr ping-pong remounts the tab forever).
+    if (tab === 'staff' && !leafToGroup.staff) { setTab('hr'); return; }
     if (!leafToGroup[tab]) setTab(firstLeaf(groups[0]) || 'leave');
   }, [groups, leafToGroup, tab]);
 

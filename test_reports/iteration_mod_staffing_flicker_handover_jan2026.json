@@ -1,0 +1,28 @@
+{
+  "summary": "Verified MOD Staffing fixes end-to-end via /modservice login as test@army.mod.test. Both reported bugs are fixed. No flicker on Staff tab; Handover Diary is present and functional. Staff & Transfers regression pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "StaffingConsole.js line 194 guard `if (tab === 'staff' && !leafToGroup.staff) setTab('hr')` correctly breaks the previous staff<->hr ping-pong for MOD tenants (which have 'staff' as a valid leaf).",
+    "MOD groups (line 141-146) correctly include Staff, Transfers, and Handover Diary (leaf id 'comms' → renders <CommsTab/>).",
+    "Initial state migration (line 183) `if (saved === 'staff' && !isMOD) return 'hr'` correctly no-ops for MOD tenants."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "MOD site user: test@army.mod.test / Test123! (via /modservice, first click 'Accept All' cookie banner). Login succeeded.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login flow: /modservice → click 'Accept All' cookie banner → fill 2 inputs by index (input[0]=email/site code, input[1]=password; the email input has no type='email' so use nth-based selector) → click 'SIGN IN'. Lands on /modservice operator dashboard (URL stays /modservice, not /pulse). Click 'Staffing' pill to open the MOD staffing area. Tabs data-testids: staffing-tab-staff, staffing-tab-mod-transfer, staffing-tab-comms (Handover Diary).",
+  "test_results": {
+    "login": "PASS (SIGN IN → operator dashboard)",
+    "staffing_area_load": "PASS (Staff tab default, 200 OK from /api/mod/site/staff x2, empty roster shown as 'No staff added yet')",
+    "bug1_flicker": "PASS — 0 'Could not load staff' toasts over 8s observation; only 2 /api/mod/site/staff calls (both 200); no remounting; 0 console errors",
+    "bug2_handover_diary_present": "PASS — 3 nav pills confirmed: Staff, Transfers, Handover Diary",
+    "bug2_handover_diary_opens": "PASS — clicking Handover Diary renders CommsTab 'Internal messaging' panel with thread search + '+ New' button, no errors",
+    "regression_transfers": "PASS — Transfers tab renders 'Staff transfers · ARMY ONLY' panel",
+    "regression_staff_reclick": "PASS — re-clicking Staff after nav-away: 0 toasts, 2 API calls, stable"
+  }
+}
