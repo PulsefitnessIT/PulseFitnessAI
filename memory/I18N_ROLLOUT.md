@@ -41,6 +41,13 @@ three locale files (sorted). Reuse for future namespaces.
 - components/shared/CookieConsent.js internationalised (namespace cookie.*) — was the one English
   element on the auto-detected French page. VERIFIED in FR.
 
+## Phase 1c — Region/language → currency nudge (DONE, verified)
+- components/pulse/PulseModulePricing.js: the displayed currency now follows the UI language so the
+  price matches the words. langCcy(lang, detected): FR/DE → 'eur'; EN → IP-detected (gbp/usd) else 'gbp'.
+  Applied on load and re-applied when the visitor switches language — UNLESS they manually pick a
+  currency (ccyPicked flag), which then wins. VERIFIED: navigator=de-DE + cleared localStorage →
+  German text with the € EUR toggle active and €79/€59/€89 prices.
+
 ## Remaining phases (backlog, priority order)
 - P1: Spot-audit signup/login + rest of public marketing pages for hardcoded strings (mostly
   already t()-wired) and fill gaps.

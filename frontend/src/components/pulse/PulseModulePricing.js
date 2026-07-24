@@ -25,20 +25,33 @@ const ORDER = ['operations', 'crm', 'marketing', 'memberships'];
 
 export default function PulseModulePricing({ onStart }) {
   const { API, user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [live, setLive] = useState(null);
-  const [currency, setCurrency] = useState('gbp');
+  // Language nudges the currency (FR/DE → €), so the price matches the words a
+  // visitor sees. IP-detected currency disambiguates GBP vs USD for English.
+  const langCcy = (l, detected) => {
+    const base = (l || 'en').slice(0, 2);
+    if (base === 'de' || base === 'fr') return 'eur';
+    return detected || 'gbp';
+  };
+  const [currency, setCurrency] = useState(() => langCcy(i18n.language));
+  const [ccyPicked, setCcyPicked] = useState(false);
   const [cycle, setCycle] = useState('monthly');
   const annual = cycle === 'annual';
 
   useEffect(() => {
     let cancelled = false;
     axios.get(`${API}/payments/pricing/live`)
-      .then((r) => { if (!cancelled) { setLive(r.data); if (r.data?.detected_currency) setCurrency(r.data.detected_currency); } })
+      .then((r) => { if (!cancelled) { setLive(r.data); if (!ccyPicked) setCurrency(langCcy(i18n.language, r.data?.detected_currency)); } })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [API]);
+  }, [API]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-nudge currency if the visitor switches language (unless they picked one).
+  useEffect(() => {
+    if (!ccyPicked) setCurrency(langCcy(i18n.language, live?.detected_currency));
+  }, [i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fmt = (id) => {
     const node = live?.pricing?.[id]?.[currency];
@@ -74,7 +87,7 @@ export default function PulseModulePricing({ onStart }) {
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3" data-testid="pulse-pricing-controls">
           <div className="inline-flex rounded-full border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-1" data-testid="pulse-currency-toggle">
             {['gbp', 'eur', 'usd'].map((c) => (
-              <button key={c} type="button" onClick={() => setCurrency(c)}
+              <button key={c} type="button" onClick={() => { setCcyPicked(true); setCurrency(c); }}
                 className={`${pillBase} ${currency === c ? activePill : idlePill}`} data-testid={`pulse-currency-${c}`}>
                 {CCY[c]} {c.toUpperCase()}
               </button>
