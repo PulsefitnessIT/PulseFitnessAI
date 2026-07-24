@@ -73,6 +73,28 @@ def scan():
                     pairs.update(extract_pairs(f.read()))
     return pairs
 
+# ---- 1b. Guard: files that call namespaced t() but never wire useTranslation --
+
+# Catches the exact crash class ("TypeError: t is not a function") where a
+# component uses t('orgchart.x','...') but forgot `const { t } = useTranslation()`.
+_NS_T_CALL = re.compile(r"\bt\(\s*['\"](?:%s)\." % "|".join(NAMESPACES))
+
+def guard_missing_hook():
+    offenders = []
+    for root, _, files in os.walk(SCAN_DIR):
+        for fn in files:
+            if not (fn.endswith(".js") or fn.endswith(".jsx")):
+                continue
+            path = os.path.join(root, fn)
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            if not _NS_T_CALL.search(text):
+                continue
+            # File uses namespaced t(). It MUST reference useTranslation somewhere.
+            if "useTranslation" not in text:
+                offenders.append(os.path.relpath(path, FE))
+    return offenders
+
 # ---- json helpers (nested namespace: staffing -> {clock_in: ...}) ---------
 
 def load(name):
@@ -126,6 +148,21 @@ async def translate_batch(pairs, target_lang_name):
     return out
 
 async def main():
+    # Preflight guard — catches "t is not a function" crashes before they ship.
+    offenders = guard_missing_hook()
+    if offenders:
+        print("\n\033[1;31m✗ i18n GUARD FAILED\033[0m — these files call namespaced t() but never wire useTranslation():")
+        for o in offenders:
+            print(f"    • {o}")
+        print("  Fix: add `import { useTranslation } from 'react-i18next';` and "
+              "`const { t } = useTranslation();` inside each component.\n")
+        if "--check" in sys.argv:
+            sys.exit(1)
+    else:
+        print("✓ i18n guard: every file using namespaced t() wires useTranslation().")
+    if "--check" in sys.argv:
+        return
+
     pairs = scan()
     # Explicit nav labels (StaffingConsole builds keys dynamically via trLabel).
     nav = {

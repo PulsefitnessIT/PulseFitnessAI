@@ -5,6 +5,7 @@ The Org Chart module (staffing/orgchart/*, 14 UI components) is now fully locali
   - Testing agent fixed 1 latent crash: DocumentImport.js was missing its useTranslation hook (an edit lost to a recurring trailing-duplicate file corruption seen this session on Canvas/OrgCard/StaffingConsole/App.js — always re-verify file tails after rapid edits).
   - Report: /app/test_reports/iteration_orgchart_i18n_fr_de_jan2026.json
   - i18n Phase 3 (entire Operations/Staffing module in FR+DE) is now COMPLETE. No i18n items remain for the demo.
+  - GUARD ADDED: `python scripts/i18n_translate_ops.py --check` (fast, no LLM) flags any file that calls namespaced t('staffing.'/'ops.'/'orgchart.') without wiring useTranslation() — the exact crash class that hit DocumentImport. Runs automatically (as a warning) on every full pipeline run; `--check` mode exits 1 for CI.
 ─────────────────────────────────────────────────────────────────────────────
 
 
