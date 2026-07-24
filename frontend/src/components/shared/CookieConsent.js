@@ -8,6 +8,7 @@
  * doesn't need to wait on any auth context.
  */
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Shield } from 'lucide-react';
 
 function detectIsPulse() {
@@ -22,6 +23,7 @@ function detectIsPulse() {
 }
 
 const CookieConsent = () => {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const isPulse = useMemo(() => detectIsPulse(), []);
   const accent = isPulse ? 'var(--pulse-primary)' : 'var(--color-brand-blue)';
@@ -52,13 +54,13 @@ const CookieConsent = () => {
         <Shield size={20} className="shrink-0 mt-1 sm:mt-0" style={{ color: accent }} />
         <div className="flex-1">
           <p className="text-sm text-zinc-300 leading-relaxed">
-            We use essential cookies to keep you signed in and provide core functionality. We do not use tracking or advertising cookies.
-            {' '}<a href="/privacy" className="hover:underline" style={{ color: accent }}>Privacy Policy</a>
+            {t('cookie.message', 'We use essential cookies to keep you signed in and provide core functionality. We do not use tracking or advertising cookies.')}
+            {' '}<a href="/privacy" className="hover:underline" style={{ color: accent }}>{t('cookie.privacy_policy', 'Privacy Policy')}</a>
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={handleDecline} className="px-4 py-2 text-sm text-zinc-400 dark:text-zinc-500 hover:text-white border border-zinc-700 rounded-lg transition-colors" data-testid="cookie-decline-btn">
-            Essential Only
+            {t('cookie.essential_only', 'Essential Only')}
           </button>
           <button
             onClick={handleAccept}
@@ -68,7 +70,7 @@ const CookieConsent = () => {
             onMouseLeave={(e) => { e.currentTarget.style.background = accent; }}
             data-testid="cookie-accept-btn"
           >
-            Accept All
+            {t('cookie.accept_all', 'Accept All')}
           </button>
         </div>
       </div>

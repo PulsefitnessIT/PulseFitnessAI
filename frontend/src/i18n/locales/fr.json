@@ -169,6 +169,12 @@
     "success": "Message envoyé ! Nous vous recontacterons bientôt.",
     "title": "Entrer en Contact"
   },
+  "cookie": {
+    "accept_all": "Tout accepter",
+    "essential_only": "Essentiels uniquement",
+    "message": "Nous utilisons des cookies essentiels pour vous garder connecté et assurer les fonctionnalités de base. Nous n'utilisons aucun cookie de suivi ou de publicité.",
+    "privacy_policy": "Politique de confidentialité"
+  },
   "crm": {
     "act_call": "Appel",
     "act_email": "E-mail",

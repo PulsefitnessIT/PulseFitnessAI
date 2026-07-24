@@ -169,6 +169,12 @@
     "success": "Nachricht gesendet! Wir melden uns bald.",
     "title": "Kontaktieren Sie Uns"
   },
+  "cookie": {
+    "accept_all": "Alle akzeptieren",
+    "essential_only": "Nur essenzielle",
+    "message": "Wir verwenden essenzielle Cookies, um Sie angemeldet zu halten und Kernfunktionen bereitzustellen. Wir setzen keine Tracking- oder Werbe-Cookies ein.",
+    "privacy_policy": "Datenschutzerklärung"
+  },
   "crm": {
     "act_call": "Anruf",
     "act_email": "E-Mail",

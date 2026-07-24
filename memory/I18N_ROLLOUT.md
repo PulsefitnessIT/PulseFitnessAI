@@ -32,6 +32,15 @@ authenticated app too; fix locale drift; text-only (no number/date format work y
 Helper: /tmp/merge_i18n.py takes a {en,fr,de:{dotted_key:value}} JSON and merges into the
 three locale files (sorted). Reuse for future namespaces.
 
+## Phase 1b — Browser/region auto-detect + cookie banner (DONE, verified)
+- src/i18n/index.js: added supportedLngs=['en','fr','de'], load='languageOnly',
+  nonExplicitSupportedLngs=true, cleanCode=true. FIX: a fr-FR/de-DE browser previously fell
+  back to English (no region-variant resource); now variants map to the base language, so a
+  first-time FR/DE visitor auto-lands in FR/DE. Order kept localStorage→navigator (returning
+  visitors keep their saved choice). VERIFIED: navigator=fr-FR + cleared localStorage → pricing in FR.
+- components/shared/CookieConsent.js internationalised (namespace cookie.*) — was the one English
+  element on the auto-detected French page. VERIFIED in FR.
+
 ## Remaining phases (backlog, priority order)
 - P1: Spot-audit signup/login + rest of public marketing pages for hardcoded strings (mostly
   already t()-wired) and fill gaps.

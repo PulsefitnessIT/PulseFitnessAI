@@ -169,6 +169,12 @@
     "success": "Message sent! We'll get back to you soon.",
     "title": "Get in Touch"
   },
+  "cookie": {
+    "accept_all": "Accept All",
+    "essential_only": "Essential Only",
+    "message": "We use essential cookies to keep you signed in and provide core functionality. We do not use tracking or advertising cookies.",
+    "privacy_policy": "Privacy Policy"
+  },
   "crm": {
     "act_call": "Call",
     "act_email": "Email",

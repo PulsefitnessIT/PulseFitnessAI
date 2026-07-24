@@ -11,8 +11,16 @@ i18n
   .init({
     resources: { en: { translation: en }, fr: { translation: fr }, de: { translation: de } },
     fallbackLng: 'en',
+    supportedLngs: ['en', 'fr', 'de'],
+    // Map region variants (fr-FR, fr-CA, de-AT, de-CH, en-GB...) to the base
+    // language so a visitor's browser locale auto-selects FR/DE on first visit.
+    load: 'languageOnly',
+    nonExplicitSupportedLngs: true,
+    cleanCode: true,
     interpolation: { escapeValue: false },
     detection: {
+      // Returning visitors keep their saved choice; brand-new visitors are
+      // auto-detected from their browser language.
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
     },
