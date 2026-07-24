@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Sparkles, Wand2, Loader2, Download, CheckCircle2, RefreshCw, ShieldAlert, FileSpreadsheet,
 } from 'lucide-react';
@@ -17,9 +18,9 @@ import { useLocalization, formatMoneySync } from '@/utils/localization';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SUB_TABS = [
-  { id: 'rota',     label: 'Rota Builder',  icon: Wand2 },
-  { id: 'absence',  label: 'Absence Risk',  icon: ShieldAlert },
-  { id: 'sage',     label: 'Sage Payroll',  icon: FileSpreadsheet },
+  { id: 'rota',     labelKey: 'staffing.ai_tab_rota',    labelDefault: 'Rota Builder',  icon: Wand2 },
+  { id: 'absence',  labelKey: 'staffing.ai_tab_absence', labelDefault: 'Absence Risk',  icon: ShieldAlert },
+  { id: 'sage',     labelKey: 'staffing.ai_tab_sage',    labelDefault: 'Sage Payroll',  icon: FileSpreadsheet },
 ];
 
 // ───────────────────────── Rota Builder ──────────────────────────
@@ -33,6 +34,7 @@ function nextMonday(iso) {
 }
 
 function RotaBuilderPanel({ headers }) {
+  const { t } = useTranslation();
   const [weekStart, setWeekStart] = useState(() => nextMonday(null));
   const [maxHours, setMaxHours]   = useState(40);
   const [notes, setNotes]         = useState('');
@@ -52,14 +54,15 @@ function RotaBuilderPanel({ headers }) {
       );
       setResult(data);
     } catch (e) {
-      setErr(e.response?.data?.detail || e.message || 'Failed to generate rota');
+      setErr(e.response?.data?.detail || e.message || t('staffing.ai_rota_gen_failed', 'Failed to generate rota'));
     }
     setBusy(false);
   };
 
   const apply = async () => {
     if (!result?.suggestions?.length) return;
-    if (!window.confirm(`Apply ${result.suggestions.length} shifts to ${weekStart}?${overwrite ? ' This will REPLACE all shifts in that week.' : ''}`)) return;
+    const warn = overwrite ? ' ' + t('staffing.ai_rota_replace_warn', 'This will REPLACE all shifts in that week.') : '';
+    if (!window.confirm(`${t('staffing.ai_rota_apply_confirm', 'Apply')} ${result.suggestions.length} ${t('staffing.ai_rota_shifts_to', 'shifts to')} ${weekStart}?${warn}`)) return;
     setBusy(true); setErr('');
     try {
       const { data } = await axios.post(
@@ -68,9 +71,9 @@ function RotaBuilderPanel({ headers }) {
         { headers },
       );
       setApplied(true);
-      window.alert(`Created ${data.created} shifts.`);
+      window.alert(`${t('staffing.ai_rota_created', 'Created')} ${data.created} ${t('staffing.ai_rota_shifts', 'shifts')}.`);
     } catch (e) {
-      setErr(e.response?.data?.detail || e.message || 'Apply failed');
+      setErr(e.response?.data?.detail || e.message || t('staffing.ai_rota_apply_failed', 'Apply failed'));
     }
     setBusy(false);
   };
@@ -80,26 +83,26 @@ function RotaBuilderPanel({ headers }) {
       <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <div className="flex items-center gap-2 mb-3">
           <Wand2 size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Rota Builder · Claude Sonnet 4.5</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.ai_rota_builder', 'Rota Builder · Claude Sonnet 4.5')}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Week starting (Mon)</label>
+            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_week_starting', 'Week starting (Mon)')}</label>
             <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)}
               className="w-full h-9 rounded-md bg-transparent border px-2 text-sm mt-1"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="rota-week-start" />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Max hours / staff</label>
+            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_max_hours', 'Max hours / staff')}</label>
             <input type="number" min="0" step="1" value={maxHours} onChange={(e) => setMaxHours(parseFloat(e.target.value) || 0)}
               className="w-full h-9 rounded-md bg-transparent border px-2 text-sm mt-1"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="rota-max-hours" />
           </div>
           <div className="md:col-span-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Notes for AI</label>
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. opening early Monday, double-cover Saturday morning"
+            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_notes', 'Notes for AI')}</label>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('staffing.ai_notes_ph', 'e.g. opening early Monday, double-cover Saturday morning')}
               className="w-full h-9 rounded-md bg-transparent border px-2 text-sm mt-1"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="rota-notes" />
@@ -111,20 +114,20 @@ function RotaBuilderPanel({ headers }) {
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
             data-testid="rota-generate-btn">
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            {busy ? 'Generating…' : 'Generate rota'}
+            {busy ? t('staffing.ai_generating', 'Generating…') : t('staffing.ai_generate_rota', 'Generate rota')}
           </button>
           {result && (
             <>
               <label className="text-xs inline-flex items-center gap-1.5" style={{ color: 'var(--theme-text-muted)' }} data-testid="rota-overwrite-toggle">
                 <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
-                Overwrite existing shifts that week
+                {t('staffing.ai_overwrite_existing', 'Overwrite existing shifts that week')}
               </label>
               <button type="button" onClick={apply} disabled={busy || applied || !result.suggestions?.length}
                 className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-60"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="rota-apply-btn">
                 {applied ? <CheckCircle2 size={12} /> : <RefreshCw size={12} />}
-                {applied ? 'Applied' : `Apply ${result.suggestions.length} shifts`}
+                {applied ? t('staffing.ai_applied', 'Applied') : `${t('staffing.ai_rota_apply_confirm', 'Apply')} ${result.suggestions.length} ${t('staffing.ai_rota_shifts', 'shifts')}`}
               </button>
             </>
           )}
@@ -135,20 +138,20 @@ function RotaBuilderPanel({ headers }) {
       {result && (
         <div className="space-y-3" data-testid="rota-result">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Stat label="Engine"        value={result.engine === 'claude-sonnet-4-5' ? 'AI · Claude' : 'Heuristic'} testId="rota-engine" />
-            <Stat label="Shifts planned" value={result.suggestions?.length || 0}                                      testId="rota-shift-count" />
-            <Stat label="People covered" value={Object.keys(result.hours_per_staff || {}).length}                     testId="rota-people-count" />
-            <Stat label="Total cost"     value={formatMoneySync(result.cost_total || 0)}                            testId="rota-total-cost" />
+            <Stat label={t('staffing.ai_engine', 'Engine')}        value={result.engine === 'claude-sonnet-4-5' ? t('staffing.ai_engine_claude', 'AI · Claude') : t('staffing.ai_engine_heuristic', 'Heuristic')} testId="rota-engine" />
+            <Stat label={t('staffing.ai_shifts_planned', 'Shifts planned')} value={result.suggestions?.length || 0}                                      testId="rota-shift-count" />
+            <Stat label={t('staffing.ai_people_covered', 'People covered')} value={Object.keys(result.hours_per_staff || {}).length}                     testId="rota-people-count" />
+            <Stat label={t('staffing.ai_total_cost', 'Total cost')}     value={formatMoneySync(result.cost_total || 0)}                            testId="rota-total-cost" />
           </div>
           <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ background: 'var(--theme-surface-2)' }}>
-                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>Date</th>
-                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>Staff</th>
-                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>Role</th>
-                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>Hours</th>
-                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>Reason</th>
+                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_col_date', 'Date')}</th>
+                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_col_staff', 'Staff')}</th>
+                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_col_role', 'Role')}</th>
+                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_col_hours', 'Hours')}</th>
+                  <th className="text-left p-2 font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_col_reason', 'Reason')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -190,6 +193,7 @@ function Stat({ label, value, testId }) {
 // ───────────────────────── Absence Risk ──────────────────────────
 
 function AbsenceRiskPanel({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [horizon, setHorizon] = useState(14);
@@ -209,30 +213,30 @@ function AbsenceRiskPanel({ headers }) {
   return (
     <div className="space-y-3" data-testid="absence-risk-panel">
       <div className="flex items-center gap-3 flex-wrap">
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Absence Prediction · Heuristic</p>
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.ai_absence_title', 'Absence Prediction · Heuristic')}</p>
         <div className="ml-auto flex items-center gap-2">
-          <label className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Horizon</label>
+          <label className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_horizon', 'Horizon')}</label>
           <select value={horizon} onChange={(e) => setHorizon(parseInt(e.target.value, 10))}
             className="h-8 rounded-md bg-transparent border px-2 text-xs"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="absence-horizon">
-            <option value={7}>Next 7 days</option>
-            <option value={14}>Next 14 days</option>
-            <option value={30}>Next 30 days</option>
+            <option value={7}>{t('staffing.ai_next_7', 'Next 7 days')}</option>
+            <option value={14}>{t('staffing.ai_next_14', 'Next 14 days')}</option>
+            <option value={30}>{t('staffing.ai_next_30', 'Next 30 days')}</option>
           </select>
         </div>
       </div>
-      {loading && <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Loading…</p>}
+      {loading && <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_loading', 'Loading…')}</p>}
       {!loading && data && (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="High risk"   value={data.summary.high}   testId="absence-high" />
-            <Stat label="Medium risk" value={data.summary.medium} testId="absence-medium" />
-            <Stat label="Low risk"    value={data.summary.low}    testId="absence-low" />
+            <Stat label={t('staffing.ai_high_risk', 'High risk')}   value={data.summary.high}   testId="absence-high" />
+            <Stat label={t('staffing.ai_medium_risk', 'Medium risk')} value={data.summary.medium} testId="absence-medium" />
+            <Stat label={t('staffing.ai_low_risk', 'Low risk')}    value={data.summary.low}    testId="absence-low" />
           </div>
           <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
             {data.rows.length === 0 ? (
-              <p className="p-4 text-xs text-center" style={{ color: 'var(--theme-text-muted)' }}>No active staff yet.</p>
+              <p className="p-4 text-xs text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_no_active_staff', 'No active staff yet.')}</p>
             ) : data.rows.map((r) => (
               <div key={r.staff_id} className="border-b p-3 flex items-start gap-3" style={{ borderColor: 'var(--theme-border)' }} data-testid={`absence-row-${r.staff_id}`}>
                 <div className="flex-1 min-w-0">
@@ -258,6 +262,7 @@ function AbsenceRiskPanel({ headers }) {
 // ───────────────────────── Sage Payroll ──────────────────────────
 
 function SagePayrollPanel({ headers }) {
+  const { t } = useTranslation();
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
   const [to, setTo]     = useState(() => new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
@@ -269,7 +274,7 @@ function SagePayrollPanel({ headers }) {
       const r = await fetch(`${API}/staffing/ai/payroll/sage.csv?date_from=${from}&date_to=${to}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) {
         const txt = await r.text();
-        throw new Error(txt || 'Download failed');
+        throw new Error(txt || t('staffing.ai_download_failed', 'Download failed'));
       }
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
@@ -277,7 +282,7 @@ function SagePayrollPanel({ headers }) {
       a.href = url; a.download = `sage-payroll-${from}-to-${to}.csv`; a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      window.alert(e.message || 'Download failed');
+      window.alert(e.message || t('staffing.ai_download_failed', 'Download failed'));
     }
     setBusy(false);
   };
@@ -287,18 +292,18 @@ function SagePayrollPanel({ headers }) {
       <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <div className="flex items-center gap-2 mb-3">
           <FileSpreadsheet size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Sage 50 Payroll · Hours and Rates import</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.ai_sage_title', 'Sage 50 Payroll · Hours and Rates import')}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>From</label>
+            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_from', 'From')}</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
               className="w-full h-9 rounded-md bg-transparent border px-2 text-sm mt-1"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
               data-testid="sage-from" />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>To</label>
+            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ai_to', 'To')}</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
               className="w-full h-9 rounded-md bg-transparent border px-2 text-sm mt-1"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
@@ -310,13 +315,12 @@ function SagePayrollPanel({ headers }) {
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
               data-testid="sage-download-btn">
               {busy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-              Download CSV
+              {t('staffing.ai_download_csv', 'Download CSV')}
             </button>
           </div>
         </div>
         <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
-          Columns: Reference · Surname · Forenames · NI Number · Payment Number · Hours · Rate · Amount.
-          Aggregates non-cancelled shifts; pulls NI number from Phase S5 HR profile.
+          {t('staffing.ai_sage_note', 'Columns: Reference · Surname · Forenames · NI Number · Payment Number · Hours · Rate · Amount. Aggregates non-cancelled shifts; pulls NI number from Phase S5 HR profile.')}
         </p>
       </div>
     </div>
@@ -326,25 +330,26 @@ function SagePayrollPanel({ headers }) {
 // ───────────────────────── Hub ───────────────────────────────────
 
 export default function AIWorkforceTab({ headers }) {
+  const { t } = useTranslation();
   useLocalization();  // warm currency cache
   const [sub, setSub] = useState(() => localStorage.getItem('staffing.ai.sub') || 'rota');
   useEffect(() => { localStorage.setItem('staffing.ai.sub', sub); }, [sub]);
   return (
     <div className="space-y-3" data-testid="ai-workforce-tab">
       <div className="inline-flex rounded-full border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
-        {SUB_TABS.map((t) => {
-          const Icon = t.icon;
-          const on = sub === t.id;
+        {SUB_TABS.map((st) => {
+          const Icon = st.icon;
+          const on = sub === st.id;
           return (
-            <button key={t.id} type="button" onClick={() => setSub(t.id)}
+            <button key={st.id} type="button" onClick={() => setSub(st.id)}
               className="h-9 px-4 text-xs font-bold inline-flex items-center gap-1.5"
               style={{
                 background: on ? 'var(--color-brand-cyan)' : 'transparent',
                 color: on ? '#001219' : 'var(--theme-text-muted)',
-                borderLeft: t.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
+                borderLeft: st.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
               }}
-              data-testid={`ai-sub-${t.id}`}>
-              <Icon size={12} /> {t.label}
+              data-testid={`ai-sub-${st.id}`}>
+              <Icon size={12} /> {t(st.labelKey, st.labelDefault)}
             </button>
           );
         })}

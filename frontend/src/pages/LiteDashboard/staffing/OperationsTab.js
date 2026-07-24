@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   CheckSquare, FileText, ShieldAlert, Plus, X, Loader2, Camera, Trash2,
   Pencil, Calendar as CalIcon, AlertTriangle, Check, Send, RefreshCw,
@@ -18,17 +19,17 @@ import RowActions from '@/components/shared/RowActions';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SUB_TABS = [
-  { id: 'tasks',      label: 'Tasks & Checklists', icon: CheckSquare },
-  { id: 'forms',      label: 'Forms',              icon: FileText },
-  { id: 'compliance', label: 'Compliance',         icon: ShieldAlert },
+  { id: 'tasks',      labelKey: 'staffing.ops_tab_tasks',      labelDefault: 'Tasks & Checklists', icon: CheckSquare },
+  { id: 'forms',      labelKey: 'staffing.ops_tab_forms',      labelDefault: 'Forms',              icon: FileText },
+  { id: 'compliance', labelKey: 'staffing.ops_tab_compliance', labelDefault: 'Compliance',         icon: ShieldAlert },
 ];
 
 const CERT_BANDS = {
-  expired:      { label: 'Expired',         tint: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
-  expiring_30:  { label: 'Expires < 30d',   tint: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
-  expiring_90:  { label: 'Expires < 90d',   tint: '#EAB308', bg: 'rgba(234,179,8,0.12)' },
-  ok:           { label: 'OK',              tint: '#10B981', bg: 'rgba(16,185,129,0.10)' },
-  unknown:      { label: 'No expiry',       tint: '#94A3B8', bg: 'rgba(148,163,184,0.10)' },
+  expired:      { labelKey: 'staffing.ops_cert_expired',    labelDefault: 'Expired',       tint: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
+  expiring_30:  { labelKey: 'staffing.ops_cert_exp30',      labelDefault: 'Expires < 30d', tint: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
+  expiring_90:  { labelKey: 'staffing.ops_cert_exp90',      labelDefault: 'Expires < 90d', tint: '#EAB308', bg: 'rgba(234,179,8,0.12)' },
+  ok:           { labelKey: 'staffing.ops_cert_ok',         labelDefault: 'OK',            tint: '#10B981', bg: 'rgba(16,185,129,0.10)' },
+  unknown:      { labelKey: 'staffing.ops_cert_noexpiry',   labelDefault: 'No expiry',     tint: '#94A3B8', bg: 'rgba(148,163,184,0.10)' },
 };
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -36,6 +37,7 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 // ─────────────────────────── TASKS ───────────────────────────────
 
 function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     title: '', description: '', kind: 'one_off',
     recurrence: 'daily', weekdays: [0, 1, 2, 3, 4, 5, 6],
@@ -45,8 +47,19 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const KIND_LABELS = {
+    one_off: t('staffing.ops_kind_one_off', 'one off'),
+    opening: t('staffing.ops_kind_opening', 'opening'),
+    closing: t('staffing.ops_kind_closing', 'closing'),
+    recurring: t('staffing.ops_kind_recurring', 'recurring'),
+  };
+  const DAY_LABELS = [
+    t('staffing.day_mon', 'Mon'), t('staffing.day_tue', 'Tue'), t('staffing.day_wed', 'Wed'),
+    t('staffing.day_thu', 'Thu'), t('staffing.day_fri', 'Fri'), t('staffing.day_sat', 'Sat'), t('staffing.day_sun', 'Sun'),
+  ];
+
   const submit = () => {
-    if (!form.title.trim()) { window.alert('Title required'); return; }
+    if (!form.title.trim()) { window.alert(t('staffing.ops_title_required', 'Title required')); return; }
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -65,13 +78,13 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
       <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
-          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>New task</h4>
+          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.ops_new_task', 'New task')}</h4>
           <button type="button" onClick={onClose} className="w-7 h-7" style={{ color: 'var(--theme-text-muted)' }}><X size={14} /></button>
         </div>
-        <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="What needs doing?"
+        <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={t('staffing.ops_task_title_ph', 'What needs doing?')}
           className="w-full h-9 rounded-md bg-transparent border px-2 text-sm" autoFocus
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="task-title" />
-        <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} placeholder="Notes (optional)"
+        <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} placeholder={t('staffing.ops_notes_opt', 'Notes (optional)')}
           className="w-full rounded-md bg-transparent border px-2 py-1.5 text-sm resize-none"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="task-desc" />
         <div className="flex gap-1.5 flex-wrap">
@@ -83,7 +96,7 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
                 color: form.kind === k ? '#001219' : 'var(--theme-text-muted)',
                 borderColor: 'var(--theme-border)',
               }}
-              data-testid={`task-kind-${k}`}>{k.replace('_', ' ')}</button>
+              data-testid={`task-kind-${k}`}>{KIND_LABELS[k]}</button>
           ))}
         </div>
         {form.kind === 'recurring' && (
@@ -91,12 +104,12 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
             <select value={form.recurrence} onChange={(e) => set('recurrence', e.target.value)}
               className="h-9 rounded-md bg-transparent border px-2 text-xs"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
+              <option value="daily">{t('staffing.ops_daily', 'Daily')}</option>
+              <option value="weekly">{t('staffing.ops_weekly', 'Weekly')}</option>
             </select>
             {form.recurrence === 'weekly' && (
               <div className="flex flex-wrap gap-1">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => {
+                {DAY_LABELS.map((d, i) => {
                   const on = form.weekdays.includes(i);
                   return (
                     <button key={d} type="button"
@@ -117,7 +130,7 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
           <select value={form.assigned_staff_id} onChange={(e) => set('assigned_staff_id', e.target.value)}
             className="h-9 rounded-md bg-transparent border px-2 text-xs"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="task-staff">
-            <option value="">Unassigned (open)</option>
+            <option value="">{t('staffing.ops_unassigned', 'Unassigned (open)')}</option>
             {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
           </select>
           {form.kind !== 'recurring' && (
@@ -128,15 +141,15 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
         </div>
         <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           <input type="checkbox" checked={form.requires_photo} onChange={(e) => set('requires_photo', e.target.checked)} data-testid="task-photo-req" />
-          Require photo to complete
+          {t('staffing.ops_require_photo', 'Require photo to complete')}
         </label>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="task-submit">
-            <Plus size={12} /> Create
+            <Plus size={12} /> {t('staffing.ops_create', 'Create')}
           </button>
         </div>
       </div>
@@ -145,8 +158,15 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
 }
 
 function TaskRow({ task, isManager, staffList, onComplete, onUncomplete, onDelete }) {
+  const { t } = useTranslation();
   const completed = task.status === 'completed';
   const owner = staffList.find((s) => s.id === task.assigned_staff_id);
+  const KIND_LABELS = {
+    one_off: t('staffing.ops_kind_one_off', 'one off'),
+    opening: t('staffing.ops_kind_opening', 'opening'),
+    closing: t('staffing.ops_kind_closing', 'closing'),
+    recurring: t('staffing.ops_kind_recurring', 'recurring'),
+  };
   const tint = task.kind === 'opening' ? '#10B981'
     : task.kind === 'closing' ? '#F59E0B'
     : task.kind === 'recurring' ? '#19CDFF'
@@ -177,16 +197,16 @@ function TaskRow({ task, isManager, staffList, onComplete, onUncomplete, onDelet
           <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{task.description}</p>
         )}
         <div className="flex flex-wrap gap-2 mt-1.5 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-          <span className="px-1.5 py-0.5 rounded uppercase font-bold tracking-wider" style={{ background: tint + '22', color: tint }}>{task.kind.replace('_', ' ')}</span>
+          <span className="px-1.5 py-0.5 rounded uppercase font-bold tracking-wider" style={{ background: tint + '22', color: tint }}>{KIND_LABELS[task.kind] || task.kind.replace('_', ' ')}</span>
           {task.due_at && <span className="inline-flex items-center gap-0.5"><CalIcon size={9} /> {task.due_at.slice(0, 16).replace('T', ' ')}</span>}
           {owner && <span>· {owner.full_name}</span>}
-          {task.requires_photo && <span className="inline-flex items-center gap-0.5"><Camera size={9} /> Photo</span>}
-          {completed && task.completed_by && <span>· done by {task.completed_by.slice(0, 8)}</span>}
+          {task.requires_photo && <span className="inline-flex items-center gap-0.5"><Camera size={9} /> {t('staffing.ops_photo', 'Photo')}</span>}
+          {completed && task.completed_by && <span>· {t('staffing.ops_done_by', 'done by')} {task.completed_by.slice(0, 8)}</span>}
         </div>
       </div>
       {isManager && (
         <RowActions>
-          <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(task)} icon={Trash2} title="Delete task" data-testid={`task-delete-${task.id}`} />
+          <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(task)} icon={Trash2} title={t('staffing.ops_delete_task', 'Delete task')} data-testid={`task-delete-${task.id}`} />
         </RowActions>
       )}
     </div>
@@ -194,6 +214,7 @@ function TaskRow({ task, isManager, staffList, onComplete, onUncomplete, onDelet
 }
 
 function TasksPanel({ headers, isManager, staffList }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState(todayISO());
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -215,38 +236,38 @@ function TasksPanel({ headers, isManager, staffList }) {
       await axios.post(`${API}/staffing/tasks`, payload, { headers });
       setComposing(false);
       load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Create failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_create_failed', 'Create failed')); }
   };
   const complete = async (task) => {
     if (task.requires_photo) {
-      const url = window.prompt('Paste photo URL (Phase S4 MVP — full upload pipeline lands later):');
+      const url = window.prompt(t('staffing.ops_paste_photo', 'Paste photo URL (Phase S4 MVP — full upload pipeline lands later):'));
       if (!url) return;
       try { await axios.post(`${API}/staffing/tasks/${task.id}/complete`, { photo_url: url }, { headers }); load(); }
-      catch (e) { window.alert(e.response?.data?.detail || 'Complete failed'); }
+      catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_complete_failed', 'Complete failed')); }
       return;
     }
     try { await axios.post(`${API}/staffing/tasks/${task.id}/complete`, {}, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Complete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_complete_failed', 'Complete failed')); }
   };
   const uncomplete = async (task) => {
     try { await axios.post(`${API}/staffing/tasks/${task.id}/uncomplete`, {}, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Undo failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_undo_failed', 'Undo failed')); }
   };
   const remove = async (task) => {
-    if (!window.confirm(`Delete "${task.title}"?`)) return;
+    if (!window.confirm(`${t('staffing.ops_delete', 'Delete')} "${task.title}"?`)) return;
     try { await axios.delete(`${API}/staffing/tasks/${task.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_delete_failed', 'Delete failed')); }
   };
   const materialise = async () => {
     try {
       const { data } = await axios.post(`${API}/staffing/tasks/materialise`, { date }, { headers });
-      window.alert(`Created ${data.created} recurring instances · skipped ${data.skipped}.`);
+      window.alert(`${t('staffing.ops_created', 'Created')} ${data.created} ${t('staffing.ops_recurring_instances', 'recurring instances')} · ${t('staffing.ops_skipped', 'skipped')} ${data.skipped}.`);
       load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_failed', 'Failed')); }
   };
 
-  const open = tasks.filter((t) => t.status !== 'completed');
-  const done = tasks.filter((t) => t.status === 'completed');
+  const openTasks = tasks.filter((tk) => tk.status !== 'completed');
+  const done = tasks.filter((tk) => tk.status === 'completed');
 
   return (
     <div className="space-y-3" data-testid="tasks-panel">
@@ -255,46 +276,46 @@ function TasksPanel({ headers, isManager, staffList }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="h-8 rounded-md bg-transparent border px-2 text-xs"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="tasks-date" />
-          <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{open.length} open · {done.length} done</span>
+          <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{openTasks.length} {t('staffing.ops_open', 'open')} · {done.length} {t('staffing.ops_done', 'done')}</span>
         </div>
         {isManager && (
           <div className="flex gap-2">
             <button type="button" onClick={materialise}
               className="h-8 inline-flex items-center gap-1.5 rounded-full border px-3 text-xs font-bold"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="tasks-materialise">
-              <RefreshCw size={11} /> Generate recurring
+              <RefreshCw size={11} /> {t('staffing.ops_generate_recurring', 'Generate recurring')}
             </button>
             <button type="button" onClick={() => setComposing(true)}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="tasks-new">
-              <Plus size={11} /> New task
+              <Plus size={11} /> {t('staffing.ops_new_task', 'New task')}
             </button>
           </div>
         )}
       </div>
       {loading ? (
         <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-          <Loader2 size={14} className="animate-spin" /> Loading…
+          <Loader2 size={14} className="animate-spin" /> {t('staffing.ops_loading', 'Loading…')}
         </div>
       ) : (
         <>
           <div className="space-y-2 group">
-            {open.length === 0 && (
-              <p className="text-xs py-3" style={{ color: 'var(--theme-text-muted)' }}>No open tasks for this date.</p>
+            {openTasks.length === 0 && (
+              <p className="text-xs py-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ops_no_open_tasks', 'No open tasks for this date.')}</p>
             )}
-            {open.map((t) => (
-              <TaskRow key={t.id} task={t} isManager={isManager} staffList={staffList}
+            {openTasks.map((tk) => (
+              <TaskRow key={tk.id} task={tk} isManager={isManager} staffList={staffList}
                 onComplete={complete} onUncomplete={uncomplete} onDelete={remove} />
             ))}
           </div>
           {done.length > 0 && (
             <details className="space-y-2">
               <summary className="text-[11px] font-bold uppercase tracking-wider cursor-pointer" style={{ color: 'var(--theme-text-muted)' }}>
-                {done.length} completed
+                {done.length} {t('staffing.ops_completed', 'completed')}
               </summary>
               <div className="space-y-2 mt-2">
-                {done.map((t) => (
-                  <TaskRow key={t.id} task={t} isManager={isManager} staffList={staffList}
+                {done.map((tk) => (
+                  <TaskRow key={tk.id} task={tk} isManager={isManager} staffList={staffList}
                     onComplete={complete} onUncomplete={uncomplete} onDelete={remove} />
                 ))}
               </div>
@@ -310,6 +331,7 @@ function TasksPanel({ headers, isManager, staffList }) {
 // ─────────────────────────── FORMS ───────────────────────────────
 
 function FormFieldEditor({ field, onChange, onRemove }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-md border p-2 space-y-1.5" style={{ borderColor: 'var(--theme-border)' }} data-testid={`field-edit-${field.id || 'new'}`}>
       <div className="flex items-center gap-2">
@@ -321,18 +343,18 @@ function FormFieldEditor({ field, onChange, onRemove }) {
           )}
         </select>
         <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })}
-          placeholder="Question"
+          placeholder={t('staffing.ops_question', 'Question')}
           className="flex-1 h-8 rounded-md bg-transparent border px-2 text-xs"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
         <label className="text-[10px] inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}>
           <input type="checkbox" checked={field.required} onChange={(e) => onChange({ ...field, required: e.target.checked })} />
-          Req
+          {t('staffing.ops_req', 'Req')}
         </label>
         <button type="button" onClick={onRemove} className="w-6 h-6 inline-flex items-center justify-center" style={{ color: 'var(--theme-text-muted)' }}><X size={11} /></button>
       </div>
       {field.kind === 'select' && (
         <input value={(field.options || []).join(', ')} onChange={(e) => onChange({ ...field, options: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-          placeholder="Options, comma-separated"
+          placeholder={t('staffing.ops_options_csv', 'Options, comma-separated')}
           className="w-full h-7 rounded-md bg-transparent border px-2 text-xs"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
       )}
@@ -341,6 +363,7 @@ function FormFieldEditor({ field, onChange, onRemove }) {
 }
 
 function FormBuilder({ open, onClose, onSubmit, initial }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [fields, setFields] = useState(initial?.fields || []);
@@ -349,8 +372,8 @@ function FormBuilder({ open, onClose, onSubmit, initial }) {
   const updateField = (i, f) => setFields((fs) => fs.map((x, idx) => idx === i ? f : x));
   const removeField = (i) => setFields((fs) => fs.filter((_, idx) => idx !== i));
   const submit = () => {
-    if (!name.trim()) { window.alert('Name required'); return; }
-    if (fields.some((f) => !f.label.trim())) { window.alert('All fields need a label'); return; }
+    if (!name.trim()) { window.alert(t('staffing.ops_name_required', 'Name required')); return; }
+    if (fields.some((f) => !f.label.trim())) { window.alert(t('staffing.ops_fields_need_label', 'All fields need a label')); return; }
     onSubmit({ name: name.trim(), description: description.trim() || null, fields });
   };
   return (
@@ -358,17 +381,17 @@ function FormBuilder({ open, onClose, onSubmit, initial }) {
       <div className="w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
-          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{initial?.id ? 'Edit form' : 'New form'}</h4>
+          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{initial?.id ? t('staffing.ops_edit_form', 'Edit form') : t('staffing.ops_new_form', 'New form')}</h4>
           <button type="button" onClick={onClose} className="w-7 h-7" style={{ color: 'var(--theme-text-muted)' }}><X size={14} /></button>
         </div>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Form name"
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('staffing.ops_form_name', 'Form name')}
           className="w-full h-9 rounded-md bg-transparent border px-2 text-sm"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="form-name" />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)"
+        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('staffing.ops_desc_opt', 'Description (optional)')}
           className="w-full h-9 rounded-md bg-transparent border px-2 text-sm"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
         <div className="space-y-2" data-testid="form-fields">
-          {fields.length === 0 && <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No fields yet — add one below.</p>}
+          {fields.length === 0 && <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ops_no_fields', 'No fields yet — add one below.')}</p>}
           {fields.map((f, i) => (
             <FormFieldEditor key={i} field={f} onChange={(nf) => updateField(i, nf)} onRemove={() => removeField(i)} />
           ))}
@@ -376,15 +399,15 @@ function FormBuilder({ open, onClose, onSubmit, initial }) {
         <button type="button" onClick={addField}
           className="h-8 rounded-full border px-3 text-xs font-bold inline-flex items-center gap-1"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="form-add-field">
-          <Plus size={11} /> Add field
+          <Plus size={11} /> {t('staffing.ops_add_field', 'Add field')}
         </button>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="form-save">
-            <Check size={11} /> Save form
+            <Check size={11} /> {t('staffing.ops_save_form', 'Save form')}
           </button>
         </div>
       </div>
@@ -393,6 +416,7 @@ function FormBuilder({ open, onClose, onSubmit, initial }) {
 }
 
 function FormSubmitDialog({ open, template, onClose, onSubmit }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState({});
   if (!open || !template) return null;
   const set = (id, v) => setValues((s) => ({ ...s, [id]: v }));
@@ -403,7 +427,7 @@ function FormSubmitDialog({ open, template, onClose, onSubmit }) {
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Submit</p>
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.ops_submit', 'Submit')}</p>
             <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{template.name}</h4>
           </div>
           <button type="button" onClick={onClose} className="w-7 h-7" style={{ color: 'var(--theme-text-muted)' }}><X size={14} /></button>
@@ -422,7 +446,7 @@ function FormSubmitDialog({ open, template, onClose, onSubmit }) {
               <select value={values[f.id] || ''} onChange={(e) => set(f.id, e.target.value)}
                 className="w-full h-9 rounded-md bg-transparent border px-2 text-sm"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid={`form-input-${f.id}`}>
-                <option value="">— pick —</option>
+                <option value="">{t('staffing.ops_pick', '— pick —')}</option>
                 {(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : f.kind === 'checkbox' ? (
@@ -437,11 +461,11 @@ function FormSubmitDialog({ open, template, onClose, onSubmit }) {
         ))}
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="form-submit-btn">
-            <Send size={11} /> Submit
+            <Send size={11} /> {t('staffing.ops_submit', 'Submit')}
           </button>
         </div>
       </div>
@@ -450,6 +474,7 @@ function FormSubmitDialog({ open, template, onClose, onSubmit }) {
 }
 
 function FormsPanel({ headers, isManager }) {
+  const { t } = useTranslation();
   const [templates, setTemplates] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -460,12 +485,12 @@ function FormsPanel({ headers, isManager }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [t, s] = await Promise.all([
+      const [tplRes, subRes] = await Promise.all([
         axios.get(`${API}/staffing/forms/templates`, { headers }),
         axios.get(`${API}/staffing/forms/submissions`, { headers }),
       ]);
-      setTemplates(t.data.templates || []);
-      setSubmissions(s.data.submissions || []);
+      setTemplates(tplRes.data.templates || []);
+      setSubmissions(subRes.data.submissions || []);
     } catch { /* noop */ }
     setLoading(false);
   }, [headers]);
@@ -479,48 +504,48 @@ function FormsPanel({ headers, isManager }) {
         await axios.post(`${API}/staffing/forms/templates`, payload, { headers });
       }
       setBuilding(null); load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_save_failed', 'Save failed')); }
   };
-  const remove = async (t) => {
-    if (!window.confirm(`Delete form "${t.name}"?`)) return;
-    try { await axios.delete(`${API}/staffing/forms/templates/${t.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+  const remove = async (tpl) => {
+    if (!window.confirm(`${t('staffing.ops_delete_form', 'Delete form')} "${tpl.name}"?`)) return;
+    try { await axios.delete(`${API}/staffing/forms/templates/${tpl.id}`, { headers }); load(); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_delete_failed', 'Delete failed')); }
   };
   const submitForm = async (values) => {
     try {
       await axios.post(`${API}/staffing/forms/templates/${submitting.id}/submit`, { values }, { headers });
       setSubmitting(null);
-      window.alert('Submitted!');
+      window.alert(t('staffing.ops_submitted', 'Submitted!'));
       load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Submit failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_submit_failed', 'Submit failed')); }
   };
 
   return (
     <div className="space-y-3" data-testid="forms-panel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{templates.length} templates · {submissions.length} submissions</p>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{templates.length} {t('staffing.ops_templates', 'templates')} · {submissions.length} {t('staffing.ops_submissions', 'submissions')}</p>
         <div className="flex gap-2">
           <button type="button" onClick={() => setShowSubs((v) => !v)}
             className="h-8 rounded-full border px-3 text-xs font-bold"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="forms-toggle-subs">
-            {showSubs ? 'Hide' : 'Show'} submissions
+            {showSubs ? t('staffing.ops_hide', 'Hide') : t('staffing.ops_show', 'Show')} {t('staffing.ops_submissions', 'submissions')}
           </button>
           {isManager && (
             <button type="button" onClick={() => setBuilding({})}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="forms-new">
-              <Plus size={11} /> New form
+              <Plus size={11} /> {t('staffing.ops_new_form', 'New form')}
             </button>
           )}
         </div>
       </div>
       {loading ? (
         <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-          <Loader2 size={14} className="animate-spin" /> Loading…
+          <Loader2 size={14} className="animate-spin" /> {t('staffing.ops_loading', 'Loading…')}
         </div>
       ) : showSubs ? (
         <div className="space-y-2">
-          {submissions.length === 0 && <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No submissions yet.</p>}
+          {submissions.length === 0 && <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ops_no_submissions', 'No submissions yet.')}</p>}
           {submissions.map((s) => (
             <details key={s.id} className="rounded-lg border p-3" style={{ borderColor: 'var(--theme-border)' }} data-testid={`submission-${s.id}`}>
               <summary className="cursor-pointer flex items-center justify-between text-xs">
@@ -535,38 +560,38 @@ function FormsPanel({ headers, isManager }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {templates.length === 0 && (
             <p className="col-span-full text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-              No forms yet — {isManager ? 'create one to get started.' : 'check back later.'}
+              {t('staffing.ops_no_forms', 'No forms yet')} — {isManager ? t('staffing.ops_create_to_start', 'create one to get started.') : t('staffing.ops_check_later', 'check back later.')}
             </p>
           )}
-          {templates.map((t) => (
-            <div key={t.id} className="rounded-xl border p-3 flex flex-col gap-2"
-              style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid={`form-template-${t.id}`}>
+          {templates.map((tpl) => (
+            <div key={tpl.id} className="rounded-xl border p-3 flex flex-col gap-2"
+              style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid={`form-template-${tpl.id}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{t.name}</p>
+                  <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{tpl.name}</p>
                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-                    {t.fields.length} field{t.fields.length === 1 ? '' : 's'}
+                    {tpl.fields.length} {tpl.fields.length === 1 ? t('staffing.ops_field', 'field') : t('staffing.ops_fields', 'fields')}
                   </p>
                 </div>
                 <FileText size={14} style={{ color: 'var(--color-brand-cyan)' }} />
               </div>
-              {t.description && <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{t.description}</p>}
+              {tpl.description && <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{tpl.description}</p>}
               <div className="flex gap-1.5 mt-auto pt-1">
-                <button type="button" onClick={() => setSubmitting(t)}
+                <button type="button" onClick={() => setSubmitting(tpl)}
                   className="flex-1 h-8 rounded-full text-[11px] font-bold inline-flex items-center justify-center gap-1"
-                  style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid={`form-submit-${t.id}`}>
-                  <Send size={11} /> Fill in
+                  style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid={`form-submit-${tpl.id}`}>
+                  <Send size={11} /> {t('staffing.ops_fill_in', 'Fill in')}
                 </button>
                 {isManager && (
                   <>
-                    <button type="button" onClick={() => setBuilding(t)}
+                    <button type="button" onClick={() => setBuilding(tpl)}
                       className="h-8 w-8 rounded-full border inline-flex items-center justify-center"
-                      style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`form-edit-${t.id}`}>
+                      style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`form-edit-${tpl.id}`}>
                       <Pencil size={11} />
                     </button>
-                    <button type="button" onClick={() => remove(t)}
+                    <button type="button" onClick={() => remove(tpl)}
                       className="h-8 w-8 rounded-full border inline-flex items-center justify-center"
-                      style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`form-delete-${t.id}`}>
+                      style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`form-delete-${tpl.id}`}>
                       <Trash2 size={11} />
                     </button>
                   </>
@@ -585,6 +610,7 @@ function FormsPanel({ headers, isManager }) {
 // ─────────────────────────── COMPLIANCE ───────────────────────────
 
 function CertEditor({ open, onClose, onSubmit, staffList, initial }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(initial || {
     staff_id: staffList[0]?.id || '',
     cert_type: 'dbs',
@@ -599,7 +625,7 @@ function CertEditor({ open, onClose, onSubmit, staffList, initial }) {
       <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
-          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{initial ? 'Edit cert' : 'Add cert'}</h4>
+          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{initial ? t('staffing.ops_edit_cert', 'Edit cert') : t('staffing.ops_add_cert', 'Add cert')}</h4>
           <button type="button" onClick={onClose} className="w-7 h-7" style={{ color: 'var(--theme-text-muted)' }}><X size={14} /></button>
         </div>
         {!initial && (
@@ -609,28 +635,28 @@ function CertEditor({ open, onClose, onSubmit, staffList, initial }) {
             {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
           </select>
         )}
-        <input value={form.cert_type} onChange={(e) => set('cert_type', e.target.value)} placeholder="Cert type (e.g. dbs, first_aid)"
+        <input value={form.cert_type} onChange={(e) => set('cert_type', e.target.value)} placeholder={t('staffing.ops_cert_type_ph', 'Cert type (e.g. dbs, first_aid)')}
           className="w-full h-9 rounded-md bg-transparent border px-2 text-sm"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="cert-type" />
-        <input value={form.cert_number || ''} onChange={(e) => set('cert_number', e.target.value)} placeholder="Cert number (optional)"
+        <input value={form.cert_number || ''} onChange={(e) => set('cert_number', e.target.value)} placeholder={t('staffing.ops_cert_number_ph', 'Cert number (optional)')}
           className="w-full h-9 rounded-md bg-transparent border px-2 text-sm"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="cert-number" />
         <label className="block">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Expires</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.ops_expires', 'Expires')}</span>
           <input type="date" value={form.expires_at || ''} onChange={(e) => set('expires_at', e.target.value)}
             className="mt-1 w-full h-9 rounded-md bg-transparent border px-2 text-sm"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="cert-expires" />
         </label>
-        <textarea value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} placeholder="Notes" rows={2}
+        <textarea value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} placeholder={t('staffing.ops_notes', 'Notes')} rows={2}
           className="w-full rounded-md bg-transparent border px-2 py-1.5 text-sm"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={() => onSubmit(form)}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="cert-save">
-            <Check size={11} /> Save
+            <Check size={11} /> {t('staffing.ops_save', 'Save')}
           </button>
         </div>
       </div>
@@ -639,6 +665,7 @@ function CertEditor({ open, onClose, onSubmit, staffList, initial }) {
 }
 
 function CompliancePanel({ headers, isManager, staffList }) {
+  const { t } = useTranslation();
   const [tracker, setTracker] = useState(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -663,7 +690,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
     try {
       await axios.post(`${API}/staffing/compliance/certs`, form, { headers });
       setAdding(false); load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_save_failed', 'Save failed')); }
   };
   const update = async (form) => {
     try {
@@ -671,16 +698,16 @@ function CompliancePanel({ headers, isManager, staffList }) {
         cert_number: form.cert_number, expires_at: form.expires_at, notes: form.notes,
       }, { headers });
       setEditing(null); load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_save_failed', 'Save failed')); }
   };
   const remove = async (cert) => {
-    if (!window.confirm(`Delete ${cert.cert_type} cert for ${cert.staff_name || ''}?`)) return;
+    if (!window.confirm(`${t('staffing.ops_delete', 'Delete')} ${cert.cert_type} ${t('staffing.ops_cert_for', 'cert for')} ${cert.staff_name || ''}?`)) return;
     try { await axios.delete(`${API}/staffing/compliance/certs/${cert.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.ops_delete_failed', 'Delete failed')); }
   };
 
   if (loading) {
-    return <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading…</div>;
+    return <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.ops_loading', 'Loading…')}</div>;
   }
   if (!tracker) return null;
 
@@ -690,7 +717,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
     if (items.length === 0) return null;
     return (
       <div key={key} className="space-y-1.5" data-testid={`bucket-${key}`}>
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: meta.tint }}>{meta.label} · {items.length}</p>
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: meta.tint }}>{t(meta.labelKey, meta.labelDefault)} · {items.length}</p>
         <div className="space-y-1">
           {items.map((c) => (
             <div key={c.id} className="rounded-lg border p-2 flex items-center justify-between gap-2"
@@ -701,7 +728,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
                   {c.staff_name || c.staff_id?.slice(0, 8)} · <span className="opacity-80">{c.cert_type}</span>
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-                  {c.expires_at ? `Expires ${c.expires_at}` : 'No expiry set'}
+                  {c.expires_at ? `${t('staffing.ops_expires_word', 'Expires')} ${c.expires_at}` : t('staffing.ops_no_expiry_set', 'No expiry set')}
                   {c.cert_number ? ` · #${c.cert_number}` : ''}
                 </p>
               </div>
@@ -731,7 +758,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
           {Object.entries(CERT_BANDS).map(([k, meta]) => (
             <span key={k} className="inline-flex items-center gap-1" data-testid={`cert-summary-${k}`}>
               <span className="w-2 h-2 rounded-full" style={{ background: meta.tint }} />
-              {tracker.summary?.[k] || 0} {meta.label.toLowerCase()}
+              {tracker.summary?.[k] || 0} {t(meta.labelKey, meta.labelDefault).toLowerCase()}
             </span>
           ))}
         </div>
@@ -739,7 +766,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
           <button type="button" onClick={() => setAdding(true)}
             className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="cert-new">
-            <Plus size={11} /> Add cert
+            <Plus size={11} /> {t('staffing.ops_add_cert', 'Add cert')}
           </button>
         )}
       </div>
@@ -750,14 +777,14 @@ function CompliancePanel({ headers, isManager, staffList }) {
          (tracker.summary?.expiring_90 || 0) === 0 &&
          (tracker.summary?.ok || 0) === 0 && (
           <p className="text-xs py-3 text-center" style={{ color: 'var(--theme-text-muted)' }}>
-            No certs tracked yet. Add the first one with the button above.
+            {t('staffing.ops_no_certs', 'No certs tracked yet. Add the first one with the button above.')}
           </p>
         )}
       </div>
       {isManager && tracker.missing_count > 0 && (
         <div className="rounded-lg border p-3" style={{ borderColor: 'var(--theme-border)', background: 'rgba(245,158,11,0.05)' }} data-testid="missing-staff">
           <p className="text-[10px] uppercase tracking-[0.14em] font-bold inline-flex items-center gap-1" style={{ color: '#F59E0B' }}>
-            <AlertTriangle size={11} /> {tracker.missing_count} staff have no certs on file
+            <AlertTriangle size={11} /> {tracker.missing_count} {t('staffing.ops_no_certs_on_file', 'staff have no certs on file')}
           </p>
           <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
             {(tracker.missing_staff || []).map((m) => m.staff_name).filter(Boolean).slice(0, 6).join(', ')}
@@ -774,6 +801,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
 // ─────────────────────────── HUB ───────────────────────────────
 
 export default function OperationsTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [sub, setSub] = useState(() => localStorage.getItem('staffing.ops.sub') || 'tasks');
   const [staffList, setStaffList] = useState([]);
 
@@ -802,7 +830,7 @@ export default function OperationsTab({ headers, isManager }) {
                 borderLeft: s.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
               }}
               data-testid={`ops-sub-${s.id}`}>
-              <Icon size={11} /> {s.label}
+              <Icon size={11} /> {t(s.labelKey, s.labelDefault)}
             </button>
           );
         })}

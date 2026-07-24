@@ -17,6 +17,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Users, Loader2, Circle, Clock, AlertTriangle, PoundSterling,
   TrendingUp, RefreshCw, ShieldCheck, Zap,
@@ -24,7 +25,6 @@ import {
 import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => i);
 
 function Kpi({ icon: Icon, label, value, accent, hint, testId }) {
@@ -72,11 +72,17 @@ function HeatmapCell({ value, peak }) {
 function formatGBP(n) { return formatMoneySync(n); }
 
 export default function WorkforceDashboardTab({ headers }) {
+  const { t } = useTranslation();
   useLocalization();  // warm currency cache
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  const DAY_LABELS = [
+    t('staffing.day_mon', 'Mon'), t('staffing.day_tue', 'Tue'), t('staffing.day_wed', 'Wed'),
+    t('staffing.day_thu', 'Thu'), t('staffing.day_fri', 'Fri'), t('staffing.day_sat', 'Sat'), t('staffing.day_sun', 'Sun'),
+  ];
 
   const load = useCallback(async (isBackground = false) => {
     if (!isBackground) setLoading(true);
@@ -86,12 +92,12 @@ export default function WorkforceDashboardTab({ headers }) {
       setData(d);
       setError(null);
     } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to load dashboard');
+      setError(e.response?.data?.detail || t('staffing.wf_load_failed', 'Failed to load dashboard'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [headers]);
+  }, [headers, t]);
 
   useEffect(() => {
     load();
@@ -107,7 +113,7 @@ export default function WorkforceDashboardTab({ headers }) {
   if (loading && !data) {
     return (
       <div className="py-12 flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--theme-text-muted)' }} data-testid="workforce-dashboard-loading">
-        <Loader2 size={14} className="animate-spin" /> Loading workforce dashboard…
+        <Loader2 size={14} className="animate-spin" /> {t('staffing.wf_loading', 'Loading workforce dashboard…')}
       </div>
     );
   }
@@ -127,12 +133,12 @@ export default function WorkforceDashboardTab({ headers }) {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Workforce Control Centre</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.wf_control_centre', 'Workforce Control Centre')}</p>
           <h3 className="text-lg font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-            Week of {data.week_start}
+            {t('staffing.wf_week_of', 'Week of')} {data.week_start}
           </h3>
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            Last refresh {new Date(data.as_of).toLocaleTimeString()}
+            {t('staffing.wf_last_refresh', 'Last refresh')} {new Date(data.as_of).toLocaleTimeString()}
           </p>
         </div>
         <button
@@ -143,43 +149,43 @@ export default function WorkforceDashboardTab({ headers }) {
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
           data-testid="workforce-dashboard-refresh"
         >
-          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> Refresh
+          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> {t('staffing.wf_refresh', 'Refresh')}
         </button>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Kpi icon={Users}        label="Active staff"  value={k.active_staff ?? 0}   accent="#19CDFF"  testId="kpi-active-staff" />
-        <Kpi icon={Circle}       label="On shift now"  value={k.on_now ?? 0}         accent="#10B981"  testId="kpi-on-now" hint="Scheduled, live" />
-        <Kpi icon={Clock}        label="Running late"  value={k.late ?? 0}           accent="#F59E0B"  testId="kpi-late" />
-        <Kpi icon={AlertTriangle} label="Absent"       value={k.absent ?? 0}         accent="#EF4444"  testId="kpi-absent" />
-        <Kpi icon={Zap}          label="Open today"    value={k.open_today ?? 0}     accent="#8B5CF6"  testId="kpi-open-today" hint="Need fill" />
-        <Kpi icon={ShieldCheck}  label="Coverage"      value={`${k.coverage_pct ?? 0}%`} accent="#0EA5E9" testId="kpi-coverage" />
+        <Kpi icon={Users}        label={t('staffing.wf_active_staff', 'Active staff')}  value={k.active_staff ?? 0}   accent="#19CDFF"  testId="kpi-active-staff" />
+        <Kpi icon={Circle}       label={t('staffing.wf_on_now', 'On shift now')}  value={k.on_now ?? 0}         accent="#10B981"  testId="kpi-on-now" hint={t('staffing.wf_scheduled_live', 'Scheduled, live')} />
+        <Kpi icon={Clock}        label={t('staffing.wf_running_late', 'Running late')}  value={k.late ?? 0}           accent="#F59E0B"  testId="kpi-late" />
+        <Kpi icon={AlertTriangle} label={t('staffing.wf_absent', 'Absent')}       value={k.absent ?? 0}         accent="#EF4444"  testId="kpi-absent" />
+        <Kpi icon={Zap}          label={t('staffing.wf_open_today', 'Open today')}    value={k.open_today ?? 0}     accent="#8B5CF6"  testId="kpi-open-today" hint={t('staffing.wf_need_fill', 'Need fill')} />
+        <Kpi icon={ShieldCheck}  label={t('staffing.wf_coverage', 'Coverage')}      value={`${k.coverage_pct ?? 0}%`} accent="#0EA5E9" testId="kpi-coverage" />
       </div>
 
       {/* Week money row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={Clock}         label="Scheduled hours"   value={`${w.hours ?? 0}h`}              accent="#19CDFF" testId="week-hours" />
-        <Kpi icon={PoundSterling} label="Labour cost"       value={formatGBP(w.labour_cost)}        accent="#10B981" testId="week-cost" />
-        <Kpi icon={TrendingUp}    label="Overtime"          value={`${w.overtime_hours ?? 0}h`}     accent="#F59E0B" testId="week-overtime" />
-        <Kpi icon={PoundSterling} label="Avg / hour"        value={formatGBP(w.avg_hourly)}         accent="#0EA5E9" testId="week-avg" />
+        <Kpi icon={Clock}         label={t('staffing.wf_scheduled_hours', 'Scheduled hours')}   value={`${w.hours ?? 0}h`}              accent="#19CDFF" testId="week-hours" />
+        <Kpi icon={PoundSterling} label={t('staffing.wf_labour_cost', 'Labour cost')}       value={formatGBP(w.labour_cost)}        accent="#10B981" testId="week-cost" />
+        <Kpi icon={TrendingUp}    label={t('staffing.wf_overtime', 'Overtime')}          value={`${w.overtime_hours ?? 0}h`}     accent="#F59E0B" testId="week-overtime" />
+        <Kpi icon={PoundSterling} label={t('staffing.wf_avg_hour', 'Avg / hour')}        value={formatGBP(w.avg_hourly)}         accent="#0EA5E9" testId="week-avg" />
       </div>
 
       {/* Heatmap */}
       <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Coverage heatmap</p>
-            <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>7-day × hour-of-day</p>
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.wf_coverage_heatmap', 'Coverage heatmap')}</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.wf_heatmap_sub', '7-day × hour-of-day')}</p>
           </div>
           <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-            <span>low</span>
+            <span>{t('staffing.wf_low', 'low')}</span>
             <div className="flex gap-0.5">
               {[0.15, 0.3, 0.45, 0.6, 0.85].map((op) => (
                 <div key={op} className="w-4 h-2 rounded-sm" style={{ background: `rgba(25,205,255,${op})` }} />
               ))}
             </div>
-            <span>peak {peak.toFixed(1)}h</span>
+            <span>{t('staffing.wf_peak', 'peak')} {peak.toFixed(1)}h</span>
           </div>
         </div>
         <div className="overflow-x-auto" data-testid="workforce-heatmap">
@@ -214,13 +220,13 @@ export default function WorkforceDashboardTab({ headers }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* On now / upcoming */}
         <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Live roster</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.wf_live_roster', 'Live roster')}</p>
           {(data.on_now || []).length === 0 && (data.upcoming || []).length === 0 && (
-            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Nothing scheduled right now.</p>
+            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.wf_nothing_scheduled', 'Nothing scheduled right now.')}</p>
           )}
           {(data.on_now || []).length > 0 && (
             <>
-              <p className="text-[11px] font-bold mt-2 mb-1" style={{ color: 'var(--theme-text)' }}>On shift now ({data.on_now.length})</p>
+              <p className="text-[11px] font-bold mt-2 mb-1" style={{ color: 'var(--theme-text)' }}>{t('staffing.wf_on_shift_now', 'On shift now')} ({data.on_now.length})</p>
               <ul className="space-y-1">
                 {data.on_now.map((sh) => (
                   <li key={sh.id} className="flex items-center justify-between text-xs gap-2" data-testid={`on-now-${sh.id}`}>
@@ -237,7 +243,7 @@ export default function WorkforceDashboardTab({ headers }) {
           )}
           {(data.upcoming || []).length > 0 && (
             <>
-              <p className="text-[11px] font-bold mt-3 mb-1" style={{ color: 'var(--theme-text)' }}>Starting today ({data.upcoming.length})</p>
+              <p className="text-[11px] font-bold mt-3 mb-1" style={{ color: 'var(--theme-text)' }}>{t('staffing.wf_starting_today', 'Starting today')} ({data.upcoming.length})</p>
               <ul className="space-y-1">
                 {data.upcoming.map((sh) => (
                   <li key={sh.id} className="flex items-center justify-between text-xs gap-2">
@@ -255,14 +261,14 @@ export default function WorkforceDashboardTab({ headers }) {
 
         {/* Open shifts + compliance */}
         <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Attention</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.wf_attention', 'Attention')}</p>
           {(data.open_shifts || []).length === 0 && (data.compliance?.top || []).length === 0 && (
-            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No open shifts or compliance warnings.</p>
+            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.wf_no_open', 'No open shifts or compliance warnings.')}</p>
           )}
           {(data.open_shifts || []).length > 0 && (
             <>
               <p className="text-[11px] font-bold mt-2 mb-1 inline-flex items-center gap-1" style={{ color: 'var(--theme-text)' }}>
-                <Zap size={11} className="text-violet-500" /> Open shifts (next 14 days · {data.open_shifts.length})
+                <Zap size={11} className="text-violet-500" /> {t('staffing.wf_open_shifts', 'Open shifts (next 14 days')} · {data.open_shifts.length})
               </p>
               <ul className="space-y-1" data-testid="open-shifts-list">
                 {data.open_shifts.slice(0, 6).map((sh) => (
@@ -279,7 +285,7 @@ export default function WorkforceDashboardTab({ headers }) {
           {(data.compliance?.top || []).length > 0 && (
             <>
               <p className="text-[11px] font-bold mt-3 mb-1 inline-flex items-center gap-1" style={{ color: 'var(--theme-text)' }}>
-                <AlertTriangle size={11} className="text-amber-500" /> Compliance ({data.compliance.count})
+                <AlertTriangle size={11} className="text-amber-500" /> {t('staffing.wf_compliance', 'Compliance')} ({data.compliance.count})
               </p>
               <ul className="space-y-1" data-testid="compliance-list">
                 {data.compliance.top.slice(0, 5).map((c, i) => (

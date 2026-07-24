@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, X, ClipboardCheck, Smartphone, RefreshCw,
@@ -28,7 +29,6 @@ const STATE_TINT = {
   on_break: '#F59E0B',
   off: '#94A3B8',
 };
-const STATE_LABEL = { on_shift: 'On shift', on_break: 'On break', off: 'Off' };
 
 function fmtTime(iso) {
   if (!iso) return '—';
@@ -43,8 +43,10 @@ function startOfWeek() {
 }
 
 function ClockBoard({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const STATE_LABEL = { on_shift: t('staffing.tc_on_shift', 'On shift'), on_break: t('staffing.tc_on_break', 'On break'), off: t('staffing.tc_off', 'Off') };
 
   // Iter 216h63 — site-scoped board. Read activeSite from localStorage
   // so we don't have to thread context through every staffing panel.
@@ -76,49 +78,49 @@ function ClockBoard({ headers }) {
     return () => clearInterval(i);
   }, [load]);
 
-  if (!data) return <div className="py-6 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading board…</div>;
+  if (!data) return <div className="py-6 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.tc_loading_board', 'Loading board…')}</div>;
   const s = data.summary || {};
   return (
     <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="clock-board">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Live punch board</p>
-          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{data.rows?.length || 0} staff · refreshes every 30s</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.tc_live_board', 'Live punch board')}</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{data.rows?.length || 0} {t('staffing.tc_staff_refresh', 'staff · refreshes every 30s')}</p>
         </div>
         <button type="button" onClick={() => load(true)} className="h-8 inline-flex items-center gap-1.5 rounded-full border px-3 text-xs font-bold"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="clock-board-refresh">
-          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> Refresh
+          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> {t('staffing.tc_refresh', 'Refresh')}
         </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
         <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#10B981' }}>On shift</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#10B981' }}>{t('staffing.tc_on_shift', 'On shift')}</p>
           <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{s.on_shift || 0}</p>
         </div>
         <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#F59E0B' }}>On break</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#F59E0B' }}>{t('staffing.tc_on_break', 'On break')}</p>
           <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{s.on_break || 0}</p>
         </div>
         <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#EF4444' }}>Late</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#EF4444' }}>{t('staffing.tc_late', 'Late')}</p>
           <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{s.late || 0}</p>
         </div>
         <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#94A3B8' }}>Off</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#94A3B8' }}>{t('staffing.tc_off', 'Off')}</p>
           <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{s.off || 0}</p>
         </div>
       </div>
       {(data.rows || []).length === 0 ? (
-        <p className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>No active staff yet.</p>
+        <p className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_no_active', 'No active staff yet.')}</p>
       ) : (
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-xs">
             <thead>
               <tr style={{ color: 'var(--theme-text-muted)' }}>
-                <th className="text-left font-semibold py-1.5 px-2">Staff</th>
-                <th className="text-left font-semibold py-1.5 px-2">State</th>
-                <th className="text-left font-semibold py-1.5 px-2">Last punch</th>
-                <th className="text-left font-semibold py-1.5 px-2">Today</th>
+                <th className="text-left font-semibold py-1.5 px-2">{t('staffing.tc_col_staff', 'Staff')}</th>
+                <th className="text-left font-semibold py-1.5 px-2">{t('staffing.tc_col_state', 'State')}</th>
+                <th className="text-left font-semibold py-1.5 px-2">{t('staffing.tc_col_last_punch', 'Last punch')}</th>
+                <th className="text-left font-semibold py-1.5 px-2">{t('staffing.tc_col_today', 'Today')}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,7 +136,7 @@ function ClockBoard({ headers }) {
                       {STATE_LABEL[r.state]}
                     </span>
                     {r.late && (
-                      <span className="ml-1.5 text-[10px] font-bold uppercase" style={{ color: '#EF4444' }}>· LATE</span>
+                      <span className="ml-1.5 text-[10px] font-bold uppercase" style={{ color: '#EF4444' }}>· {t('staffing.tc_late_flag', 'LATE')}</span>
                     )}
                   </td>
                   <td className="py-2 px-2 tabular-nums" style={{ color: 'var(--theme-text-muted)' }}>
@@ -154,6 +156,7 @@ function ClockBoard({ headers }) {
 }
 
 function TimesheetRow({ ts, onApprove, onDispute }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const tint = ts.approval_status === 'approved' ? '#10B981'
     : ts.approval_status === 'disputed' ? '#EF4444'
@@ -166,9 +169,9 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
           <div className="min-w-0">
             <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{ts.staff_name}</p>
             <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-              {ts.actual_hours}h actual · {ts.scheduled_hours}h scheduled
-              {ts.overtime_hours > 0 && <span> · {ts.overtime_hours}h OT</span>}
-              {ts.late_total_minutes > 0 && <span> · {ts.late_total_minutes}m late</span>}
+              {ts.actual_hours}{t('staffing.tc_h_actual', 'h actual')} · {ts.scheduled_hours}{t('staffing.tc_h_scheduled', 'h scheduled')}
+              {ts.overtime_hours > 0 && <span> · {ts.overtime_hours}{t('staffing.tc_h_ot', 'h OT')}</span>}
+              {ts.late_total_minutes > 0 && <span> · {ts.late_total_minutes}{t('staffing.tc_m_late', 'm late')}</span>}
             </p>
           </div>
         </div>
@@ -182,16 +185,16 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
       {open && (
         <div className="border-t p-3 space-y-2" style={{ borderColor: 'var(--theme-border)' }}>
           {(ts.line_items || []).length === 0 ? (
-            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No shifts in this week.</p>
+            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_no_shifts_week', 'No shifts in this week.')}</p>
           ) : (
             <table className="w-full text-[11px]">
               <thead>
                 <tr style={{ color: 'var(--theme-text-muted)' }}>
-                  <th className="text-left font-semibold py-1">Date</th>
-                  <th className="text-left font-semibold py-1">Scheduled</th>
-                  <th className="text-left font-semibold py-1">Actual</th>
-                  <th className="text-right font-semibold py-1">Hours</th>
-                  <th className="text-right font-semibold py-1">Late</th>
+                  <th className="text-left font-semibold py-1">{t('staffing.tc_col_date', 'Date')}</th>
+                  <th className="text-left font-semibold py-1">{t('staffing.tc_col_scheduled', 'Scheduled')}</th>
+                  <th className="text-left font-semibold py-1">{t('staffing.tc_col_actual', 'Actual')}</th>
+                  <th className="text-right font-semibold py-1">{t('staffing.tc_col_hours', 'Hours')}</th>
+                  <th className="text-right font-semibold py-1">{t('staffing.tc_col_late', 'Late')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,7 +204,7 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
                     <td className="py-1.5 tabular-nums">{li.scheduled_start}–{li.scheduled_end}</td>
                     <td className="py-1.5 tabular-nums">
                       {li.missing_punch
-                        ? <span className="text-rose-500 inline-flex items-center gap-1"><AlertTriangle size={10} /> missing</span>
+                        ? <span className="text-rose-500 inline-flex items-center gap-1"><AlertTriangle size={10} /> {t('staffing.tc_missing', 'missing')}</span>
                         : `${fmtTime(li.actual_start)}–${fmtTime(li.actual_end)}`}
                     </td>
                     <td className="py-1.5 text-right tabular-nums">{li.actual_hours}h</td>
@@ -215,7 +218,7 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
           )}
           {ts.dispute_reason && (
             <div className="rounded-md p-2 text-[11px]" style={{ background: 'rgba(239,68,68,0.08)', color: '#EF4444' }}>
-              <strong>Dispute:</strong> {ts.dispute_reason}
+              <strong>{t('staffing.tc_dispute', 'Dispute')}:</strong> {ts.dispute_reason}
             </div>
           )}
           {ts.approval_status !== 'approved' && (
@@ -223,12 +226,12 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
               <button type="button" onClick={() => onApprove(ts)}
                 className="h-8 rounded-full px-3 text-[11px] font-bold inline-flex items-center gap-1"
                 style={{ background: '#10B981', color: '#001219' }} data-testid={`timesheet-approve-${ts.id}`}>
-                <Check size={11} /> Approve
+                <Check size={11} /> {t('staffing.tc_approve', 'Approve')}
               </button>
               <button type="button" onClick={() => onDispute(ts)}
                 className="h-8 rounded-full px-3 text-[11px] font-bold inline-flex items-center gap-1 border"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`timesheet-dispute-${ts.id}`}>
-                <AlertTriangle size={11} /> Flag
+                <AlertTriangle size={11} /> {t('staffing.tc_flag', 'Flag')}
               </button>
             </div>
           )}
@@ -239,6 +242,7 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
 }
 
 function TimesheetsPanel({ headers }) {
+  const { t } = useTranslation();
   const [weekStart, setWeekStart] = useState(startOfWeek);
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -256,23 +260,23 @@ function TimesheetsPanel({ headers }) {
 
   const approve = async (ts) => {
     try { await axios.post(`${API}/staffing/timesheets/${ts.id}/approve`, {}, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Approve failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.tc_approve_failed', 'Approve failed')); }
   };
   const dispute = async (ts) => {
-    const reason = window.prompt(`Why is ${ts.staff_name}'s timesheet wrong?`);
+    const reason = window.prompt(`${t('staffing.tc_why_wrong', 'Why is')} ${ts.staff_name}${t('staffing.tc_ts_wrong', "'s timesheet wrong?")}`);
     if (!reason) return;
     try { await axios.post(`${API}/staffing/timesheets/${ts.id}/dispute`, { reason }, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Dispute failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.tc_dispute_failed', 'Dispute failed')); }
   };
 
-  const rows = (data?.timesheets || []).filter((t) => filter === 'all' || t.approval_status === filter);
+  const rows = (data?.timesheets || []).filter((item) => filter === 'all' || item.approval_status === filter);
 
   return (
     <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="timesheets-panel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Weekly timesheets</p>
-          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Week of {weekStart}</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.tc_weekly', 'Weekly timesheets')}</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.tc_week_of', 'Week of')} {weekStart}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)}
@@ -281,25 +285,26 @@ function TimesheetsPanel({ headers }) {
           <select value={filter} onChange={(e) => setFilter(e.target.value)}
             className="h-8 rounded-md bg-transparent border px-2 text-xs"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="timesheets-filter">
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="disputed">Disputed</option>
+            <option value="all">{t('staffing.tc_all', 'All')}</option>
+            <option value="pending">{t('staffing.tc_pending', 'Pending')}</option>
+            <option value="approved">{t('staffing.tc_approved', 'Approved')}</option>
+            <option value="disputed">{t('staffing.tc_disputed', 'Disputed')}</option>
           </select>
         </div>
       </div>
-      {!data && <div className="py-3 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading…</div>}
+      {!data && <div className="py-3 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.tc_loading', 'Loading…')}</div>}
       {data && rows.length === 0 && (
-        <p className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>No timesheets match this filter.</p>
+        <p className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_no_match', 'No timesheets match this filter.')}</p>
       )}
       <div className="space-y-2">
-        {rows.map((t) => <TimesheetRow key={t.id} ts={t} onApprove={approve} onDispute={dispute} />)}
+        {rows.map((item) => <TimesheetRow key={item.id} ts={item} onApprove={approve} onDispute={dispute} />)}
       </div>
     </div>
   );
 }
 
 function KiosksPanel({ headers }) {
+  const { t } = useTranslation();
   const [list, setList] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', pin: '' });
@@ -325,13 +330,13 @@ function KiosksPanel({ headers }) {
       }
       setEditing(null); setForm({ name: '', pin: '' });
       load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.tc_save_failed', 'Save failed')); }
   };
 
   const remove = async (k) => {
-    if (!window.confirm(`Delete kiosk "${k.name}"?`)) return;
+    if (!window.confirm(`${t('staffing.tc_delete_kiosk', 'Delete kiosk')} "${k.name}"?`)) return;
     try { await axios.delete(`${API}/staffing/kiosks/${k.id}`, { headers }); load(); }
-    catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    catch (e) { window.alert(e.response?.data?.detail || t('staffing.tc_delete_failed', 'Delete failed')); }
   };
 
   const startNew = () => { setEditing({}); setForm({ name: '', pin: '' }); };
@@ -342,28 +347,28 @@ function KiosksPanel({ headers }) {
     <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="kiosks-panel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Front-desk kiosks</p>
-          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Shared punch devices</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.tc_kiosks', 'Front-desk kiosks')}</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.tc_shared_devices', 'Shared punch devices')}</p>
         </div>
         <button type="button" onClick={startNew}
           className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
           style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="kiosks-new">
-          <Plus size={12} /> New kiosk
+          <Plus size={12} /> {t('staffing.tc_new_kiosk', 'New kiosk')}
         </button>
       </div>
-      {loading && <div className="text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading…</div>}
+      {loading && <div className="text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.tc_loading', 'Loading…')}</div>}
       {!loading && list.length === 0 && !editing && (
-        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No kiosks yet — create one and tape the URL onto the front-desk iPad.</p>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_no_kiosks', 'No kiosks yet — create one and tape the URL onto the front-desk iPad.')}</p>
       )}
       {editing && (
         <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--color-brand-cyan)' }} data-testid="kiosk-editor">
           <div className="grid grid-cols-2 gap-2">
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Front Desk iPad"
+              placeholder={t('staffing.tc_kiosk_name_ph', 'e.g. Front Desk iPad')}
               className="h-9 rounded-md bg-transparent border px-2 text-xs"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="kiosk-name" />
             <input value={form.pin} onChange={(e) => setForm((f) => ({ ...f, pin: e.target.value }))}
-              placeholder={editing.id ? 'New PIN (or leave blank)' : '4-6 digit PIN'}
+              placeholder={editing.id ? t('staffing.tc_new_pin', 'New PIN (or leave blank)') : t('staffing.tc_pin_ph', '4-6 digit PIN')}
               maxLength={6}
               className="h-9 rounded-md bg-transparent border px-2 text-xs tabular-nums"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="kiosk-pin" />
@@ -372,12 +377,12 @@ function KiosksPanel({ headers }) {
             <button type="button" onClick={save}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1"
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="kiosk-save">
-              <Check size={11} /> Save
+              <Check size={11} /> {t('staffing.tc_save', 'Save')}
             </button>
             <button type="button" onClick={() => { setEditing(null); setForm({ name: '', pin: '' }); }}
               className="h-8 rounded-full px-3 text-xs font-bold border inline-flex items-center gap-1"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>
-              <X size={11} /> Cancel
+              <X size={11} /> {t('staffing.tc_cancel', 'Cancel')}
             </button>
           </div>
         </div>
@@ -398,7 +403,7 @@ function KiosksPanel({ headers }) {
               <button type="button" onClick={() => navigator.clipboard?.writeText(kioskUrl(k))}
                 className="h-7 px-2 rounded-full border text-[10px] font-bold"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`kiosk-copy-${k.id}`}>
-                Copy URL
+                {t('staffing.tc_copy_url', 'Copy URL')}
               </button>
               <button type="button" onClick={() => startEdit(k)} className="h-7 w-7 rounded-full border inline-flex items-center justify-center"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`kiosk-edit-${k.id}`}>
@@ -417,12 +422,13 @@ function KiosksPanel({ headers }) {
 }
 
 export default function TimeClockTab({ headers }) {
+  const { t } = useTranslation();
   useLocalization();  // warm currency cache
   return (
     <div className="space-y-4" data-testid="time-clock-tab">
       <ClockBoard headers={headers} />
       <div className="flex items-center gap-1.5 text-xs pt-1" style={{ color: 'var(--theme-text-muted)' }}>
-        <ClipboardCheck size={12} /> Approve hours below before exporting payroll.
+        <ClipboardCheck size={12} /> {t('staffing.tc_approve_note', 'Approve hours below before exporting payroll.')}
       </div>
       <TimesheetsPanel headers={headers} />
       <KiosksPanel headers={headers} />

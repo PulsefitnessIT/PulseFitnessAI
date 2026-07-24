@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { Users, KeyRound, ShieldAlert, Trash2, Plus, CopyIcon, Tag, Eye, EyeOff,
 import { useInlineBanner, useConfirm } from '@/components/notifications';
 
 const GymFloorManagerTab = () => {
+  const { t } = useTranslation();
   const { API, user } = useAuth();
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -71,7 +73,7 @@ const GymFloorManagerTab = () => {
     e.preventDefault();
     clear();
     if (!form.username || !form.password) {
-      show({ tone: 'error', title: 'Credentials required' });
+      show({ tone: 'error', title: t('staffing.gfm_creds_required', 'Credentials required') });
       return;
     }
     setBusy(true);
@@ -83,12 +85,12 @@ const GymFloorManagerTab = () => {
       }, { headers });
       show({
         tone: 'success',
-        title: 'Gym Floor login saved',
-        detail: `Share these credentials with your staff. Login URL: ${window.location.origin}/gym-floor`,
+        title: t('staffing.gfm_login_saved', 'Gym Floor login saved'),
+        detail: `${t('staffing.gfm_share_creds', 'Share these credentials with your staff. Login URL:')} ${window.location.origin}/gym-floor`,
       });
       load();
     } catch (err) {
-      show({ tone: 'error', title: 'Couldn\'t save', detail: err.response?.data?.detail });
+      show({ tone: 'error', title: t('staffing.gfm_couldnt_save', "Couldn't save"), detail: err.response?.data?.detail });
     }
     setBusy(false);
   };
@@ -96,8 +98,8 @@ const GymFloorManagerTab = () => {
   const addStaff = async () => {
     const nm = form.newStaff.trim();
     const em = form.newStaffEmail.trim();
-    if (!nm) { show({ tone: 'error', title: 'Name required' }); return; }
-    if (!em) { show({ tone: 'error', title: 'Email required', detail: 'Suppliers will use this to reach the staff member when a fault is logged.' }); return; }
+    if (!nm) { show({ tone: 'error', title: t('staffing.gfm_name_required', 'Name required') }); return; }
+    if (!em) { show({ tone: 'error', title: t('staffing.gfm_email_required', 'Email required'), detail: t('staffing.gfm_email_detail', 'Suppliers will use this to reach the staff member when a fault is logged.') }); return; }
     try {
       await axios.post(`${API}/gym-floor/staff`, {
         name: nm,
@@ -107,7 +109,7 @@ const GymFloorManagerTab = () => {
       setForm({ ...form, newStaff: '', newStaffEmail: '', newStaffMobile: '' });
       load();
     } catch (err) {
-      show({ tone: 'error', title: 'Couldn\'t add staff', detail: err.response?.data?.detail });
+      show({ tone: 'error', title: t('staffing.gfm_couldnt_add', "Couldn't add staff"), detail: err.response?.data?.detail });
     }
   };
   const startEditStaff = (s) => {
@@ -125,11 +127,11 @@ const GymFloorManagerTab = () => {
       setEditingStaffId(null);
       load();
     } catch (err) {
-      show({ tone: 'error', title: 'Couldn\'t save', detail: err.response?.data?.detail });
+      show({ tone: 'error', title: t('staffing.gfm_couldnt_save', "Couldn't save"), detail: err.response?.data?.detail });
     }
   };
   const removeStaff = async (s) => {
-    const ok = await confirm({ title: `Remove ${s.name}?`, tone: 'danger', confirmLabel: 'Remove' });
+    const ok = await confirm({ title: `${t('staffing.gfm_remove', 'Remove')} ${s.name}?`, tone: 'danger', confirmLabel: t('staffing.gfm_remove', 'Remove') });
     if (!ok) return;
     await axios.delete(`${API}/gym-floor/staff/${s.id}`, { headers });
     load();
@@ -142,17 +144,17 @@ const GymFloorManagerTab = () => {
     setForm({ ...form, newTopic: '' });
     load();
   };
-  const removeTopic = async (t) => {
-    await axios.delete(`${API}/gym-floor/topics/${t.id}`, { headers });
+  const removeTopic = async (topic) => {
+    await axios.delete(`${API}/gym-floor/topics/${topic.id}`, { headers });
     load();
   };
 
   const removeEntry = async (e) => {
     const ok = await confirm({
-      title: 'Delete this diary entry?',
-      detail: `By ${e.staff_name} · ${new Date(e.created_at).toLocaleString()}`,
+      title: t('staffing.gfm_delete_entry', 'Delete this diary entry?'),
+      detail: `${t('staffing.gfm_by', 'By')} ${e.staff_name} · ${new Date(e.created_at).toLocaleString()}`,
       tone: 'danger',
-      confirmLabel: 'Delete',
+      confirmLabel: t('staffing.gfm_delete', 'Delete'),
     });
     if (!ok) return;
     await axios.delete(`${API}/gym-floor/handover/${e.id}`, { headers });
@@ -161,17 +163,17 @@ const GymFloorManagerTab = () => {
 
   const copyUrl = () => {
     navigator.clipboard.writeText(`${window.location.origin}/gym-floor`);
-    show({ tone: 'info', title: 'Link copied', detail: `${window.location.origin}/gym-floor` });
+    show({ tone: 'info', title: t('staffing.gfm_link_copied', 'Link copied'), detail: `${window.location.origin}/gym-floor` });
   };
 
-  const topicLabel = (id) => topics.find((t) => t.id === id)?.label || id;
+  const topicLabel = (id) => topics.find((tp) => tp.id === id)?.label || id;
 
   return (
     <div className="space-y-4" data-testid="gym-floor-manager-tab">
       {banner && <div>{banner}</div>}
 
       <div className={`subtab-bar ${isManager ? '' : 'hidden'}`} role="tablist">
-        {[{ id: 'diary', label: `Diary (${entries.length})` }, { id: 'setup', label: 'Setup' }].map((p) => (
+        {[{ id: 'diary', label: `${t('staffing.gfm_diary', 'Diary')} (${entries.length})` }, { id: 'setup', label: t('staffing.gfm_setup', 'Setup') }].map((p) => (
           <button
             key={p.id}
             type="button"
@@ -187,33 +189,33 @@ const GymFloorManagerTab = () => {
       {panel === 'setup' && isManager && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="p-5 rounded-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><KeyRound size={14} /> Shared credentials</h3>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><KeyRound size={14} /> {t('staffing.gfm_shared_creds', 'Shared credentials')}</h3>
             {cred ? (
               <div className="p-3 rounded-lg mb-3 flex items-center justify-between gap-3" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Active username</p>
+                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.gfm_active_username', 'Active username')}</p>
                   <p className="text-sm font-mono font-semibold">{cred.username}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={copyUrl} className="rounded-full text-xs" data-testid="gym-floor-copy-link">
-                  <CopyIcon size={12} className="mr-1" /> Copy login URL
+                  <CopyIcon size={12} className="mr-1" /> {t('staffing.gfm_copy_url', 'Copy login URL')}
                 </Button>
               </div>
             ) : (
-              <p className="text-sm mb-3" style={{ color: 'var(--theme-text-muted)' }}>No shared login yet — create one below.</p>
+              <p className="text-sm mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.gfm_no_login', 'No shared login yet — create one below.')}</p>
             )}
             <form onSubmit={submitSetup} className="space-y-2">
               <div>
-                <Label className="text-xs">Username</Label>
-                <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="e.g. studio-floor" data-testid="gym-floor-setup-username" />
+                <Label className="text-xs">{t('staffing.gfm_username', 'Username')}</Label>
+                <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder={t('staffing.gfm_username_ph', 'e.g. studio-floor')} data-testid="gym-floor-setup-username" />
               </div>
               <div>
-                <Label className="text-xs">{cred ? 'New password' : 'Password'}</Label>
+                <Label className="text-xs">{cred ? t('staffing.gfm_new_password', 'New password') : t('staffing.gfm_password', 'Password')}</Label>
                 <div className="relative">
                   <Input
                     type={showPwd ? 'text' : 'password'}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Set a shareable password"
+                    placeholder={t('staffing.gfm_password_ph', 'Set a shareable password')}
                     className="pr-10"
                     data-testid="gym-floor-setup-password"
                   />
@@ -221,7 +223,7 @@ const GymFloorManagerTab = () => {
                     type="button"
                     onClick={() => setShowPwd((v) => !v)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
-                    aria-label={showPwd ? 'Hide password' : 'Show password'}
+                    aria-label={showPwd ? t('staffing.gfm_hide_pw', 'Hide password') : t('staffing.gfm_show_pw', 'Show password')}
                     data-testid="gym-floor-setup-password-toggle"
                   >
                     {showPwd ? <EyeOff size={14} className="text-zinc-500" /> : <Eye size={14} className="text-zinc-500" />}
@@ -229,35 +231,35 @@ const GymFloorManagerTab = () => {
                 </div>
               </div>
               <Button type="submit" disabled={busy} className="w-full rounded-full bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)]" data-testid="gym-floor-setup-submit">
-                {busy ? 'Saving…' : cred ? 'Rotate credentials' : 'Create gym-floor login'}
+                {busy ? t('staffing.gfm_saving', 'Saving…') : cred ? t('staffing.gfm_rotate', 'Rotate credentials') : t('staffing.gfm_create_login', 'Create gym-floor login')}
               </Button>
             </form>
           </Card>
 
           <Card className="p-5 rounded-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-            <h3 className="text-sm font-semibold mb-1 flex items-center gap-2"><Users size={14} /> Staff roster ({staff.length})</h3>
+            <h3 className="text-sm font-semibold mb-1 flex items-center gap-2"><Users size={14} /> {t('staffing.gfm_roster', 'Staff roster')} ({staff.length})</h3>
             <p className="text-[11px] mb-3" style={{ color: 'var(--theme-text-muted)' }}>
-              Email is required so the supplier can reach the right person when a fault is logged from the gym floor.
+              {t('staffing.gfm_roster_note', 'Email is required so the supplier can reach the right person when a fault is logged from the gym floor.')}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
-              <Input value={form.newStaff} onChange={(e) => setForm({ ...form, newStaff: e.target.value })} placeholder="Full name" data-testid="gym-floor-new-staff" />
-              <Input type="email" value={form.newStaffEmail} onChange={(e) => setForm({ ...form, newStaffEmail: e.target.value })} placeholder="Email *" data-testid="gym-floor-new-staff-email" />
-              <Input value={form.newStaffMobile} onChange={(e) => setForm({ ...form, newStaffMobile: e.target.value })} placeholder="Mobile (optional)" data-testid="gym-floor-new-staff-mobile" />
+              <Input value={form.newStaff} onChange={(e) => setForm({ ...form, newStaff: e.target.value })} placeholder={t('staffing.gfm_full_name', 'Full name')} data-testid="gym-floor-new-staff" />
+              <Input type="email" value={form.newStaffEmail} onChange={(e) => setForm({ ...form, newStaffEmail: e.target.value })} placeholder={t('staffing.gfm_email_star', 'Email *')} data-testid="gym-floor-new-staff-email" />
+              <Input value={form.newStaffMobile} onChange={(e) => setForm({ ...form, newStaffMobile: e.target.value })} placeholder={t('staffing.gfm_mobile_opt', 'Mobile (optional)')} data-testid="gym-floor-new-staff-mobile" />
             </div>
             <Button onClick={addStaff} size="sm" className="w-full mb-3 rounded-full bg-[var(--color-brand-blue)] text-white" data-testid="gym-floor-add-staff">
-              <Plus size={13} className="mr-1" /> Add staff member
+              <Plus size={13} className="mr-1" /> {t('staffing.gfm_add_member', 'Add staff member')}
             </Button>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {staff.map((s) => (
                 <div key={s.id} className="px-3 py-2 rounded-lg" style={{ background: 'var(--theme-bg)' }}>
                   {editingStaffId === s.id ? (
                     <div className="space-y-1.5" data-testid={`gym-floor-edit-staff-${s.id}`}>
-                      <Input className="h-8 text-sm" value={staffEdit.name} onChange={(e) => setStaffEdit({ ...staffEdit, name: e.target.value })} placeholder="Name" />
-                      <Input className="h-8 text-sm" value={staffEdit.email} onChange={(e) => setStaffEdit({ ...staffEdit, email: e.target.value })} placeholder="Email" />
-                      <Input className="h-8 text-sm" value={staffEdit.mobile} onChange={(e) => setStaffEdit({ ...staffEdit, mobile: e.target.value })} placeholder="Mobile (optional)" />
+                      <Input className="h-8 text-sm" value={staffEdit.name} onChange={(e) => setStaffEdit({ ...staffEdit, name: e.target.value })} placeholder={t('staffing.gfm_name', 'Name')} />
+                      <Input className="h-8 text-sm" value={staffEdit.email} onChange={(e) => setStaffEdit({ ...staffEdit, email: e.target.value })} placeholder={t('staffing.gfm_email', 'Email')} />
+                      <Input className="h-8 text-sm" value={staffEdit.mobile} onChange={(e) => setStaffEdit({ ...staffEdit, mobile: e.target.value })} placeholder={t('staffing.gfm_mobile_opt', 'Mobile (optional)')} />
                       <div className="flex gap-2 pt-1">
-                        <Button size="sm" onClick={saveStaffEdit} className="flex-1 h-8 rounded-full bg-[var(--color-brand-blue)] text-white text-xs" data-testid={`gym-floor-save-staff-${s.id}`}>Save</Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingStaffId(null)} className="flex-1 h-8 rounded-full text-xs">Cancel</Button>
+                        <Button size="sm" onClick={saveStaffEdit} className="flex-1 h-8 rounded-full bg-[var(--color-brand-blue)] text-white text-xs" data-testid={`gym-floor-save-staff-${s.id}`}>{t('staffing.gfm_save', 'Save')}</Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingStaffId(null)} className="flex-1 h-8 rounded-full text-xs">{t('staffing.gfm_cancel', 'Cancel')}</Button>
                       </div>
                     </div>
                   ) : (
@@ -265,33 +267,33 @@ const GymFloorManagerTab = () => {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{s.name}</p>
                         <p className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted)' }}>
-                          {s.email || <span className="text-amber-600 dark:text-amber-400">⚠ no email</span>}
+                          {s.email || <span className="text-amber-600 dark:text-amber-400">⚠ {t('staffing.gfm_no_email', 'no email')}</span>}
                           {s.mobile ? ` · ${s.mobile}` : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <button onClick={() => startEditStaff(s)} className="text-[var(--color-brand-blue)] hover:underline text-[11px] font-semibold" data-testid={`gym-floor-edit-staff-btn-${s.id}`}>Edit</button>
+                        <button onClick={() => startEditStaff(s)} className="text-[var(--color-brand-blue)] hover:underline text-[11px] font-semibold" data-testid={`gym-floor-edit-staff-btn-${s.id}`}>{t('staffing.gfm_edit', 'Edit')}</button>
                         <button onClick={() => removeStaff(s)} className="text-red-500 hover:text-red-700" data-testid={`gym-floor-remove-staff-${s.id}`}><Trash2 size={12} /></button>
                       </div>
                     </div>
                   )}
                 </div>
               ))}
-              {staff.length === 0 && <p className="text-xs text-center py-3" style={{ color: 'var(--theme-text-muted)' }}>Add your first staff member.</p>}
+              {staff.length === 0 && <p className="text-xs text-center py-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.gfm_add_first', 'Add your first staff member.')}</p>}
             </div>
           </Card>
 
           <Card className="lg:col-span-2 p-5 rounded-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Tag size={14} /> Topics ({topics.length})</h3>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Tag size={14} /> {t('staffing.gfm_topics', 'Topics')} ({topics.length})</h3>
             <div className="flex gap-2 mb-3">
-              <Input value={form.newTopic} onChange={(e) => setForm({ ...form, newTopic: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTopic())} placeholder="e.g. Pool maintenance…" data-testid="gym-floor-new-topic" />
+              <Input value={form.newTopic} onChange={(e) => setForm({ ...form, newTopic: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTopic())} placeholder={t('staffing.gfm_topic_ph', 'e.g. Pool maintenance…')} data-testid="gym-floor-new-topic" />
               <Button onClick={addTopic} size="sm" className="rounded-full bg-[var(--color-brand-blue)] text-white" data-testid="gym-floor-add-topic"><Plus size={13} /></Button>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {topics.map((t) => (
-                <span key={t.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
-                  {t.label}
-                  <button onClick={() => removeTopic(t)} className="text-red-500 hover:text-red-700 ml-1" data-testid={`gym-floor-remove-topic-${t.id}`}><Trash2 size={10} /></button>
+              {topics.map((tp) => (
+                <span key={tp.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
+                  {tp.label}
+                  <button onClick={() => removeTopic(tp)} className="text-red-500 hover:text-red-700 ml-1" data-testid={`gym-floor-remove-topic-${tp.id}`}><Trash2 size={10} /></button>
                 </span>
               ))}
             </div>
@@ -303,7 +305,7 @@ const GymFloorManagerTab = () => {
         <div className="space-y-3">
           {entries.length === 0 ? (
             <div className="p-8 text-center text-sm rounded-xl border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>
-              No diary entries yet. Once you've set up the shared login and staff sign in at <code>/gym-floor</code>, entries will appear here.
+              {t('staffing.gfm_no_entries', "No diary entries yet. Once you've set up the shared login and staff sign in at")} <code>/gym-floor</code>{t('staffing.gfm_no_entries2', ', entries will appear here.')}
             </div>
           ) : entries.map((e) => (
             <Card key={e.id} className="p-5 rounded-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid={`gym-floor-entry-${e.id}`}>
@@ -322,7 +324,7 @@ const GymFloorManagerTab = () => {
                 <div className="flex items-center gap-2">
                   {e.flagged && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/20 text-amber-700 dark:text-amber-400" title={e.moderation?.reason}>
-                      <ShieldAlert size={11} /> Flagged · {e.moderation?.severity || 'review'}
+                      <ShieldAlert size={11} /> {t('staffing.gfm_flagged', 'Flagged')} · {e.moderation?.severity || t('staffing.gfm_review', 'review')}
                     </span>
                   )}
                   {isManager && (
@@ -334,7 +336,7 @@ const GymFloorManagerTab = () => {
               </div>
               <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--theme-text)' }}>{e.notes}</p>
               {e.moderation?.reason && (
-                <p className="text-[11px] mt-2 text-amber-700 dark:text-amber-400">⚠ Moderation note: {e.moderation.reason}</p>
+                <p className="text-[11px] mt-2 text-amber-700 dark:text-amber-400">⚠ {t('staffing.gfm_mod_note', 'Moderation note:')} {e.moderation.reason}</p>
               )}
             </Card>
           ))}

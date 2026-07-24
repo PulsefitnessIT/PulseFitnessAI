@@ -13,17 +13,13 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Play, Square, Coffee, Loader2, AlertTriangle, Clock, MapPin, History as HistIcon,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const STATE_LABEL = {
-  off: 'Off the clock',
-  on_shift: 'On shift',
-  on_break: 'On break',
-};
 const STATE_TINT = {
   off: '#94A3B8',
   on_shift: '#10B981',
@@ -53,9 +49,16 @@ function getGeo() {
 }
 
 export default function MyClockTab({ headers }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [busy, setBusy] = useState(false);
+
+  const STATE_LABEL = {
+    off: t('staffing.clock_state_off', 'Off the clock'),
+    on_shift: t('staffing.clock_state_on_shift', 'On shift'),
+    on_break: t('staffing.clock_state_on_break', 'On break'),
+  };
 
   const load = useCallback(async () => {
     try {
@@ -72,16 +75,16 @@ export default function MyClockTab({ headers }) {
 
   if (!status) {
     return <div className="py-8 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}>
-      <Loader2 size={14} className="animate-spin" /> Loading clock…
+      <Loader2 size={14} className="animate-spin" /> {t('staffing.clock_loading', 'Loading clock…')}
     </div>;
   }
   if (!status.linked) {
     return (
       <div className="rounded-xl border p-6 text-center" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="my-clock-unlinked">
         <Clock size={20} className="mx-auto mb-2" style={{ color: 'var(--theme-text-muted)' }} />
-        <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Account not linked to a staff record</p>
+        <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.clock_unlinked_title', 'Account not linked to a staff record')}</p>
         <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-          Ask a manager to add you to the staff list — your account email needs to match.
+          {t('staffing.clock_unlinked_note', 'Ask a manager to add you to the staff list — your account email needs to match.')}
         </p>
       </div>
     );
@@ -102,23 +105,23 @@ export default function MyClockTab({ headers }) {
       };
       const { data } = await axios.post(`${API}/staffing/clock/punch`, body, { headers });
       if (data.geo_warning) {
-        window.alert(`Punch recorded · note: ${data.geo_warning}`);
+        window.alert(`${t('staffing.clock_punch_recorded', 'Punch recorded')} · ${t('staffing.clock_note', 'note')}: ${data.geo_warning}`);
       }
       load();
     } catch (e) {
-      window.alert(e.response?.data?.detail || 'Punch failed');
+      window.alert(e.response?.data?.detail || t('staffing.clock_punch_failed', 'Punch failed'));
     }
     setBusy(false);
   };
 
   const primary = (() => {
-    if (state === 'off') return { label: 'Clock In', kind: 'clock_in', icon: Play, bg: '#10B981' };
-    if (state === 'on_shift') return { label: 'Clock Out', kind: 'clock_out', icon: Square, bg: '#EF4444' };
-    if (state === 'on_break') return { label: 'End Break', kind: 'break_end', icon: Play, bg: '#10B981' };
+    if (state === 'off') return { label: t('staffing.clock_in', 'Clock In'), kind: 'clock_in', icon: Play, bg: '#10B981' };
+    if (state === 'on_shift') return { label: t('staffing.clock_out', 'Clock Out'), kind: 'clock_out', icon: Square, bg: '#EF4444' };
+    if (state === 'on_break') return { label: t('staffing.clock_end_break', 'End Break'), kind: 'break_end', icon: Play, bg: '#10B981' };
     return null;
   })();
   const secondary = state === 'on_shift'
-    ? { label: 'Start Break', kind: 'break_start', icon: Coffee, bg: '#F59E0B' }
+    ? { label: t('staffing.clock_start_break', 'Start Break'), kind: 'break_start', icon: Coffee, bg: '#F59E0B' }
     : null;
 
   return (
@@ -126,12 +129,12 @@ export default function MyClockTab({ headers }) {
       <div className="rounded-xl border p-5 space-y-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: tint }}>Current state</p>
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: tint }}>{t('staffing.clock_current_state', 'Current state')}</p>
             <p className="text-2xl font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{STATE_LABEL[state]}</p>
             {status.last_event?.occurred_at && (
               <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-                Since {formatTime(status.last_event.occurred_at)}
-                {status.last_event.source === 'kiosk' && ' · via kiosk'}
+                {t('staffing.clock_since', 'Since')} {formatTime(status.last_event.occurred_at)}
+                {status.last_event.source === 'kiosk' && ` · ${t('staffing.clock_via_kiosk', 'via kiosk')}`}
                 {status.last_event.geo_warning && (
                   <span className="ml-1 inline-flex items-center gap-1 text-amber-500">
                     · <AlertTriangle size={10} /> {status.last_event.geo_warning}
@@ -144,7 +147,7 @@ export default function MyClockTab({ headers }) {
         </div>
         {status.todays_shift ? (
           <div className="rounded-lg border p-3" style={{ borderColor: 'var(--theme-border)' }}>
-            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Today's shift</p>
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.clock_todays_shift', "Today's shift")}</p>
             <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>
               {status.todays_shift.start_time}–{status.todays_shift.end_time} · {status.todays_shift.role}
             </p>
@@ -153,7 +156,7 @@ export default function MyClockTab({ headers }) {
             )}
           </div>
         ) : (
-          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No scheduled shift today.</p>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.clock_no_shift', 'No scheduled shift today.')}</p>
         )}
         <div className="flex gap-2 flex-wrap">
           {primary && (
@@ -183,16 +186,16 @@ export default function MyClockTab({ headers }) {
           )}
         </div>
         <p className="text-[10px] inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}>
-          <MapPin size={10} /> Location is captured at punch time and used for geofence audit only.
+          <MapPin size={10} /> {t('staffing.clock_geo_note', 'Location is captured at punch time and used for geofence audit only.')}
         </p>
       </div>
 
       <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2 inline-flex items-center gap-1" style={{ color: 'var(--color-brand-cyan)' }}>
-          <HistIcon size={11} /> Recent (last 7 days)
+          <HistIcon size={11} /> {t('staffing.clock_recent', 'Recent (last 7 days)')}
         </p>
         {history.length === 0 ? (
-          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No punches yet.</p>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.clock_no_punches', 'No punches yet.')}</p>
         ) : (
           <ul className="space-y-1" data-testid="my-clock-history">
             {history.slice(0, 20).map((e) => (
@@ -210,7 +213,7 @@ export default function MyClockTab({ headers }) {
                     {e.kind.replace('_', ' ')}
                   </span>
                   <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-                    {e.source === 'kiosk' ? 'Kiosk' : e.source === 'manual' ? 'Manual' : 'Mobile'}
+                    {e.source === 'kiosk' ? t('staffing.clock_src_kiosk', 'Kiosk') : e.source === 'manual' ? t('staffing.clock_src_manual', 'Manual') : t('staffing.clock_src_mobile', 'Mobile')}
                   </span>
                 </span>
                 <span className="tabular-nums text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>

@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only i18n verification (Phase 3, Operations Dashboards / Staffing module) in FR/DE/EN for operator owner (owner@isodemo.com). Logged in, navigated to Staffing, click-through of Workforce Dashboard + 7 sub-tabs (Time Clock, Shift Templates, Site Login, Team Access, AI Rota, Operations, Comms) + Gym Layout module tab in all three languages via localStorage.setItem('i18nextLng', ...) + reload. Regex scan for raw key leaks (staffing|ops|orgchart)\\.[a-z0-9_]+ across every rendered tab.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note: GymFloorManagerTab.js is not reachable from the operator owner UI (LiteDashboardPage removed the orphan gym-floor TabsContent, GymFloorManagerTab now only rendered inside MODProDashboard for dealer portal). AllSitesOverview also not surfaced as a clickable tab under owner@isodemo.com. If E1 wanted these two components tested for the operator owner, the mount path may need to be re-exposed; otherwise strings inside those components (which do useTranslation) cannot be visually verified here."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  (login on /login, lands on /service-desk, then navigate to /dashboard -> Staffing/Personnel/Personal tab)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "i18n FR/DE for Staffing module verified clean. To repeat: login, /dashboard, set localStorage.i18nextLng and reload, click data-testid=staffing-tab-{dashboard|people|rota|timeclock|comms|operations|payroll|expenses}, then staffing-subtab-{templates|site-access|team-access|ai-rota|timeclock|...}. Scan body for regex /(staffing|ops|orgchart)\\.[a-z0-9_]+/i.",
+  "verification_details": {
+    "languages_tested": ["fr", "de", "en"],
+    "tabs_verified_per_language": [
+      "Staffing default (Workforce Dashboard) - nav labels, KPIs (Active staff/On shift now/Coverage/Labour cost/Heatmap day labels Mon-Sun), fully translated",
+      "Time Clock (staffing-tab-timeclock)",
+      "Shift Templates (staffing-tab-rota + staffing-subtab-templates)",
+      "Site Login (staffing-tab-people + staffing-subtab-site-access)",
+      "Team Access (staffing-tab-people + staffing-subtab-team-access)",
+      "AI Rota (staffing-tab-rota + staffing-subtab-ai-rota)",
+      "Operations (staffing-tab-operations)",
+      "Comms (staffing-tab-comms)"
+    ],
+    "raw_key_leaks_per_language": { "fr": 0, "de": 0, "en": 0 },
+    "screenshots_workforce_dashboard_confirm_translation": {
+      "fr": "Nav pills FR: Démarrer/Tableau de bord/Équipements/Pannes/Fiches de contrôle/Documents/Personnel/Rapports/Fournisseurs. Sub-nav FR: Tableau de bord/Personnel/Planning/Pointeuse/Performance/Paie/Dépenses/Communication/Ops · Formulaires/Règles. KPIs FR: Personnel actif, En service actuellement, En retard, Absent, Ouvert aujourd'hui, Couverture, Heures planifiées, Coût de la main-d'œuvre, Heures supplémentaires, Moy / heure. Day labels: Lun/Mar/Mer/Jeu/Ven/Sam/Dim.",
+      "de": "Nav pills DE: Start/Dashboard/Geräte/Störungen/Checklisten/Dokumente/Personal/Berichte/Lieferanten/Studiolayout. Sub-nav DE: Dashboard/Personen/Dienstplan/Zeiterfassung/Leistung/Lohnabrechnung/Ausgaben/Kommunikation/Ops · Formulare. KPIs DE: Aktives Personal, Jetzt im Dienst, Verspätet, Abwesend, Heute geöffnet, Abdeckung, Geplante Stunden, Lohnkosten, Überstunden, Durchschn. / Stunde. Day labels: Mo/Di/Mi/Do/Fr/Sa/So. Heatmap heading: Abdeckungs-Heatmap.",
+      "en": "All English defaults intact - Staffing/Dashboard/People/Rota/Time Clock/Performance/Payroll/Expenses/Comms/Ops · Forms/Rules and Active staff/On shift now/etc."
+    },
+    "comms_deep_panel_note": "On Comms>Announcements the 'Post an announcement / Title / Message to staff... / Post / No announcements yet' strings remain English. Per E1 scope note this is a StaffingConsole DEEP inline panel that is intentionally NOT translated yet - NOT reported as a bug.",
+    "gym_floor_and_all_sites_note": "GymFloorManagerTab and AllSitesOverview components exist and both wire up useTranslation, but are not mounted on the operator-owner LiteDashboard path (per code comment in LiteDashboardPage line 1053-1055: 'the orphan gym-floor TabsContent was removed... GymFloorManagerTab lives in MODProDashboard'). The Gym Layout module tab reachable from this user renders PulseGymLayoutTab.js content which is out of the listed i18n scope. No raw key leaks anywhere; no crashes."
+  }
+}

@@ -25,6 +25,7 @@ import {
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
 import PageHeader from '@/components/shared/PageHeader';
@@ -108,8 +109,14 @@ const GROUPS_ALL = [
 
 
 export default function StaffingConsole() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   useLocalization();  // warm currency cache
+  // Translate a nav label by a slug derived from its English text.
+  const trLabel = useCallback((s) => t(
+    `staffing.nav_${String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`,
+    s,
+  ), [t]);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   // Iter 216h264 — when a manager opens this console with ?as=staff
@@ -133,18 +140,18 @@ export default function StaffingConsole() {
   const groups = useMemo(() => {
     if (isMOD) {
       return [
-        { id: 'staff', label: 'Staff', icon: Users, leaf: 'staff' },
-        { id: 'mod-transfer', label: 'Transfers', icon: ArrowRightLeft, leaf: 'mod-transfer' },
+        { id: 'staff', label: trLabel('Staff'), icon: Users, leaf: 'staff' },
+        { id: 'mod-transfer', label: trLabel('Transfers'), icon: ArrowRightLeft, leaf: 'mod-transfer' },
       ];
     }
     const childOK = (c) => c.roles.includes(role);
     const list = GROUPS_ALL
       .map((g) => {
         if (g.children) {
-          const kids = g.children.filter(childOK);
-          return kids.length ? { ...g, children: kids } : null;
+          const kids = g.children.filter(childOK).map((c) => ({ ...c, label: trLabel(c.label) }));
+          return kids.length ? { ...g, label: trLabel(g.label), children: kids } : null;
         }
-        return g.roles.includes(role) ? g : null;
+        return g.roles.includes(role) ? { ...g, label: trLabel(g.label) } : null;
       })
       .filter(Boolean);
     // Staff use Comms (handover diary) at shift change-over, so surface it first.
@@ -153,7 +160,7 @@ export default function StaffingConsole() {
       if (idx > 0) { const [c] = list.splice(idx, 1); list.unshift(c); }
     }
     return list;
-  }, [role, isMOD]);
+  }, [role, isMOD, trLabel]);
 
   // Flatten to leaf ids so we can map a leaf → its parent group.
   const leafToGroup = useMemo(() => {

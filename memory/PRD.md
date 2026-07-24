@@ -1,3 +1,41 @@
+# ═══ 2026-06 · i18n PHASE 3 — OPERATIONS DASHBOARDS (LiteDashboard) FR/DE — PARTIAL (VERIFIED FR) ═══
+User: roll out the same t() FR/DE treatment to the Operations Dashboards module
+(/app/frontend/src/pages/LiteDashboard). Scope confirmed: EVERYTHING incl. org-chart,
+SKIP the MOD-* panels. Approach: wrap hardcoded strings in t('staffing|ops|orgchart.KEY',
+'English default'), then LLM-batch-translate EN->FR & EN->DE and merge into en/fr/de.json.
+
+PIPELINE (idempotent, re-runnable): /app/backend/scripts/i18n_translate_ops.py — scans
+LiteDashboard for t('staffing/ops/orgchart.*','en') calls (+ an explicit nav-label dict for
+StaffingConsole's dynamic trLabel keys), translates NEW/untranslated keys via Claude
+(emergentintegrations), merges all 3 locale JSONs. Run: cd /app/backend && python
+scripts/i18n_translate_ops.py. ~398 keys translated so far. Inline EN defaults mean any
+not-yet-wrapped screen shows English (fallbackLng=en) — NO raw-key leaks, app never breaks.
+
+DONE & wrapped (useTranslation + t()), FR/DE merged:
+  - staffing/MyClockTab, WorkforceDashboardTab, TeamAccessTab, AIWorkforceTab,
+    SiteStaffManager, ShiftTemplatesTab, TimeClockTab
+  - GymFloorManagerTab
+  - StaffingConsole.js — NAV LABELS ONLY (trLabel → staffing.nav_*)
+  - AllSitesOverview.js — general estate overview (ops.as_*); MOD SiteLoginModal left EN (skip)
+  Shadowing fixed where local `t` existed: AIWorkforce (SUB_TABS.map t->st), ShiftTemplates
+  ([t,s]->[tRes,sRes], map t->tpl), TimeClock (filter/map t->item), GymFloor (topics t->tp/topic).
+
+VERIFIED: FR smoke screenshot (owner@isodemo.com → /dashboard → Personnel tab) — Staffing nav
++ Workforce dashboard fully render in French, ZERO raw-key leaks, frontend compiles clean.
+Mechanism identical for DE (same keys). Full testing_agent EN/FR/DE pass NOT yet run.
+
+REMAINING (TODO — next pass; all still render English via fallback, functional):
+  P0: staffing/OperationsTab.js (Ops·Forms), staffing/CommsTab.js (Announcements/Handover)
+  P1: staffing/HRTab.js, staffing/StaffOnboarding.js (watch t shadows), StaffingConsole deep
+      inline panels (Rota schedule/Leave/Market/Rules/payroll/staff-portal-preview)
+  P2: staffing/orgchart/* (OrgChartTab, Canvas, panels, AIPanel, ImportExport, DocumentImport,
+      HistoryTab, ListView, OrgCard, Presentation, Settings, ShareModal, Templates, Vacancies)
+  After wrapping each batch: re-run i18n_translate_ops.py, then testing_agent FR/DE render.
+  See /app/memory/i18n_ops_progress.md for the live checklist.
+
+────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · DISTRIBUTION → OPERATIONS CAPEX DATA ENRICHMENT (VERIFIED) ═══
 Founder asked: does Inventory & Distribution equipment flow to Operations with FULL data for CAPEX
 reporting? Finding: it flowed through but THIN — register_customer_equipment (pulse_onboarding.py) wrote

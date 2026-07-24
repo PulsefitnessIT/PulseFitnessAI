@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X, FileSearch, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/App';
@@ -26,6 +27,7 @@ const scoreColor = (s) => {
 };
 
 const AllSitesOverview = ({ onPickSite }) => {
+  const { t } = useTranslation();
   const { API, setActiveSite, user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ const AllSitesOverview = ({ onPickSite }) => {
   if (error || !data) {
     return (
       <Card className="p-6 text-center" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-        <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>{error || 'No data yet.'}</p>
+        <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>{error || t('ops.as_no_data', 'No data yet.')}</p>
       </Card>
     );
   }
@@ -83,8 +85,8 @@ const AllSitesOverview = ({ onPickSite }) => {
   return (
     <div className="space-y-6" data-testid="all-sites-overview">
       <PageHeader
-        title="All Operations Sites — Estate Overview"
-        subtitle="Aggregated KPIs and per-site rankings across every Pulse site"
+        title={t('ops.as_title', 'All Operations Sites — Estate Overview')}
+        subtitle={t('ops.as_subtitle', 'Aggregated KPIs and per-site rankings across every Pulse site')}
         icon={Globe2}
         testId="all-sites-header"
         actions={isModHQ ? (
@@ -95,17 +97,17 @@ const AllSitesOverview = ({ onPickSite }) => {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--color-brand-cyan-hover)' }}
             data-testid="all-sites-compliance-btn"
           >
-            <Trophy size={12} /> Compliance calendar
+            <Trophy size={12} /> {t('ops.as_compliance_cal', 'Compliance calendar')}
           </button>
         ) : null}
       />
 
       {/* Aggregate KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="all-sites-kpis">
-        <KpiTile icon={MapPin}        label="Sites"            value={totals.sites || 0}              testId="kpi-sites" />
-        <KpiTile icon={Wrench}        label="Equipment total"  value={totals.equipment || 0}          testId="kpi-equipment" />
-        <KpiTile icon={AlertTriangle} label="Open faults"      value={totals.open_faults || 0}        trend={totals.overdue_faults ? `${totals.overdue_faults} overdue` : 'no overdue'} testId="kpi-open-faults" />
-        <KpiTile icon={TrendingUp}    label="Faults this week" value={totals.faults_this_week || 0}   testId="kpi-faults-week" />
+        <KpiTile icon={MapPin}        label={t('ops.as_kpi_sites', 'Sites')}            value={totals.sites || 0}              testId="kpi-sites" />
+        <KpiTile icon={Wrench}        label={t('ops.as_kpi_equipment', 'Equipment total')}  value={totals.equipment || 0}          testId="kpi-equipment" />
+        <KpiTile icon={AlertTriangle} label={t('ops.as_kpi_open_faults', 'Open faults')}      value={totals.open_faults || 0}        trend={totals.overdue_faults ? `${totals.overdue_faults} ${t('ops.as_overdue', 'overdue')}` : t('ops.as_no_overdue', 'no overdue')} testId="kpi-open-faults" />
+        <KpiTile icon={TrendingUp}    label={t('ops.as_kpi_faults_week', 'Faults this week')} value={totals.faults_this_week || 0}   testId="kpi-faults-week" />
       </div>
 
       {/* Best / worst spotlight */}
@@ -114,14 +116,14 @@ const AllSitesOverview = ({ onPickSite }) => {
           <Card className="p-4 border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="all-sites-best">
             <div className="flex items-center gap-2 mb-2">
               <Trophy size={16} className="text-emerald-500" />
-              <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>Best performing</span>
+              <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_best_performing', 'Best performing')}</span>
             </div>
             <div className="flex items-baseline gap-3">
               <span className="text-lg font-bold" style={{ color: 'var(--theme-text)' }}>{best_site.name}</span>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scoreColor(best_site.score).bg} ${scoreColor(best_site.score).text}`}>{best_site.score}/100</span>
             </div>
             <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-              {best_site.open_faults} open · {best_site.equipment_count} machines
+              {best_site.open_faults} {t('ops.as_open_lc', 'open')} · {best_site.equipment_count} {t('ops.as_machines', 'machines')}
             </p>
           </Card>
         ) : null}
@@ -129,14 +131,14 @@ const AllSitesOverview = ({ onPickSite }) => {
           <Card className="p-4 border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="all-sites-worst">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown size={16} className="text-red-500" />
-              <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>Needs attention</span>
+              <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_needs_attention', 'Needs attention')}</span>
             </div>
             <div className="flex items-baseline gap-3">
               <span className="text-lg font-bold" style={{ color: 'var(--theme-text)' }}>{worst_site.name}</span>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scoreColor(worst_site.score).bg} ${scoreColor(worst_site.score).text}`}>{worst_site.score}/100</span>
             </div>
             <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-              {worst_site.open_faults} open · {worst_site.overdue_faults} overdue
+              {worst_site.open_faults} {t('ops.as_open_lc', 'open')} · {worst_site.overdue_faults} {t('ops.as_overdue', 'overdue')}
             </p>
           </Card>
         ) : null}
@@ -145,19 +147,19 @@ const AllSitesOverview = ({ onPickSite }) => {
       {/* Leaderboard */}
       <Card className="p-0 border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="all-sites-leaderboard">
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--theme-border-soft)' }}>
-          <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--theme-text)' }}>Site Leaderboard</h3>
-          <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>{sites.length} sites</span>
+          <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--theme-text)' }}>{t('ops.as_leaderboard', 'Site Leaderboard')}</h3>
+          <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>{sites.length} {t('ops.as_sites_lc', 'sites')}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--theme-surface-2)' }}>
                 <th className="text-left px-4 py-2 font-semibold text-xs" style={{ color: 'var(--theme-text-muted)' }}>#</th>
-                <th className="text-left px-4 py-2 font-semibold text-xs" style={{ color: 'var(--theme-text-muted)' }}>Site</th>
-                <th className="text-right px-3 py-2 font-semibold text-xs" style={{ color: 'var(--theme-text-muted)' }}>Score</th>
-                <th className="text-right px-3 py-2 font-semibold text-xs hidden sm:table-cell" style={{ color: 'var(--theme-text-muted)' }}>Open</th>
-                <th className="text-right px-3 py-2 font-semibold text-xs hidden md:table-cell" style={{ color: 'var(--theme-text-muted)' }}>Overdue</th>
-                <th className="text-right px-3 py-2 font-semibold text-xs hidden md:table-cell" style={{ color: 'var(--theme-text-muted)' }}>Equipment</th>
+                <th className="text-left px-4 py-2 font-semibold text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_col_site', 'Site')}</th>
+                <th className="text-right px-3 py-2 font-semibold text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_col_score', 'Score')}</th>
+                <th className="text-right px-3 py-2 font-semibold text-xs hidden sm:table-cell" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_col_open', 'Open')}</th>
+                <th className="text-right px-3 py-2 font-semibold text-xs hidden md:table-cell" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_col_overdue', 'Overdue')}</th>
+                <th className="text-right px-3 py-2 font-semibold text-xs hidden md:table-cell" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_col_equipment', 'Equipment')}</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -223,7 +225,7 @@ const AllSitesOverview = ({ onPickSite }) => {
                           style={{ color: 'var(--color-brand-blue)' }}
                           data-testid={`leaderboard-go-${s.id}`}
                         >
-                          Open <ArrowRight size={11} />
+                          {t('ops.as_open_btn', 'Open')} <ArrowRight size={11} />
                         </button>
                       </div>
                     </td>
@@ -231,7 +233,7 @@ const AllSitesOverview = ({ onPickSite }) => {
                 );
               })}
               {sites.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--theme-text-muted)' }}>No sites yet.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--theme-text-muted)' }}>{t('ops.as_no_sites', 'No sites yet.')}</td></tr>
               ) : null}
             </tbody>
           </table>

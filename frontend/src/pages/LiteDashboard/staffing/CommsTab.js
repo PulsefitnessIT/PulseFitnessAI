@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Send, Loader2, Plus, MessageSquare, Megaphone, Hash, Users as UsersIcon, AlertTriangle, Check, Pin, Pencil, Trash2, X, Search,
 } from 'lucide-react';
@@ -21,10 +22,10 @@ import RowActions from '@/components/shared/RowActions';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const KIND_META = {
-  dm:           { icon: MessageSquare, label: 'DM' },
-  group:        { icon: UsersIcon,     label: 'Group' },
-  channel:      { icon: Hash,          label: 'Channel' },
-  announcement: { icon: Megaphone,     label: 'Broadcast' },
+  dm:           { icon: MessageSquare, labelKey: 'staffing.comms_dm',        labelDefault: 'DM' },
+  group:        { icon: UsersIcon,     labelKey: 'staffing.comms_group',     labelDefault: 'Group' },
+  channel:      { icon: Hash,          labelKey: 'staffing.comms_channel',   labelDefault: 'Channel' },
+  announcement: { icon: Megaphone,     labelKey: 'staffing.comms_broadcast', labelDefault: 'Broadcast' },
 };
 
 function timeShort(iso) {
@@ -39,18 +40,15 @@ function timeShort(iso) {
   } catch { return iso; }
 }
 
-// Iter 220bb — Group messages by calendar day for iMessage-style date
-// separators. Returns "Today" / "Yesterday" / weekday-name (last 7 days)
-// / full date otherwise. Used by the Conversation pane.
-function dayLabel(iso) {
+function dayLabel(iso, t) {
   if (!iso) return '';
   try {
     const d = new Date(iso);
     const today = new Date();
     const yest = new Date(today);
     yest.setDate(today.getDate() - 1);
-    if (d.toDateString() === today.toDateString()) return 'Today';
-    if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+    if (d.toDateString() === today.toDateString()) return t('staffing.comms_today', 'Today');
+    if (d.toDateString() === yest.toDateString()) return t('staffing.comms_yesterday', 'Yesterday');
     const weekAgo = new Date(today);
     weekAgo.setDate(today.getDate() - 6);
     if (d >= weekAgo) {
@@ -60,9 +58,6 @@ function dayLabel(iso) {
   } catch { return ''; }
 }
 
-// Full timestamp tooltip — surfaced on hover so the handover diary
-// reads like an audit trail. Falls back to the raw ISO string if the
-// Date constructor chokes.
 function timeTooltip(iso) {
   if (!iso) return '';
   try {
@@ -73,8 +68,6 @@ function timeTooltip(iso) {
   } catch { return iso; }
 }
 
-// Iter 220bb — Initials + deterministic colour for author avatar chips.
-// Pure functions so React can render in a single pass without state.
 function initials(name) {
   if (!name) return '?';
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -83,19 +76,16 @@ function initials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// Tuned palette — high-contrast against both light and dark surfaces
-// and shifted away from the brand cyan so the avatar reads as "person"
-// rather than "system tile".
 const AVATAR_PALETTE = [
-  { bg: '#FCA5A5', fg: '#7F1D1D' }, // red-300 / red-900
-  { bg: '#FDBA74', fg: '#7C2D12' }, // orange-300 / orange-900
-  { bg: '#FCD34D', fg: '#78350F' }, // amber-300 / amber-900
-  { bg: '#86EFAC', fg: '#14532D' }, // green-300 / green-900
-  { bg: '#67E8F9', fg: '#164E63' }, // cyan-300 / cyan-900
-  { bg: '#93C5FD', fg: '#1E3A8A' }, // blue-300 / blue-900
-  { bg: '#C4B5FD', fg: '#4C1D95' }, // violet-300 / violet-900
-  { bg: '#F0ABFC', fg: '#701A75' }, // fuchsia-300 / fuchsia-900
-  { bg: '#F9A8D4', fg: '#831843' }, // pink-300 / pink-900
+  { bg: '#FCA5A5', fg: '#7F1D1D' },
+  { bg: '#FDBA74', fg: '#7C2D12' },
+  { bg: '#FCD34D', fg: '#78350F' },
+  { bg: '#86EFAC', fg: '#14532D' },
+  { bg: '#67E8F9', fg: '#164E63' },
+  { bg: '#93C5FD', fg: '#1E3A8A' },
+  { bg: '#C4B5FD', fg: '#4C1D95' },
+  { bg: '#F0ABFC', fg: '#701A75' },
+  { bg: '#F9A8D4', fg: '#831843' },
 ];
 
 function colorForKey(key) {
@@ -108,7 +98,9 @@ function colorForKey(key) {
 }
 
 function Avatar({ name, authorKey, size = 28 }) {
+  const { t } = useTranslation();
   const c = colorForKey(authorKey || name);
+  const unknown = t('staffing.comms_unknown', 'Unknown');
   return (
     <div
       className="rounded-full flex items-center justify-center font-bold flex-shrink-0"
@@ -119,8 +111,8 @@ function Avatar({ name, authorKey, size = 28 }) {
         color: c.fg,
         fontSize: size <= 28 ? 10 : 12,
       }}
-      title={name || 'Unknown'}
-      aria-label={`Avatar for ${name || 'Unknown'}`}
+      title={name || unknown}
+      aria-label={`${t('staffing.comms_avatar_for', 'Avatar for')} ${name || unknown}`}
       data-testid="msg-avatar"
     >
       {initials(name)}
@@ -131,6 +123,7 @@ function Avatar({ name, authorKey, size = 28 }) {
 // ─────────────────── Compose new thread modal ───────────────────
 
 function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreated }) {
+  const { t } = useTranslation();
   const [kind, setKind] = useState('dm');
   const [name, setName] = useState('');
   const [memberIds, setMemberIds] = useState([]);
@@ -148,15 +141,15 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
 
   const submit = async () => {
     if (kind === 'dm' && memberIds.length !== 1) {
-      window.alert('Pick exactly one person to DM');
+      window.alert(t('staffing.comms_pick_one', 'Pick exactly one person to DM'));
       return;
     }
     if ((kind === 'group') && memberIds.length === 0) {
-      window.alert('Pick at least one member');
+      window.alert(t('staffing.comms_pick_member', 'Pick at least one member'));
       return;
     }
     if (kind === 'channel' && !siteId && !roleFilter) {
-      window.alert('Pick a site or role to scope the channel');
+      window.alert(t('staffing.comms_pick_scope', 'Pick a site or role to scope the channel'));
       return;
     }
     setBusy(true);
@@ -172,7 +165,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
       onCreated && onCreated(data);
       onClose();
     } catch (e) {
-      window.alert(e.response?.data?.detail || 'Create failed');
+      window.alert(e.response?.data?.detail || t('staffing.comms_create_failed', 'Create failed'));
     }
     setBusy(false);
   };
@@ -182,7 +175,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
       <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
-          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>New conversation</h4>
+          <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.comms_new_conv', 'New conversation')}</h4>
           <button type="button" onClick={onClose} className="w-7 h-7 rounded-full inline-flex items-center justify-center" style={{ color: 'var(--theme-text-muted)' }}><X size={14} /></button>
         </div>
         <div className="flex gap-1.5 flex-wrap" data-testid="new-thread-kind">
@@ -198,24 +191,24 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
                   border: '1px solid var(--theme-border)',
                 }}
                 data-testid={`new-thread-kind-${k}`}>
-                <Icon size={11} /> {M.label}
+                <Icon size={11} /> {t(M.labelKey, M.labelDefault)}
               </button>
             );
           })}
         </div>
         {(kind === 'group' || kind === 'announcement' || kind === 'channel') && (
           <input value={name} onChange={(e) => setName(e.target.value)}
-            placeholder={kind === 'channel' ? 'Channel name (optional)' : kind === 'announcement' ? 'Subject (optional)' : 'Group name (optional)'}
+            placeholder={kind === 'channel' ? t('staffing.comms_channel_name', 'Channel name (optional)') : kind === 'announcement' ? t('staffing.comms_subject', 'Subject (optional)') : t('staffing.comms_group_name', 'Group name (optional)')}
             className="w-full h-9 rounded-md bg-transparent border px-2 text-sm"
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="new-thread-name" />
         )}
         {kind === 'channel' ? (
           <div className="grid grid-cols-2 gap-2">
-            <input value={siteId} onChange={(e) => setSiteId(e.target.value)} placeholder="Site ID (optional)"
+            <input value={siteId} onChange={(e) => setSiteId(e.target.value)} placeholder={t('staffing.comms_site_id', 'Site ID (optional)')}
               className="h-9 rounded-md bg-transparent border px-2 text-xs"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="new-thread-site" />
-            <input value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} placeholder="Role (e.g. instructor)"
+            <input value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} placeholder={t('staffing.comms_role_ph', 'Role (e.g. instructor)')}
               className="h-9 rounded-md bg-transparent border px-2 text-xs"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="new-thread-role" />
           </div>
@@ -223,14 +216,14 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
           <>
             <div className="relative">
               <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-50" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search staff…"
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('staffing.comms_search_staff', 'Search staff…')}
                 className="w-full h-9 rounded-md bg-transparent border pl-7 pr-2 text-xs"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="new-thread-search" />
             </div>
             <div className="max-h-56 overflow-y-auto border rounded-md" style={{ borderColor: 'var(--theme-border)' }} data-testid="new-thread-staff-list">
               {filteredStaff.length === 0 ? (
-                <p className="text-xs p-3 text-center" style={{ color: 'var(--theme-text-muted)' }}>No staff match.</p>
+                <p className="text-xs p-3 text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.comms_no_staff_match', 'No staff match.')}</p>
               ) : filteredStaff.map((s) => {
                 const on = memberIds.includes(s.id);
                 return (
@@ -255,13 +248,13 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
         )}
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.comms_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit} disabled={busy}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
             style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
             data-testid="new-thread-submit">
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-            {busy ? 'Creating…' : 'Create'}
+            {busy ? t('staffing.comms_creating', 'Creating…') : t('staffing.comms_create', 'Create')}
           </button>
         </div>
       </div>
@@ -272,6 +265,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
 // ─────────────────── Conversation pane ───────────────────
 
 function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelete }) {
+  const { t } = useTranslation();
   const deleted = !!msg.deleted_at;
   const align = mine ? 'items-end' : 'items-start';
   const tint = msg.urgent
@@ -279,20 +273,17 @@ function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelet
     : mine ? 'var(--color-brand-cyan)' : 'var(--theme-surface-hover, rgba(255,255,255,0.04))';
   const txtColour = (msg.urgent || mine) ? '#001219' : 'var(--theme-text)';
 
-  // Iter 220bb — Bubble + meta (timestamp, edited tag, row actions). The
-  // chunk is shared between the avatar-with-name path and the
-  // continuation path so consecutive bubbles from the same author align.
   const bubble = (
     <div className={`flex flex-col ${align} gap-0.5 min-w-0`}>
       <div className={`flex items-end gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>
         {msg.urgent && !deleted && (
           <span className="inline-flex items-center gap-0.5 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
-            <AlertTriangle size={9} /> Urgent
+            <AlertTriangle size={9} /> {t('staffing.comms_urgent', 'Urgent')}
           </span>
         )}
         {msg.pinned && !deleted && (
           <span className="inline-flex items-center gap-0.5 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-            <Pin size={9} /> Pinned
+            <Pin size={9} /> {t('staffing.comms_pinned', 'Pinned')}
           </span>
         )}
         <div className="rounded-2xl px-3 py-2 text-sm max-w-[75ch] whitespace-pre-wrap break-words" style={{
@@ -301,33 +292,27 @@ function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelet
           border: deleted ? '1px dashed var(--theme-border)' : 'none',
           fontStyle: deleted ? 'italic' : 'normal',
         }}>
-          {deleted ? 'Message deleted' : msg.body}
+          {deleted ? t('staffing.comms_msg_deleted', 'Message deleted') : msg.body}
         </div>
       </div>
       <div className={`flex items-center gap-1 text-[10px] ${mine ? 'justify-end' : 'justify-start'}`} style={{ color: 'var(--theme-text-muted)' }}>
         <span title={timeTooltip(msg.sent_at)}>{timeShort(msg.sent_at)}</span>
-        {msg.edited_at && <span>· edited</span>}
+        {msg.edited_at && <span>· {t('staffing.comms_edited', 'edited')}</span>}
         {!deleted && mine && (
           <RowActions gap={0.5}>
-            <Button variant="ghost" size="iconSm" onClick={() => onEdit(msg)} icon={Pencil} title="Edit message" data-testid={`msg-edit-${msg.id}`} />
-            <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title="Delete message" data-testid={`msg-delete-${msg.id}`} />
+            <Button variant="ghost" size="iconSm" onClick={() => onEdit(msg)} icon={Pencil} title={t('staffing.comms_edit_msg', 'Edit message')} data-testid={`msg-edit-${msg.id}`} />
+            <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title={t('staffing.comms_delete_msg', 'Delete message')} data-testid={`msg-delete-${msg.id}`} />
           </RowActions>
         )}
         {!mine && isManager && !deleted && (
           <RowActions>
-            <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title="Delete message" data-testid={`msg-delete-${msg.id}`} />
+            <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title={t('staffing.comms_delete_msg', 'Delete message')} data-testid={`msg-delete-${msg.id}`} />
           </RowActions>
         )}
       </div>
     </div>
   );
 
-  // Iter 220bb — Avatar column on the left for group/channel/broadcast
-  // threads. Hidden when:
-  //   • Message is mine (right-aligned, no own avatar — iMessage style).
-  //   • Thread is a DM (other party is implicit from the header).
-  //   • Previous message was from the same author within the same day
-  //     (continuation; alignment is preserved with a 28px gutter).
   if (mine) {
     return (
       <div className="flex justify-end" data-testid={`msg-${msg.id}`}>
@@ -343,7 +328,6 @@ function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelet
         showAuthor ? (
           <Avatar name={msg.author_name} authorKey={authorKey} />
         ) : (
-          // 28px gutter so continuation bubbles align under the avatar.
           <div style={{ width: 28 }} aria-hidden="true" />
         )
       ) : null}
@@ -364,6 +348,7 @@ function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelet
 }
 
 function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState('');
   const [urgent, setUrgent] = useState(false);
@@ -374,7 +359,6 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
   const load = useCallback(async () => {
     const { data } = await axios.get(`${API}/staffing/comms/threads/${thread.id}/messages`, { headers, params: { limit: 100 } });
     setMessages(data.messages || []);
-    // Mark as read when scrolled in
     try { await axios.post(`${API}/staffing/comms/threads/${thread.id}/read`, {}, { headers }); }
     catch { /* noop */ }
     onUpdate && onUpdate();
@@ -383,7 +367,6 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    // Scroll to bottom when messages change
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages.length]);
 
@@ -401,18 +384,18 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
       setBody(''); setUrgent(false); setEditing(null);
       load();
     } catch (e) {
-      window.alert(e.response?.data?.detail || 'Send failed');
+      window.alert(e.response?.data?.detail || t('staffing.comms_send_failed', 'Send failed'));
     }
     setBusy(false);
   };
 
   const startEdit = (msg) => { setEditing(msg); setBody(msg.body); };
   const remove = async (msg) => {
-    if (!window.confirm('Delete this message?')) return;
+    if (!window.confirm(t('staffing.comms_delete_confirm', 'Delete this message?'))) return;
     try {
       await axios.delete(`${API}/staffing/comms/threads/${thread.id}/messages/${msg.id}`, { headers });
       load();
-    } catch (e) { window.alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch (e) { window.alert(e.response?.data?.detail || t('staffing.comms_delete_failed', 'Delete failed')); }
   };
 
   const M = KIND_META[thread.kind];
@@ -420,12 +403,11 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
   const memberLabel = (() => {
     if (thread.kind === 'dm') {
       const other = (thread.members || []).find((m) => m.staff_id !== myStaffId);
-      return other?.full_name || 'DM';
+      return other?.full_name || t('staffing.comms_dm', 'DM');
     }
     return thread.name || (thread.members || []).map((m) => m.full_name).filter(Boolean).slice(0, 4).join(', ');
   })();
 
-  // Posting in announcement threads is manager-only.
   const canSend = !(thread.kind === 'announcement' && !isManager);
 
   return (
@@ -435,20 +417,14 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{memberLabel}</p>
           <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
-            {M.label} · {thread.members?.length || 0} member{thread.members?.length === 1 ? '' : 's'}
+            {t(M.labelKey, M.labelDefault)} · {thread.members?.length || 0} {thread.members?.length === 1 ? t('staffing.comms_member', 'member') : t('staffing.comms_members', 'members')}
           </p>
         </div>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" data-testid="conversation-messages">
         {messages.length === 0 ? (
-          <p className="text-center text-xs py-8" style={{ color: 'var(--theme-text-muted)' }}>No messages yet — say hi.</p>
+          <p className="text-center text-xs py-8" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.comms_no_messages', 'No messages yet — say hi.')}</p>
         ) : (() => {
-          // Iter 220bb — Inject day separators between messages on
-          // different calendar days so the handover diary reads like an
-          // iMessage group chat. Author names + avatar chips sit on
-          // each non-mine bubble's FIRST appearance in a run (DMs
-          // already know who the other party is from the thread header,
-          // so we skip the avatar there entirely).
           const isGroup = thread.kind !== 'dm';
           const out = [];
           let prevDay = null;
@@ -466,12 +442,12 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
                     className="text-[10px] font-semibold uppercase tracking-[0.18em] px-3 py-1 rounded-full"
                     style={{ background: 'var(--theme-surface)', color: 'var(--theme-text-muted)', border: '1px solid var(--theme-border)' }}
                   >
-                    {dayLabel(m.sent_at)}
+                    {dayLabel(m.sent_at, t)}
                   </span>
                 </div>,
               );
               prevDay = day;
-              prevAuthorKey = null;  // new day → always show avatar again
+              prevAuthorKey = null;
             }
             const mine = m.author_staff_id === myStaffId || m.author_id === myStaffId;
             const authorKey = m.author_staff_id || m.author_id || m.author_email;
@@ -497,13 +473,13 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
         <div className="border-t p-3 space-y-2" style={{ borderColor: 'var(--theme-border)' }}>
           {editing && (
             <div className="text-[10px] inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}>
-              <Pencil size={10} /> Editing message
-              <button type="button" onClick={() => { setEditing(null); setBody(''); }} className="ml-1 underline" data-testid="cancel-edit">cancel</button>
+              <Pencil size={10} /> {t('staffing.comms_editing_msg', 'Editing message')}
+              <button type="button" onClick={() => { setEditing(null); setBody(''); }} className="ml-1 underline" data-testid="cancel-edit">{t('staffing.comms_cancel_lc', 'cancel')}</button>
             </div>
           )}
           <div className="flex gap-2 items-end">
             <textarea value={body} onChange={(e) => setBody(e.target.value)}
-              placeholder={thread.kind === 'announcement' ? 'Broadcast something to your team…' : 'Message…'}
+              placeholder={thread.kind === 'announcement' ? t('staffing.comms_broadcast_ph', 'Broadcast something to your team…') : t('staffing.comms_message_ph', 'Message…')}
               rows={2}
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }}
               className="flex-1 rounded-md bg-transparent border px-3 py-2 text-sm resize-none"
@@ -519,7 +495,7 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
                     color: urgent ? '#EF4444' : 'var(--theme-text-muted)',
                   }}
                   data-testid="conversation-urgent-toggle">
-                  <AlertTriangle size={10} /> Urgent
+                  <AlertTriangle size={10} /> {t('staffing.comms_urgent', 'Urgent')}
                 </button>
               )}
               <button type="button" onClick={send} disabled={busy || !body.trim()}
@@ -527,15 +503,15 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
                 style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
                 data-testid="conversation-send">
                 {busy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                Send
+                {t('staffing.comms_send', 'Send')}
               </button>
             </div>
           </div>
-          <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>⌘ / Ctrl + Enter to send</p>
+          <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.comms_send_hint', '⌘ / Ctrl + Enter to send')}</p>
         </div>
       ) : (
         <div className="border-t p-3 text-[11px] text-center" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>
-          Read-only — only managers can post here.
+          {t('staffing.comms_readonly', 'Read-only — only managers can post here.')}
         </div>
       )}
     </div>
@@ -545,6 +521,7 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
 // ─────────────────── Main hub ───────────────────
 
 export default function CommsTab({ headers, isManager }) {
+  const { t } = useTranslation();
   const [threads, setThreads] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [myStaffId, setMyStaffId] = useState(null);
@@ -556,56 +533,54 @@ export default function CommsTab({ headers, isManager }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [t, s] = await Promise.all([
+      const [thRes, sRes] = await Promise.all([
         axios.get(`${API}/staffing/comms/threads`, { headers }),
         axios.get(`${API}/staffing/staff`, { headers }),
       ]);
-      setThreads(t.data.threads || []);
-      setMyStaffId(t.data.my_staff_id || null);
-      setStaffList(s.data.staff || []);
+      setThreads(thRes.data.threads || []);
+      setMyStaffId(thRes.data.my_staff_id || null);
+      setStaffList(sRes.data.staff || []);
     } catch { /* noop */ }
     setLoading(false);
   }, [headers]);
 
   useEffect(() => { load(); }, [load]);
-  // Refresh thread list every 30s while tab is visible.
   useEffect(() => {
     const i = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30_000);
     return () => clearInterval(i);
   }, [load]);
 
-  // Hydrate thread.member full_names from staffList for display
   const hydrated = useMemo(() => {
     const byId = new Map(staffList.map((s) => [s.id, s]));
-    return threads.map((t) => ({
-      ...t,
-      members: (t.members || []).map((m) => ({ ...m, ...(byId.get(m.staff_id) || {}) })),
+    return threads.map((th) => ({
+      ...th,
+      members: (th.members || []).map((m) => ({ ...m, ...(byId.get(m.staff_id) || {}) })),
     }));
   }, [threads, staffList]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return hydrated;
     const ql = q.toLowerCase();
-    return hydrated.filter((t) => {
-      if ((t.name || '').toLowerCase().includes(ql)) return true;
-      if ((t.last_message_preview || '').toLowerCase().includes(ql)) return true;
-      return (t.members || []).some((m) => (m.full_name || '').toLowerCase().includes(ql));
+    return hydrated.filter((th) => {
+      if ((th.name || '').toLowerCase().includes(ql)) return true;
+      if ((th.last_message_preview || '').toLowerCase().includes(ql)) return true;
+      return (th.members || []).some((m) => (m.full_name || '').toLowerCase().includes(ql));
     });
   }, [hydrated, q]);
 
-  const selected = filtered.find((t) => t.id === active);
+  const selected = filtered.find((th) => th.id === active);
 
   return (
     <div className="space-y-3" data-testid="comms-tab">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Internal messaging</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.comms_internal_messaging', 'Internal messaging')}</p>
         </div>
         <button type="button" onClick={() => setShowNew(true)}
           className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
           style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
           data-testid="comms-new">
-          <Plus size={12} /> New
+          <Plus size={12} /> {t('staffing.comms_new', 'New')}
         </button>
       </div>
 
@@ -616,7 +591,7 @@ export default function CommsTab({ headers, isManager }) {
           <div className="p-2 border-b" style={{ borderColor: 'var(--theme-border)' }}>
             <div className="relative">
               <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-50" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search threads…"
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('staffing.comms_search_threads', 'Search threads…')}
                 className="w-full h-8 rounded-md bg-transparent border pl-6 pr-2 text-xs"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="comms-search" />
@@ -625,30 +600,30 @@ export default function CommsTab({ headers, isManager }) {
           <div className="flex-1 overflow-y-auto" data-testid="thread-list">
             {loading && (
               <div className="p-3 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-                <Loader2 size={12} className="animate-spin" /> Loading…
+                <Loader2 size={12} className="animate-spin" /> {t('staffing.comms_loading', 'Loading…')}
               </div>
             )}
             {!loading && filtered.length === 0 && (
               <p className="p-4 text-center text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-                {threads.length === 0 ? 'No conversations yet — start one with "+ New".' : 'No matches.'}
+                {threads.length === 0 ? t('staffing.comms_no_convs', 'No conversations yet — start one with "+ New".') : t('staffing.comms_no_matches', 'No matches.')}
               </p>
             )}
-            {filtered.map((t) => {
-              const M = KIND_META[t.kind]; const Icon = M.icon;
-              const on = active === t.id;
-              const unread = t.unread_count || 0;
-              const otherName = t.kind === 'dm'
-                ? (t.members || []).find((m) => m.staff_id !== myStaffId)?.full_name || 'DM'
+            {filtered.map((th) => {
+              const M = KIND_META[th.kind]; const Icon = M.icon;
+              const on = active === th.id;
+              const unread = th.unread_count || 0;
+              const otherName = th.kind === 'dm'
+                ? (th.members || []).find((m) => m.staff_id !== myStaffId)?.full_name || t('staffing.comms_dm', 'DM')
                 : null;
-              const label = t.name || otherName || M.label;
+              const label = th.name || otherName || t(M.labelKey, M.labelDefault);
               return (
-                <button key={t.id} type="button" onClick={() => setActive(t.id)}
+                <button key={th.id} type="button" onClick={() => setActive(th.id)}
                   className="w-full flex items-start gap-2 p-3 text-left border-b transition-colors"
                   style={{
                     background: on ? 'rgba(25,205,255,0.10)' : 'transparent',
                     borderColor: 'var(--theme-border)',
                   }}
-                  data-testid={`thread-row-${t.id}`}>
+                  data-testid={`thread-row-${th.id}`}>
                   <Icon size={13} className="mt-0.5 shrink-0" style={{
                     color: on ? 'var(--color-brand-cyan)' : 'var(--theme-text-muted)',
                   }} />
@@ -656,17 +631,17 @@ export default function CommsTab({ headers, isManager }) {
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{label}</span>
                       <span className="text-[10px] tabular-nums shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
-                        {timeShort(t.last_message_at)}
+                        {timeShort(th.last_message_at)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted)' }}>
-                        {t.last_message_preview || 'No messages yet'}
+                        {th.last_message_preview || t('staffing.comms_no_msgs_yet', 'No messages yet')}
                       </span>
                       {unread > 0 && (
                         <span className="ml-1 shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5"
                           style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
-                          data-testid={`thread-unread-${t.id}`}>
+                          data-testid={`thread-unread-${th.id}`}>
                           {unread}
                         </span>
                       )}
@@ -692,8 +667,8 @@ export default function CommsTab({ headers, isManager }) {
             <div className="flex-1 flex items-center justify-center p-6 text-center">
               <div>
                 <MessageSquare size={28} className="mx-auto mb-2 opacity-40" />
-                <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Pick a conversation</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>or create a new one with the “+ New” button.</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('staffing.comms_pick_conv', 'Pick a conversation')}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.comms_or_create', 'or create a new one with the “+ New” button.')}</p>
               </div>
             </div>
           )}
@@ -706,7 +681,7 @@ export default function CommsTab({ headers, isManager }) {
         headers={headers}
         isManager={isManager}
         staffList={staffList.filter((s) => s.id !== myStaffId)}
-        onCreated={(t) => { setActive(t.id); load(); }}
+        onCreated={(th) => { setActive(th.id); load(); }}
       />
     </div>
   );

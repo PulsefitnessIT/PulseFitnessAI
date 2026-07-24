@@ -6,11 +6,13 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Loader2, ShieldCheck, CheckCircle2, Users } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function TeamAccessTab({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [saving, setSaving] = useState('');
 
@@ -37,15 +39,15 @@ export default function TeamAccessTab({ headers }) {
   return (
     <div className="space-y-4" data-testid="team-access-tab">
       <div className="rounded-2xl p-4 border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-        <div className="flex items-center gap-2 mb-1"><ShieldCheck size={16} style={{ color: 'var(--theme-accent, #19CDFF)' }} /><h3 className="font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Team system access</h3></div>
-        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Grant your direct reports access to the modules your organisation uses. HR assigns you as the line manager during onboarding.</p>
+        <div className="flex items-center gap-2 mb-1"><ShieldCheck size={16} style={{ color: 'var(--theme-accent, #19CDFF)' }} /><h3 className="font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.access_team_title', 'Team system access')}</h3></div>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.access_team_desc', 'Grant your direct reports access to the modules your organisation uses. HR assigns you as the line manager during onboarding.')}</p>
       </div>
 
       {(data.reports || []).length === 0 ? (
         <div className="rounded-2xl p-10 border text-center" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="team-access-empty">
           <Users size={22} className="mx-auto mb-2" style={{ color: 'var(--theme-text-muted)' }} />
-          <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>No direct reports yet</div>
-          <div className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>HR assigns team members to you in Staff Onboarding → Activate.</div>
+          <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{t('staffing.access_no_reports', 'No direct reports yet')}</div>
+          <div className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.access_no_reports_hint', 'HR assigns team members to you in Staff Onboarding → Activate.')}</div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -57,10 +59,10 @@ export default function TeamAccessTab({ headers }) {
                   <div className="text-xs capitalize" style={{ color: 'var(--theme-text-muted)' }}>{(r.role || 'staff')}{r.department ? ` · ${r.department}` : ''}</div>
                 </div>
                 {saving === r.staff_id && <Loader2 size={16} className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} />}
-                {r.status === 'granted' && saving !== r.staff_id && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500"><CheckCircle2 size={13} /> Provisioned</span>}
+                {r.status === 'granted' && saving !== r.staff_id && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500"><CheckCircle2 size={13} /> {t('staffing.access_provisioned', 'Provisioned')}</span>}
               </div>
               <div className="flex flex-wrap gap-2">
-                {mods.length === 0 && <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No modules available on your plan.</span>}
+                {mods.length === 0 && <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.access_no_modules', 'No modules available on your plan.')}</span>}
                 {mods.map((m) => {
                   const on = (r.granted_modules || []).includes(m.key);
                   return (
