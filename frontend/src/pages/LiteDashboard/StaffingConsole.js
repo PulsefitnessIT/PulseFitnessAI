@@ -139,10 +139,11 @@ export default function StaffingConsole() {
   // Staff roster + Transfers (everything else is managed out-of-band).
   const groups = useMemo(() => {
     if (isMOD) {
+      // Handover Diary is the most-used tab at shift change-over, so it leads.
       return [
+        { id: 'comms', label: trLabel('Handover Diary'), icon: MessageSquare, leaf: 'comms' },
         { id: 'staff', label: trLabel('Staff'), icon: Users, leaf: 'staff' },
         { id: 'mod-transfer', label: trLabel('Transfers'), icon: ArrowRightLeft, leaf: 'mod-transfer' },
-        { id: 'comms', label: trLabel('Handover Diary'), icon: MessageSquare, leaf: 'comms' },
       ];
     }
     const childOK = (c) => c.roles.includes(role);

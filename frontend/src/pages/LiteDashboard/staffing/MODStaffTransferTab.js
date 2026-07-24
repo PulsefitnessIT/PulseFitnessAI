@@ -25,6 +25,14 @@ import {
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function MODStaffTransferTab({ headers }) {
+  // Force-aware wording so RAF/Navy read naturally (not "raf site").
+  const siteTerm = (f) => {
+    const u = (f || '').toUpperCase();
+    if (u === 'RAF') return 'RAF station';
+    if (u === 'NAVY') return 'naval site';
+    if (u === 'ARMY') return 'Army site';
+    return 'force site';
+  };
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -141,9 +149,9 @@ export default function MODStaffTransferTab({ headers }) {
               )}
             </div>
             <p className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-              Move a staff member from any {force ? force.toLowerCase() : 'force'} site to
+              Move a staff member from any {siteTerm(force)} to
               {currentSiteName ? ` ${currentSiteName}` : ' your site'}, or send one of your
-              team to another {force ? force.toLowerCase() : 'force'} site. Cross-force
+              team to another {siteTerm(force)}. Cross-force
               transfers are blocked.
             </p>
           </div>
@@ -154,7 +162,7 @@ export default function MODStaffTransferTab({ headers }) {
       <div className="rounded-2xl border p-5" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)' }}>
         <label className="block">
           <span className="text-[11px] uppercase font-bold tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
-            Find a staff member
+            Find a staff member by email
           </span>
           <div className="mt-2 relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#A2ACAB' }} />
@@ -162,7 +170,7 @@ export default function MODStaffTransferTab({ headers }) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Type a name or email…"
+              placeholder="Search by email address (e.g. j.smith@mod.gov.uk)…"
               className="w-full pl-9 pr-9 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors"
               style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
               data-testid="mod-transfer-search"
@@ -173,6 +181,9 @@ export default function MODStaffTransferTab({ headers }) {
             )}
           </div>
         </label>
+        <p className="mt-1.5 text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+          Searching by email is most accurate — personnel can share names.
+        </p>
 
         {/* Results */}
         <div className="mt-4 space-y-2">
@@ -217,7 +228,7 @@ export default function MODStaffTransferTab({ headers }) {
                     <MapPin size={11} /> {r.current_site_name}
                   </span>
                   {r.email && (
-                    <span className="inline-flex items-center gap-1 hidden sm:inline-flex">
+                    <span className="inline-flex items-center gap-1 font-medium" style={{ color: '#33B8FF' }}>
                       <Mail size={11} /> {r.email}
                     </span>
                   )}

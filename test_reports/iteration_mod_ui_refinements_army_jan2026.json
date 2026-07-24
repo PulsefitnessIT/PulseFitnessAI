@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only verification of MOD Service Portal UI refinements for ARMY test user (test@army.mod.test). All 5 requested features PASS functionally. Minor testid-naming deviations from spec noted but do not affect functionality.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Documents tab", "issues": ["PWA 'Install App / Later' toast overlays the bottom of the documents/equipment view on desktop — may obscure lower content in tender screenshots."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/T1_staffing_subtabs.png", "/app/test_reports/T2_final.png", "/app/test_reports/T3_documents.png", "/app/test_reports/T4_equipment.png", "/app/test_reports/T5_onboarding2.png", "/app/test_reports/T5e_qr.png"],
+  "results": {
+    "T1_staffing_subtab_order": "PASS - order is Handover Diary → Staff → Transfers, Handover Diary is default-selected on Staffing open. NOTE: Actual DOM uses container data-testid='staffing-tabs' (not 'staffing-subtabs') and items 'staffing-tab-comms|staff|mod-transfer' (not 'staffing-subtab-*'). Update spec/tests to match, or rename testids in code for consistency with request.",
+    "T2_transfers_wording_and_email_search": "PASS - Intro text exactly: 'Move a staff member from any Army site to MOD Test Site, or send one of your team to another Army site. Cross-force transfers are blocked.' Placeholder: 'Search by email address (e.g. j.smith@mod.gov.uk)…'. Label: 'FIND A STAFF MEMBER BY EMAIL' (uppercase caption). Helper text: 'Searching by email is most accurate — personnel can share names.' Search accepts input without crash; shows 'No active staff records found across the ARMY force yet.'",
+    "T3_documents_no_ai_box": "PASS - Documents tab (lite-documents-tab) renders dropzone, category chips (General/Manuals/Service Certs/Contracts/RAMs/SOPs/Compliance/Invoices), upload UI, and empty state. NO 'Ask Your Documents' / 'AI-powered answers' panel present.",
+    "T4_equipment_pulse_fitness_with_photos": "PASS - 8 machines all branded 'Pulse Fitness' (Series 3 Treadmill, Upright Bike, Recumbent Bike, Cross Trainer, Rower, Fusion DAP, Fusion Leg Press, Fusion Functional Trainer). All 8 cards render <img> elements with real remote URLs (pexels/unsplash) that load successfully (naturalWidth 867-1880px, complete=true).",
+    "T5_onboarding_checklist": "PASS - account-section-onboarding shows 7 MOD-specific steps with exact testids: mod_equipment_register, mod_print_qr, mod_report_fault, mod_check_sheets, mod_site_contacts, mod_documents, mod_complete_profile. First three marked completed (checkmark). No generic gym steps like 'Add extra site', 'Connect Stripe', 'Enter site details' present. Buttons: Open equipment (cta-mod_equipment_register) navigates to /pulse?tab=equipment and equipment cards visible ✓; Open faults navigates to /pulse?tab=faults ✓; Open documents navigates to /pulse?tab=documents ✓; Print QR opens inline 'Print QR codes' panel within settings modal (URL unchanged, modal remains open, machines listed for QR selection with 'Back'/'Print QRs' buttons) ✓. None of the CTAs go to 404 / marketing / /dashboard.",
+    "T5_minor_note": "CTA labels for the three COMPLETED steps read 'Review' (not 'Open equipment' / 'Open faults' etc. as literally written in the request). The request wording implied 'Open equipment' as the label for mod_equipment_register CTA, but the code shows 'Review' because the step is already completed (Review then re-opens the target tab). Functionality still correct — navigation happens as expected. Only if literal button-label wording matters, main agent may want completed steps to still say 'Open X'."
+  },
+  "action_items": [
+    "Optional consistency: rename staffing tab testids to match request ('staffing-subtabs' container, 'staffing-subtab-comms/staff/mod-transfer' items) — or update the spec docs to reference the current 'staffing-tabs' / 'staffing-tab-*' testids.",
+    "Optional UX: consider labelling completed onboarding CTAs as 'Open X' rather than 'Review' if we want the button text to remain action-oriented per the tender spec wording."
+  ],
+  "critical_code_review_comments": [
+    "Two 403 errors on some resource fetches were logged (source not surfaced in console detail) — likely benign auth-scoped calls, but worth a quick backend log check to confirm.",
+    "PWA install prompt overlays desktop viewport; consider suppressing on desktop for a cleaner tender-screenshot experience."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only per request)", "frontend": "100% of requested checks"},
+  "test_credentials": "test@army.mod.test / ModTest123! via /MODService (portal=mod, lands on /pulse)",
+  "seed_data_creation": "None — used existing MOD Test Site seeded data (8 Pulse Fitness machines already loaded with photos).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD portal login is via /MODService (separate endpoint). Rate limit 429 after ~4 rapid logins — reuse session. Real staffing sub-tab testids are 'staffing-tabs' container + 'staffing-tab-comms|staff|mod-transfer' (NOT 'staffing-subtabs'/'staffing-subtab-*'). User menu opens via [data-testid='nav-user-menu-btn'] and settings via [data-testid='nav-account-btn'] then [data-testid='account-nav-onboarding']. Onboarding CTAs are labelled 'Review' when a step is completed and 'Open X' when not. Print QR CTA opens an inline panel inside the settings modal (does not navigate).",
+  "rca of the issue": "No blocking bugs. Only cosmetic/consistency deltas between request wording and current implementation: (a) staffing sub-tab testids differ from those quoted in the request; (b) completed onboarding CTAs read 'Review' instead of 'Open X'. All functional behaviours (ordering, wording, email search, missing AI box, Pulse Fitness photos, navigation targets, inline QR panel) match the requirements."
+}

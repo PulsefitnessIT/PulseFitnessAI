@@ -1012,6 +1012,57 @@ ONBOARDING_STEPS = [
 ]
 
 
+# MOD Service Portal has its own setup journey. The generic gym checklist
+# (add sites, connect Stripe, brand your logo) doesn't apply — MOD sites are
+# provisioned centrally by the Pulse team and procurement is handled by DIO.
+# These steps route to the MOD /pulse portal tabs and complete off real MOD
+# records for the caller's site.
+MOD_ONBOARDING_STEPS = [
+    {"id": "mod_equipment_register", "label": "Set up your equipment register",
+     "description": "Add or import your site's gym equipment so faults, checks and ASER returns track against each machine.",
+     "cta_label": "Open equipment", "cta_route": "/pulse?tab=equipment"},
+    {"id": "mod_print_qr", "label": "Print machine QR codes",
+     "description": "Generate QR labels so anyone can scan a machine to report a fault in seconds.",
+     "cta_label": "Print QR codes", "cta_inline": "qr_print"},
+    {"id": "mod_report_fault", "label": "Report your first equipment fault",
+     "description": "Log a fault to see how it routes to the service desk and the equipment supplier.",
+     "cta_label": "Open faults", "cta_route": "/pulse?tab=faults"},
+    {"id": "mod_check_sheets", "label": "Complete a daily check sheet",
+     "description": "Run the daily safety checks your PTIs complete on each machine.",
+     "cta_label": "Open check sheets", "cta_route": "/pulse?tab=check-sheets"},
+    {"id": "mod_site_contacts", "label": "Add your site service contacts",
+     "description": "Add the PTIs and duty staff who manage this site's equipment and faults.",
+     "cta_label": "Open staffing", "cta_route": "/pulse?tab=staffing"},
+    {"id": "mod_documents", "label": "Upload site documents",
+     "description": "Store manuals, RAMS, service certificates and SOPs against your site for quick reference.",
+     "cta_label": "Open documents", "cta_route": "/pulse?tab=documents"},
+    {"id": "mod_complete_profile", "label": "Complete your profile",
+     "description": "Add your name, photo and phone so colleagues recognise you.",
+     "cta_label": "Open profile", "cta_section": "profile"},
+]
+
+
+async def _gather_mod_onboarding_signals(user: dict, org_id: str) -> dict:
+    """Derive MOD setup-checklist completion from real MOD records for the
+    caller's site. MOD site collections key on `site_id`, equipment/issues/
+    files on `organization_id`."""
+    equipment_count = await db.equipment.count_documents({"organization_id": org_id})
+    issues_count = await db.issues.count_documents({"organization_id": org_id})
+    check_sheets = await db.check_sheets.count_documents({"organization_id": org_id})
+    site_staff = await db.mod_site_staff.count_documents({"site_id": org_id})
+    files_count = await db.files.count_documents({"organization_id": org_id})
+    has_avatar_or_phone = bool(user.get("avatar_url") or user.get("phone"))
+    return {
+        "mod_equipment_register": equipment_count >= 1,
+        "mod_print_qr": equipment_count >= 1,
+        "mod_report_fault": issues_count >= 1,
+        "mod_check_sheets": check_sheets >= 1,
+        "mod_site_contacts": site_staff >= 1,
+        "mod_documents": files_count >= 1,
+        "mod_complete_profile": has_avatar_or_phone,
+    }
+
+
 async def _gather_onboarding_signals(user: dict, org_id: str) -> dict:
     """Collect every signal the onboarding checklist derives from.
 
@@ -1065,6 +1116,19 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
     org_id = user.get("organization_id")
     if not org_id:
         return {"steps": [{**s, "completed": False} for s in ONBOARDING_STEPS], "percent": 0}
+
+    # MOD Service Portal — bespoke setup checklist (see MOD_ONBOARDING_STEPS).
+    if (user.get("account_type") or "").lower().startswith("mod_") or user.get("is_mod_user"):
+        mod_flags = await _gather_mod_onboarding_signals(user, org_id)
+        mod_steps = [{**s, "completed": mod_flags.get(s["id"], False)} for s in MOD_ONBOARDING_STEPS]
+        mod_done = sum(1 for s in mod_steps if s["completed"])
+        return {
+            "steps": mod_steps,
+            "completed_count": mod_done,
+            "total": len(mod_steps),
+            "percent": int(round((mod_done / len(mod_steps)) * 100)) if mod_steps else 0,
+            "primary_module": "mod",
+        }
 
     flags = await _gather_onboarding_signals(user, org_id)
     # Iter 216h227 — module-aware checklist. Each step is tagged with a

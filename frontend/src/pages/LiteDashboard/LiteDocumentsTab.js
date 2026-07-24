@@ -49,8 +49,10 @@ const matchesCategory = (file, cat) => {
 };
 
 const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload, isPro = false }) => {
-  const { API } = useAuth();
+  const { API, user } = useAuth();
   const { t } = useTranslation();
+  // MOD tenants don't get the AI "Ask Your Documents" box (per Lee).
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
   // Iter 238 — translated category label (kebab-case id → snake_case key)
   const catLabel = (c) => t(`docs.cat_${c.id.replace(/-/g, '_')}`, c.label);
   const [activeDocTab, setActiveDocTab] = useState('manuals');
@@ -117,8 +119,8 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload, isPro
           indexing still happens (per-file Index button + auto-trigger
           on upload), users just don't need a percentage gauge cluttering
           the page. */}
-      {/* Lite has no AI — the Document Q&A box only renders for Pro/trial. */}
-      {isPro && <DocumentQA compact />}
+      {/* Lite has no AI — the Document Q&A box only renders for Pro/trial (not MOD). */}
+      {isPro && !isMOD && <DocumentQA compact />}
 
       {/* Iter 216h49 — Drag-and-drop dropzone. Matches the spec-sheet
           pattern (AdminSpecSheets) so the gesture is consistent across

@@ -347,7 +347,8 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
     if (!route) return route;
     const isMaster = !!profile?.is_master_admin;
     const at = (profile?.account_type || '').toLowerCase();
-    const isPulse = at === 'pulse_pro' || at === 'lite';
+    const isMOD = at.startsWith('mod_') || !!profile?.is_mod_user;
+    const isPulse = at === 'pulse_pro' || at === 'lite' || isMOD;
     // /sites isn't a real route — direct to the right Sites surface.
     if (route === '/sites' || route.startsWith('/sites?')) {
       if (isMaster) return '/master-admin?section=organizations';

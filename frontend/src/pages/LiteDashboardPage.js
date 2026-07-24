@@ -1176,8 +1176,8 @@ const LiteDashboardPage = () => {
       {/* Bottom spacer for mobile nav */}
       <div className="h-20 md:hidden" />
 
-      {/* Floating Document Q&A for Pro users */}
-      {isPro && activeTab !== 'documents' && <DocumentQA />}
+      {/* Floating Document Q&A for Pro users (not MOD tenants) */}
+      {isPro && !isMODSite && activeTab !== 'documents' && <DocumentQA />}
 
       {/* Iter 286 — the floating "Report incident" CTA was removed (cluttered
           the mobile bottom-right). Reporting is now launched from a pill in
