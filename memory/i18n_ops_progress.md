@@ -37,17 +37,14 @@ into i18n/locales/{en,fr,de}.json.
 ## STILL TODO (P1/P2 backlog — all render English via fallback, functional)
 - [x] staffing/HRTab.js — DONE (staffing.hr_*; renamed SUB_TABS.map t->st; translated SUB_TABS +
       field-arrays in Docs/Disciplinary/Training + JobRolesModal + AddStaffDialog)
-- [ ] staffing/StaffOnboarding.js (~1074) P1 — NOT DONE. NEEDS FULL REWRITE. CAUTION:
-      `t` SHADOWS to rename before adding useTranslation:
-        · CaseDetail load: `const [d, t] = await Promise.all(...)` -> rename t->tRes
-        · CaseDetail offer/contract template pickers: `templates.offer.map((t)=>` and
-          `templates.contract.map((t)=>` -> rename to `tpl`
-        · TemplateManager load: `const [t, f] = await Promise.all(...)` -> rename t->tRes
-      Helpers at tail (lines ~1034-1074, was clipped): Modal, Row, Btn — also have small strings
-      (e.g. Btn children, Modal close). Read the FULL file first. Suggested ns: staffing.onb_*
-- [ ] StaffingConsole.js DEEP inline panels P1 — nav already done. Read lines 176-1243 for the
-      Rota schedule / Leave / Shift Market / Rules / Announcements / payroll drawers /
-      staff-portal-preview strings. Suggested ns: staffing.sc_*
+- [x] staffing/StaffOnboarding.js (~1074) P1 — DONE (staffing.onb_*, 174 keys FR/DE). Shadows renamed
+      (CaseDetail load t->tRes, offer/contract map t->tpl, TemplateManager load t->tRes). Verified via
+      testing_agent (100% FE, 0 raw-key leaks EN/FR/DE).
+- [x] StaffingConsole.js DEEP inline panels P1 — DONE (staffing.sc_*, 119 keys FR/DE). Added useTranslation
+      to RotaTab/AddShiftDialog/StaffTab/CopyableField/LeaveTab/MarketTab/PerformanceTab/PayrollTab/
+      LiveFloorTab/RulesTab/AnnouncementsTab/AIInsightsTab. Renamed shadows: RotaTab day-totals t->dt,
+      LeaveTab leave-type map t->lt. Verified via testing_agent (100% FE, 0 raw-key leaks EN/FR/DE).
+      Report: /app/test_reports/iteration_staffing_console_deep_i18n_fr_de_jan2026.json
 - [ ] staffing/orgchart/* (14 files ~2000 lines) P2
 
 ## PIPELINE BUILT & VERIFIED (idempotent, re-runnable)

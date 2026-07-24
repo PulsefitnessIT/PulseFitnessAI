@@ -1,3 +1,14 @@
+# ═══ 2026-06-24 · i18n PHASE 3 UPDATE — StaffOnboarding + StaffingConsole DEEP panels DONE (VERIFIED EN/FR/DE) ═══
+This session completed the two remaining P1 i18n items and verified all three languages via testing_agent (100% FE, 0 raw-key leaks):
+  - staffing/StaffOnboarding.js — staffing.onb_* (174 keys FR/DE). Shadows renamed (CaseDetail load t->tRes, offer/contract map t->tpl, TemplateManager load t->tRes).
+  - StaffingConsole.js DEEP inline panels — staffing.sc_* (119 keys FR/DE). useTranslation added to RotaTab, AddShiftDialog, StaffTab, CopyableField, LeaveTab, MarketTab, PerformanceTab, PayrollTab, LiveFloorTab, RulesTab, AnnouncementsTab, AIInsightsTab. Shadows renamed (RotaTab day-totals t->dt, LeaveTab leave-type map t->lt).
+Also fixed P3 console noise: App.js loadBranding/loadSites now skip for PORTAL_ONLY_ROLES (dealer_user/logistics/recruit) so portal loads don't fire 403s.
+NOTE: during editing, StaffingConsole.js and App.js each briefly got a trailing-duplicate-block corruption (webpack "Unterminated string"/"Missing semicolon"); both cleaned up, app compiles clean.
+Report: /app/test_reports/iteration_staffing_console_deep_i18n_fr_de_jan2026.json
+REMAINING i18n: staffing/orgchart/* (14 files ~2000 lines) — P2, still renders EN via fallback.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n PHASE 3 — OPERATIONS DASHBOARDS (LiteDashboard) FR/DE — PARTIAL (VERIFIED FR) ═══
 User: roll out the same t() FR/DE treatment to the Operations Dashboards module
 (/app/frontend/src/pages/LiteDashboard). Scope confirmed: EVERYTHING incl. org-chart,
