@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Boxes, Warehouse, ClipboardList, PackageSearch, PlugZap,
@@ -479,6 +480,7 @@ function Fulfilment({ initialStage = 'receiving' }) {
 
 export default function InventoryDistribution() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const [sp, setSp] = useSearchParams();
   const section = sp.get('s') || 'dashboard';
@@ -595,7 +597,7 @@ export default function InventoryDistribution() {
                     }`}
                   >
                     <it.Icon className="w-4 h-4" />
-                    <span className="flex-1 truncate">{it.label}</span>
+                    <span className="flex-1 truncate">{t(`invnav.${it.id}`, it.label)}</span>
                     {!it.live && <span className="ml-auto rounded px-1 text-[9px] font-bold bg-slate-200 text-slate-500">SOON</span>}
                   </button>
                 );

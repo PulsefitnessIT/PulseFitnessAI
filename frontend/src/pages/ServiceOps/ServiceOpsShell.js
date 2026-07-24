@@ -26,6 +26,7 @@ import {
   Smartphone, Plus, HardHat,
 } from 'lucide-react';
 import './_serviceops.css';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
 // Iter 216h53 — when the shell renders inside the merged Service Desk
 // page, the outer hero + nav strip is suppressed (the merged page
@@ -88,11 +89,10 @@ export default function ServiceOpsShell({
               </h1>
               {subtitle ? <p className="svc-subtitle">{subtitle}</p> : null}
             </div>
-            {actions ? (
-              <div className="flex flex-wrap items-center gap-2 shrink-0" data-testid="svc-hero-actions">
-                {actions}
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2 shrink-0" data-testid="svc-hero-actions">
+              <LanguageSwitcher />
+              {actions}
+            </div>
           </div>
         </header>
 
