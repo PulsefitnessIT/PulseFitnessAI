@@ -23,6 +23,11 @@ router = APIRouter(prefix="/service-desk", tags=["Service Desk"])
 async def desk_summary(user: dict = Depends(require_service_desk)) -> dict:
     """Top-level counters shown on the Service Desk landing page."""
     since_7d = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    # Cross-module flow: mirror Operations Staffing field engineers into the
+    # Service Desk roster so they're counted/assignable on the desk.
+    from routes.svc.engineers_admin import sync_staffing_to_svc_engineers
+    await sync_staffing_to_svc_engineers(
+        await desk_provider_org_id(user) or user.get("organization_id"))
     # Iter 253 — self-serve providers get THEIR desk's numbers (cases,
     # engineers, customers), never the platform customer-org estate.
     provider_org = await desk_provider_org_id(user)

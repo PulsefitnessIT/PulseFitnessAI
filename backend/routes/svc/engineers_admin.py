@@ -54,10 +54,100 @@ def _public(eng: dict) -> dict:
     return eng
 
 
+# ── Staffing → Service Desk engineer sync (cross-module data flow) ──
+
+def _is_field_engineer_role(primary_role) -> bool:
+    """True if an Operations Staffing primary_role denotes a field service
+    engineer / technician. Tolerant of snake_case tokens ("engineer") and
+    HR display labels ("Field Service Engineer")."""
+    r = (primary_role or "").strip().lower()
+    if not r:
+        return False
+    return any(k in r for k in ("engineer", "technician", "service", "install", "fitter", "maintenance"))
+
+
+async def sync_staffing_to_svc_engineers(org_id: str) -> int:
+    """Mirror field engineers/technicians set up in Operations → Staffing
+    into db.svc_engineers so they are assignable on Service Desk cases /
+    Faults. Staffing stays the source of truth: mirror rows carry
+    source='staffing' + staff_id and auto_provisioned=True. Idempotent +
+    best-effort. Stale mirrors (staff archived or role changed) are
+    soft-deactivated (never deleted — case history references them)."""
+    if not org_id:
+        return 0
+    try:
+        staff = await db.staff_members.find(
+            {"organization_id": org_id, "active": {"$ne": False}},
+            {"_id": 0, "id": 1, "user_id": 1, "email": 1, "full_name": 1, "primary_role": 1, "phone": 1},
+        ).to_list(2000)
+        existing = await db.svc_engineers.find(
+            {"organization_id": org_id},
+            {"_id": 0, "id": 1, "email": 1, "source": 1, "staff_id": 1},
+        ).to_list(2000)
+        by_email = {(e.get("email") or "").lower().strip(): e for e in existing if e.get("email")}
+        by_staffid = {e.get("staff_id"): e for e in existing if e.get("staff_id")}
+        by_id = {e.get("id"): e for e in existing}
+        now = datetime.now(timezone.utc).isoformat()
+        qualifying_ids: list[str] = []
+        synced = 0
+        for s in staff:
+            if not _is_field_engineer_role(s.get("primary_role")):
+                continue
+            qualifying_ids.append(s.get("id"))
+            em = (s.get("email") or "").lower().strip()
+            # Prefer linking to an engineer already provisioned from the
+            # platform user (account.py keys svc_engineers.id == user_id).
+            match = by_staffid.get(s.get("id")) or by_email.get(em) or by_id.get(s.get("user_id"))
+            if match:
+                await db.svc_engineers.update_one(
+                    {"id": match["id"]},
+                    {"$set": {"staff_id": s.get("id"), "active": True, "updated_at": now}},
+                )
+                continue
+            eid = s.get("user_id") or f"staffeng-{s.get('id')}"
+            await db.svc_engineers.update_one(
+                {"id": eid},
+                {
+                    "$set": {
+                        "id": eid,
+                        "organization_id": org_id,
+                        "full_name": s.get("full_name") or em or "Engineer",
+                        "email": em or "",
+                        "mobile": (s.get("phone") or "").strip(),
+                        "active": True,
+                        "source": "staffing",
+                        "staff_id": s.get("id"),
+                        "auto_provisioned": True,
+                        "updated_at": now,
+                    },
+                    "$setOnInsert": {
+                        "sage_user_id": "", "skills": [], "working_hours": {},
+                        "qualifications": [], "verified": False,
+                        "created_at": now,
+                    },
+                },
+                upsert=True,
+            )
+            synced += 1
+        # Soft-deactivate mirrors whose staff was archived / no longer a field role.
+        await db.svc_engineers.update_many(
+            {"organization_id": org_id, "source": "staffing",
+             "staff_id": {"$nin": qualifying_ids}, "active": True},
+            {"$set": {"active": False, "updated_at": now}},
+        )
+        return synced
+    except Exception:
+        logger.exception("[svc-engineer-sync] failed for org %s", org_id)
+        return 0
+
+
 # ── Engineer admin CRUD ──────────────────────────────────────────
 
 @router.get("/svc/engineers")
 async def list_engineers(user=Depends(get_current_user)) -> dict:
+    # Cross-module flow: pull Operations Staffing field engineers into the
+    # Service Desk roster before listing.
+    await sync_staffing_to_svc_engineers(user.get("organization_id") or user.get("service_org_id"))
     cursor = db.svc_engineers.find(_of(user), {"_id": 0}).sort("full_name", 1)
     rows = [_public(e) async for e in cursor]
     # Annotate each engineer with current open-job count for the admin UI.

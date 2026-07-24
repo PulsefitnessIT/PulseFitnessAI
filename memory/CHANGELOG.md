@@ -1,6 +1,19 @@
 # Changelog
 
 
+## Jun 2026 (fork) — Cross-module data flow: Staffing → CRM & Service Desk + CRM Territories pill fix
+- **BUGFIX — CRM Territories faded pill sub-options** (`index.css`, `CRMTerritoryMap.js`, `CRMTerritories.js`):
+  - Root cause: active segmented toggles used `bg-zinc-900 text-white`; the light-theme global rule neutralises `.bg-zinc-900` → `var(--theme-surface)` (`#FFFFFF`), but `text-white` on the same element wasn't caught by the descendant override → selected pill rendered white-on-white (invisible/faded).
+  - Fix: added `.seg-active` class (solid brand-blue `#0E7490` island + white label, survives both themes); pointed all 6 active toggle states at it (Map/List, Counties/Postcode, All roles/Managers/Engineers, Offices). Verified via computed style.
+- **FEATURE — Staffing → CRM people sync** (`crm_core.py` `sync_staffing_to_crm_users`, wired into `GET /crm/users` + `GET /crm/territories/staff-palette`):
+  - Mirrors Operations Staffing field staff (engineers → territory role `engineer`, sales → `sales_manager`) into `db.crm_users` on CRM read. Staffing stays source of truth (`source='staffing'`, `staff_id`, no password → cannot log in). Role mapping tolerant of snake_case + HR display labels. Idempotent; stale mirrors deleted. Never overwrites a real login user's role/name.
+  - Result: engineers/sales managers set up in Staffing now appear in the CRM team list and are assignable on the Territory map. Verified E2E (Jordan Blake, "Field Service Engineer").
+- **FEATURE — Staffing → Service Desk engineer sync** (`svc/engineers_admin.py` `sync_staffing_to_svc_engineers`, wired into `GET /svc/engineers` + `GET /service-desk/summary`):
+  - Mirrors Staffing field engineers/technicians into `db.svc_engineers` so they're assignable on Service Desk cases/Faults, scheduler and dashboard counts. `source='staffing'`, `auto_provisioned=True`; links to existing platform-provisioned engineers by staff_id/email/user_id; stale mirrors soft-deactivated (never deleted — case history refs). Verified E2E via `/api/svc/engineers`.
+- Principle upheld: modules run standalone (own collections) and auto-share people data when bolted together (best-effort, non-breaking lazy sync on read).
+- STILL PAUSED: Inventory & Distribution FR/DE i18n rollout — translations prepared at `/tmp/inv_i18n.json` (not yet merged/applied).
+
+
 ## Jul 14, 2026 — Dealer Parts (Phase 5, final) — AI + Reports + Dealer Portal
 - **AI (Emergent LLM key, model openai/gpt-5.2, advisory-only)** — `routes/dealer_parts_portal.py` + `utils/dealer_parts_ai.py`:
   - `POST /ai/parse-invoice {text}` extracts machine lines + order value from pasted invoice/order text (never invents lines) → Orders tab "Parse invoice with AI" pre-fills the import form for review, then auto-calculates the allowance.
