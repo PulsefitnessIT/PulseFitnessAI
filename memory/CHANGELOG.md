@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-06-24 · MOD SERVICE PORTAL UI REFINEMENTS + PULSE FITNESS TENDER SEED (VERIFIED 100% FE)
+Six MOD-portal requests from Lee, all verified by testing_agent (iteration_mod_ui_refinements_army_jan2026.json), 0 blocking bugs:
+1. Staffing sub-tabs reordered so **Handover Diary is first** (default-selected), then Staff, then Transfers — StaffingConsole.js MOD `groups`.
+2. Staff Transfers wording is now **force-aware**: Army→"Army site", RAF→"RAF station", Navy→"naval site" (helper `siteTerm()` in MODStaffTransferTab.js) — no more "raf site".
+3. Transfers **search-by-email** emphasised: label "Find a staff member by email", placeholder "Search by email address (e.g. j.smith@mod.gov.uk)…", helper note ("personnel can share names"), email shown in cyan on result rows. Backend `/mod/site/staff-search` already matched email+name (no BE change).
+4. **"Ask Your Documents"** AI box removed for MOD tenants — LiteDocumentsTab.js (`isMOD` via useAuth) + LiteDashboardPage.js floating widget gated on `!isMODSite`.
+5. **MOD Test Site** (org abfdabd9, "MOD Test Site") seeded with **8 Pulse Fitness machines WITH product photos** (photo_url, pexels/unsplash) for tender screenshots — scripts/seed_mod_test_site_pulse.py (idempotent, tag mod_test_site_pulse; wiped the 2 legacy ASER-QA items). Serials PF-MODTS-001..008.
+6. **Account Settings → Onboarding** rebuilt for MOD: new MOD_ONBOARDING_STEPS in routes/account.py (7 relevant steps — equipment register, print QR, report fault, complete check sheet, add site contacts, upload docs, complete profile) derived from real MOD records; generic gym steps (add sites, Connect Stripe, brand logo) removed. All CTAs route inside the /pulse MOD portal (no 404/marketing bounce); resolveRoute in onboarding.js now treats mod_* as a /pulse operator.
+LOGIN NOTE: MOD Test Site account changed to test@army.mod.test / ModTest123! (portal=mod, via /MODService). Recorded in test_credentials.md.
+CARRY-OVER: the earlier fork-batch (same session) also shipped points 1–5 above; #6 onboarding + verification completed this turn.
+─────────────────────────────────────────────────────────────────────────────
+
+
 
 ## Jun 2026 (fork) — i18n Phase 2 COMPLETE: Inventory & Distribution module (FR/DE)
 - Fully localized the authenticated operator **Inventory & Distribution** module into French & German (react-i18next). Added `inv.*` (589 keys/lang) + `invnav.grp_*` namespaces across en/fr/de.
