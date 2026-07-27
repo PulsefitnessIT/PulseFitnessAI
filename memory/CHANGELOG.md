@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-24 · MOD SERVICE — modal backdrop coverage (real root cause) + no AI triage on faults (VERIFIED 100% FE)
+Follow-up after user re-reported the backdrop issue with screenshots showing an undimmed strip at the top (below navbar) and bottom.
+1. **REAL root cause of the "not fully blacked out" modals**: the overlays were `position:fixed inset-0` but trapped inside a **transformed ancestor** in the Lite dashboard, so `fixed` sized to the tab-content box (not the viewport) — leaving undimmed strips. Just darkening the colour (previous attempt) didn't fix coverage. FIX: portalled all three MOD staffing modals to `document.body` (`createPortal(..., document.body)`, z-[100], bg 0.8): Add staff (MODStaffTab.js), Handover Diary "New conversation" (CommsTab.js), and Staff Transfer (MODStaffTransferTab.js). Same fix already applied to ASER (MODASERPortal.js). Testing agent: 55/55 sampled pixels dimmed incl. top strip + bottom — PASS.
+2. **No AI triage when logging a fault on MOD** — LiteDialogs.js fault submit now gates the "Get AI Triage & Submit" path on `(isPro && !isMOD)`; MOD users get a plain "Submit Fault Report" (no `/issues/triage` LLM call, no AI diagnosis/priority/repair-steps panel). Also fixed the "steps taken" placeholder for MOD (removed misleading "helps AI diagnose faster"). PASS.
+3. Nits: added data-testid `mod-staff-field-fullname` to the Add-staff name input.
+Verified: iteration_mod_ui_modal_backdrop_noai_retest3.json (3/3 PASS, 100% FE). Login test@army.mod.test / ModTest123! via /MODService.
+Files: MODStaffTab.js, CommsTab.js, MODStaffTransferTab.js, LiteDialogs.js.
+─────────────────────────────────────────────────────────────────────────────
+
+
 ## 2026-06-24 · FIX — Mobile QR scan photo broken (MOD Test Site fleet)
 ROOT CAUSE: the tender-demo fleet was seeded with external stock-photo hotlinks (images.unsplash.com / images.pexels.com). Those return 200 server-side but are flaky on mobile (hotlink throttling / referrer), so the public QR scan page (/scan/:equipmentId → QRScanPage.js, renders `<img src={equipment.photo_url}>`) showed a broken image.
 FIX: rehosted all 8 MOD Test Site photos into our own object store (put_object) and repointed `photo_url` at the same-origin public endpoint `/api/public/equipment/{id}/photo` (+ photo_path + photo_content_type), so images load reliably on any device. Equipment IDs preserved (existing QR codes keep working).

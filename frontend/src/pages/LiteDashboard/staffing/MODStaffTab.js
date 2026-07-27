@@ -206,6 +206,7 @@ export default function MODStaffTab({ headers }) {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Sgt Jane Smith"
                   required
+                  data-testid="mod-staff-field-fullname"
                   className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
                   style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
                 />

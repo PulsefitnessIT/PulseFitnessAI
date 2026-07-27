@@ -945,7 +945,7 @@ const LiteDialogs = ({
                    has AI (Pulse Pro / trial / MOD-HQ). Pulse Lite users
                    were seeing "(helps AI diagnose faster)" even though
                    their portal has no AI features, which is confusing. */
-                placeholder={isPro
+                placeholder={(isPro && !isMOD)
                   ? t('dialog.steps_hint_pro', 'Have you tried anything to fix this? (helps AI diagnose faster)')
                   : t('dialog.steps_hint_lite', 'Have you tried anything to fix this? (gives the engineer a head start)')}
                 className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[60px]"
