@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-24 · FIX — Mobile QR scan photo broken (MOD Test Site fleet)
+ROOT CAUSE: the tender-demo fleet was seeded with external stock-photo hotlinks (images.unsplash.com / images.pexels.com). Those return 200 server-side but are flaky on mobile (hotlink throttling / referrer), so the public QR scan page (/scan/:equipmentId → QRScanPage.js, renders `<img src={equipment.photo_url}>`) showed a broken image.
+FIX: rehosted all 8 MOD Test Site photos into our own object store (put_object) and repointed `photo_url` at the same-origin public endpoint `/api/public/equipment/{id}/photo` (+ photo_path + photo_content_type), so images load reliably on any device. Equipment IDs preserved (existing QR codes keep working).
+- New script: backend/scripts/rehost_mod_test_site_photos.py (one-off, ran successfully — 8/8 rehosted).
+- Made backend/scripts/seed_mod_test_site_pulse.py durable: it now downloads + self-hosts each photo at seed time (falls back to external URL only if download fails), so future re-seeds don't regress.
+VERIFY: /api/public/equipment/{id}/photo returns 200 image/jpeg; mobile-viewport screenshot of /scan/PF-MODTS-002 shows the upright-bike photo rendering in the card. FIXED.
+─────────────────────────────────────────────────────────────────────────────
+
+
 ## 2026-06-24 · MOD SERVICE — modal backdrops, staff DOB, transfer DOB-confirm + duplicate surfacing, ASER overlay fix (VERIFIED 100% FE)
 All four requests verified by testing_agent (iteration_mod_ui_refinements_army_jan2026_retest2.json), 0 blocking bugs:
 1. **Modal backdrops fully darkened** — Add staff (MODStaffTab.js + MODStaffModal.js) and Handover Diary "New conversation" (CommsTab.js) now use ~80% black + backdrop-blur (were 45–70%). Page behind clearly dimmed.

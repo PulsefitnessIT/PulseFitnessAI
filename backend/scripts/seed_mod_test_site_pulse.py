@@ -16,7 +16,10 @@ import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from utils.database import db
+import requests
+
+from utils.database import db, APP_NAME, put_object
+from routes.equipment import _public_photo_url
 
 SITE_ID = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"  # MOD Test Site (mod_force=army)
 SEED_TAG = "mod_test_site_pulse"
@@ -67,6 +70,21 @@ async def main() -> None:
         purchase_iso = (now - timedelta(days=int(age * 365))).isoformat()
         warranty_iso = (now - timedelta(days=int(age * 365)) + timedelta(days=int(2 * 365))).isoformat()
         eq_id = str(uuid.uuid4())
+        # Rehost the stock photo onto our own object store so it always loads
+        # on mobile / the public QR page (external hotlinks are flaky). Falls
+        # back to the external URL if the download fails.
+        photo_url, photo_path, photo_ct = photo, None, None
+        try:
+            resp = requests.get(photo, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+            resp.raise_for_status()
+            photo_ct = (resp.headers.get("Content-Type") or "image/jpeg").split(";")[0].strip()
+            ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}.get(photo_ct, "jpg")
+            key = f"{APP_NAME}/equipment-photos/{eq_id}/{uuid.uuid4()}.{ext}"
+            res = put_object(key, resp.content, photo_ct)
+            photo_path = res.get("path", key)
+            photo_url = _public_photo_url(eq_id)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ! photo rehost failed for {name}: {exc} (using external URL)")
         await db.equipment.insert_one({
             "id": eq_id,
             "organization_id": SITE_ID,
@@ -82,7 +100,10 @@ async def main() -> None:
             "replacement_cost": cost,
             "warranty_expiry": warranty_iso,
             "status": "active" if faults < 3 else "out_of_service",
-            "photo_url": photo,
+            "photo_url": photo_url,
+            "photo_path": photo_path,
+            "photo_content_type": photo_ct,
+            "photo_source": "seed_rehosted" if photo_path else "seed_external",
             "created_at": now_iso,
             "imported_via": SEED_TAG,
         })
