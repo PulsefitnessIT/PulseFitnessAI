@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only UI verification of MOD Handover Diary signed shift log + in-modal error polish. ALL requested items PASS.",
+  "test_results_detail": {
+    "TEST_A_in_modal_error": "PASS — Group chip + Send-to-everyone OFF + no staff selected + Create → styled in-modal error appears at data-testid='new-thread-error' with text 'Pick staff, or choose \"Send to everyone at this site\".' Modal stays open. NO native browser alert/window.alert observed (dialog listener captured 0 dialogs).",
+    "TEST_A_recovery": "PASS — Turning Send-to-everyone toggle ON then Create succeeds; modal closes and new group thread appears.",
+    "TEST_B_signing_selector_present": "PASS — In the open group thread, data-testid='conversation-author-select' exists in the compose area labelled 'SIGNING AS'. Options listed: ['Select staff member…', 'Cpl James Reed · Cpl', 'Sgt Test QA · PT Instructor'] — exactly the two site staff.",
+    "TEST_B_blocked_without_author": "PASS — Typing a note and clicking Send WITHOUT choosing a staff member is blocked. Native alert fired: 'Select who is writing this note before posting.' Message did NOT post (verified by inspecting conversation-messages content — text not present).",
+    "TEST_B_note_signed_as_reed": "PASS — After selecting 'Cpl James Reed', typing 'Treadmill 3 out of service, tagged out.' and Send, the message posts and is displayed with author name 'Cpl James Reed' shown above the bubble (avatar 'CR'). Not attributed to 'Lee Somers'/'test'.",
+    "TEST_B_second_note_signed_as_qa": "PASS — Switching SIGNING AS to 'Sgt Test QA' and posting 'QA follow-up: noted and logged.' shows author name 'Sgt Test QA' above that bubble (avatar 'SQ'). Two consecutive notes therefore display two DIFFERENT signer names, proving each note is individually author-stamped.",
+    "message_area_verbatim": "TODAY / CR Cpl James Reed / Treadmill 3 out of service, tagged out. / 06:50 PM / SQ Sgt Test QA / QA follow-up: noted and logged. / 06:50 PM"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "screenshots": [
+    "/app/test_reports/testA_modal_error.png (in-modal red error)",
+    "/app/test_reports/testB_author_select.png (SIGNING AS dropdown with 2 staff)",
+    "/app/test_reports/testB_two_signed_notes.png (thread with 2 notes, 2 signers)"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: the 'Select who is writing this note before posting.' guardrail in CommsTab.js still uses window.alert() (line 426). The main polish task explicitly replaced the modal alert with a styled in-modal error — for consistency, consider replacing this second alert with an inline error near the SIGNING AS dropdown (border already turns amber when empty; a small red helper text under the compose area would match the modal styling). Not blocking — behaviour is correct."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "MOD shared kiosk login: test@army.mod.test / ModTest123! (from prior iteration, still valid).",
+  "seed_data_creation": "Reused existing group thread + added TEST_Everyone_Group (from prior run). Posted 2 signed notes in group thread: 'Treadmill 3 out of service, tagged out.' (Cpl James Reed) and 'QA follow-up: noted and logged.' (Sgt Test QA). Safe to leave.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All requested UI behaviour verified end-to-end. In-modal error (data-testid='new-thread-error') works and no window.alert fires there. SIGNING AS <select> (data-testid='conversation-author-select') correctly lists mod_site_staff and each posted message is stamped with the selected staff member's name (not the shared login 'Lee Somers'). One remaining window.alert is on the compose-time 'no author selected' guard — behavioural pass but stylistically inconsistent with the new modal polish; flagged as minor code-review note."
+}

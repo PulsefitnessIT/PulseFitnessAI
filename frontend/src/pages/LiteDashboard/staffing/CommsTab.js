@@ -133,6 +133,7 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
   const [sendToAll, setSendToAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
+  const [err, setErr] = useState('');
 
   if (!open) return null;
 
@@ -149,20 +150,21 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
   const showStaffPicker = !showChannelScope && !(canSendToAll && sendToAll);
 
   const submit = async () => {
+    setErr('');
     if (kind === 'dm' && memberIds.length !== 1) {
-      window.alert(t('staffing.comms_pick_one', 'Pick exactly one person to DM'));
+      setErr(t('staffing.comms_pick_one', 'Pick exactly one person to DM'));
       return;
     }
     if (!isMOD && kind === 'group' && memberIds.length === 0) {
-      window.alert(t('staffing.comms_pick_member', 'Pick at least one member'));
+      setErr(t('staffing.comms_pick_member', 'Pick at least one member'));
       return;
     }
     if (!isMOD && kind === 'channel' && !siteId && !roleFilter) {
-      window.alert(t('staffing.comms_pick_scope', 'Pick a site or role to scope the channel'));
+      setErr(t('staffing.comms_pick_scope', 'Pick a site or role to scope the channel'));
       return;
     }
     if (isMOD && kind !== 'dm' && !sendToAll && memberIds.length === 0) {
-      window.alert(t('staffing.comms_pick_or_all', 'Pick staff, or choose "Send to everyone at this site".'));
+      setErr(t('staffing.comms_pick_or_all', 'Pick staff, or choose "Send to everyone at this site".'));
       return;
     }
     setBusy(true);
@@ -179,7 +181,7 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
       onCreated && onCreated(data);
       onClose();
     } catch (e) {
-      window.alert(e.response?.data?.detail || t('staffing.comms_create_failed', 'Create failed'));
+      setErr(e.response?.data?.detail || t('staffing.comms_create_failed', 'Create failed'));
     }
     setBusy(false);
   };
@@ -197,7 +199,7 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
             const M = KIND_META[k]; const Icon = M.icon;
             const on = kind === k;
             return (
-              <button key={k} type="button" onClick={() => { setKind(k); if (k === 'dm') setSendToAll(false); }}
+              <button key={k} type="button" onClick={() => { setKind(k); setErr(''); if (k === 'dm') setSendToAll(false); }}
                 className="h-8 px-3 rounded-full text-xs font-bold inline-flex items-center gap-1 transition-colors"
                 style={{
                   background: on ? 'var(--color-brand-cyan)' : 'transparent',
@@ -285,6 +287,12 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
         ) : (
           <p className="text-xs px-1 py-2" style={{ color: 'var(--theme-text-muted)' }} data-testid="new-thread-all-note">
             {t('staffing.comms_all_note', 'This will be sent to all staff on this site.')}
+          </p>
+        )}
+        {err && (
+          <p className="text-xs rounded-lg px-3 py-2" role="alert" data-testid="new-thread-error"
+            style={{ background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.35)', color: '#DC2626' }}>
+            {err}
           </p>
         )}
         <div className="flex justify-end gap-2 pt-1">
@@ -388,13 +396,14 @@ function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelet
   );
 }
 
-function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
+function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, staffList = [], onUpdate }) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState('');
   const [urgent, setUrgent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [authorStaffId, setAuthorStaffId] = useState('');
   const scrollRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -413,6 +422,10 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
 
   const send = async () => {
     if (!body.trim()) return;
+    if (isMOD && !editing && !authorStaffId) {
+      window.alert(t('staffing.comms_pick_author', 'Select who is writing this note before posting.'));
+      return;
+    }
     setBusy(true);
     try {
       if (editing) {
@@ -420,7 +433,7 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
           { body: body.trim() }, { headers });
       } else {
         await axios.post(`${API}/staffing/comms/threads/${thread.id}/messages`,
-          { body: body.trim(), urgent }, { headers });
+          { body: body.trim(), urgent, author_staff_id: isMOD ? (authorStaffId || null) : null }, { headers });
       }
       setBody(''); setUrgent(false); setEditing(null);
       load();
@@ -492,7 +505,8 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
             }
             const mine = m.author_staff_id === myStaffId || m.author_id === myStaffId;
             const authorKey = m.author_staff_id || m.author_id || m.author_email;
-            const showAuthor = isGroup && !mine && authorKey !== prevAuthorKey;
+            // MOD shared-login: every note is signed, so always show the author.
+            const showAuthor = (isMOD || (isGroup && !mine)) && authorKey !== prevAuthorKey;
             out.push(
               <MessageRow
                 key={m.id}
@@ -517,6 +531,23 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
               <Pencil size={10} /> {t('staffing.comms_editing_msg', 'Editing message')}
               <button type="button" onClick={() => { setEditing(null); setBody(''); }} className="ml-1 underline" data-testid="cancel-edit">{t('staffing.comms_cancel_lc', 'cancel')}</button>
             </div>
+          )}
+          {isMOD && !editing && (
+            <label className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--theme-text-muted)' }} data-testid="conversation-author-wrap">
+              <span className="uppercase font-bold tracking-wider shrink-0">Signing as</span>
+              <select
+                value={authorStaffId}
+                onChange={(e) => setAuthorStaffId(e.target.value)}
+                className="flex-1 h-8 rounded-md bg-transparent border px-2 text-xs"
+                style={{ borderColor: authorStaffId ? 'var(--theme-border)' : '#F59E0B', color: 'var(--theme-text)' }}
+                data-testid="conversation-author-select"
+              >
+                <option value="">Select staff member…</option>
+                {staffList.map((s) => (
+                  <option key={s.id} value={s.id}>{s.full_name}{s.primary_role ? ` · ${s.primary_role}` : ''}</option>
+                ))}
+              </select>
+            </label>
           )}
           <div className="flex gap-2 items-end">
             <textarea value={body} onChange={(e) => setBody(e.target.value)}
@@ -716,6 +747,8 @@ export default function CommsTab({ headers, isManager, isMOD = false }) {
               headers={headers}
               isManager={isManager}
               myStaffId={myStaffId}
+              isMOD={isMOD}
+              staffList={staffList}
               onUpdate={load}
             />
           ) : (

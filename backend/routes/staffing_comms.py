@@ -103,6 +103,9 @@ class MessageCreate(BaseModel):
     urgent: bool = False
     scheduled_for: str | None = None     # ISO-8601, must be in future
     pinned: bool = False
+    # MOD shared-login sites stamp each note with the PTI who wrote it
+    # (a mod_site_staff id) so the Handover Diary reads as a signed shift log.
+    author_staff_id: str | None = None
 
 
 class MessageUpdate(BaseModel):
@@ -435,8 +438,19 @@ async def list_messages(
             label = u.get("full_name") or u.get("name") or (u.get("email") or "").split("@")[0]
             if label:
                 by_uid[u["id"]] = label
+    # MOD Handover Diary notes carry a mod_site_staff author — resolve any
+    # sids not found in the platform roster from that pool.
+    mod_missing = [s for s in sid_set if s and s not in by_sid]
+    if mod_missing:
+        async for p in db.mod_site_staff.find(
+            {"id": {"$in": mod_missing}, "site_id": org_id},
+            {"_id": 0, "id": 1, "name": 1},
+        ):
+            if p.get("name"):
+                by_sid[p["id"]] = p["name"]
     for r in rows:
-        name = by_sid.get(r.get("author_staff_id")) or by_uid.get(r.get("author_id"))
+        # Prefer an author_name explicitly stamped on the message (MOD signed log).
+        name = r.get("author_name") or by_sid.get(r.get("author_staff_id")) or by_uid.get(r.get("author_id"))
         if not name:
             # Last-ditch: derive a readable handle from the recorded email
             email = (r.get("author_email") or "").strip()
@@ -480,12 +494,27 @@ async def post_message(
         scheduled_for = sched_dt.isoformat()
 
     now_iso = _now().isoformat()
+    author_staff_id = sid
+    author_name = None
+    # MOD shared-login: stamp the note with the selected PTI (signed shift log).
+    is_mod = bool(user.get("is_mod_user")) or (user.get("account_type") or "").startswith("mod_")
+    if is_mod and body.author_staff_id:
+        person = await db.mod_site_staff.find_one(
+            {"id": body.author_staff_id, "site_id": org_id},
+            {"_id": 0, "id": 1, "name": 1},
+        )
+        if not person:
+            raise HTTPException(400, "Selected staff member not found on this site")
+        author_staff_id = person["id"]
+        author_name = person.get("name")
+
     msg = {
         "id": str(uuid4()),
         "organization_id": org_id,
         "thread_id": thread_id,
         "author_id": user.get("id"),
-        "author_staff_id": sid,
+        "author_staff_id": author_staff_id,
+        "author_name": author_name,
         "author_email": user.get("email"),
         "body": body_text,
         "urgent": bool(body.urgent),
