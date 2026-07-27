@@ -11,6 +11,7 @@
  * server-side; this component is a thin renderer + composer.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import {
@@ -170,8 +171,8 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
     setBusy(false);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="new-thread-modal">
+  return createPortal((
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="new-thread-modal">
       <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
@@ -259,7 +260,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 // ─────────────────── Conversation pane ───────────────────

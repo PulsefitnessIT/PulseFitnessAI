@@ -9,6 +9,7 @@
  * Fields per staff member: Rank · Name · Role · Email · Phone.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Loader2, Mail, Phone, Users, X } from 'lucide-react';
@@ -173,9 +174,11 @@ export default function MODStaffTab({ headers }) {
         )}
       </div>
 
-      {/* Edit / add modal */}
-      {editing !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }} data-testid="mod-staff-modal">
+      {/* Edit / add modal — portalled to <body> so `fixed inset-0` covers the
+          true viewport (the Lite dashboard has transformed ancestors that
+          would otherwise trap the overlay inside the tab content area). */}
+      {editing !== null && createPortal((
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }} data-testid="mod-staff-modal">
           <form onSubmit={submit} className="rounded-2xl w-full max-w-lg p-6 relative" style={{ background: 'var(--theme-surface)' }}>
             <button type="button" onClick={close} className="absolute right-4 top-4 p-1.5 rounded-full" aria-label="Close" data-testid="mod-staff-close">
               <X size={16} />
@@ -275,7 +278,7 @@ export default function MODStaffTab({ headers }) {
             </div>
           </form>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }

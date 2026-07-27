@@ -1108,7 +1108,7 @@ const LiteDialogs = ({
                   )}
                 </div>
               )
-            ) : isPro ? (
+            ) : (isPro && !isMOD) ? (
               <div className="space-y-2">
                 <Button onClick={handleTriage} disabled={triaging || submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
                   {triaging ? <><Loader2 className="animate-spin mr-2" size={18} /> {t('dialog.ai_analysing', 'AI Analysing...')}</> : <><Sparkles size={18} className="mr-2" /> {t('dialog.get_ai_triage', 'Get AI Triage & Submit')}</>}

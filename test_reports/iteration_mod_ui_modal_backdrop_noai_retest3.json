@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only re-test of three MOD Service Portal fixes: (1) Handover Diary 'New conversation' modal full-viewport backdrop, (2) Add-staff modal full-viewport backdrop, (3) No AI triage in fault log on MOD. Logged in via /MODService as test@army.mod.test / ModTest123!. ALL THREE FIXES PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "feature_results": {
+    "1_handover_new_thread_modal_backdrop": {
+      "status": "PASS",
+      "evidence": "Modal parent = document.body (portalled). Overlay class 'fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm', computed background rgba(0,0,0,0.8), rect {x:0,y:0,w:1440,h:900} = full viewport. 55/55 sampled pixel points (y ranging 10-890, x 50-1390) sit under the backdrop overlay — top strip beneath the black navbar and bottom of page are BOTH dimmed. Screenshot: /app/test_reports/mod_new_thread_full.png."
+    },
+    "2_add_staff_modal_backdrop": {
+      "status": "PASS",
+      "evidence": "mod-staff-modal parent = document.body (portalled). Overlay 'fixed inset-0 z-[100]', bg rgba(0,0,0,0.8), full 1440x900. 55/55 sample points covered. Modal renders normally with fields present: RANK, FULL NAME* (visible in DOM/screenshot but data-testid 'mod-staff-field-fullname' MISSING — minor testid inconsistency; UI renders correctly), ROLE, DATE OF BIRTH*, EMAIL*, PHONE*. Screenshot: /app/test_reports/mod_add_staff_full.png."
+    },
+    "3_no_ai_triage_in_faults": {
+      "status": "PASS",
+      "evidence": "In Faults tab (MOD): NO 'AI Triage' tab present (text search returned 0 hits; sub-tabs are only Reactive Faults / Request a Part / Planned Maintenance). Log-a-Fault dialog opened via [data-testid=log-fault-btn]. Submit button [data-testid=lite-fault-submit] text = 'Submit Fault Report' (contains no 'AI' or 'Triage'). AI keyword scan of dialog innerText for 'ai triage','ai analysing','ai analysis','ai diagnosis','repair steps','priority (ai)','ai suggest' returned []. Screenshot: /app/test_reports/mod_fault_log_dialog.png."
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/mod_new_thread_full.png",
+    "/app/test_reports/mod_add_staff_full.png",
+    "/app/test_reports/mod_fault_log_dialog.png"
+  ],
+  "action_items": [
+    "Nit: The 'Any Steps Already Taken?' textarea placeholder in the Log-a-Fault dialog still reads 'Have you tried anything to fix this? (helps AI diagnose faster)' — since AI triage is gated off on MOD, this hint is misleading. Consider updating the placeholder for MOD to remove the 'helps AI diagnose faster' wording.",
+    "Nit: Add-staff modal 'Full name' input is missing data-testid 'mod-staff-field-fullname' (all other fields have their data-testid). The prior iteration report also flagged this — please add for testability."
+  ],
+  "critical_code_review_comments": [
+    "Both modals are now correctly portalled to document.body with 'fixed inset-0 z-[100] bg-black/80' — root fix is applied consistently. The Add-staff modal uses inline style rgba(0,0,0,0.8) while new-thread uses Tailwind 'bg-black/80'; both compute identically but consolidating on Tailwind class would improve consistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested)", "frontend": "100% (3/3)"},
+  "test_credentials": "test@army.mod.test / ModTest123! via /MODService",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "MOD backdrop fix verified: modals are portalled to document.body with full-viewport 'fixed inset-0 z-[100] bg-black/80' overlays. Fault log on MOD has NO AI triage path — submit label is 'Submit Fault Report'. Log-a-Fault opener testid is [data-testid=log-fault-btn] (NOT 'lite-fault-open'). Sub-tabs in Faults use 'lite-faults-view-*' (reactive/request-part/ppm). Correct sub-tab testids in Staffing are 'staffing-tab-*' (not 'staffing-subtab-*')."
+}

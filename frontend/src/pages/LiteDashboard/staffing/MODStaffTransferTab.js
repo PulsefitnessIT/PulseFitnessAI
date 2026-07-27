@@ -15,6 +15,7 @@
  *   5. Toast + refresh on success.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
@@ -275,10 +276,10 @@ export default function MODStaffTransferTab({ headers }) {
         </div>
       </div>
 
-      {/* Transfer modal */}
-      {selected && (
+      {/* Transfer modal — portalled to <body> so the overlay covers the full viewport */}
+      {selected && createPortal((
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}
           data-testid="mod-transfer-modal"
         >
@@ -426,7 +427,7 @@ export default function MODStaffTransferTab({ headers }) {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
