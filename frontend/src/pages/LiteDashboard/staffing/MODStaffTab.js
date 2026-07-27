@@ -15,7 +15,7 @@ import { Plus, Pencil, Trash2, Loader2, Mail, Phone, Users, X } from 'lucide-rea
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const BLANK = { rank: '', name: '', role: 'PT Instructor', email: '', phone: '' };
+const BLANK = { rank: '', name: '', role: 'PT Instructor', date_of_birth: '', email: '', phone: '' };
 
 export default function MODStaffTab({ headers }) {
   const [staff, setStaff] = useState([]);
@@ -46,6 +46,7 @@ export default function MODStaffTab({ headers }) {
       rank: s.rank || '',
       name: s.name || '',
       role: s.role || 'PT Instructor',
+      date_of_birth: s.date_of_birth || '',
       email: s.email || '',
       phone: s.phone || '',
     });
@@ -58,12 +59,17 @@ export default function MODStaffTab({ headers }) {
       toast.error('Name, email and phone are required');
       return;
     }
+    if (!form.date_of_birth) {
+      toast.error('Date of birth is required');
+      return;
+    }
     setSubmitting(true);
     try {
       const body = {
         name: form.name.trim(),
         rank: form.rank.trim() || undefined,
         role: form.role.trim() || undefined,
+        date_of_birth: form.date_of_birth,
         email: form.email.trim(),
         phone: form.phone.trim(),
       };
@@ -169,7 +175,7 @@ export default function MODStaffTab({ headers }) {
 
       {/* Edit / add modal */}
       {editing !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} data-testid="mod-staff-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }} data-testid="mod-staff-modal">
           <form onSubmit={submit} className="rounded-2xl w-full max-w-lg p-6 relative" style={{ background: 'var(--theme-surface)' }}>
             <button type="button" onClick={close} className="absolute right-4 top-4 p-1.5 rounded-full" aria-label="Close" data-testid="mod-staff-close">
               <X size={16} />
@@ -212,6 +218,21 @@ export default function MODStaffTab({ headers }) {
                 className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
                 style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
               />
+            </Field>
+
+            <Field label="Date of birth" testid="mod-staff-field-dob" className="mt-3" required>
+              <input
+                type="date"
+                value={form.date_of_birth}
+                onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+                max={new Date().toISOString().slice(0, 10)}
+                required
+                className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+              />
+              <span className="text-[10.5px] mt-1 block" style={{ color: 'var(--theme-text-muted)' }}>
+                Used to confirm identity when transferring this person between sites.
+              </span>
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">

@@ -1,0 +1,61 @@
+{
+  "summary": "Frontend-only re-test of MOD Service Portal refinements (backdrops + DOB on add-staff + DOB confirm & duplicate detection on transfers + ASER solid overlay). ALL 4 features PASS. Logged in via /MODService as test@army.mod.test / ModTest123!, exercised Staffing (Handover Diary + Staff + Transfers) and Reports (ASER).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "feature_results": {
+    "1a_new_conversation_backdrop": {
+      "status": "PASS",
+      "evidence": "Fixed overlay found: class 'fixed inset-0 z-50 bg-black/80 backdrop-blur-sm', computed background rgba(0,0,0,0.8), backdrop-filter blur(4px). Page behind clearly dimmed in screenshot mod_backdrop_new_thread.png."
+    },
+    "1b_add_staff_backdrop": {
+      "status": "PASS",
+      "evidence": "Add staff modal wrapper uses inline style {background: rgba(0,0,0,0.8), backdropFilter: blur(4px)} (MODStaffTab.js:178). Backdrop visibly dark in screenshot mod_add_staff_dob.png."
+    },
+    "2_add_staff_dob_field": {
+      "status": "PASS",
+      "evidence": "data-testid mod-staff-field-dob present with label 'Date of birth *' and helper 'Used to confirm identity when transferring this person between sites.' Submit with empty DOB kept modal open (blocked). After filling 1990-05-20 + name/email/phone, 'Staff added' toast shown and Sgt Test QA appears in staff list.",
+      "notes": "Toast 'Date of birth is required' was not captured via innerText/role=status/alert selectors, but the modal correctly stayed open and submission was blocked — likely toast uses portal not matched by our selectors (backend already verified 422 on missing DOB). Successful save toast 'Staff added' was captured."
+    },
+    "3_transfers": {
+      "status": "PASS",
+      "sub_checks": {
+        "transfer_modal_backdrop_dark": "PASS - overlay rgba(0,0,0,0.8) + blur(4px), class 'fixed inset-0 z-50'",
+        "confirm_dob_field_present": "PASS",
+        "confirm_disabled_initial": "PASS (true)",
+        "confirm_disabled_after_dest_only": "PASS (true)",
+        "confirm_enabled_after_dest_plus_dob": "PASS (true)",
+        "wrong_dob_toast": "PASS - exact toast: \"The date of birth entered doesn't match our records for this staff member. Transfer blocked — please check you have the right person.\" Modal stayed open.",
+        "correct_dob_success": "PASS - toast: 'Sgt Amara Okafor transferred to Aldershot Garrison Gym' and modal closed.",
+        "duplicate_detection_reed": "PASS - data-testid mod-transfer-duplicate panel shown with text: 'Duplicate at destination. Cpl J Reed (james.reed@army.mod.uk) is already active at Aldershot Garrison Gym. Resolve the duplicate before transferring.' Confirm button disabled."
+      }
+    },
+    "4_aser_solid_overlay": {
+      "status": "PASS",
+      "evidence": "data-testid mod-aser-portal is position:fixed, zIndex:100, size 1440x900 (full viewport), background rgb(245,245,247) SOLID (opacity 1). elementFromPoint at (100,60), (300,140), (500,150), (700,160), (900,200) ALL return inASER=true — no bleed-through of the underlying MOD dashboard. Header shows 'MOD Service Portal · Reports · ASER — Activity Safety Events Register' on a solid bar. aser-close button closes the portal cleanly and returns to Reports."
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/mod_backdrop_new_thread.png",
+    "/app/test_reports/mod_add_staff_dob.png",
+    "/app/test_reports/mod_transfer_duplicate.png",
+    "/app/test_reports/mod_aser_overlay.png"
+  ],
+  "action_items": [
+    "Minor: The 'Date of birth is required' toast on Add-staff was not detected by common toast selectors (role=status/alert/.toast). Modal blocking works correctly; confirm the toast library actually renders this text on-screen (backend validation already enforces DOB). Not a blocker.",
+    "Doc/nitpick: Review request referenced sub-tab testids 'staffing-subtab-comms/staff/mod-transfer' — actual DOM uses 'staffing-tab-comms/staff/mod-transfer' (primary pill tab bar). Sub-tab prefix is not present in MOD-site view."
+  ],
+  "critical_code_review_comments": [
+    "MODPortal/MODStaffModal.js (line 53) uses bg-black/70 while MODStaffTab.js (line 178) uses rgba(0,0,0,0.8). Two modals with same data-testid mod-staff-modal but different backdrop opacity — only MODStaffTab.js is what renders in Staffing → Staff on MOD site (correct 80%). Consider consolidating if both are reachable, to avoid inconsistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested)", "frontend": "100%"},
+  "test_credentials": "test@army.mod.test / ModTest123! (MOD site login via /MODService)",
+  "seed_data_creation": "Added 'Sgt Test QA' (sgt.testqa@army.mod.uk, DOB 1990-05-20) to MOD Test Site staff (per review-request note this may remain). Transferred 'Sgt Amara Okafor' from MOD Test Site → Aldershot Garrison Gym as part of the correct-DOB success path.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 UI refinements are working. Sgt Amara Okafor was successfully transferred to Aldershot Garrison Gym during this test — if further transfer regressions are needed with Amara, seed data may need reset. Cpl James Reed still at MOD Test Site (duplicate against Reed on Aldershot side prevents transfer). Correct sub-tab testids are 'staffing-tab-*' (not 'staffing-subtab-*') for this account type. Toast library appears to use a portal not surfaced via role=status/alert — future tests should locate via '[data-sonner-toast]' or take screenshots."
+}

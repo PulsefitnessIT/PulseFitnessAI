@@ -17,6 +17,7 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, Cell, PieChart, Pie,
 } from 'recharts';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 
@@ -88,7 +89,7 @@ export default function MODASERPortal({ onClose }) {
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { if (view === 'register') loadRegister(); }, [view, loadRegister]);
 
-  return (
+  return createPortal((
     <div className="mod-report-overlay fixed inset-0 z-[100] bg-[var(--color-ink-deep)] text-white overflow-y-auto" data-testid="mod-aser-portal">
       <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
@@ -166,7 +167,7 @@ export default function MODASERPortal({ onClose }) {
         />
       )}
     </div>
-  );
+  ), document.body);
 }
 
 // ── Register + dashboard ────────────────────────────────────────────

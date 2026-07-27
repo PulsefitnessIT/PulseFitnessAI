@@ -50,6 +50,23 @@ FAULT_TYPE_LABELS = {
     "other": "Other",
 }
 
+_DOB_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
+
+
+def _norm_dob(value: Optional[str]) -> Optional[str]:
+    """Normalise a date-of-birth to YYYY-MM-DD (or None). Rejects malformed
+    or future dates so a transfer can't be confirmed with a nonsense value."""
+    if not value:
+        return None
+    v = str(value).strip()[:10]
+    try:
+        d = datetime.strptime(v, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Date of birth must be a valid date (YYYY-MM-DD)")
+    if d > datetime.now(timezone.utc).date():
+        raise HTTPException(400, "Date of birth cannot be in the future")
+    return d.isoformat()
+
 
 # ══════════════════════════════════════════════════════════════════
 #                     PYDANTIC MODELS
@@ -61,6 +78,9 @@ class StaffCreate(BaseModel):
     # column (which now defaults to "PT Instructor" for MOD).
     rank: Optional[str] = Field(default=None, max_length=40)
     role: Optional[str] = Field(default=None, max_length=120)
+    # DOB is captured on every service person — it's the identity check
+    # used to authorise cross-site transfers.
+    date_of_birth: str = Field(..., pattern=_DOB_PATTERN)
     email: EmailStr
     phone: str = Field(..., min_length=5, max_length=40)
 
@@ -69,6 +89,7 @@ class StaffUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=120)
     rank: Optional[str] = Field(default=None, max_length=40)
     role: Optional[str] = Field(default=None, max_length=120)
+    date_of_birth: Optional[str] = Field(default=None, pattern=_DOB_PATTERN)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(default=None, min_length=5, max_length=40)
 
@@ -76,9 +97,12 @@ class StaffUpdate(BaseModel):
 class StaffTransferRequest(BaseModel):
     """Move one staff record from this site to another site within the
     same MOD force (Army/RAF/Navy). The destination site_id MUST belong
-    to the same force or the request is rejected."""
+    to the same force or the request is rejected. `confirm_dob` is the
+    staff member's date of birth, entered by the operator to confirm
+    they are moving the correct person."""
     staff_id: str
     destination_site_id: str
+    confirm_dob: Optional[str] = Field(default=None, pattern=_DOB_PATTERN)
     reason: Optional[str] = Field(default=None, max_length=400)
 
 
@@ -700,6 +724,7 @@ async def mod_staff_create(
         "name": sanitise_string(payload.name),
         "rank": sanitise_string(payload.rank) if payload.rank else None,
         "role": sanitise_string(payload.role) if payload.role else None,
+        "date_of_birth": _norm_dob(payload.date_of_birth),
         "email": payload.email,
         "email_lc": email_lc,
         "phone": sanitise_string(payload.phone),
@@ -731,6 +756,8 @@ async def mod_staff_update(
         updates["rank"] = sanitise_string(payload.rank) if payload.rank else None
     if payload.role is not None:
         updates["role"] = sanitise_string(payload.role)
+    if payload.date_of_birth is not None:
+        updates["date_of_birth"] = _norm_dob(payload.date_of_birth)
     if payload.email is not None:
         updates["email"] = payload.email
         updates["email_lc"] = payload.email.lower().strip()
@@ -951,7 +978,7 @@ async def mod_staff_search(
 
     rows = await db.mod_site_staff.find(
         staff_q,
-        {"_id": 0, "id": 1, "name": 1, "rank": 1, "role": 1, "email": 1, "phone": 1, "site_id": 1, "last_reported_at": 1},
+        {"_id": 0, "id": 1, "name": 1, "rank": 1, "role": 1, "email": 1, "phone": 1, "site_id": 1, "last_reported_at": 1, "date_of_birth": 1},
     ).sort("name", 1).limit(50).to_list(50)
 
     own_site_id = org["id"]
@@ -965,6 +992,9 @@ async def mod_staff_search(
             "role": r.get("role"),
             "email": r.get("email"),
             "phone": r.get("phone"),
+            # DOB itself is never returned (it's the confirmation secret) —
+            # only whether one is on record, so the UI knows to require it.
+            "has_dob": bool(r.get("date_of_birth")),
             "current_site_id": r["site_id"],
             "current_site_name": site.get("name") or "(unknown site)",
             "current_branch": site.get("mod_branch"),
@@ -1053,6 +1083,26 @@ async def mod_staff_transfer(
     if source_site["id"] == dest_site["id"]:
         raise HTTPException(400, "Source and destination sites are the same")
 
+    # ── Identity confirmation: the operator must enter the staff
+    # member's date of birth so we know they're moving the right person.
+    stored_dob = _norm_dob(staff.get("date_of_birth")) if staff.get("date_of_birth") else None
+    provided_dob = _norm_dob(payload.confirm_dob)
+    if stored_dob:
+        if not provided_dob:
+            raise HTTPException(400, "Enter the staff member's date of birth to authorise this transfer.")
+        if provided_dob != stored_dob:
+            raise HTTPException(
+                403,
+                "The date of birth entered doesn't match our records for this "
+                "staff member. Transfer blocked — please check you have the right person.",
+            )
+    elif provided_dob:
+        # Legacy record with no DOB on file — backfill it from the confirmed
+        # value so future transfers can be verified.
+        await db.mod_site_staff.update_one(
+            {"id": staff["id"]}, {"$set": {"date_of_birth": provided_dob}},
+        )
+
     # Idempotency / collision: same email already exists at destination?
     email_lc = (staff.get("email_lc") or (staff.get("email") or "").lower().strip())
     if email_lc:
@@ -1061,12 +1111,28 @@ async def mod_staff_transfer(
             "email_lc": email_lc,
             "is_active": {"$ne": False},
             "id": {"$ne": staff["id"]},
-        }, {"_id": 0, "id": 1})
+        }, {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "rank": 1})
         if clash:
+            # Surface the duplicate's details so the operator can see exactly
+            # who already exists at the destination and resolve it.
             raise HTTPException(
                 409,
-                f"A staff member with this email is already active at "
-                f"{dest_site['name']}. Resolve the duplicate before transferring.",
+                detail={
+                    "error": "duplicate_at_destination",
+                    "message": (
+                        f"{clash.get('name') or 'A staff member'} "
+                        f"({clash.get('email') or email_lc}) is already active at "
+                        f"{dest_site['name']}. Resolve the duplicate before transferring."
+                    ),
+                    "site_name": dest_site["name"],
+                    "duplicate": {
+                        "id": clash.get("id"),
+                        "name": clash.get("name"),
+                        "email": clash.get("email"),
+                        "rank": clash.get("rank"),
+                        "role": clash.get("role"),
+                    },
+                },
             )
 
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -1323,6 +1389,7 @@ async def mod_fault_submit(
             "site_id": site_id,
             "name": reporter_name,
             "role": None,
+            "date_of_birth": None,
             "email": reporter_email,
             "email_lc": reporter_email,
             "phone": reporter_phone,

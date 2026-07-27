@@ -171,7 +171,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="new-thread-modal">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="new-thread-modal">
       <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">

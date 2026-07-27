@@ -45,7 +45,14 @@ export default function MODStaffTransferTab({ headers }) {
   const [selected, setSelected] = useState(null);          // staff record
   const [destSiteId, setDestSiteId] = useState('');
   const [reason, setReason] = useState('');
+  const [confirmDob, setConfirmDob] = useState('');
+  const [dupWarning, setDupWarning] = useState(null);      // { message, duplicate, site_name }
   const [submitting, setSubmitting] = useState(false);
+
+  const resetModal = () => {
+    setSelected(null); setDestSiteId(''); setReason('');
+    setConfirmDob(''); setDupWarning(null);
+  };
 
   // ── Load destination site list ─────────────────────────────────
   const loadTargets = useCallback(async () => {
@@ -92,27 +99,41 @@ export default function MODStaffTransferTab({ headers }) {
       toast.error('Destination is the same as current site');
       return;
     }
+    if (!confirmDob) {
+      toast.error("Confirm the staff member's date of birth to authorise the transfer");
+      return;
+    }
+    if (proactiveDup) {
+      toast.error('Resolve the duplicate at the destination site first');
+      return;
+    }
     setSubmitting(true);
+    setDupWarning(null);
     try {
       const r = await axios.post(
         `${API}/mod/site/staff/transfer`,
         {
           staff_id: selected.id,
           destination_site_id: destSiteId,
+          confirm_dob: confirmDob,
           reason: reason.trim() || undefined,
         },
         { headers },
       );
       toast.success(`${r.data?.staff_name || 'Staff'} transferred to ${r.data?.to_site_name}`);
-      setSelected(null);
-      setDestSiteId('');
-      setReason('');
+      resetModal();
       // Refresh the result list (their site_name will have changed)
       const re = await axios.get(`${API}/mod/site/staff-search`, { headers, params: { q: query } });
       setResults(re.data?.results || []);
     } catch (e) {
-      const msg = e?.response?.data?.detail || 'Transfer failed';
-      toast.error(typeof msg === 'string' ? msg : 'Transfer failed');
+      const detail = e?.response?.data?.detail;
+      if (e?.response?.status === 409 && detail && typeof detail === 'object' && detail.error === 'duplicate_at_destination') {
+        setDupWarning(detail);
+        toast.error('Duplicate found at destination — see details below');
+      } else {
+        const msg = detail || 'Transfer failed';
+        toast.error(typeof msg === 'string' ? msg : 'Transfer failed');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -122,6 +143,20 @@ export default function MODStaffTransferTab({ headers }) {
     const s = targets.find((t) => t.id === destSiteId);
     return s ? s.name : null;
   }, [destSiteId, targets]);
+
+  // Proactive duplicate detection — is someone with the SAME email already
+  // active at the chosen destination? (We surface this to the operator
+  // BEFORE they confirm; the backend also hard-blocks it.)
+  const proactiveDup = useMemo(() => {
+    if (!selected || !destSiteId) return null;
+    const email = (selected.email || '').toLowerCase().trim();
+    if (!email) return null;
+    return results.find(
+      (r) => r.id !== selected.id &&
+        r.current_site_id === destSiteId &&
+        (r.email || '').toLowerCase().trim() === email,
+    ) || null;
+  }, [selected, destSiteId, results]);
 
   return (
     <div className="space-y-5" data-testid="mod-staff-transfer-tab">
@@ -244,13 +279,13 @@ export default function MODStaffTransferTab({ headers }) {
       {selected && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.45)' }}
+          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}
           data-testid="mod-transfer-modal"
         >
           <div className="rounded-2xl w-full max-w-lg p-6 relative" style={{ background: 'var(--theme-surface)' }}>
             <button
               type="button"
-              onClick={() => { setSelected(null); setReason(''); setDestSiteId(''); }}
+              onClick={resetModal}
               className="absolute right-4 top-4 p-1.5 rounded-full"
               style={{ background: 'transparent' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--theme-bg)'; }}
@@ -319,7 +354,46 @@ export default function MODStaffTransferTab({ headers }) {
               />
             </label>
 
-            {targetSiteName && (
+            <label className="block mt-4">
+              <span className="text-[11px] uppercase font-bold tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+                Confirm date of birth <span style={{ color: '#DC2626' }}>*</span>
+              </span>
+              <input
+                type="date"
+                value={confirmDob}
+                onChange={(e) => setConfirmDob(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors"
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                data-testid="mod-transfer-confirm-dob"
+              />
+              <span className="text-[11px] mt-1 block" style={{ color: 'var(--theme-text-muted)' }}>
+                Enter {selected.name}'s date of birth to confirm you're moving the right person.
+              </span>
+            </label>
+
+            {(proactiveDup || dupWarning) && (
+              <div className="mt-4 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2" style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.35)' }} data-testid="mod-transfer-duplicate">
+                <Shield size={14} style={{ color: '#DC2626' }} className="shrink-0 mt-0.5" />
+                <div style={{ color: 'var(--theme-text)' }}>
+                  <strong>Duplicate at destination.</strong>{' '}
+                  {dupWarning?.message || (
+                    <>
+                      <strong>{proactiveDup.name}</strong> ({proactiveDup.email}) is already active at{' '}
+                      <strong>{targetSiteName}</strong>. Resolve the duplicate before transferring.
+                    </>
+                  )}
+                  {dupWarning?.duplicate && (
+                    <div className="mt-1 opacity-80">
+                      Existing record: {dupWarning.duplicate.rank ? `${dupWarning.duplicate.rank} ` : ''}
+                      {dupWarning.duplicate.name} · {dupWarning.duplicate.email}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {targetSiteName && !proactiveDup && !dupWarning && (
               <div className="mt-4 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2" style={{ background: 'rgba(102,204,255,0.08)', border: '1px solid rgba(102,204,255,0.25)' }}>
                 <CheckCircle2 size={14} style={{ color: '#33B8FF' }} className="shrink-0 mt-0.5" />
                 <span style={{ color: 'var(--theme-text)' }}>
@@ -331,7 +405,7 @@ export default function MODStaffTransferTab({ headers }) {
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => { setSelected(null); setReason(''); setDestSiteId(''); }}
+                onClick={resetModal}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{ color: 'var(--theme-text-muted)' }}
                 data-testid="mod-transfer-cancel"
@@ -341,7 +415,7 @@ export default function MODStaffTransferTab({ headers }) {
               <button
                 type="button"
                 onClick={submit}
-                disabled={submitting || !destSiteId}
+                disabled={submitting || !destSiteId || !confirmDob || !!proactiveDup}
                 className="px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
                 style={{ background: '#66CCFF', color: '#212721' }}
                 data-testid="mod-transfer-confirm"
