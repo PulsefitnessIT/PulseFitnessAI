@@ -44,7 +44,11 @@ crmApi.interceptors.request.use((config) => {
     config.headers = config.headers || {};
     const existing = config.headers.Authorization || config.headers.authorization;
     if (!existing) {
-      const tok = localStorage.getItem(CRM_TOKEN_KEY) || localStorage.getItem('token');
+      // CRM endpoints only accept a crm_token. NEVER fall back to the main
+      // platform `token` — a valid non-CRM JWT fails crm_verify_token and
+      // surfaces a misleading "Invalid CRM token" toast (seen during
+      // master-admin impersonation, when the crm_token is briefly re-minted).
+      const tok = localStorage.getItem(CRM_TOKEN_KEY);
       if (tok) config.headers.Authorization = `Bearer ${tok}`;
     }
   } catch { /* never block a request */ }

@@ -17,7 +17,7 @@ import RepTrackRecord from './RepTrackRecord';
 import ForecastLeaderboard from './ForecastLeaderboard';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
-const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
+const auth = () => { const _t = localStorage.getItem('crm_token'); return { headers: _t ? { Authorization: `Bearer ${_t}` } : {} }; };
 
 function fmtMoney(n) {
   const v = Number(n) || 0;

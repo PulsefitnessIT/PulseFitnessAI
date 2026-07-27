@@ -24,7 +24,7 @@ import { TerritoryRow, TeamNode } from './CRMTerritoryPieces';
 import CRMTerritoryMap from './CRMTerritoryMap';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
-const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
+const auth = () => { const _t = localStorage.getItem('crm_token'); return { headers: _t ? { Authorization: `Bearer ${_t}` } : {} }; };
 
 export default function CRMTerritories() {
   const [view, setView] = useState('map');

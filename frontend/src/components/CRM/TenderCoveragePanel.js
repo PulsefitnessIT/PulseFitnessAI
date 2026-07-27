@@ -17,7 +17,7 @@ import axios from 'axios';
 import { Map as MapIcon, TrendingUp, UserCog, Hammer, ChevronDown, ChevronRight } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
-const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
+const auth = () => { const _t = localStorage.getItem('crm_token'); return { headers: _t ? { Authorization: `Bearer ${_t}` } : {} }; };
 
 const ROLE_LABELS = { sales_manager: 'Sales Manager', engineer: 'Engineer', both: 'Manager + Engineer' };
 const ROLE_ICONS = { sales_manager: UserCog, engineer: Hammer, both: UserCog };

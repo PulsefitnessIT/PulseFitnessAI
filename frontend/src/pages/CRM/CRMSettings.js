@@ -561,7 +561,7 @@ export default function CRMSettings() {
                 <p className="text-xs mt-0.5" style={{ color: c.textDim }}>Add staff and allocate job roles. These records are shared with Operations ▸ Staffing.</p>
               </div>
               <div className="p-2">
-                <HRTab headers={{ Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token')}` }} isManager />
+                <HRTab headers={{ Authorization: `Bearer ${localStorage.getItem('crm_token')}` }} isManager />
               </div>
             </div>
           )}

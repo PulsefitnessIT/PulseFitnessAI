@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-06-24 · FIX — "Invalid CRM token" toast when switching to CRM (esp. under impersonation)
+ROOT CAUSE: CRM API endpoints authenticate via `get_crm_user` (routes/crm_auth.py) which rejects any
+token lacking the `crm:true` claim with HTTP 401 detail "Invalid CRM token". 16 CRM components + the
+shared `crmApi` interceptor used the pattern `localStorage.getItem('crm_token') || localStorage.getItem('token')`
+— i.e. they fell back to the MAIN platform JWT when no crm_token was present. That main token is a valid
+JWT but has no `crm` claim, so `crm_verify_token` returns None → "Invalid CRM token" toast. This surfaced
+most during MASTER-ADMIN IMPERSONATION: the org-mismatch guard in UnifiedAuthProvider strips the stale
+crm_token (admin org ≠ impersonated org) and re-mints for the tenant; in that brief window CRM calls fired
+with the impersonation/main token and hit the 401.
+FIX (frontend only — no backend/auth change; backend cross-login already handles impersonation correctly,
+binding CRM to the impersonated tenant via the `impersonated_by` claim, verified via curl with a live
+org-portal-login token → cross-login → correct org):
+- Removed the main-token fallback in all 16 CRM `auth()` helpers + `lib/api.js` `crmApi` interceptor.
+- Converted the 14 one-line `auth()` helpers to OMIT the Authorization header entirely when no crm_token
+  (returns `{ headers: {} }`) instead of sending an empty `Bearer ` — so an absent token yields a clean
+  "Not authenticated" rather than the scary "Invalid CRM token".
+Net: no CRM component can ever send a non-CRM token to a /crm endpoint, eliminating the toast class.
+VERIFY: webpack compiles clean; backend cross-login with a real impersonation token returns a CRM token
+bound to the impersonated org (Bitterne Leisure Centre). NOTE: headless repro of the exact transient toast
+was not captured (CRM SPA lazy-loads/redirects in the headless harness) — fix is based on definitive
+root-cause (toast text originates solely from get_crm_user rejecting a non-CRM token; all such paths removed).
+Files: lib/api.js + pages/CRM/{RepTrackRecord,CRMTerritoryMap,CRMReports,CRMPermissions,CRMAuditTrail,
+CRMTerritories,CRMTerritoryOffices,CRMPhase3Panels,CRMForecast,ForecastLeaderboard,CRMTerritoryEditor,
+CRMTerritoryTreeDnD}.js + components/CRM/{TenderCoveragePanel,CoverageBadge}.js.
+─────────────────────────────────────────────────────────────────────────────
+
+
 ## 2026-06-24 · MOD SERVICE PORTAL UI REFINEMENTS + PULSE FITNESS TENDER SEED (VERIFIED 100% FE)
 Six MOD-portal requests from Lee, all verified by testing_agent (iteration_mod_ui_refinements_army_jan2026.json), 0 blocking bugs:
 1. Staffing sub-tabs reordered so **Handover Diary is first** (default-selected), then Staff, then Transfers — StaffingConsole.js MOD `groups`.

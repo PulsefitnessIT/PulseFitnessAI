@@ -616,7 +616,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
     }
   };
   const exportPdf = (kind) => {
-    const token = localStorage.getItem('crm_token') || localStorage.getItem('token');
+    const token = localStorage.getItem('crm_token');
     // pitch → pitch-v2 (honours operator-edited slides)
     const path = kind === 'pitch' ? 'pitch-v2' : kind;
     const url = `${API}/crm/v2/tenders/${tenderId}/export/${path}?_t=${Date.now()}`;

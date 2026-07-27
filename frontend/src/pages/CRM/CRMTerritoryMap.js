@@ -29,7 +29,7 @@ import {
 import OfficesPanel from './CRMTerritoryOffices';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
-const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
+const auth = () => { const _t = localStorage.getItem('crm_token'); return { headers: _t ? { Authorization: `Bearer ${_t}` } : {} }; };
 
 const DEFAULT_PALETTE = [
   // Territory swatch palette — these are visual data, not theme tokens.
