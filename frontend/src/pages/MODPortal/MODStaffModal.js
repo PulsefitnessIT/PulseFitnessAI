@@ -50,7 +50,7 @@ export default function MODStaffModal({ onClose, onPicked }) {
   const isPicker = typeof onPicked === 'function';
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm grid place-items-center p-4" data-testid="mod-staff-modal" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm grid place-items-center p-4" data-testid="mod-staff-modal" onClick={onClose}>
       <div className="w-full max-w-2xl bg-[var(--color-ink-deep)] border border-white/10 rounded-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-[var(--color-surface-darker)]">
           <div>

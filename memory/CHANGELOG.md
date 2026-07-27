@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-06-24 · MOD SERVICE — modal backdrops, staff DOB, transfer DOB-confirm + duplicate surfacing, ASER overlay fix (VERIFIED 100% FE)
+All four requests verified by testing_agent (iteration_mod_ui_refinements_army_jan2026_retest2.json), 0 blocking bugs:
+1. **Modal backdrops fully darkened** — Add staff (MODStaffTab.js + MODStaffModal.js) and Handover Diary "New conversation" (CommsTab.js) now use ~80% black + backdrop-blur (were 45–70%). Page behind clearly dimmed.
+2. **Add staff → Date of birth** — new required DOB field (backend StaffCreate/StaffUpdate `date_of_birth`, YYYY-MM-DD, `_norm_dob` rejects future/malformed → 400; create returns 422 without DOB). Stored on mod_site_staff; fault-wizard auto-added staff get date_of_birth:None.
+3. **Staff Transfers → DOB confirmation + duplicate surfacing** —
+   - StaffTransferRequest gains `confirm_dob`; transfer endpoint requires it when a DOB is on record (missing→400, mismatch→403) and back-fills legacy records. staff-search returns `has_dob` (never the DOB value itself).
+   - Duplicate (same email at destination) now returns a **structured 409** `{error:'duplicate_at_destination', message, site_name, duplicate:{name,email,rank,role}}`; the transfer modal shows a red **duplicate panel** (data-testid mod-transfer-duplicate) naming the existing person, PLUS a proactive client-side check that blocks Confirm before submit.
+4. **ASER overlay fix** — MODASERPortal.js now renders via `createPortal(..., document.body)` so its `fixed inset-0` escapes the transformed ancestor in the Lite MOD portal; overlay is full-screen with a solid bg (no bleed-through of the underlying dashboard/title).
+DEMO/TEST DATA (tag demo_tag=mod_transfer_demo): 2nd Army site "Aldershot Garrison Gym"; MOD Test Site staff Cpl James Reed (1992-03-08) + Sgt Amara Okafor (1987-09-21, NOTE: moved to Aldershot during the correct-DOB test); Aldershot holds a duplicate of Reed to demo detection. Login test@army.mod.test / ModTest123! (portal=mod).
+Files: backend/routes/mod_portal.py; frontend MODStaffTab.js, MODStaffTransferTab.js, CommsTab.js, MODPortal/MODStaffModal.js, MODPortal/MODASERPortal.js.
+─────────────────────────────────────────────────────────────────────────────
+
+
 ## 2026-06-24 · FIX — "Invalid CRM token" toast when switching to CRM (esp. under impersonation)
 ROOT CAUSE: CRM API endpoints authenticate via `get_crm_user` (routes/crm_auth.py) which rejects any
 token lacking the `crm:true` claim with HTTP 401 detail "Invalid CRM token". 16 CRM components + the
