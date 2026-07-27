@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-24 · MOD HANDOVER DIARY — staff dropdown + "send to everyone" (VERIFIED 100% FE)
+User: the "Search staff" picker was empty, and Group/Channel/Broadcast should be sendable to ALL staff without hand-picking.
+ROOT CAUSE: the comms system (staffing_comms.py) uses platform staff accounts, but MOD sites keep people in `mod_site_staff` (shared kiosk login) — so the picker (`/staffing/staff`) returned only the login user → empty dropdown.
+FIX:
+- Backend `staffing_comms.create_thread` now has a MOD branch: members are drawn from `mod_site_staff` (site_id=org); DM needs exactly one; group/channel/broadcast accept `send_to_all` (new ThreadCreate field) OR no selection → target EVERYONE on the site (+ the author). `get_thread` hydrates MOD member names from mod_site_staff.
+- Frontend CommsTab: accepts `isMOD` (passed from StaffingConsole); loads the picker from `/mod/site/staff` for MOD (mapped to full_name/primary_role) so the dropdown lists real names + is searchable. NewThreadModal adds a "Send to everyone at this site (N staff)" toggle (data-testid new-thread-send-all) for Group/Channel/Broadcast; when ON the individual picker is replaced with a note; MOD default kind = Group. Validation blocks "group + nothing selected + toggle off".
+VERIFIED: iteration_mod_handover_diary_new_convo_modal_jan2026.json (5/5 PASS, 100% FE) + curl (DM→2 members, group send_to_all→all site staff). Backend curl-verified.
+Files: backend/routes/staffing_comms.py; frontend CommsTab.js, StaffingConsole.js.
+─────────────────────────────────────────────────────────────────────────────
+
+
 ## 2026-06-24 · MOD SERVICE — modal backdrop coverage (real root cause) + no AI triage on faults (VERIFIED 100% FE)
 Follow-up after user re-reported the backdrop issue with screenshots showing an undimmed strip at the top (below navbar) and bottom.
 1. **REAL root cause of the "not fully blacked out" modals**: the overlays were `position:fixed inset-0` but trapped inside a **transformed ancestor** in the Lite dashboard, so `fixed` sized to the tab-content box (not the viewport) — leaving undimmed strips. Just darkening the colour (previous attempt) didn't fix coverage. FIX: portalled all three MOD staffing modals to `document.body` (`createPortal(..., document.body)`, z-[100], bg 0.8): Add staff (MODStaffTab.js), Handover Diary "New conversation" (CommsTab.js), and Staff Transfer (MODStaffTransferTab.js). Same fix already applied to ASER (MODASERPortal.js). Testing agent: 55/55 sampled pixels dimmed incl. top strip + bottom — PASS.
