@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-24 · MOD HANDOVER DIARY — signed shift log (author-stamp) + in-modal error polish (VERIFIED 100% FE)
+1. **In-modal error polish**: NewThreadModal "pick staff / send-to-all" validation now shows a styled in-modal red banner (data-testid new-thread-error) instead of window.alert. The compose-time "who is writing this note" guard + send failures also now use an inline banner (data-testid conversation-compose-error) — no native alerts left in the comms flow.
+2. **Signed shift log (author-stamp)**: since MOD sites use ONE shared kiosk login, each Handover note is now stamped with the PTI who wrote it.
+   - Backend `staffing_comms`: MessageCreate gains `author_staff_id`; post_message resolves it against `mod_site_staff` (site-scoped) and stamps `author_name`/`author_staff_id` on the message (author_id stays the login user for permissions). Messages GET hydration prefers the stored author_name and falls back to mod_site_staff for MOD sids.
+   - Frontend CommsTab Conversation: MOD compose area shows a "SIGNING AS" dropdown (data-testid conversation-author-select) of site staff; posting requires选 a signer (inline error if not); every note renders the signer's name/avatar (showAuthor forced on for MOD) so the diary reads as an individually-signed log.
+VERIFIED: iteration_mod_signed_shift_log_jan2026.json (6/6 PASS, 100% FE — two consecutive notes show two different signer names) + curl (message author_name = selected mod_site_staff, not login user). Test threads/messages cleaned up.
+Files: backend/routes/staffing_comms.py; frontend CommsTab.js.
+─────────────────────────────────────────────────────────────────────────────
+
+
 ## 2026-06-24 · MOD HANDOVER DIARY — staff dropdown + "send to everyone" (VERIFIED 100% FE)
 User: the "Search staff" picker was empty, and Group/Channel/Broadcast should be sendable to ALL staff without hand-picking.
 ROOT CAUSE: the comms system (staffing_comms.py) uses platform staff accounts, but MOD sites keep people in `mod_site_staff` (shared kiosk login) — so the picker (`/staffing/staff`) returned only the login user → empty dropdown.

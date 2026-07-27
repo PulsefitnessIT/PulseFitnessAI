@@ -404,6 +404,7 @@ function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, st
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null);
   const [authorStaffId, setAuthorStaffId] = useState('');
+  const [composeErr, setComposeErr] = useState('');
   const scrollRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -422,8 +423,9 @@ function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, st
 
   const send = async () => {
     if (!body.trim()) return;
+    setComposeErr('');
     if (isMOD && !editing && !authorStaffId) {
-      window.alert(t('staffing.comms_pick_author', 'Select who is writing this note before posting.'));
+      setComposeErr(t('staffing.comms_pick_author', 'Select who is writing this note before posting.'));
       return;
     }
     setBusy(true);
@@ -438,7 +440,7 @@ function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, st
       setBody(''); setUrgent(false); setEditing(null);
       load();
     } catch (e) {
-      window.alert(e.response?.data?.detail || t('staffing.comms_send_failed', 'Send failed'));
+      setComposeErr(e.response?.data?.detail || t('staffing.comms_send_failed', 'Send failed'));
     }
     setBusy(false);
   };
@@ -537,7 +539,7 @@ function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, st
               <span className="uppercase font-bold tracking-wider shrink-0">Signing as</span>
               <select
                 value={authorStaffId}
-                onChange={(e) => setAuthorStaffId(e.target.value)}
+                onChange={(e) => { setAuthorStaffId(e.target.value); setComposeErr(''); }}
                 className="flex-1 h-8 rounded-md bg-transparent border px-2 text-xs"
                 style={{ borderColor: authorStaffId ? 'var(--theme-border)' : '#F59E0B', color: 'var(--theme-text)' }}
                 data-testid="conversation-author-select"
@@ -548,6 +550,12 @@ function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, st
                 ))}
               </select>
             </label>
+          )}
+          {composeErr && (
+            <p className="text-[11px] rounded-md px-2.5 py-1.5" role="alert" data-testid="conversation-compose-error"
+              style={{ background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.35)', color: '#DC2626' }}>
+              {composeErr}
+            </p>
           )}
           <div className="flex gap-2 items-end">
             <textarea value={body} onChange={(e) => setBody(e.target.value)}
