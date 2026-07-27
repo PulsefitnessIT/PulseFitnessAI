@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only UI test of MOD Handover Diary 'New conversation' modal. All requested behaviours PASS: DM staff list populated with Cpl James Reed + Sgt Test QA; search filters to Reed; Group shows 'Send to everyone at this site (2 staff)' toggle; toggle ON hides staff picker and shows all-note; Create with toggle ON succeeds and thread appears (TEST_Everyone_Group); Broadcast also supports send-to-all and Create succeeds (Broadcast thread appears); Group with toggle OFF and no staff selected shows blocking alert 'Pick staff, or choose Send to everyone at this site.' Modal reuses testids: new-thread-modal, new-thread-kind-dm/-group/-channel/-announcement, new-thread-staff-list, new-thread-search, new-thread-send-all, new-thread-all-note, new-thread-submit — all present and correct.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_detail": {
+    "A_dm_staff_dropdown": "PASS — staff list renders 2 rows (Cpl James Reed CPL, Sgt Test QA PT INSTRUCTOR). Search 'Reed' narrows to only Cpl James Reed.",
+    "B1_group_toggle_visible": "PASS — 'Send to everyone at this site (2 staff)' toggle visible on Group chip.",
+    "B2_group_send_all_create": "PASS — toggle ON hides staff picker, shows note 'This will be sent to all staff on this site.'; Create with optional name 'TEST_Everyone_Group' succeeds, no alerts, modal closes, thread appears in list as GROUP · 3 MEMBERS.",
+    "B3_broadcast_send_all_create": "PASS — Broadcast chip shows same send-to-all toggle; toggling ON + Create succeeds; new Broadcast thread appears (3 MEMBERS: Cpl James Reed, Sgt Test QA + current user).",
+    "B4_group_no_selection_blocks": "PASS — with Group + send-all OFF + no staff picked, Create triggers window.alert 'Pick staff, or choose \"Send to everyone at this site\".' and modal remains open."
+  },
+  "observations_and_minor_discrepancies": [
+    "Handover Diary subtab data-testid is 'staffing-tab-comms' (spec said 'staffing-subtab-comms'). Not blocking; consider aliasing/adding a subtab-prefixed testid for consistency with rest of app if standardisation is desired.",
+    "'+ New' button data-testid is 'comms-new' (spec suggested 'new-thread-btn'). Not blocking.",
+    "Broadcast subject input placeholder is 'Subject (optional)' whereas Group uses 'Group name (optional)' — expected/appropriate."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Consider using a shadcn/HTML confirm/toast rather than window.alert() for the 'Pick staff or Send to everyone' validation — currently blocks the event loop and is not stylistically consistent with the rest of the modal.",
+    "Optional: expose alias data-testid 'staffing-subtab-comms' on the Handover Diary subtab for parity with review-request spec / other subtab naming conventions."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "MOD site login: test@army.mod.test / ModTest123! (from /app/memory/test_credentials.md style shared MOD login).",
+  "seed_data_creation": "Created 2 threads on MOD Test Site for verification: 'TEST_Everyone_Group' (group, 3 members) and a Broadcast (3 members). Safe to leave or purge.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All modal features from this iteration verified end-to-end via UI. Staff seed 'Cpl James Reed' and 'Sgt Test QA' already exist on MOD Test Site. Ratelimited login endpoint — reuse session where possible."
+}

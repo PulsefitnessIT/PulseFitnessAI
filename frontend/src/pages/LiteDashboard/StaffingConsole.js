@@ -312,7 +312,7 @@ export default function StaffingConsole() {
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}
         {tab === 'announce'    && <AnnouncementsTab headers={headers} isManager={isManager} />}
-        {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} />}
+        {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} isMOD={isMOD} />}
         {tab === 'operations'  && <OperationsTab   headers={headers} isManager={isManager} />}
         {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
         {tab === 'onboarding'  && <StaffOnboarding headers={headers} />}

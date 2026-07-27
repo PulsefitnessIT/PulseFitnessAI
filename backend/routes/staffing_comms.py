@@ -87,6 +87,9 @@ class ThreadCreate(BaseModel):
     site_id: str | None = None
     role_filter: str | None = None
     department: str | None = None
+    # MOD Handover Diary: send a group/broadcast to every person on the site
+    # without hand-picking members.
+    send_to_all: bool = False
 
 
 class ThreadUpdate(BaseModel):
@@ -204,6 +207,52 @@ async def create_thread(body: ThreadCreate, user: dict = Depends(get_current_use
     me = await _my_staff_id_async(user, org_id)
     members: list[str] = []
 
+    # ── MOD Handover Diary ────────────────────────────────────────────
+    # MOD sites run on a shared kiosk login; the "people" are mod_site_staff
+    # records (PTIs), not platform staff accounts. Members are picked from
+    # that pool, and group/channel/broadcast can target EVERYONE on the site
+    # without hand-selecting names.
+    is_mod = bool(user.get("is_mod_user")) or (user.get("account_type") or "").startswith("mod_")
+    if is_mod:
+        pool = await db.mod_site_staff.find(
+            {"site_id": org_id, "is_active": {"$ne": False}}, {"_id": 0, "id": 1},
+        ).to_list(1000)
+        all_ids = [s["id"] for s in pool]
+        picked = [m for m in body.member_ids if m in set(all_ids)]
+
+        if body.kind == "dm":
+            if len(picked) != 1:
+                raise HTTPException(400, "Pick one person to message")
+            members = list({me, picked[0]} - {None})
+        else:  # group / announcement / channel
+            if not _is_manager(user):
+                raise HTTPException(403, "Only managers can create groups, channels or broadcasts")
+            target = all_ids if (body.send_to_all or not picked) else picked
+            members = list({*target, *([me] if me else [])})
+            if not members:
+                raise HTTPException(400, "No staff on this site yet — add staff first")
+
+        now_iso = _now().isoformat()
+        doc = {
+            "id": str(uuid4()),
+            "organization_id": org_id,
+            "kind": body.kind,
+            "name": (body.name or "").strip() or None,
+            "site_id": org_id,
+            "role_filter": None,
+            "department": None,
+            "members": [{"staff_id": m, "last_read_at": None, "joined_at": now_iso} for m in members],
+            "sent_to_all": bool(body.send_to_all or (body.kind != "dm" and not picked)),
+            "created_by": user.get("id"),
+            "created_at": now_iso,
+            "last_message_at": None,
+            "last_message_preview": None,
+            "archived": False,
+            "unread_index": {},
+        }
+        await db.staffing_threads.insert_one(doc.copy())
+        return _strip_internal(doc)
+
     if body.kind == "dm":
         if len(body.member_ids) != 1 or not me:
             raise HTTPException(400, "DM requires exactly one other member_id and a linked staff record")
@@ -284,6 +333,15 @@ async def get_thread(thread_id: str, user: dict = Depends(get_current_user)):
             {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1},
         ).to_list(500)
         by_id = {p["id"]: p for p in people}
+        # MOD members live in mod_site_staff — hydrate any that weren't platform staff.
+        missing = [s for s in sids if s not in by_id]
+        if missing:
+            mod_people = await db.mod_site_staff.find(
+                {"id": {"$in": missing}, "site_id": org_id},
+                {"_id": 0, "id": 1, "name": 1, "rank": 1, "role": 1},
+            ).to_list(500)
+            for p in mod_people:
+                by_id[p["id"]] = {"full_name": p.get("name"), "primary_role": p.get("rank") or p.get("role")}
         for m in (t.get("members") or []):
             p = by_id.get(m.get("staff_id"))
             if p:

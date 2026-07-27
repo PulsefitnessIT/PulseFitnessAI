@@ -123,13 +123,14 @@ function Avatar({ name, authorKey, size = 28 }) {
 
 // ─────────────────── Compose new thread modal ───────────────────
 
-function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreated }) {
+function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staffList, onCreated }) {
   const { t } = useTranslation();
-  const [kind, setKind] = useState('dm');
+  const [kind, setKind] = useState(isMOD && isManager ? 'group' : 'dm');
   const [name, setName] = useState('');
   const [memberIds, setMemberIds] = useState([]);
   const [siteId, setSiteId] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [sendToAll, setSendToAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -139,18 +140,29 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
   const filteredStaff = staffList.filter((s) =>
     !search || (s.full_name || '').toLowerCase().includes(search.toLowerCase()),
   );
+  // MOD "send to everyone" is available on any non-DM thread; commercial
+  // tenants keep the site/role channel scoping instead.
+  const canSendToAll = isMOD && kind !== 'dm';
+  // For MOD, the channel scope inputs don't apply (a channel = the whole site);
+  // we show the staff picker + "send to everyone" for every non-DM kind.
+  const showChannelScope = kind === 'channel' && !isMOD;
+  const showStaffPicker = !showChannelScope && !(canSendToAll && sendToAll);
 
   const submit = async () => {
     if (kind === 'dm' && memberIds.length !== 1) {
       window.alert(t('staffing.comms_pick_one', 'Pick exactly one person to DM'));
       return;
     }
-    if ((kind === 'group') && memberIds.length === 0) {
+    if (!isMOD && kind === 'group' && memberIds.length === 0) {
       window.alert(t('staffing.comms_pick_member', 'Pick at least one member'));
       return;
     }
-    if (kind === 'channel' && !siteId && !roleFilter) {
+    if (!isMOD && kind === 'channel' && !siteId && !roleFilter) {
       window.alert(t('staffing.comms_pick_scope', 'Pick a site or role to scope the channel'));
+      return;
+    }
+    if (isMOD && kind !== 'dm' && !sendToAll && memberIds.length === 0) {
+      window.alert(t('staffing.comms_pick_or_all', 'Pick staff, or choose "Send to everyone at this site".'));
       return;
     }
     setBusy(true);
@@ -161,6 +173,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
         member_ids: memberIds,
         site_id: siteId || null,
         role_filter: roleFilter || null,
+        send_to_all: canSendToAll ? sendToAll : false,
       };
       const { data } = await axios.post(`${API}/staffing/comms/threads`, payload, { headers });
       onCreated && onCreated(data);
@@ -184,7 +197,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
             const M = KIND_META[k]; const Icon = M.icon;
             const on = kind === k;
             return (
-              <button key={k} type="button" onClick={() => setKind(k)}
+              <button key={k} type="button" onClick={() => { setKind(k); if (k === 'dm') setSendToAll(false); }}
                 className="h-8 px-3 rounded-full text-xs font-bold inline-flex items-center gap-1 transition-colors"
                 style={{
                   background: on ? 'var(--color-brand-cyan)' : 'transparent',
@@ -204,7 +217,28 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="new-thread-name" />
         )}
-        {kind === 'channel' ? (
+        {canSendToAll && (
+          <button type="button" onClick={() => setSendToAll((v) => !v)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors"
+            style={{
+              background: sendToAll ? 'rgba(25,205,255,0.12)' : 'transparent',
+              border: `1px solid ${sendToAll ? 'var(--color-brand-cyan)' : 'var(--theme-border)'}`,
+              color: 'var(--theme-text)',
+            }}
+            data-testid="new-thread-send-all">
+            <span className="w-4 h-4 rounded inline-flex items-center justify-center shrink-0"
+              style={{ border: '1px solid var(--color-brand-cyan)', background: sendToAll ? 'var(--color-brand-cyan)' : 'transparent' }}>
+              {sendToAll && <Check size={11} style={{ color: '#001219' }} />}
+            </span>
+            <span className="text-left">
+              {t('staffing.comms_send_everyone', 'Send to everyone at this site')}
+              <span className="ml-1.5 text-[10px] font-normal" style={{ color: 'var(--theme-text-muted)' }}>
+                ({staffList.length} {t('staffing.comms_staff', 'staff')})
+              </span>
+            </span>
+          </button>
+        )}
+        {showChannelScope ? (
           <div className="grid grid-cols-2 gap-2">
             <input value={siteId} onChange={(e) => setSiteId(e.target.value)} placeholder={t('staffing.comms_site_id', 'Site ID (optional)')}
               className="h-9 rounded-md bg-transparent border px-2 text-xs"
@@ -213,7 +247,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
               className="h-9 rounded-md bg-transparent border px-2 text-xs"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="new-thread-role" />
           </div>
-        ) : (
+        ) : showStaffPicker ? (
           <>
             <div className="relative">
               <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-50" />
@@ -224,7 +258,9 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
             </div>
             <div className="max-h-56 overflow-y-auto border rounded-md" style={{ borderColor: 'var(--theme-border)' }} data-testid="new-thread-staff-list">
               {filteredStaff.length === 0 ? (
-                <p className="text-xs p-3 text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.comms_no_staff_match', 'No staff match.')}</p>
+                <p className="text-xs p-3 text-center" style={{ color: 'var(--theme-text-muted)' }}>
+                  {isMOD ? t('staffing.comms_no_staff_mod', 'No staff on this site yet — add them in the Staff tab.') : t('staffing.comms_no_staff_match', 'No staff match.')}
+                </p>
               ) : filteredStaff.map((s) => {
                 const on = memberIds.includes(s.id);
                 return (
@@ -246,6 +282,10 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
               })}
             </div>
           </>
+        ) : (
+          <p className="text-xs px-1 py-2" style={{ color: 'var(--theme-text-muted)' }} data-testid="new-thread-all-note">
+            {t('staffing.comms_all_note', 'This will be sent to all staff on this site.')}
+          </p>
         )}
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="h-9 rounded-full border px-4 text-xs font-bold"
@@ -521,7 +561,7 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
 
 // ─────────────────── Main hub ───────────────────
 
-export default function CommsTab({ headers, isManager }) {
+export default function CommsTab({ headers, isManager, isMOD = false }) {
   const { t } = useTranslation();
   const [threads, setThreads] = useState([]);
   const [staffList, setStaffList] = useState([]);
@@ -534,16 +574,30 @@ export default function CommsTab({ headers, isManager }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // MOD sites keep their people in mod_site_staff (shared kiosk login),
+      // not the platform staff directory — pull the picker list from there.
+      const staffReq = isMOD
+        ? axios.get(`${API}/mod/site/staff`, { headers })
+        : axios.get(`${API}/staffing/staff`, { headers });
       const [thRes, sRes] = await Promise.all([
         axios.get(`${API}/staffing/comms/threads`, { headers }),
-        axios.get(`${API}/staffing/staff`, { headers }),
+        staffReq,
       ]);
       setThreads(thRes.data.threads || []);
       setMyStaffId(thRes.data.my_staff_id || null);
-      setStaffList(sRes.data.staff || []);
+      if (isMOD) {
+        const rows = Array.isArray(sRes.data) ? sRes.data : (sRes.data.staff || sRes.data.results || []);
+        setStaffList(rows.map((s) => ({
+          id: s.id,
+          full_name: s.name || s.full_name,
+          primary_role: s.rank || s.role || s.primary_role || '',
+        })));
+      } else {
+        setStaffList(sRes.data.staff || []);
+      }
     } catch { /* noop */ }
     setLoading(false);
-  }, [headers]);
+  }, [headers, isMOD]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -681,6 +735,7 @@ export default function CommsTab({ headers, isManager }) {
         onClose={() => setShowNew(false)}
         headers={headers}
         isManager={isManager}
+        isMOD={isMOD}
         staffList={staffList.filter((s) => s.id !== myStaffId)}
         onCreated={(th) => { setActive(th.id); load(); }}
       />
