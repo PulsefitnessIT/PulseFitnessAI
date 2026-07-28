@@ -10,6 +10,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shield } from 'lucide-react';
+import { setBottomBannerVisible } from '@/utils/bottomBanner';
 
 function detectIsPulse() {
   if (typeof window === 'undefined') return false;
@@ -33,6 +34,12 @@ const CookieConsent = () => {
     const consented = localStorage.getItem('cookie_consent');
     if (!consented) setVisible(true);
   }, []);
+
+  useEffect(() => {
+    if (!visible) return undefined;
+    setBottomBannerVisible(true);
+    return () => setBottomBannerVisible(false);
+  }, [visible]);
 
   const handleAccept = () => {
     localStorage.setItem('cookie_consent', 'accepted');

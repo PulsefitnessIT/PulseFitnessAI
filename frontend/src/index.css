@@ -14,6 +14,27 @@
 @tailwind utilities;
 
 /* ============================================================
+   Bottom-docked banners (CookieConsent / PWA install) — reserve
+   scroll space so they never permanently cover a page's bottom CTA.
+   Toggled via utils/bottomBanner.js (ref-counted `has-bottom-banner`).
+   Covers both window-scroll pages (body) and inner-scroll app shells
+   (main.overflow-y-auto in the dashboards / admin console).
+   ============================================================ */
+body.has-bottom-banner {
+  padding-bottom: 168px;
+}
+body.has-bottom-banner main.overflow-y-auto {
+  padding-bottom: 168px;
+}
+@media (max-width: 640px) {
+  body.has-bottom-banner,
+  body.has-bottom-banner main.overflow-y-auto {
+    padding-bottom: 232px;
+  }
+}
+
+
+/* ============================================================
    THEME SYSTEM - CSS Custom Properties
    ============================================================ */
 :root {

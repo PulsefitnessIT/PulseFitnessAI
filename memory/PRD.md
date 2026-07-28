@@ -1,3 +1,17 @@
+# ═══ 2026-07-28 · FIX — BOTTOM BANNERS NO LONGER COVER PAGE CTAs (platform-wide, VERIFIED) ═══
+Tester non-blocker: CookieConsent + PWA-install banners overlapped the dealer wizard's bottom CTA (and could
+elsewhere). Both banners already used pointer-events-none wrapper + pointer-events-auto card (transparent area
+never blocked clicks) — the real issue was the banner CARD overlapping bottom content with no room to scroll clear.
+FIX (platform-wide, low risk): NEW utils/bottomBanner.js ref-counts a `has-bottom-banner` body class; CookieConsent.js
+and PWAInstallPrompt.js toggle it via a visibility useEffect. index.css adds bottom padding while the class is present
+to BOTH window-scroll pages (body) and inner-scroll app shells (main.overflow-y-auto): 168px desktop / 232px ≤640px.
+VERIFIED via screenshot+interaction: with the cookie banner shown, body has `has-bottom-banner`, the "Onboard dealer"
+CTA (y≈839) sits clear ABOVE the cookie card (y≈976, no overlap), and clicking it succeeds (validation toast fires) —
+no pointer interception. Padding only shows empty space when scrolled to the very bottom AND a banner is visible.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-28 · MASTER ADMIN — DEALER / ENGINEER ONBOARDING + SERVICE-DESK/INVENTORY GATING (VERIFIED 100% FE) ═══
 Founder ask (picked up from fork): general orgs should NOT get Service Desk + Inventory; build the easiest way to
 sign up new DEALERS and ENGINEERS as Pulse distribution partners. User choices: (1a) dealer is its own account_type;

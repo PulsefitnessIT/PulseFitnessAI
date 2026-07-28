@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Download, X, Share, Plus, Smartphone } from 'lucide-react';
 import { useAuth } from '@/App';
+import { setBottomBannerVisible } from '@/utils/bottomBanner';
 
 function isIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -72,6 +73,12 @@ export default function PWAInstallPrompt() {
     }
     return () => window.removeEventListener('pwa-check-install', handleLogin);
   }, [triggerShow]);
+
+  useEffect(() => {
+    if (!showBanner || isStandalone()) return undefined;
+    setBottomBannerVisible(true);
+    return () => setBottomBannerVisible(false);
+  }, [showBanner]);
 
   const handleInstall = async () => {
     if (deferredPrompt) {
