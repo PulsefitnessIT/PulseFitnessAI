@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend E2E verified the Master Admin Dealer/Engineer onboarding wizard and the Service Desk / Inventory org-picker gating. All requested flows PASS: wizard tab loads, client-side validation blocks empty company and empty owner email (toasts fire, no submission), full submission creates a dealer with owner invite card + engineer-0 (in_dealer, invite) + engineer-1 (standalone, temp-password) cards, the temp password is populated (12 chars) and the owner invite URL is a full https link (~114 chars). 'Onboard another dealer' resets the wizard. Picker gating works correctly: Service Desk picker shows only the newly created dealer (1 org), Operator picker shows all 79 orgs; 78 general/service_provider orgs are correctly hidden from the Service Desk picker.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Master Admin overlays", "issues": ["CookieConsent banner and PWA 'Install App' prompt intercept pointer events on the dealer wizard bottom actions until dismissed. Real users clicking 'Onboard dealer' can be blocked by the sticky cookie banner sitting over the CTA. Consider giving the wizard's action row more bottom padding, or making the cookie banner narrower / z-index below sticky action rows."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Cleanup: remove the QATest dealer org(s) created during this test. Filter by email prefix 'qatest' (see test_credentials below). One dealer was created in this run: name 'QATest Dealer ie0hej', owner qatest.dealer+ie0hej@qatest.local, eng qatest.eng0+ie0hej@qatest.local, eng qatest.eng1+ie0hej@qatest.local (standalone company 'QA Standalone Co ie0hej').",
+    "Minor: /api/master-admin/organizations returned 403 to the master-admin bearer token from JS (couldn't fetch org id for cleanup script). Confirm the correct listing endpoint / method used by the AdminSidebar to populate the picker (Sidebar clearly does have the list — 79 orgs — so probably a different route). Not blocking the feature, just an ergonomics note for QA.",
+    "Consider raising the wizard CTA above the cookie / PWA install banners (see design_issues)."
+  ],
+  "critical_code_review_comments": [
+    "DealerOnboardingWizard.js is self-contained and clean (~289 lines). Uses correct data-testids matching the spec. Reset logic (lines 86-93) correctly restores country='United Kingdom' and owner_send_invite=true.",
+    "AdminSidebar picker gating (lines 403-413) uses a correct entitlement predicate: is_operator_company || account_type==='dealer' || is_dealer || enabled_modules includes 'service_desk' or 'inventory'. Verified in the UI — dealer is included, generic service_provider/customer orgs are excluded.",
+    "Success cards use email string in the data-testid (e.g. dealer-result-invite-<email>). Emails containing '+' or '.' render fine in DOM but be aware attribute selectors need escaping in some libraries — playwright handled it here."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "1 dealer org created in this run (name 'QATest Dealer ie0hej'). All test emails prefixed with 'qatest.' for easy cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Playwright must dismiss the CookieConsent banner ('Essential Only') AND the PWA 'Install App' banner ('Later') BEFORE clicking dealer-onboard-submit — otherwise the sticky banner intercepts pointer events and the click times out. The wizard is deep-linked at /master-admin?section=onboarding then click [data-testid=onboarding-subtab-dealer]. Radios for owner/engineer temp-password mode: only the 'invite' radio has a data-testid; the 'temp-password' radio is the second radio in the row without a testid.",
+  "rca_of_the_issue": "n/a — no bugs found in the feature. The only friction observed is the cookie/PWA banners overlapping the wizard's submit CTA (a global overlay issue, not scoped to this feature)."
+}

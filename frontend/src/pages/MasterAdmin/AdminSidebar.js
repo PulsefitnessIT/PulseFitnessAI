@@ -402,6 +402,11 @@ const AdminSidebar = ({
  )}
  {(organizations || [])
  .filter((o) => {
+ if (orgPickerArea === 'service_desk' || orgPickerArea === 'inventory') {
+ const mods = Array.isArray(o.enabled_modules) ? o.enabled_modules : [];
+ const entitled = o.is_operator_company || o.account_type === 'dealer' || o.is_dealer || mods.includes('service_desk') || mods.includes('inventory');
+ if (!entitled) return false;
+ }
  const q = orgQuery.trim().toLowerCase();
  if (!q) return true;
  return `${o.name} ${o.id}`.toLowerCase().includes(q);

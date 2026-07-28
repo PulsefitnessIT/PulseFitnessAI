@@ -8,7 +8,7 @@
  */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3 } from 'lucide-react';
+import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3, Wrench } from 'lucide-react';
 
 import PulseOnboardingWizard from '../PulseOnboardingWizard';
 import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
@@ -16,6 +16,7 @@ import AdminOnboardingPackets from './AdminOnboardingPackets';
 import AdminBulkImports from './AdminBulkImports';
 import MODBulkImport from './MODBulkImport';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
+import DealerOnboardingWizard from './DealerOnboardingWizard';
 import OnboardingProjects from './OnboardingProjects';
 import OnboardingReports from './OnboardingReports';
 
@@ -29,10 +30,11 @@ const TABS = [
   { id: 'packets',      group: 'Customers', label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
   { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of sites, equipment and customers.' },
   { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (bulk)',    icon: ShieldCheck,     description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
+  { id: 'dealer',       group: 'Partners',  label: 'Dealer / Engineer',   icon: Wrench,          description: 'Onboard a Pulse Fitness distribution dealer or field engineer — gets Service Desk + Inventory & Distribution. Captures full company detail; owner & engineers set up via invite link or temporary password.' },
   { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
 ];
 
-const GROUPS = ['Manage', 'Customers', 'Team'];
+const GROUPS = ['Manage', 'Customers', 'Partners', 'Team'];
 
 // Map a checklist step launched from a project to the relevant wizard tab.
 const STEP_TO_TAB = {
@@ -94,6 +96,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
       {tab === 'packets'     && <AdminOnboardingPackets />}
       {tab === 'imports'     && <AdminBulkImports API={_api} />}
       {tab === 'mod-imports' && <MODBulkImport API={_api} />}
+      {tab === 'dealer'      && <DealerOnboardingWizard />}
       {tab === 'staff'       && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
     </div>
   );

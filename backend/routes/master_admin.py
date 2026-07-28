@@ -46,6 +46,7 @@ __all__ = [
     "assert_org_in_pulse_scope",
     "assert_user_in_pulse_scope",
     "is_pulse_only",
+    "is_desk_inventory_entitled",
     "_resolve_pulse_scope_org_ids",
     # constants
     "PULSE_VISIBLE_ACCOUNT_TYPES",
@@ -130,7 +131,29 @@ MASTER_ADMIN_EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.ai
 # Account types a Pulse Master Admin is allowed to see.
 # Mirrors `routes.pulse_master_admin.PULSE_VISIBLE_ACCOUNT_TYPES` — kept inline
 # to avoid a circular import.
-PULSE_VISIBLE_ACCOUNT_TYPES = ["pulse_pro", "lite", "mod", "full"]
+# `dealer` = a Pulse Fitness distribution partner org (gets Service Desk +
+# Inventory & Distribution). Added so delegated Pulse admins can see / manage
+# dealer partners alongside the standard leisure customers.
+PULSE_VISIBLE_ACCOUNT_TYPES = ["pulse_pro", "lite", "mod", "full", "dealer"]
+
+
+def is_desk_inventory_entitled(org: dict) -> bool:
+    """True when an org is entitled to the Service Desk / Inventory &
+    Distribution modules — i.e. it is the Pulse Fitness operator company,
+    a distribution dealer partner, or has either module explicitly enabled.
+
+    Used to gate the Master Admin "Open a client's Service Desk / Inventory"
+    org picker so general leisure customers are never listed there."""
+    if not org:
+        return False
+    if org.get("is_operator_company"):
+        return True
+    if org.get("account_type") == "dealer" or org.get("is_dealer"):
+        return True
+    mods = org.get("enabled_modules") or []
+    if isinstance(mods, list) and ("service_desk" in mods or "inventory" in mods):
+        return True
+    return False
 
 
 def is_pulse_only(user: dict) -> bool:

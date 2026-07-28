@@ -38,6 +38,7 @@ from routes.master_admin import (
     _derive_portal_type,
     assert_org_in_pulse_scope,
     assert_user_in_pulse_scope,
+    is_desk_inventory_entitled,
     is_pulse_only,
     log_activity,
     require_master_admin,
@@ -1503,6 +1504,14 @@ async def org_portal_login(org_id: str, request: Request, area: str = "operator"
         grants = ["service_desk"]
     elif area == "inventory":
         grants = ["service_desk", "inventory"]
+    # Service Desk / Inventory are restricted to Pulse Fitness + dealer
+    # partners + entitled orgs. Block impersonating a general leisure
+    # customer into those shells (defence-in-depth behind the gated picker).
+    if area in ("service_desk", "inventory") and not is_desk_inventory_entitled(org):
+        raise HTTPException(
+            status_code=403,
+            detail="This organisation is not entitled to the Service Desk / Inventory modules.",
+        )
     token = await _issue_org_portal_token(org, user, request, grants=grants)
     return {"token": token, "organization_id": org["id"], "organization_name": org.get("name"), "area": area}
 
