@@ -1,3 +1,47 @@
+# ═══ 2026-07-28 · MASTER ADMIN — DEALER / ENGINEER ONBOARDING + SERVICE-DESK/INVENTORY GATING (VERIFIED 100% FE) ═══
+Founder ask (picked up from fork): general orgs should NOT get Service Desk + Inventory; build the easiest way to
+sign up new DEALERS and ENGINEERS as Pulse distribution partners. User choices: (1a) dealer is its own account_type;
+(2a) dedicated wizard capturing maximum detail; (3c) engineers BOTH in-dealer AND standalone; (4a) gate the picker
+AND the client dashboards; (5 both) invite link OR temp password.
+
+DELIVERED:
+- BACKEND NEW routes/master_admin_dealer_onboard.py → POST /api/master-admin/onboard-dealer (require_master_admin).
+  Creates one `dealer` org (account_type='dealer', is_dealer=True, enabled_modules=[operations,service_desk,inventory],
+  created_via='dealer_onboarding', full company detail: address, company/VAT no., coverage_region, website, phone,
+  notes) + an owner user (role owner, is_service_desk=True, is_inventory=True, service_org_id=org). Optional engineers:
+  mode 'in_dealer' (role=engineer in the dealer org) or 'standalone' (own dealer org, is_engineer_partner=True,
+  parent_dealer_org_id set). Each engineer gets an svc_engineers row via _sync_engineer_provisioning (Engineer App
+  unlock). Every account activates via _activate_account: send_invite→72h invite link (kind='invite' token →
+  /reset-password, password_pending) OR temp password (given or auto-generated via _generate_initial_password).
+  Registered in route_registry/admin.py.
+- BACKEND GATING: master_admin.py PULSE_VISIBLE_ACCOUNT_TYPES now includes 'dealer'; NEW helper
+  is_desk_inventory_entitled(org) [in __all__] = is_operator_company OR account_type=='dealer'/is_dealer OR
+  enabled_modules has service_desk|inventory. master_admin_users.py org_portal_login now 403s when
+  area in (service_desk,inventory) and org not entitled (defence-in-depth behind the gated picker).
+- FRONTEND: NEW pages/MasterAdmin/DealerOnboardingWizard.js (cyan brand, company+owner+engineers form, invite/temp
+  radios, success screen with copyable invite links / temp passwords). Wired into AdminOnboardingHub.js as a new
+  'Partners' group tab id='dealer' (data-testid onboarding-subtab-dealer). AdminSidebar.js picker (line ~404) now
+  filters to entitled orgs ONLY when orgPickerArea is service_desk/inventory (operator picker unchanged = all orgs).
+  Client dashboards already gate Service Desk/Inventory on per-user is_service_desk/is_inventory flags (capabilities.js),
+  which general customers never have — dealers get them at onboarding; no change needed there.
+
+VERIFIED: backend curl (create 200 w/ both engineer modes + invite/temp activation; entitlement dealer→200,
+general org→403; duplicate→409) + testing_agent FRONTEND 100%, 0 bugs
+(iteration_dealer_onboarding_frontend_jan2026.json): wizard loads, validation blocks empty company/owner-email,
+full submit → owner invite card + eng-0 invite + eng-1 (standalone) temp-password (12 chars), reset works;
+Service Desk picker shows ONLY the dealer (1 org) vs Operator picker shows all 79 orgs (78 general hidden).
+QA data cleaned (all emails prefixed 'qatest').
+KNOWN NON-BLOCKER: CookieConsent + PWA-install banners can overlap the wizard's bottom CTA (global overlay issue,
+not scoped to this feature).
+data-testid: onboarding-subtab-dealer, dealer-onboard-wizard, dealer-company-name/-trading-name/-company-number/
+-vat-number/-website/-phone/-coverage-region/-address1/-city/-postcode, dealer-owner-name/-email/-phone,
+dealer-owner-invite-mode/-password-mode/-password, dealer-add-engineer, dealer-engineer-name-<i>/-email-<i>/-mode-<i>/
+-invite-<i>/-company-<i>, dealer-remove-engineer-<i>, dealer-onboard-submit, dealer-onboard-result,
+dealer-result-invite-<email>/dealer-result-password-<email>, dealer-onboard-another.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06-24 · i18n PHASE 3 COMPLETE — Org Chart P2 DONE (VERIFIED EN/FR/DE) ═══
 The Org Chart module (staffing/orgchart/*, 14 UI components) is now fully localized under the 'orgchart.*' namespace (257 keys, all present in en/fr/de.json). Verified via testing_agent: 100% (24/24 sub-tab renders across EN/FR/DE, 0 raw-key leaks).
   - Components: OrgChartTab, Canvas, OrgCard, ListView, Vacancies, Templates, AIPanel, HistoryTab, ImportExport, DocumentImport, Settings, ShareModal, Presentation, panels (AddNodeModal/NodeDrawer/MoveConfirmModal).
