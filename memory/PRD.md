@@ -1,3 +1,18 @@
+# ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MARKETING module BATCH 2 (VERIFIED EN/FR/DE 100%) ═══
+Report: /app/test_reports/iteration_marketing_i18n_fr_de_jan2026.json (0 raw key leaks, 0 console errors across 18 states).
+DONE this session (11 components + 2 shell fixes; babel-parse OK, i18n guard OK, FR+DE merged; mkt.* now 878 keys/locale):
+  FormBuilderDialog, MarketingChat, ROICalculator, AIAssistant, BrandKitTab, StarterPackPanel,
+  ProductPreviewModal, BrandDiscoveryPanel, ChurnRescuePanel, MarketingTour, TrialSignupModal,
+  + MarketingSuite top-tab strip (mkt.tab_*), + FormsAndPagesTab empty-state (mkt.fp_*).
+Shadows fixed: FormBuilderDialog FIELD_TYPES.map t->ft; MarketingChat send `const t`->txt; AIAssistant setTurns((t))->prev;
+  ChurnRescuePanel targets.map((t))->tg. Template-literal keys seeded in i18n_translate_modules.py pairs.update():
+  pp_title_/caption_<sceneId>, sp_email_<id>_label/hint, mt_<stepId>_title/body, ts_mod_<key>_label/blurb, tab_<id>.
+STILL TO DO (Marketing Group A big tabs — NEXT BATCH): CampaignsTab (621), CampaignWizard (574),
+  CreativeStudioTab (655), AIDirectorPanel (819). Then Group B public/SEO pages.
+Minor shell gaps: MarketingSuite header subtitle + "Pro Marketing"/"manage packs" chip.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MARKETING module (mkt namespace) IN PROGRESS ═══
 User directive "C": localize the ENTIRE Marketing module (Group A operator console + Group B public/SEO pages).
 DONE this session (16 files — compile OK, babel-parse OK, i18n guard OK, FR+DE auto-translated, 467 mkt keys total):

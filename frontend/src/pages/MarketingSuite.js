@@ -15,6 +15,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import {
   Lightbulb, Users, UsersRound, Mail, Workflow, ImagePlus, Share2, BarChart3,
   ShieldCheck, Lock, Palette, Sparkles, FileText, ListChecks,
@@ -74,6 +75,7 @@ const TABS = [
 ];
 
 const MarketingSuite = ({ embedded = false } = {}) => {
+  const { t } = useTranslation();
   const { user, logout, theme, toggleTheme } = useAuth();
   const navigate = useNavigate();
   // Tabs and the entitlement call here all build their own `${API}/api/...`
@@ -269,7 +271,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
                   : { color: locked ? 'var(--theme-text-muted)' : 'var(--theme-text-muted)', background: 'transparent', opacity: locked ? 0.5 : 1 }}
                 data-testid={`marketing-tab-${id}`}
               >
-                <Icon size={14} /> {label}
+                <Icon size={14} /> {t('mkt.tab_' + id, label)}
                 {locked && <Lock size={11} />}
               </button>
             );
@@ -295,7 +297,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
                   : { color: 'var(--theme-text-muted)', background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', opacity: locked ? 0.5 : 1 }}
                 data-testid={`mkt-pill-${id}`}
               >
-                {label}
+                {t('mkt.tab_' + id, label)}
               </button>
             );
           })}

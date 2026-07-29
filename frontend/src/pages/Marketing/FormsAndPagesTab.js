@@ -112,10 +112,10 @@ const FormsAndPagesTab = ({ API, headers }) => {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={4} className="text-center py-6 text-zinc-400">Loading…</td></tr>}
+            {loading && <tr><td colSpan={4} className="text-center py-6 text-zinc-400">{t('mkt.fp_loading', 'Loading…')}</td></tr>}
             {!loading && forms.length === 0 && (
               <tr><td colSpan={4} className="text-center py-6 text-zinc-400 text-sm">
-                No forms yet — create your first to start capturing leads.
+                {t('mkt.fp_no_forms', 'No forms yet — create your first to start capturing leads.')}
               </td></tr>
             )}
             {forms.map((f) => (

@@ -310,6 +310,21 @@ async def main():
         "mkt.ts_mod_marketing_label": "Marketing",
         "mkt.ts_mod_marketing_blurb": "Campaigns, automations & content",
     })
+    # MarketingSuite top-tab strip labels (template-literal keys mkt.tab_<tabId>).
+    pairs.update({
+        "mkt.tab_start": "Start",
+        "mkt.tab_performance": "Dashboard",
+        "mkt.tab_insights": "Insights",
+        "mkt.tab_campaigns": "Campaigns",
+        "mkt.tab_journeys": "Journeys",
+        "mkt.tab_contacts": "Contacts",
+        "mkt.tab_audiences": "Audiences",
+        "mkt.tab_dynamic-lists": "Dynamic Lists",
+        "mkt.tab_forms-pages": "Forms & Pages",
+        "mkt.tab_creative": "Creative Studio",
+        "mkt.tab_brand-kit": "Brand Kit",
+        "mkt.tab_social": "Social",
+    })
     # MobileAppBuilder font / button-style / share-format labels (template-literal keys).
     pairs.update({
         "memberships_console.mab_font_inter": "Clean",

@@ -239,3 +239,32 @@ STILL REMAINING (Marketing):
     SecurityMarketingPage, SecurityDocumentPage, ContactMarketingPage, PartnerApplyPublic,
     PartnerEngineerLanding, MigrationGuarantee, ServiceDeskPromo, LiveCustomer/EngineerAppPreview.
 NOTE: testing_agent NOT yet run for the Marketing batch — run it once the console tabs are complete.
+
+
+
+## Marketing module (mkt.*) — Batch 2 (2026-06, VERIFIED EN/FR/DE 100%, 0 key leaks)
+Report: /app/test_reports/iteration_marketing_i18n_fr_de_jan2026.json
+Files localized this session (11 components + shell fixes):
+- [x] FormBuilderDialog.js (mkt.fb_*; renamed FIELD_TYPES.map((t)) shadow -> ft; moved FIELD_TYPES/CRM_PROPERTIES inside component)
+- [x] MarketingChat.js (mkt.mc_*; renamed send() `const t` -> txt; SUGGESTIONS moved inside)
+- [x] ROICalculator.js (mkt.roi_*; Slider/Line receive translated props at call site)
+- [x] AIAssistant.js (mkt.aia_*; renamed all setTurns((t)) -> setTurns((prev)); STARTER_QUESTIONS inside)
+- [x] BrandKitTab.js (mkt.bk_*; BannedPhrasesEditor now takes placeholder prop)
+- [x] StarterPackPanel.js (mkt.sp_*; EMAIL_META label/hint via template keys mkt.sp_email_<id>_label/hint)
+- [x] ProductPreviewModal.js (mkt.pp_*; scene title/caption via template keys mkt.pp_title_/caption_<sceneId>; mock scene body artwork left EN by design)
+- [x] BrandDiscoveryPanel.js (mkt.bd_*)
+- [x] ChurnRescuePanel.js (mkt.cr_*; renamed targets.map((t)) -> tg; RescueRow + RescueChannel each got own useTranslation; signal/status labels)
+- [x] MarketingTour.js (mkt.mt_*; STEP title/body via template keys mkt.mt_<stepId>_title/body)
+- [x] TrialSignupModal.js (mkt.ts_*; module label/blurb via template keys mkt.ts_mod_<key>_label/blurb)
+- [x] MarketingSuite.js — top-tab strip labels wired to t('mkt.tab_<id>') (desktop + mobile)
+- [x] FormsAndPagesTab.js — empty-state + loading strings (mkt.fp_no_forms/fp_loading) [gap-fill from prior batch]
+Template-literal keys are NOT statically scannable — they are seeded in i18n_translate_modules.py via pairs.update({...}) blocks (pp_*, sp_email_*, mt_*, ts_mod_*, tab_*).
+mkt.* key count: 878 in each of en/fr/de.json (as of this batch).
+
+### STILL TODO — Marketing (next batch, Group A big console tabs):
+- [ ] CampaignsTab.js (621 lines)
+- [ ] CampaignWizard.js (574 lines)
+- [ ] CreativeStudioTab.js (655 lines)
+- [ ] AIDirectorPanel.js (819 lines)
+### Group B (public/SEO pages, later): PricingMarketingPage hero, Blog/Compare/Landing/module/security pages.
+### Minor shell gaps observed: MarketingSuite header subtitle "Campaigns, journeys, creative & growth insights", "Pro Marketing"/"manage packs" chip.

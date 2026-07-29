@@ -2988,7 +2988,20 @@
     "ts_mod_crm_label": "CRM",
     "ts_mod_crm_blurb": "Sales pipeline, contacts & deals",
     "ts_mod_marketing_label": "Marketing",
-    "ts_mod_marketing_blurb": "Campaigns, automations & content"
+    "ts_mod_marketing_blurb": "Campaigns, automations & content",
+    "fp_no_forms": "No forms yet — create your first to start capturing leads.",
+    "tab_start": "Start",
+    "tab_performance": "Dashboard",
+    "tab_insights": "Insights",
+    "tab_campaigns": "Campaigns",
+    "tab_journeys": "Journeys",
+    "tab_contacts": "Contacts",
+    "tab_audiences": "Audiences",
+    "tab_dynamic-lists": "Dynamic Lists",
+    "tab_forms-pages": "Forms & Pages",
+    "tab_creative": "Creative Studio",
+    "tab_brand-kit": "Brand Kit",
+    "tab_social": "Social"
   },
   "modules": {
     "crm": "CRM",

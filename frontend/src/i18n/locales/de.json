@@ -2987,7 +2987,20 @@
     "ts_mod_crm_label": "CRM",
     "ts_mod_crm_blurb": "Vertriebs-Pipeline, Kontakte & Deals",
     "ts_mod_marketing_label": "Marketing",
-    "ts_mod_marketing_blurb": "Kampagnen, Automatisierungen & Inhalte"
+    "ts_mod_marketing_blurb": "Kampagnen, Automatisierungen & Inhalte",
+    "fp_no_forms": "Noch keine Formulare — erstellen Sie Ihr erstes, um Leads zu erfassen.",
+    "tab_start": "Start",
+    "tab_performance": "Dashboard",
+    "tab_insights": "Insights",
+    "tab_campaigns": "Kampagnen",
+    "tab_journeys": "Journeys",
+    "tab_contacts": "Kontakte",
+    "tab_audiences": "Zielgruppen",
+    "tab_dynamic-lists": "Dynamische Listen",
+    "tab_forms-pages": "Formulare & Seiten",
+    "tab_creative": "Creative Studio",
+    "tab_brand-kit": "Brand Kit",
+    "tab_social": "Social"
   },
   "modules": {
     "crm": "CRM",
