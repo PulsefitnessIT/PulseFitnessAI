@@ -1,0 +1,27 @@
+{
+  "summary": "Verified both reported CRM Territories Map bug fixes at /crm (owner@isodemo.com, Corporate mode → Gebiete/Territories tab). BUG 1 (paint focus preserves other reps' colours): CONFIRMED FIXED. Painted a county red with QATEST Engineer Red focused (fill rgb(239,68,68) = #EF4444), then focused QATEST SalesMgr Green — the red county REMAINED red. Painted another county green (rgb(34,197,94) = #22C55E). Re-focused Red — the green county REMAINED green. Both persisted across layer switches. BUG 2 (Northern Ireland/BT in Postcode areas): CONFIRMED FIXED. In postcode mode the DOM now contains a paintable BT feature (data-testid=region-postcode_area-BT, path 'd' length 26109 chars, total 121 postcode regions incl BT). Painting BT with Red yielded fill rgb(239,68,68). NI shape is clearly visible in screenshot .screenshots/bt_painted.png. Sanity: painting persists after switching layers; role filter (Engineers) correctly hides the sales manager rep.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Doc/nit only: The review request stated the fixed testid is 'region-postcode-BT', but the actual DOM testid is 'region-postcode_area-BT' (because layer state value is 'postcode_area'). Update either the review docs or make the testid use a shorter 'postcode' key in CRMTerritoryMap.js:597 so external testers using the documented selector don't get false negatives.",
+    "Clean up the two seeded QATEST reps (QATEST Engineer Red, QATEST SalesMgr Green) and their newly-painted regions (Greater London → red, Lancashire → green, BT → red) once verification is complete."
+  ],
+  "critical_code_review_comments": [
+    "CRMTerritoryMap.js fillForRegion (lines 419-431) correctly always returns an owner colour for regions with any assignee, preferring the focused rep's colour on overlapping regions — meets the spec that everyone's colours stay visible while a rep is focused. Focus emphasis via stroke (line 592, strokeWidth 1.3 vs 0.4) works.",
+    "loadMaps (lines 269-298) synthesises a 'BT' postcode Feature by merging 6 NI ceremonial counties via topojson-client merge — verified: total postcode regions went from 120 (GB only) to 121 (incl BT) and BT renders with a valid 26k-char path.",
+    "Minor discrepancy: data-testid uses layer value 'postcode_area' → 'region-postcode_area-BT'. Review request documented 'region-postcode-BT'. Consider renaming the layer value used in the testid to 'postcode' for consistency (e.g. `data-testid={`region-${region.type === 'postcode_area' ? 'postcode' : region.type}-${region.code}`}` or change setLayer key)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! at /crm (Corporate mode → Gebiete tab). Note: Territories tab is hidden in Members ('leisure') mode — must switch to Corporate.",
+  "seed_data_creation": "None (used pre-seeded QATEST Engineer Red and QATEST SalesMgr Green reps).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To reach the Territories Map: log in at /crm, switch the top toggle from 'Members' to 'Corporate' (leisure mode hides the Territories tab per MEMBERS_HIDDEN_TABS), then click 'Gebiete' (German) / 'Territories' (English). Alternatively, first switch to Corporate then goto ?tab=territories. Region testids are `region-county-<CountyName>` and `region-postcode_area-<AreaCode>` (note the underscore — NOT `region-postcode-*`). Focus indicator testid: focus-indicator. Rep chips in [data-testid=staff-list]. Layer toggle: layer-county / layer-postcode. Role filter: role-filter-all / role-filter-sales_manager / role-filter-engineer. Painted regions (Greater London=red, Lancashire=green, BT=red) remain assigned.",
+  "rca of the issue": "N/A — both bugs verified as fixed."
+}

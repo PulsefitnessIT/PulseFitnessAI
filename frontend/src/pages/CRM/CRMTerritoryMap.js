@@ -21,7 +21,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { geoCentroid } from 'd3-geo';
-import { feature } from 'topojson-client';
+import { feature, merge } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
   Flame, Zap, Paintbrush, Building2, Users,
@@ -276,7 +276,21 @@ export default function CRMTerritoryMap() {
       const countiesFC = feature(c, c.objects.eng_ceremonial);
       const postcodesFC = feature(p, p.objects.uk_postcode_areas);
       setCounties(countiesFC.features || []);
-      setPostcodes(postcodesFC.features || []);
+      // The postcode dataset only covers GB (120 areas, no BT), so Northern
+      // Ireland vanished in postcode mode. Synthesise a single "BT" postcode
+      // area by merging the six NI ceremonial counties from the counties
+      // topology so NI stays visible and paintable in postcode mode too.
+      const postcodeFeatures = postcodesFC.features || [];
+      try {
+        const NI = new Set(['Antrim', 'Armagh', 'Down', 'Londonderry', 'Tyrone', 'Fermanagh']);
+        const niGeoms = (c.objects.eng_ceremonial.geometries || [])
+          .filter((g) => NI.has(g.properties && g.properties.county));
+        if (niGeoms.length && !postcodeFeatures.some((f) => f.properties && f.properties.area === 'BT')) {
+          const btGeometry = merge(c, niGeoms);
+          postcodeFeatures.push({ type: 'Feature', properties: { area: 'BT' }, geometry: btGeometry });
+        }
+      } catch { /* non-fatal — GB postcode areas still render */ }
+      setPostcodes(postcodeFeatures);
     } catch (e) {
       toast.error('Could not load UK map data');
     }
@@ -404,10 +418,16 @@ export default function CRMTerritoryMap() {
   }, [heatmap, layer]);
   const fillForRegion = useCallback((type, code) => {
     const list = membersFor(type, code);
-    const focusList = focusedUser ? list.filter((m) => m.user_id === focusedUser) : list;
-    if (!focusList.length) return (focusedUser || roleFilter !== 'all') ? '#F1F5F9' : '#FFFFFF';
-    const first = staffById[focusList[0].user_id] || focusList[0];
-    return first.colour_hex || '#94A3B8';
+    if (!list.length) return roleFilter !== 'all' ? '#F1F5F9' : '#FFFFFF';
+    // Keep EVERY assigned region coloured — even while painting (focusedUser
+    // set) — so overlaps between engineers / sales managers stay visible and
+    // the operator can avoid double-covering an area. When a rep is focused,
+    // prefer their colour on regions they cover; other regions keep their
+    // existing owner colour. Focus emphasis is conveyed by the stroke below.
+    const focusMember = focusedUser ? list.find((m) => m.user_id === focusedUser) : null;
+    const pick = focusMember || list[0];
+    const s = staffById[pick.user_id] || pick;
+    return s.colour_hex || '#94A3B8';
   }, [membersFor, focusedUser, roleFilter, staffById]);
   const opacityForRegion = useCallback((type, code) => {
     if (!showHeatmap) return 1;
@@ -554,6 +574,10 @@ export default function CRMTerritoryMap() {
                   const fill = fillForRegion(region.type, region.code);
                   const list = membersFor(region.type, region.code);
                   const hasAssignees = list.length > 0;
+                  // Highlight the regions the focused rep covers with a bolder,
+                  // darker outline so you can tell "theirs" apart while still
+                  // seeing everyone else's colours.
+                  const isFocus = focusedUser && list.some((m) => m.user_id === focusedUser);
                   const tooltip = hasAssignees
                     ? `${region.label} — ${list.map((m) => m.full_name).join(', ')}`
                     : region.label;
@@ -565,7 +589,7 @@ export default function CRMTerritoryMap() {
                       style={{
                         // SVG stroke colours — visual data, not theme tokens.
                         /* eslint-disable gymaxis/no-inline-hex -- SVG stroke literals */
-                        default:  { fill, fillOpacity: opacityForRegion(region.type, region.code), stroke: '#94A3B8', strokeWidth: 0.4, outline: 'none', cursor: 'pointer' },
+                        default:  { fill, fillOpacity: opacityForRegion(region.type, region.code), stroke: isFocus ? '#0F172A' : '#94A3B8', strokeWidth: isFocus ? 1.3 : 0.4, outline: 'none', cursor: 'pointer' },
                         hover:    { fill: hasAssignees ? fill : '#E2E8F0', fillOpacity: 1, stroke: '#1E293B', strokeWidth: 0.9, outline: 'none', cursor: 'pointer' },
                         pressed:  { fill, fillOpacity: 1, stroke: '#0F172A', strokeWidth: 1.1, outline: 'none' },
                         /* eslint-enable gymaxis/no-inline-hex */
