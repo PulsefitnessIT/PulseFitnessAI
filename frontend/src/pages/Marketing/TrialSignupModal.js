@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowRight, X, CheckCircle2, Loader2, Zap,
   Wrench, Users, Megaphone, Building2,
@@ -62,6 +63,7 @@ function readUtmTags() {
 }
 
 export default function TrialSignupModal() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1); // 1 = credentials, 2 = profile, 3 = success
   const [form, setForm] = useState({ full_name: '', email: '', company_name: '', phone: '', password: '' });
@@ -148,10 +150,10 @@ export default function TrialSignupModal() {
   const submitStep1 = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.phone.trim())       { setError('Please enter your contact phone number.'); return; }
-    if (form.password.length < 8) { setError('Choose a password of at least 8 characters.'); return; }
-    if (selectedModules.length === 0) { setError('Please choose at least one module to trial.'); return; }
-    if (!captchaToken)            { setError('Please complete the verification check before continuing.'); return; }
+    if (!form.phone.trim())       { setError(t('mkt.ts_err_phone', 'Please enter your contact phone number.')); return; }
+    if (form.password.length < 8) { setError(t('mkt.ts_err_pass', 'Choose a password of at least 8 characters.')); return; }
+    if (selectedModules.length === 0) { setError(t('mkt.ts_err_module', 'Please choose at least one module to trial.')); return; }
+    if (!captchaToken)            { setError(t('mkt.ts_err_captcha', 'Please complete the verification check before continuing.')); return; }
 
     setLoading(true);
     try {
@@ -189,7 +191,7 @@ export default function TrialSignupModal() {
       }));
       setStep(2);
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Could not start trial. Please check your details and try again.');
+      setError(err?.response?.data?.detail || t('mkt.ts_err_start', 'Could not start trial. Please check your details and try again.'));
     } finally {
       setLoading(false);
     }
@@ -224,7 +226,7 @@ export default function TrialSignupModal() {
     setError('');
     const missing = findMissingRequired(profile);
     if (missing.length) {
-      setError(`Please fill in: ${missing.join(', ').replace(/_/g, ' ')}`);
+      setError(t('mkt.ts_err_fill', 'Please fill in: {{fields}}', { fields: missing.join(', ').replace(/_/g, ' ') }));
       return;
     }
     setLoading(true);
@@ -243,7 +245,7 @@ export default function TrialSignupModal() {
       setStep(3);
       setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 1200);
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Could not save profile. Please try again.');
+      setError(err?.response?.data?.detail || t('mkt.ts_err_profile', 'Could not save profile. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -270,17 +272,17 @@ export default function TrialSignupModal() {
           <div className="flex items-start justify-between p-6 pb-2">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 border border-slate-200 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
-                <Zap size={11} /> 3-day free trial · {selectedModules.length >= ALL_MODULE_KEYS.length ? 'all modules unlocked' : `${selectedModules.length} module${selectedModules.length === 1 ? '' : 's'} selected`}
+                <Zap size={11} /> {t('mkt.ts_badge', '3-day free trial')} · {selectedModules.length >= ALL_MODULE_KEYS.length ? t('mkt.ts_all_unlocked', 'all modules unlocked') : t('mkt.ts_n_selected', '{{n}} module(s) selected', { n: selectedModules.length })}
               </span>
               <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100" data-testid="trial-modal-title">
-                {step === 1 && 'Start your trial'}
-                {step === 2 && 'Tell us about your gym'}
-                {step === 3 && "You're in!"}
+                {step === 1 && t('mkt.ts_title1', 'Start your trial')}
+                {step === 2 && t('mkt.ts_title2', 'Tell us about your gym')}
+                {step === 3 && t('mkt.ts_title3', 'You are in!')}
               </h2>
               <p className="mt-1 text-sm text-slate-500" data-testid="trial-modal-subtitle">
-                {step === 1 && (selectedModules.length >= ALL_MODULE_KEYS.length ? 'Every module unlocked for 3 days. No credit card required.' : 'Trial just the modules you pick. No credit card required.')}
-                {step === 2 && 'A few details to finish setting up your account — required before we unlock the dashboard.'}
-                {step === 3 && 'Taking you to your dashboard…'}
+                {step === 1 && (selectedModules.length >= ALL_MODULE_KEYS.length ? t('mkt.ts_sub1_all', 'Every module unlocked for 3 days. No credit card required.') : t('mkt.ts_sub1_some', 'Trial just the modules you pick. No credit card required.'))}
+                {step === 2 && t('mkt.ts_sub2', 'A few details to finish setting up your account — required before we unlock the dashboard.')}
+                {step === 3 && t('mkt.ts_sub3', 'Taking you to your dashboard…')}
               </p>
             </div>
             <button
@@ -288,7 +290,7 @@ export default function TrialSignupModal() {
               type="button"
               className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition dark:bg-zinc-900"
               data-testid="trial-modal-close"
-              aria-label="Close"
+              aria-label={t('mkt.ts_close', 'Close')}
             >
               <X size={18} />
             </button>
@@ -299,7 +301,7 @@ export default function TrialSignupModal() {
             <div className="px-6 -mt-1 mb-1 flex items-center gap-1.5" data-testid="trial-modal-step-indicator">
               <span className="h-1 w-8 rounded-full bg-slate-900" />
               <span className="h-1 w-8 rounded-full bg-slate-900" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Step 2 of 2</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">{t('mkt.ts_step2of2', 'Step 2 of 2')}</span>
             </div>
           )}
 
@@ -312,7 +314,7 @@ export default function TrialSignupModal() {
               {/* Iter 220ea·42 — module selector. Pick which modules to trial. */}
               <div data-testid="trial-module-selector">
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
-                  Which modules would you like to trial? *
+                  {t('mkt.ts_which_modules', 'Which modules would you like to trial? *')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {TRIAL_MODULES.map((m) => {
@@ -332,26 +334,26 @@ export default function TrialSignupModal() {
                           <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${on ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-slate-100 text-slate-500 dark:bg-zinc-900'}`}>
                             <Icon size={14} />
                           </span>
-                          <span className="font-bold text-sm text-slate-900 dark:text-zinc-100 min-w-0 truncate">{m.label}</span>
+                          <span className="font-bold text-sm text-slate-900 dark:text-zinc-100 min-w-0 truncate">{t('mkt.ts_mod_' + m.key + '_label', m.label)}</span>
                         </div>
-                        <p className="mt-1 text-[10px] leading-snug text-slate-500">{m.blurb}</p>
+                        <p className="mt-1 text-[10px] leading-snug text-slate-500">{t('mkt.ts_mod_' + m.key + '_blurb', m.blurb)}</p>
                       </button>
                     );
                   })}
                 </div>
                 <p className="mt-1.5 text-[10px] text-slate-400">
-                  You can add or remove modules anytime during your trial.
+                  {t('mkt.ts_modules_note', 'You can add or remove modules anytime during your trial.')}
                 </p>
                 {selectedModules.includes('crm') && (
                   <div className="mt-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 p-2.5" data-testid="trial-crm-mode">
                     <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
-                      Who is your CRM for?
+                      {t('mkt.ts_crm_for', 'Who is your CRM for?')}
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { key: 'gym', label: 'Gym / Members', blurb: 'Membership lifecycle' },
-                        { key: 'corporate', label: 'Corporate / B2B', blurb: 'Companies, quotes & CPQ' },
-                        { key: 'both', label: 'Both', blurb: 'Members + B2B' },
+                        { key: 'gym', label: t('mkt.ts_crm_gym', 'Gym / Members'), blurb: t('mkt.ts_crm_gym_blurb', 'Membership lifecycle') },
+                        { key: 'corporate', label: t('mkt.ts_crm_corp', 'Corporate / B2B'), blurb: t('mkt.ts_crm_corp_blurb', 'Companies, quotes & CPQ') },
+                        { key: 'both', label: t('mkt.ts_crm_both', 'Both'), blurb: t('mkt.ts_crm_both_blurb', 'Members + B2B') },
                       ].map((o) => {
                         const on = crmMode === o.key;
                         return (
@@ -372,11 +374,11 @@ export default function TrialSignupModal() {
                   </div>
                 )}
               </div>
-              <Field label="Full name *" value={form.full_name} onChange={update('full_name')} placeholder="Jane Smith" testid="trial-name" />
-              <Field label="Work email *" type="email" value={form.email} onChange={update('email')} placeholder="jane@yourgym.com" testid="trial-email" />
-              <Field label="Gym / Company name *" value={form.company_name} onChange={update('company_name')} placeholder="Acme Fitness" testid="trial-company" />
+              <Field label={t('mkt.ts_full_name', 'Full name *')} value={form.full_name} onChange={update('full_name')} placeholder="Jane Smith" testid="trial-name" />
+              <Field label={t('mkt.ts_work_email', 'Work email *')} type="email" value={form.email} onChange={update('email')} placeholder="jane@yourgym.com" testid="trial-email" />
+              <Field label={t('mkt.ts_company', 'Gym / Company name *')} value={form.company_name} onChange={update('company_name')} placeholder="Acme Fitness" testid="trial-company" />
               <div data-testid="trial-country-wrap">
-                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Country *</label>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">{t('mkt.ts_country', 'Country *')}</label>
                 <select
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
@@ -389,11 +391,11 @@ export default function TrialSignupModal() {
                   <option value="CA">Canada (C$ CAD)</option>
                   <option value="AU">Australia (A$ AUD)</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-400">Sets your currency, timezone &amp; tax labels. You can change this later in settings.</p>
+                <p className="mt-1 text-[10px] text-slate-400">{t('mkt.ts_country_note', 'Sets your currency, timezone & tax labels. You can change this later in settings.')}</p>
               </div>
-              <Field label="Phone *" type="tel" value={form.phone} onChange={update('phone')} placeholder="+44 7700 900123" testid="trial-phone" />
+              <Field label={t('mkt.ts_phone', 'Phone *')} type="tel" value={form.phone} onChange={update('phone')} placeholder="+44 7700 900123" testid="trial-phone" />
               <div>
-                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Password *</label>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">{t('mkt.ts_password', 'Password *')}</label>
                 <div className="relative">
                   <input
                     type={showPass ? 'text' : 'password'}
@@ -402,11 +404,11 @@ export default function TrialSignupModal() {
                     value={form.password}
                     onChange={update('password')}
                     className="w-full h-11 px-3 pr-14 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
-                    placeholder="At least 8 characters"
+                    placeholder={t('mkt.ts_pass_ph', 'At least 8 characters')}
                     data-testid="trial-password"
                   />
                   <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900 dark:text-zinc-100" tabIndex={-1}>
-                    {showPass ? 'Hide' : 'Show'}
+                    {showPass ? t('mkt.ts_hide', 'Hide') : t('mkt.ts_show', 'Show')}
                   </button>
                 </div>
               </div>
@@ -421,19 +423,19 @@ export default function TrialSignupModal() {
                 className="gx-cta w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-60 mt-2"
                 data-testid="trial-submit"
               >
-                {loading ? <><Loader2 size={14} className="animate-spin" /> Creating your account…</> : <>Start 3-day Trial <ArrowRight size={14} /></>}
+                {loading ? <><Loader2 size={14} className="animate-spin" /> {t('mkt.ts_creating', 'Creating your account…')}</> : <>{t('mkt.ts_start_btn', 'Start 3-day Trial')} <ArrowRight size={14} /></>}
               </button>
 
               <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-1">
-                <span className="flex items-center gap-1"><Zap size={10} /> Instant access</span>
+                <span className="flex items-center gap-1"><Zap size={10} /> {t('mkt.ts_instant', 'Instant access')}</span>
                 <span>·</span>
-                <span>No credit card</span>
+                <span>{t('mkt.ts_no_card', 'No credit card')}</span>
                 <span>·</span>
-                <span>Cancel anytime</span>
+                <span>{t('mkt.ts_cancel', 'Cancel anytime')}</span>
               </div>
               <p className="text-center text-[11px] text-slate-400 pt-1" data-testid="trial-modal-refund-note">
-                You won&apos;t be charged during the 3-day trial. Read our{' '}
-                <a href="/refunds" target="_blank" rel="noreferrer" className="underline hover:text-slate-700" data-testid="trial-modal-refund-link">refund &amp; cancellation policy</a>.
+                {t('mkt.ts_refund_note', 'You will not be charged during the 3-day trial. Read our')}{' '}
+                <a href="/refunds" target="_blank" rel="noreferrer" className="underline hover:text-slate-700" data-testid="trial-modal-refund-link">{t('mkt.ts_refund_link', 'refund & cancellation policy')}</a>.
               </p>
             </form>
           )}
@@ -453,11 +455,11 @@ export default function TrialSignupModal() {
                 className="gx-cta w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-60 mt-2"
                 data-testid="trial-step2-submit"
               >
-                {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <>Save and unlock dashboard <ArrowRight size={14} /></>}
+                {loading ? <><Loader2 size={14} className="animate-spin" /> {t('mkt.ts_saving', 'Saving…')}</> : <>{t('mkt.ts_save_unlock', 'Save and unlock dashboard')} <ArrowRight size={14} /></>}
               </button>
 
               <p className="text-center text-[11px] text-slate-400 pt-1">
-                Required before your trial dashboard opens. You can edit any of these later in Account Settings.
+                {t('mkt.ts_step2_note', 'Required before your trial dashboard opens. You can edit any of these later in Account Settings.')}
               </p>
             </form>
           )}
@@ -468,8 +470,8 @@ export default function TrialSignupModal() {
               <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
                 <CheckCircle2 size={28} className="text-emerald-500" />
               </div>
-              <h3 className="text-slate-900 font-bold text-lg dark:text-zinc-100">You&apos;re in — welcome aboard.</h3>
-              <p className="text-slate-500 text-sm mt-1">Taking you to the dashboard…</p>
+              <h3 className="text-slate-900 font-bold text-lg dark:text-zinc-100">{t('mkt.ts_success_title', 'You are in — welcome aboard.')}</h3>
+              <p className="text-slate-500 text-sm mt-1">{t('mkt.ts_success_sub', 'Taking you to the dashboard…')}</p>
             </div>
           )}
         </div>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { useTranslation } from 'react-i18next';
 
 const STEPS = [
   {
@@ -214,6 +215,7 @@ function Sparkle() {
 }
 
 const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -256,17 +258,17 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
       const { data } = await axios.post(`${API}/api/marketing/tour/seed`, {}, { headers });
       const realAi = data.creative_used_real_ai;
       notify.success(
-        'Demo data ready',
+        t('mkt.mt_demo_ready', 'Demo data ready'),
         realAi
-          ? 'Audience, draft campaign, AI-generated poster, and Welcome journey created. Have a play — they\'re tagged "demo" and removable in one click.'
-          : 'Audience, draft campaign, sample poster, and Welcome journey created (image fallback used). Have a play!',
+          ? t('mkt.mt_demo_ready_ai', 'Audience, draft campaign, AI-generated poster, and Welcome journey created. Have a play — they are tagged demo and removable in one click.')
+          : t('mkt.mt_demo_ready_fb', 'Audience, draft campaign, sample poster, and Welcome journey created (image fallback used). Have a play!'),
       );
       setStatus({ tour_seen: true, demo_data_exists: true });
       setOpen(false);
       if (onComplete) onComplete();
       if (onJumpToTab) onJumpToTab('campaigns');
     } catch (err) {
-      notify.error(err.response?.data?.detail || 'Couldn\'t seed demo data');
+      notify.error(err.response?.data?.detail || t('mkt.mt_seed_err', 'Could not seed demo data'));
     } finally {
       setSeeding(false);
     }
@@ -274,18 +276,18 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
 
   const clearDemo = async () => {
     const ok = await confirm({
-      title: 'Clear all demo data?',
-      detail: 'Removes the tour audience, campaign, poster, and journey. Your real data is untouched.',
-      tone: 'warning', confirmLabel: 'Clear demo',
+      title: t('mkt.mt_clear_title', 'Clear all demo data?'),
+      detail: t('mkt.mt_clear_detail', 'Removes the tour audience, campaign, poster, and journey. Your real data is untouched.'),
+      tone: 'warning', confirmLabel: t('mkt.mt_clear_confirm', 'Clear demo'),
     });
     if (!ok) return;
     try {
       const { data } = await axios.delete(`${API}/api/marketing/tour/demo-data`, { headers });
       const total = data.audiences_removed + data.campaigns_removed + data.journeys_removed + data.creatives_removed;
-      notify.success('Demo data cleared', `${total} item${total === 1 ? '' : 's'} removed.`);
+      notify.success(t('mkt.mt_demo_cleared', 'Demo data cleared'), t('mkt.mt_demo_cleared_body', '{{n}} item(s) removed.', { n: total }));
       setStatus({ tour_seen: true, demo_data_exists: false });
     } catch (err) {
-      notifyApiError(notify, err, 'Clear failed');
+      notifyApiError(notify, err, t('mkt.mt_clear_err', 'Clear failed'));
     }
   };
 
@@ -300,9 +302,9 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
           onClick={() => { setStepIdx(0); setOpen(true); }}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan)] text-white text-xs font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition"
           data-testid="marketing-tour-launcher"
-          aria-label="Take a product tour"
+          aria-label={t('mkt.mt_take_tour_aria', 'Take a product tour')}
         >
-          <Sparkles size={13} /> Take a tour
+          <Sparkles size={13} /> {t('mkt.mt_take_tour', 'Take a tour')}
         </button>
         {status.demo_data_exists && (
           <button
@@ -310,7 +312,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-zinc-900/80 dark:bg-zinc-100/10 text-white text-[10px] font-semibold backdrop-blur shadow"
             data-testid="marketing-tour-clear-demo"
           >
-            <Trash2 size={11} /> Clear demo data
+            <Trash2 size={11} /> {t('mkt.mt_clear_demo_data', 'Clear demo data')}
           </button>
         )}
       </div>
@@ -332,7 +334,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
                 onClick={skip}
                 className="absolute top-4 right-4 p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition"
                 data-testid="marketing-tour-close"
-                aria-label="Skip tour"
+                aria-label={t('mkt.mt_skip_aria', 'Skip tour')}
               >
                 <X size={16} style={{ color: 'var(--theme-text-muted)' }} />
               </button>
@@ -359,7 +361,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
                   <Icon size={18} />
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>
-                  Step {stepIdx + 1} of {STEPS.length}
+                  {t('mkt.mt_step_counter', 'Step {{n}} of {{total}}', { n: stepIdx + 1, total: STEPS.length })}
                 </span>
               </div>
             </div>
@@ -369,8 +371,8 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
               <div className="rounded-xl p-2 mb-4" style={{ background: 'var(--theme-bg)' }} data-testid={`marketing-tour-illust-${step.illustration}`}>
                 {Illust}
               </div>
-              <h2 className="text-xl font-bold mb-2 leading-tight pulse-font-heading">{step.title}</h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--theme-text-muted)' }}>{step.body}</p>
+              <h2 className="text-xl font-bold mb-2 leading-tight pulse-font-heading">{t('mkt.mt_' + step.id + '_title', step.title)}</h2>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.mt_' + step.id + '_body', step.body)}</p>
             </div>
 
             {/* Footer actions */}
@@ -381,7 +383,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
                 style={{ color: 'var(--theme-text-muted)' }}
                 data-testid="marketing-tour-skip"
               >
-                Skip tour
+                {t('mkt.mt_skip', 'Skip tour')}
               </button>
               <div className="ml-auto flex gap-2">
                 <button
@@ -391,7 +393,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
                   style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                   data-testid="marketing-tour-back"
                 >
-                  <ChevronLeft size={12} /> Back
+                  <ChevronLeft size={12} /> {t('mkt.mt_back', 'Back')}
                 </button>
                 {step.final ? (
                   <button
@@ -402,7 +404,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
                     data-testid="marketing-tour-seed"
                   >
                     {seeding ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                    {seeding ? 'Creating…' : 'Create demo data'}
+                    {seeding ? t('mkt.mt_creating', 'Creating…') : t('mkt.mt_create_demo', 'Create demo data')}
                   </button>
                 ) : (
                   <button
@@ -411,7 +413,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
                     style={{ background: step.accent }}
                     data-testid="marketing-tour-next"
                   >
-                    Next <ChevronRight size={12} />
+                    {t('mkt.mt_next', 'Next')} <ChevronRight size={12} />
                   </button>
                 )}
               </div>

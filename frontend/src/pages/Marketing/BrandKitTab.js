@@ -22,8 +22,10 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import BrandDiscoveryPanel from './BrandDiscoveryPanel';
 import StarterPackPanel from './StarterPackPanel';
+import { useTranslation } from 'react-i18next';
 
 export default function BrandKitTab({ API, headers }) {
+  const { t } = useTranslation();
   const [kit, setKit] = useState(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -32,7 +34,7 @@ export default function BrandKitTab({ API, headers }) {
   const load = () => {
     axios.get(`${API}/api/marketing/brand-kit`, { headers })
       .then((r) => setKit(r.data.brand_kit))
-      .catch(() => notify.error('Failed to load brand kit'));
+      .catch(() => notify.error(t('mkt.bk_load_err', 'Failed to load brand kit')));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: the loader closure(s) re-read live state on every call; the effect re-fires on the listed trigger deps, so adding the function identity would just thrash without changing behaviour.
   useEffect(() => { load();   }, []);
@@ -42,9 +44,9 @@ export default function BrandKitTab({ API, headers }) {
     try {
       const r = await axios.put(`${API}/api/marketing/brand-kit`, patch, { headers });
       setKit(r.data.brand_kit);
-      notify.success('Brand kit saved');
+      notify.success(t('mkt.bk_saved', 'Brand kit saved'));
     } catch (e) {
-      notifyApiError(notify, e, 'Save failed');
+      notifyApiError(notify, e, t('mkt.bk_save_err', 'Save failed'));
     }
     setBusy(false);
   };
@@ -53,7 +55,7 @@ export default function BrandKitTab({ API, headers }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      notify.error('Logo must be under 2 MB');
+      notify.error(t('mkt.bk_logo_size', 'Logo must be under 2 MB'));
       return;
     }
     setUploading(true);
@@ -94,15 +96,15 @@ export default function BrandKitTab({ API, headers }) {
         await save(patch);
         if (extracted.length > 0 && (patch.primary_color || patch.secondary_color)) {
           notify.success(
-            `Brand colours auto-detected: ${[patch.primary_color, patch.secondary_color].filter(Boolean).join(' + ')}`,
+            t('mkt.bk_colours_detected', 'Brand colours auto-detected: {{colours}}', { colours: [patch.primary_color, patch.secondary_color].filter(Boolean).join(' + ') }),
           );
         }
         setUploading(false);
       };
-      reader.onerror = () => { notify.error('Could not read file'); setUploading(false); };
+      reader.onerror = () => { notify.error(t('mkt.bk_read_err', 'Could not read file')); setUploading(false); };
       reader.readAsDataURL(file);
     } catch (err) {
-      notify.error('Upload failed');
+      notify.error(t('mkt.bk_upload_err', 'Upload failed'));
       setUploading(false);
     }
   };
@@ -110,7 +112,7 @@ export default function BrandKitTab({ API, headers }) {
   if (!kit) {
     return (
       <div className="flex items-center justify-center py-20 text-zinc-500 dark:text-zinc-400 text-sm gap-2">
-        <Loader2 size={14} className="animate-spin" /> Loading brand kit…
+        <Loader2 size={14} className="animate-spin" /> {t('mkt.bk_loading', 'Loading brand kit…')}
       </div>
     );
   }
@@ -128,8 +130,8 @@ export default function BrandKitTab({ API, headers }) {
       <StarterPackPanel API={API} headers={headers} />
 
       {/* Logo */}
-      <Section icon={ImageIcon} title="Logo"
-        hint="Used at the top of Director posters and email headers. PNG with transparency works best.">
+      <Section icon={ImageIcon} title={t('mkt.bk_logo', 'Logo')}
+        hint={t('mkt.bk_logo_hint', 'Used at the top of Director posters and email headers. PNG with transparency works best.')}>
         <div className="flex items-start gap-4 flex-wrap">
           <div className="w-28 h-28 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 flex items-center justify-center overflow-hidden">
             {kit.primary_logo_data_url ? (
@@ -143,7 +145,7 @@ export default function BrandKitTab({ API, headers }) {
           <div className="flex-1 min-w-0 space-y-2">
             {!kit.primary_logo_data_url && kit.primary_logo_url && (
               <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 inline-flex items-center gap-1">
-                <CheckCircle2 size={10}/> Pulled from onboarding — replace any time
+                <CheckCircle2 size={10}/> {t('mkt.bk_from_onboarding', 'Pulled from onboarding — replace any time')}
               </p>
             )}
             <input ref={fileRef} type="file" accept="image/*"
@@ -156,62 +158,63 @@ export default function BrandKitTab({ API, headers }) {
               data-testid="brand-logo-upload"
             >
               {uploading ? <Loader2 size={11} className="animate-spin"/> : <Upload size={11}/>}
-              {kit.primary_logo_data_url ? 'Replace logo' : 'Upload logo'}
+              {kit.primary_logo_data_url ? t('mkt.bk_replace_logo', 'Replace logo') : t('mkt.bk_upload_logo', 'Upload logo')}
             </button>
             {kit.primary_logo_data_url && (
               <button onClick={() => save({ primary_logo_data_url: null, primary_logo_asset_id: null })}
                 className="ml-2 text-xs font-bold text-rose-500 inline-flex items-center gap-1"
                 data-testid="brand-logo-remove">
-                <X size={11}/> Remove
+                <X size={11}/> {t('mkt.bk_remove', 'Remove')}
               </button>
             )}
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 max-w-sm">PNG, JPG or SVG · under 2 MB · ideally transparent background.</p>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 max-w-sm">{t('mkt.bk_logo_note', 'PNG, JPG or SVG · under 2 MB · ideally transparent background.')}</p>
           </div>
         </div>
       </Section>
 
       {/* Colours */}
-      <Section icon={Palette} title="Colours"
-        hint="Primary lands on CTAs and emphasis. Secondary balances accents.">
+      <Section icon={Palette} title={t('mkt.bk_colours', 'Colours')}
+        hint={t('mkt.bk_colours_hint', 'Primary lands on CTAs and emphasis. Secondary balances accents.')}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ColourField label="Primary"  value={kit.primary_color}   testId="brand-color-primary"
+          <ColourField label={t('mkt.bk_primary', 'Primary')}  value={kit.primary_color}   testId="brand-color-primary"
             onChange={(v) => save({ primary_color: v })}/>
-          <ColourField label="Secondary" value={kit.secondary_color} testId="brand-color-secondary"
+          <ColourField label={t('mkt.bk_secondary', 'Secondary')} value={kit.secondary_color} testId="brand-color-secondary"
             onChange={(v) => save({ secondary_color: v })}/>
         </div>
       </Section>
 
       {/* Fonts */}
-      <Section icon={Type} title="Fonts"
-        hint="Names of Google or system fonts. Director uses these in posters; Marketing emails fall back to web-safe stack.">
+      <Section icon={Type} title={t('mkt.bk_fonts', 'Fonts')}
+        hint={t('mkt.bk_fonts_hint', 'Names of Google or system fonts. Director uses these in posters; Marketing emails fall back to web-safe stack.')}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <TextField label="Heading font" value={kit.font_heading || ''} placeholder="e.g. Bricolage Grotesque"
+          <TextField label={t('mkt.bk_font_heading', 'Heading font')} value={kit.font_heading || ''} placeholder={t('mkt.bk_font_heading_ph', 'e.g. Bricolage Grotesque')}
             testId="brand-font-heading"
             onCommit={(v) => save({ font_heading: v.trim() || null })}/>
-          <TextField label="Body font" value={kit.font_body || ''} placeholder="e.g. Inter"
+          <TextField label={t('mkt.bk_font_body', 'Body font')} value={kit.font_body || ''} placeholder={t('mkt.bk_font_body_ph', 'e.g. Inter')}
             testId="brand-font-body"
             onCommit={(v) => save({ font_body: v.trim() || null })}/>
         </div>
       </Section>
 
       {/* Voice */}
-      <Section icon={Volume2} title="Voice"
-        hint="One-line description of your brand voice — Director feeds this directly to the LLM.">
-        <TextField label="Voice description" value={kit.voice || ''} placeholder="warm, energetic, inclusive — never pushy"
+      <Section icon={Volume2} title={t('mkt.bk_voice', 'Voice')}
+        hint={t('mkt.bk_voice_hint', 'One-line description of your brand voice — Director feeds this directly to the LLM.')}>
+        <TextField label={t('mkt.bk_voice_label', 'Voice description')} value={kit.voice || ''} placeholder={t('mkt.bk_voice_ph', 'warm, energetic, inclusive — never pushy')}
           testId="brand-voice"
           onCommit={(v) => save({ voice: v.trim() || null })}/>
       </Section>
 
       {/* Banned phrases */}
-      <Section icon={ShieldAlert} title="Banned phrases"
-        hint="Phrases the AI must never use. Add one per line.">
+      <Section icon={ShieldAlert} title={t('mkt.bk_banned', 'Banned phrases')}
+        hint={t('mkt.bk_banned_hint', 'Phrases the AI must never use. Add one per line.')}>
         <BannedPhrasesEditor phrases={kit.banned_phrases || []}
+          placeholder={t('mkt.bk_banned_ph', 'no fluff\nno hard sell\nno emojis in subject lines')}
           onCommit={(arr) => save({ banned_phrases: arr })}/>
       </Section>
 
       {busy && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-zinc-900 text-white text-xs font-bold inline-flex items-center gap-2 shadow-lg z-40">
-          <Loader2 size={11} className="animate-spin"/> Saving brand kit…
+          <Loader2 size={11} className="animate-spin"/> {t('mkt.bk_saving', 'Saving brand kit…')}
         </div>
       )}
     </div>
@@ -267,7 +270,7 @@ function TextField({ label, value, placeholder, testId, onCommit }) {
 }
 
 
-function BannedPhrasesEditor({ phrases, onCommit }) {
+function BannedPhrasesEditor({ phrases, onCommit, placeholder }) {
   const [text, setText] = useState((phrases || []).join('\n'));
   useEffect(() => { setText((phrases || []).join('\n')); }, [phrases]);
 
@@ -278,7 +281,7 @@ function BannedPhrasesEditor({ phrases, onCommit }) {
   return (
     <textarea value={text} onChange={(e) => setText(e.target.value)} onBlur={commit}
       rows={4}
-      placeholder={'no fluff\nno hard sell\nno emojis in subject lines'}
+      placeholder={placeholder}
       className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 bg-transparent rounded-md text-xs font-mono text-zinc-900 dark:text-zinc-100"
       data-testid="brand-banned-phrases"/>
   );

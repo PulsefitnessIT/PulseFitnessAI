@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { useTranslation } from 'react-i18next';
 
 const EMAIL_META = {
   welcome:  { label: 'Welcome',  hint: 'For new sign-ups',         color: '#10b981' },
@@ -37,6 +38,7 @@ const SOCIAL_META = {
 };
 
 export default function StarterPackPanel({ API, headers }) {
+  const { t } = useTranslation();
   const [doc, setDoc] = useState(null);
   const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState(null); // e.g. "test:welcome", "campaign:promo", "journey"
@@ -59,23 +61,23 @@ export default function StarterPackPanel({ API, headers }) {
     try {
       const r = await axios.post(`${API}/api/marketing/starter-pack/generate`, {}, { headers });
       setDoc(r.data);
-      notify.success('Starter pack drafted — review & tweak below.');
+      notify.success(t('mkt.sp_drafted', 'Starter pack drafted — review & tweak below.'));
     } catch (e) {
-      notifyApiError(notify, e, 'Could not draft your starter pack');
+      notifyApiError(notify, e, t('mkt.sp_draft_err', 'Could not draft your starter pack'));
     } finally {
       setBusy(false);
     }
   };
 
   const clear = async () => {
-    if (!window.confirm('Clear your starter pack drafts? Any campaigns or journeys you already created stay put.')) return;
+    if (!window.confirm(t('mkt.sp_clear_confirm', 'Clear your starter pack drafts? Any campaigns or journeys you already created stay put.'))) return;
     setBusy(true);
     try {
       await axios.delete(`${API}/api/marketing/starter-pack`, { headers });
       setDoc(null);
-      notify.success('Starter pack cleared.');
+      notify.success(t('mkt.sp_cleared', 'Starter pack cleared.'));
     } catch (e) {
-      notifyApiError(notify, e, 'Could not clear');
+      notifyApiError(notify, e, t('mkt.sp_clear_err', 'Could not clear'));
     } finally {
       setBusy(false);
     }
@@ -84,9 +86,9 @@ export default function StarterPackPanel({ API, headers }) {
   const copyToClipboard = async (text, label) => {
     try {
       await navigator.clipboard.writeText(text);
-      notify.success(`${label} copied to clipboard`);
+      notify.success(t('mkt.sp_copied', '{{label}} copied to clipboard', { label }));
     } catch {
-      notify.error('Clipboard unavailable in this browser');
+      notify.error(t('mkt.sp_clipboard_err', 'Clipboard unavailable in this browser'));
     }
   };
 
@@ -98,10 +100,10 @@ export default function StarterPackPanel({ API, headers }) {
         {},
         { headers },
       );
-      notify.success(`${label} test email sent to ${r.data?.to || 'your inbox'}`);
+      notify.success(t('mkt.sp_test_sent', '{{label}} test email sent to {{to}}', { label, to: r.data?.to || t('mkt.sp_your_inbox', 'your inbox') }));
       await load();
     } catch (e) {
-      notifyApiError(notify, e, 'Test send failed');
+      notifyApiError(notify, e, t('mkt.sp_test_err', 'Test send failed'));
     } finally {
       setBusyAction(null);
     }
@@ -117,9 +119,9 @@ export default function StarterPackPanel({ API, headers }) {
       );
       const campaignId = r.data?.campaign_id;
       if (r.data?.already_exists) {
-        notify.success(`${label} campaign already exists — opening in Campaigns`);
+        notify.success(t('mkt.sp_campaign_exists', '{{label}} campaign already exists — opening in Campaigns', { label }));
       } else {
-        notify.success(`${label} campaign created — pick an audience and Send`);
+        notify.success(t('mkt.sp_campaign_created', '{{label}} campaign created — pick an audience and Send', { label }));
       }
       await load();
       // Deep-link to the campaigns tab. Marketing tab keys live in MarketingSuite.
@@ -127,7 +129,7 @@ export default function StarterPackPanel({ API, headers }) {
         navigate(`/marketing?tab=campaigns&campaign=${encodeURIComponent(campaignId)}`);
       }
     } catch (e) {
-      notifyApiError(notify, e, 'Could not create campaign draft');
+      notifyApiError(notify, e, t('mkt.sp_campaign_err', 'Could not create campaign draft'));
     } finally {
       setBusyAction(null);
     }
@@ -143,16 +145,16 @@ export default function StarterPackPanel({ API, headers }) {
       );
       const journeyId = r.data?.journey_id;
       if (r.data?.already_exists) {
-        notify.success('Welcome journey already exists — opening in Journeys');
+        notify.success(t('mkt.sp_journey_exists', 'Welcome journey already exists — opening in Journeys'));
       } else {
-        notify.success('Welcome journey created · 3 emails wired with waits');
+        notify.success(t('mkt.sp_journey_created', 'Welcome journey created · 3 emails wired with waits'));
       }
       await load();
       if (journeyId) {
         navigate(`/marketing?tab=journeys&journey=${encodeURIComponent(journeyId)}`);
       }
     } catch (e) {
-      notifyApiError(notify, e, 'Could not build the welcome journey');
+      notifyApiError(notify, e, t('mkt.sp_journey_err', 'Could not build the welcome journey'));
     } finally {
       setBusyAction(null);
     }
@@ -175,20 +177,18 @@ export default function StarterPackPanel({ API, headers }) {
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <div className="text-[10px] uppercase tracking-wider font-extrabold text-purple-500 flex items-center gap-1.5">
-            <Wand2 size={11} /> Marketing starter pack
+            <Wand2 size={11} /> {t('mkt.sp_eyebrow', 'Marketing starter pack')}
           </div>
-          <h3 className="text-base font-bold mt-1">3 emails + 3 social posts in your tone</h3>
+          <h3 className="text-base font-bold mt-1">{t('mkt.sp_heading', '3 emails + 3 social posts in your tone')}</h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xl">
-            We'll use your brand voice, audience segments and current campaigns to draft a
-            welcome email, a win-back email, a promo email, and three social posts. Send a
-            test, push to Campaigns, or bundle all three into a Welcome Journey in one click.
+            {t('mkt.sp_intro', 'We will use your brand voice, audience segments and current campaigns to draft a welcome email, a win-back email, a promo email, and three social posts. Send a test, push to Campaigns, or bundle all three into a Welcome Journey in one click.')}
           </p>
         </div>
         {pack && (
           <button onClick={clear} disabled={busy}
             className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-700 flex items-center gap-1 disabled:opacity-50"
             data-testid="starter-pack-clear">
-            <Trash2 size={10} /> Clear
+            <Trash2 size={10} /> {t('mkt.sp_clear', 'Clear')}
           </button>
         )}
       </div>
@@ -201,7 +201,7 @@ export default function StarterPackPanel({ API, headers }) {
           data-testid="starter-pack-generate"
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          Draft my starter pack
+          {t('mkt.sp_draft_btn', 'Draft my starter pack')}
         </button>
       )}
 
@@ -214,10 +214,10 @@ export default function StarterPackPanel({ API, headers }) {
               <GitBranch size={16} className="text-purple-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                  Welcome series · 3 emails, automated
+                  {t('mkt.sp_journey_title', 'Welcome series · 3 emails, automated')}
                 </div>
                 <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Welcome → wait 3d → Win-back → wait 7d → Promo. Drops into Journeys as a draft so you can wire the trigger & publish.
+                  {t('mkt.sp_journey_desc', 'Welcome → wait 3d → Win-back → wait 7d → Promo. Drops into Journeys as a draft so you can wire the trigger & publish.')}
                 </div>
               </div>
             </div>
@@ -226,7 +226,7 @@ export default function StarterPackPanel({ API, headers }) {
                 onClick={() => navigate(`/marketing?tab=journeys&journey=${encodeURIComponent(journeyId)}`)}
                 className="px-3 py-1.5 text-xs font-bold rounded-md border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 inline-flex items-center gap-1.5"
                 data-testid="starter-pack-open-journey">
-                <CheckCircle2 size={11} /> Journey created · Open
+                <CheckCircle2 size={11} /> {t('mkt.sp_journey_open', 'Journey created · Open')}
                 <ExternalLink size={10} />
               </button>
             ) : (
@@ -238,16 +238,18 @@ export default function StarterPackPanel({ API, headers }) {
                 {busyAction === 'journey'
                   ? <Loader2 size={11} className="animate-spin" />
                   : <GitBranch size={11} />}
-                Build welcome journey
+                {t('mkt.sp_build_journey', 'Build welcome journey')}
               </button>
             )}
           </div>
 
           {/* Emails */}
-          <Section icon={Mail} title="Email templates">
+          <Section icon={Mail} title={t('mkt.sp_email_templates', 'Email templates')}>
             <div className="space-y-2">
               {(pack.emails || []).map((em) => {
                 const meta = EMAIL_META[em.id] || { label: em.id, hint: '', color: '#71717a' };
+                const metaLabel = t('mkt.sp_email_' + em.id + '_label', meta.label);
+                const metaHint = t('mkt.sp_email_' + em.id + '_hint', meta.hint);
                 const launch = emailLaunches[em.id] || {};
                 const campaignId = launch.campaign_id;
                 const testSentAt = launch.test_sent_at;
@@ -257,16 +259,16 @@ export default function StarterPackPanel({ API, headers }) {
                       <span className="w-1.5 h-6 rounded shrink-0" style={{ background: meta.color }} />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold uppercase tracking-wider" style={{ color: meta.color }}>
-                          {meta.label} <span className="text-zinc-400 ml-1 normal-case">· {meta.hint}</span>
+                          {metaLabel} <span className="text-zinc-400 ml-1 normal-case">· {metaHint}</span>
                         </div>
                         <div className="text-sm font-semibold mt-0.5 truncate">{em.subject}</div>
                         <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{em.preview}</div>
                       </div>
                       <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyToClipboard(`Subject: ${em.subject}\nPreview: ${em.preview}\n\n${em.body}`, `${meta.label} email`); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyToClipboard(`Subject: ${em.subject}\nPreview: ${em.preview}\n\n${em.body}`, t('mkt.sp_email_label', '{{label}} email', { label: metaLabel })); }}
                         className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded flex items-center gap-1"
                         data-testid={`starter-pack-copy-email-${em.id}`}>
-                        <Copy size={10} /> Copy
+                        <Copy size={10} /> {t('mkt.sp_copy', 'Copy')}
                       </button>
                     </summary>
                     <div className="px-4 pb-3 border-t border-zinc-100 dark:border-zinc-800 pt-2 mt-1 space-y-3">
@@ -275,19 +277,19 @@ export default function StarterPackPanel({ API, headers }) {
                       </div>
                       <div className="flex items-center flex-wrap gap-2 pt-1">
                         <button
-                          onClick={(e) => { e.preventDefault(); sendTest(em.id, meta.label); }}
+                          onClick={(e) => { e.preventDefault(); sendTest(em.id, metaLabel); }}
                           disabled={busyAction === `test:${em.id}`}
                           className="px-2.5 py-1 text-[11px] font-bold rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex items-center gap-1.5 disabled:opacity-50"
                           data-testid={`starter-pack-test-send-${em.id}`}>
                           {busyAction === `test:${em.id}`
                             ? <Loader2 size={10} className="animate-spin" />
                             : <Send size={10} />}
-                          Send test to me
+                          {t('mkt.sp_send_test', 'Send test to me')}
                         </button>
                         {testSentAt && (
                           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
                             data-testid={`starter-pack-test-sent-${em.id}`}>
-                            <CheckCircle2 size={10} /> Sent {formatRelative(testSentAt)}
+                            <CheckCircle2 size={10} /> {t('mkt.sp_sent', 'Sent {{rel}}', { rel: formatRelative(testSentAt) })}
                           </span>
                         )}
                         {campaignId ? (
@@ -298,19 +300,19 @@ export default function StarterPackPanel({ API, headers }) {
                             }}
                             className="px-2.5 py-1 text-[11px] font-bold rounded-md border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 inline-flex items-center gap-1.5"
                             data-testid={`starter-pack-open-campaign-${em.id}`}>
-                            <CheckCircle2 size={10} /> Campaign · Open
+                            <CheckCircle2 size={10} /> {t('mkt.sp_campaign_open', 'Campaign · Open')}
                             <ExternalLink size={9} />
                           </button>
                         ) : (
                           <button
-                            onClick={(e) => { e.preventDefault(); createCampaign(em.id, meta.label); }}
+                            onClick={(e) => { e.preventDefault(); createCampaign(em.id, metaLabel); }}
                             disabled={busyAction === `campaign:${em.id}`}
                             className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-purple-600 hover:bg-purple-700 text-white inline-flex items-center gap-1.5 disabled:opacity-50"
                             data-testid={`starter-pack-create-campaign-${em.id}`}>
                             {busyAction === `campaign:${em.id}`
                               ? <Loader2 size={10} className="animate-spin" />
                               : <FilePlus size={10} />}
-                            Create campaign
+                            {t('mkt.sp_create_campaign', 'Create campaign')}
                           </button>
                         )}
                       </div>
@@ -322,7 +324,7 @@ export default function StarterPackPanel({ API, headers }) {
           </Section>
 
           {/* Social */}
-          <Section icon={Sparkles} title="Social posts">
+          <Section icon={Sparkles} title={t('mkt.sp_social_posts', 'Social posts')}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {(pack.social || []).map((sp) => {
                 const meta = SOCIAL_META[sp.id] || { label: sp.platform, Icon: Sparkles, color: '#71717a' };
@@ -334,10 +336,10 @@ export default function StarterPackPanel({ API, headers }) {
                         <Icon size={11} /> {meta.label}
                       </div>
                       <button
-                        onClick={() => copyToClipboard(sp.body, `${meta.label} post`)}
+                        onClick={() => copyToClipboard(sp.body, t('mkt.sp_social_post', '{{label}} post', { label: meta.label }))}
                         className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded flex items-center gap-0.5"
                         data-testid={`starter-pack-copy-social-${sp.id}`}>
-                        <Copy size={9} /> Copy
+                        <Copy size={9} /> {t('mkt.sp_copy', 'Copy')}
                       </button>
                     </div>
                     <p className="text-xs whitespace-pre-wrap leading-relaxed text-zinc-700 dark:text-zinc-300">{sp.body}</p>
@@ -350,7 +352,7 @@ export default function StarterPackPanel({ API, headers }) {
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900 p-2.5 text-xs flex items-start gap-2">
             <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
             <span className="text-emerald-700 dark:text-emerald-200">
-              <strong>Drafts saved.</strong> Send a test to yourself before sharing, push any email straight to Campaigns, or bundle all three into a Welcome Journey above.
+              <strong>{t('mkt.sp_drafts_saved', 'Drafts saved.')}</strong> {t('mkt.sp_drafts_saved_body', 'Send a test to yourself before sharing, push any email straight to Campaigns, or bundle all three into a Welcome Journey above.')}
             </span>
           </div>
 
@@ -359,7 +361,7 @@ export default function StarterPackPanel({ API, headers }) {
               className="px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-md flex items-center gap-1.5 disabled:opacity-50"
               data-testid="starter-pack-regenerate">
               {busy ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-              Re-generate
+              {t('mkt.sp_regenerate', 'Re-generate')}
             </button>
           </div>
         </div>

@@ -18,6 +18,7 @@ import {
   Wrench, Calendar, Megaphone, UserCog, BarChart3, Users, ArrowUpRight,
 } from 'lucide-react';
 import { openTrial } from './TrialSignupModal';
+import { useTranslation } from 'react-i18next';
 
 const SCENES = [
   {
@@ -207,6 +208,7 @@ const SCENES = [
 ];
 
 export default function ProductPreviewModal() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -255,7 +257,7 @@ export default function ProductPreviewModal() {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm"
-      role="dialog" aria-modal="true" aria-label="Product preview"
+      role="dialog" aria-modal="true" aria-label={t('mkt.pp_aria', 'Product preview')}
       data-testid="gx-product-preview"
       onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
     >
@@ -267,11 +269,11 @@ export default function ProductPreviewModal() {
               <Icon size={18} />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Scene {idx + 1} of {SCENES.length}</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{scene.title}</p>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">{t('mkt.pp_scene_counter', 'Scene {{n}} of {{total}}', { n: idx + 1, total: SCENES.length })}</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{t('mkt.pp_title_' + scene.id, scene.title)}</p>
             </div>
           </div>
-          <button type="button" onClick={() => setOpen(false)} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label="Close" data-testid="gx-preview-close">
+          <button type="button" onClick={() => setOpen(false)} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label={t('mkt.pp_close', 'Close')} data-testid="gx-preview-close">
             <X size={18} />
           </button>
         </div>
@@ -282,22 +284,22 @@ export default function ProductPreviewModal() {
             {scene.body()}
           </div>
           <p className="mt-5 text-base sm:text-lg text-slate-700 leading-snug max-w-2xl">
-            {scene.caption}
+            {t('mkt.pp_caption_' + scene.id, scene.caption)}
           </p>
         </div>
 
         {/* Controls + CTA */}
         <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-3 flex-wrap dark:border-zinc-800">
           <div className="flex items-center gap-1">
-            <button type="button" onClick={prev} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label="Previous" data-testid="gx-preview-prev"><ChevronLeft size={16} /></button>
-            <button type="button" onClick={() => setPaused((p) => !p)} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label={paused ? 'Play' : 'Pause'} data-testid="gx-preview-pause">
+            <button type="button" onClick={prev} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label={t('mkt.pp_prev', 'Previous')} data-testid="gx-preview-prev"><ChevronLeft size={16} /></button>
+            <button type="button" onClick={() => setPaused((p) => !p)} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label={paused ? t('mkt.pp_play', 'Play') : t('mkt.pp_pause', 'Pause')} data-testid="gx-preview-pause">
               {paused ? <Play size={14} /> : <Pause size={14} />}
             </button>
-            <button type="button" onClick={next} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label="Next" data-testid="gx-preview-next"><ChevronRight size={16} /></button>
+            <button type="button" onClick={next} className="p-2 rounded-full hover:bg-slate-100 dark:bg-zinc-800" aria-label={t('mkt.pp_next', 'Next')} data-testid="gx-preview-next"><ChevronRight size={16} /></button>
           </div>
           <div className="flex items-center gap-1.5">
             {SCENES.map((_, i) => (
-              <button key={i} type="button" onClick={() => setIdx(i)} aria-label={`Go to scene ${i + 1}`}
+              <button key={i} type="button" onClick={() => setIdx(i)} aria-label={t('mkt.pp_goto', 'Go to scene {{n}}', { n: i + 1 })}
                 className={`h-1 rounded-full transition-all ${i === idx ? 'w-8 bg-slate-900' : 'w-3 bg-slate-300 hover:bg-slate-400'}`} />
             ))}
           </div>
@@ -305,7 +307,7 @@ export default function ProductPreviewModal() {
             <button type="button" onClick={() => { setOpen(false); openTrial(); }}
               className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold"
               data-testid="gx-preview-trial">
-              Try it free <ArrowRight size={14} />
+              {t('mkt.pp_try_free', 'Try it free')} <ArrowRight size={14} />
             </button>
           </div>
         </div>

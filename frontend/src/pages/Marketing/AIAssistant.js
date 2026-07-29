@@ -20,12 +20,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Sparkles, X, ChevronRight, Loader2, Send, MessageSquare, Zap, CheckCircle2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
-
-const STARTER_QUESTIONS = [
-  'How is my last campaign performing?',
-  'Which audience should I target next?',
-  'Suggest a winback message for inactive members',
-];
+import { useTranslation } from 'react-i18next';
 
 // Render Claude's markdown-ish output as plain HTML (bold + line breaks only).
 // Keeps things lightweight — no react-markdown dep.
@@ -38,6 +33,12 @@ function renderAnswer(text) {
 }
 
 const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
+  const { t } = useTranslation();
+  const STARTER_QUESTIONS = [
+    t('mkt.aia_starter_1', 'How is my last campaign performing?'),
+    t('mkt.aia_starter_2', 'Which audience should I target next?'),
+    t('mkt.aia_starter_3', 'Suggest a winback message for inactive members'),
+  ];
   const [open, setOpen] = useState(true);
   const [question, setQuestion] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -89,7 +90,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
     const text = (msg ?? question).trim();
     if (!text || chatBusy) return;
     setQuestion('');
-    setTurns((t) => [...t, { role: 'user', content: text }]);
+    setTurns((prev) => [...prev, { role: 'user', content: text }]);
     setChatBusy(true);
     try {
       const { data } = await axios.post(
@@ -97,9 +98,9 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
         { session_id: sessionId, message: text },
         { headers, timeout: 60_000 },
       );
-      setTurns((t) => [...t, { role: 'assistant', content: data.answer, action: data.action }]);
+      setTurns((prev) => [...prev, { role: 'assistant', content: data.answer, action: data.action }]);
     } catch (err) {
-      setTurns((t) => [...t, { role: 'assistant', content: 'Sorry — I had trouble reaching the AI service. Please try again in a moment.' }]);
+      setTurns((prev) => [...prev, { role: 'assistant', content: t('mkt.aia_ai_err', 'Sorry — I had trouble reaching the AI service. Please try again in a moment.') }]);
     } finally {
       setChatBusy(false);
     }
@@ -115,7 +116,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
         { headers },
       );
       // Mark this turn as done so the button shows a tick and disables.
-      setTurns((t) => t.map((turn, i) => i === turnIdx ? { ...turn, done: true } : turn));
+      setTurns((prev) => prev.map((turn, i) => i === turnIdx ? { ...turn, done: true } : turn));
 
       // Side-effects per action type
       if (action.type === 'navigate_tab' && data.navigate_to_tab) {
@@ -124,16 +125,16 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
           // MarketingSuite handles `setTab` via a closure; we emit a custom event for safety.
           window.dispatchEvent(new CustomEvent('mkt-jump-tab', { detail: data.navigate_to_tab }));
         }
-        notify.success(`Switched to ${data.navigate_to_tab.charAt(0).toUpperCase() + data.navigate_to_tab.slice(1)} tab`);
+        notify.success(t('mkt.aia_switched', 'Switched to {{tab}} tab', { tab: data.navigate_to_tab.charAt(0).toUpperCase() + data.navigate_to_tab.slice(1) }));
       } else if (action.type === 'instantiate_template') {
-        notify.success('Template ready', `Audience size: ${data.audience_size || 0} · saved as a draft.`);
+        notify.success(t('mkt.aia_template_ready', 'Template ready'), t('mkt.aia_template_ready_body', 'Audience size: {{n}} · saved as a draft.', { n: data.audience_size || 0 }));
         window.dispatchEvent(new CustomEvent('mkt-jump-tab', { detail: 'campaigns' }));
       } else if (action.type === 'clear_demo_data') {
         const total = (data.audiences_removed || 0) + (data.campaigns_removed || 0) + (data.journeys_removed || 0) + (data.creatives_removed || 0);
-        notify.success('Demo data cleared', `${total} item${total === 1 ? '' : 's'} removed.`);
+        notify.success(t('mkt.aia_demo_cleared', 'Demo data cleared'), t('mkt.aia_demo_cleared_body', '{{n}} item(s) removed.', { n: total }));
       }
     } catch (err) {
-      notify.error(err.response?.data?.detail || 'Couldn\'t execute that action');
+      notify.error(err.response?.data?.detail || t('mkt.aia_action_err', 'Could not execute that action'));
     } finally {
       setExecutingIdx(null);
     }
@@ -144,7 +145,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-5 right-5 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-hover)] text-white shadow-xl flex items-center justify-center hover:scale-105 transition z-30"
-        aria-label="Open AI Assistant"
+        aria-label={t('mkt.aia_open', 'Open AI Assistant')}
         data-testid="ai-assistant-toggle"
       >
         <Sparkles size={18} />
@@ -161,9 +162,9 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
       <div className="flex items-center justify-between p-3 bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-hover)] text-white flex-shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles size={14} />
-          <p className="text-sm font-semibold">AI Assistant <span className="text-[10px] font-normal opacity-80 ml-1">· Claude</span></p>
+          <p className="text-sm font-semibold">{t('mkt.aia_title', 'AI Assistant')} <span className="text-[10px] font-normal opacity-80 ml-1">· Claude</span></p>
         </div>
-        <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white" data-testid="ai-assistant-close" aria-label="Close">
+        <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white" data-testid="ai-assistant-close" aria-label={t('mkt.aia_close', 'Close')}>
           <X size={14} />
         </button>
       </div>
@@ -171,13 +172,13 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
       {/* Suggestions strip — always visible, compact. Hidden when chat thread is non-empty so the chat dominates. */}
       {turns.length === 0 && (
         <div className="p-3 border-b flex-shrink-0" style={{ borderColor: 'var(--theme-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>Suggestions for this tab</p>
+          <p className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.aia_suggestions', 'Suggestions for this tab')}</p>
           {busySuggest && suggestions.length === 0 ? (
             <div className="flex items-center gap-2 text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>
-              <Loader2 size={12} className="animate-spin" /> Thinking…
+              <Loader2 size={12} className="animate-spin" /> {t('mkt.aia_thinking', 'Thinking…')}
             </div>
           ) : suggestions.length === 0 ? (
-            <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>No suggestions right now — ask me anything below.</p>
+            <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.aia_no_suggestions', 'No suggestions right now — ask me anything below.')}</p>
           ) : (
             <div className="space-y-1.5">
               {suggestions.slice(0, 2).map((s) => (
@@ -205,7 +206,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
         {turns.length === 0 ? (
           <div className="text-center py-2">
             <MessageSquare className="mx-auto mb-2 opacity-40" size={20} style={{ color: 'var(--theme-text-muted)' }} />
-            <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>Try one of these:</p>
+            <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.aia_try_one', 'Try one of these:')}</p>
             <div className="space-y-1.5">
               {STARTER_QUESTIONS.map((q, i) => (
                 <button
@@ -248,7 +249,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
                     data-testid={`ai-action-${i}`}
                   >
                     {executingIdx === i ? <Loader2 size={11} className="animate-spin" /> : turn.done ? <CheckCircle2 size={11} /> : <Zap size={11} />}
-                    {turn.done ? 'Done' : (executingIdx === i ? 'Working…' : turn.action.label)}
+                    {turn.done ? t('mkt.aia_done', 'Done') : (executingIdx === i ? t('mkt.aia_working', 'Working…') : turn.action.label)}
                   </button>
                 )}
                 {/* Dedup: route campaign-generation intent to the AI Director — the canonical place to draft a full campaign. */}
@@ -264,7 +265,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-[rgb(var(--rgb-brand-blue)/0.3)] text-[var(--color-brand-blue)] hover:bg-[rgb(var(--rgb-brand-blue)/0.05)] transition"
                     data-testid={`ai-build-director-${i}`}
                   >
-                    <Sparkles size={11}/> Build this in AI Director
+                    <Sparkles size={11}/> {t('mkt.aia_build_director', 'Build this in AI Director')}
                   </button>
                 )}
               </div>
@@ -273,7 +274,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
         )}
         {chatBusy && (
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--theme-text-muted)' }} data-testid="ai-chat-thinking">
-            <Loader2 size={11} className="animate-spin" /> Thinking…
+            <Loader2 size={11} className="animate-spin" /> {t('mkt.aia_thinking', 'Thinking…')}
           </div>
         )}
       </div>
@@ -288,7 +289,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask anything about your marketing…"
+          placeholder={t('mkt.aia_input_ph', 'Ask anything about your marketing…')}
           disabled={chatBusy}
           className="flex-1 px-2.5 py-1.5 text-xs rounded-md disabled:opacity-50"
           style={{ background: 'var(--theme-bg)', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}
@@ -299,7 +300,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
           disabled={!question.trim() || chatBusy}
           className="p-1.5 rounded-md bg-[var(--color-brand-blue)] text-white disabled:opacity-40 disabled:cursor-not-allowed"
           data-testid="ai-assistant-send"
-          aria-label="Send"
+          aria-label={t('mkt.aia_send', 'Send')}
         >
           {chatBusy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
         </button>

@@ -258,6 +258,58 @@ async def main():
         "mkt.dl_refresh_opt_240": "Every 4 hours",
         "mkt.dl_refresh_opt_1440": "Daily",
     })
+    # ProductPreviewModal scene titles + captions (template-literal keys mkt.pp_title_/caption_<sceneId>).
+    pairs.update({
+        "mkt.pp_title_fault-triage": "Operations · AI fault triage",
+        "mkt.pp_title_rota": "Staffing · AI rota in seconds",
+        "mkt.pp_title_campaign": "Marketing · AI Director writes your campaign",
+        "mkt.pp_title_memberships": "Memberships · Family Auto-Bill",
+        "mkt.pp_title_crm": "CRM · AI lead scoring",
+        "mkt.pp_title_reporting": "Reporting · One-screen weekly digest",
+        "mkt.pp_caption_fault-triage": "Snap the fault. Claude triages it, suggests parts, routes the ticket — in under 6 seconds.",
+        "mkt.pp_caption_rota": "Claude builds a fair, compliant week. £-cost roll-up. One-click apply. Sage CSV export.",
+        "mkt.pp_caption_campaign": "Pick a goal. AI drafts copy + audience + send time. Approve. Send. £14 average revenue lift per member.",
+        "mkt.pp_caption_memberships": "One household. Multiple plans. Sibling discounts auto-applied. One Stripe invoice.",
+        "mkt.pp_caption_crm": "Prioritise the lead most likely to close. AI explains why. Drop into a sequence. One click.",
+        "mkt.pp_caption_reporting": "Revenue. Churn. Faults. Cohort retention. Auto-emailed every Monday — to you and your owner.",
+    })
+    # StarterPackPanel email meta labels + hints (template-literal keys mkt.sp_email_<id>_label/hint).
+    pairs.update({
+        "mkt.sp_email_welcome_label": "Welcome",
+        "mkt.sp_email_welcome_hint": "For new sign-ups",
+        "mkt.sp_email_win_back_label": "Win-back",
+        "mkt.sp_email_win_back_hint": "For lapsed members",
+        "mkt.sp_email_promo_label": "Promo",
+        "mkt.sp_email_promo_hint": "Current campaign push",
+    })
+    # MarketingTour step titles + bodies (template-literal keys mkt.mt_<stepId>_title/body).
+    pairs.update({
+        "mkt.mt_welcome_title": "Your AI marketing co-pilot",
+        "mkt.mt_welcome_body": "Built for fitness operators — segmentation, campaigns, AI creatives, and visual journeys, all in one place. The next 60 seconds will show you the four things that get a Pulse club its first £1k of recovered revenue.",
+        "mkt.mt_audiences_title": "Audiences in plain English",
+        "mkt.mt_audiences_body": "Type high spenders at risk of churning — AI builds a live, dynamic segment that updates as members come and go. No SQL. No spreadsheets. Just intent.",
+        "mkt.mt_campaigns_title": "Quick-start campaign templates",
+        "mkt.mt_campaigns_body": "6 pre-built recipes — Welcome new member, Win-back, Class promo, PT upsell, Failed payment, Referral — auto-target the right audience with copy already filled in. Ship in 60 seconds.",
+        "mkt.mt_creative_title": "AI-generated marketing imagery",
+        "mkt.mt_creative_body": "Type a mood — high-energy spin Saturday morning — and gpt-image-1 generates branded posters, social tiles, and email heroes in ~30 seconds. Or upload your own photos.",
+        "mkt.mt_journeys_title": "Visual automation journeys",
+        "mkt.mt_journeys_body": "Drag-and-drop trigger → wait → send → branch → tag. Welcome series, win-back sequences, post-class follow-ups — design them like a flowchart and they run themselves.",
+        "mkt.mt_performance_title": "Attribution that actually works",
+        "mkt.mt_performance_body": "Every booking and payment within 7 days of an opened/clicked email auto-attributes back to the campaign. See which messages drive real money — not just clicks.",
+        "mkt.mt_demo_title": "Want to see it with your data?",
+        "mkt.mt_demo_body": "I can spin up disposable demo data right now — one VIP audience, a draft Saturday-spin campaign, an AI-generated poster, and a Welcome-new-member journey. Tagged demo and removable in one click.",
+    })
+    # TrialSignupModal module labels + blurbs (template-literal keys mkt.ts_mod_<key>_label/blurb).
+    pairs.update({
+        "mkt.ts_mod_operations_label": "Operations",
+        "mkt.ts_mod_operations_blurb": "Equipment, faults, maintenance & asset management",
+        "mkt.ts_mod_memberships_label": "Memberships",
+        "mkt.ts_mod_memberships_blurb": "Members, plans, classes & bookings",
+        "mkt.ts_mod_crm_label": "CRM",
+        "mkt.ts_mod_crm_blurb": "Sales pipeline, contacts & deals",
+        "mkt.ts_mod_marketing_label": "Marketing",
+        "mkt.ts_mod_marketing_blurb": "Campaigns, automations & content",
+    })
     # MobileAppBuilder font / button-style / share-format labels (template-literal keys).
     pairs.update({
         "memberships_console.mab_font_inter": "Clean",

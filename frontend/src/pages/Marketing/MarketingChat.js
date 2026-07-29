@@ -9,22 +9,23 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { MessageCircle, X, Send, Sparkles, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const SUGGESTIONS = [
-  'How does pricing work?',
-  'Can I import my existing members?',
-  'Do you integrate with Stripe?',
-  'What\'s in the free trial?',
-];
-
 export default function MarketingChat() {
+  const { t } = useTranslation();
+  const SUGGESTIONS = [
+    t('mkt.mc_sugg_pricing', 'How does pricing work?'),
+    t('mkt.mc_sugg_import', 'Can I import my existing members?'),
+    t('mkt.mc_sugg_stripe', 'Do you integrate with Stripe?'),
+    t('mkt.mc_sugg_trial', 'What is in the free trial?'),
+  ];
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => [
     {
       role: 'assistant',
-      text: 'Hi — I\'m the Pulse Fitness sales assistant. Ask me anything about pricing, modules, integrations, or migration. I\'ll give you a straight answer.',
+      text: t('mkt.mc_welcome', 'Hi — I am the Pulse Fitness sales assistant. Ask me anything about pricing, modules, integrations, or migration. I will give you a straight answer.'),
     },
   ]);
   const [input, setInput] = useState('');
@@ -37,21 +38,21 @@ export default function MarketingChat() {
   }, [messages, open]);
 
   const send = async (text) => {
-    const t = (text || '').trim();
-    if (!t || busy) return;
-    setMessages((m) => [...m, { role: 'user', text: t }]);
+    const txt = (text || '').trim();
+    if (!txt || busy) return;
+    setMessages((m) => [...m, { role: 'user', text: txt }]);
     setInput('');
     setBusy(true);
     try {
       const { data } = await axios.post(`${API}/marketing/chat`, {
-        message: t,
+        message: txt,
         session_id: sessionId,
         context_path: typeof window !== 'undefined' ? window.location.pathname : '',
       }, { timeout: 30000 });
       if (data.session_id) setSessionId(data.session_id);
       setMessages((m) => [...m, { role: 'assistant', text: data.answer }]);
     } catch (e) {
-      const msg = e?.response?.data?.detail || 'Network hiccup — try again in a moment.';
+      const msg = e?.response?.data?.detail || t('mkt.mc_network_err', 'Network hiccup — try again in a moment.');
       setMessages((m) => [...m, { role: 'assistant', text: msg }]);
     }
     setBusy(false);
@@ -64,7 +65,7 @@ export default function MarketingChat() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="fixed bottom-5 right-5 z-[55] w-14 h-14 rounded-full bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white shadow-[0_18px_40px_-10px_rgba(91,91,245,0.6)] flex items-center justify-center hover:scale-105 transition-transform"
-        aria-label={open ? 'Close chat' : 'Open chat'}
+        aria-label={open ? t('mkt.mc_close', 'Close chat') : t('mkt.mc_open', 'Open chat')}
         data-testid="gx-chat-launcher"
       >
         {open ? <X size={20} /> : <MessageCircle size={22} />}
@@ -84,7 +85,7 @@ export default function MarketingChat() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Pulse Fitness Sales AI</p>
-              <p className="text-[11px] text-slate-500">Honest answers · grounded on the live product</p>
+              <p className="text-[11px] text-slate-500">{t('mkt.mc_tagline', 'Honest answers · grounded on the live product')}</p>
             </div>
           </div>
 
@@ -107,7 +108,7 @@ export default function MarketingChat() {
             {busy && (
               <div className="flex justify-start" data-testid="gx-chat-thinking">
                 <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] inline-flex items-center gap-2 dark:bg-zinc-800">
-                  <Loader2 size={13} className="animate-spin" /> Thinking…
+                  <Loader2 size={13} className="animate-spin" /> {t('mkt.mc_thinking', 'Thinking…')}
                 </div>
               </div>
             )}
@@ -136,7 +137,7 @@ export default function MarketingChat() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask anything…"
+              placeholder={t('mkt.mc_input_ph', 'Ask anything…')}
               disabled={busy}
               className="flex-1 h-9 rounded-full bg-slate-50 border border-slate-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-to)]/30 dark:bg-zinc-900 dark:border-zinc-800"
               data-testid="gx-chat-input"

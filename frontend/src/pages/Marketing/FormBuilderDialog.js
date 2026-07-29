@@ -8,28 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/App';
-
-const FIELD_TYPES = [
-  { value: 'text', label: 'Single-line text' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'textarea', label: 'Multi-line text' },
-  { value: 'select', label: 'Dropdown' },
-  { value: 'radio', label: 'Multiple choice' },
-  { value: 'rating', label: 'Rating (1–5)' },
-  { value: 'checkbox', label: 'Checkbox' },
-  { value: 'number', label: 'Number' },
-];
-
-const CRM_PROPERTIES = [
-  { value: '', label: '— Don\'t map to CRM —' },
-  { value: 'first_name', label: 'First name' },
-  { value: 'last_name', label: 'Last name' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'company_name', label: 'Company name' },
-  { value: 'notes', label: 'Notes' },
-];
+import { useTranslation } from 'react-i18next';
 
 const blankField = () => ({
   id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -42,7 +21,28 @@ const blankField = () => ({
 });
 
 const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
+  const FIELD_TYPES = [
+    { value: 'text', label: t('mkt.fb_ft_text', 'Single-line text') },
+    { value: 'email', label: t('mkt.fb_ft_email', 'Email') },
+    { value: 'phone', label: t('mkt.fb_ft_phone', 'Phone') },
+    { value: 'textarea', label: t('mkt.fb_ft_textarea', 'Multi-line text') },
+    { value: 'select', label: t('mkt.fb_ft_select', 'Dropdown') },
+    { value: 'radio', label: t('mkt.fb_ft_radio', 'Multiple choice') },
+    { value: 'rating', label: t('mkt.fb_ft_rating', 'Rating (1–5)') },
+    { value: 'checkbox', label: t('mkt.fb_ft_checkbox', 'Checkbox') },
+    { value: 'number', label: t('mkt.fb_ft_number', 'Number') },
+  ];
+  const CRM_PROPERTIES = [
+    { value: '', label: t('mkt.fb_crm_none', '— Do not map to CRM —') },
+    { value: 'first_name', label: t('mkt.fb_crm_first_name', 'First name') },
+    { value: 'last_name', label: t('mkt.fb_crm_last_name', 'Last name') },
+    { value: 'email', label: t('mkt.fb_crm_email', 'Email') },
+    { value: 'phone', label: t('mkt.fb_crm_phone', 'Phone') },
+    { value: 'company_name', label: t('mkt.fb_crm_company', 'Company name') },
+    { value: 'notes', label: t('mkt.fb_crm_notes', 'Notes') },
+  ];
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [kind, setKind] = useState('form');
@@ -110,7 +110,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [API, headers]);
-  const fullCrmOptions = React.useMemo(() => [...CRM_PROPERTIES, ...customCrmProps], [customCrmProps]);
+  const fullCrmOptions = [...CRM_PROPERTIES, ...customCrmProps];
 
   const updateField = (idx, patch) => {
     setFields((arr) => arr.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
@@ -128,8 +128,8 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
   const addField = () => setFields((arr) => [...arr, blankField()]);
 
   const onSave = async () => {
-    if (!name.trim()) { toast.error('Form needs a name'); return; }
-    if (fields.length === 0) { toast.error('Add at least one field'); return; }
+    if (!name.trim()) { toast.error(t('mkt.fb_err_name', 'Form needs a name')); return; }
+    if (fields.length === 0) { toast.error(t('mkt.fb_err_field', 'Add at least one field')); return; }
     setSaving(true);
     try {
       const payload = {
@@ -158,10 +158,10 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
       } else {
         await axios.post(`${API}/api/marketing/forms`, payload, { headers });
       }
-      toast.success(form ? 'Form updated' : 'Form created');
+      toast.success(form ? t('mkt.fb_toast_updated', 'Form updated') : t('mkt.fb_toast_created', 'Form created'));
       onSaved && onSaved();
     } catch (e) {
-      toast.error('Save failed', { description: e.response?.data?.detail });
+      toast.error(t('mkt.fb_toast_save_failed', 'Save failed'), { description: e.response?.data?.detail });
     }
     setSaving(false);
   };
@@ -170,28 +170,28 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
     <Dialog open={true} onOpenChange={(v) => !v && onClose && onClose()}>
       <DialogContent className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="form-builder-dialog">
         <DialogHeader>
-          <DialogTitle>{form ? 'Edit form' : 'New form'}</DialogTitle>
+          <DialogTitle>{form ? t('mkt.fb_title_edit', 'Edit form') : t('mkt.fb_title_new', 'New form')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Name *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${defaultBrand} Demo Request`} className="mt-1" data-testid="form-builder-name" />
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_name', 'Name *')}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('mkt.fb_name_ph', 'e.g. {{brand}} Demo Request', { brand: defaultBrand })} className="mt-1" data-testid="form-builder-name" />
             </div>
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Submit button label</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_submit_label', 'Submit button label')}</Label>
               <Input value={submitButtonLabel} onChange={(e) => setSubmitButtonLabel(e.target.value)} className="mt-1" data-testid="form-builder-submit-label" />
             </div>
           </div>
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Description (shown above the form)</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_description', 'Description (shown above the form)')}</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1" data-testid="form-builder-description" />
           </div>
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Type</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_type', 'Type')}</Label>
             <div className="mt-1 inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden" data-testid="form-builder-kind">
-              {[['form', 'Lead form'], ['survey', 'Survey']].map(([v, l]) => (
+              {[['form', t('mkt.fb_kind_form', 'Lead form')], ['survey', t('mkt.fb_kind_survey', 'Survey')]].map(([v, l]) => (
                 <button key={v} type="button" onClick={() => setKind(v)} className={`px-4 py-1.5 text-sm font-semibold ${kind === v ? 'bg-[var(--color-brand-blue)] text-white' : 'bg-white dark:bg-zinc-900 text-zinc-600'}`} data-testid={`form-kind-${v}`}>{l}</button>
               ))}
             </div>
@@ -200,9 +200,9 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
           {/* Fields */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Fields</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_fields', 'Fields')}</Label>
               <Button size="sm" variant="outline" onClick={addField} className="border-zinc-200 dark:border-zinc-700" data-testid="form-builder-add-field">
-                <Plus size={12} className="mr-1" /> Add field
+                <Plus size={12} className="mr-1" /> {t('mkt.fb_add_field', 'Add field')}
               </Button>
             </div>
             <div className="space-y-2">
@@ -212,21 +212,21 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
                     <GripVertical size={14} className="text-zinc-400 mt-2" />
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-zinc-600 text-xs">Label</Label>
+                        <Label className="text-zinc-600 text-xs">{t('mkt.fb_field_label', 'Label')}</Label>
                         <Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} className="mt-1 text-sm" />
                       </div>
                       <div>
-                        <Label className="text-zinc-600 text-xs">Type</Label>
+                        <Label className="text-zinc-600 text-xs">{t('mkt.fb_field_type', 'Type')}</Label>
                         <select
                           value={f.field_type}
                           onChange={(e) => updateField(idx, { field_type: e.target.value })}
                           className="mt-1 w-full bg-white dark:bg-zinc-900 border border-zinc-200 rounded-md px-2 py-1 text-sm dark:border-zinc-800"
                         >
-                          {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                          {FIELD_TYPES.map((ft) => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
                         </select>
                       </div>
                       <div>
-                        <Label className="text-zinc-600 text-xs">CRM mapping</Label>
+                        <Label className="text-zinc-600 text-xs">{t('mkt.fb_field_crm', 'CRM mapping')}</Label>
                         <select
                           value={f.crm_property || ''}
                           onChange={(e) => updateField(idx, { crm_property: e.target.value || null })}
@@ -236,16 +236,16 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
                         </select>
                       </div>
                       <div>
-                        <Label className="text-zinc-600 text-xs">Placeholder</Label>
+                        <Label className="text-zinc-600 text-xs">{t('mkt.fb_field_placeholder', 'Placeholder')}</Label>
                         <Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} className="mt-1 text-sm" />
                       </div>
                       {(f.field_type === 'select' || f.field_type === 'radio') && (
                         <div className="md:col-span-2">
-                          <Label className="text-zinc-600 text-xs">Options (comma-separated)</Label>
+                          <Label className="text-zinc-600 text-xs">{t('mkt.fb_field_options', 'Options (comma-separated)')}</Label>
                           <Input
                             value={Array.isArray(f.options) ? f.options.join(', ') : (f.options || '')}
                             onChange={(e) => updateField(idx, { options: e.target.value })}
-                            placeholder="Small, Medium, Large"
+                            placeholder={t('mkt.fb_field_options_ph', 'Small, Medium, Large')}
                             className="mt-1 text-sm"
                           />
                         </div>
@@ -257,7 +257,7 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
                             checked={!!f.required}
                             onChange={(e) => updateField(idx, { required: e.target.checked })}
                           />
-                          Required
+                          {t('mkt.fb_required', 'Required')}
                         </label>
                       </div>
                     </div>
@@ -281,18 +281,18 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
           {/* Behaviour */}
           <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Success message</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_success_msg', 'Success message')}</Label>
               <Textarea rows={2} value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} className="mt-1 text-sm" />
             </div>
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Notify emails (comma-separated)</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.fb_notify', 'Notify emails (comma-separated)')}</Label>
               <Input value={notifyEmails} onChange={(e) => setNotifyEmails(e.target.value)} placeholder="leader@pulsefitness.ai" className="mt-1 text-sm" data-testid="form-builder-notify" />
-              <p className="text-zinc-400 text-xs mt-1">Your email is added automatically.</p>
+              <p className="text-zinc-400 text-xs mt-1">{t('mkt.fb_notify_hint', 'Your email is added automatically.')}</p>
             </div>
             <div className="md:col-span-2">
               <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                 <input type="checkbox" checked={requireConsent} onChange={(e) => setRequireConsent(e.target.checked)} />
-                Require GDPR consent checkbox
+                {t('mkt.fb_require_consent', 'Require GDPR consent checkbox')}
               </label>
               {requireConsent && (
                 <Textarea rows={2} value={consentText} onChange={(e) => setConsentText(e.target.value)} className="mt-2 text-sm" />
@@ -301,21 +301,21 @@ const FormBuilderDialog = ({ API, headers, form, onClose, onSaved }) => {
             <div className="md:col-span-2">
               <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                 <input type="checkbox" checked={sendConfirmation} onChange={(e) => setSendConfirmation(e.target.checked)} />
-                Send a confirmation email to the submitter
+                {t('mkt.fb_send_confirmation', 'Send a confirmation email to the submitter')}
               </label>
               {sendConfirmation && (
                 <div className="mt-2 grid grid-cols-1 gap-2">
-                  <Input value={confirmationSubject} onChange={(e) => setConfirmationSubject(e.target.value)} placeholder="Subject" className="text-sm" />
-                  <Textarea rows={3} value={confirmationBody} onChange={(e) => setConfirmationBody(e.target.value)} placeholder="Body" className="text-sm" />
+                  <Input value={confirmationSubject} onChange={(e) => setConfirmationSubject(e.target.value)} placeholder={t('mkt.fb_conf_subject_ph', 'Subject')} className="text-sm" />
+                  <Textarea rows={3} value={confirmationBody} onChange={(e) => setConfirmationBody(e.target.value)} placeholder={t('mkt.fb_conf_body_ph', 'Body')} className="text-sm" />
                 </div>
               )}
             </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>{t('mkt.fb_cancel', 'Cancel')}</Button>
             <Button onClick={onSave} disabled={saving} className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" data-testid="form-builder-save">
-              {saving ? 'Saving…' : (form ? 'Save changes' : 'Create form')}
+              {saving ? t('mkt.fb_saving', 'Saving…') : (form ? t('mkt.fb_save_changes', 'Save changes') : t('mkt.fb_create_form', 'Create form'))}
             </Button>
           </div>
         </div>
