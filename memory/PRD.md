@@ -1,3 +1,51 @@
+# ═══ 2026-07-29 · MOD ESTATE SETUP — GUIDED ONBOARDING + WHOLE-OF-MOD REPORTING (VERIFIED 100% FE) ═══
+Founder ask: onboard MOD services (Army/RAF/Navy); design a better MOD onboarding without duplicating existing work.
+Decisions: (1b) Army/RAF/Navy are THREE INDEPENDENT service Head Offices (no shared parent) tied by one `mod_estate_id`
+so we report on the MOD as a whole; (2) external suppliers ONLY for OVERSEAS sites (UK = Pulse-serviced), Pulse ALWAYS
+notified of faults; (3a) one default supplier per site; (4a) global sites (country+region+locale); (5a) extend/
+orchestrate the existing CSV importer, don't replace.
+
+WHAT ALREADY EXISTED (reused, not duplicated): mod_org/mod_branch/mod_site hierarchy; two CSV bulk importers
+(mod_sites_bulk_import.py + mod_bulk_import.py/MODBulkImport.js) with template→preview→bg import→credentials CSV→
+Resend email; generic org-create accepts is_mod/mod_force; AdminMODConsole (ops: pw rotation, ASER drills, audit);
+per-site supplier resolution `_resolve_equipment_supplier` (id→name→manufacturer keyword).
+
+DELIVERED:
+- BACKEND NEW routes/master_admin_mod_estate.py (require_master_admin), estate id 'uk-mod':
+  • POST /api/master-admin/mod-estate/hqs — idempotently create 3 independent HQs (account_type=mod_org,
+    is_head_office, mod_root_id=self, shared mod_estate_id). 
+  • GET/POST /api/master-admin/mod-estate/suppliers — estate supplier registry (collection mod_estate_suppliers).
+  • POST /api/master-admin/mod-estate/sites — one global site under a chosen service HQ; country/region + derived
+    locale; UK→serviced_by=pulse_fitness (no supplier), OVERSEAS→requires an external supplier: instantiates a
+    suppliers doc into the site org + sets org.service_supplier_id (so existing fault routing resolves it); mints a
+    kiosk owner login (username=site_code, temp password or invite).
+  • GET /api/master-admin/mod-estate/overview — whole-of-MOD rollup across the 3 HQs (sites, UK vs overseas per
+    service, supplier count, open faults). Registered in route_registry/admin.py.
+- BACKEND mod_portal.py: (a) _resolve_equipment_supplier now falls back to the site's default service_supplier_id
+  (overseas); (b) fault log now ALWAYS notifies Pulse (MOD_ONCALL_EMAIL) at EVERY priority (was urgent-only),
+  subject [MOD URGENT]/[MOD Fault].
+- FRONTEND NEW pages/MasterAdmin/MODEstateWizard.js — whole-of-MOD KPI row + per-service cards, Step1 ensure HQs,
+  Step2 supplier registry, Step3 add global site (overseas→supplier dropdown, required). Wired into
+  AdminOnboardingHub.js as Customers tab id='mod-estate' (data-testid onboarding-subtab-mod-estate). Existing CSV
+  tab relabelled 'MOD Sites (CSV bulk)'.
+
+VERIFIED: backend curl (HQ create+idempotency, registry, UK site pulse-serviced/no supplier, overseas site external
+supplier wired to a real suppliers doc + service_supplier_id, overview rollup) + testing_agent FRONTEND 100%, 0 bugs
+(iteration_mod_estate_wizard_frontend_jan2026.json): tab/KPIs, HQ ensure+idempotent, add supplier, UK site (no
+overseas block, Pulse-serviced), overseas site (supplier dropdown + REQUIRED validation), KPI/per-service refresh
+(Total 2, UK 1, Overseas 1). QATEST data cleaned; 3 uk-mod HQs left (idempotent).
+BACKLOG: extend the CSV bulk importer with country/region/service_supplier columns (currently the estate-aware global
++ overseas-supplier fields are captured via the single-site flow; per-HQ CSV bulk still works with its existing
+columns). Estate id 'uk-mod' is hardcoded — multi-estate support is a future item.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+data-testid: onboarding-subtab-mod-estate, mod-estate-wizard, mod-estate-refresh, mod-estate-service-{force},
+mod-estate-hqs-ready, mod-estate-ensure-hqs, mod-estate-suppliers, mod-supplier-name/-email/-add, mod-estate-supplier-<id>,
+mod-estate-add-site, mod-site-force/-name/-code/-country/-region/-supplier/-submit, mod-site-overseas-block,
+mod-estate-site-result.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · BACKEND GUARD (belt-and-braces) FOR THE IMPERSONATION SITE-SCOPE BUG (VERIFIED) ═══
 Follow-up to the frontend site-scope fix. Root of the "data disappears" behaviour on the backend:
 utils/site_scope.build_site_filter() does NOT verify org-membership for an UNRESTRICTED user — it returns
