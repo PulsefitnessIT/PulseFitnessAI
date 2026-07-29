@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend end-to-end test of the new Master Admin > Organisations > Onboarding > 'MOD Estate Setup' wizard. All 7 requested flows PASSED: (1) tab opens and renders wizard with whole-of-MOD KPI row + three per-service cards; (2) HQ ensure button provisions three service HQs and shows green pills (idempotent on refresh); (3) supplier form adds 'QATEST Cyprus Services' with Cyprus country and chip appears; (4) UK site (army, 'QATEST Catterick Gym', United Kingdom) creates without overseas block; success card shows 'UK · Pulse-serviced' + username + temp password + copy button; (5a) overseas site (raf, Cyprus) surfaces overseas block with supplier dropdown; (5b) submitting overseas site without supplier shows error toast 'Pick an external service supplier for this overseas site' and does not create the site; (5c) selecting QATEST supplier + submit creates site — success card 'Overseas (QATEST Cyprus Services)' with credentials; (6) after refresh the KPI row updates correctly (Total 2, UK 1, Overseas 1, Suppliers 1) and per-service cards show army 1 UK / 0 overseas, raf 0 UK / 1 overseas, navy 0/0. Cleanup executed via MongoDB (2 QATEST orgs + users + suppliers docs + 1 mod_estate_suppliers doc deleted; three uk-mod HQs preserved).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MODEstateWizard.js: 'Countries served' field uses a placeholder-based selector rather than a data-testid (mod-supplier-countries would help future tests). Non-blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (used once, session reused).",
+  "seed_data_creation": "Created and CLEANED UP: mod_estate_suppliers 'QATEST Cyprus Services' (1); organizations 'QATEST Catterick Gym', 'QATEST Akrotiri Gym' (2) with their users/suppliers docs. Three uk-mod HQs left in place (idempotent by design).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD Estate Setup wizard passed full flow: HQs, supplier registry, UK vs overseas site creation, overseas supplier-required validation, and KPI/per-service overview refresh. Feature is production-ready from the frontend perspective. Estate id is 'uk-mod'.",
+  "rca of the issue": "N/A — no defects found."
+}

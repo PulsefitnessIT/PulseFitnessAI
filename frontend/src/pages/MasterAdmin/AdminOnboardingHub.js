@@ -15,6 +15,7 @@ import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
 import AdminOnboardingPackets from './AdminOnboardingPackets';
 import AdminBulkImports from './AdminBulkImports';
 import MODBulkImport from './MODBulkImport';
+import MODEstateWizard from './MODEstateWizard';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
 import DealerOnboardingWizard from './DealerOnboardingWizard';
 import OnboardingProjects from './OnboardingProjects';
@@ -29,7 +30,8 @@ const TABS = [
   { id: 'head-office',  group: 'Customers', label: 'Head Office (multi-site)', icon: Building,   description: 'Create a corporate Head Office and N sites under it in one pass — for chains and multi-location operators.' },
   { id: 'packets',      group: 'Customers', label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
   { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of sites, equipment and customers.' },
-  { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (bulk)',    icon: ShieldCheck,     description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
+  { id: 'mod-estate',   group: 'Customers', label: 'MOD Estate Setup',    icon: ShieldCheck,     description: 'Guided MOD setup — three independent service Head Offices (Army / RAF / Navy), global sites per service, external suppliers for overseas bases, and a whole-of-MOD reporting view.' },
+  { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (CSV bulk)', icon: FileSpreadsheet, description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
   { id: 'dealer',       group: 'Partners',  label: 'Dealer / Engineer',   icon: Wrench,          description: 'Onboard a Pulse Fitness distribution dealer or field engineer — gets Service Desk + Inventory & Distribution. Captures full company detail; owner & engineers set up via invite link or temporary password.' },
   { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
 ];
@@ -95,6 +97,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
       {tab === 'head-office' && <HeadOfficeOnboardingWizard onComplete={onComplete} />}
       {tab === 'packets'     && <AdminOnboardingPackets />}
       {tab === 'imports'     && <AdminBulkImports API={_api} />}
+      {tab === 'mod-estate'  && <MODEstateWizard />}
       {tab === 'mod-imports' && <MODBulkImport API={_api} />}
       {tab === 'dealer'      && <DealerOnboardingWizard />}
       {tab === 'staff'       && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}

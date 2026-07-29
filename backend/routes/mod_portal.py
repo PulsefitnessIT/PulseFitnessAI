@@ -1490,17 +1490,20 @@ async def mod_fault_submit(
         },
     )
 
-    # Phase 2 — URGENT escalation email to the platform on-call.
-    if priority == "urgent":
-        oncall = os.environ.get("MOD_ONCALL_EMAIL") or os.environ.get(
-            "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai",
-        )
-        subject = f"[MOD URGENT] {ticket_ref} — {org.get('name')} — {equipment.get('name')}"
-        html = _escalation_email_html(org, equipment, doc)
-        try:
-            asyncio.create_task(send_email(oncall, subject, html))
-        except Exception as e:  # pragma: no cover
-            logger.warning("MOD urgent escalation email failed: %s", e)
+    # Pulse Fitness is ALWAYS notified when a MOD fault is logged — at every
+    # priority, and regardless of whether the site is Pulse-serviced (UK) or
+    # has an external supplier (overseas). Founder requirement 2026-07.
+    pulse_inbox = os.environ.get("MOD_ONCALL_EMAIL") or os.environ.get(
+        "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai",
+    )
+    urgent = priority == "urgent"
+    subject = (f"[MOD URGENT] {ticket_ref}" if urgent else f"[MOD Fault] {ticket_ref}") \
+        + f" — {org.get('name')} — {equipment.get('name')}"
+    html = _escalation_email_html(org, equipment, doc)
+    try:
+        asyncio.create_task(send_email(pulse_inbox, subject, html))
+    except Exception as e:  # pragma: no cover
+        logger.warning("MOD Pulse fault notification failed: %s", e)
 
     # Iter 216h114 — Route fault to the machine's configured supplier so
     # MOD sites can address requests to decentralised suppliers (each
@@ -2972,6 +2975,18 @@ async def _resolve_equipment_supplier(eq: dict, site_id: str) -> Optional[dict]:
             for kw in (s.get("manufacturer_keywords") or []):
                 if kw and kw.strip().lower() in manufacturer:
                     return s
+    # 4. Site-level DEFAULT service supplier (overseas MOD sites assigned a
+    #    single external supplier at onboarding — see master_admin_mod_estate).
+    site_org = await db.organizations.find_one(
+        {"id": site_id}, {"_id": 0, "service_supplier_id": 1},
+    )
+    default_sup_id = ((site_org or {}).get("service_supplier_id") or "").strip()
+    if default_sup_id:
+        doc = await db.suppliers.find_one(
+            {"id": default_sup_id, "organization_id": site_id}, {"_id": 0},
+        )
+        if doc:
+            return doc
     return None
 
 
