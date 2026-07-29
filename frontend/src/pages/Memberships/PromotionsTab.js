@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Tag, Plus, Trash2, Calendar, Percent, PoundSterling, Sparkles,
   Loader2, ShieldCheck, BadgeCheck, X,
@@ -19,22 +20,8 @@ import RowActions from '@/components/shared/RowActions';
 import ListPanel from '@/components/shared/ListPanel';
 import DatePicker from '@/components/shared/DatePicker';
 
-const KIND_OPTIONS = [
-  { value: 'recurring',  label: 'Memberships' },
-  { value: 'class_pack', label: 'Class packs' },
-  { value: 'course',     label: 'Courses' },
-  { value: 'bundle',     label: 'Bundles' },
-  { value: 'fixed_term', label: 'Fixed term' },
-  { value: 'payg',       label: 'Pay-as-you-go' },
-];
-
-const DURATION_OPTIONS = [
-  { value: 'once',      label: 'Once (first invoice only)' },
-  { value: 'forever',   label: 'Forever (every invoice)' },
-  { value: 'repeating', label: 'Repeating (N months)' },
-];
-
 export default function PromotionsTab({ API, headers }) {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const [rows, setRows] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -51,7 +38,7 @@ export default function PromotionsTab({ API, headers }) {
       setRows(pData?.promo_codes || []);
       setPlans(plansData?.plans || []);
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to load promotions');
+      notifyApiError(notify, e, t('memberships_console.promo_load_fail', 'Failed to load promotions'));
     }
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
@@ -61,16 +48,16 @@ export default function PromotionsTab({ API, headers }) {
 
   const archive = async (p) => {
     if (!(await confirm({
-      title: `Deactivate "${p.code}"?`,
-      detail: 'Members will no longer be able to use this code. Existing redemptions remain on record.',
-      tone: 'warning', confirmLabel: 'Deactivate',
+      title: t('memberships_console.promo_deactivate_title', 'Deactivate "{{code}}"?', { code: p.code }),
+      detail: t('memberships_console.promo_deactivate_detail', 'Members will no longer be able to use this code. Existing redemptions remain on record.'),
+      tone: 'warning', confirmLabel: t('memberships_console.promo_deactivate_cta', 'Deactivate'),
     }))) return;
     try {
       await axios.delete(`${API}/memberships/promo-codes/${p.id}`, { headers });
-      notify.success('Promo code deactivated');
+      notify.success(t('memberships_console.promo_deactivated_ok', 'Promo code deactivated'));
       load();
     } catch (e) {
-      notifyApiError(notify, e, 'Failed');
+      notifyApiError(notify, e, t('memberships_console.promo_failed', 'Failed'));
     }
   };
 
@@ -78,17 +65,17 @@ export default function PromotionsTab({ API, headers }) {
     <div data-testid="mbr-promotions">
       <ListPanel
         data-testid="mbr-promotions-list"
-        title="Promotions"
-        subtitle="Operator-managed promo codes. Discounts enforced at Stripe — first-month-free, summer launch, loyalty rewards."
-        count={{ value: rows.length, label: 'code' }}
-        primaryAction={{ label: 'New code', icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-promo-add' }}
+        title={t('memberships_console.promo_title', 'Promotions')}
+        subtitle={t('memberships_console.promo_subtitle', 'Operator-managed promo codes. Discounts enforced at Stripe — first-month-free, summer launch, loyalty rewards.')}
+        count={{ value: rows.length, label: t('memberships_console.promo_count_label', 'code') }}
+        primaryAction={{ label: t('memberships_console.promo_new_code', 'New code'), icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-promo-add' }}
         loading={loading}
         empty={{
           when: rows.length === 0,
           icon: Tag,
-          title: 'No promotions yet',
-          hint: 'Create your first code — first-month-free, summer launch, or loyalty rewards. Members paste it at Stripe Checkout.',
-          primaryAction: { label: 'Create your first code', onClick: () => setEditing('new'), testId: 'mbr-promo-empty-create' },
+          title: t('memberships_console.promo_empty_title', 'No promotions yet'),
+          hint: t('memberships_console.promo_empty_hint', 'Create your first code — first-month-free, summer launch, or loyalty rewards. Members paste it at Stripe Checkout.'),
+          primaryAction: { label: t('memberships_console.promo_empty_cta', 'Create your first code'), onClick: () => setEditing('new'), testId: 'mbr-promo-empty-create' },
           testId: 'mbr-promo-empty',
         }}
         bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
@@ -110,6 +97,7 @@ export default function PromotionsTab({ API, headers }) {
 
 
 function PromoCard({ promo, plans, onArchive }) {
+  const { t } = useTranslation();
   const planNames = (promo.applicable_plan_ids || [])
     .map((id) => plans.find((p) => p.id === id)?.name)
     .filter(Boolean);
@@ -132,32 +120,32 @@ function PromoCard({ promo, plans, onArchive }) {
           <p className="text-xs text-[color:var(--theme-text-muted)] mt-0.5 truncate">{promo.name}</p>
         </div>
         <RowActions>
-          <Button variant="ghostDestructive" size="iconSm" onClick={onArchive} icon={Trash2} title="Deactivate" data-testid={`mbr-promo-archive-${promo.id}`} />
+          <Button variant="ghostDestructive" size="iconSm" onClick={onArchive} icon={Trash2} title={t('memberships_console.promo_deactivate_cta', 'Deactivate')} data-testid={`mbr-promo-archive-${promo.id}`} />
         </RowActions>
       </div>
 
       <div className="text-2xl font-extrabold tracking-tight text-emerald-500 mt-2 flex items-center gap-1">
         {promo.percent_off
-          ? <><Percent size={18} /> {promo.percent_off}% off</>
-          : <><PoundSterling size={18} /> £{((promo.amount_off_pence || 0) / 100).toFixed(2)} off</>}
+          ? <><Percent size={18} /> {promo.percent_off}{t('memberships_console.promo_percent_off', '% off')}</>
+          : <><PoundSterling size={18} /> £{((promo.amount_off_pence || 0) / 100).toFixed(2)} {t('memberships_console.promo_off', 'off')}</>}
       </div>
 
       <div className="flex flex-wrap gap-1.5 mt-3">
         {promo.duration === 'once' && (
-          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-zinc-500/15 text-[color:var(--theme-text-muted)]">First invoice only</span>
+          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-zinc-500/15 text-[color:var(--theme-text-muted)]">{t('memberships_console.promo_badge_first_invoice', 'First invoice only')}</span>
         )}
         {promo.duration === 'forever' && (
-          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-fuchsia-500/15 text-fuchsia-400">Every invoice</span>
+          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-fuchsia-500/15 text-fuchsia-400">{t('memberships_console.promo_badge_every_invoice', 'Every invoice')}</span>
         )}
         {promo.duration === 'repeating' && (
-          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-purple-500/15 text-purple-400">{promo.duration_in_months}× months</span>
+          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-purple-500/15 text-purple-400">{promo.duration_in_months}{t('memberships_console.promo_badge_months', '× months')}</span>
         )}
         {promo.first_time_only && (
-          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-blue-500/15 text-blue-400">First-time only</span>
+          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-blue-500/15 text-blue-400">{t('memberships_console.promo_badge_first_time', 'First-time only')}</span>
         )}
         {planNames.length > 0 && (
           <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-400" title={planNames.join(', ')}>
-            {planNames.length} plan{planNames.length === 1 ? '' : 's'} only
+            {t('memberships_console.promo_badge_plans_only', '{{count}} plan(s) only', { count: planNames.length })}
           </span>
         )}
         {(promo.applicable_kinds || []).length > 0 && (
@@ -166,14 +154,14 @@ function PromoCard({ promo, plans, onArchive }) {
           </span>
         )}
         {expired && (
-          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-red-500/15 text-red-300">Expired</span>
+          <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-red-500/15 text-red-300">{t('memberships_console.promo_badge_expired', 'Expired')}</span>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
         <div className="rounded bg-white/[0.04] p-2 border border-[color:var(--theme-border)]">
           <div className="text-[10px] uppercase tracking-wider text-[color:var(--theme-text-muted)] flex items-center gap-1">
-            <BadgeCheck size={9} /> Redemptions
+            <BadgeCheck size={9} /> {t('memberships_console.promo_redemptions', 'Redemptions')}
           </div>
           <p className="text-sm font-bold mt-0.5">
             {promo.redemptions_count || 0}
@@ -182,15 +170,15 @@ function PromoCard({ promo, plans, onArchive }) {
             )}
           </p>
           {remaining != null && remaining < 5 && remaining > 0 && (
-            <p className="text-[10px] text-amber-500 mt-0.5">Only {remaining} left</p>
+            <p className="text-[10px] text-amber-500 mt-0.5">{t('memberships_console.promo_only_left', 'Only {{n}} left', { n: remaining })}</p>
           )}
         </div>
         <div className="rounded bg-white/[0.04] p-2 border border-[color:var(--theme-border)]">
           <div className="text-[10px] uppercase tracking-wider text-[color:var(--theme-text-muted)] flex items-center gap-1">
-            <Calendar size={9} /> Expires
+            <Calendar size={9} /> {t('memberships_console.promo_expires', 'Expires')}
           </div>
           <p className="text-sm font-bold mt-0.5 truncate">
-            {promo.valid_until ? new Date(promo.valid_until).toLocaleDateString() : 'Never'}
+            {promo.valid_until ? new Date(promo.valid_until).toLocaleDateString() : t('memberships_console.promo_never', 'Never')}
           </p>
         </div>
       </div>
@@ -200,6 +188,20 @@ function PromoCard({ promo, plans, onArchive }) {
 
 
 function PromoEditorModal({ API, headers, plans, onClose }) {
+  const { t } = useTranslation();
+  const KIND_OPTIONS = [
+    { value: 'recurring',  label: t('memberships_console.promo_kind_recurring', 'Memberships') },
+    { value: 'class_pack', label: t('memberships_console.promo_kind_class_pack', 'Class packs') },
+    { value: 'course',     label: t('memberships_console.promo_kind_course', 'Courses') },
+    { value: 'bundle',     label: t('memberships_console.promo_kind_bundle', 'Bundles') },
+    { value: 'fixed_term', label: t('memberships_console.promo_kind_fixed_term', 'Fixed term') },
+    { value: 'payg',       label: t('memberships_console.promo_kind_payg', 'Pay-as-you-go') },
+  ];
+  const DURATION_OPTIONS = [
+    { value: 'once',      label: t('memberships_console.promo_dur_once', 'Once (first invoice only)') },
+    { value: 'forever',   label: t('memberships_console.promo_dur_forever', 'Forever (every invoice)') },
+    { value: 'repeating', label: t('memberships_console.promo_dur_repeating', 'Repeating (N months)') },
+  ];
   const [f, setF] = useState({
     code: '',
     name: '',
@@ -218,8 +220,8 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
   const up = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async () => {
-    if (!f.code.trim()) { notify.error('Code is required'); return; }
-    if (!f.name.trim()) { notify.error('Internal name is required'); return; }
+    if (!f.code.trim()) { notify.error(t('memberships_console.promo_err_code', 'Code is required')); return; }
+    if (!f.name.trim()) { notify.error(t('memberships_console.promo_err_name', 'Internal name is required')); return; }
 
     const payload = {
       code: f.code.trim().toUpperCase(),
@@ -230,20 +232,20 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
     if (f.discount_type === 'percent') {
       const pct = parseInt(f.percent_off, 10);
       if (!Number.isFinite(pct) || pct < 1 || pct > 100) {
-        notify.error('Percent must be 1-100'); return;
+        notify.error(t('memberships_console.promo_err_percent', 'Percent must be 1-100')); return;
       }
       payload.percent_off = pct;
     } else {
       const pounds = parseFloat(f.amount_off_pounds);
       if (!Number.isFinite(pounds) || pounds <= 0) {
-        notify.error('Enter a valid £ amount'); return;
+        notify.error(t('memberships_console.promo_err_amount', 'Enter a valid £ amount')); return;
       }
       payload.amount_off_pence = Math.round(pounds * 100);
     }
     if (f.duration === 'repeating') {
       const m = parseInt(f.duration_in_months, 10);
       if (!Number.isFinite(m) || m < 1) {
-        notify.error('Months must be at least 1'); return;
+        notify.error(t('memberships_console.promo_err_months', 'Months must be at least 1')); return;
       }
       payload.duration_in_months = m;
     }
@@ -258,10 +260,10 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
     setSaving(true);
     try {
       await axios.post(`${API}/memberships/promo-codes`, payload, { headers });
-      notify.success('Promo code created — Stripe is now enforcing it');
+      notify.success(t('memberships_console.promo_created_ok', 'Promo code created — Stripe is now enforcing it'));
       onClose(true);
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to create promo');
+      notifyApiError(notify, e, t('memberships_console.promo_create_fail', 'Failed to create promo'));
     }
     setSaving(false);
   };
@@ -291,8 +293,8 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
         data-testid="mbr-promo-editor">
         <div className="flex-shrink-0 px-5 py-4 border-b border-[color:var(--theme-border)] flex items-center justify-between bg-[color:var(--theme-surface)] dark:bg-zinc-900">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--theme-text-muted)]">Promo</p>
-            <h2 className="text-lg font-extrabold">New code</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--theme-text-muted)]">{t('memberships_console.promo_eyebrow', 'Promo')}</p>
+            <h2 className="text-lg font-extrabold">{t('memberships_console.promo_new_code', 'New code')}</h2>
           </div>
           <button
             onClick={() => onClose(false)}
@@ -304,7 +306,7 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          <Field label="Code" hint="Auto-uppercased. e.g. SUMMER25, FIRSTMONTH, LAUNCH50">
+          <Field label={t('memberships_console.promo_f_code', 'Code')} hint={t('memberships_console.promo_f_code_hint', 'Auto-uppercased. e.g. SUMMER25, FIRSTMONTH, LAUNCH50')}>
             <input value={f.code} onChange={(e) => up('code')(e.target.value.toUpperCase())}
               maxLength={32}
               placeholder="SUMMER25"
@@ -312,15 +314,15 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
               data-testid="mbr-promo-code-input" />
           </Field>
 
-          <Field label="Internal name" hint="What this campaign is for — only operators see this">
+          <Field label={t('memberships_console.promo_f_name', 'Internal name')} hint={t('memberships_console.promo_f_name_hint', 'What this campaign is for — only operators see this')}>
             <input value={f.name} onChange={(e) => up('name')(e.target.value)}
-              placeholder="Summer launch — 25% off first month"
+              placeholder={t('memberships_console.promo_f_name_ph', 'Summer launch — 25% off first month')}
               className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
               data-testid="mbr-promo-name-input" />
           </Field>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)] mb-1.5">Discount type</p>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)] mb-1.5">{t('memberships_console.promo_discount_type', 'Discount type')}</p>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => up('discount_type')('percent')}
                 className={`px-3 py-2 rounded-md text-xs font-bold border transition ${
@@ -329,7 +331,7 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
                     : 'bg-transparent border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:text-zinc-900 dark:hover:text-white'
                 }`}
                 data-testid="mbr-promo-type-percent">
-                <Percent size={11} className="inline mr-1" /> Percent off
+                <Percent size={11} className="inline mr-1" /> {t('memberships_console.promo_percent_off_btn', 'Percent off')}
               </button>
               <button onClick={() => up('discount_type')('amount')}
                 className={`px-3 py-2 rounded-md text-xs font-bold border transition ${
@@ -338,20 +340,20 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
                     : 'bg-transparent border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:text-zinc-900 dark:hover:text-white'
                 }`}
                 data-testid="mbr-promo-type-amount">
-                <PoundSterling size={11} className="inline mr-1" /> Fixed £ off
+                <PoundSterling size={11} className="inline mr-1" /> {t('memberships_console.promo_fixed_off_btn', 'Fixed £ off')}
               </button>
             </div>
           </div>
 
           {f.discount_type === 'percent' ? (
-            <Field label="Percent off (1-100)">
+            <Field label={t('memberships_console.promo_percent_field', 'Percent off (1-100)')}>
               <input value={f.percent_off} onChange={(e) => up('percent_off')(e.target.value)}
                 type="number" min="1" max="100"
                 className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
                 data-testid="mbr-promo-percent-input" />
             </Field>
           ) : (
-            <Field label="Amount off (£)">
+            <Field label={t('memberships_console.promo_amount_field', 'Amount off (£)')}>
               <input value={f.amount_off_pounds} onChange={(e) => up('amount_off_pounds')(e.target.value)}
                 type="number" min="0.01" step="0.01"
                 className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
@@ -360,7 +362,7 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Applies to" hint="How many invoices get the discount">
+            <Field label={t('memberships_console.promo_applies_to', 'Applies to')} hint={t('memberships_console.promo_applies_to_hint', 'How many invoices get the discount')}>
               <select value={f.duration} onChange={(e) => up('duration')(e.target.value)}
                 className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
                 data-testid="mbr-promo-duration">
@@ -368,7 +370,7 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
               </select>
             </Field>
             {f.duration === 'repeating' && (
-              <Field label="For how many months">
+              <Field label={t('memberships_console.promo_how_many_months', 'For how many months')}>
                 <input value={f.duration_in_months} onChange={(e) => up('duration_in_months')(e.target.value)}
                   type="number" min="1" max="24" placeholder="3"
                   className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
@@ -378,13 +380,13 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Max redemptions" hint="Leave blank for unlimited">
+            <Field label={t('memberships_console.promo_max_redemptions', 'Max redemptions')} hint={t('memberships_console.promo_max_redemptions_hint', 'Leave blank for unlimited')}>
               <input value={f.max_redemptions} onChange={(e) => up('max_redemptions')(e.target.value)}
-                type="number" min="1" placeholder="No limit"
+                type="number" min="1" placeholder={t('memberships_console.promo_no_limit', 'No limit')}
                 className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
                 data-testid="mbr-promo-max-redemptions" />
             </Field>
-            <Field label="Expires">
+            <Field label={t('memberships_console.promo_expires', 'Expires')}>
               {/* Iter 216h255 — shared DatePicker for date-field
                   consistency across the Memberships module. */}
               <DatePicker
@@ -401,18 +403,18 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
               onChange={(e) => up('first_time_only')(e.target.checked)}
               data-testid="mbr-promo-first-time-only" />
             <span>
-              <strong className="text-zinc-900 dark:text-white">First-time members only</strong>
-              <span className="text-[color:var(--theme-text-muted)] ml-1">— blocks members who already have a paid history</span>
+              <strong className="text-zinc-900 dark:text-white">{t('memberships_console.promo_first_time_label', 'First-time members only')}</strong>
+              <span className="text-[color:var(--theme-text-muted)] ml-1">{t('memberships_console.promo_first_time_note', '— blocks members who already have a paid history')}</span>
             </span>
           </label>
 
           <div>
             <p className="text-[10px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)] mb-1.5 flex items-center gap-1">
-              <ShieldCheck size={10} /> Limit to specific plans (optional)
+              <ShieldCheck size={10} /> {t('memberships_console.promo_limit_plans', 'Limit to specific plans (optional)')}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {plans.length === 0 && (
-                <span className="text-xs text-[color:var(--theme-text-muted)]">No plans yet — leave blank to apply to all.</span>
+                <span className="text-xs text-[color:var(--theme-text-muted)]">{t('memberships_console.promo_no_plans', 'No plans yet — leave blank to apply to all.')}</span>
               )}
               {plans.map((p) => {
                 const active = f.applicable_plan_ids.includes(p.id);
@@ -432,7 +434,7 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
 
           <div>
             <p className="text-[10px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)] mb-1.5 flex items-center gap-1">
-              <Sparkles size={10} /> Limit to plan types (optional)
+              <Sparkles size={10} /> {t('memberships_console.promo_limit_kinds', 'Limit to plan types (optional)')}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {KIND_OPTIONS.map((k) => {
@@ -456,13 +458,13 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
           <button onClick={() => onClose(false)}
             className="px-3 py-2 rounded-md text-sm font-bold text-[color:var(--theme-text-muted)] hover:text-zinc-900 dark:hover:text-white"
             data-testid="mbr-promo-cancel">
-            Cancel
+            {t('memberships_console.promo_cancel', 'Cancel')}
           </button>
           <button onClick={submit} disabled={saving}
             className="px-4 py-2 rounded-md text-sm font-extrabold flex items-center gap-1.5 disabled:opacity-60"
             style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
             data-testid="mbr-promo-save">
-            {saving ? <><Loader2 size={12} className="animate-spin" /> Saving…</> : <><BadgeCheck size={12} /> Create code</>}
+            {saving ? <><Loader2 size={12} className="animate-spin" /> {t('memberships_console.promo_saving', 'Saving…')}</> : <><BadgeCheck size={12} /> {t('memberships_console.promo_create_btn', 'Create code')}</>}
           </button>
         </div>
       </div>

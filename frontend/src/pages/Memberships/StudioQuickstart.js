@@ -16,6 +16,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Sparkles, Check, Copy, QrCode, ExternalLink, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { notify } from '@/components/notifications';
 import useStudioMode from './useStudioMode';
 
@@ -25,6 +26,7 @@ const DAYS = [
 ];
 
 export default function StudioQuickstart({ onComplete }) {
+  const { t } = useTranslation();
   const { runQuickstart, saving } = useStudioMode();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
@@ -51,16 +53,16 @@ export default function StudioQuickstart({ onComplete }) {
       setResult(r);
       setStep(4);
     } else {
-      notify.error('Quickstart failed', r.error || 'Please try again.');
+      notify.error(t('memberships_console.sqs_failed_title', 'Quickstart failed'), r.error || t('memberships_console.sqs_failed_msg', 'Please try again.'));
     }
   };
 
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(publicUrl);
-      notify.success('Link copied', 'Paste it in your Instagram bio, email, or socials.');
+      notify.success(t('memberships_console.sqs_copied_title', 'Link copied'), t('memberships_console.sqs_copied_msg', 'Paste it in your Instagram bio, email, or socials.'));
     } catch {
-      notify.error('Copy failed', 'Long-press the link to copy manually.');
+      notify.error(t('memberships_console.sqs_copy_failed_title', 'Copy failed'), t('memberships_console.sqs_copy_failed_msg', 'Long-press the link to copy manually.'));
     }
   };
 
@@ -79,7 +81,7 @@ export default function StudioQuickstart({ onComplete }) {
 
       <div className="rounded-2xl border border-[color:var(--theme-border)] bg-[var(--theme-surface)] p-6 sm:p-8 shadow-sm">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-[var(--color-brand-cyan-hover)] mb-1">
-          <Sparkles size={12} /> Studio Quickstart
+          <Sparkles size={12} /> {t('memberships_console.sqs_eyebrow', 'Studio Quickstart')}
         </div>
 
         {step === 0 && (
@@ -100,31 +102,32 @@ export default function StudioQuickstart({ onComplete }) {
       </div>
 
       <p className="text-center text-xs text-[color:var(--theme-text-muted)] mt-4">
-        You can tweak anything later — Plans, Classes, Timetable tabs have the full controls.
+        {t('memberships_console.sqs_footer', 'You can tweak anything later — Plans, Classes, Timetable tabs have the full controls.')}
       </p>
     </div>
   );
 }
 
 function StepBrand({ form, set, onNext }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4" data-testid="studio-step-brand">
-      <h2 className="text-2xl font-bold">What's your first class called?</h2>
+      <h2 className="text-2xl font-bold">{t('memberships_console.sqs_brand_title', "What's your first class called?")}</h2>
       <p className="text-sm text-[color:var(--theme-text-muted)]">
-        Pick one class to launch with. You can add more in the Classes tab in under a minute.
+        {t('memberships_console.sqs_brand_desc', 'Pick one class to launch with. You can add more in the Classes tab in under a minute.')}
       </p>
       <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Class name</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_class_name', 'Class name')}</span>
         <input
           className="mt-1 w-full h-12 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-4 text-base"
           value={form.class_name}
           onChange={(e) => set('class_name', e.target.value)}
-          placeholder="e.g. Sunrise Yoga"
+          placeholder={t('memberships_console.sqs_class_name_ph', 'e.g. Sunrise Yoga')}
           data-testid="studio-class-name-input"
         />
       </label>
       <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Class length</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_class_length', 'Class length')}</span>
         <div className="mt-1 flex gap-2" data-testid="studio-class-length">
           {[45, 60, 75, 90].map((m) => (
             <button
@@ -137,12 +140,12 @@ function StepBrand({ form, set, onNext }) {
                   : 'border-[color:var(--theme-border)] text-[color:var(--theme-text)]'
               }`}
               data-testid={`studio-duration-${m}`}
-            >{m} min</button>
+            >{m} {t('memberships_console.sqs_min', 'min')}</button>
           ))}
         </div>
       </label>
       <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Capacity</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_capacity', 'Capacity')}</span>
         <input
           type="number" min={1} max={200}
           className="mt-1 w-full h-12 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-4 text-base"
@@ -159,7 +162,7 @@ function StepBrand({ form, set, onNext }) {
           className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[var(--color-brand-cyan)] text-[var(--color-ink)] font-bold disabled:opacity-50"
           data-testid="studio-step-brand-next"
         >
-          Next <ArrowRight size={16} />
+          {t('memberships_console.sqs_next', 'Next')} <ArrowRight size={16} />
         </button>
       </div>
     </div>
@@ -167,17 +170,18 @@ function StepBrand({ form, set, onNext }) {
 }
 
 function StepPricing({ form, set, onBack, onNext }) {
+  const { t } = useTranslation();
   const dropIn = (form.class_price_pence / 100).toFixed(0);
   const monthly = (form.monthly_price_pence / 100).toFixed(0);
   return (
     <div className="space-y-5" data-testid="studio-step-pricing">
-      <h2 className="text-2xl font-bold">How do people pay?</h2>
+      <h2 className="text-2xl font-bold">{t('memberships_console.sqs_pricing_title', 'How do people pay?')}</h2>
       <p className="text-sm text-[color:var(--theme-text-muted)]">
-        We'll create two plans to start — a drop-in for casual bookers, and a monthly unlimited for regulars.
+        {t('memberships_console.sqs_pricing_desc', "We'll create two plans to start — a drop-in for casual bookers, and a monthly unlimited for regulars.")}
       </p>
 
       <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Drop-in price</div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_dropin_price', 'Drop-in price')}</div>
         <div className="mt-1 flex items-center gap-2">
           <span className="text-3xl font-bold">£</span>
           <input
@@ -187,12 +191,12 @@ function StepPricing({ form, set, onBack, onNext }) {
             onChange={(e) => set('class_price_pence', Math.max(0, parseInt(e.target.value || 0, 10)) * 100)}
             data-testid="studio-dropin-price"
           />
-          <span className="text-sm text-[color:var(--theme-text-muted)]">per class</span>
+          <span className="text-sm text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_per_class', 'per class')}</span>
         </div>
       </div>
 
       <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Monthly unlimited</div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_monthly_unlimited', 'Monthly unlimited')}</div>
         <div className="mt-1 flex items-center gap-2">
           <span className="text-3xl font-bold">£</span>
           <input
@@ -202,20 +206,20 @@ function StepPricing({ form, set, onBack, onNext }) {
             onChange={(e) => set('monthly_price_pence', Math.max(0, parseInt(e.target.value || 0, 10)) * 100)}
             data-testid="studio-monthly-price"
           />
-          <span className="text-sm text-[color:var(--theme-text-muted)]">/ month</span>
+          <span className="text-sm text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_per_month', '/ month')}</span>
         </div>
       </div>
 
       <div className="rounded-lg bg-[rgb(var(--rgb-brand-cyan)/0.08)] border border-[rgb(var(--rgb-brand-cyan)/0.2)] p-3 text-xs text-[color:var(--theme-text)]">
-        💡 Typical pricing: £12-20 drop-in, £55-85 monthly unlimited. You can add class packs, courses, and bundles later.
+        💡 {t('memberships_console.sqs_pricing_tip', 'Typical pricing: £12-20 drop-in, £55-85 monthly unlimited. You can add class packs, courses, and bundles later.')}
       </div>
 
       <div className="flex justify-between pt-2">
         <button type="button" onClick={onBack} className="inline-flex items-center gap-2 h-11 px-5 rounded-full border border-[color:var(--theme-border)] text-sm font-semibold" data-testid="studio-step-pricing-back">
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> {t('memberships_console.sqs_back', 'Back')}
         </button>
         <button type="button" onClick={onNext} className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[var(--color-brand-cyan)] text-[var(--color-ink)] font-bold" data-testid="studio-step-pricing-next">
-          Next <ArrowRight size={16} />
+          {t('memberships_console.sqs_next', 'Next')} <ArrowRight size={16} />
         </button>
       </div>
     </div>
@@ -223,15 +227,16 @@ function StepPricing({ form, set, onBack, onNext }) {
 }
 
 function StepSchedule({ form, set, onBack, onNext }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5" data-testid="studio-step-schedule">
-      <h2 className="text-2xl font-bold">When does your first class run?</h2>
+      <h2 className="text-2xl font-bold">{t('memberships_console.sqs_schedule_title', 'When does your first class run?')}</h2>
       <p className="text-sm text-[color:var(--theme-text-muted)]">
-        We'll auto-schedule the next 8 weeks for you — edit or extend any time from the Timetable tab.
+        {t('memberships_console.sqs_schedule_desc', "We'll auto-schedule the next 8 weeks for you — edit or extend any time from the Timetable tab.")}
       </p>
 
       <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">Day of the week</div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">{t('memberships_console.sqs_day_of_week', 'Day of the week')}</div>
         <div className="grid grid-cols-7 gap-1" data-testid="studio-weekly-day">
           {DAYS.map((d) => (
             <button
@@ -243,13 +248,13 @@ function StepSchedule({ form, set, onBack, onNext }) {
                   : 'border-[color:var(--theme-border)] text-[color:var(--theme-text)]'
               }`}
               data-testid={`studio-day-${d.id}`}
-            >{d.label}</button>
+            >{t(`memberships_console.sqs_day_${d.id}`, d.label)}</button>
           ))}
         </div>
       </div>
 
       <label className="block">
-        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Start time</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_start_time', 'Start time')}</span>
         <input
           type="time"
           className="mt-1 w-full h-12 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-4 text-base"
@@ -261,10 +266,10 @@ function StepSchedule({ form, set, onBack, onNext }) {
 
       <div className="flex justify-between pt-2">
         <button type="button" onClick={onBack} className="inline-flex items-center gap-2 h-11 px-5 rounded-full border border-[color:var(--theme-border)] text-sm font-semibold" data-testid="studio-step-schedule-back">
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> {t('memberships_console.sqs_back', 'Back')}
         </button>
         <button type="button" onClick={onNext} className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[var(--color-brand-cyan)] text-[var(--color-ink)] font-bold" data-testid="studio-step-schedule-next">
-          Next <ArrowRight size={16} />
+          {t('memberships_console.sqs_next', 'Next')} <ArrowRight size={16} />
         </button>
       </div>
     </div>
@@ -272,29 +277,30 @@ function StepSchedule({ form, set, onBack, onNext }) {
 }
 
 function StepReview({ form, onBack, onSubmit, saving }) {
-  const dayLabel = DAYS.find((d) => d.id === form.weekly_day)?.label;
+  const { t } = useTranslation();
+  const dayLabel = t(`memberships_console.sqs_day_${form.weekly_day}`, DAYS.find((d) => d.id === form.weekly_day)?.label);
   return (
     <div className="space-y-5" data-testid="studio-step-review">
-      <h2 className="text-2xl font-bold">All set. Ready to launch?</h2>
+      <h2 className="text-2xl font-bold">{t('memberships_console.sqs_review_title', 'All set. Ready to launch?')}</h2>
       <p className="text-sm text-[color:var(--theme-text-muted)]">
-        We'll create everything below in one go. Nothing is permanent — edit or delete any time.
+        {t('memberships_console.sqs_review_desc', "We'll create everything below in one go. Nothing is permanent — edit or delete any time.")}
       </p>
       <dl className="space-y-2 rounded-lg border border-[color:var(--theme-border)] bg-white/[0.04] p-4 text-sm">
-        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Class</dt><dd className="font-semibold">{form.class_name} · {form.duration_minutes} min · cap {form.class_capacity}</dd></div>
-        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Drop-in</dt><dd className="font-semibold">£{(form.class_price_pence / 100).toFixed(0)}</dd></div>
-        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Monthly unlimited</dt><dd className="font-semibold">£{(form.monthly_price_pence / 100).toFixed(0)} / mo</dd></div>
-        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Schedule</dt><dd className="font-semibold">Every {dayLabel} · {form.weekly_start_time} · next 8 weeks</dd></div>
+        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_rev_class', 'Class')}</dt><dd className="font-semibold">{form.class_name} · {form.duration_minutes} {t('memberships_console.sqs_min', 'min')} · {t('memberships_console.sqs_cap', 'cap')} {form.class_capacity}</dd></div>
+        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_rev_dropin', 'Drop-in')}</dt><dd className="font-semibold">£{(form.class_price_pence / 100).toFixed(0)}</dd></div>
+        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_monthly_unlimited', 'Monthly unlimited')}</dt><dd className="font-semibold">£{(form.monthly_price_pence / 100).toFixed(0)} {t('memberships_console.sqs_per_mo', '/ mo')}</dd></div>
+        <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">{t('memberships_console.sqs_rev_schedule', 'Schedule')}</dt><dd className="font-semibold">{t('memberships_console.sqs_every', 'Every')} {dayLabel} · {form.weekly_start_time} · {t('memberships_console.sqs_next_8_weeks', 'next 8 weeks')}</dd></div>
       </dl>
       <div className="flex justify-between pt-2">
         <button type="button" onClick={onBack} className="inline-flex items-center gap-2 h-11 px-5 rounded-full border border-[color:var(--theme-border)] text-sm font-semibold" data-testid="studio-step-review-back">
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> {t('memberships_console.sqs_back', 'Back')}
         </button>
         <button
           type="button" onClick={onSubmit} disabled={saving}
           className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[var(--color-brand-cyan)] text-[var(--color-ink)] font-bold disabled:opacity-50"
           data-testid="studio-step-review-submit"
         >
-          {saving ? <><Loader2 size={16} className="animate-spin" /> Launching…</> : <>Launch studio <Sparkles size={16} /></>}
+          {saving ? <><Loader2 size={16} className="animate-spin" /> {t('memberships_console.sqs_launching', 'Launching…')}</> : <>{t('memberships_console.sqs_launch', 'Launch studio')} <Sparkles size={16} /></>}
         </button>
       </div>
     </div>
@@ -302,6 +308,7 @@ function StepReview({ form, onBack, onSubmit, saving }) {
 }
 
 function StepDone({ result, publicUrl, onCopy, onDone }) {
+  const { t } = useTranslation();
   const qrUrl = publicUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(publicUrl)}`
     : '';
@@ -310,10 +317,9 @@ function StepDone({ result, publicUrl, onCopy, onDone }) {
       <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
         <Check size={28} className="text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h2 className="text-2xl font-bold">You're live!</h2>
+      <h2 className="text-2xl font-bold">{t('memberships_console.sqs_done_title', "You're live!")}</h2>
       <p className="text-sm text-[color:var(--theme-text-muted)]">
-        {result.created.occurrences} classes scheduled, {result.created.plans.length} plans live.
-        Share this link anywhere to start taking bookings.
+        {t('memberships_console.sqs_done_desc', '{{classes}} classes scheduled, {{plans}} plans live. Share this link anywhere to start taking bookings.', { classes: result.created.occurrences, plans: result.created.plans.length })}
       </p>
       <div className="flex justify-center" data-testid="studio-qr">
         {qrUrl && <img src={qrUrl} alt="Booking QR code" width={180} height={180} className="rounded-lg border border-[color:var(--theme-border)]" />}
@@ -325,7 +331,7 @@ function StepDone({ result, publicUrl, onCopy, onDone }) {
           data-testid="studio-public-url"
         />
         <button type="button" onClick={onCopy} className="inline-flex items-center gap-1 h-9 px-3 rounded-full bg-[var(--color-brand-cyan)] text-[var(--color-ink)] text-xs font-bold" data-testid="studio-copy-url">
-          <Copy size={12} /> Copy
+          <Copy size={12} /> {t('memberships_console.sqs_copy', 'Copy')}
         </button>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 pt-2">
@@ -334,13 +340,13 @@ function StepDone({ result, publicUrl, onCopy, onDone }) {
           className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-full border border-[color:var(--theme-border)] text-sm font-semibold"
           data-testid="studio-view-page"
         >
-          <ExternalLink size={14} /> View booking page
+          <ExternalLink size={14} /> {t('memberships_console.sqs_view_page', 'View booking page')}
         </a>
         <button type="button" onClick={onDone}
           className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-full bg-[var(--color-brand-cyan)] text-[var(--color-ink)] font-bold"
           data-testid="studio-done"
         >
-          <QrCode size={14} /> Go to dashboard
+          <QrCode size={14} /> {t('memberships_console.sqs_go_dashboard', 'Go to dashboard')}
         </button>
       </div>
     </div>

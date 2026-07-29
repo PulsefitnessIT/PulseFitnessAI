@@ -10,6 +10,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { FileText, Mail, Eye, CheckCircle2, Clock, XCircle, Send, RefreshCcw, Users, Calendar, Receipt, Link as LinkIcon, Zap } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -45,6 +46,7 @@ function Money({ pence }) {
 }
 
 export default function InvoicingTab({ API, headers }) {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState(currentPeriod());
   const [attendedOnly, setAttendedOnly] = useState(false);
   const [includeSmoothed, setIncludeSmoothed] = useState(true);
@@ -97,9 +99,9 @@ export default function InvoicingTab({ API, headers }) {
       const pct = Math.max(0, Math.min(50, Math.round(Number(siblingPct) || 0)));
       await axios.post(`${API}/memberships/billing/sibling-discount`, { pct }, { headers });
       setSiblingPct(pct);
-      notify.success(pct === 0 ? 'Sibling discount disabled' : `Sibling discount set to ${pct}%`);
+      notify.success(pct === 0 ? t('memberships_console.inv_sibling_disabled', 'Sibling discount disabled') : t('memberships_console.inv_sibling_set', 'Sibling discount set to {{pct}}%', { pct }));
     } catch (e) {
-      notifyApiError(notify, e, 'Could not save sibling discount');
+      notifyApiError(notify, e, t('memberships_console.inv_sibling_save_fail', 'Could not save sibling discount'));
     } finally {
       setSiblingSaving(false);
     }
@@ -118,7 +120,7 @@ export default function InvoicingTab({ API, headers }) {
       const { data } = await axios.post(`${API}/memberships/billing/monthly-invoice/preview`, payload, { headers });
       setPreview(data);
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to run preview');
+      notifyApiError(notify, e, t('memberships_console.inv_preview_fail', 'Failed to run preview'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +144,7 @@ export default function InvoicingTab({ API, headers }) {
 
   const generate = async () => {
     if (!preview || !preview.invoices?.length) {
-      notify.info('Nothing to invoice for this period');
+      notify.info(t('memberships_console.inv_nothing', 'Nothing to invoice for this period'));
       return;
     }
     setGenerating(true);
@@ -157,12 +159,12 @@ export default function InvoicingTab({ API, headers }) {
       const { data } = await axios.post(`${API}/memberships/billing/monthly-invoice/generate`, payload, { headers });
       const em = data.email || {};
       const emailBit = sendEmail
-        ? ` · ${em.sent} emailed, ${em.skipped_no_email} without email, ${em.failed} failed`
+        ? ` · ${t('memberships_console.inv_email_bit', '{{sent}} emailed, {{skipped}} without email, {{failed}} failed', { sent: em.sent, skipped: em.skipped_no_email, failed: em.failed })}`
         : '';
-      notify.success(`Generated ${data.generated_count} invoice${data.generated_count === 1 ? '' : 's'}${emailBit}`);
+      notify.success(t('memberships_console.inv_generated_ok', 'Generated {{count}} invoice(s)', { count: data.generated_count }) + emailBit);
       await loadInvoices();
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to generate invoices');
+      notifyApiError(notify, e, t('memberships_console.inv_generate_fail', 'Failed to generate invoices'));
     } finally {
       setGenerating(false);
     }
@@ -171,10 +173,10 @@ export default function InvoicingTab({ API, headers }) {
   const sendOne = async (inv) => {
     try {
       await axios.post(`${API}/memberships/billing/invoices/${inv.id}/send`, {}, { headers });
-      notify.success(`Sent to ${inv.member_email}`);
+      notify.success(t('memberships_console.inv_sent_to', 'Sent to {{email}}', { email: inv.member_email }));
       await loadInvoices();
     } catch (e) {
-      notifyApiError(notify, e, 'Send failed');
+      notifyApiError(notify, e, t('memberships_console.inv_send_fail', 'Send failed'));
     }
   };
 
@@ -182,9 +184,9 @@ export default function InvoicingTab({ API, headers }) {
     try {
       const { data } = await axios.post(`${API}/memberships/billing/invoices/${inv.id}/checkout`, {}, { headers });
       try { await navigator.clipboard.writeText(data.checkout_url); } catch { /* fall through */ }
-      notify.success('Pay link copied to clipboard');
+      notify.success(t('memberships_console.inv_paylink_copied', 'Pay link copied to clipboard'));
     } catch (e) {
-      notifyApiError(notify, e, 'Could not create pay link');
+      notifyApiError(notify, e, t('memberships_console.inv_paylink_fail', 'Could not create pay link'));
     }
   };
 
@@ -193,7 +195,7 @@ export default function InvoicingTab({ API, headers }) {
       await axios.patch(`${API}/memberships/billing/invoices/${inv.id}/status`, { status }, { headers });
       await loadInvoices();
     } catch (e) {
-      notifyApiError(notify, e, 'Status update failed');
+      notifyApiError(notify, e, t('memberships_console.inv_status_fail', 'Status update failed'));
     }
   };
 
@@ -222,11 +224,10 @@ export default function InvoicingTab({ API, headers }) {
         >
           <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
           <div className="text-sm text-emerald-900">
-            <span className="font-bold">Payouts go straight to your Stripe account.</span>{' '}
-            Member card payments are deposited into your connected Stripe account
+            <span className="font-bold">{t('memberships_console.inv_payouts_title', 'Payouts go straight to your Stripe account.')}</span>{' '}
             {typeof connectStatus.platform_fee_percent === 'number'
-              ? ` minus a ${connectStatus.platform_fee_percent}% platform fee`
-              : ''}, and paid out by Stripe on your schedule.
+              ? t('memberships_console.inv_payouts_desc_fee', 'Member card payments are deposited into your connected Stripe account minus a {{fee}}% platform fee, and paid out by Stripe on your schedule.', { fee: connectStatus.platform_fee_percent })
+              : t('memberships_console.inv_payouts_desc', 'Member card payments are deposited into your connected Stripe account, and paid out by Stripe on your schedule.')}
           </div>
         </div>
       )}
@@ -234,7 +235,7 @@ export default function InvoicingTab({ API, headers }) {
       {/* Controls */}
       <div className="rounded-xl border border-[color:var(--theme-border)] p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <label className="block">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Period</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.inv_period', 'Period')}</span>
           <select value={period} onChange={(e) => setPeriod(e.target.value)}
             className="mt-1 w-full rounded-lg border border-[color:var(--theme-border)] bg-transparent px-2 py-2 text-sm"
             data-testid="mbr-invoicing-period">
@@ -242,21 +243,21 @@ export default function InvoicingTab({ API, headers }) {
           </select>
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Default £/class (blank = auto)</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{t('memberships_console.inv_default_rate', 'Default £/class (blank = auto)')}</span>
           <input type="number" step="0.01" value={defaultRate} onChange={(e) => setDefaultRate(e.target.value)}
             className="mt-1 w-full rounded-lg border border-[color:var(--theme-border)] bg-transparent px-2 py-2 text-sm"
-            placeholder="Auto — lowest PAYG plan"
+            placeholder={t('memberships_console.inv_default_rate_ph', 'Auto — lowest PAYG plan')}
             data-testid="mbr-invoicing-rate" />
         </label>
         <label className="flex items-center gap-2 mt-5 text-sm">
           <input type="checkbox" checked={attendedOnly} onChange={(e) => setAttendedOnly(e.target.checked)}
             data-testid="mbr-invoicing-attended-only" />
-          <span className="text-[color:var(--theme-text-muted)]">Attended classes only</span>
+          <span className="text-[color:var(--theme-text-muted)]">{t('memberships_console.inv_attended_only', 'Attended classes only')}</span>
         </label>
         <label className="flex items-center gap-2 mt-5 text-sm">
           <input type="checkbox" checked={includeSmoothed} onChange={(e) => setIncludeSmoothed(e.target.checked)}
             data-testid="mbr-invoicing-smoothed" />
-          <span className="text-[color:var(--theme-text-muted)]">Include pro-rata plan installments</span>
+          <span className="text-[color:var(--theme-text-muted)]">{t('memberships_console.inv_include_smoothed', 'Include pro-rata plan installments')}</span>
         </label>
       </div>
 
@@ -268,31 +269,31 @@ export default function InvoicingTab({ API, headers }) {
           onClick={runPreview} disabled={loading}
           data-testid="mbr-invoicing-refresh"
         >
-          {loading ? 'Loading…' : 'Refresh preview'}
+          {loading ? t('memberships_console.inv_loading', 'Loading…') : t('memberships_console.inv_refresh_preview', 'Refresh preview')}
         </Button>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)}
             data-testid="mbr-invoicing-send-email" />
-          <span>Email invoices to members after generating</span>
+          <span>{t('memberships_console.inv_email_after', 'Email invoices to members after generating')}</span>
         </label>
         {/* Iter 215z — Sibling discount setting */}
         <div className="flex items-center gap-2 text-sm sm:ml-2 sm:pl-3 sm:border-l border-[color:var(--theme-border)] flex-wrap"
           data-testid="mbr-invoicing-sibling-discount">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">
-            Sibling discount
+            {t('memberships_console.inv_sibling_discount', 'Sibling discount')}
           </span>
           <input type="number" min="0" max="50" step="1" value={siblingPct}
             onChange={(e) => setSiblingPct(e.target.value)}
             className="w-16 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-2 py-1 text-sm text-right"
             data-testid="mbr-invoicing-sibling-input"
-            title="Percent off each sibling beyond the 1st child in a family's monthly invoice" />
+            title={t('memberships_console.inv_sibling_title', "Percent off each sibling beyond the 1st child in a family's monthly invoice")} />
           <span className="text-xs text-[color:var(--theme-text-muted)]">%</span>
           <Button
             variant="secondary" size="sm"
             onClick={saveSibling} disabled={siblingSaving}
             data-testid="mbr-invoicing-sibling-save"
           >
-            {siblingSaving ? 'Saving…' : 'Save'}
+            {siblingSaving ? t('memberships_console.inv_saving', 'Saving…') : t('memberships_console.inv_save', 'Save')}
           </Button>
         </div>
         <div className="ml-auto">
@@ -302,7 +303,7 @@ export default function InvoicingTab({ API, headers }) {
             onClick={generate} disabled={generating || !preview?.invoices?.length}
             data-testid="mbr-invoicing-generate"
           >
-            {generating ? 'Generating…' : `Generate invoice${preview?.invoices?.length === 1 ? '' : 's'}`}
+            {generating ? t('memberships_console.inv_generating', 'Generating…') : t('memberships_console.inv_generate', 'Generate invoices')}
           </Button>
         </div>
       </div>
@@ -311,27 +312,27 @@ export default function InvoicingTab({ API, headers }) {
       {preview && (
         <div className="mt-4 rounded-xl border border-[color:var(--theme-border)] overflow-hidden" data-testid="mbr-invoicing-preview">
           <div className="flex items-center gap-4 p-3 text-xs font-bold text-[color:var(--theme-text-muted)] bg-[rgb(var(--rgb-brand-cyan)/0.06)]">
-            <div className="flex items-center gap-1.5"><Users size={12} />{preview.member_count} member{preview.member_count === 1 ? '' : 's'}</div>
+            <div className="flex items-center gap-1.5"><Users size={12} />{t('memberships_console.inv_member_count', '{{count}} members', { count: preview.member_count })}</div>
             <div className="flex items-center gap-1.5"><Calendar size={12} />{formatPeriodLabel(preview.period)}</div>
             <div className="ml-auto flex items-center gap-1.5 text-[color:var(--color-brand-cyan)]">
-              <FileText size={12} />Total: <Money pence={preview.total_pence} />
+              <FileText size={12} />{t('memberships_console.inv_total', 'Total:')} <Money pence={preview.total_pence} />
             </div>
           </div>
           {preview.invoices?.length === 0 ? (
             <div className="p-8 text-center text-sm text-[color:var(--theme-text-muted)]">
-              No members have bookable activity in {formatPeriodLabel(preview.period)} yet.
+              {t('memberships_console.inv_no_activity', 'No members have bookable activity in {{period}} yet.', { period: formatPeriodLabel(preview.period) })}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[680px]">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] border-b border-[color:var(--theme-border)]">
-                    <th className="px-3 py-2 text-left">Member</th>
-                    <th className="px-3 py-2 text-left">Email</th>
-                    <th className="px-3 py-2 text-right">Classes</th>
-                    <th className="px-3 py-2 text-right">Subtotal</th>
-                    <th className="px-3 py-2 text-right">Smoothed</th>
-                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-left">{t('memberships_console.inv_col_member', 'Member')}</th>
+                    <th className="px-3 py-2 text-left">{t('memberships_console.inv_col_email', 'Email')}</th>
+                    <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_classes', 'Classes')}</th>
+                    <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_subtotal', 'Subtotal')}</th>
+                    <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_smoothed', 'Smoothed')}</th>
+                    <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_total', 'Total')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -343,10 +344,10 @@ export default function InvoicingTab({ API, headers }) {
                           <div className="flex items-center gap-1.5">
                             <span>{row.member_name}</span>
                             {autoPayMembers.has(row.member_id) && (
-                              <span title="Auto-Bill enabled — will charge on the 1st"
+                              <span title={t('memberships_console.inv_autopay_title', 'Auto-Bill enabled — will charge on the 1st')}
                                 className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300"
                                 data-testid={`mbr-invoicing-autopay-${row.member_id}`}>
-                                <Zap size={9} />Auto
+                                <Zap size={9} />{t('memberships_console.inv_auto', 'Auto')}
                               </span>
                             )}
                           </div>
@@ -379,24 +380,24 @@ export default function InvoicingTab({ API, headers }) {
       {/* Generated invoices */}
       <div className="mt-10 flex items-end justify-between gap-4">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--theme-text-muted)]">History</div>
-          <h3 className="mt-1 text-xl font-black tracking-tight">Generated invoices</h3>
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--theme-text-muted)]">{t('memberships_console.inv_history', 'History')}</div>
+          <h3 className="mt-1 text-xl font-black tracking-tight">{t('memberships_console.inv_generated_invoices', 'Generated invoices')}</h3>
         </div>
         <button onClick={loadInvoices}
           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border border-[color:var(--theme-border)]"
           data-testid="mbr-invoicing-history-refresh">
-          <RefreshCcw size={12} /> Refresh
+          <RefreshCcw size={12} /> {t('memberships_console.inv_refresh', 'Refresh')}
         </button>
       </div>
       <div className="mt-3 rounded-xl border border-[color:var(--theme-border)] overflow-hidden" data-testid="mbr-invoicing-history">
         {invoicesLoading ? (
-          <div className="p-8 text-center text-sm text-[color:var(--theme-text-muted)]">Loading…</div>
+          <div className="p-8 text-center text-sm text-[color:var(--theme-text-muted)]">{t('memberships_console.inv_loading', 'Loading…')}</div>
         ) : invoices.length === 0 ? (
           <div className="p-2">
             <EmptyState
               icon={Receipt}
-              title="No invoices generated yet"
-              hint="Pick a period above and click Preview to see what each member owes for the classes they booked or attended. Generate in one click — emails optional."
+              title={t('memberships_console.inv_empty_title', 'No invoices generated yet')}
+              hint={t('memberships_console.inv_empty_hint', 'Pick a period above and click Preview to see what each member owes for the classes they booked or attended. Generate in one click — emails optional.')}
               testId="mbr-invoicing-empty"
             />
           </div>
@@ -405,12 +406,12 @@ export default function InvoicingTab({ API, headers }) {
             <table className="w-full text-sm min-w-[720px]">
               <thead>
               <tr className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] border-b border-[color:var(--theme-border)]">
-                <th className="px-3 py-2 text-left">Period</th>
-                <th className="px-3 py-2 text-left">Member</th>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-right">Lines</th>
-                <th className="px-3 py-2 text-right">Total</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-left">{t('memberships_console.inv_period', 'Period')}</th>
+                <th className="px-3 py-2 text-left">{t('memberships_console.inv_col_member', 'Member')}</th>
+                <th className="px-3 py-2 text-left">{t('memberships_console.inv_col_status', 'Status')}</th>
+                <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_lines', 'Lines')}</th>
+                <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_total', 'Total')}</th>
+                <th className="px-3 py-2 text-right">{t('memberships_console.inv_col_actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -426,10 +427,10 @@ export default function InvoicingTab({ API, headers }) {
                         <div className="flex items-center gap-1.5">
                           <div className="font-semibold">{inv.member_name}</div>
                           {autoPayMembers.has(inv.member_id) && (
-                            <span title="Auto-Bill enabled — will charge on the 1st"
+                            <span title={t('memberships_console.inv_autopay_title', 'Auto-Bill enabled — will charge on the 1st')}
                               className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300"
                               data-testid={`mbr-invoicing-history-autopay-${inv.id}`}>
-                              <Zap size={9} />Auto
+                              <Zap size={9} />{t('memberships_console.inv_auto', 'Auto')}
                             </span>
                           )}
                         </div>
@@ -437,7 +438,7 @@ export default function InvoicingTab({ API, headers }) {
                       </td>
                       <td className="px-3 py-2">
                         <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_STYLES[inv.status] || 'bg-zinc-500/15'}`}>
-                          <Icon size={10} />{inv.status}
+                          <Icon size={10} />{t(`memberships_console.inv_status_${inv.status}`, inv.status)}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{inv.lines?.length || 0}</td>
@@ -446,14 +447,14 @@ export default function InvoicingTab({ API, headers }) {
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => setExpandedId(expanded ? null : inv.id)}
                             className="p-1.5 rounded hover:bg-white/10 text-[color:var(--theme-text-muted)]"
-                            title={expanded ? 'Hide' : 'View lines'}
+                            title={expanded ? t('memberships_console.inv_hide', 'Hide') : t('memberships_console.inv_view_lines', 'View lines')}
                             data-testid={`mbr-invoicing-view-${inv.id}`}>
                             <Eye size={12} />
                           </button>
                           {inv.status === 'draft' && inv.member_email && (
                             <button onClick={() => sendOne(inv)}
                               className="p-1.5 rounded hover:bg-white/10 text-[color:var(--color-brand-cyan)]"
-                              title="Send by email"
+                              title={t('memberships_console.inv_send_email', 'Send by email')}
                               data-testid={`mbr-invoicing-send-${inv.id}`}>
                               <Mail size={12} />
                             </button>
@@ -461,7 +462,7 @@ export default function InvoicingTab({ API, headers }) {
                           {inv.status !== 'paid' && inv.status !== 'void' && (
                             <button onClick={() => copyPayLink(inv)}
                               className="p-1.5 rounded hover:bg-white/10 text-emerald-300"
-                              title="Copy Stripe pay-link"
+                              title={t('memberships_console.inv_copy_paylink', 'Copy Stripe pay-link')}
                               data-testid={`mbr-invoicing-paylink-${inv.id}`}>
                               <LinkIcon size={12} />
                             </button>
@@ -470,14 +471,14 @@ export default function InvoicingTab({ API, headers }) {
                             <button onClick={() => setStatus(inv, 'paid')}
                               className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
                               data-testid={`mbr-invoicing-mark-paid-${inv.id}`}>
-                              Mark paid
+                              {t('memberships_console.inv_mark_paid', 'Mark paid')}
                             </button>
                           )}
                           {inv.status !== 'paid' && inv.status !== 'void' && (
                             <button onClick={() => setStatus(inv, 'void')}
                               className="px-2 py-1 rounded text-[10px] font-bold bg-red-500/10 text-red-300 hover:bg-red-500/20"
                               data-testid={`mbr-invoicing-void-${inv.id}`}>
-                              Void
+                              {t('memberships_console.inv_void', 'Void')}
                             </button>
                           )}
                         </div>
@@ -486,7 +487,7 @@ export default function InvoicingTab({ API, headers }) {
                     {expanded && (
                       <tr>
                         <td colSpan={6} className="bg-[rgb(var(--rgb-brand-cyan)/0.03)] px-6 py-3">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">Line items</div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">{t('memberships_console.inv_line_items', 'Line items')}</div>
                           {(inv.attendees && inv.attendees.filter((a) => a.attendee_kind !== 'smoothed').length > 1) ? (
                             (() => {
                               const groups = {};

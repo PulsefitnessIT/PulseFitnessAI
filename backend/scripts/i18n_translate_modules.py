@@ -188,6 +188,28 @@ async def main():
         "service.nav_insights_group": "Insights", "service.nav_options": "Options",
     }
     pairs.update(service_nav)
+    # Invoice status chips rendered via t(`memberships_console.inv_status_${status}`, status).
+    pairs.update({
+        "memberships_console.inv_status_draft": "draft",
+        "memberships_console.inv_status_sent": "sent",
+        "memberships_console.inv_status_paid": "paid",
+        "memberships_console.inv_status_void": "void",
+    })
+    # Events: kind labels + costume statuses (rendered via template-literal keys).
+    pairs.update({
+        "memberships_console.evt_kind_recital": "Recital",
+        "memberships_console.evt_kind_showcase": "Showcase",
+        "memberships_console.evt_kind_competition": "Competition",
+        "memberships_console.evt_kind_workshop": "Workshop",
+        "memberships_console.evt_kind_camp": "Camp",
+        "memberships_console.evt_kind_other": "Event",
+        "memberships_console.evt_costume_needed": "needed",
+        "memberships_console.evt_costume_ordered": "ordered",
+        "memberships_console.evt_costume_arrived": "arrived",
+        "memberships_console.evt_costume_fitted": "fitted",
+        "memberships_console.evt_costume_paid": "paid",
+        "memberships_console.evt_costume_refunded": "refunded",
+    })
     print(f"Extracted {len(pairs)} t() keys in namespaces {NAMESPACES} (incl. {len(service_nav)} service_nav)")
     en, fr, de = load("en.json"), load("fr.json"), load("de.json")
 

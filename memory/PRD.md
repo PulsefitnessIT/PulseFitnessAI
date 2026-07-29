@@ -1,4 +1,21 @@
-# ═══ 2026-07-29 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS + SERVICE DESK shells (BATCH 1, VERIFIED DE live) ═══
+# ═══ 2026-07-29 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS DEEP FILES (BATCH 2, VERIFIED DE live) ═══
+Continuation of the FR/DE rollout. Fully localized 5 high-visibility Memberships files (FR+DE, compile clean,
+Promotions tab verified live in German):
+  - StudioQuickstart.js (onboarding wizard, prefix sqs_), MembershipsStartTab.js (setup checklist + logo modal,
+    prefix start_), PromotionsTab.js (promo codes + editor, prefix promo_), InvoicingTab.js (monthly invoicing,
+    prefix inv_), EventsTab.js (events/rehearsals/costumes/AI comms, prefix evt_).
+Pipeline (backend/scripts/i18n_translate_modules.py) extended with explicit dicts for template-literal enum keys
+(inv_status_*, evt_kind_*, evt_costume_*). memberships_console namespace now ~330 keys across en/fr/de.
+PIPELINE RULE learned: never put embedded double-quotes in t() default strings — the Claude translator emits them
+unescaped and the DE JSON parse fails. Removed inner quotes from 2 source placeholders to fix.
+REMAINING Memberships (next batch): AnalyticsTab, MobileAppBuilderTab, StudioBuilderTab, MemberPortal,
+CheckinTab, FamilyBillingTab, CRMLoopTab, InstructorsTab, and the deep inline parts of MembershipsConsole
+(PlansInnerView, ClassesTab, SchedulingHubTab, RecordPaymentModal, AdsTab). Then the Marketing module (mkt ns).
+Full checklist: /app/memory/i18n_ops_progress.md.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 User: continue FR/DE rollout across Memberships, Marketing, ServiceOps (SKIP MOD Portal — UK-only). Scope = wrap
 strings in t('ns.key','English'), LLM-translate FR+DE via pipeline, verify render. This is multi-batch (these 3
 modules are ~50k+ lines, mostly unlocalized).

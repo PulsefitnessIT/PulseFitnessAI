@@ -10,6 +10,7 @@
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   CheckCircle2, Circle, ArrowRight, EyeOff, Sparkles, Loader2, Zap, Upload, X,
 } from 'lucide-react';
@@ -46,6 +47,7 @@ export function useOnboardingChecklist() {
 /** Single checklist row. Pulled out so the parent stays focused on
  * orchestration (load + dismiss + render the panel). */
 function ChecklistStep({ step, index, onAdvance }) {
+  const { t } = useTranslation();
   return (
     <li
       className="rounded-xl p-4 border transition-colors flex items-start gap-3"
@@ -64,11 +66,11 @@ function ChecklistStep({ step, index, onAdvance }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">
-            Step {index + 1}
+            {t('memberships_console.start_step', 'Step')} {index + 1}
           </span>
           {step.done && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
-              Done{step.count ? ` · ${step.count}` : ''}
+              {t('memberships_console.start_done', 'Done')}{step.count ? ` · ${step.count}` : ''}
             </span>
           )}
         </div>
@@ -90,6 +92,7 @@ function ChecklistStep({ step, index, onAdvance }) {
 }
 
 export default function MembershipsStartTab({ setTab }) {
+  const { t } = useTranslation();
   const { data, loading, reload } = useOnboardingChecklist();
   const [dismissing, setDismissing] = useState(false);
   // Iter 216h249 — inline logo upload modal so the "Add your studio logo"
@@ -104,28 +107,28 @@ export default function MembershipsStartTab({ setTab }) {
   if (loading) {
     return (
       <div className="flex items-center gap-2 p-10 text-sm text-[color:var(--theme-text-muted)]" data-testid="mbr-start-loading">
-        <Loader2 size={14} className="animate-spin" /> Checking your setup…
+        <Loader2 size={14} className="animate-spin" /> {t('memberships_console.start_checking', 'Checking your setup…')}
       </div>
     );
   }
   if (!data) {
     return (
       <div className="p-10 text-sm text-[color:var(--theme-text-muted)]" data-testid="mbr-start-empty">
-        Couldn't load your onboarding checklist. <button onClick={reload} className="underline">Retry</button>
+        {t('memberships_console.start_load_error', "Couldn't load your onboarding checklist.")} <button onClick={reload} className="underline">{t('memberships_console.start_retry', 'Retry')}</button>
       </div>
     );
   }
 
   const dismiss = async () => {
-    if (!window.confirm('Hide this checklist? You can still complete the remaining steps from each tab.')) return;
+    if (!window.confirm(t('memberships_console.start_dismiss_confirm', 'Hide this checklist? You can still complete the remaining steps from each tab.'))) return;
     setDismissing(true);
     try {
       await axios.post(`${API}/memberships/studio/onboarding/dismiss`, {}, { headers: authHeaders() });
-      notify.success('Checklist hidden. Welcome aboard.');
+      notify.success(t('memberships_console.start_dismissed_ok', 'Checklist hidden. Welcome aboard.'));
       await reload();
       window.dispatchEvent(new CustomEvent('memberships-start-dismissed'));
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to dismiss');
+      notifyApiError(notify, e, t('memberships_console.start_dismiss_fail', 'Failed to dismiss'));
     }
     setDismissing(false);
   };
@@ -137,22 +140,22 @@ export default function MembershipsStartTab({ setTab }) {
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)] flex items-center gap-1">
-            <Sparkles size={11} /> Studio quickstart
+            <Sparkles size={11} /> {t('memberships_console.start_eyebrow', 'Studio quickstart')}
           </p>
           <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mt-1" style={{ color: 'var(--theme-text)' }}>
-            {allComplete ? "You're fully set up" : "Let's get your studio live"}
+            {allComplete ? t('memberships_console.start_title_done', "You're fully set up") : t('memberships_console.start_title', "Let's get your studio live")}
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
             {allComplete
-              ? 'Every setup step is complete. This panel will disappear on your next visit.'
-              : `${completed} of ${total} complete — tackle them in any order, each takes under 2 minutes.`}
+              ? t('memberships_console.start_subtitle_done', 'Every setup step is complete. This panel will disappear on your next visit.')
+              : t('memberships_console.start_subtitle', '{{completed}} of {{total}} complete — tackle them in any order, each takes under 2 minutes.', { completed, total })}
           </p>
         </div>
         <button onClick={dismiss} disabled={dismissing}
           className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-[color:var(--theme-border)] hover:bg-white/5"
           data-testid="mbr-start-dismiss">
           {dismissing ? <Loader2 size={12} className="animate-spin" /> : <EyeOff size={12} />}
-          Hide this
+          {t('memberships_console.start_hide', 'Hide this')}
         </button>
       </div>
 
@@ -171,9 +174,9 @@ export default function MembershipsStartTab({ setTab }) {
           style={{ background: 'var(--theme-surface)', borderColor: 'rgba(16,185,129,0.3)' }}
           data-testid="mbr-start-all-done">
           <Zap size={20} className="mx-auto text-emerald-400 mb-2" />
-          <p className="font-extrabold">All set. The Start tab auto-hides on next load.</p>
+          <p className="font-extrabold">{t('memberships_console.start_all_done_title', 'All set. The Start tab auto-hides on next load.')}</p>
           <p className="text-xs text-[color:var(--theme-text-muted)] mt-1">
-            Head to the Dashboard for your KPI strip, or Studio Brain for AI retention insights.
+            {t('memberships_console.start_all_done_note', 'Head to the Dashboard for your KPI strip, or Studio Brain for AI retention insights.')}
           </p>
         </div>
       )}
@@ -204,18 +207,19 @@ export default function MembershipsStartTab({ setTab }) {
 
 /* ─────────────────── Module discovery card ─────────────────── */
 function ModuleDiscoveryCard() {
+  const { t } = useTranslation();
   const otherModules = [
-    { id: 'operations', label: 'Operations', note: 'Equipment + faults + suppliers' },
-    { id: 'crm',        label: 'CRM',        note: 'Sales pipeline + deals + quotes' },
-    { id: 'marketing',  label: 'Marketing',  note: 'Campaigns + audiences + ads' },
+    { id: 'operations', label: t('memberships_console.start_mod_operations', 'Operations'), note: t('memberships_console.start_mod_operations_note', 'Equipment + faults + suppliers') },
+    { id: 'crm',        label: t('memberships_console.start_mod_crm', 'CRM'),        note: t('memberships_console.start_mod_crm_note', 'Sales pipeline + deals + quotes') },
+    { id: 'marketing',  label: t('memberships_console.start_mod_marketing', 'Marketing'),  note: t('memberships_console.start_mod_marketing_note', 'Campaigns + audiences + ads') },
   ];
   return (
     <div className="mt-8 rounded-2xl border p-5" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="mbr-module-discovery">
       <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">Add another module</p>
-          <h3 className="text-base font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>Unlock more of Pulse Fitness</h3>
-          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>Trial includes everything. After trial, bolt on only what you need.</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">{t('memberships_console.start_add_module', 'Add another module')}</p>
+          <h3 className="text-base font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>{t('memberships_console.start_unlock_more', 'Unlock more of Pulse Fitness')}</h3>
+          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.start_unlock_note', 'Trial includes everything. After trial, bolt on only what you need.')}</p>
         </div>
         <a
           href="/pricing?from=memberships"
@@ -223,7 +227,7 @@ function ModuleDiscoveryCard() {
           style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
           data-testid="mbr-module-discovery-cta"
         >
-          See pricing <ArrowRight size={11} />
+          {t('memberships_console.start_see_pricing', 'See pricing')} <ArrowRight size={11} />
         </a>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -245,6 +249,7 @@ function ModuleDiscoveryCard() {
 
 /* ─────────────────── Logo upload modal ─────────────────── */
 function LogoUploadModal({ onClose }) {
+  const { t } = useTranslation();
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -252,7 +257,7 @@ function LogoUploadModal({ onClose }) {
   const handleFile = async (file) => {
     if (!file) return;
     if (!/^image\/(png|jpeg|jpg)/.test(file.type)) {
-      notify.error('Please choose a PNG or JPEG image.');
+      notify.error(t('memberships_console.start_logo_type_err', 'Please choose a PNG or JPEG image.'));
       return;
     }
     setPreview(URL.createObjectURL(file));
@@ -263,10 +268,10 @@ function LogoUploadModal({ onClose }) {
       await axios.post(`${API}/account/logo`, fd, {
         headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' },
       });
-      notify.success('Logo uploaded — looking sharp.');
+      notify.success(t('memberships_console.start_logo_ok', 'Logo uploaded — looking sharp.'));
       setTimeout(onClose, 600);
     } catch (e) {
-      notifyApiError(notify, e, 'Logo upload failed');
+      notifyApiError(notify, e, t('memberships_console.start_logo_fail', 'Logo upload failed'));
       setUploading(false);
     }
   };
@@ -290,11 +295,11 @@ function LogoUploadModal({ onClose }) {
           <X size={18} />
         </button>
         <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)] flex items-center gap-1">
-          <Sparkles size={11} /> Studio brand
+          <Sparkles size={11} /> {t('memberships_console.start_logo_eyebrow', 'Studio brand')}
         </p>
-        <h3 className="text-xl font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>Upload your logo</h3>
+        <h3 className="text-xl font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>{t('memberships_console.start_logo_title', 'Upload your logo')}</h3>
         <p className="text-xs mt-1 mb-4" style={{ color: 'var(--theme-text-muted)' }}>
-          PNG or JPEG, up to 512&times;512 px. Appears on your member portal, emails and invoices.
+          {t('memberships_console.start_logo_desc', 'PNG or JPEG, up to 512×512 px. Appears on your member portal, emails and invoices.')}
         </p>
         {preview && (
           <div className="rounded-xl border border-[color:var(--theme-border)] p-4 mb-4 flex items-center justify-center bg-white/5">
@@ -317,7 +322,7 @@ function LogoUploadModal({ onClose }) {
           data-testid="mbr-logo-pick"
         >
           {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-          {uploading ? 'Uploading…' : 'Choose image'}
+          {uploading ? t('memberships_console.start_logo_uploading', 'Uploading…') : t('memberships_console.start_logo_choose', 'Choose image')}
         </button>
       </div>
     </div>

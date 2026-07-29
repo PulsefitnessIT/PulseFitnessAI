@@ -132,3 +132,27 @@ will translate them. TODO next.
 
 TOTALS after this session: service ns has +~50 new keys, memberships_console 80 keys, all en/fr/de populated.
 Run to translate future batches: `cd /app/backend && python scripts/i18n_translate_modules.py`
+
+## ═══ 2026-07-29 · BATCH 2 — Memberships DEEP FILES (VERIFIED DE live) ═══
+Fully localized (FR+DE, namespace memberships_console with per-file prefixes), all compile clean:
+  - StudioQuickstart.js (prefix sqs_) — 6 components: onboarding wizard (brand/pricing/schedule/review/done steps).
+  - MembershipsStartTab.js (prefix start_) — 4 components: onboarding checklist, module discovery card, logo upload modal.
+  - PromotionsTab.js (prefix promo_) — 4 components: list, promo card badges, editor modal. Moved KIND_OPTIONS/
+    DURATION_OPTIONS inside the modal so t() calls are statically scannable.
+  - InvoicingTab.js (prefix inv_) — monthly invoicing: controls, preview table, history table, actions, notifications.
+    inv_status_{draft,sent,paid,void} added to pipeline explicit dict (template-literal keys).
+  - EventsTab.js (prefix evt_) — 4 components: list, detail (rehearsals/costumes/AI comms), 3 modals. evt_kind_* and
+    evt_costume_* added to pipeline explicit dict.
+VERIFIED: Promotions tab live in German ("Noch keine Werbeaktionen", empty CTA, tab pills Veranstaltungen/Aktionen/
+Anzeigen/Analysen). memberships_console namespace now ~330 keys, all en/fr/de populated.
+
+PIPELINE GOTCHA fixed: DE chunks failed json.loads when a source English string had embedded double-quotes
+(e.g. `e.g. "Spring Recital 2026"`). FIX: removed inner double-quotes from source defaults. RULE: avoid embedded
+double-quotes in t() default strings (the LLM emits them unescaped and breaks JSON). If a DE run shows
+"parse fail chunk N / DE translated: 0", check the newest keys for inner double-quotes.
+
+REMAINING Memberships files (next batch, still English via fallback): AnalyticsTab (1001), MobileAppBuilderTab
+(1294), StudioBuilderTab (907), MemberPortal (999), MemberEventsTab, CheckinTab, FamilyBillingTab, CRMLoopTab,
+DeskSalesTab, InstructorsTab, MobileAppTab, plans/classes inline in MembershipsConsole, tabs/*, modals/*, and the
+deep parts of MembershipsConsole (PlansInnerView, ClassesTab, SchedulingHubTab, RecordPaymentModal, AdsTab).
+Then: Marketing module (mkt ns).
