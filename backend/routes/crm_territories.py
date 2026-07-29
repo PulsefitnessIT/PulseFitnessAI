@@ -103,6 +103,11 @@ async def collect_team_ids(user_id: str, org_id: str, visited: set | None = None
 async def team_tree(user=Depends(get_crm_user)):
     """Full manager → rep tree for the caller's org."""
     of = _org_filter(user)
+    # Cross-module flow: mirror Operations Staffing field staff (engineers /
+    # sales managers set up in HR) into CRM so they appear as reps here AND
+    # become assignable on the Territory map. Without this the map showed
+    # "No CRM users yet" even though HR had staff. Idempotent + best-effort.
+    await sync_staffing_to_crm_users(user.get("organization_id"))
     users = await db.crm_users.find(
         of, {"_id": 0, "password": 0},
     ).to_list(500)

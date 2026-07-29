@@ -1,3 +1,40 @@
+# ═══ 2026-07-29 · CRM DURING IMPERSONATION — "Invalid CRM token" 401 LOOP + empty Territories reps (FIXED) ═══
+Reported (recurring): impersonating an org → CRM shows "Invalid CRM token" (top-right), Territories shows "No CRM
+users yet" despite Engineers/Sales Managers added in Operations>HR, and some Territories toolbar buttons render blank.
+
+RCA (reproduced via master-admin → org-portal impersonate "Pulse Fitness Ltd" → /crm, network capture):
+  • ROOT: infinite CRM cross-login loop. crm/auth/cross-login returned 200 repeatedly (dozens/render) but
+    localStorage.crm_token was NEVER persisted → every CRM call 401'd. Cause: cross-login bound the CRM identity to
+    the ambient MASTER-ADMIN ga_session COOKIE (privileged) instead of the impersonation/portal BEARER token (whose
+    `impersonated_by` claim was dropped by a token refresh). So identity.crm.org (admin's org) ≠ identity.main.org
+    (impersonated org) → the frontend UnifiedAuthProvider org-mismatch guard stripped the freshly-minted token every
+    render → re-mint → loop → 401 storm → "Invalid CRM token" + empty CRM data.
+  • Territories reps: /crm/territories/team/tree read db.crm_users but never synced Operations Staffing (HR) field
+    staff into crm_users — while the /users endpoint did. So even with a good token, engineers/sales managers didn't
+    appear as assignable reps.
+
+FIX (2 parts):
+  1) BACKEND crm_auth.py cross-login: prefer the EXPLICIT bearer identity over ambient ga_session cookies when it can
+     reach CRM (new bearer_user tracked at candidate index 0; selected right after impersonation_user, before the
+     privileged-cookie loop). Binds CRM to the org the SPA is acting as → no org mismatch → no strip/re-mint loop.
+     Stale-bearer fix preserved (a deleted/invalid bearer resolves to no user → still falls through to cookie).
+  2) BACKEND crm_territories.py team_tree: now calls sync_staffing_to_crm_users(org) before reading crm_users
+     (idempotent, best-effort) so HR engineers/sales managers appear as territory reps.
+
+VERIFIED (impersonation → /crm, network capture): crm_token PERSISTS; cross-login calls 0 (was dozens); total /api
+401s = 0 (was 8+); no "Invalid CRM token" / no "No CRM users" text; CRM dashboard renders with visible labels.
+team_tree curl: seeded HR Engineer + Sales Manager now returned as reps (were absent). Regression-safe: normal user
+& master-admin DIRECT CRM login still bind to their own org (bearer = their token).
+OUTSTANDING: Issue-1 "blank Territories toolbar buttons" could NOT be directly reproduced — the Territories MAP is
+feature-gated for the synthetic portal impersonation user, so my repro path can't open it. Strong likelihood it was a
+downstream symptom of the 401 loop (toolbar rendered in a broken state); --color-brand-blue / seg-active CSS vars are
+defined globally so it's not an undefined-var issue. → Ask user to re-verify after redeploy; if it persists, get a
+fresh screenshot from their real (Pulse-internal) session.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY (the user hit this on production).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · MOD CSV BULK IMPORTER — country / region / service_supplier columns (VERIFIED via curl) ═══
 Follow-up to MOD Estate Setup. Extended the CSV bulk importer used by MODBulkImport.js
 (`POST /api/master-admin/mod/bulk-import`, file backend/routes/mod_bulk_import.py) so bulk provisioning is

@@ -407,9 +407,10 @@ async def crm_cross_login(
     #    tokens and revoked sessions. ─────────────────────────────────
     resolved_users: list[dict] = []
     impersonation_user: dict | None = None
+    bearer_user: dict | None = None
     saw_crm_token = False
     saw_member_token = False
-    for tok in candidate_tokens:
+    for idx, tok in enumerate(candidate_tokens):
         try:
             p = _jwt.decode(tok, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         except Exception:
@@ -428,6 +429,11 @@ async def crm_cross_login(
         u = await db.users.find_one({"id": uid}, {"_id": 0})
         if u and not any(x.get("id") == u.get("id") for x in resolved_users):
             resolved_users.append(u)
+        # The bearer (index 0) is the identity the SPA is EXPLICITLY presenting
+        # for this exchange — e.g. an org-portal / impersonation session token.
+        # Remember it so it can win over ambient cookie sessions below.
+        if u and idx == 0 and bearer_user is None:
+            bearer_user = u
         # An impersonation / portal-switch token means the master admin is
         # actively "acting as" this tenant. CRM MUST bind to the tenant
         # being impersonated (not the admin's own org) or documents/data
@@ -465,6 +471,17 @@ async def crm_cross_login(
     if impersonation_user is not None:
         main_user = impersonation_user
         is_master = _is_priv(impersonation_user)
+    # 0b) Otherwise, the identity EXPLICITLY presented as the bearer wins over
+    #     ambient ga_session cookies when it can reach CRM. This binds CRM to
+    #     the org the SPA is currently acting as (e.g. an org-portal /
+    #     impersonation token whose `impersonated_by` claim was dropped by a
+    #     token refresh) instead of a lingering privileged master-admin cookie
+    #     — which otherwise caused an infinite cross-login loop (org mismatch
+    #     guard strips the freshly-minted token every render) and left every
+    #     CRM call 401 / "Invalid CRM token".
+    if main_user is None and bearer_user is not None and await _crm_ok(bearer_user):
+        main_user = bearer_user
+        is_master = _is_priv(bearer_user)
     # 1) a privileged admin among the sessions wins outright.
     if main_user is None:
         for u in resolved_users:
