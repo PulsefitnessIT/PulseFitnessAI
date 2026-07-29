@@ -1,0 +1,23 @@
+{
+  "summary": "Tested LocaleLanguageNudge on Marketing console + Marketing tab i18n sanity. Backend endpoints GET/PUT /api/org/localization verified via curl for FR (EUR/fr-FR/TVA 20%), DE (EUR/de-DE/MwSt 19%), and reset to GB. Frontend: nudge appears at top of /marketing when org currency != EUR and UI language is FR or DE; dismiss persists via localStorage; apply switches org localization to EUR and triggers reload. No mkt.* i18n key leaks found on Start tab in en/fr/de. Org left on GB/GBP after cleanup.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Nudge language resolution relies on i18n.resolvedLanguage. In this run, the demo owner's stored preferred language was 'de'; even with ?lng=fr in the URL and localStorage i18nextLng='fr' set after login, the app resolved to 'de'. Not a nudge bug, but note the language detector isn't honouring ?lng=fr for authenticated users (server-side user language wins).",
+    "The nudge dismissKey (locale_nudge_dismissed_${lng}) is per-language: if a user toggles between fr and de, they'll see the nudge twice. Acceptable, but worth documenting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None. Org localization mutated during test then reset to GB/GBP.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Marketing console at /marketing renders <LocaleLanguageNudge/> from /app/frontend/src/pages/MarketingSuite.js. Nudge only fires when GET /api/org/localization returns can_edit=true, currency!=EUR, country_code!=target. Owner user language was 'de' in the DB during this run, which prevented forcing FR via query/localStorage — main agent can change user's preferred_language via profile if pure-FR UX test is required. Verified: DE branch text, dismiss-persist-reload, apply→EUR reload, EUR-hides-banner, no mkt.* leaks in en/fr/de on Start tab.",
+  "rca of the issue": "N/A — feature working."
+}

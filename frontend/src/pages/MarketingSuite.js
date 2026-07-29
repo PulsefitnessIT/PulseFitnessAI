@@ -46,6 +46,7 @@ import MarketingTour from './Marketing/MarketingTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import EmailVolumePanel from './Marketing/EmailVolumePanel';
+import LocaleLanguageNudge from '@/components/shared/LocaleLanguageNudge';
 
 // Guided "Start" tab sits first — it's the entry point for non-technical
 // users. Power users can ignore it and jump straight to any downstream tab.
@@ -223,6 +224,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
       <main className={embedded
         ? 'module-fade-in'
         : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 md:pb-8 module-fade-in'}>
+        <LocaleLanguageNudge />
         {/* Unified app header — byte-for-byte parity with Operations / Memberships
             so the ModuleSwitcher pill bar sits in the same screen position when
             users toggle modules. Suppressed in embedded mode (Master Admin →

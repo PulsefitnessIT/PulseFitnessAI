@@ -45,6 +45,16 @@ COUNTRY_CONFIG: dict[str, dict] = {
         "tax_label": "GST", "default_tax_rate": 10.0, "locale": "en-AU",
         "payment_method": "Bank transfer",
     },
+    "FR": {
+        "name": "France", "currency": "EUR", "timezone": "Europe/Paris",
+        "tax_label": "TVA", "default_tax_rate": 20.0, "locale": "fr-FR",
+        "payment_method": "SEPA",
+    },
+    "DE": {
+        "name": "Germany", "currency": "EUR", "timezone": "Europe/Berlin",
+        "tax_label": "MwSt", "default_tax_rate": 19.0, "locale": "de-DE",
+        "payment_method": "SEPA",
+    },
 }
 
 CURRENCY_SYMBOLS: dict[str, str] = {
@@ -69,6 +79,8 @@ COUNTRY_TIMEZONES: dict[str, list[str]] = {
         "Australia/Sydney", "Australia/Brisbane", "Australia/Adelaide",
         "Australia/Perth",
     ],
+    "FR": ["Europe/Paris"],
+    "DE": ["Europe/Berlin"],
 }
 
 
