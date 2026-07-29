@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const FormSubmissionsDrawer = ({ API, headers, form, onClose }) => {
+  const { t } = useTranslation();
   const [submissions, setSubmissions] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(25);
@@ -22,7 +24,7 @@ const FormSubmissionsDrawer = ({ API, headers, form, onClose }) => {
       setSubmissions(r.data?.submissions || []);
       setTotal(r.data?.total || 0);
     }).catch((e) => {
-      if (!cancelled) toast.error('Could not load submissions', { description: e.response?.data?.detail });
+      if (!cancelled) toast.error(t('mkt.fsd_load_err', 'Could not load submissions'), { description: e.response?.data?.detail });
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [API, form.id, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
@@ -45,18 +47,18 @@ const FormSubmissionsDrawer = ({ API, headers, form, onClose }) => {
       >
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Submissions</p>
+            <p className="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">{t('mkt.fsd_kicker', 'Submissions')}</p>
             <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{form.name}</h3>
-            <Badge className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 mt-1">{total} total</Badge>
+            <Badge className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 mt-1">{t('mkt.fsd_total', '{{n}} total', { n: total })}</Badge>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose} className="h-7 px-2 text-zinc-500 dark:text-zinc-400" data-testid="form-submissions-close">
             <X size={14} />
           </Button>
         </div>
 
-        {loading && <p className="text-zinc-400 text-sm py-6 text-center">Loading…</p>}
+        {loading && <p className="text-zinc-400 text-sm py-6 text-center">{t('mkt.fsd_loading', 'Loading…')}</p>}
         {!loading && submissions.length === 0 && (
-          <p className="text-zinc-400 text-sm py-6 text-center">No submissions yet.</p>
+          <p className="text-zinc-400 text-sm py-6 text-center">{t('mkt.fsd_none', 'No submissions yet.')}</p>
         )}
 
         <div className="space-y-2">
@@ -65,7 +67,7 @@ const FormSubmissionsDrawer = ({ API, headers, form, onClose }) => {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs">{new Date(s.submitted_at).toLocaleString('en-GB')}</p>
                 {s.crm_contact_id && (
-                  <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px]">CRM contact created</Badge>
+                  <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px]">{t('mkt.fsd_crm_created', 'CRM contact created')}</Badge>
                 )}
               </div>
               <dl className="space-y-1">
@@ -85,7 +87,7 @@ const FormSubmissionsDrawer = ({ API, headers, form, onClose }) => {
 
         {pages > 1 && (
           <div className="flex items-center justify-between mt-4">
-            <p className="text-zinc-500 text-xs">Page {page} of {pages}</p>
+            <p className="text-zinc-500 text-xs">{t('mkt.fsd_page_of', 'Page {{page}} of {{pages}}', { page, pages })}</p>
             <div className="flex gap-1">
               <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="h-7 px-2">
                 <ChevronLeft size={12} />

@@ -9,6 +9,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Check, Sparkles, Plus, Minus, Building2 } from 'lucide-react';
 
 import { openTrial } from './TrialSignupModal';
@@ -16,14 +17,15 @@ import { openTrial } from './TrialSignupModal';
 const BUNDLE_BASE = 150;
 const PER_SITE = 50;
 const MAX_SITES = 25;
-const INCLUDED_PERKS = [
-  'All four modules — Memberships, CRM, Marketing, Operations',
-  'AI Triage, AI Director, RA generator',
-  'Stripe + Mailchimp + open API integrations',
-  '3-day free trial with every module unlocked',
-];
 
 export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }) {
+  const { t } = useTranslation();
+  const INCLUDED_PERKS = [
+    t('mkt.scu_perk_0', 'All four modules — Memberships, CRM, Marketing, Operations'),
+    t('mkt.scu_perk_1', 'AI Triage, AI Director, RA generator'),
+    t('mkt.scu_perk_2', 'Stripe + Mailchimp + open API integrations'),
+    t('mkt.scu_perk_3', '3-day free trial with every module unlocked'),
+  ];
   const [sites, setSites] = useState(1);
 
   const { total, extras } = useMemo(() => {
@@ -56,15 +58,13 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                 className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] dark:bg-zinc-900 dark:border-zinc-800"
                 style={{ color: accent }}
               >
-                <Sparkles size={12} /> One bundle · every module
+                <Sparkles size={12} /> {t('mkt.scu_badge', 'One bundle · every module')}
               </span>
               <h2 className="mt-5 text-3xl md:text-4xl font-black tracking-tight leading-[1.1]">
-                Price it for your estate <br className="hidden md:inline" />
-                in real time.
+                {t('mkt.scu_heading', 'Price it for your estate in real time.')}
               </h2>
               <p className="mt-4 text-slate-600 text-base md:text-lg leading-relaxed">
-                Drag the slider to see what Pulse Fitness Pro costs across all your sites — every module
-                included, no upgrade ladder. First site is on us; each extra site is just £{PER_SITE}/mo.
+                {t('mkt.scu_subhead', 'Drag the slider to see what Pulse Fitness Pro costs across all your sites — every module included, no upgrade ladder. First site is on us; each extra site is just £{{n}}/mo.', { n: PER_SITE })}
               </p>
 
               <ul className="mt-6 space-y-2">
@@ -82,17 +82,17 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-white/50">
-                    Live estimate
+                    {t('mkt.scu_live_estimate', 'Live estimate')}
                   </p>
                   <p className="mt-1 text-sm text-white/80 inline-flex items-center gap-1.5">
-                    <Building2 size={13} /> {sites} site{sites === 1 ? '' : 's'}
+                    <Building2 size={13} /> {sites === 1 ? t('mkt.scu_site_one', '{{n}} site', { n: sites }) : t('mkt.scu_site_many', '{{n}} sites', { n: sites })}
                   </p>
                 </div>
                 <span
                   className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
                   data-testid="upsell-extra-sites"
                 >
-                  +{extras} extra
+                  {t('mkt.scu_extra', '+{{n}} extra', { n: extras })}
                 </span>
               </div>
 
@@ -103,22 +103,19 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                 >
                   £{total}
                 </span>
-                <span className="text-sm text-white/60 font-semibold">/ month</span>
+                <span className="text-sm text-white/60 font-semibold">{t('mkt.scu_per_month', '/ month')}</span>
               </div>
               <p className="mt-1 text-xs text-white/50">
-                £{BUNDLE_BASE} base + £{PER_SITE} × {extras} extra site{extras === 1 ? '' : 's'} · billed monthly
+                {t('mkt.scu_breakdown', '£{{base}} base + £{{per}} × {{extras}} extra sites · billed monthly', { base: BUNDLE_BASE, per: PER_SITE, extras })}
               </p>
 
               {/* Slider + +/- */}
               <div className="mt-6 space-y-3">
                 <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={dec}
-                    disabled={sites <= 1}
+                <button type="button" onClick={dec} disabled={sites <= 1}
                     className="w-10 h-10 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                     data-testid="upsell-site-decrement"
-                    aria-label="Decrease site count"
+                    aria-label={t('mkt.scu_dec', 'Decrease site count')}
                   >
                     <Minus size={14} />
                   </button>
@@ -130,7 +127,7 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                     value={sites}
                     onChange={(e) => setSites(Number(e.target.value))}
                     className="gx-pricing-range gx-pricing-range--dark flex-1"
-                    aria-label="Number of sites"
+                    aria-label={t('mkt.scu_range', 'Number of sites')}
                     data-testid="upsell-site-range"
                     style={{
                       accentColor: accent,
@@ -143,14 +140,14 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                     disabled={sites >= MAX_SITES}
                     className="w-10 h-10 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                     data-testid="upsell-site-increment"
-                    aria-label="Increase site count"
+                    aria-label={t('mkt.scu_inc', 'Increase site count')}
                   >
                     <Plus size={14} />
                   </button>
                 </div>
                 <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] font-bold text-white/40">
-                  <span>1 site</span>
-                  <span>{MAX_SITES}+ sites</span>
+                  <span>{t('mkt.scu_one_site', '1 site')}</span>
+                  <span>{t('mkt.scu_max_sites', '{{n}}+ sites', { n: MAX_SITES })}</span>
                 </div>
               </div>
 
@@ -160,14 +157,14 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                 className="mt-6 w-full rounded-full bg-white text-slate-900 font-bold text-sm px-5 py-3.5 inline-flex items-center justify-center gap-1.5 hover:bg-slate-100 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.4)] transition-all dark:bg-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
                 data-testid="upsell-start-trial-cta"
               >
-                Start 3-day Free Trial <ArrowRight size={15} />
+                {t('mkt.scu_start_trial', 'Start 3-day Free Trial')} <ArrowRight size={15} />
               </button>
               <Link
                 to="/pricing"
                 className="mt-3 block text-center text-xs text-white/60 hover:text-white transition-colors"
                 data-testid="upsell-see-full-pricing"
               >
-                See full pricing & per-module options →
+                {t('mkt.scu_see_pricing', 'See full pricing & per-module options →')}
               </Link>
             </div>
           </div>

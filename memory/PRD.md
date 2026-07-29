@@ -1,3 +1,24 @@
+# ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MARKETING module (mkt namespace) IN PROGRESS ═══
+User directive "C": localize the ENTIRE Marketing module (Group A operator console + Group B public/SEO pages).
+DONE this session (16 files — compile OK, babel-parse OK, i18n guard OK, FR+DE auto-translated, 467 mkt keys total):
+  InsightsTab, PerformanceTab, SocialTab, AudiencesTab, JourneysTab, StartTab (full rewrite),
+  ContactsTab, DynamicListsTab, FormSubmissionsDrawer, FormsAndPagesTab, UndoLaunchBanner,
+  EmailVolumePanel, CRMProTrialNudge, SiteCalculatorUpsell, CreativeStudioRoot, PageBuilderDialog.
+Shadows handled: StartTab TEMPLATES map t->tpl; ContactsTab tag map t->tag. Module-const label arrays
+  (StartTab OUTCOMES/STEPS/TEMPLATES, SiteCalculatorUpsell INCLUDED_PERKS) moved inside components to use t().
+Pipeline dict keys added: dl_refresh_opt_{15,60,240,1440}.
+STILL TO DO (Marketing):
+  Group A big tabs: CampaignsTab, CampaignWizard, CreativeStudioTab(+Legacy), AIDirectorPanel, ChurnRescuePanel,
+    BrandDiscoveryPanel, StarterPackPanel, BrandKitTab, FormBuilderDialog, AIAssistant, MarketingChat,
+    ROICalculator, TrialSignupModal, MarketingTour, ProductPreviewModal.
+  Group B public/SEO: Blog/*, Compare/*, Landing/*, modules/*, ModulePage, Pricing/Security/Contact marketing
+    pages, Partner pages, ServiceDeskPromo, Live app previews.
+Pipeline: `cd /app/backend && python scripts/i18n_translate_modules.py`  (guard: `--check`).
+⚠️ TOOL BUGS: EOF tail-corruption + occasional phantom-success on search_replace — babel-parse + grep every edited file.
+⚠️ testing_agent NOT yet run for Marketing; run once console tabs done. PREVIEW only — prod needs redeploy.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS 4 LARGE files (BATCH 4, VERIFIED EN/FR/DE) ═══
 Completed the user's requested 4 large Memberships files (full FR+DE i18n, compile clean, guard passes):
   - MemberPortal.js (mp_) — finished remaining sub-components (StreakCard, RequiredFormsBanner,

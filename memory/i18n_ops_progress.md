@@ -193,3 +193,49 @@ VERIFIED: testing_agent iteration_memberships_i18n_fr_de_jan2026.json — 100% F
   (analytics/studio-builder/mobile-app × en/fr/de + member portal). ~39 memberships_console keys intentionally
   stay == EN (brand/proper nouns: Dashboard, Home, CRM, "Mobile App Builder", etc.) — not leaks.
 This COMPLETES the 4 large Memberships tabs the user asked for. NEXT: Marketing module (mkt ns).
+
+## ═══ 2026-06 · MARKETING module FR/DE (mkt namespace) — IN PROGRESS ═══
+User directive: localize the ENTIRE Marketing module (Group A operator console + Group B public/SEO pages).
+DONE this session (compile OK, guard OK, FR+DE translated, prefixes noted):
+  - InsightsTab.js (mkt.ins_), PerformanceTab.js (mkt.perf_), SocialTab.js (mkt.soc_),
+    AudiencesTab.js (mkt.aud_), JourneysTab.js (mkt.jn_ — renamed no shadow; test-send dialog),
+    StartTab.js (mkt.start_ — FULL REWRITE, moved OUTCOMES/STEPS/TEMPLATES/quickStart/jump arrays inside
+      component to use t(); renamed TEMPLATES map `t`->`tpl`),
+    ContactsTab.js (mkt.ct_ — renamed tag map `t`->`tag` in list + ContactDialog),
+    DynamicListsTab.js (mkt.dl_ — refresh-opts via template-literal keys dl_refresh_opt_{15,60,240,1440} in pipeline dict),
+    FormSubmissionsDrawer.js (mkt.fsd_), FormsAndPagesTab.js (mkt.fp_ + SurveyResultsDialog).
+⚠️ RECURRING TOOL BUG: search_replace on the LAST lines of a file sometimes duplicates/corrupts the tail
+   (saw it on SocialTab, ContactsTab, DynamicListsTab, FormsAndPagesTab — stray `rt default X;` / doubled
+   `export default`). ALWAYS babel-parse each edited file (node @babel/core) and fix the tail before moving on.
+REMAINING Marketing files (NOT yet localized):
+  Group A console: CampaignsTab (621), CampaignWizard (574), CreativeStudioTab + CreativeStudioRoot (~655),
+    FormBuilderDialog (327), PageBuilderDialog, BrandKitTab, BrandDiscoveryPanel, AIAssistant (311),
+    AIDirectorPanel, ChurnRescuePanel, EmailVolumePanel, StarterPackPanel, MarketingChat, ROICalculator,
+    TrialSignupModal, MarketingTour, UndoLaunchBanner, CRMProTrialNudge, SiteCalculatorUpsell,
+    ProductPreviewModal, (MarketingHome/Shell/PulseMarketingShell/AxisOrbit already partly done earlier).
+  Group B public/SEO: Blog/*, Compare/*, Landing/*, modules/*, ModulePage, PricingMarketingPage,
+    SecurityMarketingPage, SecurityDocumentPage, ContactMarketingPage, PartnerApplyPublic,
+    PartnerEngineerLanding, MigrationGuarantee, ServiceDeskPromo, LiveCustomer/EngineerAppPreview, etc.
+Pipeline: `cd /app/backend && python scripts/i18n_translate_modules.py` (auto FR+DE; `--check` for guard).
+
+## ═══ 2026-06 · MARKETING module — SESSION 2 batch (files 11-16) ═══
+Additional DONE (compile OK, babel-parse OK, guard OK, FR+DE translated):
+  - UndoLaunchBanner.js (mkt.ulb_), EmailVolumePanel.js (mkt.evp_), CRMProTrialNudge.js (mkt.cpn_),
+    SiteCalculatorUpsell.js (mkt.scu_ — INCLUDED_PERKS moved inside component to use t()),
+    CreativeStudioRoot.js (mkt.csr_), PageBuilderDialog.js (mkt.pbd_).
+TOTAL Marketing files localized so far this session: 16
+  (Insights, Performance, Social, Audiences, Journeys, Start, Contacts, DynamicLists,
+   FormSubmissionsDrawer, FormsAndPagesTab, UndoLaunchBanner, EmailVolumePanel, CRMProTrialNudge,
+   SiteCalculatorUpsell, CreativeStudioRoot, PageBuilderDialog).
+⚠️ TOOL BUGS SEEN (verify every file): (1) tail-corruption on EOF edits; (2) occasional phantom
+   "Edit was successful" that didn't actually apply (saw on SiteCalculatorUpsell scu_start_trial /
+   scu_see_pricing — had to re-apply). ALWAYS babel-parse + grep the new key after editing near EOF.
+STILL REMAINING (Marketing):
+  Group A big console tabs: CampaignsTab (621), CampaignWizard (574), CreativeStudioTab/LegacyCreativeStudioTab (655),
+    AIDirectorPanel (819), ChurnRescuePanel, BrandDiscoveryPanel, StarterPackPanel, BrandKitTab,
+    FormBuilderDialog (327), AIAssistant (311), MarketingChat, ROICalculator, TrialSignupModal,
+    MarketingTour, ProductPreviewModal, CRMLoop/other small nudges.
+  Group B public/SEO: Blog/*, Compare/*, Landing/*, modules/*, ModulePage, PricingMarketingPage,
+    SecurityMarketingPage, SecurityDocumentPage, ContactMarketingPage, PartnerApplyPublic,
+    PartnerEngineerLanding, MigrationGuarantee, ServiceDeskPromo, LiveCustomer/EngineerAppPreview.
+NOTE: testing_agent NOT yet run for the Marketing batch — run it once the console tabs are complete.

@@ -11,9 +11,11 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Rocket, Undo2, CheckCircle2 } from 'lucide-react';
 
 export default function UndoLaunchBanner({ campaignId, API, headers, onUndone, onExpire }) {
+  const { t } = useTranslation();
   const WINDOW_SEC = 30;
   const [remaining, setRemaining] = useState(WINDOW_SEC);
   const [state, setState] = useState('armed'); // armed | undoing | undone | expired
@@ -67,10 +69,10 @@ export default function UndoLaunchBanner({ campaignId, API, headers, onUndone, o
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-            Campaign launched
+            {t('mkt.ulb_launched', 'Campaign launched')}
           </div>
           <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            You have <span style={{ color: 'var(--color-brand-cyan)' }} className="font-semibold">{remaining}s</span> to undo the send.
+            <span style={{ color: 'var(--color-brand-cyan)' }} className="font-semibold">{t('mkt.ulb_seconds', '{{n}}s', { n: remaining })}</span> {t('mkt.ulb_to_undo', 'to undo the send.')}
           </div>
         </div>
         <button
@@ -81,7 +83,7 @@ export default function UndoLaunchBanner({ campaignId, API, headers, onUndone, o
           data-testid="undo-launch-btn"
         >
           {state === 'undoing' ? <CheckCircle2 size={13} /> : <Undo2 size={13} />}
-          {state === 'undoing' ? 'Cancelling…' : 'Undo'}
+          {state === 'undoing' ? t('mkt.ulb_cancelling', 'Cancelling…') : t('mkt.ulb_undo', 'Undo')}
         </button>
       </div>
     </div>

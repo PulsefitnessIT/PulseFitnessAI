@@ -15,6 +15,7 @@
  * for a power-user workflow, or (c) a templated quick-launch.
  */
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Zap, Target, Users, Sparkles, Calendar, ArrowRight, Send, TrendingUp,
   HeartHandshake, Dumbbell, PartyPopper, CheckCircle2, Flame, EyeOff,
@@ -22,55 +23,12 @@ import {
 import { useUserPref } from '@/utils/userPrefs';
 import ActivationMilestonesCard from '@/components/shared/ActivationMilestonesCard';
 
-const OUTCOMES = [
-  { icon: Calendar,   title: 'Fill empty classes',        note: 'Automated nudges for low-attendance sessions' },
-  { icon: HeartHandshake, title: 'Re-engage inactive members', note: 'Win back lapsed members with the right offer' },
-  { icon: Dumbbell,   title: 'Promote new services',      note: 'Launch classes, PT, or events to the right segment' },
-  { icon: TrendingUp, title: 'Increase revenue',          note: 'Upsell PT, merch, and add-ons to fitting buyers' },
-];
-
-const STEPS = [
-  { n: 1, title: 'Choose your goal',     note: 'What outcome do you want?' },
-  { n: 2, title: 'Select your audience', note: 'Who should receive this?' },
-  { n: 3, title: 'Create your content',  note: 'AI writes copy + imagery' },
-  { n: 4, title: 'Schedule your send',   note: 'Pick channels + best time' },
-  { n: 5, title: 'Launch & track',       note: 'Live results in Performance' },
-];
-
-const TEMPLATES = [
-  {
-    id: 'fill-classes',
-    title: 'Fill empty classes',
-    desc: 'Target members who haven\'t booked this week. AI suggests the class with most open slots.',
-    cover: 'https://images.unsplash.com/photo-1773558057883-c15a220761ce?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBiYWNrZ3JvdW5kJTIwZ2xvd2luZyUyMGJsdWUlMjBuZW9ufGVufDB8fHx8MTc3NzMxNzkyNHww&ixlib=rb-4.1.0&q=85&w=800',
-    accent: 'from-[rgb(var(--rgb-brand-cyan)/0.2)] to-transparent',
-    icon: Calendar,
-  },
-  {
-    id: 'win-back',
-    title: 'Win back inactive members',
-    desc: 'Haven\'t checked in for 30+ days? This template offers a comeback incentive.',
-    cover: 'https://images.unsplash.com/photo-1759735541630-036eefb7cd3a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBiYWNrZ3JvdW5kJTIwZ2xvd2luZyUyMGJsdWUlMjBuZW9ufGVufDB8fHx8MTc3NzMxNzkyNHww&ixlib=rb-4.1.0&q=85&w=800',
-    accent: 'from-fuchsia-500/20 to-transparent',
-    icon: HeartHandshake,
-  },
-  {
-    id: 'promote-class',
-    title: 'Promote a new class',
-    desc: 'Announce a new class to members most likely to attend based on history.',
-    cover: 'https://images.pexels.com/photos/9404662/pexels-photo-9404662.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=450&w=800&fm=webp',
-    accent: 'from-[rgb(var(--rgb-success)/0.2)] to-transparent',
-    icon: PartyPopper,
-  },
-  {
-    id: 'upsell-pt',
-    title: 'Upsell Personal Training',
-    desc: 'Target members with 2+ weeks of consistent attendance — they\'re ready for PT.',
-    cover: 'https://images.unsplash.com/photo-1776106904780-88a00fc3d393?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGRhcmslMjBiYWNrZ3JvdW5kJTIwZ2xvd2luZyUyMGJsdWUlMjBuZW9ufGVufDB8fHx8MTc3NzMxNzkyNHww&ixlib=rb-4.1.0&q=85&w=800',
-    accent: 'from-amber-500/20 to-transparent',
-    icon: Flame,
-  },
-];
+const TEMPLATE_COVERS = {
+  'fill-classes': 'https://images.unsplash.com/photo-1773558057883-c15a220761ce?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBiYWNrZ3JvdW5kJTIwZ2xvd2luZyUyMGJsdWUlMjBuZW9ufGVufDB8fHx8MTc3NzMxNzkyNHww&ixlib=rb-4.1.0&q=85&w=800',
+  'win-back': 'https://images.unsplash.com/photo-1759735541630-036eefb7cd3a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBiYWNrZ3JvdW5kJTIwZ2xvd2luZyUyMGJsdWUlMjBuZW9ufGVufDB8fHx8MTc3NzMxNzkyNHww&ixlib=rb-4.1.0&q=85&w=800',
+  'promote-class': 'https://images.pexels.com/photos/9404662/pexels-photo-9404662.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=450&w=800&fm=webp',
+  'upsell-pt': 'https://images.unsplash.com/photo-1776106904780-88a00fc3d393?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGRhcmslMjBiYWNrZ3JvdW5kJTIwZ2xvd2luZyUyMGJsdWUlMjBuZW9ufGVufDB8fHx8MTc3NzMxNzkyNHww&ixlib=rb-4.1.0&q=85&w=800',
+};
 
 const OutcomeCard = ({ icon: Icon, title, note }) => (
   <div
@@ -87,31 +45,54 @@ const OutcomeCard = ({ icon: Icon, title, note }) => (
 );
 
 export default function StartTab({ openWizard, setTab }) {
-   
+  const { t } = useTranslation();
   const [, setHideStart] = useUserPref('hideStartTabs', false);
+
+  const OUTCOMES = useMemo(() => [
+    { icon: Calendar,       title: t('mkt.start_out_fill_title', 'Fill empty classes'),        note: t('mkt.start_out_fill_note', 'Automated nudges for low-attendance sessions') },
+    { icon: HeartHandshake, title: t('mkt.start_out_reengage_title', 'Re-engage inactive members'), note: t('mkt.start_out_reengage_note', 'Win back lapsed members with the right offer') },
+    { icon: Dumbbell,       title: t('mkt.start_out_promote_title', 'Promote new services'),      note: t('mkt.start_out_promote_note', 'Launch classes, PT, or events to the right segment') },
+    { icon: TrendingUp,     title: t('mkt.start_out_revenue_title', 'Increase revenue'),          note: t('mkt.start_out_revenue_note', 'Upsell PT, merch, and add-ons to fitting buyers') },
+  ], [t]);
+
+  const STEPS = useMemo(() => [
+    { n: 1, title: t('mkt.start_step1_title', 'Choose your goal'),     note: t('mkt.start_step1_note', 'What outcome do you want?') },
+    { n: 2, title: t('mkt.start_step2_title', 'Select your audience'), note: t('mkt.start_step2_note', 'Who should receive this?') },
+    { n: 3, title: t('mkt.start_step3_title', 'Create your content'),  note: t('mkt.start_step3_note', 'AI writes copy + imagery') },
+    { n: 4, title: t('mkt.start_step4_title', 'Schedule your send'),   note: t('mkt.start_step4_note', 'Pick channels + best time') },
+    { n: 5, title: t('mkt.start_step5_title', 'Launch & track'),       note: t('mkt.start_step5_note', 'Live results in Performance') },
+  ], [t]);
+
+  const TEMPLATES = useMemo(() => [
+    { id: 'fill-classes',  title: t('mkt.start_tpl_fill_title', 'Fill empty classes'),       desc: t('mkt.start_tpl_fill_desc', "Target members who haven't booked this week. AI suggests the class with most open slots."), accent: 'from-[rgb(var(--rgb-brand-cyan)/0.2)] to-transparent', icon: Calendar },
+    { id: 'win-back',      title: t('mkt.start_tpl_winback_title', 'Win back inactive members'), desc: t('mkt.start_tpl_winback_desc', "Haven't checked in for 30+ days? This template offers a comeback incentive."), accent: 'from-fuchsia-500/20 to-transparent', icon: HeartHandshake },
+    { id: 'promote-class', title: t('mkt.start_tpl_promote_title', 'Promote a new class'),     desc: t('mkt.start_tpl_promote_desc', 'Announce a new class to members most likely to attend based on history.'), accent: 'from-[rgb(var(--rgb-success)/0.2)] to-transparent', icon: PartyPopper },
+    { id: 'upsell-pt',     title: t('mkt.start_tpl_upsell_title', 'Upsell Personal Training'),  desc: t('mkt.start_tpl_upsell_desc', "Target members with 2+ weeks of consistent attendance — they're ready for PT."), accent: 'from-amber-500/20 to-transparent', icon: Flame },
+  ], [t]);
+
   const quickStart = useMemo(() => [
-    { id: 'qs-60sec',   title: 'Create campaign in 60 seconds', desc: 'AI picks audience + writes content', icon: Zap,      cta: () => openWizard({ preset: 'fast' }) },
-    { id: 'qs-template', title: 'Start from a template',         desc: 'Pre-built for the most common gym goals', icon: Target,   cta: () => openWizard({ preset: 'template' }) },
-    { id: 'qs-ai',      title: 'Let AI build everything',       desc: 'Goal → audience → creative → schedule',    icon: Sparkles, cta: () => openWizard({ preset: 'ai-full' }) },
-  ], [openWizard]);
+    { id: 'qs-60sec',    title: t('mkt.start_qs_fast_title', 'Create campaign in 60 seconds'), desc: t('mkt.start_qs_fast_desc', 'AI picks audience + writes content'), icon: Zap,      cta: () => openWizard({ preset: 'fast' }) },
+    { id: 'qs-template', title: t('mkt.start_qs_tpl_title', 'Start from a template'),          desc: t('mkt.start_qs_tpl_desc', 'Pre-built for the most common gym goals'), icon: Target,   cta: () => openWizard({ preset: 'template' }) },
+    { id: 'qs-ai',       title: t('mkt.start_qs_ai_title', 'Let AI build everything'),         desc: t('mkt.start_qs_ai_desc', 'Goal → audience → creative → schedule'), icon: Sparkles, cta: () => openWizard({ preset: 'ai-full' }) },
+  ], [openWizard, t]);
+
+  const jumpItems = useMemo(() => [
+    { label: t('mkt.start_jump_audience', 'Build an audience'),   tab: 'audiences',   icon: Users,        desc: t('mkt.start_jump_audience_desc', 'Segment by behaviour or lifecycle') },
+    { label: t('mkt.start_jump_design', 'Design an image'),       tab: 'creative',    icon: Sparkles,     desc: t('mkt.start_jump_design_desc', 'AI-generated posters and socials') },
+    { label: t('mkt.start_jump_working', "See what's working"),   tab: 'performance', icon: CheckCircle2, desc: t('mkt.start_jump_working_desc', 'Channel-level performance last 30 days') },
+  ], [t]);
 
   return (
     <div className="space-y-8 pulse-font-body" data-testid="mkt-start-tab">
-      {/* Iter 216h70 — same auto-hiding "first wins" checklist that the
-          other modules show. Once every milestone fires, the card
-          flips `hideStartTabs=true` and Start disappears from the tab
-          bar (Dashboard becomes the new first tab) — matching the
-          rest of the platform's onboarding pattern. */}
       <ActivationMilestonesCard />
 
       {/* 1. SECTION OVERVIEW */}
       <div>
         <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mb-1" style={{ color: 'var(--theme-text)' }}>
-          Your Marketing Command Center
+          {t('mkt.start_title', 'Your Marketing Command Center')}
         </h2>
         <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>
-          Create and launch targeted campaigns that increase bookings and retention.
-          Any user can run a high-quality campaign in minutes — no marketing background needed.
+          {t('mkt.start_subtitle', 'Create and launch targeted campaigns that increase bookings and retention. Any user can run a high-quality campaign in minutes — no marketing background needed.')}
         </p>
         <button
           type="button"
@@ -120,14 +101,14 @@ export default function StartTab({ openWizard, setTab }) {
           style={{ color: 'var(--theme-text-muted)' }}
           data-testid="mkt-hide-start-btn"
         >
-          <EyeOff size={11} /> Hide this tab
+          <EyeOff size={11} /> {t('mkt.start_hide_tab', 'Hide this tab')}
         </button>
       </div>
 
       {/* 2. WHAT YOU CAN ACHIEVE */}
       <section data-testid="mkt-outcomes">
         <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>
-          What you can achieve
+          {t('mkt.start_achieve_heading', 'What you can achieve')}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {OUTCOMES.map((o) => (
@@ -139,7 +120,7 @@ export default function StartTab({ openWizard, setTab }) {
       {/* 3. QUICK START */}
       <section data-testid="mkt-quick-start">
         <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>
-          Quick start
+          {t('mkt.start_quickstart_heading', 'Quick start')}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {quickStart.map((q) => {
@@ -170,7 +151,7 @@ export default function StartTab({ openWizard, setTab }) {
       {/* 4. STEP-BY-STEP PREVIEW */}
       <section data-testid="mkt-steps-preview">
         <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>
-          How the guided campaign works
+          {t('mkt.start_guided_heading', 'How the guided campaign works')}
         </div>
         <ol className="grid grid-cols-1 md:grid-cols-5 gap-2 rounded-2xl p-3 border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
           {STEPS.map((s, i) => (
@@ -190,7 +171,7 @@ export default function StartTab({ openWizard, setTab }) {
         </ol>
         <div className="mt-3">
           <button type="button" onClick={() => openWizard({ preset: 'wizard' })} className="btn-primary" data-testid="mkt-start-wizard-btn">
-            <Send size={14} /> Start guided campaign
+            <Send size={14} /> {t('mkt.start_guided_cta', 'Start guided campaign')}
           </button>
         </div>
       </section>
@@ -198,32 +179,32 @@ export default function StartTab({ openWizard, setTab }) {
       {/* 5. TEMPLATES */}
       <section data-testid="mkt-templates">
         <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>
-          Pre-built templates
+          {t('mkt.start_templates_heading', 'Pre-built templates')}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {TEMPLATES.map((t) => {
-            const Icon = t.icon;
+          {TEMPLATES.map((tpl) => {
+            const Icon = tpl.icon;
             return (
               <button
-                key={t.id}
+                key={tpl.id}
                 type="button"
-                onClick={() => openWizard({ preset: 'template', templateId: t.id })}
+                onClick={() => openWizard({ preset: 'template', templateId: tpl.id })}
                 className="group text-left rounded-2xl overflow-hidden border transition-all hover:-translate-y-0.5 hover:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
                 style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
-                data-testid={`mkt-template-${t.id}`}
+                data-testid={`mkt-template-${tpl.id}`}
               >
                 <div className="relative h-28 overflow-hidden">
-                  <img src={t.cover} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" loading="lazy" />
-                  <div className={`absolute inset-0 bg-gradient-to-b ${t.accent}`} />
+                  <img src={TEMPLATE_COVERS[tpl.id]} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" loading="lazy" />
+                  <div className={`absolute inset-0 bg-gradient-to-b ${tpl.accent}`} />
                   <div className="absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--color-ink)CC', color: 'var(--color-brand-cyan)' }}>
                     <Icon size={14} />
                   </div>
                 </div>
                 <div className="p-4">
-                  <div className="text-sm font-semibold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t.title}</div>
-                  <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t.desc}</div>
+                  <div className="text-sm font-semibold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{tpl.title}</div>
+                  <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{tpl.desc}</div>
                   <div className="mt-3 text-xs font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-brand-cyan)' }}>
-                    Use this template <ArrowRight size={12} />
+                    {t('mkt.start_use_template', 'Use this template')} <ArrowRight size={12} />
                   </div>
                 </div>
               </button>
@@ -235,14 +216,10 @@ export default function StartTab({ openWizard, setTab }) {
       {/* 6. SUGGESTED NEXT STEPS — entry points into existing tabs */}
       <section data-testid="mkt-next-steps">
         <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>
-          Or jump straight in
+          {t('mkt.start_jump_heading', 'Or jump straight in')}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[
-            { label: 'Build an audience',   tab: 'audiences',  icon: Users,     desc: 'Segment by behaviour or lifecycle' },
-            { label: 'Design an image',     tab: 'creative',   icon: Sparkles,  desc: 'AI-generated posters and socials' },
-            { label: 'See what\'s working', tab: 'performance', icon: CheckCircle2, desc: 'Channel-level performance last 30 days' },
-          ].map((j) => {
+          {jumpItems.map((j) => {
             const Icon = j.icon;
             return (
               <button

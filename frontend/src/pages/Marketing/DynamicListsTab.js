@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { ListChecks, Plus, Sparkles, Loader2, Trash2, Save, RefreshCw, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -51,6 +52,7 @@ const formatRelative = (iso) => {
 };
 
 const DynamicListsTab = ({ API, headers }) => {
+  const { t } = useTranslation();
   const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -72,7 +74,7 @@ const DynamicListsTab = ({ API, headers }) => {
       const { data } = await axios.get(`${API}/api/marketing/dynamic-lists`, { headers });
       setLists(data.lists || []);
     } catch {
-      notify.error('Failed to load dynamic lists');
+      notify.error(t('mkt.dl_load_err', 'Failed to load dynamic lists'));
     }
     setLoading(false);
   }, [API, headers]);
@@ -119,12 +121,12 @@ const DynamicListsTab = ({ API, headers }) => {
         rules: { op: 'and', conditions: draftConditions },
         refresh_interval_minutes: draftInterval,
       }, { headers });
-      notify.success('Dynamic list created');
+      notify.success(t('mkt.dl_created', 'Dynamic list created'));
       setDraftName(''); setDraftDescription(''); setDraftConditions([]); setDraftInterval(60);
       setCreating(false);
       load();
     } catch (e) {
-      notifyApiError(notify, e, 'Save failed');
+      notifyApiError(notify, e, t('mkt.dl_save_err', 'Save failed'));
     } finally { setBusy(false); }
   };
 
@@ -134,20 +136,20 @@ const DynamicListsTab = ({ API, headers }) => {
       await axios.post(`${API}/api/marketing/dynamic-lists/${id}/refresh`, {}, { headers });
       load();
       if (expandedId === id) loadMembers(id);
-      notify.success('List refreshed');
+      notify.success(t('mkt.dl_refreshed', 'List refreshed'));
     } catch (e) {
-      notifyApiError(notify, e, 'Refresh failed');
+      notifyApiError(notify, e, t('mkt.dl_refresh_err', 'Refresh failed'));
     } finally { setBusy(false); }
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Delete this dynamic list?')) return;
+    if (!window.confirm(t('mkt.dl_delete_confirm', 'Delete this dynamic list?'))) return;
     try {
       await axios.delete(`${API}/api/marketing/dynamic-lists/${id}`, { headers });
-      notify.success('Deleted');
+      notify.success(t('mkt.dl_deleted', 'Deleted'));
       load();
     } catch (e) {
-      notifyApiError(notify, e, 'Delete failed');
+      notifyApiError(notify, e, t('mkt.dl_delete_err', 'Delete failed'));
     }
   };
 
@@ -175,11 +177,8 @@ const DynamicListsTab = ({ API, headers }) => {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="max-w-3xl rounded-xl border border-fuchsia-200/60 bg-fuchsia-50/40 px-4 py-3 text-[13px] leading-relaxed" style={{ color: 'var(--theme-text)' }} data-testid="dynamic-lists-explainer">
-            <strong className="text-fuchsia-700">What is a Dynamic List?</strong>
-            <span className="text-[var(--theme-text-muted)]"> A saved audience that <em>updates itself</em>. You write a rule once
-            (e.g. <em>“members joined in the last 30 days who skipped a class”</em>) and the list re-evaluates
-            every time a contact&apos;s data changes — no manual refresh, no stale exports. Use them as campaign
-            audiences or journey entry conditions. Compare with a <em>Static list</em> (fixed snapshot, never updates).</span>
+            <strong className="text-fuchsia-700">{t('mkt.dl_explainer_title', 'What is a Dynamic List?')}</strong>
+            <span className="text-[var(--theme-text-muted)]"> {t('mkt.dl_explainer_body', 'A saved audience that updates itself. You write a rule once (e.g. members joined in the last 30 days who skipped a class) and the list re-evaluates every time a contact\'s data changes — no manual refresh, no stale exports. Use them as campaign audiences or journey entry conditions. Compare with a Static list (fixed snapshot, never updates).')}</span>
           </div>
         </div>
         <button
@@ -187,7 +186,7 @@ const DynamicListsTab = ({ API, headers }) => {
           className="px-3 py-2 rounded-md bg-[var(--color-brand-blue)] text-white text-sm font-semibold inline-flex items-center gap-1.5"
           data-testid="dynamic-list-new-btn"
         >
-          <Plus size={13} /> {creating ? 'Cancel' : 'New dynamic list'}
+          <Plus size={13} /> {creating ? t('mkt.dl_cancel', 'Cancel') : t('mkt.dl_new', 'New dynamic list')}
         </button>
       </div>
 
@@ -197,14 +196,14 @@ const DynamicListsTab = ({ API, headers }) => {
           <input
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
-            placeholder="List name"
+            placeholder={t('mkt.dl_name_placeholder', 'List name')}
             className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
             data-testid="dynamic-list-name-input"
           />
           <input
             value={draftDescription}
             onChange={(e) => setDraftDescription(e.target.value)}
-            placeholder="Optional description"
+            placeholder={t('mkt.dl_desc_placeholder', 'Optional description')}
             className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
             data-testid="dynamic-list-desc-input"
           />
@@ -233,7 +232,7 @@ const DynamicListsTab = ({ API, headers }) => {
               );
             })}
             <button onClick={addCondition} className="inline-flex items-center gap-1 text-xs text-[var(--color-brand-blue)] font-semibold mt-1" data-testid="dynamic-list-add-condition">
-              <Plus size={12} /> Add condition
+              <Plus size={12} /> {t('mkt.dl_add_condition', 'Add condition')}
             </button>
           </div>
           <div className="flex items-center justify-between flex-wrap gap-2 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
@@ -272,8 +271,8 @@ const DynamicListsTab = ({ API, headers }) => {
       ) : lists.length === 0 ? (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 text-center" data-testid="dynamic-list-empty">
           <ListChecks size={36} className="mx-auto text-zinc-300 dark:text-zinc-600 mb-3" />
-          <p className="text-sm font-medium" style={{ color: 'var(--theme-text)' }}>No dynamic lists yet</p>
-          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>Create one to auto-refresh a segment as your contacts change.</p>
+          <p className="text-sm font-medium" style={{ color: 'var(--theme-text)' }}>{t('mkt.dl_empty_title', 'No dynamic lists yet')}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.dl_empty_hint', 'Create one to auto-refresh a segment as your contacts change.')}</p>
         </div>
       ) : (
         <div className="space-y-2" data-testid="dynamic-list-rows">
@@ -293,11 +292,11 @@ const DynamicListsTab = ({ API, headers }) => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold tabular-nums text-zinc-900 dark:text-zinc-100" data-testid={`dynamic-list-count-${l.id}`}>{(l.member_count || 0).toLocaleString()}</p>
-                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500">contacts</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{t('mkt.dl_contacts', 'contacts')}</p>
                   </div>
                   <div className="text-right text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-                    Refreshed {formatRelative(l.last_evaluated_at)}<br />
-                    every {l.refresh_interval_minutes}m
+                    {t('mkt.dl_refreshed_rel', 'Refreshed {{rel}}', { rel: formatRelative(l.last_evaluated_at) })}<br />
+                    {t('mkt.dl_every', 'every {{n}}m', { n: l.refresh_interval_minutes })}
                   </div>
                   <button
                     onClick={() => refreshOne(l.id)}
@@ -320,10 +319,10 @@ const DynamicListsTab = ({ API, headers }) => {
                 {expanded && (
                   <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50/50 dark:bg-zinc-950/40" data-testid={`dynamic-list-members-${l.id}`}>
                     <p className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-                      First {(members[l.id] || []).length} of {(l.member_count || 0).toLocaleString()} members
+                      {t('mkt.dl_first_of', 'First {{shown}} of {{total}} members', { shown: (members[l.id] || []).length, total: (l.member_count || 0).toLocaleString() })}
                     </p>
                     {(members[l.id] || []).length === 0 ? (
-                      <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No members match this list yet.</p>
+                      <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.dl_no_members', 'No members match this list yet.')}</p>
                     ) : (
                       <div className="space-y-1">
                         {(members[l.id] || []).map((m) => (

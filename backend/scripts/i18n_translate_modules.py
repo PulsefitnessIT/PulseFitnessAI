@@ -251,6 +251,13 @@ async def main():
         "memberships_console.an_role_regional": "Regional mgr",
         "memberships_console.an_role_director": "Director",
     })
+    # DynamicListsTab refresh-interval options (template-literal keys dl_refresh_opt_{minutes}).
+    pairs.update({
+        "mkt.dl_refresh_opt_15": "Every 15 minutes",
+        "mkt.dl_refresh_opt_60": "Hourly (default)",
+        "mkt.dl_refresh_opt_240": "Every 4 hours",
+        "mkt.dl_refresh_opt_1440": "Daily",
+    })
     # MobileAppBuilder font / button-style / share-format labels (template-literal keys).
     pairs.update({
         "memberships_console.mab_font_inter": "Clean",

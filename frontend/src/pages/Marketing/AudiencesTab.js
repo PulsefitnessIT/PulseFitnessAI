@@ -1,6 +1,7 @@
 /* Audiences tab — rule builder, save, list */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Users, Plus, Sparkles, Loader2, Trash2, Save, Upload } from 'lucide-react';  
 import { Link } from 'react-router-dom';
 import HelpHint from '@/components/HelpHint';
@@ -102,10 +103,10 @@ const AudiencesTab = ({ API, headers }) => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-              No contacts to segment yet
+              {t('mkt.aud_no_contacts_title', 'No contacts to segment yet')}
             </p>
             <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1">
-              Audiences pull from your members or CRM contacts — but you have neither bolted on. Import a contact CSV to get started, or add Memberships / CRM to sync a live contact source.
+              {t('mkt.aud_no_contacts_body', 'Audiences pull from your members or CRM contacts — but you have neither bolted on. Import a contact CSV to get started, or add Memberships / CRM to sync a live contact source.')}
             </p>
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <Link
@@ -113,21 +114,21 @@ const AudiencesTab = ({ API, headers }) => {
                 className="px-3 py-2 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1.5"
                 data-testid="audiences-import-csv-btn"
               >
-                <Upload size={12} /> Import contact CSV
+                <Upload size={12} /> {t('mkt.aud_import_csv', 'Import contact CSV')}
               </Link>
               <Link
                 to="/memberships"
                 className="px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1.5"
                 data-testid="audiences-add-memberships-btn"
               >
-                Try Memberships
+                {t('mkt.aud_try_memberships', 'Try Memberships')}
               </Link>
               <Link
                 to="/crm"
                 className="px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1.5"
                 data-testid="audiences-add-crm-btn"
               >
-                Try CRM
+                {t('mkt.aud_try_crm', 'Try CRM')}
               </Link>
             </div>
           </div>
@@ -135,14 +136,14 @@ const AudiencesTab = ({ API, headers }) => {
       )}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
         <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-1">
-          <Sparkles size={12} className="text-amber-500" /> Describe your audience in plain English
+          <Sparkles size={12} className="text-amber-500" /> {t('mkt.aud_describe_prompt', 'Describe your audience in plain English')}
           <HelpHint guideId="mkt-segments" testId="help-hint-audiences" className="ml-auto" />
         </p>
         <div className="flex gap-2">
           <input
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="e.g. high spenders at risk of churning"
+            placeholder={t('mkt.aud_ai_placeholder', 'e.g. high spenders at risk of churning')}
             className="flex-1 px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm"
             data-testid="audience-ai-input"
           />
@@ -152,7 +153,7 @@ const AudiencesTab = ({ API, headers }) => {
             className="px-3 py-2 rounded-md bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-hover)] text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
             data-testid="audience-ai-suggest-btn"
           >
-            {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} AI suggest
+            {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} {t('mkt.aud_ai_suggest', 'AI suggest')}
           </button>
         </div>
 
@@ -181,18 +182,18 @@ const AudiencesTab = ({ API, headers }) => {
             );
           })}
           <button onClick={addCondition} className="inline-flex items-center gap-1 text-xs text-[var(--color-brand-blue)] font-semibold mt-1" data-testid="audience-add-condition">
-            <Plus size={12} /> Add condition
+            <Plus size={12} /> {t('mkt.aud_add_condition', 'Add condition')}
           </button>
         </div>
 
         <div className="mt-5 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between" data-testid="audience-preview">
           <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">
-            <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{preview.size.toLocaleString()}</span> contacts match this audience
+            <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{preview.size.toLocaleString()}</span> {t('mkt.aud_match_suffix', 'contacts match this audience')}
           </p>
           <div className="flex items-center gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Audience name…" className="px-2 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-md text-xs" data-testid="audience-name-input" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('mkt.aud_name_placeholder', 'Audience name…')} className="px-2 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-md text-xs" data-testid="audience-name-input" />
             <button onClick={save} disabled={busy || !name.trim()} className="px-3 py-1.5 rounded-md bg-[var(--color-brand-blue)] text-white text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1" data-testid="audience-save-btn">
-              <Save size={11} /> Save
+              <Save size={11} /> {t('mkt.aud_save', 'Save')}
             </button>
           </div>
         </div>
@@ -200,12 +201,12 @@ const AudiencesTab = ({ API, headers }) => {
 
       {audiences.length > 0 && (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5" data-testid="audience-list">
-          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-3 uppercase tracking-wider">Saved audiences</p>
+          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-3 uppercase tracking-wider">{t('mkt.aud_saved_audiences', 'Saved audiences')}</p>
           <div className="space-y-2">
             {audiences.map((a) => (
               <div key={a.id} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0">
                 <p className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">{a.name}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{a.estimated_size?.toLocaleString() || 0} contacts</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{t('mkt.aud_contacts_count', '{{n}} contacts', { n: a.estimated_size?.toLocaleString() || 0 })}</p>
               </div>
             ))}
           </div>
@@ -215,8 +216,8 @@ const AudiencesTab = ({ API, headers }) => {
       {audiences.length === 0 && !dataSrc?.needs_data_import && (
         <EmptyState
           icon={Users}
-          title="No saved audiences yet"
-          hint="Build your first one above — describe it in plain English, or stack a few rules. Saved audiences power campaigns, automations and the AI churn radar."
+          title={t('mkt.aud_empty_title', 'No saved audiences yet')}
+          hint={t('mkt.aud_empty_hint', 'Build your first one above — describe it in plain English, or stack a few rules. Saved audiences power campaigns, automations and the AI churn radar.')}
           testId="audiences-empty-saved"
         />
       )}

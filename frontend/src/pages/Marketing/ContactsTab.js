@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Search, Plus, Upload, Trash2, X, Loader2, AtSign, Phone as PhoneIcon, Tag, Sparkles } from 'lucide-react';
 import CRMProTrialNudge from './CRMProTrialNudge';
 
@@ -27,6 +28,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 const PAGE_SIZE = 25;
 
 export default function ContactsTab() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const API = process.env.REACT_APP_BACKEND_URL;
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
@@ -50,7 +52,7 @@ export default function ContactsTab() {
       setContacts(data.contacts || []);
       setTotal(data.total || 0);
     } catch (e) {
-      notifyApiError(notify, e, 'Could not load contacts');
+      notifyApiError(notify, e, t('mkt.ct_load_err', 'Could not load contacts'));
     }
     setLoading(false);
   }, [API, headers, search, page]);
@@ -61,12 +63,12 @@ export default function ContactsTab() {
   useEffect(() => { setPage(0); }, [search]);
 
   const handleDelete = async (c) => {
-    if (!window.confirm(`Delete ${c.email}? This cannot be undone.`)) return;
+    if (!window.confirm(t('mkt.ct_delete_confirm', 'Delete {{email}}? This cannot be undone.', { email: c.email }))) return;
     try {
       await axios.delete(`${API}/api/marketing/contacts/${c.id}`, { headers });
-      notify.success('Contact deleted');
+      notify.success(t('mkt.ct_deleted', 'Contact deleted'));
       load();
-    } catch (e) { notifyApiError(notify, e, 'Could not delete contact'); }
+    } catch (e) { notifyApiError(notify, e, t('mkt.ct_delete_err', 'Could not delete contact')); }
   };
 
   const handleImportClick = () => fileInputRef.current?.click();
@@ -81,9 +83,9 @@ export default function ContactsTab() {
       const { data } = await axios.post(`${API}/api/marketing/contacts/import`, fd, {
         headers: { ...headers, 'Content-Type': 'multipart/form-data' },
       });
-      notify.success(`Imported ${data.created} new · ${data.updated} updated · ${data.skipped} skipped`);
+      notify.success(t('mkt.ct_import_done', 'Imported {{created}} new · {{updated}} updated · {{skipped}} skipped', { created: data.created, updated: data.updated, skipped: data.skipped }));
       load();
-    } catch (e) { notifyApiError(notify, e, 'CSV import failed'); }
+    } catch (e) { notifyApiError(notify, e, t('mkt.ct_import_err', 'CSV import failed')); }
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -104,12 +106,12 @@ export default function ContactsTab() {
         </div>
         <div className="min-w-0 text-sm">
           <p className="font-bold" style={{ color: 'var(--theme-text)' }}>
-            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider mr-1.5" style={{ background: '#6366f122', color: '#6366f1' }}>CRM Lite</span>
-            included with Marketing
+            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider mr-1.5" style={{ background: '#6366f122', color: '#6366f1' }}>{t('mkt.ct_crm_lite', 'CRM Lite')}</span>
+            {t('mkt.ct_included', 'included with Marketing')}
           </p>
           <p className="text-xs opacity-70 mt-0.5">
-            Manage contacts, segments and lead-capture forms here. Need pipeline, deals or forecasting?{' '}
-            <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>Upgrade to CRM Pro.</span>
+            {t('mkt.ct_lite_desc', 'Manage contacts, segments and lead-capture forms here. Need pipeline, deals or forecasting?')}{' '}
+            <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{t('mkt.ct_upgrade', 'Upgrade to CRM Pro.')}</span>
           </p>
         </div>
       </div>
@@ -145,14 +147,14 @@ export default function ContactsTab() {
           className="h-10 rounded-full border-slate-200 dark:border-zinc-800"
           data-testid="contacts-import-btn"
         >
-          <Upload size={14} className="mr-1.5" /> Import CSV
+          <Upload size={14} className="mr-1.5" /> {t('mkt.ct_import_csv', 'Import CSV')}
         </Button>
         <Button
           onClick={() => setEditing('new')}
           className="h-10 rounded-full bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white border-0 shadow-[0_6px_16px_-6px_rgba(25, 205, 255,0.35)]"
           data-testid="contacts-create-btn"
         >
-          <Plus size={14} className="mr-1.5" /> New contact
+          <Plus size={14} className="mr-1.5" /> {t('mkt.ct_new_contact', 'New contact')}
         </Button>
       </div>
 
@@ -160,22 +162,22 @@ export default function ContactsTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-[0.16em] font-bold text-slate-500 dark:bg-zinc-900 dark:border-zinc-800">
-              <th className="text-left px-5 py-3">Name</th>
-              <th className="text-left px-5 py-3 hidden sm:table-cell">Email</th>
-              <th className="text-left px-5 py-3 hidden md:table-cell">Phone</th>
-              <th className="text-left px-5 py-3 hidden lg:table-cell">Tags</th>
-              <th className="text-right px-5 py-3 w-1">Actions</th>
+              <th className="text-left px-5 py-3">{t('mkt.ct_th_name', 'Name')}</th>
+              <th className="text-left px-5 py-3 hidden sm:table-cell">{t('mkt.ct_th_email', 'Email')}</th>
+              <th className="text-left px-5 py-3 hidden md:table-cell">{t('mkt.ct_th_phone', 'Phone')}</th>
+              <th className="text-left px-5 py-3 hidden lg:table-cell">{t('mkt.ct_th_tags', 'Tags')}</th>
+              <th className="text-right px-5 py-3 w-1">{t('mkt.ct_th_actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400"><Loader2 size={16} className="animate-spin inline mr-2" /> Loading contacts…</td></tr>
+              <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400"><Loader2 size={16} className="animate-spin inline mr-2" /> {t('mkt.ct_loading', 'Loading contacts…')}</td></tr>
             )}
             {!loading && contacts.length === 0 && (
               <tr><td colSpan={5} className="px-5 py-12 text-center">
-                <div className="text-slate-700 font-semibold mb-1">No contacts yet</div>
+                <div className="text-slate-700 font-semibold mb-1">{t('mkt.ct_empty_title', 'No contacts yet')}</div>
                 <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                  Capture leads with a Form on your site, import a CSV, or create one manually. Contacts feed Audiences, Campaigns and Journeys.
+                  {t('mkt.ct_empty_body', 'Capture leads with a Form on your site, import a CSV, or create one manually. Contacts feed Audiences, Campaigns and Journeys.')}
                 </p>
               </td></tr>
             )}
@@ -187,7 +189,7 @@ export default function ContactsTab() {
                     onClick={() => setEditing(c)}
                     className="font-semibold text-slate-900 hover:text-[var(--gx-brand-from)] text-left dark:text-zinc-100"
                   >
-                    {(c.first_name || c.last_name) ? `${c.first_name || ''} ${c.last_name || ''}`.trim() : <span className="text-slate-400 italic">No name</span>}
+                    {(c.first_name || c.last_name) ? `${c.first_name || ''} ${c.last_name || ''}`.trim() : <span className="text-slate-400 italic">{t('mkt.ct_no_name', 'No name')}</span>}
                   </button>
                   <div className="text-xs text-slate-500 sm:hidden mt-0.5">{c.email}</div>
                 </td>
@@ -195,8 +197,8 @@ export default function ContactsTab() {
                 <td className="px-5 py-3 hidden md:table-cell text-slate-500">{c.phone || '—'}</td>
                 <td className="px-5 py-3 hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1">
-                    {(c.tags || []).slice(0, 3).map((t) => (
-                      <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700 dark:bg-zinc-800"><Tag size={9} /> {t}</span>
+                    {(c.tags || []).slice(0, 3).map((tag) => (
+                      <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700 dark:bg-zinc-800"><Tag size={9} /> {tag}</span>
                     ))}
                   </div>
                 </td>
@@ -205,7 +207,7 @@ export default function ContactsTab() {
                     type="button"
                     onClick={() => handleDelete(c)}
                     className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
-                    aria-label="Delete contact"
+                    aria-label={t('mkt.ct_delete_aria', 'Delete contact')}
                     data-testid={`contact-delete-${c.id}`}
                   >
                     <Trash2 size={14} />
@@ -217,10 +219,10 @@ export default function ContactsTab() {
         </table>
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 text-sm text-slate-600 dark:border-zinc-800">
-            <span>Page {page + 1} of {totalPages} · {total.toLocaleString()} contacts</span>
+            <span>{t('mkt.ct_pagination', 'Page {{page}} of {{total}} · {{count}} contacts', { page: page + 1, total: totalPages, count: total.toLocaleString() })}</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => setPage((p) => p - 1)} data-testid="contacts-prev">Prev</Button>
-              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} data-testid="contacts-next">Next</Button>
+              <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => setPage((p) => p - 1)} data-testid="contacts-prev">{t('mkt.ct_prev', 'Prev')}</Button>
+              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} data-testid="contacts-next">{t('mkt.ct_next', 'Next')}</Button>
             </div>
           </div>
         )}
@@ -240,6 +242,7 @@ export default function ContactsTab() {
 }
 
 function ContactDialog({ contact, onClose, onSaved, API, headers }) {
+  const { t } = useTranslation();
   const isNew = !contact;
   const [form, setForm] = useState({
     first_name: contact?.first_name || '',
@@ -261,22 +264,22 @@ function ContactDialog({ contact, onClose, onSaved, API, headers }) {
         last_name: form.last_name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim() || null,
-        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
         email_consent: form.email_consent,
         sms_consent: form.sms_consent,
       };
       if (isNew) {
         await axios.post(`${API}/api/marketing/contacts`, body, { headers });
-        notify.success('Contact created');
+        notify.success(t('mkt.ct_created', 'Contact created'));
       } else {
         await axios.put(`${API}/api/marketing/contacts/${contact.id}`, {
           ...body,
           marketing_consent: { email: body.email_consent, sms: body.sms_consent },
         }, { headers });
-        notify.success('Contact updated');
+        notify.success(t('mkt.ct_updated', 'Contact updated'));
       }
       onSaved();
-    } catch (e2) { notifyApiError(notify, e2, 'Could not save contact'); }
+    } catch (e2) { notifyApiError(notify, e2, t('mkt.ct_save_err', 'Could not save contact')); }
     setSaving(false);
   };
 
@@ -284,12 +287,12 @@ function ContactDialog({ contact, onClose, onSaved, API, headers }) {
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900">
         <DialogHeader>
-          <DialogTitle>{isNew ? 'New contact' : 'Edit contact'}</DialogTitle>
+          <DialogTitle>{isNew ? t('mkt.ct_new_contact', 'New contact') : t('mkt.ct_edit_contact', 'Edit contact')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={save} className="space-y-3" data-testid="contact-dialog-form">
           <div className="grid grid-cols-2 gap-3">
-            <Input value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} placeholder="First name" data-testid="contact-first-name" />
-            <Input value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} placeholder="Last name" data-testid="contact-last-name" />
+            <Input value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} placeholder={t('mkt.ct_first_name', 'First name')} data-testid="contact-first-name" />
+            <Input value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} placeholder={t('mkt.ct_last_name', 'Last name')} data-testid="contact-last-name" />
           </div>
           <div className="relative">
             <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -307,13 +310,13 @@ function ContactDialog({ contact, onClose, onSaved, API, headers }) {
             </label>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.sms_consent} onChange={(e) => setForm((f) => ({ ...f, sms_consent: e.target.checked }))} data-testid="contact-sms-consent" />
-              <span className="text-slate-700">SMS consent</span>
+              <span className="text-slate-700">{t('mkt.ct_sms_consent', 'SMS consent')}</span>
             </label>
           </div>
           <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose}><X size={14} className="mr-1.5" /> Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose}><X size={14} className="mr-1.5" /> {t('mkt.ct_cancel', 'Cancel')}</Button>
             <Button type="submit" disabled={saving} className="bg-gradient-to-r from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white border-0" data-testid="contact-save-btn">
-              {saving ? <><Loader2 size={14} className="animate-spin mr-1.5" /> Saving…</> : 'Save contact'}
+              {saving ? <><Loader2 size={14} className="animate-spin mr-1.5" /> {t('mkt.ct_saving', 'Saving…')}</> : t('mkt.ct_save_contact', 'Save contact')}
             </Button>
           </DialogFooter>
         </form>

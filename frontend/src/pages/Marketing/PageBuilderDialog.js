@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
 const PageBuilderDialog = ({ API, headers, page, forms, onClose, onSaved }) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [body, setBody] = useState('');
@@ -34,7 +36,7 @@ const PageBuilderDialog = ({ API, headers, page, forms, onClose, onSaved }) => {
   }, [page]);
 
   const onSave = async () => {
-    if (!title.trim()) { toast.error('Page needs a title'); return; }
+    if (!title.trim()) { toast.error(t('mkt.pbd_need_title', 'Page needs a title')); return; }
     setSaving(true);
     try {
       const payload = {
@@ -53,10 +55,10 @@ const PageBuilderDialog = ({ API, headers, page, forms, onClose, onSaved }) => {
       } else {
         await axios.post(`${API}/api/marketing/pages`, payload, { headers });
       }
-      toast.success(page ? 'Page updated' : 'Page created (saved as draft)');
+      toast.success(page ? t('mkt.pbd_updated', 'Page updated') : t('mkt.pbd_created', 'Page created (saved as draft)'));
       onSaved && onSaved();
     } catch (e) {
-      toast.error('Save failed', { description: e.response?.data?.detail });
+      toast.error(t('mkt.pbd_save_failed', 'Save failed'), { description: e.response?.data?.detail });
     }
     setSaving(false);
   };
@@ -65,45 +67,45 @@ const PageBuilderDialog = ({ API, headers, page, forms, onClose, onSaved }) => {
     <Dialog open={true} onOpenChange={(v) => !v && onClose && onClose()}>
       <DialogContent className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="page-builder-dialog">
         <DialogHeader>
-          <DialogTitle>{page ? 'Edit landing page' : 'New landing page'}</DialogTitle>
+          <DialogTitle>{page ? t('mkt.pbd_edit', 'Edit landing page') : t('mkt.pbd_new', 'New landing page')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Title *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Become a Site Manager" className="mt-1" data-testid="page-builder-title" />
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_title_label', 'Title *')}</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('mkt.pbd_title_ph', 'Become a Site Manager')} className="mt-1" data-testid="page-builder-title" />
           </div>
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Subtitle</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_subtitle', 'Subtitle')}</Label>
             <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" data-testid="page-builder-subtitle" />
           </div>
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Hero image URL</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_hero_url', 'Hero image URL')}</Label>
             <Input value={heroImageUrl} onChange={(e) => setHeroImageUrl(e.target.value)} placeholder="https://…/hero.jpg" className="mt-1" />
           </div>
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Body (Markdown supported)</Label>
-            <Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your story…" className="mt-1 font-mono text-sm" data-testid="page-builder-body" />
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_body', 'Body (Markdown supported)')}</Label>
+            <Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t('mkt.pbd_body_ph', 'Write your story…')} className="mt-1 font-mono text-sm" data-testid="page-builder-body" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">CTA label</Label>
-              <Input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder="Book a demo" className="mt-1" />
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_cta_label', 'CTA label')}</Label>
+              <Input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t('mkt.pbd_cta_label_ph', 'Book a demo')} className="mt-1" />
             </div>
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">CTA link</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_cta_link', 'CTA link')}</Label>
               <Input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder="https://…" className="mt-1" />
             </div>
           </div>
           <div>
-            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">Embedded form</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_embedded_form', 'Embedded form')}</Label>
             <select
               value={formId}
               onChange={(e) => setFormId(e.target.value)}
               className="mt-1 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-md px-2 py-1.5 text-sm"
               data-testid="page-builder-form-select"
             >
-              <option value="">— None —</option>
+              <option value="">{t('mkt.pbd_none', '— None —')}</option>
               {(forms || []).map((f) => (
                 <option key={f.id} value={f.id}>{f.name}</option>
               ))}
@@ -111,19 +113,19 @@ const PageBuilderDialog = ({ API, headers, page, forms, onClose, onSaved }) => {
           </div>
           <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">SEO title</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_seo_title', 'SEO title')}</Label>
               <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} className="mt-1 text-sm" />
             </div>
             <div>
-              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">SEO description</Label>
+              <Label className="text-zinc-700 dark:text-zinc-300 text-sm">{t('mkt.pbd_seo_desc', 'SEO description')}</Label>
               <Input value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} className="mt-1 text-sm" />
             </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>{t('mkt.pbd_cancel', 'Cancel')}</Button>
             <Button onClick={onSave} disabled={saving} className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" data-testid="page-builder-save">
-              {saving ? 'Saving…' : (page ? 'Save changes' : 'Create page')}
+              {saving ? t('mkt.pbd_saving', 'Saving…') : (page ? t('mkt.pbd_save_changes', 'Save changes') : t('mkt.pbd_create', 'Create page'))}
             </Button>
           </div>
         </div>

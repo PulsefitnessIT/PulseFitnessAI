@@ -1,12 +1,14 @@
 /* Journeys — list + visual SVG canvas builder */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Plus, Save, Loader2, Edit2, Send, X, CheckCircle2, AlertCircle } from 'lucide-react';  
 import JourneyCanvas from './JourneyCanvas';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
 const JourneysTab = ({ API, headers }) => {
+  const { t } = useTranslation();
   const [journeys, setJourneys] = useState([]);
   const [editing, setEditing] = useState(null);
   const [name, setName] = useState('');
@@ -81,10 +83,10 @@ const JourneysTab = ({ API, headers }) => {
         { headers },
       );
       setTestResult(data);
-      notify.success(`Test dispatched — ${data.sent} sent, ${data.failed} failed, ${data.skipped} skipped`);
+      notify.success(t('mkt.jn_test_dispatched', 'Test dispatched — {{sent}} sent, {{failed}} failed, {{skipped}} skipped', { sent: data.sent, failed: data.failed, skipped: data.skipped }));
     } catch (e) {
-      notifyApiError(notify, e, 'Test send failed');
-      setTestResult({ error: e.response?.data?.detail || 'Test send failed' });
+      notifyApiError(notify, e, t('mkt.jn_test_failed', 'Test send failed'));
+      setTestResult({ error: e.response?.data?.detail || t('mkt.jn_test_failed', 'Test send failed') });
     } finally { setTestBusy(false); }
   };
 
@@ -93,7 +95,7 @@ const JourneysTab = ({ API, headers }) => {
       <div className="flex items-start justify-end flex-wrap gap-2">
         {!editing && (
           <button type="button" onClick={startNew} className="btn-primary" data-testid="journey-new-btn">
-            <Plus size={12} /> New journey
+            <Plus size={12} /> {t('mkt.jn_new_journey', 'New journey')}
           </button>
         )}
       </div>
@@ -101,11 +103,11 @@ const JourneysTab = ({ API, headers }) => {
       {editing && (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4" data-testid="journey-builder">
           <div className="flex items-center gap-2 flex-wrap">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Journey name" className="flex-1 min-w-0 sm:min-w-[14rem] px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm" data-testid="journey-name-input" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('mkt.jn_name_placeholder', 'Journey name')} className="flex-1 min-w-0 sm:min-w-[14rem] px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm" data-testid="journey-name-input" />
             <button onClick={save} disabled={busy || !name.trim()} className="px-4 py-2 rounded-md bg-[var(--color-brand-blue)] text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-1.5" data-testid="journey-save-btn">
-              {busy ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save journey
+              {busy ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} {t('mkt.jn_save_journey', 'Save journey')}
             </button>
-            <button onClick={() => setEditing(null)} className="px-3 py-2 text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:text-zinc-100 text-sm" data-testid="journey-cancel-btn">Cancel</button>
+            <button onClick={() => setEditing(null)} className="px-3 py-2 text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:text-zinc-100 text-sm" data-testid="journey-cancel-btn">{t('mkt.jn_cancel', 'Cancel')}</button>
           </div>
 
           <JourneyCanvas trigger={trigger} setTrigger={setTrigger} nodes={nodes} setNodes={setNodes} />
@@ -115,18 +117,18 @@ const JourneysTab = ({ API, headers }) => {
       {!editing && (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900" data-testid="journey-list">
           {journeys.length === 0 ? (
-            <p className="p-5 text-sm text-zinc-400 dark:text-zinc-500 text-center">No journeys yet — create one to start automating.</p>
+            <p className="p-5 text-sm text-zinc-400 dark:text-zinc-500 text-center">{t('mkt.jn_none', 'No journeys yet — create one to start automating.')}</p>
           ) : (
             <ul>
               {journeys.map((j) => (
                 <li key={j.id} className="p-4 border-b border-zinc-50 last:border-b-0 flex items-center justify-between" data-testid={`journey-row-${j.id}`}>
                   <div>
                     <p className="font-medium text-zinc-900 dark:text-zinc-100 text-sm">{j.name}</p>
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Trigger: <code className="font-mono">{j.trigger?.event}</code> · {j.nodes?.length || 0} steps</p>
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t('mkt.jn_trigger', 'Trigger:')} <code className="font-mono">{j.trigger?.event}</code> · {t('mkt.jn_steps', '{{n}} steps', { n: j.nodes?.length || 0 })}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${j.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500'}`}>{j.status}</span>
-                    <button onClick={() => openTestSend(j)} className="text-zinc-400 dark:text-zinc-500 hover:text-fuchsia-500" title="Test send" data-testid={`journey-test-send-${j.id}`}>
+                    <button onClick={() => openTestSend(j)} className="text-zinc-400 dark:text-zinc-500 hover:text-fuchsia-500" title={t('mkt.jn_test_send', 'Test send')} data-testid={`journey-test-send-${j.id}`}>
                       <Send size={12} />
                     </button>
                     <button onClick={() => startEdit(j)} className="text-zinc-400 dark:text-zinc-500 hover:text-[var(--color-brand-blue)]" data-testid={`journey-edit-${j.id}`}>
@@ -149,14 +151,14 @@ const JourneysTab = ({ API, headers }) => {
           <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-md w-full p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-2">
-                <Send size={14} className="text-fuchsia-500" /> Test send: {testSendFor.name}
+                <Send size={14} className="text-fuchsia-500" /> {t('mkt.jn_test_send_heading', 'Test send: {{name}}', { name: testSendFor.name })}
               </h3>
               <button onClick={() => setTestSendFor(null)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
                 <X size={14} />
               </button>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-              Pick a contact — the journey's email/SMS/push/in-app steps will fire immediately to them. Wait + branch nodes are skipped during test send.
+              {t('mkt.jn_test_desc', "Pick a contact — the journey's email/SMS/push/in-app steps will fire immediately to them. Wait + branch nodes are skipped during test send.")}
             </p>
             <select
               value={testContactId}
@@ -164,7 +166,7 @@ const JourneysTab = ({ API, headers }) => {
               className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 mb-3"
               data-testid="journey-test-contact-select"
             >
-              <option value="">— Choose a contact —</option>
+              <option value="">{t('mkt.jn_choose_contact', '— Choose a contact —')}</option>
               {testContacts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.first_name} {c.last_name} {c.email ? `· ${c.email}` : ''}
@@ -178,13 +180,13 @@ const JourneysTab = ({ API, headers }) => {
               data-testid="journey-test-send-confirm"
             >
               {testBusy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-              Dispatch test
+              {t('mkt.jn_dispatch_test', 'Dispatch test')}
             </button>
 
             {testResult && !testResult.error && (
               <div className="mt-4 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 p-3" data-testid="journey-test-result">
                 <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 inline-flex items-center gap-1.5">
-                  <CheckCircle2 size={12} /> {testResult.sent} sent · {testResult.failed} failed · {testResult.skipped} skipped
+                  <CheckCircle2 size={12} /> {t('mkt.jn_result_summary', '{{sent}} sent · {{failed}} failed · {{skipped}} skipped', { sent: testResult.sent, failed: testResult.failed, skipped: testResult.skipped })}
                 </p>
                 <ul className="mt-2 text-[11px] space-y-1 text-emerald-900 dark:text-emerald-100">
                   {(testResult.history || []).map((h, i) => (
@@ -192,7 +194,7 @@ const JourneysTab = ({ API, headers }) => {
                       <span className="text-[9px] uppercase tracking-wider opacity-70">{h.type}</span>
                       <span>·</span>
                       <span className="font-semibold">{h.status}</span>
-                      {h.channel && <span className="opacity-70">via {h.channel}{h.provider && h.provider !== h.channel ? ` (${h.provider})` : ''}</span>}
+                      {h.channel && <span className="opacity-70">{t('mkt.jn_via', 'via {{channel}}', { channel: h.channel })}{h.provider && h.provider !== h.channel ? ` (${h.provider})` : ''}</span>}
                       {h.error && <span className="text-rose-600 dark:text-rose-300">— {h.error}</span>}
                     </li>
                   ))}

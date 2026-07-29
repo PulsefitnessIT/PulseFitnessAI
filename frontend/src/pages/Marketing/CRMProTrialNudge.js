@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, Rocket, X, ShieldCheck } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -26,6 +27,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const DISMISS_KEY = 'crm_pro_nudge_dismissed';
 
 export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 }) {
+  const { t } = useTranslation();
   const token = useMemo(() => localStorage.getItem('token'), []);
   const [trialData, setTrialData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,13 +70,13 @@ export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 })
         { headers: { Authorization: `Bearer ${token}` } },
       );
       notify.success(
-        'CRM Pro trial started',
-        `You have ${trialDays} days to explore pipelines, deals and forecasting. Happy selling!`,
+        t('mkt.cpn_started_title', 'CRM Pro trial started'),
+        t('mkt.cpn_started_body', 'You have {{n}} days to explore pipelines, deals and forecasting. Happy selling!', { n: trialDays }),
       );
       // Reload state so the nudge hides + any app-level gates unlock.
       fetchTrialState();
     } catch (e) {
-      notifyApiError(notify, e, 'Could not start CRM trial');
+      notifyApiError(notify, e, t('mkt.cpn_start_err', 'Could not start CRM trial'));
     } finally { setStarting(false); }
   };
 
@@ -102,7 +104,7 @@ export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 })
       <button
         type="button"
         onClick={handleDismiss}
-        aria-label="Dismiss"
+        aria-label={t('mkt.cpn_dismiss', 'Dismiss')}
         className="absolute top-2 right-2 p-1 rounded hover:bg-black/10"
         data-testid="crm-pro-trial-nudge-dismiss"
       >
@@ -117,13 +119,12 @@ export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 })
       <div className="flex-1 min-w-0 pr-6">
         <p className="text-sm font-bold flex flex-wrap items-center gap-1.5" style={{ color: 'var(--theme-text)' }}>
           <Sparkles size={12} style={{ color: '#6366f1' }} />
-          You've built a {totalContacts.toLocaleString('en-GB')}-strong contact base.
+          {t('mkt.cpn_headline', "You've built a {{n}}-strong contact base.", { n: totalContacts.toLocaleString('en-GB') })}
         </p>
         <p className="text-xs opacity-75 mt-1 max-w-2xl">
-          That's the size where a pipeline starts paying for itself. Take CRM Pro for a {trialDays}-day spin —
-          deals, forecasting, commit-calls and automations, all on the contacts you've already built.
+          {t('mkt.cpn_body', "That's the size where a pipeline starts paying for itself. Take CRM Pro for a {{n}}-day spin — deals, forecasting, commit-calls and automations, all on the contacts you've already built.", { n: trialDays })}
           <span className="inline-flex items-center gap-1 ml-1.5 opacity-70">
-            <ShieldCheck size={11} /> No card required.
+            <ShieldCheck size={11} /> {t('mkt.cpn_no_card', 'No card required.')}
           </span>
         </p>
       </div>
@@ -136,11 +137,11 @@ export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 })
           style={{ background: 'linear-gradient(135deg, #6366f1 0%, #d946ef 100%)' }}
           data-testid="crm-pro-trial-nudge-start"
         >
-          {starting ? 'Starting…' : `Start free ${trialDays}-day trial`}
+          {starting ? t('mkt.cpn_starting', 'Starting…') : t('mkt.cpn_start_cta', 'Start free {{n}}-day trial', { n: trialDays })}
         </button>
       ) : (
         <div className="text-xs opacity-80 shrink-0 sm:text-right" data-testid="crm-pro-trial-nudge-owner-only">
-          <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>Ask your owner to start the trial.</span>
+          <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{t('mkt.cpn_ask_owner', 'Ask your owner to start the trial.')}</span>
         </div>
       )}
     </div>
