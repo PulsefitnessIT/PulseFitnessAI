@@ -41,7 +41,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from utils.auth import get_organization_filter
-from utils.site_scope import build_site_filter
+from utils.site_scope import build_site_filter, get_request_site_scope
 from utils.database import db
 
 
@@ -108,7 +108,27 @@ async def resolve_mod_query_filter(
         # site_access_denied. The per-request scope is stamped by
         # utils.auth.get_current_user.
         f = get_organization_filter(user)
-        return {**f, **base, **build_site_filter(requested_site_id)}
+        site_filter = build_site_filter(requested_site_id)
+        # Guard (2026-07): build_site_filter does NOT verify org-membership for
+        # an UNRESTRICTED user — it happily returns {"site_id": X} for any id.
+        # If a stale / foreign / cross-org site_id leaks in (e.g. inherited from
+        # a master-admin impersonation switch), the query then returns ZERO rows
+        # and equipment/faults silently "disappear". Treat a site_id that does
+        # NOT belong to the caller's org as "all sites" instead of an empty set.
+        # Restricted users are untouched: build_site_filter already 403s them
+        # for a disallowed site, and we must never widen their scope here.
+        requested = (requested_site_id or "").strip()
+        if requested and site_filter.get("site_id") == requested:
+            scope = get_request_site_scope()
+            org_id = user.get("organization_id")
+            if not scope.restricted and org_id:
+                belongs = await db.sites.find_one(
+                    {"organization_id": org_id, "id": requested},
+                    {"_id": 0, "id": 1},
+                )
+                if not belongs:
+                    site_filter = {}
+        return {**f, **base, **site_filter}
 
     # ── MOD HQ path ──
     child_ids = await _mod_child_org_ids(user)

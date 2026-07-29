@@ -1,3 +1,23 @@
+# ═══ 2026-07-29 · BACKEND GUARD (belt-and-braces) FOR THE IMPERSONATION SITE-SCOPE BUG (VERIFIED) ═══
+Follow-up to the frontend site-scope fix. Root of the "data disappears" behaviour on the backend:
+utils/site_scope.build_site_filter() does NOT verify org-membership for an UNRESTRICTED user — it returns
+{"site_id": X} for ANY id, so a stale/foreign/cross-org site_id (leaked from a master-admin impersonation switch)
+produced an empty result set (HTTP 200, zero rows) rather than an error → equipment & faults silently vanished.
+FIX: utils/mod_scope.resolve_mod_query_filter() non-MOD branch now, for an UNRESTRICTED user, checks the requested
+site_id against db.sites for the caller's org; if it doesn't belong, the site filter is dropped → treated as
+ALL SITES (org-wide) instead of an empty set. Restricted users are untouched — build_site_filter still 403s them for
+a disallowed site and we never widen their scope. Covers BOTH /equipment and /issues (both route through this helper),
+and any other caller of resolve_mod_query_filter. File: backend/utils/mod_scope.py (+ import get_request_site_scope).
+VERIFIED via curl: owner@isodemo — /equipment?site_id=ghost-foreign-999 → 20 items (== org-wide, was 0); valid
+site-a → 18 (correctly scoped); /issues?site_id=ghost → 25 (== org-wide). manager@isodemo (restricted to site-a):
+ghost → 403, disallowed site-b → 403, allowed site-a → 200 (RBAC intact).
+Net: the impersonation "equipment/faults disappeared" bug is now fixed at BOTH layers (frontend no longer sends a
+leaked site_id; backend ignores a foreign site_id for owners instead of returning empty).
+⚠️ PREVIEW ONLY — PRODUCTION still needs a REDEPLOY for both the frontend and backend fixes to land.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · PROD BUG FIX — EQUIPMENT/FAULTS "DISAPPEAR" AFTER LOGGING A FAULT WHILE IMPERSONATING (VERIFIED) ═══
 Report: on PRODUCTION, master admin impersonating "Penkridge leisure centre" logged an engineer-callout fault →
 all equipment & faults vanished; exiting + returning restored them. RCA (code-trace): NOT data loss — a client-side
