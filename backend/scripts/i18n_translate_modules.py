@@ -217,6 +217,53 @@ async def main():
         "memberships_console.crml_kind_low_attendance": "Low attendance",
         "memberships_console.crml_kind_high_engagement": "High engagement",
     })
+    # MemberPortal bottom-nav + more-sheet labels (rendered via template-literal keys).
+    pairs.update({
+        "memberships_console.mp_tab_home": "Home",
+        "memberships_console.mp_tab_book": "Book",
+        "memberships_console.mp_tab_bookings": "Bookings",
+        "memberships_console.mp_tab_pass": "Pass",
+        "memberships_console.mp_tab_more": "More",
+        "memberships_console.mp_more_plan": "My plan",
+        "memberships_console.mp_more_family": "Family accounts",
+        "memberships_console.mp_more_events": "Events & shows",
+        "memberships_console.mp_more_profile": "Profile & settings",
+    })
+    # StudioBuilder day abbreviations (rendered via template-literal keys sb_day_{i}).
+    pairs.update({
+        "memberships_console.sb_day_0": "Mon",
+        "memberships_console.sb_day_1": "Tue",
+        "memberships_console.sb_day_2": "Wed",
+        "memberships_console.sb_day_3": "Thu",
+        "memberships_console.sb_day_4": "Fri",
+        "memberships_console.sb_day_5": "Sat",
+        "memberships_console.sb_day_6": "Sun",
+    })
+    # AnalyticsTab section + role labels (rendered via template-literal keys).
+    pairs.update({
+        "memberships_console.an_sec_overview": "Overview",
+        "memberships_console.an_sec_retention": "Retention",
+        "memberships_console.an_sec_classes": "Classes",
+        "memberships_console.an_sec_operations": "Operations",
+        "memberships_console.an_sec_studio-brain": "Studio Brain",
+        "memberships_console.an_sec_ai-insights": "AI Insights",
+        "memberships_console.an_role_manager": "Gym manager",
+        "memberships_console.an_role_regional": "Regional mgr",
+        "memberships_console.an_role_director": "Director",
+    })
+    # MobileAppBuilder font / button-style / share-format labels (template-literal keys).
+    pairs.update({
+        "memberships_console.mab_font_inter": "Clean",
+        "memberships_console.mab_font_poppins": "Friendly",
+        "memberships_console.mab_font_manrope": "Modern",
+        "memberships_console.mab_font_nunito": "Rounded",
+        "memberships_console.mab_font_space": "Techy",
+        "memberships_console.mab_btn_soft": "Soft",
+        "memberships_console.mab_btn_pill": "Pill",
+        "memberships_console.mab_btn_sharp": "Sharp",
+        "memberships_console.mab_fmt_square": "Square (post)",
+        "memberships_console.mab_fmt_story": "Story",
+    })
     print(f"Extracted {len(pairs)} t() keys in namespaces {NAMESPACES} (incl. {len(service_nav)} service_nav)")
     en, fr, de = load("en.json"), load("fr.json"), load("de.json")
 

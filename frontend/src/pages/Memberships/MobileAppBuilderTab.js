@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
@@ -36,6 +37,7 @@ const CardIcon = ({ name, className }) => {
 };
 
 export default function MobileAppBuilderTab({ API, headers }) {
+  const { t } = useTranslation();
   const [registry, setRegistry] = useState([]);
   const [cards, setCards] = useState([]);
   const [accountType, setAccountType] = useState(null);
@@ -65,11 +67,11 @@ export default function MobileAppBuilderTab({ API, headers }) {
       setBranding(lay.data?.branding || { primary_brand_colour: '#19CDFF', logo_url: null, hero_image_url: null });
       setDirty(false);
     } catch (e) {
-      notify.error('Failed to load mobile app layout');
+      notify.error(t('memberships_console.mab_load_err', 'Failed to load mobile app layout'));
     } finally {
       setLoading(false);
     }
-  }, [API, headers]);
+  }, [API, headers, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -150,11 +152,11 @@ export default function MobileAppBuilderTab({ API, headers }) {
     setSaving(true);
     try {
       await axios.put(`${API}/member-app/layout`, { name: 'Default', cards }, { headers });
-      notify.success('Mobile layout saved');
+      notify.success(t('memberships_console.mab_saved', 'Mobile layout saved'));
       setDirty(false);
       bumpPreview();
     } catch (e) {
-      notifyApiError(notify, e, 'Save failed');
+      notifyApiError(notify, e, t('memberships_console.mab_save_failed', 'Save failed'));
     } finally {
       setSaving(false);
     }
@@ -167,13 +169,13 @@ export default function MobileAppBuilderTab({ API, headers }) {
       await axios.put(`${API}/member-app/branding`, patch, { headers });
       bumpPreview();
     } catch (e) {
-      notifyApiError(notify, e, 'Could not save branding');
+      notifyApiError(notify, e, t('memberships_console.mab_brand_err', 'Could not save branding'));
     }
-  }, [API, headers, bumpPreview]);
+  }, [API, headers, bumpPreview, t]);
 
   const uploadImage = useCallback(async (kind, file) => {
     if (!file) return;
-    if (!/^image\//.test(file.type)) { notify.error('Please choose an image file'); return; }
+    if (!/^image\//.test(file.type)) { notify.error(t('memberships_console.mab_pick_image', 'Please choose an image file')); return; }
     const fd = new FormData();
     fd.append('file', file);
     const endpoint = kind === 'logo' ? `${API}/account/logo` : `${API}/member-app/hero-image`;
@@ -190,11 +192,11 @@ export default function MobileAppBuilderTab({ API, headers }) {
         hero_image_url: kind === 'hero' ? data.hero_image_url : b.hero_image_url,
       }));
       bumpPreview();
-      notify.success(kind === 'logo' ? 'Logo updated' : 'Hero image updated');
+      notify.success(kind === 'logo' ? t('memberships_console.mab_logo_updated', 'Logo updated') : t('memberships_console.mab_hero_updated', 'Hero image updated'));
     } catch (e) {
-      notifyApiError(notify, e, 'Upload failed');
+      notifyApiError(notify, e, t('memberships_console.mab_upload_failed', 'Upload failed'));
     }
-  }, [API, headers, bumpPreview]);
+  }, [API, headers, bumpPreview, t]);
 
   const removeHero = useCallback(async () => {
     try {
@@ -202,27 +204,27 @@ export default function MobileAppBuilderTab({ API, headers }) {
       setBranding((b) => ({ ...b, hero_image_url: null }));
       bumpPreview();
     } catch (e) {
-      notifyApiError(notify, e, 'Could not remove image');
+      notifyApiError(notify, e, t('memberships_console.mab_remove_err', 'Could not remove image'));
     }
-  }, [API, headers, bumpPreview]);
+  }, [API, headers, bumpPreview, t]);
 
   const reset = async () => {
-    if (!window.confirm('Reset to the platform default layout? Your customisations will be lost.')) return;
+    if (!window.confirm(t('memberships_console.mab_reset_confirm', 'Reset to the platform default layout? Your customisations will be lost.'))) return;
     setSaving(true);
     try {
       const r = await axios.post(`${API}/member-app/layout/reset`, {}, { headers });
       setCards(r.data?.layout?.cards || []);
       setDirty(false);
-      notify.success('Layout reset');
+      notify.success(t('memberships_console.mab_layout_reset', 'Layout reset'));
     } catch {
-      notify.error('Reset failed');
+      notify.error(t('memberships_console.mab_reset_failed', 'Reset failed'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="p-6 text-sm" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>;
+    return <div className="p-6 text-sm" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_loading', 'Loading…')}</div>;
   }
 
   return (
@@ -231,14 +233,14 @@ export default function MobileAppBuilderTab({ API, headers }) {
       <div className="lg:col-span-12 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
-            Member experience
+            {t('memberships_console.mab_kicker', 'Member experience')}
           </div>
           <h2 className="text-2xl font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-            Mobile App Builder
+            {t('memberships_console.mab_title', 'Mobile App Builder')}
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-            Drag the cards your members see when they open your mobile app. Toggle, re-order, configure.
-            {accountType ? ` · Plan: ${accountType}` : ''}
+            {t('memberships_console.mab_subtitle', 'Drag the cards your members see when they open your mobile app. Toggle, re-order, configure.')}
+            {accountType ? ` · ${t('memberships_console.mab_plan', 'Plan: {{plan}}', { plan: accountType })}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -249,7 +251,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm border"
             style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
           >
-            <RotateCcw className="w-4 h-4" /> Reset
+            <RotateCcw className="w-4 h-4" /> {t('memberships_console.mab_reset', 'Reset')}
           </button>
           <button
             onClick={save}
@@ -258,7 +260,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
             style={{ background: dirty ? 'var(--color-brand-cyan)' : 'var(--theme-surface)', color: dirty ? 'var(--color-ink)' : 'var(--theme-text-muted)', border: dirty ? 'none' : '1px solid var(--theme-border)' }}
           >
-            <Save className="w-4 h-4" /> {saving ? 'Saving…' : (dirty ? 'Save layout' : 'Saved')}
+            <Save className="w-4 h-4" /> {saving ? t('memberships_console.mab_saving', 'Saving…') : (dirty ? t('memberships_console.mab_save_layout', 'Save layout') : t('memberships_console.mab_saved_btn', 'Saved'))}
           </button>
         </div>
       </div>
@@ -273,7 +275,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
           onClose={() => setSharePackOpen(false)}
           url={appSlug ? `${window.location.origin}/m/${appSlug}` : null}
           slug={appSlug}
-          gymName={branding?.name || 'Your studio'}
+          gymName={branding?.name || t('memberships_console.mab_your_studio', 'Your studio')}
           brandColour={branding?.primary_brand_colour || '#19CDFF'}
           logoUrl={branding?.logo_url || null}
           apiOrigin={API.replace(/\/api\/?$/, '')}
@@ -290,13 +292,13 @@ export default function MobileAppBuilderTab({ API, headers }) {
           apiOrigin={API.replace(/\/api\/?$/, '')}
         />
         <div className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
-          Layout · {cards.length} card{cards.length === 1 ? '' : 's'}
+          {cards.length === 1 ? t('memberships_console.mab_layout_count_one', 'Layout · 1 card') : t('memberships_console.mab_layout_count_many', 'Layout · {{n}} cards', { n: cards.length })}
         </div>
         {cards.length === 0 && (
           <EmptyState
             icon={Smartphone}
-            title="Your members' home screen is blank"
-            hint="Pick a card below — Timetable, Live faults, Class league — and drag to reorder. Members see this exact layout on iOS, Android and the web app."
+            title={t('memberships_console.mab_empty_title', "Your members' home screen is blank")}
+            hint={t('memberships_console.mab_empty_hint', 'Pick a card below — Timetable, Live faults, Class league — and drag to reorder. Members see this exact layout on iOS, Android and the web app.')}
             testId="mab-empty-state"
           />
         )}
@@ -320,7 +322,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
               data-testid={`mab-card-${card.type}`}
             >
               <div className="flex items-center gap-3 p-3">
-                <div className="cursor-grab active:cursor-grabbing touch-none p-1" title="Drag to reorder">
+                <div className="cursor-grab active:cursor-grabbing touch-none p-1" title={t('memberships_console.mab_drag_reorder', 'Drag to reorder')}>
                   <GripVertical className="w-5 h-5" style={{ color: 'var(--theme-text-muted)' }} />
                 </div>
                 <div
@@ -342,7 +344,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                     onClick={() => move(idx, -1)}
                     disabled={idx === 0}
                     className="p-2 rounded-md disabled:opacity-30"
-                    title="Move up"
+                    title={t('memberships_console.mab_move_up', 'Move up')}
                     data-testid={`mab-up-${card.type}`}
                   >
                     <ChevronUp className="w-4 h-4" />
@@ -351,7 +353,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                     onClick={() => move(idx, 1)}
                     disabled={idx === cards.length - 1}
                     className="p-2 rounded-md disabled:opacity-30"
-                    title="Move down"
+                    title={t('memberships_console.mab_move_down', 'Move down')}
                     data-testid={`mab-down-${card.type}`}
                   >
                     <ChevronDown className="w-4 h-4" />
@@ -359,7 +361,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                   <button
                     onClick={() => updateCard(idx, { enabled: !card.enabled })}
                     className="p-2 rounded-md"
-                    title={card.enabled ? 'Disable card' : 'Enable card'}
+                    title={card.enabled ? t('memberships_console.mab_disable', 'Disable card') : t('memberships_console.mab_enable', 'Enable card')}
                     data-testid={`mab-toggle-${card.type}`}
                   >
                     {card.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -368,7 +370,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                     <button
                       onClick={() => setExpandedKey(isOpen ? null : card.type)}
                       className="p-2 rounded-md"
-                      title="Settings"
+                      title={t('memberships_console.mab_settings', 'Settings')}
                       data-testid={`mab-settings-${card.type}`}
                     >
                       <SettingsIcon className="w-4 h-4" />
@@ -377,7 +379,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                   <button
                     onClick={() => removeCard(idx)}
                     className="p-2 rounded-md hover:text-red-500"
-                    title="Remove"
+                    title={t('memberships_console.mab_remove_title', 'Remove')}
                     data-testid={`mab-remove-${card.type}`}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -411,7 +413,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
             style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
           >
             <div className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--theme-text-muted)' }}>
-              Add a card
+              {t('memberships_console.mab_add_card', 'Add a card')}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {availableToAdd.map((c) => (
@@ -433,7 +435,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                       {c.title}
                       {c.pulse_only && (
                         <span className="ml-2 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>
-                          Pulse
+                          {t('memberships_console.mab_pulse_badge', 'Pulse')}
                         </span>
                       )}
                     </div>
@@ -454,12 +456,12 @@ export default function MobileAppBuilderTab({ API, headers }) {
         <div className="sticky top-24">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs font-medium uppercase tracking-wide flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}>
-              <Smartphone className="w-3.5 h-3.5" /> Live preview
+              <Smartphone className="w-3.5 h-3.5" /> {t('memberships_console.mab_live_preview', 'Live preview')}
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={bumpPreview}
-                title="Refresh preview"
+                title={t('memberships_console.mab_refresh_preview', 'Refresh preview')}
                 data-testid="mab-preview-refresh"
                 className="p-1.5 rounded-md border"
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
@@ -471,7 +473,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
                   href={`${window.location.origin}/m/${appSlug}`}
                   target="_blank"
                   rel="noreferrer"
-                  title="Open full-screen"
+                  title={t('memberships_console.mab_open_full', 'Open full-screen')}
                   data-testid="mab-preview-open"
                   className="p-1.5 rounded-md border"
                   style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
@@ -484,7 +486,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
 
           {/* Segmented toggle: real live app vs themed home-cards mock */}
           <div className="flex p-1 rounded-lg mb-3" style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)' }} data-testid="mab-preview-toggle">
-            {[{ id: 'live', label: 'Live app' }, { id: 'home', label: 'Home screen' }].map((m) => (
+            {[{ id: 'live', label: t('memberships_console.mab_mode_live', 'Live app') }, { id: 'home', label: t('memberships_console.mab_mode_home', 'Home screen') }].map((m) => (
               <button
                 key={m.id}
                 onClick={() => setPreviewMode(m.id)}
@@ -506,7 +508,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
               <div className="space-y-3" data-testid="mab-preview">
                 {cards.filter((c) => c.enabled).length === 0 && (
                   <div className="text-center text-xs py-12" style={{ color: '#64748b' }}>
-                    Empty home screen.<br />Add and enable cards to see them here.
+                    {t('memberships_console.mab_empty_home_1', 'Empty home screen.')}<br />{t('memberships_console.mab_empty_home_2', 'Add and enable cards to see them here.')}
                   </div>
                 )}
                 {cards.filter((c) => c.enabled).map((card) => {
@@ -549,6 +551,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
 /* ─────────────────── App address (public member-app link) ─────────────────── */
 
 function AppAddressCard({ slug, onSharePack }) {
+  const { t } = useTranslation();
   const [qr, setQr] = useState(null);
   const [copied, setCopied] = useState(false);
   const url = slug ? `${window.location.origin}/m/${slug}` : null;
@@ -582,10 +585,10 @@ function AppAddressCard({ slug, onSharePack }) {
     }
     if (ok) {
       setCopied(true);
-      notify.success('App link copied');
+      notify.success(t('memberships_console.mab_link_copied', 'App link copied'));
       setTimeout(() => setCopied(false), 1800);
     } else {
-      notify.error('Could not copy');
+      notify.error(t('memberships_console.mab_could_not_copy', 'Could not copy'));
     }
   };
 
@@ -602,14 +605,18 @@ function AppAddressCard({ slug, onSharePack }) {
   const printQr = () => {
     if (!qr || !url) return;
     const w = window.open('', '_blank', 'width=480,height=680');
-    if (!w) { notify.error('Allow pop-ups to print the QR code'); return; }
+    if (!w) { notify.error(t('memberships_console.mab_popup_qr', 'Allow pop-ups to print the QR code')); return; }
+    const printTitle = t('memberships_console.mab_qr_print_title', 'Member app QR');
+    const printHeading = t('memberships_console.mab_qr_print_heading', 'Scan to open our app');
+    const printSub = t('memberships_console.mab_qr_print_sub', 'Point your phone camera at the code');
+    const qrAlt = t('memberships_console.mab_qr_alt', 'QR code');
     w.document.write(
-      '<html><head><title>Member app QR</title><style>'
+      '<html><head><title>' + printTitle + '</title><style>'
       + 'body{font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:48px 24px;color:#0f172a}'
       + 'h1{font-size:22px;margin:0 0 6px}p{color:#475569;margin:0 0 24px}'
       + 'img{width:340px;height:340px}.u{margin-top:18px;font-family:monospace;font-size:14px;word-break:break-all}'
-      + '</style></head><body><h1>Scan to open our app</h1><p>Point your phone camera at the code</p>'
-      + '<img src="' + qr + '" alt="QR code"/><div class="u">' + url + '</div>'
+      + '</style></head><body><h1>' + printHeading + '</h1><p>' + printSub + '</p>'
+      + '<img src="' + qr + '" alt="' + qrAlt + '"/><div class="u">' + url + '</div>'
       + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print();window.close();},300);}</scr' + 'ipt>'
       + '</body></html>',
     );
@@ -624,17 +631,17 @@ function AppAddressCard({ slug, onSharePack }) {
     >
       <div className="flex items-center gap-2 mb-1">
         <Link2 className="w-4 h-4" style={{ color: 'var(--color-brand-cyan)' }} />
-        <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Your app address</div>
+        <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{t('memberships_console.mab_app_address', 'Your app address')}</div>
       </div>
       {!slug ? (
         <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }} data-testid="mab-app-address-unset">
-          Set your studio&apos;s app URL in <span className="font-semibold">Memberships → Setup → App URL</span> to get a shareable member-app link and QR code.
+          {t('memberships_console.mab_addr_unset_a', 'Set your studio\'s app URL in')} <span className="font-semibold">{t('memberships_console.mab_addr_unset_path', 'Memberships → Setup → App URL')}</span> {t('memberships_console.mab_addr_unset_b', 'to get a shareable member-app link and QR code.')}
         </p>
       ) : (
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-              Share this link (or the QR code) with your members — it opens your branded mobile app.
+              {t('memberships_console.mab_addr_share_hint', 'Share this link (or the QR code) with your members — it opens your branded mobile app.')}
             </p>
             <div
               className="rounded-lg border px-3 py-2 text-sm font-mono truncate"
@@ -650,7 +657,7 @@ function AppAddressCard({ slug, onSharePack }) {
                 style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}
                 data-testid="mab-app-address-copy"
               >
-                <Copy className="w-3.5 h-3.5" /> {copied ? 'Copied' : 'Copy link'}
+                <Copy className="w-3.5 h-3.5" /> {copied ? t('memberships_console.mab_copied', 'Copied') : t('memberships_console.mab_copy_link', 'Copy link')}
               </button>
               <a
                 href={url}
@@ -660,7 +667,7 @@ function AppAddressCard({ slug, onSharePack }) {
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="mab-app-address-open"
               >
-                <ExternalLink className="w-3.5 h-3.5" /> Open
+                <ExternalLink className="w-3.5 h-3.5" /> {t('memberships_console.mab_open', 'Open')}
               </a>
               <button
                 onClick={printQr}
@@ -669,7 +676,7 @@ function AppAddressCard({ slug, onSharePack }) {
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="mab-app-address-print"
               >
-                <Printer className="w-3.5 h-3.5" /> Print QR
+                <Printer className="w-3.5 h-3.5" /> {t('memberships_console.mab_print_qr', 'Print QR')}
               </button>
               <button
                 onClick={downloadPng}
@@ -678,7 +685,7 @@ function AppAddressCard({ slug, onSharePack }) {
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="mab-app-address-download"
               >
-                <Download className="w-3.5 h-3.5" /> Download
+                <Download className="w-3.5 h-3.5" /> {t('memberships_console.mab_download', 'Download')}
               </button>
               <button
                 type="button"
@@ -687,14 +694,14 @@ function AppAddressCard({ slug, onSharePack }) {
                 style={{ borderColor: 'var(--color-brand-cyan)', color: 'var(--color-brand-cyan)' }}
                 data-testid="mab-app-address-sharepack"
               >
-                <Share2 className="w-3.5 h-3.5" /> Share pack
+                <Share2 className="w-3.5 h-3.5" /> {t('memberships_console.mab_share_pack', 'Share pack')}
               </button>
             </div>
           </div>
           {qr && (
             <img
               src={qr}
-              alt="App QR code"
+              alt={t('memberships_console.mab_qr_alt_full', 'App QR code')}
               className="w-28 h-28 rounded-lg bg-white dark:bg-white p-1.5 flex-shrink-0"
               data-testid="mab-app-address-qr"
             />
@@ -748,6 +755,7 @@ function _roundRect(ctx, x, y, w, h, r) {
 }
 
 function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, apiOrigin }) {
+  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const [format, setFormat] = useState('square');
   const [rendering, setRendering] = useState(true);
@@ -796,13 +804,13 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
     // Gym name
     ctx.fillStyle = ink;
     ctx.font = "800 78px Inter, system-ui, sans-serif";
-    const name = (gymName || 'Your studio').slice(0, 28);
+    const name = (gymName || t('memberships_console.mab_your_studio', 'Your studio')).slice(0, 28);
     ctx.fillText(name, cx, y);
     y += 70;
     // Tagline
     ctx.fillStyle = sub;
     ctx.font = "600 38px Inter, system-ui, sans-serif";
-    ctx.fillText('Book classes · Check in · Manage your plan', cx, y);
+    ctx.fillText(t('memberships_console.mab_tagline', 'Book classes · Check in · Manage your plan'), cx, y);
     y += H === 1920 ? 150 : 90;
 
     // White QR panel
@@ -823,7 +831,7 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
     if (qrImg) ctx.drawImage(qrImg, cx - qrSize / 2, y + 60, qrSize, qrSize);
     ctx.fillStyle = '#0F172A';
     ctx.font = "800 34px Inter, system-ui, sans-serif";
-    ctx.fillText('SCAN TO GET THE APP', cx, y + qrSize + 130);
+    ctx.fillText(t('memberships_console.mab_scan_app', 'SCAN TO GET THE APP'), cx, y + qrSize + 130);
     y += panel + 130;
 
     // App URL chip
@@ -833,7 +841,7 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
     ctx.fillText(shortUrl, cx, y);
 
     setRendering(false);
-  }, [format, url, gymName, brandColour, logoUrl, apiOrigin]);
+  }, [format, url, gymName, brandColour, logoUrl, apiOrigin, t]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -847,16 +855,16 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
     a.download = `${slug || 'gym'}-app-card-${format}.png`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    notify.success('Card downloaded');
+    notify.success(t('memberships_console.mab_card_downloaded', 'Card downloaded'));
   };
 
   const share = async () => {
     const blob = await getBlob();
     if (!blob) return;
     const file = new File([blob], `${slug || 'gym'}-app-card.png`, { type: 'image/png' });
-    const text = `Download the ${gymName} app — book classes, check in and manage your plan: ${url}`;
+    const text = t('memberships_console.mab_share_text', 'Download the {{gym}} app — book classes, check in and manage your plan: {{url}}', { gym: gymName, url });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: `${gymName} app`, text }); return; } catch { /* cancelled */ }
+      try { await navigator.share({ files: [file], title: t('memberships_console.mab_app_title', '{{gym}} app', { gym: gymName }), text }); return; } catch { /* cancelled */ }
     }
     download();
   };
@@ -878,13 +886,13 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--theme-border)' }}>
           <div className="flex items-center gap-2">
             <Share2 className="w-4 h-4" style={{ color: 'var(--color-brand-cyan)' }} />
-            <div className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Share pack</div>
+            <div className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('memberships_console.mab_share_pack', 'Share pack')}</div>
           </div>
           <button onClick={onClose} data-testid="mab-sharepack-close" className="p-1.5 rounded-lg" style={{ color: 'var(--theme-text-muted)' }}><X className="w-4 h-4" /></button>
         </div>
         <div className="p-5 space-y-4">
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            A ready-to-post image with your logo, colour and QR code — share it on Instagram, Facebook or WhatsApp to get members onto your app.
+            {t('memberships_console.mab_sharepack_hint', 'A ready-to-post image with your logo, colour and QR code — share it on Instagram, Facebook or WhatsApp to get members onto your app.')}
           </p>
           <div className="flex p-1 rounded-lg" style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)' }} data-testid="mab-sharepack-format">
             {SHARE_FORMATS.map((f) => (
@@ -895,7 +903,7 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
                 className="flex-1 text-xs font-bold uppercase tracking-wider py-2 rounded-md transition"
                 style={format === f.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { background: 'transparent', color: 'var(--theme-text-muted)' }}
               >
-                {f.label}
+                {t(`memberships_console.mab_fmt_${f.id}`, f.label)}
               </button>
             ))}
           </div>
@@ -910,11 +918,11 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
           <div className="flex gap-2">
             {canNativeShare && (
               <button onClick={share} disabled={rendering} className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="mab-sharepack-share">
-                <Share2 className="w-4 h-4" /> Share
+                <Share2 className="w-4 h-4" /> {t('memberships_console.mab_share', 'Share')}
               </button>
             )}
             <button onClick={download} disabled={rendering} className={`${canNativeShare ? '' : 'flex-1'} inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-bold border disabled:opacity-50`} style={canNativeShare ? { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' } : { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', border: 'none' }} data-testid="mab-sharepack-download">
-              <Download className="w-4 h-4" /> Download PNG
+              <Download className="w-4 h-4" /> {t('memberships_console.mab_download_png', 'Download PNG')}
             </button>
           </div>
         </div>
@@ -926,6 +934,7 @@ function SharePackModal({ onClose, url, slug, gymName, brandColour, logoUrl, api
 /* ─────────────────── Phone frame ─────────────────── */
 
 function PhoneFrame({ children, brand, apiOrigin }) {
+  const { t } = useTranslation();
   const accent = brand?.primary_brand_colour || '#19CDFF';
   const hero = brand?.hero_image_url || null;
   const logo = brand?.logo_url || null;
@@ -958,7 +967,7 @@ function PhoneFrame({ children, brand, apiOrigin }) {
           {logoSrc
             ? <img src={logoSrc} alt="" className="h-7 w-7 rounded object-contain bg-white dark:bg-white" style={{ border: `1.5px solid ${accent}` }} />
             : <div className="h-7 w-7 rounded grid place-items-center" style={{ background: `${accent}22` }}><Sparkles className="w-3.5 h-3.5" style={{ color: accent }} /></div>}
-          <div className="text-slate-900 dark:text-slate-900 text-sm font-semibold truncate">My gym</div>
+          <div className="text-slate-900 dark:text-slate-900 text-sm font-semibold truncate">{t('memberships_console.mab_my_gym', 'My gym')}</div>
         </div>
         {children}
       </div>
@@ -969,6 +978,7 @@ function PhoneFrame({ children, brand, apiOrigin }) {
 /* ─────────────────── Live app iframe preview ─────────────────── */
 
 function LiveAppPreview({ slug, previewKey }) {
+  const { t } = useTranslation();
   if (!slug) {
     return (
       <div
@@ -978,8 +988,8 @@ function LiveAppPreview({ slug, previewKey }) {
       >
         <div>
           <Smartphone className="w-8 h-8 mx-auto mb-3 text-white/40" />
-          <p className="text-sm font-semibold text-white">Set your app address first</p>
-          <p className="text-xs text-white/50 mt-1.5">Add your app URL in Memberships → Setup to see your real member app here.</p>
+          <p className="text-sm font-semibold text-white">{t('memberships_console.mab_set_addr', 'Set your app address first')}</p>
+          <p className="text-xs text-white/50 mt-1.5">{t('memberships_console.mab_set_addr_hint', 'Add your app URL in Memberships → Setup to see your real member app here.')}</p>
         </div>
       </div>
     );
@@ -994,7 +1004,7 @@ function LiveAppPreview({ slug, previewKey }) {
       <iframe
         key={previewKey}
         src={src}
-        title="Member app live preview"
+        title={t('memberships_console.mab_iframe_title', 'Member app live preview')}
         className="w-full h-full"
         style={{ border: 'none', background: '#0f172a' }}
         loading="lazy"
@@ -1020,6 +1030,7 @@ const BUTTON_OPTIONS = [
 ];
 
 function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin }) {
+  const { t } = useTranslation();
   const logoRef = useRef(null);
   const heroRef = useRef(null);
   const [busy, setBusy] = useState(null); // 'logo' | 'hero' | null
@@ -1048,32 +1059,32 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
     <div className="rounded-xl border p-4" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="mab-branding-panel">
       <div className="flex items-center gap-2 mb-3">
         <Palette className="w-4 h-4" style={{ color: 'var(--color-brand-cyan)' }} />
-        <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Branding &amp; theme</div>
+        <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{t('memberships_console.mab_branding_theme', 'Branding & theme')}</div>
       </div>
 
       {/* Iter 220ed — Gym name shown to members on the login screen */}
       <div className="mb-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Gym name shown to members</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_gym_name_label', 'Gym name shown to members')}</span>
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           onBlur={(e) => onField({ display_name: e.target.value.trim() })}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          placeholder="e.g. Third Space"
+          placeholder={t('memberships_console.mab_gym_name_ph', 'e.g. Third Space')}
           maxLength={80}
           className="w-full mt-1.5 text-sm rounded-lg border px-3 py-2"
           style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
           data-testid="mab-display-name"
         />
         <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-          Appears on the member login &amp; welcome screen. Leave blank to use your account name.
+          {t('memberships_console.mab_gym_name_hint', 'Appears on the member login & welcome screen. Leave blank to use your account name.')}
         </p>
       </div>
 
       {/* Brand colour */}
       <div className="mb-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Brand colour</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_brand_colour', 'Brand colour')}</span>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           {COLOUR_PRESETS.map((c) => (
             <button
@@ -1085,7 +1096,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
               style={{ background: c, outline: colour.toUpperCase() === c.toUpperCase() ? '2px solid var(--theme-text)' : 'none', outlineOffset: 2 }}
             />
           ))}
-          <label className="relative w-7 h-7 rounded-full overflow-hidden cursor-pointer" style={{ border: '1px solid var(--theme-border)' }} title="Custom colour">
+          <label className="relative w-7 h-7 rounded-full overflow-hidden cursor-pointer" style={{ border: '1px solid var(--theme-border)' }} title={t('memberships_console.mab_custom_colour', 'Custom colour')}>
             <input
               type="color"
               value={colour}
@@ -1099,13 +1110,13 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
         {palette.length > 0 && (
           <div className="mt-2.5 flex items-center gap-2 flex-wrap" data-testid="mab-logo-palette">
             <span className="text-[10px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--theme-text-muted)' }}>
-              <Sparkles className="w-3 h-3" style={{ color: 'var(--color-brand-cyan)' }} /> From your logo:
+              <Sparkles className="w-3 h-3" style={{ color: 'var(--color-brand-cyan)' }} /> {t('memberships_console.mab_from_logo', 'From your logo:')}
             </span>
             {palette.map((c) => (
               <button
                 key={c}
                 onClick={() => onField({ primary_brand_colour: c })}
-                title={`Apply ${c}`}
+                title={t('memberships_console.mab_apply_colour', 'Apply {{c}}', { c })}
                 data-testid={`mab-logo-colour-${c.replace('#', '')}`}
                 className="w-6 h-6 rounded-md transition"
                 style={{ background: c, outline: colour.toUpperCase() === c.toUpperCase() ? '2px solid var(--theme-text)' : '1px solid var(--theme-border)', outlineOffset: 1 }}
@@ -1117,7 +1128,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
 
       {/* Typography */}
       <div className="mb-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Typography</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_typography', 'Typography')}</span>
         <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid="mab-font-options">
           {FONT_OPTIONS.map((f) => {
             const active = font === f.id;
@@ -1135,7 +1146,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
                   fontWeight: 700,
                 }}
               >
-                {f.label}
+                {t(`memberships_console.mab_font_${f.id}`, f.label)}
               </button>
             );
           })}
@@ -1144,7 +1155,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
 
       {/* Button style */}
       <div className="mb-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Button style</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_button_style', 'Button style')}</span>
         <div className="flex gap-1.5 mt-1.5" data-testid="mab-button-options">
           {BUTTON_OPTIONS.map((b) => {
             const active = buttonStyle === b.id;
@@ -1161,7 +1172,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
                   border: active ? 'none' : '1px solid var(--theme-border)',
                 }}
               >
-                {b.label}
+                {t(`memberships_console.mab_btn_${b.id}`, b.label)}
               </button>
             );
           })}
@@ -1171,7 +1182,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
       <div className="grid grid-cols-2 gap-3">
         {/* Logo */}
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Logo</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_logo', 'Logo')}</span>
           <button
             onClick={() => logoRef.current?.click()}
             data-testid="mab-logo-upload"
@@ -1181,7 +1192,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
             {logoSrc
               ? <img src={logoSrc} alt="logo" className="h-9 w-9 rounded object-contain bg-white dark:bg-white" />
               : <div className="h-9 w-9 rounded grid place-items-center" style={{ background: 'var(--theme-surface-3)' }}><ImageIcon className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} /></div>}
-            <span className="text-xs font-semibold flex-1 text-left" style={{ color: 'var(--theme-text)' }}>{logoSrc ? 'Replace' : 'Upload'}</span>
+            <span className="text-xs font-semibold flex-1 text-left" style={{ color: 'var(--theme-text)' }}>{logoSrc ? t('memberships_console.mab_replace', 'Replace') : t('memberships_console.mab_upload', 'Upload')}</span>
             {busy === 'logo' ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-brand-cyan)' }} /> : <Upload className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />}
           </button>
           <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={pick('logo', logoRef)} data-testid="mab-logo-input" />
@@ -1189,7 +1200,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
 
         {/* Hero banner */}
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>Hero banner</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--theme-text-muted)' }}>{t('memberships_console.mab_hero_banner', 'Hero banner')}</span>
           <div className="mt-1.5 relative">
             <button
               onClick={() => heroRef.current?.click()}
@@ -1201,12 +1212,12 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
                 ? <img src={heroSrc} alt="hero" className="w-full h-full object-cover" />
                 : (busy === 'hero'
                     ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-brand-cyan)' }} />
-                    : <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--theme-text-muted)' }}><Upload className="w-3.5 h-3.5" /> Upload banner</span>)}
+                    : <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--theme-text-muted)' }}><Upload className="w-3.5 h-3.5" /> {t('memberships_console.mab_upload_banner', 'Upload banner')}</span>)}
             </button>
             {heroSrc && (
               <button
                 onClick={onRemoveHero}
-                title="Remove banner"
+                title={t('memberships_console.mab_remove_banner', 'Remove banner')}
                 data-testid="mab-hero-remove"
                 className="absolute -top-2 -right-2 w-5 h-5 rounded-full grid place-items-center"
                 style={{ background: '#ef4444', color: '#fff' }}
@@ -1219,7 +1230,7 @@ function BrandingPanel({ branding, onField, onUpload, onRemoveHero, apiOrigin })
         </div>
       </div>
       <p className="text-[11px] mt-3" style={{ color: 'var(--theme-text-muted)' }}>
-        Your colour, fonts, buttons, logo and banner appear on the member app instantly — switch the preview to <strong>Live app</strong> to see exactly what members see.
+        {t('memberships_console.mab_brand_hint_a', 'Your colour, fonts, buttons, logo and banner appear on the member app instantly — switch the preview to')} <strong>{t('memberships_console.mab_mode_live', 'Live app')}</strong> {t('memberships_console.mab_brand_hint_b', 'to see exactly what members see.')}
       </p>
     </div>
   );

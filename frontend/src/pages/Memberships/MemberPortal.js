@@ -89,18 +89,18 @@ const TabFallback = () => (
 // Bottom-nav: 5 primary tabs + More sheet. Plan/Family/Profile move into the
 // More bottom-sheet so each tab keeps an ergonomic ≥75px tap target at 375px.
 const TABS = [
-  { id: 'home',     label: 'Home',     icon: Home },
-  { id: 'book',     label: 'Book',     icon: Calendar },
-  { id: 'bookings', label: 'Bookings', icon: Ticket },
-  { id: 'pass',     label: 'Pass',     icon: QrCode },
-  { id: 'more',     label: 'More',     icon: MoreHorizontal },
+  { id: 'home',     label: 'Home',     labelKey: 'mp_tab_home',     icon: Home },
+  { id: 'book',     label: 'Book',     labelKey: 'mp_tab_book',     icon: Calendar },
+  { id: 'bookings', label: 'Bookings', labelKey: 'mp_tab_bookings', icon: Ticket },
+  { id: 'pass',     label: 'Pass',     labelKey: 'mp_tab_pass',     icon: QrCode },
+  { id: 'more',     label: 'More',     labelKey: 'mp_tab_more',     icon: MoreHorizontal },
 ];
 
 const MORE_ITEMS = [
-  { id: 'plan',    label: 'My plan',           icon: CreditCard },
-  { id: 'family',  label: 'Family accounts',   icon: Users },
-  { id: 'events',  label: 'Events & shows',    icon: Sparkles },
-  { id: 'profile', label: 'Profile & settings',icon: User },
+  { id: 'plan',    label: 'My plan',            labelKey: 'mp_more_plan',    icon: CreditCard },
+  { id: 'family',  label: 'Family accounts',    labelKey: 'mp_more_family',  icon: Users },
+  { id: 'events',  label: 'Events & shows',     labelKey: 'mp_more_events',  icon: Sparkles },
+  { id: 'profile', label: 'Profile & settings', labelKey: 'mp_more_profile', icon: User },
 ];
 
 export default function MemberPortal({ slug }) {
@@ -278,6 +278,7 @@ export default function MemberPortal({ slug }) {
 /* ─────────────────── Streak card ─────────────────── */
 
 function StreakCard({ headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   useEffect(() => {
     axios.get(`${API}/member/streak`, { headers })
@@ -291,26 +292,26 @@ function StreakCard({ headers }) {
   const goalPct = Math.min(100, Math.round((weekly_count / Math.max(weekly_goal, 1)) * 100));
   const goalHit = weekly_remaining === 0 && weekly_count > 0;
   const headline = at_risk
-    ? `Don't let it slip — show up today to keep your ${streak}-day streak alive.`
+    ? t('memberships_console.mp_streak_head_risk', "Don't let it slip — show up today to keep your {{n}}-day streak alive.", { n: streak })
     : streak >= 3
-    ? `🔥 ${streak}-day streak · you're on fire.`
+    ? t('memberships_console.mp_streak_head_fire', "🔥 {{n}}-day streak · you're on fire.", { n: streak })
     : streak > 0
-    ? `You're on day ${streak} — let's keep it going.`
-    : `${weekly_count}/${weekly_goal} this week · you got this.`;
+    ? t('memberships_console.mp_streak_head_going', "You're on day {{n}} — let's keep it going.", { n: streak })
+    : t('memberships_console.mp_streak_head_week', '{{c}}/{{g}} this week · you got this.', { c: weekly_count, g: weekly_goal });
 
   return (
     <section className="mb-5 rounded-xl border border-white/10 bg-zinc-900/[0.04] p-4 sm:p-5" data-testid="member-streak-card">
       <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.25em] text-[var(--color-brand-cyan)]">
-        <Activity size={12} /> Attendance streak
+        <Activity size={12} /> {t('memberships_console.mp_streak_label', 'Attendance streak')}
       </div>
       <div className="mt-1.5 text-base sm:text-lg font-extrabold leading-tight tracking-tight">{headline}</div>
       <div className="grid grid-cols-2 gap-3 mt-3">
         <div>
-          <div className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Current</div>
+          <div className="text-[10px] text-white/50 font-bold uppercase tracking-wider">{t('memberships_console.mp_streak_current', 'Current')}</div>
           <div className="text-2xl font-extrabold" style={{ color: streak > 0 ? 'var(--color-brand-cyan)' : 'rgba(255,255,255,0.5)' }} data-testid="member-streak-current">{streak}d</div>
         </div>
         <div>
-          <div className="text-[10px] text-white/50 font-bold uppercase tracking-wider">This week</div>
+          <div className="text-[10px] text-white/50 font-bold uppercase tracking-wider">{t('memberships_console.mp_streak_week', 'This week')}</div>
           <div className="text-2xl font-extrabold" data-testid="member-streak-weekly">{weekly_count}<span className="text-white/40 text-base font-bold"> / {weekly_goal}</span></div>
         </div>
       </div>
@@ -319,12 +320,12 @@ function StreakCard({ headers }) {
       </div>
       {goalHit && (
         <div className="mt-2 text-[11px] font-extrabold text-emerald-400 flex items-center gap-1" data-testid="member-streak-goal-hit">
-          <CheckCircle2 size={12} /> Weekly goal smashed 🎉
+          <CheckCircle2 size={12} /> {t('memberships_console.mp_streak_goal_hit', 'Weekly goal smashed')} 🎉
         </div>
       )}
       {at_risk && !goalHit && (
         <div className="mt-2 text-[11px] font-bold text-amber-400" data-testid="member-streak-risk">
-          24+ hours since your last session.
+          {t('memberships_console.mp_streak_risk', '24+ hours since your last session.')}
         </div>
       )}
     </section>
@@ -334,6 +335,7 @@ function StreakCard({ headers }) {
 /* ─────────────────── Required consent forms banner (Phase C) ─────────────────── */
 
 function RequiredFormsBanner({ headers }) {
+  const { t } = useTranslation();
   const [pending, setPending] = useState(null); // null=loading, []=none, [forms]=show
   const [vocab, setVocab] = useState(null);
   const [signing, setSigning] = useState(null);
@@ -363,7 +365,7 @@ function RequiredFormsBanner({ headers }) {
       setSignature('');
       reload();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Could not sign — please try again.');
+      alert(e?.response?.data?.detail || t('memberships_console.mp_forms_sign_err', 'Could not sign — please try again.'));
     }
   };
 
@@ -382,10 +384,12 @@ function RequiredFormsBanner({ headers }) {
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold">
-            {pending.length} form{pending.length > 1 ? 's' : ''} to sign before your next booking
+            {pending.length === 1
+              ? t('memberships_console.mp_forms_count_one', '1 form to sign before your next booking')
+              : t('memberships_console.mp_forms_count_many', '{{n}} forms to sign before your next booking', { n: pending.length })}
           </p>
           <p className="text-[12px] opacity-80 mt-0.5">
-            As the {guardian} of your {memberWord}, please confirm the following so we can keep everyone safe.
+            {t('memberships_console.mp_forms_guardian_note', 'As the {{guardian}} of your {{member}}, please confirm the following so we can keep everyone safe.', { guardian, member: memberWord })}
           </p>
           <ul className="mt-2 space-y-1">
             {pending.map((f) => (
@@ -402,7 +406,7 @@ function RequiredFormsBanner({ headers }) {
                   style={{ background: '#b45309', color: '#fff' }}
                   data-testid={`member-required-form-sign-${f.id}`}
                 >
-                  Read & sign
+                  {t('memberships_console.mp_forms_read_sign', 'Read & sign')}
                 </button>
               </li>
             ))}
@@ -420,7 +424,7 @@ function RequiredFormsBanner({ headers }) {
                dangerouslySetInnerHTML={{ __html: signing.body_html }} />
           <label className="block mt-2">
             <span className="text-[10px] uppercase tracking-wider font-bold opacity-60">
-              Type your full name to confirm
+              {t('memberships_console.mp_forms_type_name', 'Type your full name to confirm')}
             </span>
             <input
               value={signature}
@@ -438,7 +442,7 @@ function RequiredFormsBanner({ headers }) {
               style={{ borderColor: '#cbd5e1' }}
               data-testid="member-required-form-cancel"
             >
-              Cancel
+              {t('memberships_console.mp_forms_cancel', 'Cancel')}
             </button>
             <button
               type="button"
@@ -448,7 +452,7 @@ function RequiredFormsBanner({ headers }) {
               style={{ background: '#1d4ed8', color: '#fff', opacity: signature.trim() ? 1 : 0.5 }}
               data-testid="member-required-form-submit"
             >
-              I agree & sign
+              {t('memberships_console.mp_forms_agree_sign', 'I agree & sign')}
             </button>
           </div>
         </div>
@@ -460,6 +464,7 @@ function RequiredFormsBanner({ headers }) {
 /* ─────────────────── Referral campaign banner ─────────────────── */
 
 function ReferralCampaignBanner({ headers, slug, onCta }) {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState(null);
   const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
@@ -478,40 +483,40 @@ function ReferralCampaignBanner({ headers, slug, onCta }) {
   const share = async () => {
     const base = slug ? `${window.location.origin}/m/${slug}` : `${window.location.origin}/members`;
     const url = `${base}?ref=${progress.code}`;
-    const text = `Train with me — use my code ${progress.code} for £5 off your first class at the studio.`;
+    const text = t('memberships_console.mp_ref_share_text', 'Train with me — use my code {{code}} for £5 off your first class at the studio.', { code: progress.code });
     if (navigator.share) {
-      try { await navigator.share({ title: 'Join me at the studio', url, text }); return; }
+      try { await navigator.share({ title: t('memberships_console.mp_ref_share_title', 'Join me at the studio'), url, text }); return; }
       catch { /* fallthrough */ }
     }
-    try { await navigator.clipboard.writeText(url); notify.success('Share link copied'); }
-    catch { window.prompt('Share this link:', url); }
+    try { await navigator.clipboard.writeText(url); notify.success(t('memberships_console.mp_ref_copied', 'Share link copied')); }
+    catch { window.prompt(t('memberships_console.mp_ref_prompt', 'Share this link:'), url); }
   };
 
   if (!progress || dismissed || !progress.next_goal) return null;
   const { gap, percent, earned, next_goal } = progress;
   const headline = gap === 1
-    ? `One more friend and you unlock ${next_goal.reward.toLowerCase()}.`
-    : `Refer ${gap} more friends, get ${next_goal.reward.toLowerCase()}.`;
+    ? t('memberships_console.mp_ref_head_one', 'One more friend and you unlock {{reward}}.', { reward: next_goal.reward.toLowerCase() })
+    : t('memberships_console.mp_ref_head_many', 'Refer {{gap}} more friends, get {{reward}}.', { gap, reward: next_goal.reward.toLowerCase() });
 
   return (
     <section className="mb-5 rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.3)] bg-gradient-to-br from-[rgb(var(--rgb-brand-cyan)/0.15)] via-[rgb(var(--rgb-brand-cyan)/0.05)] to-transparent p-4 sm:p-5 relative" data-testid="member-referral-campaign">
       <button onClick={dismiss}
         className="absolute top-2 right-2 p-1.5 rounded text-white/40 hover:text-white hover:bg-zinc-900/5"
-        data-testid="member-referral-campaign-dismiss" aria-label="Dismiss">
+        data-testid="member-referral-campaign-dismiss" aria-label={t('memberships_console.mp_ref_dismiss', 'Dismiss')}>
         <X size={14} />
       </button>
       <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.25em] text-[var(--color-brand-cyan)]">
-        <Sparkles size={12} /> Refer &amp; earn
+        <Sparkles size={12} /> {t('memberships_console.mp_ref_label', 'Refer & earn')}
       </div>
       <div className="mt-1.5 text-base sm:text-lg font-extrabold leading-tight tracking-tight pr-6">{headline}</div>
       <div className="mt-3 h-1.5 rounded bg-zinc-900/10 overflow-hidden" aria-hidden>
         <div className="h-full rounded bg-[var(--color-brand-cyan)] transition-all" style={{ width: `${percent}%` }} />
       </div>
       <div className="flex items-center justify-between mt-2 gap-3">
-        <div className="text-[11px] text-white/60">{earned} / {next_goal.threshold} friends joined</div>
+        <div className="text-[11px] text-white/60">{t('memberships_console.mp_ref_joined', '{{earned}} / {{threshold}} friends joined', { earned, threshold: next_goal.threshold })}</div>
         <div className="flex items-center gap-2">
           <button onClick={onCta} className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1.5 rounded border border-white/15 text-white/80 hover:bg-zinc-900/5" data-testid="member-referral-campaign-cta">
-            My code
+            {t('memberships_console.mp_ref_my_code', 'My code')}
           </button>
           <button onClick={share} className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded bg-[var(--color-brand-cyan)] text-black" data-testid="member-referral-campaign-share">
             Share now
@@ -604,7 +609,7 @@ function LoginForm({ onAuthed, accent }) {
         tone: 'error',
         title: /invalid|credential|incorrect|not found/i.test(d) ? t('memberships_console.mp_login_bad', 'Incorrect email or password') : t('memberships_console.mp_login_fail', "Couldn't sign you in"),
         detail: /invalid|credential|incorrect|not found/i.test(d)
-          ? t('memberships_console.mp_login_bad_detail', 'Double-check your email and password. Tap "Forgot password" to reset.')
+          ? t('memberships_console.mp_login_bad_detail', 'Double-check your email and password. Tap Forgot password to reset.')
           : (d || t('memberships_console.mp_conn_retry', 'Please check your connection and try again.')),
       });
     } finally { setBusy(false); }
@@ -812,6 +817,7 @@ function RegisterSelect({ placeholder, value, onChange, options, testid }) {
 /* ─────────────────── Chrome ─────────────────── */
 
 function TopBar({ member, branding, onSignOut }) {
+  const { t } = useTranslation();
   const gymLabel = branding?.name || 'Pulse Fitness';
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
   return (
@@ -820,7 +826,7 @@ function TopBar({ member, branding, onSignOut }) {
         {branding?.logo_url && <img src={branding.logo_url} alt={gymLabel} className="h-7 w-7 rounded" loading="eager" decoding="async" />}
         <div className="min-w-0">
           <div className="text-[9px] font-bold uppercase tracking-[0.25em] truncate" style={{ color: accent }}>{gymLabel}</div>
-          <div className="text-sm font-extrabold truncate">Hello, {member.first_name}</div>
+          <div className="text-sm font-extrabold truncate">{t('memberships_console.mp_topbar_hello', 'Hello, {{name}}', { name: member.first_name })}</div>
         </div>
       </div>
       <button onClick={onSignOut} className="p-2 rounded-lg text-white/50 hover:bg-zinc-900/5" data-testid="member-signout"><LogOut size={15} /></button>
@@ -832,6 +838,7 @@ function TopBar({ member, branding, onSignOut }) {
 const INSTALL_DISMISS_KEY = 'gymaxis_member_install_dismissed';
 
 function InstallPrompt({ brandColor }) {
+  const { t } = useTranslation();
   const [deferred, setDeferred] = React.useState(null);
   const [iosHint, setIosHint] = React.useState(false);
   const [dismissed, setDismissed] = React.useState(
@@ -902,12 +909,12 @@ function InstallPrompt({ brandColor }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-extrabold text-white leading-tight" data-testid="member-install-prompt-title">
-          Install for one-tap access
+          {t('memberships_console.mp_install_title', 'Install for one-tap access')}
         </p>
         <p className="text-[11px] text-white/60 mt-0.5 leading-snug">
           {deferred
-            ? 'Add to your home screen so you can book classes in seconds.'
-            : 'Tap the share icon, then "Add to Home Screen" to install.'}
+            ? t('memberships_console.mp_install_desc', 'Add to your home screen so you can book classes in seconds.')
+            : t('memberships_console.mp_install_desc_ios', "Tap the share icon, then 'Add to Home Screen' to install.")}
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
@@ -918,12 +925,12 @@ function InstallPrompt({ brandColor }) {
             style={{ background: accent }}
             data-testid="member-install-prompt-cta"
           >
-            Install
+            {t('memberships_console.mp_install_cta', 'Install')}
           </button>
         )}
         <button
           onClick={close}
-          aria-label="Dismiss install prompt"
+          aria-label={t('memberships_console.mp_install_dismiss', 'Dismiss install prompt')}
           className="p-1 rounded-md text-white/50 hover:text-white/90 hover:bg-white/5"
           data-testid="member-install-prompt-dismiss"
         >
@@ -935,19 +942,20 @@ function InstallPrompt({ brandColor }) {
 }
 
 function BottomNav({ tab, setTab }) {
+  const { t } = useTranslation();
   // When tab is in the More sheet (plan / family / profile), light up the
   // More pill so the user always sees where they are.
   const moreActive = ['plan', 'family', 'profile'].includes(tab);
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-[var(--color-ink)] border-t border-white/10 grid grid-cols-5">
-      {TABS.map((t) => {
-        const Icon = t.icon;
-        const active = t.id === 'more' ? moreActive : tab === t.id;
+      {TABS.map((nav) => {
+        const Icon = nav.icon;
+        const active = nav.id === 'more' ? moreActive : tab === nav.id;
         return (
-          <button key={t.id} onClick={() => setTab(t.id)} data-testid={`member-tab-${t.id}`}
+          <button key={nav.id} onClick={() => setTab(nav.id)} data-testid={`member-tab-${nav.id}`}
             className={`flex flex-col items-center gap-0.5 py-3 text-[10px] font-bold uppercase tracking-wider transition ${active ? 'text-[var(--color-brand-cyan)]' : 'text-white/50 hover:text-white/80'}`}>
             <Icon size={18} />
-            {t.label}
+            {t(`memberships_console.${nav.labelKey}`, nav.label)}
           </button>
         );
       })}
@@ -959,13 +967,14 @@ function BottomNav({ tab, setTab }) {
 /* ─────────────────── More sheet ─────────────────── */
 
 function MoreSheet({ open, currentTab, onSelect, onClose }) {
+  const { t } = useTranslation();
   const vocab = useStudioVocab();
   if (!open) return null;
   // Thread vocab.member_plural into the Family entry so a parent at a
   // cheer club sees "Your athletes", a swim school sees "Your swimmers".
   const items = MORE_ITEMS.map((item) => (
     item.id === 'family'
-      ? { ...item, label: `Your ${vocab.member_plural}` }
+      ? { ...item, label: t('memberships_console.mp_more_your', 'Your {{plural}}', { plural: vocab.member_plural }) }
       : item
   ));
   return (
@@ -993,7 +1002,7 @@ function MoreSheet({ open, currentTab, onSelect, onClose }) {
                 data-testid={`member-more-item-${item.id}`}
               >
                 <Icon size={20} />
-                <span className="text-base font-semibold">{item.label}</span>
+                <span className="text-base font-semibold">{item.id === 'family' ? item.label : t(`memberships_console.${item.labelKey}`, item.label)}</span>
               </button>
             );
           })}

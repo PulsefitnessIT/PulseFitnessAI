@@ -1,0 +1,23 @@
+{
+  "summary": "i18n verification of Memberships console (AnalyticsTab, StudioBuilderTab, MobileAppBuilderTab) and public MemberPortal in EN/FR/DE. Logged in as owner@isodemo.com, visited each tab via ?tab=<id>&lng=<lang>, clicked through all 6 Analytics sub-tabs, opened Studio Builder 'New class' modal, opened Mobile App Builder 'Share pack' modal, and rendered MemberPortal login for each locale. Full body.innerText scanned with regex /memberships_console\\.[a-zA-Z0-9_]+|(?<![a-zA-Z0-9])(?:an|mp|sb|mab)_[a-z]\\w{1,40}/ on every state. Zero raw i18n key leaks found across all 15 combinations. Screenshots confirm proper German translations (Mitgliedschaften, Analysen, Mobile App Builder, Neuer Kurs / Kursname / Dauer / Kapazität / Mo–So, Markenfarbe, Typografie, Live-Vorschau, Startbildschirm, AI-Einblicke, Willkommen bei Pulse Fitness / Anmelden / Beitreten / Passwort).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No raw key leaks detected in the 4 files under review. i18n wrapping is clean.",
+    "CSP blocks assets.emergent.sh/scripts/emergent-main.js, us-assets.i.posthog.com and cloudflareinsights beacon — unrelated to this i18n task but visible in every page load; likely intentional or worth updating CSP script-src if analytics is required."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only task)", "frontend": "100% (0 raw i18n key leaks in 15 scanned states)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md) — worked, lands on /service-desk; Memberships opened via /memberships?tab=<id>&lng=<lang>.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regex used to scan raw keys: r\"memberships_console\\.[a-zA-Z0-9_]+|(?<![a-zA-Z0-9])(?:an|mp|sb|mab)_[a-z]\\w{1,40}\". Combos covered: analytics/studio-builder/mobile-app × en/fr/de (each with sub-tab clicks / modal opens) + MemberPortal /m/isodemo × en/fr/de. All returned OK. If future i18n batches touch Memberships, reuse the same regex + visit list. Interactive scans opened Analytics sub-tabs (Overview, Retention, Classes, Operations, Studio Brain, AI Insights), Studio Builder 'New class' modal, and Mobile App Builder 'Share pack' modal — all rendered fully translated.",
+  "rca of the issue": "No issue found."
+}

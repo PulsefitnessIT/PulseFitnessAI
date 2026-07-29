@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Plus, Trash2, Calendar as CalendarIcon, GripVertical, Sparkles,
   AlertTriangle, Save, Loader2, X, RefreshCw, Tag,
@@ -31,14 +32,15 @@ const SLOTS = Array.from({ length: ((22 - 6) * 60) / SLOT_MINUTES }, (_, i) => {
   return `${hh}:${mm}`;
 });
 
-function timeToSlotIndex(t) {
-  const [hh, mm] = (t || '07:00').split(':').map((x) => parseInt(x, 10));
+function timeToSlotIndex(timeStr) {
+  const [hh, mm] = (timeStr || '07:00').split(':').map((x) => parseInt(x, 10));
   const total = (hh || 7) * 60 + (mm || 0);
   const fromBase = total - 6 * 60;
   return Math.max(0, Math.min(SLOTS.length - 1, Math.round(fromBase / SLOT_MINUTES)));
 }
 
 export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
+  const { t } = useTranslation();
   const auth = useMemo(() => ({ headers }), [headers]);
   const [settings, setSettings] = useState(null);
   const [industries, setIndustries] = useState([]);
@@ -56,7 +58,7 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, ind, t, tpl] = await Promise.all([
+      const [s, ind, tm, tpl] = await Promise.all([
         axios.get(`${API}/memberships/studio/settings`, auth),
         axios.get(`${API}/memberships/studio/industries`, auth),
         axios.get(`${API}/memberships/terms`, auth),
@@ -64,13 +66,13 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
       ]);
       setSettings(s.data || {});
       setIndustries(ind.data?.industries || []);
-      setTerms(t.data?.terms || []);
-      setActiveTermId(t.data?.active_term_id || null);
+      setTerms(tm.data?.terms || []);
+      setActiveTermId(tm.data?.active_term_id || null);
       setTemplates(tpl.data?.templates || []);
     } catch (e) {
-      notify.error('Failed to load studio builder', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.sb_load_err', 'Failed to load studio builder'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [API, auth]);
+  }, [API, auth, t]);
   useEffect(() => { load(); }, [load]);
 
   const setIndustry = async (industryId) => {
@@ -78,10 +80,10 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
       await axios.post(`${API}/memberships/studio/settings`, {
         studio_mode: true, studio_industry: industryId,
       }, auth);
-      notify.success('Industry saved', industries.find((i) => i.id === industryId)?.label);
+      notify.success(t('memberships_console.sb_industry_saved', 'Industry saved'), industries.find((i) => i.id === industryId)?.label);
       await load();
     } catch (e) {
-      notify.error('Failed to save', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.sb_save_fail', 'Failed to save'), e?.response?.data?.detail || e.message);
     }
   };
 
@@ -91,8 +93,8 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
     // (which re-rendered the whole grid and scrolled the page to the top).
     const recurs = Array.from(new Set([...(template.recurs_days || []), dayIdx])).sort();
     const prevTemplates = templates;
-    setTemplates((cur) => cur.map((t) =>
-      t.id === template.id ? { ...t, recurs_days: recurs, start_time: timeStr } : t,
+    setTemplates((cur) => cur.map((tpl) =>
+      tpl.id === template.id ? { ...tpl, recurs_days: recurs, start_time: timeStr } : tpl,
     ));
     setSavingId(template.id);
     try {
@@ -100,37 +102,37 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
         recurs_days: recurs,
         start_time: timeStr,
       }, auth);
-      notify.success('Class scheduled', `${template.name} · ${DAYS[dayIdx]} ${timeStr}`);
+      notify.success(t('memberships_console.sb_class_scheduled', 'Class scheduled'), `${template.name} · ${t(`memberships_console.sb_day_${dayIdx}`, DAYS[dayIdx])} ${timeStr}`);
     } catch (e) {
       // Roll back on failure — never leave the UI in an inconsistent state.
       setTemplates(prevTemplates);
-      notify.error('Update failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.sb_update_failed', 'Update failed'), e?.response?.data?.detail || e.message);
     } finally { setSavingId(null); }
   };
 
   const onDropToIdle = async (template) => {
     if (!template.recurs_days?.length) return;
     const prevTemplates = templates;
-    setTemplates((cur) => cur.map((t) =>
-      t.id === template.id ? { ...t, recurs_days: [] } : t,
+    setTemplates((cur) => cur.map((tpl) =>
+      tpl.id === template.id ? { ...tpl, recurs_days: [] } : tpl,
     ));
     setSavingId(template.id);
     try {
       await axios.patch(`${API}/memberships/classes/templates/${template.id}`, {
         recurs_days: [],
       }, auth);
-      notify.success('Removed from timetable', template.name);
+      notify.success(t('memberships_console.sb_removed', 'Removed from timetable'), template.name);
     } catch (e) {
       setTemplates(prevTemplates);
-      notify.error('Update failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.sb_update_failed', 'Update failed'), e?.response?.data?.detail || e.message);
     } finally { setSavingId(null); }
   };
 
   const removeFromDay = async (template, dayIdx) => {
     const prevTemplates = templates;
     const next = (template.recurs_days || []).filter((d) => d !== dayIdx);
-    setTemplates((cur) => cur.map((t) =>
-      t.id === template.id ? { ...t, recurs_days: next } : t,
+    setTemplates((cur) => cur.map((tpl) =>
+      tpl.id === template.id ? { ...tpl, recurs_days: next } : tpl,
     ));
     setSavingId(template.id);
     try {
@@ -139,28 +141,28 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
       }, auth);
     } catch (e) {
       setTemplates(prevTemplates);
-      notify.error('Update failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.sb_update_failed', 'Update failed'), e?.response?.data?.detail || e.message);
     } finally { setSavingId(null); }
   };
 
   const rebuildTerm = async () => {
-    if (!window.confirm('Rebuild the timetable for the active term?\n\nEmpty future occurrences will be regenerated honouring holiday blocks. Booked classes are preserved.')) return;
+    if (!window.confirm(t('memberships_console.sb_rebuild_confirm', 'Rebuild the timetable for the active term?\n\nEmpty future occurrences will be regenerated honouring holiday blocks. Booked classes are preserved.'))) return;
     setRematerialising(true);
     try {
       const r = await axios.post(`${API}/memberships/terms/rematerialise`, {}, auth);
-      notify.success('Timetable rebuilt', `${r.data?.occurrences_made ?? 0} new occurrences`);
+      notify.success(t('memberships_console.sb_rebuilt', 'Timetable rebuilt'), t('memberships_console.sb_new_occ', '{{n}} new occurrences', { n: r.data?.occurrences_made ?? 0 }));
     } catch (e) {
-      notify.error('Rebuild failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.sb_rebuild_failed', 'Rebuild failed'), e?.response?.data?.detail || e.message);
     } finally { setRematerialising(false); }
   };
 
-  const idleTemplates = templates.filter((t) => !(t.recurs_days?.length));
-  const scheduledTemplates = templates.filter((t) => t.recurs_days?.length);
+  const idleTemplates = templates.filter((tpl) => !(tpl.recurs_days?.length));
+  const scheduledTemplates = templates.filter((tpl) => tpl.recurs_days?.length);
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground p-6" data-testid="studio-builder-loading">
-        <Loader2 size={14} className="animate-spin" /> Loading studio builder…
+        <Loader2 size={14} className="animate-spin" /> {t('memberships_console.sb_loading', 'Loading studio builder…')}
       </div>
     );
   }
@@ -187,35 +189,35 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
           try {
             await axios.post(`${API}/memberships/terms`, body, auth);
             setShowTermForm(false);
-            notify.success('Term created', body.name);
+            notify.success(t('memberships_console.sb_term_created', 'Term created'), body.name);
             await load();
           } catch (e) {
-            notify.error('Create failed', e?.response?.data?.detail || e.message);
+            notify.error(t('memberships_console.sb_create_failed', 'Create failed'), e?.response?.data?.detail || e.message);
           }
         }}
         onDelete={async (term) => {
-          if (!window.confirm(`Archive term "${term.name}"?`)) return;
+          if (!window.confirm(t('memberships_console.sb_archive_confirm', 'Archive term {{name}}?', { name: term.name }))) return;
           try {
             await axios.delete(`${API}/memberships/terms/${term.id}`, auth);
             await load();
           } catch (e) {
-            notify.error('Delete failed', e?.response?.data?.detail || e.message);
+            notify.error(t('memberships_console.sb_delete_failed', 'Delete failed'), e?.response?.data?.detail || e.message);
           }
         }}
         onAddHoliday={async (term) => {
-          const name = window.prompt('Holiday name (e.g. Half-term, Easter):');
+          const name = window.prompt(t('memberships_console.sb_holiday_name_prompt', 'Holiday name (e.g. Half-term, Easter):'));
           if (!name) return;
-          const starts = window.prompt('Start date YYYY-MM-DD:', term.starts_on);
+          const starts = window.prompt(t('memberships_console.sb_start_prompt', 'Start date YYYY-MM-DD:'), term.starts_on);
           if (!starts) return;
-          const ends = window.prompt('End date YYYY-MM-DD:', starts);
+          const ends = window.prompt(t('memberships_console.sb_end_prompt', 'End date YYYY-MM-DD:'), starts);
           if (!ends) return;
           try {
             await axios.post(`${API}/memberships/terms/${term.id}/holidays`,
               { name, starts_on: starts, ends_on: ends }, auth);
             await load();
-            notify.success('Holiday added');
+            notify.success(t('memberships_console.sb_holiday_added', 'Holiday added'));
           } catch (e) {
-            notify.error('Failed', e?.response?.data?.detail || e.message);
+            notify.error(t('memberships_console.sb_failed', 'Failed'), e?.response?.data?.detail || e.message);
           }
         }}
         onRemoveHoliday={async (term, block) => {
@@ -223,7 +225,7 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
             await axios.delete(`${API}/memberships/terms/${term.id}/holidays/${block.id}`, auth);
             await load();
           } catch (e) {
-            notify.error('Failed', e?.response?.data?.detail || e.message);
+            notify.error(t('memberships_console.sb_failed', 'Failed'), e?.response?.data?.detail || e.message);
           }
         }}
       />
@@ -267,6 +269,7 @@ export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
 // Identity
 // ─────────────────────────────────────────────────────────────────
 function IdentityCard({ industries, currentIndustry, currentLabel, onChoose }) {
+  const { t } = useTranslation();
   return (
     <section
       className="rounded-2xl border p-4 bg-white"
@@ -275,10 +278,10 @@ function IdentityCard({ industries, currentIndustry, currentLabel, onChoose }) {
     >
       <header className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div>
-          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">Studio identity</p>
+          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">{t('memberships_console.sb_identity_label', 'Studio identity')}</p>
           <h3 className="text-base font-bold inline-flex items-center gap-2">
             <Sparkles size={14} className="text-violet-500" />
-            {currentIndustry ? `Tailored for ${currentLabel || currentIndustry}` : 'Pick your studio type'}
+            {currentIndustry ? t('memberships_console.sb_tailored', 'Tailored for {{label}}', { label: currentLabel || currentIndustry }) : t('memberships_console.sb_pick_type', 'Pick your studio type')}
           </h3>
         </div>
       </header>
@@ -299,7 +302,7 @@ function IdentityCard({ industries, currentIndustry, currentLabel, onChoose }) {
             >
               <p className="text-sm font-bold">{ind.label}</p>
               <p className="text-[11px] opacity-60 mt-0.5">
-                {(ind.disciplines || []).slice(0, 4).join(' · ') || 'Custom'}
+                {(ind.disciplines || []).slice(0, 4).join(' · ') || t('memberships_console.sb_custom', 'Custom')}
               </p>
               <div className="flex gap-1 mt-2">
                 {(ind.default_palette || []).slice(0, 5).map((c) => (
@@ -321,6 +324,7 @@ function IdentityCard({ industries, currentIndustry, currentLabel, onChoose }) {
 // Terms
 // ─────────────────────────────────────────────────────────────────
 function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDelete, onAddHoliday, onRemoveHoliday }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [starts, setStarts] = useState('');
   const [ends, setEnds] = useState('');
@@ -328,7 +332,7 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
   const submit = (e) => {
     e.preventDefault();
     if (!name.trim() || !starts || !ends) {
-      notify.error('Missing fields', 'Name, start and end are all required');
+      notify.error(t('memberships_console.sb_missing_fields', 'Missing fields'), t('memberships_console.sb_missing_fields_detail', 'Name, start and end are all required'));
       return;
     }
     onCreate({ name: name.trim(), starts_on: starts, ends_on: ends, is_default: isDefault });
@@ -342,10 +346,10 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
     >
       <header className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div>
-          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">Terms & holidays</p>
+          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">{t('memberships_console.sb_terms_label', 'Terms & holidays')}</p>
           <h3 className="text-base font-bold inline-flex items-center gap-2">
             <CalendarIcon size={14} className="text-emerald-500" />
-            Term calendar
+            {t('memberships_console.sb_term_calendar', 'Term calendar')}
           </h3>
         </div>
         <button
@@ -355,37 +359,37 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
           style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }}
           data-testid="studio-builder-add-term-btn"
         >
-          <Plus size={12} /> {showForm ? 'Close' : 'Add term'}
+          <Plus size={12} /> {showForm ? t('memberships_console.sb_close', 'Close') : t('memberships_console.sb_add_term', 'Add term')}
         </button>
       </header>
 
       {showForm ? (
         <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4 p-3 rounded-xl border" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="studio-builder-term-form">
           <label className="block">
-            <span className="text-[11px] font-bold opacity-70">Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Autumn Term 2026" className="w-full px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="studio-builder-term-name" />
+            <span className="text-[11px] font-bold opacity-70">{t('memberships_console.sb_name', 'Name')}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('memberships_console.sb_term_name_ph', 'Autumn Term 2026')} className="w-full px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="studio-builder-term-name" />
           </label>
           <label className="block">
-            <span className="text-[11px] font-bold opacity-70">Starts</span>
+            <span className="text-[11px] font-bold opacity-70">{t('memberships_console.sb_starts', 'Starts')}</span>
             {/* Iter 216h255 — shared DatePicker for consistency. */}
             <DatePicker value={starts} onChange={(iso) => setStarts(iso)} testid="studio-builder-term-starts" />
           </label>
           <label className="block">
-            <span className="text-[11px] font-bold opacity-70">Ends</span>
+            <span className="text-[11px] font-bold opacity-70">{t('memberships_console.sb_ends', 'Ends')}</span>
             <DatePicker value={ends} onChange={(iso) => setEnds(iso)} minDate={starts || undefined} testid="studio-builder-term-ends" />
           </label>
           <label className="flex items-end gap-2 text-xs">
             <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} data-testid="studio-builder-term-default" />
-            <span>Make default</span>
+            <span>{t('memberships_console.sb_make_default', 'Make default')}</span>
             <button type="submit" className="ml-auto px-2 py-1 rounded text-xs font-bold" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="studio-builder-term-save">
-              <Save size={11} className="inline mr-1" /> Save
+              <Save size={11} className="inline mr-1" /> {t('memberships_console.sb_save', 'Save')}
             </button>
           </label>
         </form>
       ) : null}
 
       {terms.length === 0 ? (
-        <p className="text-sm opacity-60 italic">No terms yet — add one to drive the timetable rebuild.</p>
+        <p className="text-sm opacity-60 italic">{t('memberships_console.sb_no_terms', 'No terms yet — add one to drive the timetable rebuild.')}</p>
       ) : (
         <ul className="space-y-2" data-testid="studio-builder-term-list">
           {terms.map((term) => (
@@ -400,8 +404,8 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate">
                     {term.name}
-                    {term.is_default ? <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">default</span> : null}
-                    {term.id === activeTermId ? <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">active</span> : null}
+                    {term.is_default ? <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{t('memberships_console.sb_default_badge', 'default')}</span> : null}
+                    {term.id === activeTermId ? <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">{t('memberships_console.sb_active_badge', 'active')}</span> : null}
                   </p>
                   <p className="text-[11px] opacity-70 tabular-nums">{term.starts_on} → {term.ends_on}</p>
                   {term.holiday_blocks?.length ? (
@@ -414,7 +418,7 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
                           data-testid={`studio-builder-holiday-${h.id}`}
                         >
                           {h.name} · {h.starts_on}–{h.ends_on}
-                          <button type="button" onClick={() => onRemoveHoliday(term, h)} aria-label="Remove holiday" style={{ background: 'none', border: 0, cursor: 'pointer', color: 'inherit', padding: 0 }}>
+                          <button type="button" onClick={() => onRemoveHoliday(term, h)} aria-label={t('memberships_console.sb_remove_holiday', 'Remove holiday')} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'inherit', padding: 0 }}>
                             <X size={9} />
                           </button>
                         </span>
@@ -423,7 +427,7 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
                   ) : null}
                 </div>
                 <button type="button" onClick={() => onAddHoliday(term)} className="px-2 py-1 rounded text-[11px] font-bold border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`studio-builder-add-holiday-${term.id}`}>
-                  + Holiday
+                  {t('memberships_console.sb_add_holiday_btn', '+ Holiday')}
                 </button>
                 <button type="button" onClick={() => onDelete(term)} className="px-2 py-1 rounded text-[11px] font-bold border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`studio-builder-delete-term-${term.id}`}>
                   <Trash2 size={11} />
@@ -445,6 +449,7 @@ function BuilderGrid({
   onDropToSlot, onDropToIdle, onRemoveFromDay, onRebuildTerm, onRefresh,
   onNewClass, industry,
 }) {
+  const { t } = useTranslation();
   const [dragId, setDragId] = useState(null);
   const handleDragStart = (e, id) => {
     setDragId(id);
@@ -457,7 +462,7 @@ function BuilderGrid({
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain') || dragId;
     if (!id) return;
-    const tpl = templates.find((t) => t.id === id);
+    const tpl = templates.find((x) => x.id === id);
     if (!tpl) return;
     onDropToSlot(tpl, dayIdx, timeStr);
   };
@@ -465,7 +470,7 @@ function BuilderGrid({
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain') || dragId;
     if (!id) return;
-    const tpl = templates.find((t) => t.id === id);
+    const tpl = templates.find((x) => x.id === id);
     if (!tpl) return;
     onDropToIdle(tpl);
   };
@@ -478,19 +483,19 @@ function BuilderGrid({
     >
       <header className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div>
-          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">Weekly timetable builder</p>
-          <h3 className="text-base font-bold">Drag a class onto a slot to schedule it</h3>
+          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">{t('memberships_console.sb_weekly_builder', 'Weekly timetable builder')}</p>
+          <h3 className="text-base font-bold">{t('memberships_console.sb_drag_hint', 'Drag a class onto a slot to schedule it')}</h3>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={onNewClass} className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="studio-builder-new-class">
-            <Plus size={11} /> New class
+            <Plus size={11} /> {t('memberships_console.sb_new_class', 'New class')}
           </button>
           <button type="button" onClick={onRefresh} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="studio-builder-refresh">
-            <RefreshCw size={11} /> Refresh
+            <RefreshCw size={11} /> {t('memberships_console.sb_refresh', 'Refresh')}
           </button>
           <button type="button" onClick={onRebuildTerm} disabled={rematerialising} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: '#10b981', color: '#fff', opacity: rematerialising ? 0.6 : 1 }} data-testid="studio-builder-rebuild">
             {rematerialising ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-            Rebuild term occurrences
+            {t('memberships_console.sb_rebuild_btn', 'Rebuild term occurrences')}
           </button>
         </div>
       </header>
@@ -504,22 +509,22 @@ function BuilderGrid({
         data-testid="studio-builder-idle-rail"
       >
         <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 mb-2 inline-flex items-center gap-1">
-          <Tag size={11} /> Class library — drag onto the grid below
+          <Tag size={11} /> {t('memberships_console.sb_class_library', 'Class library — drag onto the grid below')}
         </p>
         {idleTemplates.length === 0 ? (
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-xs opacity-60 italic m-0">All your templates are scheduled. Drop one here to remove it from the timetable — or create another.</p>
+            <p className="text-xs opacity-60 italic m-0">{t('memberships_console.sb_all_scheduled', 'All your templates are scheduled. Drop one here to remove it from the timetable — or create another.')}</p>
             <button type="button" onClick={onNewClass}
               className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5"
               style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
               data-testid="studio-builder-new-class-inline">
-              <Plus size={11} /> New class
+              <Plus size={11} /> {t('memberships_console.sb_new_class', 'New class')}
             </button>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {idleTemplates.map((t) => (
-              <TemplateChip key={t.id} t={t} dragId={dragId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} saving={savingId === t.id} />
+            {idleTemplates.map((tpl) => (
+              <TemplateChip key={tpl.id} tpl={tpl} dragId={dragId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} saving={savingId === tpl.id} />
             ))}
           </div>
         )}
@@ -533,7 +538,7 @@ function BuilderGrid({
               <th className="text-left p-1.5 sticky left-0" style={{ background: 'var(--theme-surface, #fff)', minWidth: 56 }}></th>
               {DAYS.map((d, i) => (
                 <th key={d} className="text-left p-1.5 font-bold" data-testid={`studio-builder-day-head-${i}`}>
-                  {d}
+                  {t(`memberships_console.sb_day_${i}`, d)}
                 </th>
               ))}
             </tr>
@@ -547,8 +552,8 @@ function BuilderGrid({
                     {isHourBoundary ? time : ''}
                   </td>
                   {DAYS.map((_, dayIdx) => {
-                    const cards = scheduledTemplates.filter((t) =>
-                      t.recurs_days?.includes(dayIdx) && timeToSlotIndex(t.start_time) === slotIdx,
+                    const cards = scheduledTemplates.filter((tpl) =>
+                      tpl.recurs_days?.includes(dayIdx) && timeToSlotIndex(tpl.start_time) === slotIdx,
                     );
                     return (
                       <td
@@ -567,7 +572,7 @@ function BuilderGrid({
                         {cards.map((c) => (
                           <ScheduledCard
                             key={`${c.id}-${dayIdx}`}
-                            t={c}
+                            tpl={c}
                             dayIdx={dayIdx}
                             saving={savingId === c.id}
                             onRemove={() => onRemoveFromDay(c, dayIdx)}
@@ -589,70 +594,72 @@ function BuilderGrid({
       {templates.length === 0 ? (
         <div className="mt-4 p-4 rounded-xl border-2 border-dashed text-center" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }}>
           <AlertTriangle size={20} className="mx-auto mb-2 text-amber-500" />
-          <p className="text-sm font-bold">No class templates yet</p>
-          <p className="text-xs opacity-70 mt-1">Create class templates from the <strong>Classes</strong> tab, then drag them into the grid.</p>
+          <p className="text-sm font-bold">{t('memberships_console.sb_no_templates', 'No class templates yet')}</p>
+          <p className="text-xs opacity-70 mt-1">{t('memberships_console.sb_no_templates_hint_a', 'Create class templates from the')} <strong>{t('memberships_console.sb_classes', 'Classes')}</strong> {t('memberships_console.sb_no_templates_hint_b', 'tab, then drag them into the grid.')}</p>
         </div>
       ) : null}
     </section>
   );
 }
 
-function TemplateChip({ t, dragId, onDragStart, onDragEnd, saving }) {
-  const colour = t.colour || '#3b82f6';
+function TemplateChip({ tpl, dragId, onDragStart, onDragEnd, saving }) {
+  const { t } = useTranslation();
+  const colour = tpl.colour || '#3b82f6';
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, t.id)}
+      onDragStart={(e) => onDragStart(e, tpl.id)}
       onDragEnd={onDragEnd}
-      className={`px-2 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-grab select-none border ${dragId === t.id ? 'opacity-50' : ''}`}
+      className={`px-2 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-grab select-none border ${dragId === tpl.id ? 'opacity-50' : ''}`}
       style={{
         background: `${colour}1a`,
         borderColor: colour,
         color: 'inherit',
       }}
-      data-testid={`studio-builder-chip-${t.id}`}
+      data-testid={`studio-builder-chip-${tpl.id}`}
     >
       <GripVertical size={11} style={{ color: colour }} />
-      <span>{t.name}</span>
-      {t.discipline ? <span className="opacity-70 font-normal text-[10px]">· {t.discipline}</span> : null}
-      {(t.min_age || t.max_age) ? <span className="opacity-70 font-normal text-[10px]">· age {t.min_age ?? '?'}–{t.max_age ?? '?'}</span> : null}
-      {t.skill_level ? <span className="opacity-70 font-normal text-[10px]">· {t.skill_level}</span> : null}
+      <span>{tpl.name}</span>
+      {tpl.discipline ? <span className="opacity-70 font-normal text-[10px]">· {tpl.discipline}</span> : null}
+      {(tpl.min_age || tpl.max_age) ? <span className="opacity-70 font-normal text-[10px]">· {t('memberships_console.sb_age', 'age')} {tpl.min_age ?? '?'}–{tpl.max_age ?? '?'}</span> : null}
+      {tpl.skill_level ? <span className="opacity-70 font-normal text-[10px]">· {tpl.skill_level}</span> : null}
       {saving ? <Loader2 size={10} className="animate-spin" /> : null}
     </div>
   );
 }
 
-function ScheduledCard({ t, dayIdx, saving, onRemove, onDragStart, onDragEnd, _industry }) {
-  const colour = t.colour || '#3b82f6';
+function ScheduledCard({ tpl, dayIdx, saving, onRemove, onDragStart, onDragEnd, _industry }) {
+  const { t } = useTranslation();
+  const colour = tpl.colour || '#3b82f6';
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, t.id)}
+      onDragStart={(e) => onDragStart(e, tpl.id)}
       onDragEnd={onDragEnd}
       className="rounded-md p-1.5 text-[11px] cursor-grab leading-tight"
       style={{
         background: `${colour}26`,
         borderLeft: `3px solid ${colour}`,
       }}
-      data-testid={`studio-builder-scheduled-${t.id}-${dayIdx}`}
+      data-testid={`studio-builder-scheduled-${tpl.id}-${dayIdx}`}
     >
       <div className="flex items-start gap-1">
-        <span className="font-bold flex-1 truncate">{t.name}</span>
+        <span className="font-bold flex-1 truncate">{tpl.name}</span>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          aria-label="Remove from day"
+          aria-label={t('memberships_console.sb_remove_from_day', 'Remove from day')}
           className="opacity-60 hover:opacity-100"
           style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'inherit' }}
-          data-testid={`studio-builder-scheduled-remove-${t.id}-${dayIdx}`}
+          data-testid={`studio-builder-scheduled-remove-${tpl.id}-${dayIdx}`}
         >
           {saving ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
         </button>
       </div>
-      <div className="opacity-70 tabular-nums">{t.start_time} · {t.duration_min}m</div>
-      {t.room_name ? <div className="opacity-60 truncate">{t.room_name}</div> : null}
-      {t.skill_level || t.discipline ? (
-        <div className="opacity-60 truncate">{[t.discipline, t.skill_level].filter(Boolean).join(' · ')}</div>
+      <div className="opacity-70 tabular-nums">{tpl.start_time} · {tpl.duration_min}m</div>
+      {tpl.room_name ? <div className="opacity-60 truncate">{tpl.room_name}</div> : null}
+      {tpl.skill_level || tpl.discipline ? (
+        <div className="opacity-60 truncate">{[tpl.discipline, tpl.skill_level].filter(Boolean).join(' · ')}</div>
       ) : null}
     </div>
   );
@@ -679,6 +686,7 @@ function ScheduledCard({ t, dayIdx, saving, onRemove, onDragStart, onDragEnd, _i
  *     "use a custom name" toggle below the dropdown.
  */
 export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAddInstructor }) {
+  const { t } = useTranslation();
   const isEdit = !!initial?.id;
   const [form, setForm] = useState(() => ({
     name: initial?.name || '',
@@ -726,12 +734,12 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAd
   }));
 
   const save = async () => {
-    if (!form.name.trim()) { notify.error('Class name is required'); return; }
+    if (!form.name.trim()) { notify.error(t('memberships_console.sb_cte_name_req', 'Class name is required')); return; }
     if (!Number.isFinite(Number(form.duration_min)) || Number(form.duration_min) < 5) {
-      notify.error('Duration must be at least 5 minutes'); return;
+      notify.error(t('memberships_console.sb_cte_dur_min', 'Duration must be at least 5 minutes')); return;
     }
     if (!Number.isFinite(Number(form.capacity)) || Number(form.capacity) < 1) {
-      notify.error('Capacity must be at least 1'); return;
+      notify.error(t('memberships_console.sb_cte_cap_min', 'Capacity must be at least 1')); return;
     }
     setSaving(true);
     try {
@@ -751,15 +759,15 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAd
       };
       if (isEdit) {
         await axios.patch(`${API}/memberships/classes/templates/${initial.id}`, payload, auth);
-        notify.success('Class updated');
+        notify.success(t('memberships_console.sb_cte_updated', 'Class updated'));
         onSaved?.({ ...initial, ...payload });
       } else {
         const r = await axios.post(`${API}/memberships/classes/templates`, payload, auth);
-        notify.success('Class created', form.name);
+        notify.success(t('memberships_console.sb_cte_created', 'Class created'), form.name);
         onSaved?.(r.data?.template);
       }
     } catch (e) {
-      notify.error(isEdit ? 'Update failed' : 'Create failed', e?.response?.data?.detail || e.message);
+      notify.error(isEdit ? t('memberships_console.sb_update_failed', 'Update failed') : t('memberships_console.sb_create_failed', 'Create failed'), e?.response?.data?.detail || e.message);
     }
     setSaving(false);
   };
@@ -775,23 +783,23 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAd
         onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 flex items-start justify-between border-b" style={{ borderColor: 'var(--theme-border)' }}>
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-[var(--color-brand-cyan)]">Class template</p>
-            <h3 className="text-lg font-extrabold">{isEdit ? 'Edit class' : 'New class'}</h3>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-[var(--color-brand-cyan)]">{t('memberships_console.sb_cte_kicker', 'Class template')}</p>
+            <h3 className="text-lg font-extrabold">{isEdit ? t('memberships_console.sb_cte_edit', 'Edit class') : t('memberships_console.sb_new_class', 'New class')}</h3>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} icon={X} title="Close" data-testid="mbr-studio-builder-close" />
+          <Button variant="ghost" size="icon" onClick={onClose} icon={X} title={t('memberships_console.sb_close', 'Close')} data-testid="mbr-studio-builder-close" />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm">
-          <Field label="Class name"><input type="text" value={form.name} onChange={(e) => up('name')(e.target.value)} className={InputCls} placeholder="e.g. Open Flow Yoga" data-testid="cte-name" /></Field>
+          <Field label={t('memberships_console.sb_cte_f_name', 'Class name')}><input type="text" value={form.name} onChange={(e) => up('name')(e.target.value)} className={InputCls} placeholder={t('memberships_console.sb_cte_name_ph', 'e.g. Open Flow Yoga')} data-testid="cte-name" /></Field>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Field label="Duration (min)"><input type="number" min="5" max="240" value={form.duration_min} onChange={(e) => up('duration_min')(e.target.value)} className={InputCls} data-testid="cte-duration" /></Field>
-            <Field label="Capacity"><input type="number" min="1" value={form.capacity} onChange={(e) => up('capacity')(e.target.value)} className={InputCls} data-testid="cte-capacity" /></Field>
-            <Field label="Start time"><input type="time" value={form.start_time} onChange={(e) => up('start_time')(e.target.value)} className={InputCls} data-testid="cte-start" /></Field>
-            <Field label="Credits to book"><input type="number" min="0" value={form.credits_to_book} onChange={(e) => up('credits_to_book')(e.target.value)} className={InputCls} data-testid="cte-credits" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_duration', 'Duration (min)')}><input type="number" min="5" max="240" value={form.duration_min} onChange={(e) => up('duration_min')(e.target.value)} className={InputCls} data-testid="cte-duration" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_capacity', 'Capacity')}><input type="number" min="1" value={form.capacity} onChange={(e) => up('capacity')(e.target.value)} className={InputCls} data-testid="cte-capacity" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_start', 'Start time')}><input type="time" value={form.start_time} onChange={(e) => up('start_time')(e.target.value)} className={InputCls} data-testid="cte-start" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_credits', 'Credits to book')}><input type="number" min="0" value={form.credits_to_book} onChange={(e) => up('credits_to_book')(e.target.value)} className={InputCls} data-testid="cte-credits" /></Field>
           </div>
 
-          <Field label="Recurring days">
+          <Field label={t('memberships_console.sb_cte_f_days', 'Recurring days')}>
             <div className="flex gap-1 flex-wrap">
               {DAYS.map((d, i) => (
                 <button key={d} type="button" onClick={() => toggleDay(i)}
@@ -802,18 +810,18 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAd
                     borderColor: 'var(--theme-border)',
                   }}
                   data-testid={`cte-day-${i}`}>
-                  {d}
+                  {t(`memberships_console.sb_day_${i}`, d)}
                 </button>
               ))}
             </div>
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Field label="Room"><input type="text" value={form.room_name} onChange={(e) => up('room_name')(e.target.value)} className={InputCls} placeholder="Studio 1" data-testid="cte-room" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_room', 'Room')}><input type="text" value={form.room_name} onChange={(e) => up('room_name')(e.target.value)} className={InputCls} placeholder={t('memberships_console.sb_cte_room_ph', 'Studio 1')} data-testid="cte-room" /></Field>
             {/* Iter 216h247 — instructor dropdown with "+ Add new instructor"
                 option. Falls back to a free-text label for cover instructors
                 via the "use a custom name" toggle. */}
-            <Field label="Instructor">
+            <Field label={t('memberships_console.sb_cte_f_instructor', 'Instructor')}>
               <select
                 value={form.instructor_id || (showCustomInstructor ? '__custom__' : '')}
                 onChange={(e) => {
@@ -838,12 +846,12 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAd
                 className={InputCls}
                 data-testid="cte-instructor-select"
               >
-                <option value="">— Choose instructor —</option>
+                <option value="">{t('memberships_console.sb_cte_choose_inst', '— Choose instructor —')}</option>
                 {instructors.map((i) => (
                   <option key={i.id} value={i.id}>{i.name}{i.headline ? ` · ${i.headline}` : ''}</option>
                 ))}
-                <option value="__custom__">Use a custom name (cover)</option>
-                <option value="__add_new__">+ Add new instructor…</option>
+                <option value="__custom__">{t('memberships_console.sb_cte_custom_opt', 'Use a custom name (cover)')}</option>
+                <option value="__add_new__">{t('memberships_console.sb_cte_add_inst_opt', '+ Add new instructor…')}</option>
               </select>
               {showCustomInstructor && (
                 <input
@@ -851,43 +859,43 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAd
                   value={form.instructor_name}
                   onChange={(e) => up('instructor_name')(e.target.value)}
                   className={`${InputCls} mt-1`}
-                  placeholder="e.g. Sarah (cover)"
+                  placeholder={t('memberships_console.sb_cte_inst_ph', 'e.g. Sarah (cover)')}
                   data-testid="cte-instructor-custom"
                 />
               )}
             </Field>
-            <Field label="Colour"><input type="color" value={form.colour} onChange={(e) => up('colour')(e.target.value)} className="h-9 w-16 rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="cte-colour" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_colour', 'Colour')}><input type="color" value={form.colour} onChange={(e) => up('colour')(e.target.value)} className="h-9 w-16 rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="cte-colour" /></Field>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <Field label="Discipline"><input type="text" value={form.discipline} onChange={(e) => up('discipline')(e.target.value)} className={InputCls} placeholder="Ballet, Tap, …" data-testid="cte-discipline" /></Field>
-            <Field label="Skill level"><input type="text" value={form.skill_level} onChange={(e) => up('skill_level')(e.target.value)} className={InputCls} placeholder="beginner" data-testid="cte-skill" /></Field>
-            <Field label="Min age"><input type="number" min="0" max="100" value={form.min_age} onChange={(e) => up('min_age')(e.target.value)} className={InputCls} data-testid="cte-min-age" /></Field>
-            <Field label="Max age"><input type="number" min="0" max="100" value={form.max_age} onChange={(e) => up('max_age')(e.target.value)} className={InputCls} data-testid="cte-max-age" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_discipline', 'Discipline')}><input type="text" value={form.discipline} onChange={(e) => up('discipline')(e.target.value)} className={InputCls} placeholder={t('memberships_console.sb_cte_disc_ph', 'Ballet, Tap, …')} data-testid="cte-discipline" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_skill', 'Skill level')}><input type="text" value={form.skill_level} onChange={(e) => up('skill_level')(e.target.value)} className={InputCls} placeholder={t('memberships_console.sb_cte_skill_ph', 'beginner')} data-testid="cte-skill" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_minage', 'Min age')}><input type="number" min="0" max="100" value={form.min_age} onChange={(e) => up('min_age')(e.target.value)} className={InputCls} data-testid="cte-min-age" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_maxage', 'Max age')}><input type="number" min="0" max="100" value={form.max_age} onChange={(e) => up('max_age')(e.target.value)} className={InputCls} data-testid="cte-max-age" /></Field>
           </div>
 
-          <Field label="Description (optional)">
+          <Field label={t('memberships_console.sb_cte_f_desc', 'Description (optional)')}>
             <textarea rows={3} value={form.description} onChange={(e) => up('description')(e.target.value)}
-              className={InputCls} placeholder="What should members expect?" data-testid="cte-description" />
+              className={InputCls} placeholder={t('memberships_console.sb_cte_desc_ph', 'What should members expect?')} data-testid="cte-description" />
           </Field>
 
           <label className="flex items-center gap-2 text-xs">
             <input type="checkbox" checked={form.waitlist_enabled} onChange={(e) => up('waitlist_enabled')(e.target.checked)} data-testid="cte-waitlist" />
-            Allow a waitlist when the class is full
+            {t('memberships_console.sb_cte_waitlist', 'Allow a waitlist when the class is full')}
           </label>
           {form.waitlist_enabled && (
-            <Field label="Max waitlist"><input type="number" min="0" value={form.max_waitlist} onChange={(e) => up('max_waitlist')(e.target.value)} className={InputCls} data-testid="cte-max-waitlist" /></Field>
+            <Field label={t('memberships_console.sb_cte_f_maxwait', 'Max waitlist')}><input type="number" min="0" value={form.max_waitlist} onChange={(e) => up('max_waitlist')(e.target.value)} className={InputCls} data-testid="cte-max-waitlist" /></Field>
           )}
         </div>
 
         <div className="px-5 py-3 flex justify-end gap-2 border-t" style={{ borderColor: 'var(--theme-border)' }}>
-          <button onClick={onClose} className="px-3 py-2 text-xs font-bold rounded-lg border" style={{ borderColor: 'var(--theme-border)' }}>Cancel</button>
+          <button onClick={onClose} className="px-3 py-2 text-xs font-bold rounded-lg border" style={{ borderColor: 'var(--theme-border)' }}>{t('memberships_console.sb_cancel', 'Cancel')}</button>
           <button onClick={save} disabled={saving}
             className="px-4 py-2 text-xs font-extrabold rounded-lg inline-flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)', opacity: saving ? 0.7 : 1 }}
             data-testid="cte-save">
             {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-            {isEdit ? 'Save changes' : 'Create class'}
+            {isEdit ? t('memberships_console.sb_cte_save_changes', 'Save changes') : t('memberships_console.sb_cte_create_class', 'Create class')}
           </button>
         </div>
       </div>
@@ -904,4 +912,3 @@ function Field({ label, children }) {
     </label>
   );
 }
-
