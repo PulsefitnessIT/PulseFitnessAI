@@ -449,10 +449,17 @@ function App() {
         if (!current) return siteList[0] || null;
         const stillPresent = siteList.some((s) => s.id === current.id);
         if (stillPresent) return current;
+        // `current` belongs to a DIFFERENT org (stale selection / master-admin
+        // impersonation leak). Reset to ORG-WIDE scope rather than auto-
+        // selecting siteList[0] as a ?site_id= filter — otherwise a page
+        // reload mid-impersonation could silently hide all equipment & faults
+        // if the org's equipment isn't tagged to that first site. We keep
+        // siteList[0] as the header label but clear the scope caches so the
+        // dashboard loader falls back to the whole estate.
         const next = siteList[0] || null;
         try {
-          if (next) localStorage.setItem('active_site_cache', JSON.stringify(next));
-          else localStorage.removeItem('active_site_cache');
+          localStorage.removeItem('active_site_cache');
+          localStorage.removeItem('active_site_all');
         } catch { /* quota */ }
         return next;
       });
@@ -502,6 +509,20 @@ function App() {
  localStorage.setItem('token', imp);
  localStorage.setItem('impersonation_active', '1');
  setToken(imp);
+ // Reset any inherited site scope so an impersonated org ALWAYS starts
+ // org-wide. Without this, the master-admin's previous site selection (or
+ // an auto-selected non-default site from loadSites) leaks in as a
+ // ?site_id= filter and can hide all of the impersonated org's equipment
+ // & faults after any dashboard refetch (e.g. logging an engineer-callout
+ // fault). Production bug — "equipment/faults disappeared after logging a
+ // fault while impersonating".
+ try {
+   localStorage.removeItem('active_site_cache');
+   localStorage.removeItem('active_site_all');
+   localStorage.removeItem('sites_cache');
+ } catch { /* quota */ }
+ setActiveSite(null);
+ setAllSitesMode(false);
  params.delete('impersonation_token');
  const clean = window.location.pathname + (params.toString() ? `?${params}` : '');
  window.history.replaceState({}, '', clean);

@@ -1,3 +1,29 @@
+# ═══ 2026-07-29 · PROD BUG FIX — EQUIPMENT/FAULTS "DISAPPEAR" AFTER LOGGING A FAULT WHILE IMPERSONATING (VERIFIED) ═══
+Report: on PRODUCTION, master admin impersonating "Penkridge leisure centre" logged an engineer-callout fault →
+all equipment & faults vanished; exiting + returning restored them. RCA (code-trace): NOT data loss — a client-side
+SITE-SCOPE bug. useDashboardData.loadData() builds ?site_id= by reading `active_site_cache` from localStorage
+directly (SSoT divergence). Impersonation start (App.js ?impersonation_token=) did NOT reset site scope, and
+loadSites() auto-reset a stale/foreign activeSite to siteList[0] AND persisted it to active_site_cache. First paint
+raced ahead (no filter → all shown); the engineer-callout path (useIssueWorkflow.handleCreatePOAndLog → loadData())
+then refetched WITH the now-populated site_id → /equipment & /issues returned 200-empty for that (equipment-less)
+site → everything vanished. Logout wipes active_site_cache → reappeared on return.
+FIX (frontend-only, 3 parts):
+  1) App.js impersonation-start block: on ?impersonation_token=, clear active_site_cache/active_site_all/sites_cache
+     + setActiveSite(null)/setAllSitesMode(false) → impersonated org ALWAYS starts org-wide.
+  2) useDashboardData.loadData(): only apply ?site_id= when the cached site's id is present in the current user's
+     sites_cache (ignores a stale/cross-org/auto-defaulted site silently filtering out everything).
+  3) App.js loadSites() reset branch: when `current` site isn't in the org's list (stale/impersonation leak), RESET
+     TO ORG-WIDE (remove active_site_cache/active_site_all) instead of persisting siteList[0] — protects the
+     page-reload-mid-impersonation variant too.
+VERIFIED via impersonation + network inspection (screenshot script): (a) impersonate Iso Demo w/ pre-injected stale
+foreign site → active_site_cache=None, 0 stale site_id on /equipment|/issues, equipment loads; (b) inject leaked
+ghost site then RELOAD → active_site_cache cleared to None, /api/equipment sent with NO site_id (fully org-wide),
+0 ghost hits, dashboard intact. Files: frontend/src/App.js, frontend/src/pages/Dashboard/hooks/useDashboardData.js.
+⚠️ PREVIEW ONLY — PRODUCTION (pulsefitness.ai / fitness-ai-migrate.emergent.host) NEEDS A REDEPLOY for the fix to land.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-28 · FIX — BOTTOM BANNERS NO LONGER COVER PAGE CTAs (platform-wide, VERIFIED) ═══
 Tester non-blocker: CookieConsent + PWA-install banners overlapped the dealer wizard's bottom CTA (and could
 elsewhere). Both banners already used pointer-events-none wrapper + pointer-events-auto card (transparent area

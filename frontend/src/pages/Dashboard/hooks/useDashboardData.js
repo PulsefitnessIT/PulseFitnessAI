@@ -45,7 +45,23 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
       const cached = localStorage.getItem('active_site_cache');
       if (cached) {
         const s = JSON.parse(cached);
-        if (s?.id && !s?.is_default) scopeSiteParam = `?site_id=${encodeURIComponent(s.id)}`;
+        // Only apply the site filter when the cached site actually belongs
+        // to the CURRENT user's site list. Guards against a stale / cross-org
+        // / auto-defaulted site (e.g. left over from a master-admin
+        // impersonation switch) silently filtering out ALL equipment & faults.
+        let isKnownSite = true;
+        try {
+          const sitesRaw = localStorage.getItem('sites_cache');
+          if (sitesRaw) {
+            const known = JSON.parse(sitesRaw);
+            if (Array.isArray(known) && known.length) {
+              isKnownSite = known.some((k) => k?.id === s?.id);
+            }
+          }
+        } catch { /* ignore — fall back to applying the filter */ }
+        if (s?.id && !s?.is_default && isKnownSite) {
+          scopeSiteParam = `?site_id=${encodeURIComponent(s.id)}`;
+        }
       }
     } catch { /* ignore */ }
     try {
