@@ -1,3 +1,22 @@
+# ═══ 2026-07-29 · MASTER-ADMIN STAFF INVISIBLE IN OPERATIONS > STAFF > HR (FIXED, verified) ═══
+Reported: a staff member added to "Pulse Fitness Ltd" via Master Admin didn't appear in the end-user portal's
+Operations → Staff → HR list.
+RCA: `_create_org_user` (master_admin.py) routes a new user to `db.users` AND/OR `db.crm_users` based on the org's
+portal_type / enabled modules. For a CRM-primary org (Pulse Fitness Ltd historically had portal_type='crm'), staff
+land ONLY in `crm_users`. But Operations HR's auto-backfill `_ensure_staff_for_org_users` (staffing.py) read ONLY
+`db.users` → CRM-collection staff never got a `staff_members` row → invisible in HR (same collection-split family as
+the CRM territories bug).
+FIX: `_ensure_staff_for_org_users` now UNIONs `db.crm_users` with `db.users` (dedup by user_id + email) before
+backfilling, so every internal team member surfaces in Operations HR regardless of which collection they were written
+to. Idempotent; existing manual HR overrides (primary_role_source='manual') preserved.
+VERIFIED (preview, direct call): seeded a crm_users-only staff for Pulse Fitness Ltd → after backfill a matching
+staff_members row exists (active, user_id bound, primary_role mapped). Preview state restored (test rows removed).
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY. Note: on first HR open post-deploy, ALL existing internal crm_users for
+an org will be surfaced into staff_members (intended unification).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · CRM DURING IMPERSONATION — "Invalid CRM token" 401 LOOP + empty Territories reps (FIXED) ═══
 Reported (recurring): impersonating an org → CRM shows "Invalid CRM token" (top-right), Territories shows "No CRM
 users yet" despite Engineers/Sales Managers added in Operations>HR, and some Territories toolbar buttons render blank.

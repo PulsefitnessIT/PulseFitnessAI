@@ -329,6 +329,19 @@ async def _ensure_staff_for_org_users(org_id: str) -> int:
         {"organization_id": org_id, "disabled": {"$ne": True}},
         {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1},
     ).to_list(2000)
+    # Iter 288 — also union in db.crm_users. `_create_org_user` routes a new
+    # user to `users` and/or `crm_users` based on the org's portal_type /
+    # enabled modules, so staff added via Master Admin to a CRM-primary org
+    # (e.g. Pulse Fitness Ltd) land ONLY in crm_users and were invisible in
+    # Operations → Staff → HR. Pulling both collections guarantees every
+    # internal team member shows up regardless of which one they were
+    # written to. Dedup below (by user_id + email) prevents double-inserts.
+    crm_people = await db.crm_users.find(
+        {"organization_id": org_id, "disabled": {"$ne": True}},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1},
+    ).to_list(2000)
+    _seen_ids = {u.get("id") for u in users}
+    users = users + [c for c in crm_people if c.get("id") not in _seen_ids]
     if not users:
         return 0
     existing_staff = await db.staff_members.find(
