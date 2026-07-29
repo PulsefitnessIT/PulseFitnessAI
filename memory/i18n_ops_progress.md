@@ -156,3 +156,21 @@ REMAINING Memberships files (next batch, still English via fallback): AnalyticsT
 DeskSalesTab, InstructorsTab, MobileAppTab, plans/classes inline in MembershipsConsole, tabs/*, modals/*, and the
 deep parts of MembershipsConsole (PlansInnerView, ClassesTab, SchedulingHubTab, RecordPaymentModal, AdsTab).
 Then: Marketing module (mkt ns).
+
+## ═══ 2026-07-29 · BATCH 3 — Memberships mid-size tabs (VERIFIED DE live) ═══
+Fully localized (FR+DE, all compile clean, guard passes):
+  - InstructorsTab.js (prefix inst_) — roster/performance/cover-board subtabs, metrics, cover assign modal.
+  - FamilyBillingTab.js (prefix fam_) — AI risk table, sibling/multi-class discount ladders, payment plans.
+    RISK_TONES.label -> labelKey (fam_risk_high/medium/low). RENAMED a `t` SHADOW: tiers.map((t)) -> (tier).
+  - CRMLoopTab.js (prefix crml_) — dashboard/rules/signals/sends subtabs. RENAMED tab-map `t` -> `tab` shadow.
+    KIND_META.label -> labelKey; crml_kind_* added to pipeline dict.
+  - CheckinTab.js (prefix chk_) — toolbar, roster drawer, walk-in/broadcast/kiosk/search/share dialogs, all
+    notifications. RENAMED a `t` SHADOW in MemberSearchDialog (setTimeout const t -> timer).
+VERIFIED: Check-in tab live in German (Heute/3 Tage/Aktualisieren/Mitglied finden/Kiosk-Modus, empty state).
+Pipeline now extracts 775 keys total across the 4 module namespaces.
+
+REMAINING Memberships (4 LARGE files, next batch — still EN via fallback, functional):
+  AnalyticsTab.js (1001), MobileAppBuilderTab.js (1294), StudioBuilderTab.js (907), MemberPortal.js (999).
+  Plus deep inline parts of MembershipsConsole (PlansInnerView, ClassesTab, SchedulingHubTab, RecordPaymentModal,
+  AdsTab), tabs/* (BookTab, BookingsTab, PassTab, PlanTab, ProfileTab), modals/*, MemberEventsTab, DeskSalesTab,
+  MobileAppTab. Then the Marketing module (mkt ns).

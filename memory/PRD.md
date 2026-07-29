@@ -1,4 +1,16 @@
-# ═══ 2026-07-29 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS DEEP FILES (BATCH 2, VERIFIED DE live) ═══
+# ═══ 2026-07-29 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS mid-size tabs (BATCH 3, VERIFIED DE live) ═══
+Continued the FR/DE rollout. Fully localized 4 mid-size Memberships tabs (FR+DE, compile clean, Check-in tab
+verified live in German): InstructorsTab (inst_), FamilyBillingTab (fam_), CRMLoopTab (crml_), CheckinTab (chk_).
+Fixed 3 `t`-shadow hazards (map/setTimeout variables renamed). Enum labels (crml_kind_*) added to the pipeline
+explicit dict. Pipeline now extracts 775 keys across the 4 module namespaces; all en/fr/de populated.
+REMAINING Memberships (4 LARGE files next batch, still EN via fallback = functional): AnalyticsTab (1001),
+MobileAppBuilderTab (1294), StudioBuilderTab (907), MemberPortal (999); plus deep inline parts of
+MembershipsConsole (Plans/Classes/SchedulingHub/RecordPayment/Ads), tabs/* member-portal sub-tabs, modals/*.
+Then the Marketing module (mkt ns). Full checklist: /app/memory/i18n_ops_progress.md.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 Continuation of the FR/DE rollout. Fully localized 5 high-visibility Memberships files (FR+DE, compile clean,
 Promotions tab verified live in German):
   - StudioQuickstart.js (onboarding wizard, prefix sqs_), MembershipsStartTab.js (setup checklist + logo modal,

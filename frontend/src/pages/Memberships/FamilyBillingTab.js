@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Users2, Layers, Loader2, Plus, Trash2, Save,
   CheckCircle2, RefreshCw, Brain, CreditCard, Zap,
@@ -16,14 +17,15 @@ import {
 import { notify } from '@/components/notifications';
 
 const RISK_TONES = {
-  high:   { bg: 'rgba(239,68,68,0.12)',  fg: '#b91c1c', label: 'High risk' },
-  medium: { bg: 'rgba(245,158,11,0.12)', fg: '#b45309', label: 'Medium risk' },
-  low:    { bg: 'rgba(16,185,129,0.12)', fg: '#047857', label: 'Low risk' },
+  high:   { bg: 'rgba(239,68,68,0.12)',  fg: '#b91c1c', labelKey: 'fam_risk_high' },
+  medium: { bg: 'rgba(245,158,11,0.12)', fg: '#b45309', labelKey: 'fam_risk_medium' },
+  low:    { bg: 'rgba(16,185,129,0.12)', fg: '#047857', labelKey: 'fam_risk_low' },
 };
 
 const fmtGBP = (pence) => `£${(((pence ?? 0) / 100) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function FamilyBillingTab({ API, headers }) {
+  const { t } = useTranslation();
   const auth = useMemo(() => ({ headers }), [headers]);
   const [loading, setLoading] = useState(true);
   const [siblingTiers, setSiblingTiers] = useState([]);
@@ -50,7 +52,7 @@ export default function FamilyBillingTab({ API, headers }) {
       setPlans(pp.data?.plans || []);
       setRisk({ rows: rk.data?.rows || [], summary: rk.data?.summary || {} });
     } catch (e) {
-      notify.error('Failed to load family billing', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.fam_load_fail', 'Failed to load family billing'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, [API, auth]);
   useEffect(() => { load(); }, [load]);
@@ -61,10 +63,10 @@ export default function FamilyBillingTab({ API, headers }) {
       await axios.post(`${API}/memberships/billing/sibling-discount`, {
         pct: 0, tiers: siblingTiers,
       }, auth);
-      notify.success('Sibling discount saved');
+      notify.success(t('memberships_console.fam_sibling_saved', 'Sibling discount saved'));
       await load();
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.fam_save_fail', 'Save failed'), e?.response?.data?.detail || e.message);
     } finally { setSavingTiers(false); }
   };
 
@@ -74,20 +76,20 @@ export default function FamilyBillingTab({ API, headers }) {
       await axios.post(`${API}/memberships/billing/multi-class-discount`, {
         tiers: multiTiers,
       }, auth);
-      notify.success('Multi-class discount saved');
+      notify.success(t('memberships_console.fam_multi_saved', 'Multi-class discount saved'));
       await load();
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.fam_save_fail', 'Save failed'), e?.response?.data?.detail || e.message);
     } finally { setSavingTiers(false); }
   };
 
   const addPlan = async () => {
-    const name = window.prompt('Plan name (e.g. "Autumn Term — 3 instalments")');
+    const name = window.prompt(t('memberships_console.fam_plan_name_prompt', 'Plan name (e.g. Autumn Term — 3 instalments)'));
     if (!name) return;
-    const total = parseFloat(window.prompt('Total fee in £ (e.g. 600)') || '0');
-    const instalments = parseInt(window.prompt('Number of instalments (2-24)') || '3', 10);
+    const total = parseFloat(window.prompt(t('memberships_console.fam_plan_total_prompt', 'Total fee in £ (e.g. 600)')) || '0');
+    const instalments = parseInt(window.prompt(t('memberships_console.fam_plan_inst_prompt', 'Number of instalments (2-24)')) || '3', 10);
     if (!total || !instalments || instalments < 2) {
-      notify.error('Invalid input', 'Need total fee and at least 2 instalments');
+      notify.error(t('memberships_console.fam_invalid_input', 'Invalid input'), t('memberships_console.fam_invalid_input_msg', 'Need total fee and at least 2 instalments'));
       return;
     }
     try {
@@ -97,27 +99,27 @@ export default function FamilyBillingTab({ API, headers }) {
         instalments,
         frequency: 'monthly',
       }, auth);
-      notify.success('Payment plan created');
+      notify.success(t('memberships_console.fam_plan_created', 'Payment plan created'));
       await load();
     } catch (e) {
-      notify.error('Create failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.fam_create_fail', 'Create failed'), e?.response?.data?.detail || e.message);
     }
   };
 
   const deletePlan = async (plan) => {
-    if (!window.confirm(`Archive payment plan "${plan.name}"?`)) return;
+    if (!window.confirm(t('memberships_console.fam_archive_plan', 'Archive payment plan "{{name}}"?', { name: plan.name }))) return;
     try {
       await axios.delete(`${API}/memberships/payment-plans/${plan.id}`, auth);
       await load();
     } catch (e) {
-      notify.error('Delete failed', e?.response?.data?.detail || e.message);
+      notify.error(t('memberships_console.fam_delete_fail', 'Delete failed'), e?.response?.data?.detail || e.message);
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground p-6" data-testid="family-billing-loading">
-        <Loader2 size={14} className="animate-spin" /> Loading family billing…
+        <Loader2 size={14} className="animate-spin" /> {t('memberships_console.fam_loading', 'Loading family billing…')}
       </div>
     );
   }
@@ -127,32 +129,32 @@ export default function FamilyBillingTab({ API, headers }) {
       <RiskCard risk={risk} onRefresh={load} />
 
       <DiscountLadderCard
-        title="Sibling discount ladder"
-        eyebrow="Family loyalty"
+        title={t('memberships_console.fam_sibling_title', 'Sibling discount ladder')}
+        eyebrow={t('memberships_console.fam_sibling_eyebrow', 'Family loyalty')}
         Icon={Users2}
         rankKey="rank"
-        rankLabel="Child rank"
+        rankLabel={t('memberships_console.fam_child_rank', 'Child rank')}
         tiers={siblingTiers}
         setTiers={setSiblingTiers}
         onSave={saveSibling}
         saving={savingTiers}
-        helpCopy="A flat percent off each child beyond the eldest. Tiered ladder lets you reward larger families without manually tagging accounts."
-        rankPrefix={(r) => ({ 2: '2nd', 3: '3rd' }[r] || `${r}th`) + ' child'}
+        helpCopy={t('memberships_console.fam_sibling_help', 'A flat percent off each child beyond the eldest. Tiered ladder lets you reward larger families without manually tagging accounts.')}
+        rankPrefix={(r) => ({ 2: '2nd', 3: '3rd' }[r] || `${r}th`) + ' ' + t('memberships_console.fam_child', 'child')}
         testid="sibling"
       />
 
       <DiscountLadderCard
-        title="Multi-class discount ladder"
-        eyebrow="Engagement"
+        title={t('memberships_console.fam_multi_title', 'Multi-class discount ladder')}
+        eyebrow={t('memberships_console.fam_multi_eyebrow', 'Engagement')}
         Icon={Layers}
         rankKey="min_classes"
-        rankLabel="Min classes"
+        rankLabel={t('memberships_console.fam_min_classes', 'Min classes')}
         tiers={multiTiers}
         setTiers={setMultiTiers}
         onSave={saveMulti}
         saving={savingTiers}
-        helpCopy="When one student attends N or more classes in a billing period, knock a percent off every class line for that student."
-        rankPrefix={(r) => `${r}+ classes`}
+        helpCopy={t('memberships_console.fam_multi_help', 'When one student attends N or more classes in a billing period, knock a percent off every class line for that student.')}
+        rankPrefix={(r) => t('memberships_console.fam_plus_classes', '{{r}}+ classes', { r })}
         testid="multi"
       />
 
@@ -165,6 +167,7 @@ export default function FamilyBillingTab({ API, headers }) {
 // Risk
 // ─────────────────────────────────────────────────────────────────
 function RiskCard({ risk, onRefresh }) {
+  const { t } = useTranslation();
   const summary = risk?.summary || {};
   const rows = risk?.rows || [];
   return (
@@ -176,37 +179,37 @@ function RiskCard({ risk, onRefresh }) {
       <header className="flex items-start justify-between flex-wrap gap-2 mb-3">
         <div>
           <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
-            <Brain size={11} /> AI failed-payment risk
+            <Brain size={11} /> {t('memberships_console.fam_ai_risk', 'AI failed-payment risk')}
           </p>
-          <h3 className="text-base font-bold">Members most likely to fail their next charge</h3>
+          <h3 className="text-base font-bold">{t('memberships_console.fam_risk_heading', 'Members most likely to fail their next charge')}</h3>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] opacity-70 inline-flex items-center gap-1">
-            <span style={{ background: RISK_TONES.high.bg, color: RISK_TONES.high.fg, padding: '2px 6px', borderRadius: 6, fontWeight: 700 }} data-testid="risk-summary-high">{summary.high ?? 0} high</span>
-            <span style={{ background: RISK_TONES.medium.bg, color: RISK_TONES.medium.fg, padding: '2px 6px', borderRadius: 6, fontWeight: 700 }} data-testid="risk-summary-medium">{summary.medium ?? 0} medium</span>
-            <span style={{ background: RISK_TONES.low.bg, color: RISK_TONES.low.fg, padding: '2px 6px', borderRadius: 6, fontWeight: 700 }} data-testid="risk-summary-low">{summary.low ?? 0} low</span>
+            <span style={{ background: RISK_TONES.high.bg, color: RISK_TONES.high.fg, padding: '2px 6px', borderRadius: 6, fontWeight: 700 }} data-testid="risk-summary-high">{t('memberships_console.fam_n_high', '{{n}} high', { n: summary.high ?? 0 })}</span>
+            <span style={{ background: RISK_TONES.medium.bg, color: RISK_TONES.medium.fg, padding: '2px 6px', borderRadius: 6, fontWeight: 700 }} data-testid="risk-summary-medium">{t('memberships_console.fam_n_medium', '{{n}} medium', { n: summary.medium ?? 0 })}</span>
+            <span style={{ background: RISK_TONES.low.bg, color: RISK_TONES.low.fg, padding: '2px 6px', borderRadius: 6, fontWeight: 700 }} data-testid="risk-summary-low">{t('memberships_console.fam_n_low', '{{n}} low', { n: summary.low ?? 0 })}</span>
           </span>
           <button type="button" onClick={onRefresh} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="family-billing-risk-refresh">
-            <RefreshCw size={11} /> Refresh
+            <RefreshCw size={11} /> {t('memberships_console.fam_refresh', 'Refresh')}
           </button>
         </div>
       </header>
       {rows.length === 0 ? (
         <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="family-billing-risk-empty">
           <CheckCircle2 size={22} className="mx-auto mb-1 text-emerald-500" />
-          <p className="text-sm font-bold">All clear</p>
-          <p className="text-xs opacity-70 mt-1">No members are flagged as payment-risk right now. We'll surface them as soon as a charge fails or an invoice goes overdue.</p>
+          <p className="text-sm font-bold">{t('memberships_console.fam_all_clear', 'All clear')}</p>
+          <p className="text-xs opacity-70 mt-1">{t('memberships_console.fam_all_clear_hint', "No members are flagged as payment-risk right now. We'll surface them as soon as a charge fails or an invoice goes overdue.")}</p>
         </div>
       ) : (
         <div className="overflow-x-auto" data-testid="family-billing-risk-table">
           <table className="w-full text-xs">
             <thead className="text-left">
               <tr style={{ background: 'var(--theme-surface-2, #f8fafc)' }}>
-                <th className="p-2 font-bold uppercase text-[10px] opacity-70">Member</th>
-                <th className="p-2 font-bold uppercase text-[10px] opacity-70">Risk</th>
-                <th className="p-2 font-bold uppercase text-[10px] opacity-70">Outstanding</th>
-                <th className="p-2 font-bold uppercase text-[10px] opacity-70">Past due</th>
-                <th className="p-2 font-bold uppercase text-[10px] opacity-70">Why</th>
+                <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_member', 'Member')}</th>
+                <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_risk', 'Risk')}</th>
+                <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_outstanding', 'Outstanding')}</th>
+                <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_past_due', 'Past due')}</th>
+                <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_why', 'Why')}</th>
               </tr>
             </thead>
             <tbody>
@@ -220,7 +223,7 @@ function RiskCard({ risk, onRefresh }) {
                     </td>
                     <td className="p-2">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold tabular-nums" style={{ background: tone.bg, color: tone.fg }} data-testid={`family-billing-risk-band-${r.member_id}`}>
-                        {r.score}/100 · {tone.label}
+                        {r.score}/100 · {t(`memberships_console.${tone.labelKey}`, tone.labelKey === 'fam_risk_high' ? 'High risk' : tone.labelKey === 'fam_risk_medium' ? 'Medium risk' : 'Low risk')}
                       </span>
                     </td>
                     <td className="p-2 tabular-nums font-bold">{fmtGBP(r.open_balance_pence)}</td>
@@ -248,6 +251,7 @@ function DiscountLadderCard({
   title, eyebrow, Icon, rankKey, rankLabel, tiers, setTiers, onSave, saving,
   helpCopy, rankPrefix, testid,
 }) {
+  const { t } = useTranslation();
   const updateTier = (idx, key, value) => {
     setTiers((prev) => prev.map((t, i) => i === idx ? { ...t, [key]: parseInt(value, 10) || 0 } : t));
   };
@@ -272,25 +276,25 @@ function DiscountLadderCard({
         </div>
         <button type="button" onClick={onSave} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff', opacity: saving ? 0.6 : 1 }} data-testid={`family-billing-${testid}-save`}>
           {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-          Save
+          {t('memberships_console.fam_save', 'Save')}
         </button>
       </header>
       <div className="space-y-2" data-testid={`family-billing-${testid}-list`}>
-        {tiers.map((t, idx) => (
+        {tiers.map((tier, idx) => (
           <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`family-billing-${testid}-tier-${idx}`}>
-            <span className="text-xs font-bold opacity-70 w-28">{rankPrefix(t[rankKey])}</span>
+            <span className="text-xs font-bold opacity-70 w-28">{rankPrefix(tier[rankKey])}</span>
             <label className="text-[11px] opacity-60">{rankLabel}</label>
-            <input type="number" min={2} max={20} value={t[rankKey]} onChange={(e) => updateTier(idx, rankKey, e.target.value)} className="w-16 px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`family-billing-${testid}-rank-${idx}`} />
-            <label className="text-[11px] opacity-60">% off</label>
-            <input type="number" min={0} max={75} value={t.pct} onChange={(e) => updateTier(idx, 'pct', e.target.value)} className="w-16 px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`family-billing-${testid}-pct-${idx}`} />
+            <input type="number" min={2} max={20} value={tier[rankKey]} onChange={(e) => updateTier(idx, rankKey, e.target.value)} className="w-16 px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`family-billing-${testid}-rank-${idx}`} />
+            <label className="text-[11px] opacity-60">{t('memberships_console.fam_pct_off', '% off')}</label>
+            <input type="number" min={0} max={75} value={tier.pct} onChange={(e) => updateTier(idx, 'pct', e.target.value)} className="w-16 px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`family-billing-${testid}-pct-${idx}`} />
             <span className="text-[10px] opacity-60">%</span>
-            <button type="button" onClick={() => remove(idx)} className="ml-auto px-2 py-1 rounded text-[11px] border" style={{ borderColor: 'var(--theme-border)' }} aria-label="Remove tier" data-testid={`family-billing-${testid}-remove-${idx}`}>
+            <button type="button" onClick={() => remove(idx)} className="ml-auto px-2 py-1 rounded text-[11px] border" style={{ borderColor: 'var(--theme-border)' }} aria-label={t('memberships_console.fam_remove_tier', 'Remove tier')} data-testid={`family-billing-${testid}-remove-${idx}`}>
               <Trash2 size={11} />
             </button>
           </div>
         ))}
         <button type="button" onClick={add} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 border-2 border-dashed w-full justify-center" style={{ borderColor: 'var(--theme-border)' }} data-testid={`family-billing-${testid}-add`}>
-          <Plus size={11} /> Add tier
+          <Plus size={11} /> {t('memberships_console.fam_add_tier', 'Add tier')}
         </button>
       </div>
     </section>
@@ -301,6 +305,7 @@ function DiscountLadderCard({
 // Payment plans
 // ─────────────────────────────────────────────────────────────────
 function PaymentPlansCard({ plans, onAdd, onDelete }) {
+  const { t } = useTranslation();
   return (
     <section
       className="rounded-2xl border p-4"
@@ -310,22 +315,22 @@ function PaymentPlansCard({ plans, onAdd, onDelete }) {
       <header className="flex items-start justify-between gap-2 flex-wrap mb-3">
         <div>
           <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
-            <CreditCard size={11} /> Payment plans
+            <CreditCard size={11} /> {t('memberships_console.fam_payment_plans', 'Payment plans')}
           </p>
-          <h3 className="text-base font-bold">Instalment offerings</h3>
+          <h3 className="text-base font-bold">{t('memberships_console.fam_instalment_offerings', 'Instalment offerings')}</h3>
           <p className="text-[11.5px] opacity-70 max-w-xl mt-1">
-            Define a fee once (e.g. £600 termly) and split it across N monthly instalments. Assign to a member from the Members tab — the autopay cron will issue one invoice per period until paid in full.
+            {t('memberships_console.fam_plans_help', 'Define a fee once (e.g. £600 termly) and split it across N monthly instalments. Assign to a member from the Members tab — the autopay cron will issue one invoice per period until paid in full.')}
           </p>
         </div>
         <button type="button" onClick={onAdd} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="family-billing-plan-add">
-          <Plus size={11} /> Add plan
+          <Plus size={11} /> {t('memberships_console.fam_add_plan', 'Add plan')}
         </button>
       </header>
       {plans.length === 0 ? (
         <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="family-billing-plans-empty">
           <Zap size={22} className="mx-auto mb-1 text-amber-500" />
-          <p className="text-sm font-bold">No payment plans yet</p>
-          <p className="text-xs opacity-70 mt-1">Add one to start splitting termly fees into manageable monthly chunks.</p>
+          <p className="text-sm font-bold">{t('memberships_console.fam_no_plans', 'No payment plans yet')}</p>
+          <p className="text-xs opacity-70 mt-1">{t('memberships_console.fam_no_plans_hint', 'Add one to start splitting termly fees into manageable monthly chunks.')}</p>
         </div>
       ) : (
         <ul className="space-y-2" data-testid="family-billing-plan-list">

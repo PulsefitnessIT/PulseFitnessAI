@@ -8,6 +8,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarDays, Search, UserCheck, UserX, RefreshCw,
   Send, Tablet, Copy, KeyRound, AlertCircle, Loader2, Users, UserPlus, Megaphone, Share2, X,
@@ -17,6 +18,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import Button from '@/components/shared/Button';
 
 export default function CheckinTab({ API, headers }) {
+  const { t } = useTranslation();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeOcc, setActiveOcc] = useState(null);
@@ -30,7 +32,7 @@ export default function CheckinTab({ API, headers }) {
       const r = await axios.get(`${API}/memberships/checkin/today?days=${dayWindow}`, { headers });
       setClasses(r.data.classes || []);
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to load classes');
+      notifyApiError(notify, e, t('memberships_console.chk_load_fail', 'Failed to load classes'));
     }
     setLoading(false);
   };
@@ -49,25 +51,25 @@ export default function CheckinTab({ API, headers }) {
                   dayWindow === d ? 'bg-emerald-500 text-white' : 'text-[color:var(--theme-text-muted)]'
                 }`}
                 data-testid={`mbr-checkin-window-${d}`}>
-                {d === 1 ? 'Today' : `${d} days`}
+                {d === 1 ? t('memberships_console.chk_today', 'Today') : t('memberships_console.chk_n_days', '{{d}} days', { d })}
               </button>
             ))}
           </div>
           <button onClick={load}
             className="px-3 py-2 rounded-md border border-[color:var(--theme-border)] text-xs font-bold flex items-center gap-1.5"
             data-testid="mbr-checkin-refresh">
-            <RefreshCw size={12} /> Refresh
+            <RefreshCw size={12} /> {t('memberships_console.chk_refresh', 'Refresh')}
           </button>
           <button onClick={() => setShowSearch(true)}
             className="px-3 py-2 rounded-md border border-[color:var(--theme-border)] text-xs font-bold flex items-center gap-1.5"
             data-testid="mbr-checkin-find-member-btn">
-            <Search size={12} /> Find member
+            <Search size={12} /> {t('memberships_console.chk_find_member', 'Find member')}
           </button>
           <button onClick={() => setShowKiosk(true)}
             className="px-3 py-2 rounded-md text-xs font-bold flex items-center gap-1.5"
             style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
             data-testid="mbr-checkin-kiosk-btn">
-            <Tablet size={12} /> Kiosk mode
+            <Tablet size={12} /> {t('memberships_console.chk_kiosk_mode', 'Kiosk mode')}
           </button>
         </div>
       </div>
@@ -77,8 +79,8 @@ export default function CheckinTab({ API, headers }) {
       ) : classes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[color:var(--theme-border)] p-10 text-center">
           <CalendarDays size={32} className="mx-auto text-[color:var(--theme-text-muted)] mb-3" />
-          <p className="text-sm font-bold">No scheduled classes in this window</p>
-          <p className="text-xs text-[color:var(--theme-text-muted)] mt-1">Add a class on the Timetable tab to see it here.</p>
+          <p className="text-sm font-bold">{t('memberships_console.chk_no_classes', 'No scheduled classes in this window')}</p>
+          <p className="text-xs text-[color:var(--theme-text-muted)] mt-1">{t('memberships_console.chk_no_classes_hint', 'Add a class on the Timetable tab to see it here.')}</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -97,6 +99,7 @@ export default function CheckinTab({ API, headers }) {
 
 
 function ClassCard({ occ, onOpen, API, headers, onChanged }) {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const cap = occ.capacity || 0;
   const booked = occ.bookings_count || 0;
@@ -116,17 +119,17 @@ function ClassCard({ occ, onOpen, API, headers, onChanged }) {
   const sendInvite = async (e) => {
     e.stopPropagation();
     const ok = await confirm({
-      title: 'Send drop-in invites?',
-      body: `Email all opted-in members in your studio (capped at 200) about the open spots in ${occ.name}.`,
-      tone: 'info', confirmLabel: 'Send invites',
+      title: t('memberships_console.chk_send_invites_title', 'Send drop-in invites?'),
+      body: t('memberships_console.chk_send_invites_body', 'Email all opted-in members in your studio (capped at 200) about the open spots in {{name}}.', { name: occ.name }),
+      tone: 'info', confirmLabel: t('memberships_console.chk_send_invites', 'Send invites'),
     });
     if (!ok) return;
     try {
       const r = await axios.post(`${API}/memberships/occurrences/${occ.id}/dropin-invite`, {}, { headers });
-      notify.success(`${r.data.invites_sent || 0} drop-in invite${r.data.invites_sent === 1 ? '' : 's'} queued`);
+      notify.success(t('memberships_console.chk_invites_queued', '{{n}} drop-in invite(s) queued', { n: r.data.invites_sent || 0 }));
       onChanged?.();
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to send invites');
+      notifyApiError(notify, e, t('memberships_console.chk_invites_fail', 'Failed to send invites'));
     }
   };
 
@@ -156,7 +159,7 @@ function ClassCard({ occ, onOpen, API, headers, onChanged }) {
           <span onClick={sendInvite}
             className="px-2 py-1 rounded text-[10px] font-bold text-emerald-500 hover:bg-emerald-500/10 inline-flex items-center gap-1 cursor-pointer"
             data-testid={`mbr-checkin-invite-${occ.id}`}>
-            <Send size={9} /> Drop-in invite
+            <Send size={9} /> {t('memberships_console.chk_dropin_invite', 'Drop-in invite')}
           </span>
         </div>
       )}
@@ -166,6 +169,7 @@ function ClassCard({ occ, onOpen, API, headers, onChanged }) {
 
 
 function RosterDrawer({ API, headers, occ, onClose }) {
+  const { t } = useTranslation();
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [walkInOpen, setWalkInOpen] = useState(false);
@@ -203,7 +207,7 @@ function RosterDrawer({ API, headers, occ, onClose }) {
       }
       setRoster(rows);
     } catch (e) {
-      notifyApiError(notify, e, 'Roster failed');
+      notifyApiError(notify, e, t('memberships_console.chk_roster_fail', 'Roster failed'));
     }
     setLoading(false);
   };
@@ -215,7 +219,7 @@ function RosterDrawer({ API, headers, occ, onClose }) {
       await axios.post(`${API}/memberships/checkin/${occ.id}/mark`, { booking_id, status }, { headers });
       setRoster((prev) => prev.map((r) => r.booking_id === booking_id ? { ...r, status } : r));
     } catch (e) {
-      notifyApiError(notify, e, 'Failed');
+      notifyApiError(notify, e, t('memberships_console.chk_mark_fail', 'Failed'));
     }
   };
 
@@ -226,14 +230,14 @@ function RosterDrawer({ API, headers, occ, onClose }) {
         <div className="p-4 border-b border-[color:var(--theme-border)] sticky top-0 bg-[color:var(--theme-surface)] z-10">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-[9px] uppercase tracking-wider font-bold text-emerald-500">Roster</p>
+              <p className="text-[9px] uppercase tracking-wider font-bold text-emerald-500">{t('memberships_console.chk_roster', 'Roster')}</p>
               <h3 className="text-base font-extrabold">{occ.name}</h3>
               <p className="text-[11px] text-[color:var(--theme-text-muted)]">
                 {occ.starts_at && new Date(occ.starts_at).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 {occ.instructor_name && ` · ${occ.instructor_name}`}
               </p>
             </div>
-            <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="mbr-checkin-roster-close" />
+            <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title={t('memberships_console.chk_close', 'Close')} data-testid="mbr-checkin-roster-close" />
           </div>
         </div>
         <div className="p-4">
@@ -243,25 +247,25 @@ function RosterDrawer({ API, headers, occ, onClose }) {
               className="flex-1 h-9 rounded-lg border border-[color:var(--theme-border)] text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:bg-zinc-500/5"
               data-testid="mbr-checkin-walk-in"
             >
-              <UserPlus size={13} /> Walk-in
+              <UserPlus size={13} /> {t('memberships_console.chk_walk_in', 'Walk-in')}
             </button>
             <button
               type="button" onClick={() => setBroadcastOpen(true)}
               className="flex-1 h-9 rounded-lg border border-[color:var(--theme-border)] text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:bg-zinc-500/5"
               data-testid="mbr-checkin-broadcast"
             >
-              <Megaphone size={13} /> Message class
+              <Megaphone size={13} /> {t('memberships_console.chk_message_class', 'Message class')}
             </button>
             <button
               type="button" onClick={() => setShareOpen(true)}
               className="flex-1 h-9 rounded-lg border border-[color:var(--theme-border)] text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:bg-zinc-500/5"
               data-testid="mbr-checkin-share"
             >
-              <Share2 size={13} /> Share
+              <Share2 size={13} /> {t('memberships_console.chk_share', 'Share')}
             </button>
           </div>
           {loading ? <Spinner /> : roster.length === 0 ? (
-            <Empty title="No bookings yet" hint="When members book, they'll appear here. Use 'Walk-in' to add someone who turned up without a booking." />
+            <Empty title={t('memberships_console.chk_no_bookings', 'No bookings yet')} hint={t('memberships_console.chk_no_bookings_hint', "When members book, they'll appear here. Use 'Walk-in' to add someone who turned up without a booking.")} />
           ) : (
             <div className="space-y-1.5">
               {roster.map((b) => <RosterRow key={b.booking_id} b={b} onMark={mark} />)}
@@ -278,6 +282,7 @@ function RosterDrawer({ API, headers, occ, onClose }) {
 
 
 function RosterRow({ b, onMark }) {
+  const { t } = useTranslation();
   const status = b.status;
   const isAttended = status === 'attended';
   const isNoShow = status === 'no_show';
@@ -296,13 +301,13 @@ function RosterRow({ b, onMark }) {
           {isWaitlist && (
             <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300"
               data-testid={`mbr-roster-waitlist-${b.booking_id}`}>
-              Waitlist · #{b.waitlist_position || '?'}
+              {t('memberships_console.chk_waitlist_pos', 'Waitlist · #{{pos}}', { pos: b.waitlist_position || '?' })}
             </span>
           )}
         </div>
         <p className="text-[10px] text-[color:var(--theme-text-muted)] truncate">
           {b.email}
-          {b.no_show_count > 0 && ` · ${b.no_show_count} no-show${b.no_show_count === 1 ? '' : 's'}`}
+          {b.no_show_count > 0 && ` · ${t('memberships_console.chk_no_shows', '{{n}} no-shows', { n: b.no_show_count })}`}
         </p>
       </div>
       <div className="flex gap-1">
@@ -310,19 +315,19 @@ function RosterRow({ b, onMark }) {
           <>
             <button onClick={() => onMark(b.booking_id, 'attended')}
               className={`p-2 rounded ${isAttended ? 'bg-emerald-500 text-white' : 'border border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10'}`}
-              title="Mark attended" data-testid={`mbr-roster-attend-${b.booking_id}`}>
+              title={t('memberships_console.chk_mark_attended', 'Mark attended')} data-testid={`mbr-roster-attend-${b.booking_id}`}>
               <UserCheck size={14} />
             </button>
             <button onClick={() => onMark(b.booking_id, 'no_show')}
               className={`p-2 rounded ${isNoShow ? 'bg-red-500 text-white' : 'border border-red-500/40 text-red-500 hover:bg-red-500/10'}`}
-              title="Mark no-show" data-testid={`mbr-roster-noshow-${b.booking_id}`}>
+              title={t('memberships_console.chk_mark_no_show', 'Mark no-show')} data-testid={`mbr-roster-noshow-${b.booking_id}`}>
               <UserX size={14} />
             </button>
           </>
         )}
         {isWaitlist && (
           <span className="text-[10px] font-bold text-violet-300 italic pr-1 self-center">
-            auto-promote
+            {t('memberships_console.chk_auto_promote', 'auto-promote')}
           </span>
         )}
       </div>
@@ -332,6 +337,7 @@ function RosterRow({ b, onMark }) {
 
 
 function MemberSearchDialog({ API, headers, onClose }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -339,35 +345,35 @@ function MemberSearchDialog({ API, headers, onClose }) {
   useEffect(() => {
     if (!q || q.length < 2) { setResults([]); return; }
     let cancelled = false;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setLoading(true);
       try {
         const r = await axios.get(`${API}/memberships/checkin/search-members?q=${encodeURIComponent(q)}`, { headers });
         if (!cancelled) setResults(r.data.results || []);
       } catch (e) {
-        if (!cancelled) notify.error('Search failed');
+        if (!cancelled) notify.error(t('memberships_console.chk_search_fail', 'Search failed'));
       }
       if (!cancelled) setLoading(false);
     }, 300);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [q, API, headers]);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [q, API, headers, t]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60" />
       <div className="relative w-full max-w-lg bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl p-4 max-h-[calc(100vh-2rem)] flex flex-col" onClick={(e) => e.stopPropagation()} data-testid="mbr-checkin-search">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-extrabold flex items-center gap-2"><Search size={16} /> Find member</h3>
-          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="mbr-checkin-search-close" />
+          <h3 className="font-extrabold flex items-center gap-2"><Search size={16} /> {t('memberships_console.chk_find_member', 'Find member')}</h3>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title={t('memberships_console.chk_close', 'Close')} data-testid="mbr-checkin-search-close" />
         </div>
-        <input autoFocus type="text" placeholder="Type a name, email, or phone…"
+        <input autoFocus type="text" placeholder={t('memberships_console.chk_search_ph', 'Type a name, email, or phone…')}
           value={q} onChange={(e) => setQ(e.target.value)}
           className="w-full px-3 py-2 rounded-md border border-[color:var(--theme-border)] bg-transparent text-sm"
           data-testid="mbr-checkin-search-input" />
         <div className="mt-3 max-h-80 overflow-y-auto space-y-1.5">
           {loading && <Spinner />}
           {!loading && q.length >= 2 && results.length === 0 && (
-            <p className="text-xs text-[color:var(--theme-text-muted)] text-center py-4">No matches.</p>
+            <p className="text-xs text-[color:var(--theme-text-muted)] text-center py-4">{t('memberships_console.chk_no_matches', 'No matches.')}</p>
           )}
           {results.map((m) => (
             <div key={m.id}
@@ -391,6 +397,7 @@ function MemberSearchDialog({ API, headers, onClose }) {
 
 
 function KioskDialog({ API, headers, onClose }) {
+  const { t } = useTranslation();
   const [token, setToken] = useState(null);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -405,9 +412,9 @@ function KioskDialog({ API, headers, onClose }) {
   const issue = async () => {
     if (meta) {
       const ok = await confirm({
-        title: 'Rotate kiosk token?',
-        body: 'The current kiosk URL will stop working immediately. Update any tablets running kiosk mode.',
-        tone: 'warning', confirmLabel: 'Rotate',
+        title: t('memberships_console.chk_rotate_title', 'Rotate kiosk token?'),
+        body: t('memberships_console.chk_rotate_body', 'The current kiosk URL will stop working immediately. Update any tablets running kiosk mode.'),
+        tone: 'warning', confirmLabel: t('memberships_console.chk_rotate', 'Rotate'),
       });
       if (!ok) return;
     }
@@ -416,9 +423,9 @@ function KioskDialog({ API, headers, onClose }) {
       const r = await axios.post(`${API}/memberships/checkin/kiosk-token`, {}, { headers });
       setToken(r.data.token);
       setMeta({ issued_at: new Date().toISOString() });
-      notify.success('Kiosk token issued — copy the URL now');
+      notify.success(t('memberships_console.chk_token_issued', 'Kiosk token issued — copy the URL now'));
     } catch (e) {
-      notifyApiError(notify, e, 'Failed');
+      notifyApiError(notify, e, t('memberships_console.chk_mark_fail', 'Failed'));
     }
     setLoading(false);
   };
@@ -427,8 +434,8 @@ function KioskDialog({ API, headers, onClose }) {
 
   const copyUrl = async () => {
     if (!url) return;
-    try { await navigator.clipboard.writeText(url); notify.success('Copied'); }
-    catch { notify.error('Could not copy'); }
+    try { await navigator.clipboard.writeText(url); notify.success(t('memberships_console.chk_copied', 'Copied')); }
+    catch { notify.error(t('memberships_console.chk_copy_fail', 'Could not copy')); }
   };
 
   return (
@@ -436,33 +443,32 @@ function KioskDialog({ API, headers, onClose }) {
       <div className="absolute inset-0 bg-black/60" />
       <div className="relative w-full max-w-lg bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl p-4 max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="mbr-checkin-kiosk-dlg">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-extrabold flex items-center gap-2"><Tablet size={16} /> Kiosk mode</h3>
-          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="mbr-checkin-kiosk-dlg-close" />
+          <h3 className="font-extrabold flex items-center gap-2"><Tablet size={16} /> {t('memberships_console.chk_kiosk_mode', 'Kiosk mode')}</h3>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title={t('memberships_console.chk_close', 'Close')} data-testid="mbr-checkin-kiosk-dlg-close" />
         </div>
         <p className="text-xs text-[color:var(--theme-text-muted)] mb-4">
-          Open the kiosk URL on a reception tablet — members check in by typing their name and entering the 6-digit code from their Pass tab.
+          {t('memberships_console.chk_kiosk_desc', 'Open the kiosk URL on a reception tablet — members check in by typing their name and entering the 6-digit code from their Pass tab.')}
         </p>
 
         {meta && !token && (
           <div className="rounded-lg border border-[color:var(--theme-border)] bg-zinc-500/5 p-3 text-xs mb-3">
-            <p className="font-bold flex items-center gap-1.5"><KeyRound size={11} /> Kiosk token already issued</p>
+            <p className="font-bold flex items-center gap-1.5"><KeyRound size={11} /> {t('memberships_console.chk_token_exists', 'Kiosk token already issued')}</p>
             <p className="text-[10px] text-[color:var(--theme-text-muted)] mt-1">
-              Issued {meta.issued_at && new Date(meta.issued_at).toLocaleString()}.
-              We never store the secret — rotate to see a new URL.
+              {t('memberships_console.chk_token_issued_at', 'Issued {{when}}.', { when: meta.issued_at ? new Date(meta.issued_at).toLocaleString() : '' })} {t('memberships_console.chk_token_secret_note', 'We never store the secret — rotate to see a new URL.')}
             </p>
           </div>
         )}
 
         {token && url && (
           <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 mb-3">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-500 mb-1.5 flex items-center gap-1"><AlertCircle size={9} /> Save this URL — it's shown ONCE</p>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-500 mb-1.5 flex items-center gap-1"><AlertCircle size={9} /> {t('memberships_console.chk_save_url', "Save this URL — it's shown ONCE")}</p>
             <code className="block text-[11px] break-all bg-zinc-900 text-emerald-200 p-2 rounded font-mono" data-testid="mbr-checkin-kiosk-url">
               {url}
             </code>
             <button onClick={copyUrl}
               className="mt-2 px-2 py-1 rounded text-[10px] font-bold border border-emerald-500/40 text-emerald-500 inline-flex items-center gap-1"
               data-testid="mbr-checkin-kiosk-copy">
-              <Copy size={9} /> Copy URL
+              <Copy size={9} /> {t('memberships_console.chk_copy_url', 'Copy URL')}
             </button>
           </div>
         )}
@@ -472,7 +478,7 @@ function KioskDialog({ API, headers, onClose }) {
           style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
           data-testid="mbr-checkin-kiosk-issue">
           {loading ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
-          {meta ? 'Rotate kiosk token' : 'Issue kiosk token'}
+          {meta ? t('memberships_console.chk_rotate_token', 'Rotate kiosk token') : t('memberships_console.chk_issue_token', 'Issue kiosk token')}
         </button>
       </div>
     </div>
@@ -481,9 +487,10 @@ function KioskDialog({ API, headers, onClose }) {
 
 
 function Spinner() {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-center py-8 text-[color:var(--theme-text-muted)] text-sm gap-2">
-      <Loader2 size={14} className="animate-spin" /> Loading…
+      <Loader2 size={14} className="animate-spin" /> {t('memberships_console.chk_loading', 'Loading…')}
     </div>
   );
 }
@@ -492,6 +499,7 @@ function Spinner() {
 // shows the rendered OG preview image so operators know what clients
 // will see when they paste the link into IG / WhatsApp / FB.
 function ShareClassDialog({ API, occ, onClose }) {
+  const { t } = useTranslation();
   const base = typeof window !== 'undefined' ? window.location.origin : '';
   const [slug, setSlug] = React.useState('');
   React.useEffect(() => {
@@ -512,9 +520,9 @@ function ShareClassDialog({ API, occ, onClose }) {
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      notify.success('Link copied', 'Paste into Instagram, WhatsApp, or your socials.');
+      notify.success(t('memberships_console.chk_link_copied', 'Link copied'), t('memberships_console.chk_link_copied_msg', 'Paste into Instagram, WhatsApp, or your socials.'));
     } catch {
-      notify.error('Copy failed', 'Long-press the link to copy manually.');
+      notify.error(t('memberships_console.chk_copy_failed', 'Copy failed'), t('memberships_console.chk_copy_failed_msg', 'Long-press the link to copy manually.'));
     }
   };
 
@@ -524,10 +532,10 @@ function ShareClassDialog({ API, occ, onClose }) {
       <div className="relative w-full max-w-md rounded-2xl bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-[9px] uppercase tracking-wider font-bold text-cyan-500">Share</p>
+            <p className="text-[9px] uppercase tracking-wider font-bold text-cyan-500">{t('memberships_console.chk_share', 'Share')}</p>
             <h3 className="text-base font-extrabold">{occ.name}</h3>
           </div>
-          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="share-dialog-close" />
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title={t('memberships_console.chk_close', 'Close')} data-testid="share-dialog-close" />
         </div>
         {ogUrl ? (
           <img src={ogUrl} alt="Social preview" width={520} height={273}
@@ -535,7 +543,7 @@ function ShareClassDialog({ API, occ, onClose }) {
             data-testid="share-og-preview" />
         ) : (
           <div className="w-full aspect-[1200/630] rounded-lg border border-dashed border-[color:var(--theme-border)] grid place-items-center text-xs text-[color:var(--theme-text-muted)]">
-            Preview loading…
+            {t('memberships_console.chk_preview_loading', 'Preview loading…')}
           </div>
         )}
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-[color:var(--theme-border)] bg-white/5 p-2">
@@ -545,11 +553,11 @@ function ShareClassDialog({ API, occ, onClose }) {
           <button onClick={copy}
             className="h-9 px-3 rounded-lg bg-[var(--color-brand-cyan)] text-[var(--color-ink)] text-xs font-bold inline-flex items-center gap-1"
             data-testid="share-copy">
-            <Copy size={12} /> Copy
+            <Copy size={12} /> {t('memberships_console.chk_copy', 'Copy')}
           </button>
         </div>
         <p className="text-[11px] text-[color:var(--theme-text-muted)] mt-2">
-          Paste this link anywhere — Instagram, WhatsApp, Facebook, Twitter, email — and they'll see the preview image above.
+          {t('memberships_console.chk_share_hint', "Paste this link anywhere — Instagram, WhatsApp, Facebook, Twitter, email — and they'll see the preview image above.")}
         </p>
       </div>
     </div>
@@ -569,13 +577,14 @@ function Empty({ title, hint }) {
 // with status=attended in a single server call. Closes on success, parent
 // re-loads the roster.
 function WalkInDialog({ API, headers, occ, onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (!name.trim()) { notify.error('Name required', 'Enter at least a first name.'); return; }
+    if (!name.trim()) { notify.error(t('memberships_console.chk_name_required', 'Name required'), t('memberships_console.chk_name_required_msg', 'Enter at least a first name.')); return; }
     setSaving(true);
     try {
       await axios.post(`${API}/memberships/checkin/walk-in`, {
@@ -584,11 +593,11 @@ function WalkInDialog({ API, headers, occ, onClose, onSuccess }) {
         phone: phone.trim() || undefined,
         occurrence_id: occ.id,
       }, { headers });
-      notify.success('Walk-in checked in', `${name.trim()} added to the register.`);
+      notify.success(t('memberships_console.chk_walkin_ok', 'Walk-in checked in'), t('memberships_console.chk_walkin_ok_msg', '{{name}} added to the register.', { name: name.trim() }));
       onSuccess();
       onClose();
     } catch (e) {
-      notifyApiError(notify, e, 'Walk-in failed');
+      notifyApiError(notify, e, t('memberships_console.chk_walkin_fail', 'Walk-in failed'));
     } finally {
       setSaving(false);
     }
@@ -600,25 +609,25 @@ function WalkInDialog({ API, headers, occ, onClose, onSuccess }) {
       <div className="relative w-full max-w-sm rounded-2xl bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-[9px] uppercase tracking-wider font-bold text-cyan-500">Walk-in</p>
-            <h3 className="text-base font-extrabold">Add &amp; check in</h3>
+            <p className="text-[9px] uppercase tracking-wider font-bold text-cyan-500">{t('memberships_console.chk_walk_in', 'Walk-in')}</p>
+            <h3 className="text-base font-extrabold">{t('memberships_console.chk_add_checkin', 'Add & check in')}</h3>
           </div>
-          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="walk-in-dialog-close" />
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title={t('memberships_console.chk_close', 'Close')} data-testid="walk-in-dialog-close" />
         </div>
         <div className="space-y-2">
-          <input autoFocus placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)}
+          <input autoFocus placeholder={t('memberships_console.chk_full_name', 'Full name')} value={name} onChange={(e) => setName(e.target.value)}
             className="w-full h-11 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-3 text-sm" data-testid="walk-in-name" />
-          <input placeholder="Email (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          <input placeholder={t('memberships_console.chk_email_optional', 'Email (optional)')} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
             className="w-full h-11 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-3 text-sm" data-testid="walk-in-email" />
-          <input placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)}
+          <input placeholder={t('memberships_console.chk_phone_optional', 'Phone (optional)')} value={phone} onChange={(e) => setPhone(e.target.value)}
             className="w-full h-11 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-3 text-sm" data-testid="walk-in-phone" />
-          <p className="text-[11px] text-[color:var(--theme-text-muted)]">We'll mark them attended immediately and create a lightweight member record you can flesh out later.</p>
+          <p className="text-[11px] text-[color:var(--theme-text-muted)]">{t('memberships_console.chk_walkin_note', "We'll mark them attended immediately and create a lightweight member record you can flesh out later.")}</p>
         </div>
         <div className="flex justify-end gap-2 mt-4">
-          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-[color:var(--theme-border)] text-sm font-semibold">Cancel</button>
+          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-[color:var(--theme-border)] text-sm font-semibold">{t('memberships_console.chk_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit} disabled={saving}
             className="h-10 px-4 rounded-lg bg-[var(--color-brand-cyan)] text-[var(--color-ink)] text-sm font-bold disabled:opacity-50" data-testid="walk-in-submit">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : 'Check in'}
+            {saving ? <Loader2 size={14} className="animate-spin" /> : t('memberships_console.chk_check_in', 'Check in')}
           </button>
         </div>
       </div>
@@ -626,25 +635,24 @@ function WalkInDialog({ API, headers, occ, onClose, onSuccess }) {
   );
 }
 
-// Iter 215q — bulk message a class. Email only for now (Twilio SMS
-// is still mocked). Shows delivered/failed count from the server.
 function BroadcastDialog({ API, headers, occ, onClose }) {
+  const { t } = useTranslation();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (message.trim().length < 2) { notify.error('Message required'); return; }
+    if (message.trim().length < 2) { notify.error(t('memberships_console.chk_message_required', 'Message required')); return; }
     setSaving(true);
     try {
       const { data } = await axios.post(`${API}/memberships/classes/${occ.id}/broadcast`, {
         message: message.trim(),
         subject: subject.trim() || undefined,
       }, { headers });
-      notify.success('Message sent', `${data.delivered}/${data.recipient_count} delivered · ${data.skipped_no_email} skipped · ${data.failed} failed`);
+      notify.success(t('memberships_console.chk_message_sent', 'Message sent'), t('memberships_console.chk_message_stats', '{{delivered}}/{{total}} delivered · {{skipped}} skipped · {{failed}} failed', { delivered: data.delivered, total: data.recipient_count, skipped: data.skipped_no_email, failed: data.failed }));
       onClose();
     } catch (e) {
-      notifyApiError(notify, e, 'Send failed');
+      notifyApiError(notify, e, t('memberships_console.chk_send_fail', 'Send failed'));
     } finally {
       setSaving(false);
     }
@@ -656,24 +664,24 @@ function BroadcastDialog({ API, headers, occ, onClose }) {
       <div className="relative w-full max-w-md rounded-2xl bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-[9px] uppercase tracking-wider font-bold text-amber-500">Broadcast</p>
-            <h3 className="text-base font-extrabold">Message this class</h3>
+            <p className="text-[9px] uppercase tracking-wider font-bold text-amber-500">{t('memberships_console.chk_broadcast', 'Broadcast')}</p>
+            <h3 className="text-base font-extrabold">{t('memberships_console.chk_message_this_class', 'Message this class')}</h3>
           </div>
-          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="broadcast-dialog-close" />
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title={t('memberships_console.chk_close', 'Close')} data-testid="broadcast-dialog-close" />
         </div>
         <div className="space-y-2">
-          <input placeholder={`Subject (default: "Update: ${occ.name}")`} value={subject} onChange={(e) => setSubject(e.target.value)}
+          <input placeholder={t('memberships_console.chk_subject_default', 'Subject (default: Update: {{name}})', { name: occ.name })} value={subject} onChange={(e) => setSubject(e.target.value)}
             className="w-full h-11 rounded-lg border border-[color:var(--theme-border)] bg-transparent px-3 text-sm" data-testid="broadcast-subject" />
-          <textarea rows={5} placeholder="Quick update — please bring a mat, or meet at the park entrance…"
+          <textarea rows={5} placeholder={t('memberships_console.chk_message_ph', 'Quick update — please bring a mat, or meet at the park entrance…')}
             value={message} onChange={(e) => setMessage(e.target.value)}
             className="w-full rounded-lg border border-[color:var(--theme-border)] bg-transparent px-3 py-2 text-sm" data-testid="broadcast-message" />
-          <p className="text-[11px] text-[color:var(--theme-text-muted)]">Sent via email to everyone booked in or attended. SMS coming soon.</p>
+          <p className="text-[11px] text-[color:var(--theme-text-muted)]">{t('memberships_console.chk_broadcast_note', 'Sent via email to everyone booked in or attended. SMS coming soon.')}</p>
         </div>
         <div className="flex justify-end gap-2 mt-4">
-          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-[color:var(--theme-border)] text-sm font-semibold">Cancel</button>
+          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-[color:var(--theme-border)] text-sm font-semibold">{t('memberships_console.chk_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit} disabled={saving}
             className="h-10 px-4 rounded-lg bg-[var(--color-brand-cyan)] text-[var(--color-ink)] text-sm font-bold disabled:opacity-50" data-testid="broadcast-submit">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : 'Send'}
+            {saving ? <Loader2 size={14} className="animate-spin" /> : t('memberships_console.chk_send', 'Send')}
           </button>
         </div>
       </div>

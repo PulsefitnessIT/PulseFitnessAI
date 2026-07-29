@@ -210,6 +210,13 @@ async def main():
         "memberships_console.evt_costume_paid": "paid",
         "memberships_console.evt_costume_refunded": "refunded",
     })
+    # CRM Loop signal-kind labels (rendered via template-literal keys).
+    pairs.update({
+        "memberships_console.crml_kind_missed_class": "Missed class",
+        "memberships_console.crml_kind_inactive_30d": "Inactive 30d",
+        "memberships_console.crml_kind_low_attendance": "Low attendance",
+        "memberships_console.crml_kind_high_engagement": "High engagement",
+    })
     print(f"Extracted {len(pairs)} t() keys in namespaces {NAMESPACES} (incl. {len(service_nav)} service_nav)")
     en, fr, de = load("en.json"), load("fr.json"), load("de.json")
 

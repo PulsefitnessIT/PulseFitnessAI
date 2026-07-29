@@ -10,6 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Activity, Send, RefreshCw, Loader2, ToggleLeft, ToggleRight,
   ChevronDown, AlertTriangle, Sparkles, Heart, UserMinus,
 } from 'lucide-react';
@@ -17,32 +18,33 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
 const KIND_META = {
-  missed_class:    { label: 'Missed class',     icon: UserMinus,     tone: 'amber'   },
-  inactive_30d:    { label: 'Inactive 30d',     icon: AlertTriangle, tone: 'red'     },
-  low_attendance:  { label: 'Low attendance',   icon: Activity,      tone: 'sky'     },
-  high_engagement: { label: 'High engagement',  icon: Sparkles,      tone: 'emerald' },
+  missed_class:    { labelKey: 'crml_kind_missed_class',    label: 'Missed class',     icon: UserMinus,     tone: 'amber'   },
+  inactive_30d:    { labelKey: 'crml_kind_inactive_30d',    label: 'Inactive 30d',     icon: AlertTriangle, tone: 'red'     },
+  low_attendance:  { labelKey: 'crml_kind_low_attendance',  label: 'Low attendance',   icon: Activity,      tone: 'sky'     },
+  high_engagement: { labelKey: 'crml_kind_high_engagement', label: 'High engagement',  icon: Sparkles,      tone: 'emerald' },
 };
 
 
 export default function CRMLoopTab({ API, headers }) {
+  const { t } = useTranslation();
   const [view, setView] = useState('dashboard');
   return (
     <div data-testid="mbr-crmloop-tab">
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-2 mb-4">
         {[
-          { id: 'dashboard', label: 'Dashboard' },
-          { id: 'rules',     label: 'Rules' },
-          { id: 'signals',   label: 'Signals' },
-          { id: 'sends',     label: 'Sends' },
-        ].map((t) => (
-          <button key={t.id} onClick={() => setView(t.id)}
+          { id: 'dashboard', label: t('memberships_console.crml_dashboard', 'Dashboard') },
+          { id: 'rules',     label: t('memberships_console.crml_rules', 'Rules') },
+          { id: 'signals',   label: t('memberships_console.crml_signals', 'Signals') },
+          { id: 'sends',     label: t('memberships_console.crml_sends', 'Sends') },
+        ].map((tab) => (
+          <button key={tab.id} onClick={() => setView(tab.id)}
             className={`flex-shrink-0 px-3 py-2 rounded-md text-xs font-extrabold border transition ${
-              view === t.id
+              view === tab.id
                 ? 'bg-violet-500 text-white border-violet-500'
                 : 'bg-transparent border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)]'
             }`}
-            data-testid={`mbr-crmloop-tab-${t.id}`}>
-            {t.label}
+            data-testid={`mbr-crmloop-tab-${tab.id}`}>
+            {tab.label}
           </button>
         ))}
       </div>
@@ -57,6 +59,7 @@ export default function CRMLoopTab({ API, headers }) {
 
 
 function DashboardView({ API, headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -65,7 +68,7 @@ function DashboardView({ API, headers }) {
     setLoading(true);
     axios.get(`${API}/memberships/crm-loop/dashboard?days=30`, { headers })
       .then((r) => setData(r.data))
-      .catch(() => notify.error('Failed to load CRM dashboard'))
+      .catch(() => notify.error(t('memberships_console.crml_dash_fail', 'Failed to load CRM dashboard')))
       .finally(() => setLoading(false));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: the loader closure(s) re-read live state on every call; the effect re-fires on the listed trigger deps, so adding the function identity would just thrash without changing behaviour.
@@ -75,10 +78,10 @@ function DashboardView({ API, headers }) {
     setScanning(true);
     try {
       const r = await axios.post(`${API}/memberships/crm-loop/scan`, {}, { headers });
-      notify.success(`Scanned ${r.data.members_scanned} members · fired ${r.data.signals_fired} signals`);
+      notify.success(t('memberships_console.crml_scanned', 'Scanned {{members}} members · fired {{signals}} signals', { members: r.data.members_scanned, signals: r.data.signals_fired }));
       load();
     } catch (e) {
-      notifyApiError(notify, e, 'Scan failed');
+      notifyApiError(notify, e, t('memberships_console.crml_scan_fail', 'Scan failed'));
     }
     setScanning(false);
   };
@@ -96,13 +99,13 @@ function DashboardView({ API, headers }) {
 
       <div className="rounded-xl border border-[color:var(--theme-border)] bg-[color:var(--theme-surface)] p-4 flex items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)]">Last cycle</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)]">{t('memberships_console.crml_last_cycle', 'Last cycle')}</p>
           {lastRun ? (
             <p className="text-sm mt-0.5">
-              {new Date(lastRun.started_at).toLocaleString()} — scanned <strong>{lastRun.members_scanned}</strong>, fired <strong>{lastRun.signals_fired}</strong> across <strong>{lastRun.orgs}</strong> studio{lastRun.orgs === 1 ? '' : 's'}
+              {new Date(lastRun.started_at).toLocaleString()} — {t('memberships_console.crml_last_cycle_stats', 'scanned {{scanned}}, fired {{fired}} across {{orgs}} studio(s)', { scanned: lastRun.members_scanned, fired: lastRun.signals_fired, orgs: lastRun.orgs })}
             </p>
           ) : (
-            <p className="text-sm text-[color:var(--theme-text-muted)] mt-0.5">No automated cycle has run yet — try Scan now.</p>
+            <p className="text-sm text-[color:var(--theme-text-muted)] mt-0.5">{t('memberships_console.crml_no_cycle', 'No automated cycle has run yet — try Scan now.')}</p>
           )}
         </div>
         <button onClick={scan} disabled={scanning}
@@ -110,7 +113,7 @@ function DashboardView({ API, headers }) {
           style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
           data-testid="mbr-crmloop-scan">
           {scanning ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-          Scan now
+          {t('memberships_console.crml_scan_now', 'Scan now')}
         </button>
       </div>
     </div>
@@ -119,6 +122,7 @@ function DashboardView({ API, headers }) {
 
 
 function KindStat({ kind, stats }) {
+  const { t } = useTranslation();
   const meta = KIND_META[kind] || { label: kind, icon: Activity, tone: 'zinc' };
   const Icon = meta.icon;
   const tones = {
@@ -131,11 +135,11 @@ function KindStat({ kind, stats }) {
   return (
     <div className={`rounded-lg border p-3 ${tones[meta.tone]}`} data-testid={`mbr-crmloop-stat-${kind}`}>
       <p className="text-[9px] uppercase tracking-wider font-bold flex items-center gap-1">
-        <Icon size={9} /> {meta.label}
+        <Icon size={9} /> {meta.labelKey ? t(`memberships_console.${meta.labelKey}`, meta.label) : meta.label}
       </p>
       <p className="text-xl font-extrabold mt-0.5">{stats.signals}</p>
       <p className="text-[10px] text-[color:var(--theme-text-muted)] mt-0.5">
-        {stats.sends} sent
+        {t('memberships_console.crml_n_sent', '{{n}} sent', { n: stats.sends })}
         {stats.last_sent_at && ` · ${new Date(stats.last_sent_at).toLocaleDateString()}`}
       </p>
     </div>
@@ -144,6 +148,7 @@ function KindStat({ kind, stats }) {
 
 
 function RulesView({ API, headers }) {
+  const { t } = useTranslation();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
@@ -152,7 +157,7 @@ function RulesView({ API, headers }) {
     setLoading(true);
     axios.get(`${API}/memberships/crm-loop/rules`, { headers })
       .then((r) => setRules(r.data.rules || []))
-      .catch(() => notify.error('Rules failed'))
+      .catch(() => notify.error(t('memberships_console.crml_rules_fail', 'Rules failed')))
       .finally(() => setLoading(false));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: the loader closure(s) re-read live state on every call; the effect re-fires on the listed trigger deps, so adding the function identity would just thrash without changing behaviour.
@@ -163,9 +168,9 @@ function RulesView({ API, headers }) {
     try {
       const r = await axios.put(`${API}/memberships/crm-loop/rules/${kind}`, patch, { headers });
       setRules((prev) => prev.map((p) => p.kind === kind ? r.data.rule : p));
-      notify.success('Saved');
+      notify.success(t('memberships_console.crml_saved', 'Saved'));
     } catch (e) {
-      notifyApiError(notify, e, 'Failed');
+      notifyApiError(notify, e, t('memberships_console.crml_failed', 'Failed'));
     }
     setBusy(null);
   };
@@ -197,16 +202,16 @@ function RulesView({ API, headers }) {
               <button onClick={() => update(r.kind, { enabled: !r.enabled })}
                 disabled={busy === r.kind}
                 className={`p-1.5 rounded transition ${r.enabled ? 'text-emerald-500' : 'text-zinc-500'}`}
-                title={r.enabled ? 'Disable rule' : 'Enable rule'}
+                title={r.enabled ? t('memberships_console.crml_disable_rule', 'Disable rule') : t('memberships_console.crml_enable_rule', 'Enable rule')}
                 data-testid={`mbr-crmloop-rule-toggle-${r.kind}`}>
                 <Tog size={28} />
               </button>
             </div>
             <div className="mt-3 flex items-center gap-2 flex-wrap text-[11px]">
-              <span className="text-[color:var(--theme-text-muted)] uppercase tracking-wider font-bold text-[9px]">Cooldown</span>
+              <span className="text-[color:var(--theme-text-muted)] uppercase tracking-wider font-bold text-[9px]">{t('memberships_console.crml_cooldown', 'Cooldown')}</span>
               <CooldownEditor value={r.cooldown_hours}
                 onChange={(v) => update(r.kind, { cooldown_hours: v })} />
-              <span className="text-[color:var(--theme-text-muted)]">between sends to the same member</span>
+              <span className="text-[color:var(--theme-text-muted)]">{t('memberships_console.crml_between_sends', 'between sends to the same member')}</span>
             </div>
           </div>
         );
@@ -243,6 +248,7 @@ function CooldownEditor({ value, onChange }) {
 
 
 function SignalsView({ API, headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -251,22 +257,22 @@ function SignalsView({ API, headers }) {
     const url = `${API}/memberships/crm-loop/signals?days=30${filter ? `&kind=${filter}` : ''}`;
     axios.get(url, { headers })
       .then((r) => setData(r.data))
-      .catch(() => notify.error('Signals failed'))
+      .catch(() => notify.error(t('memberships_console.crml_signals_fail', 'Signals failed')))
       .finally(() => setLoading(false));
-  }, [API, headers, filter]);
+  }, [API, headers, filter, t]);
 
   return (
     <div>
       <div className="flex gap-1 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
-        <FilterPill active={!filter} onClick={() => setFilter('')}>All</FilterPill>
+        <FilterPill active={!filter} onClick={() => setFilter('')}>{t('memberships_console.crml_all', 'All')}</FilterPill>
         {Object.keys(KIND_META).map((k) => (
           <FilterPill key={k} active={filter === k} onClick={() => setFilter(k)}>
-            {KIND_META[k].label}
+            {t(`memberships_console.${KIND_META[k].labelKey}`, KIND_META[k].label)}
           </FilterPill>
         ))}
       </div>
       {loading ? <Spinner /> : data?.count === 0 ? (
-        <Empty title="No signals yet" hint="The detector will catch signals on its next 5-min cycle, or hit Scan now on the dashboard." />
+        <Empty title={t('memberships_console.crml_no_signals', 'No signals yet')} hint={t('memberships_console.crml_no_signals_hint', 'The detector will catch signals on its next 5-min cycle, or hit Scan now on the dashboard.')} />
       ) : (
         <div className="space-y-1.5">
           {data.signals.map((s) => <SignalRow key={s.id} s={s} />)}
@@ -278,6 +284,7 @@ function SignalsView({ API, headers }) {
 
 
 function SignalRow({ s }) {
+  const { t } = useTranslation();
   const meta = KIND_META[s.kind] || {};
   const Icon = meta.icon || Activity;
   return (
@@ -292,13 +299,13 @@ function SignalRow({ s }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold truncate">{s.member_name}</p>
         <p className="text-[10px] text-[color:var(--theme-text-muted)]">
-          {meta.label} · {new Date(s.detected_at).toLocaleString()}
+          {meta.labelKey ? t(`memberships_console.${meta.labelKey}`, meta.label) : meta.label} · {new Date(s.detected_at).toLocaleString()}
         </p>
       </div>
       {s.fired ? (
-        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500">Sent</span>
+        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500">{t('memberships_console.crml_sent', 'Sent')}</span>
       ) : (
-        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-zinc-500/15 text-[color:var(--theme-text-muted)]">Held</span>
+        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-zinc-500/15 text-[color:var(--theme-text-muted)]">{t('memberships_console.crml_held', 'Held')}</span>
       )}
     </div>
   );
@@ -306,17 +313,18 @@ function SignalRow({ s }) {
 
 
 function SendsView({ API, headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     axios.get(`${API}/memberships/crm-loop/sends?days=30`, { headers })
       .then((r) => setData(r.data))
-      .catch(() => notify.error('Sends failed'))
+      .catch(() => notify.error(t('memberships_console.crml_sends_fail', 'Sends failed')))
       .finally(() => setLoading(false));
-  }, [API, headers]);
+  }, [API, headers, t]);
 
   if (loading) return <Spinner />;
-  if (!data?.count) return <Empty title="No sends yet" hint="Once a signal fires + cooldown clears, the matching email is dispatched and shown here." />;
+  if (!data?.count) return <Empty title={t('memberships_console.crml_no_sends', 'No sends yet')} hint={t('memberships_console.crml_no_sends_hint', 'Once a signal fires + cooldown clears, the matching email is dispatched and shown here.')} />;
   return (
     <div className="space-y-1.5">
       {data.sends.map((s) => {
@@ -335,14 +343,14 @@ function SendsView({ API, headers }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold truncate">{s.member_name}</p>
               <p className="text-[10px] text-[color:var(--theme-text-muted)]">
-                {meta.label} · {new Date(s.sent_at).toLocaleString()}
-                {s.error && ` · error: ${s.error}`}
+                {meta.labelKey ? t(`memberships_console.${meta.labelKey}`, meta.label) : meta.label} · {new Date(s.sent_at).toLocaleString()}
+                {s.error && ` · ${t('memberships_console.crml_error', 'error')}: ${s.error}`}
               </p>
             </div>
             {s.ok ? (
-              <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500">OK</span>
+              <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500">{t('memberships_console.crml_ok', 'OK')}</span>
             ) : (
-              <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">Failed</span>
+              <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">{t('memberships_console.crml_failed_badge', 'Failed')}</span>
             )}
           </div>
         );
