@@ -174,3 +174,22 @@ REMAINING Memberships (4 LARGE files, next batch — still EN via fallback, func
   Plus deep inline parts of MembershipsConsole (PlansInnerView, ClassesTab, SchedulingHubTab, RecordPaymentModal,
   AdsTab), tabs/* (BookTab, BookingsTab, PassTab, PlanTab, ProfileTab), modals/*, MemberEventsTab, DeskSalesTab,
   MobileAppTab. Then the Marketing module (mkt ns).
+
+## ═══ 2026-06 · BATCH 4 — Memberships 4 LARGE files (VERIFIED EN/FR/DE via testing_agent) ═══
+Fully localized (FR+DE, all compile clean, guard passes, 0 raw-key leaks):
+  - MemberPortal.js (prefix mp_) — finished the remaining sub-components (StreakCard, RequiredFormsBanner,
+    ReferralCampaignBanner, TopBar, InstallPrompt, BottomNav, MoreSheet). Renamed BottomNav map `t`->`nav`.
+    Tab/more labels via template-literal keys mp_tab_* / mp_more_* (added to pipeline dict). Removed embedded
+    double-quotes from mp_login_bad_detail (broke DE JSON — the recurring quote hazard).
+  - StudioBuilderTab.js (prefix sb_) — full rewrite w/ i18n. Renamed all `t` template-object shadows -> `tpl`
+    (main handlers, BuilderGrid find/filter, TemplateChip & ScheduledCard props). Day abbreviations via
+    sb_day_0..6 (pipeline dict), reused by AnalyticsTab heatmap.
+  - AnalyticsTab.js (prefix an_) — full rewrite. Renamed KpiCard `const t = toneMap` shadow -> `tn`, and added
+    a stable `testId` prop so data-testid mbr-kpi-<slug> stays language-stable. Section/role labels via
+    an_sec_* / an_role_* (pipeline dict). Recharts legend `name=` props localized too.
+  - MobileAppBuilderTab.js (prefix mab_) — full rewrite. No `t` shadows. font/button/share-format labels via
+    template-literal keys mab_font_* / mab_btn_* / mab_fmt_* (pipeline dict). Canvas + printQr HTML strings localized.
+VERIFIED: testing_agent iteration_memberships_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key leaks in 15 states
+  (analytics/studio-builder/mobile-app × en/fr/de + member portal). ~39 memberships_console keys intentionally
+  stay == EN (brand/proper nouns: Dashboard, Home, CRM, "Mobile App Builder", etc.) — not leaks.
+This COMPLETES the 4 large Memberships tabs the user asked for. NEXT: Marketing module (mkt ns).

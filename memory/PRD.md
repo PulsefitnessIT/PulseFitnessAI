@@ -1,3 +1,22 @@
+# ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS 4 LARGE files (BATCH 4, VERIFIED EN/FR/DE) ═══
+Completed the user's requested 4 large Memberships files (full FR+DE i18n, compile clean, guard passes):
+  - MemberPortal.js (mp_) — finished remaining sub-components (StreakCard, RequiredFormsBanner,
+    ReferralCampaignBanner, TopBar, InstallPrompt, BottomNav[renamed map t->nav], MoreSheet). Tab/more labels
+    via template-literal keys mp_tab_*/mp_more_*.
+  - StudioBuilderTab.js (sb_) — renamed all `t` template-object shadows -> `tpl`; day labels sb_day_0..6.
+  - AnalyticsTab.js (an_) — renamed KpiCard toneMap `t` shadow -> `tn`; added stable KpiCard `testId` prop so
+    data-testid mbr-kpi-<slug> stays language-stable; Recharts legend names localized; sections/roles via an_sec_*/an_role_*.
+  - MobileAppBuilderTab.js (mab_) — font/button/share-format labels via mab_font_*/mab_btn_*/mab_fmt_*; canvas + printQr HTML localized.
+Fixed the recurring embedded-double-quote hazard (mp_login_bad_detail broke the DE JSON chunk; stripped inner quotes and re-ran).
+VERIFIED by testing_agent: /app/test_reports/iteration_memberships_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key
+leaks across 15 states (analytics/studio-builder/mobile-app × en/fr/de + member portal). ~39 memberships_console
+keys intentionally stay == EN (brand/proper nouns) — not leaks.
+NEXT: Marketing module (mkt ns) FR/DE; then deep inline parts of MembershipsConsole (Plans/Classes/SchedulingHub/
+RecordPayment/Ads) + member-portal tabs/* + modals/*. Pipeline: `cd /app/backend && python scripts/i18n_translate_modules.py`.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-07-29 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS mid-size tabs (BATCH 3, VERIFIED DE live) ═══
 Continued the FR/DE rollout. Fully localized 4 mid-size Memberships tabs (FR+DE, compile clean, Check-in tab
 verified live in German): InstructorsTab (inst_), FamilyBillingTab (fam_), CRMLoopTab (crml_), CheckinTab (chk_).
