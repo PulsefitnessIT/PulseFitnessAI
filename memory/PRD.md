@@ -1,3 +1,26 @@
+# ═══ 2026-07-29 · MOD CSV BULK IMPORTER — country / region / service_supplier columns (VERIFIED via curl) ═══
+Follow-up to MOD Estate Setup. Extended the CSV bulk importer used by MODBulkImport.js
+(`POST /api/master-admin/mod/bulk-import`, file backend/routes/mod_bulk_import.py) so bulk provisioning is
+estate-aware like the single-site flow:
+- New CSV columns: `country` (blank ⇒ United Kingdom), `region`, `service_supplier`. Template + example rows updated
+  (added an overseas RAF Akrotiri example).
+- Per row: overseas derived from country (non-UK). UK sites → serviced_by='pulse_fitness', no supplier. Overseas →
+  matches `service_supplier` name against the estate registry (`mod_estate_suppliers`, scoped to the parent HQ's
+  `mod_estate_id`); on match, instantiates a `suppliers` doc into the site org + sets service_supplier_id (so MOD
+  fault routing resolves it), serviced_by='external_supplier'. Unmatched/blank overseas supplier ⇒ site still created
+  with a clear per-row warning (Pulse still notified of faults).
+- Propagates parent HQ's `mod_estate_id` onto each created site (so bulk sites now appear in the whole-of-MOD
+  overview). Org docs also carry country/region/is_overseas/serviced_by/service_supplier(_id).
+- Credentials export CSV gained country/region/serviced_by/service_supplier columns.
+- FRONTEND MODBulkImport.js: documented the new columns + an overseas/UK servicing note.
+VERIFIED via curl (multipart CSV, parent=mod-hq-uk-mod-army): 3 rows → UK site (pulse_fitness/no supplier), Cyprus
+site (external_supplier + supplier doc instantiated, supplier_doc=True), Germany orphan (external_supplier, no
+supplier, warning emitted); mod_estate_id set on all; overview rollup correct (3 sites / 1 UK / 2 overseas, army 2
+[1UK/1OS], raf 1 [1OS]). QATEST data cleaned. ⚠️ PREVIEW ONLY — production needs redeploy.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · MOD ESTATE SETUP — GUIDED ONBOARDING + WHOLE-OF-MOD REPORTING (VERIFIED 100% FE) ═══
 Founder ask: onboard MOD services (Army/RAF/Navy); design a better MOD onboarding without duplicating existing work.
 Decisions: (1b) Army/RAF/Navy are THREE INDEPENDENT service Head Offices (no shared parent) tied by one `mod_estate_id`

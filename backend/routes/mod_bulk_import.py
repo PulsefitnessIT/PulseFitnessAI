@@ -76,6 +76,9 @@ _CANONICAL_HEADERS = [
     "site_name",
     "mod_branch",
     "mod_force",
+    "country",
+    "region",
+    "service_supplier",
     "postcode",
     "primary_contact_email",
     "address",
@@ -86,17 +89,28 @@ _CANONICAL_HEADERS = [
 _EXAMPLE_ROWS = [
     [
         "Vimy Lines Gym", "Catterick Garrison", "army",
+        "United Kingdom", "North Yorkshire", "",
         "DL9 3PS", "vimy.lead@army.mod.local",
         "Vimy Lines, Catterick Garrison, North Yorkshire DL9 3PS",
         "vimy-lines", "Sgt. Daniel Hayes",
     ],
     [
-        "Bourlon Barracks Gym", "Catterick Garrison", "army",
-        "DL9 3LZ", "bourlon.lead@army.mod.local",
-        "Bourlon Barracks, Catterick Garrison, North Yorkshire DL9 3LZ",
-        "bourlon-barracks", "Sgt. Tom Walker",
+        "RAF Akrotiri Gym", "Cyprus", "raf",
+        "Cyprus", "Akrotiri", "Cyprus Fitness Services Ltd",
+        "", "akrotiri.lead@raf.mod.local",
+        "RAF Akrotiri, Western Sovereign Base Area, Cyprus",
+        "raf-akrotiri", "Cpl. Jane Reed",
     ],
 ]
+
+# Countries treated as "UK" — everything else is an overseas base that
+# needs an external service supplier (Pulse still notified of faults).
+_UK_NAMES = {"united kingdom", "uk", "gb", "great britain", "england",
+             "scotland", "wales", "northern ireland"}
+
+
+def _is_overseas(country: str) -> bool:
+    return (country or "").strip().lower() not in _UK_NAMES
 
 _FORCE_ALIASES = {
     "army": "army", "british army": "army",
@@ -154,7 +168,7 @@ async def mod_bulk_import(
     parent = await db.organizations.find_one(
         {"id": parent_org_id},
         {"_id": 0, "id": 1, "name": 1, "account_type": 1,
-         "mod_root_id": 1, "mod_branch": 1, "mod_force": 1},
+         "mod_root_id": 1, "mod_branch": 1, "mod_force": 1, "mod_estate_id": 1},
     )
     if not parent:
         raise HTTPException(404, "Parent organisation not found")
@@ -189,6 +203,16 @@ async def mod_bulk_import(
     inherited_force = parent.get("mod_force")
     inherited_branch = parent.get("mod_branch") if parent_type == "mod_branch" else None
     mod_root_id = parent.get("mod_root_id") or parent.get("id")
+    mod_estate_id = parent.get("mod_estate_id")
+
+    # Preload the estate's external supplier registry (name → doc) so CSV
+    # rows can reference an overseas service supplier by name.
+    estate_suppliers: dict[str, dict] = {}
+    if mod_estate_id:
+        async for s in db.mod_estate_suppliers.find(
+            {"mod_estate_id": mod_estate_id}, {"_id": 0},
+        ):
+            estate_suppliers[(s.get("name") or "").strip().lower()] = s
 
     # Pre-load existing site names under the same root for de-dupe.
     existing_cursor = db.organizations.find(
@@ -234,9 +258,51 @@ async def mod_bulk_import(
             address = cell(raw, "address")
             contact_email = cell(raw, "primary_contact_email")
             contact_name = cell(raw, "primary_contact_name")
+            country = cell(raw, "country") or "United Kingdom"
+            region = cell(raw, "region")
+            overseas = _is_overseas(country)
+            supplier_name_in = cell(raw, "service_supplier")
+
+            # Resolve the external supplier for overseas sites against the
+            # estate registry. UK sites are Pulse-serviced (no supplier).
+            site_supplier_id = None
+            site_supplier_name = None
+            if overseas:
+                if supplier_name_in:
+                    est_sup = estate_suppliers.get(supplier_name_in.strip().lower())
+                    if est_sup:
+                        site_supplier_name = est_sup["name"]
+                    else:
+                        errors.append(
+                            f"Row {i}: overseas supplier '{supplier_name_in}' not found in the "
+                            f"estate registry — site created without a supplier assigned"
+                        )
+                else:
+                    errors.append(
+                        f"Row {i}: overseas site '{site_name}' has no service_supplier — "
+                        f"created but no supplier assigned (Pulse still notified of faults)"
+                    )
+            serviced_by = "external_supplier" if overseas else "pulse_fitness"
 
             # ── Create the mod_site org ──
             site_id = str(uuid.uuid4())
+            if overseas and site_supplier_name:
+                # Instantiate the supplier into the site's own directory so the
+                # existing MOD fault routing (_resolve_equipment_supplier) resolves it.
+                est_sup = estate_suppliers.get(supplier_name_in.strip().lower())
+                site_supplier_id = str(uuid.uuid4())
+                await db.suppliers.insert_one({
+                    "id": site_supplier_id,
+                    "organization_id": site_id,
+                    "name": est_sup["name"],
+                    "contact_name": est_sup.get("contact_name", ""),
+                    "email": est_sup.get("email", ""),
+                    "phone": est_sup.get("phone", ""),
+                    "manufacturer_keywords": est_sup.get("manufacturer_keywords", []),
+                    "notes": est_sup.get("notes", ""),
+                    "estate_supplier_id": est_sup.get("id"),
+                    "created_at": now_iso,
+                })
             await db.organizations.insert_one({
                 "id": site_id, "name": site_name,
                 "account_type": "mod_site",
@@ -246,8 +312,15 @@ async def mod_bulk_import(
                 "status": "active", "created_at": now_iso,
                 "is_mod": True, "mod_force": force,
                 "mod_root_id": mod_root_id, "mod_branch": branch or None,
+                "mod_estate_id": mod_estate_id,
                 "site_code": site_code,
                 "company_code": site_code.upper(),
+                "country": country,
+                "region": region or None,
+                "is_overseas": overseas,
+                "serviced_by": serviced_by,
+                "service_supplier": site_supplier_name,
+                "service_supplier_id": site_supplier_id,
                 "postcode": postcode or None,
                 "address": address or None,
                 "primary_contact_email": contact_email or None,
@@ -303,6 +376,10 @@ async def mod_bulk_import(
                 "password": password,
                 "branch": branch or None,
                 "force": force,
+                "country": country,
+                "region": region or None,
+                "serviced_by": serviced_by,
+                "service_supplier": site_supplier_name,
                 "contact_email": contact_email or None,
                 "contact_name": contact_name or None,
                 "postcode": postcode or None,
@@ -386,11 +463,14 @@ async def mod_bulk_import_export_credentials(
     rows = [
         [r.get("site_name"), r.get("site_code"), r.get("username"),
          r.get("password"), r.get("branch") or "", r.get("force"),
+         r.get("country") or "", r.get("region") or "", r.get("serviced_by") or "",
+         r.get("service_supplier") or "",
          r.get("contact_email") or "", "yes" if r.get("notified") else "no"]
         for r in run.get("rows", [])
     ]
     return _csv_response(
         ["site_name", "site_code", "username", "password", "branch", "force",
+         "country", "region", "serviced_by", "service_supplier",
          "contact_email", "notified"],
         rows,
         f"mod_sites_credentials_{import_id[:8]}.csv",

@@ -359,12 +359,20 @@ const MODBulkImport = ({ API }) => {
           <li><code>site_name</code> — display name (required)</li>
           <li><code>mod_branch</code> — branch grouping (required when parent is a mod_org)</li>
           <li><code>mod_force</code> — army / raf / navy</li>
+          <li><code>country</code> — site country (blank = United Kingdom)</li>
+          <li><code>region</code> — region / territory (e.g. Akrotiri)</li>
+          <li><code>service_supplier</code> — overseas only: external supplier name (must match the estate registry)</li>
           <li><code>postcode</code> — UK postcode</li>
           <li><code>primary_contact_email</code> — destination for credentials</li>
           <li><code>address</code> — free-text full address</li>
           <li><code>site_code</code> — optional username slug</li>
           <li><code>primary_contact_name</code> — optional, used in email</li>
         </ul>
+        <p className="text-[11px] text-zinc-500 mt-2">
+          Overseas sites (any <code>country</code> other than the UK) are serviced by their named
+          <code> service_supplier</code>; UK sites are serviced by Pulse Fitness. Pulse Fitness is always
+          notified of faults. Add suppliers first in <strong>MOD Estate Setup → step 2</strong>.
+        </p>
       </Card>
     </div>
   );
