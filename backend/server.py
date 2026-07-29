@@ -458,6 +458,18 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"Sign-up journey worker init failed: {e}")
 
+    # Iter 288 — self-heal dual-portal org config on every boot so new users
+    # created via Master Admin always write to both `users` and `crm_users`
+    # (prevents the "staff added in Master Admin missing from Operations HR"
+    # drift). Idempotent → cheap no-op once clean.
+    try:
+        from scripts.normalise_dual_portal_orgs import normalise_dual_portal_orgs_once
+        _n = await normalise_dual_portal_orgs_once()
+        if _n:
+            logger.info(f"Normalised {_n} dual-portal org(s) at boot")
+    except Exception as e:
+        logger.error(f"Dual-portal org normalisation failed: {e}")
+
     try:
         await _create_indexes()
     except Exception as e:

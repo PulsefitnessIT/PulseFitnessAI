@@ -1,3 +1,15 @@
+# ═══ 2026-07-29 · DUAL-PORTAL NORMALISATION WIRED INTO BOOT (self-healing, verified) ═══
+Wired the dual-portal org normalisation into backend startup so config drift self-heals on every deploy/boot.
+- scripts/normalise_dual_portal_orgs.py: added `normalise_dual_portal_orgs_once()` (silent, applies, returns count).
+- server.py `_full_boot()`: calls it in the deferred boot task (non-blocking, best-effort, before _create_indexes);
+  logs "Normalised N dual-portal org(s) at boot" only when N>0. Idempotent → cheap no-op once clean.
+VERIFIED: drifted iso-demo-org to portal_type='crm' → restarted backend → boot log "Normalised 1 dual-portal org(s)
+at boot" → portal_type back to 'both'. CLI (--apply / dry-run) still available for ad-hoc prod runs.
+Net: new Master-Admin users always write to both users + crm_users; the earlier HR-backfill union fix covers reads.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · ROOT-SIDE CLEANUP — normalise dual-portal orgs (migration script) ═══
 Follow-up to the Master-Admin-staff-invisible-in-HR fix. Root cause was orgs running BOTH Operations + CRM whose
 portal_type / enabled_modules didn't reflect it, so `_create_org_user` wrote staff to only one collection.

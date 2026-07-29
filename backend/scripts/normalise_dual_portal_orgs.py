@@ -72,5 +72,27 @@ async def main(apply: bool) -> None:
           f"{'(dry-run — pass --apply to write)' if not apply else ''}")
 
 
+async def normalise_dual_portal_orgs_once() -> int:
+    """Startup-friendly variant: applies the normalisation silently and
+    returns the number of orgs changed. Idempotent → cheap no-op once clean."""
+    changed = 0
+    async for org in db.organizations.find(
+        {}, {"_id": 0, "id": 1, "portal_type": 1,
+             "enabled_modules": 1, "modules": 1},
+    ):
+        enabled = _enabled_set(org)
+        if not (bool(enabled & SP_MODULES) and "crm" in enabled):
+            continue
+        updates: dict = {}
+        if org.get("portal_type") != "both":
+            updates["portal_type"] = "both"
+        if set(org.get("enabled_modules") or []) != enabled:
+            updates["enabled_modules"] = sorted(enabled)
+        if updates:
+            await db.organizations.update_one({"id": org["id"]}, {"$set": updates})
+            changed += 1
+    return changed
+
+
 if __name__ == "__main__":
     asyncio.run(main("--apply" in sys.argv))
