@@ -23,6 +23,7 @@
  */
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { Toaster as SonnerToaster } from 'sonner';
 import {
   Calendar, Ticket, QrCode, User, LogOut, Users, Sparkles,
@@ -103,6 +104,7 @@ const MORE_ITEMS = [
 ];
 
 export default function MemberPortal({ slug }) {
+  const { t } = useTranslation();
   // Iter 216h46 — member token now flows through UnifiedAuthProvider.
   // The portal still keeps its own `token` state for tight local
   // re-renders, but writes/reads route through the provider so the
@@ -186,15 +188,15 @@ export default function MemberPortal({ slug }) {
       if (creditsResult === 'purchased') {
         showPayment({
           tone: 'success',
-          title: 'Credits added!',
-          detail: 'Your new class pack is live — refresh to see your balance.',
+          title: t('memberships_console.mp_credits_added', 'Credits added!'),
+          detail: t('memberships_console.mp_credits_added_detail', 'Your new class pack is live — refresh to see your balance.'),
         });
         setTab('book');
       } else if (creditsResult === 'cancelled') {
         showPayment({
           tone: 'info',
-          title: 'Pack purchase cancelled',
-          detail: 'No charge taken — buy a pack any time from the Book tab.',
+          title: t('memberships_console.mp_pack_cancelled', 'Pack purchase cancelled'),
+          detail: t('memberships_console.mp_pack_cancelled_detail', 'No charge taken — buy a pack any time from the Book tab.'),
         });
       }
       return;
@@ -206,20 +208,20 @@ export default function MemberPortal({ slug }) {
       setTab('plan');
       pollCheckout(sessionId);
     } else if (result === 'cancel') {
-      showPayment({ tone: 'info', title: 'Checkout cancelled', detail: 'Your spot is ready whenever you are.' });
+      showPayment({ tone: 'info', title: t('memberships_console.mp_checkout_cancelled', 'Checkout cancelled'), detail: t('memberships_console.mp_checkout_cancelled_detail', 'Your spot is ready whenever you are.') });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, []);
 
   const pollCheckout = async (sessionId, attempt = 0) => {
-    if (attempt > 12) { showPayment({ tone: 'warning', title: 'Payment still processing', detail: 'Check back in a minute — we\'ll email you once it settles.' }); return; }
+    if (attempt > 12) { showPayment({ tone: 'warning', title: t('memberships_console.mp_payment_processing', 'Payment still processing'), detail: t('memberships_console.mp_payment_processing_detail', "Check back in a minute — we'll email you once it settles.") }); return; }
     try {
       const { data } = await axios.get(`${API}/memberships/checkout/status/${sessionId}`);
       if (data.payment_status === 'paid') {
-        showPayment({ tone: 'success', title: 'Payment received — welcome aboard!', detail: 'Your membership is now active.' });
+        showPayment({ tone: 'success', title: t('memberships_console.mp_payment_received', 'Payment received — welcome aboard!'), detail: t('memberships_console.mp_payment_received_detail', 'Your membership is now active.') });
         return;
       }
-      if (data.status === 'expired') { showPayment({ tone: 'error', title: 'Checkout expired', detail: 'Please try again.' }); return; }
+      if (data.status === 'expired') { showPayment({ tone: 'error', title: t('memberships_console.mp_checkout_expired', 'Checkout expired'), detail: t('memberships_console.mp_try_again', 'Please try again.') }); return; }
       setTimeout(() => pollCheckout(sessionId, attempt + 1), 2000);
     } catch { /* retry */
       setTimeout(() => pollCheckout(sessionId, attempt + 1), 3000);
@@ -524,6 +526,7 @@ function ReferralCampaignBanner({ headers, slug, onCta }) {
 /* ─────────────────── Auth ─────────────────── */
 
 function AuthGate({ onAuthed, branding, slug }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const gymName = branding?.name || 'Pulse Fitness';
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
@@ -547,20 +550,20 @@ function AuthGate({ onAuthed, branding, slug }) {
         ) : (
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}>
             <Sparkles size={12} style={{ color: accent }} />
-            <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: accent }}>{slug ? gymName : 'Pulse Fitness Member'}</span>
+            <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: accent }}>{slug ? gymName : t('memberships_console.mp_member_badge', 'Pulse Fitness Member')}</span>
           </div>
         )}
         <h1 className="text-4xl font-extrabold tracking-tight text-center text-balance max-w-md mx-auto" style={{ letterSpacing: '-0.03em' }} data-testid="member-auth-welcome">
-          {slug ? `Welcome to ${gymName}.` : 'Your studio, in your pocket.'}
+          {slug ? t('memberships_console.mp_welcome_to', 'Welcome to {{name}}.', { name: gymName }) : t('memberships_console.mp_welcome_generic', 'Your studio, in your pocket.')}
         </h1>
-        <p className="text-sm text-white/60 mt-2 text-center max-w-xs mx-auto">Book classes, show your QR pass, manage your plan.</p>
+        <p className="text-sm text-white/60 mt-2 text-center max-w-xs mx-auto">{t('memberships_console.mp_welcome_sub', 'Book classes, show your QR pass, manage your plan.')}</p>
       </header>
 
       <div className="flex-1 flex items-start justify-center px-4 pb-10">
         <div className="w-full max-w-sm">
           <div className="flex gap-1 p-1 rounded-xl bg-zinc-900/5 border border-white/10 mb-5">
-            <TabPill active={mode === 'login'}    onClick={() => setMode('login')}    testid="member-auth-tab-login" accent={accent}>Sign in</TabPill>
-            <TabPill active={mode === 'register'} onClick={() => setMode('register')} testid="member-auth-tab-register" accent={accent}>Join</TabPill>
+            <TabPill active={mode === 'login'}    onClick={() => setMode('login')}    testid="member-auth-tab-login" accent={accent}>{t('memberships_console.mp_sign_in', 'Sign in')}</TabPill>
+            <TabPill active={mode === 'register'} onClick={() => setMode('register')} testid="member-auth-tab-register" accent={accent}>{t('memberships_console.mp_join', 'Join')}</TabPill>
           </div>
           {mode === 'login'    ? <LoginForm    onAuthed={onAuthed} accent={accent} />
                                : <RegisterForm onAuthed={onAuthed} branding={branding} slug={slug} accent={accent} />}
@@ -581,6 +584,7 @@ function TabPill({ active, onClick, children, testid, accent }) {
 }
 
 function LoginForm({ onAuthed, accent }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -593,15 +597,15 @@ function LoginForm({ onAuthed, accent }) {
     try {
       const { data } = await axios.post(`${API}/member-auth/login`, { email, password });
       onAuthed(data.token, data.member);
-      notify.success(`Welcome back, ${data.member.first_name}`);
+      notify.success(t('memberships_console.mp_welcome_back', 'Welcome back, {{name}}', { name: data.member.first_name }));
     } catch (err) {
       const d = err.response?.data?.detail || '';
       show({
         tone: 'error',
-        title: /invalid|credential|incorrect|not found/i.test(d) ? 'Incorrect email or password' : 'Couldn\'t sign you in',
+        title: /invalid|credential|incorrect|not found/i.test(d) ? t('memberships_console.mp_login_bad', 'Incorrect email or password') : t('memberships_console.mp_login_fail', "Couldn't sign you in"),
         detail: /invalid|credential|incorrect|not found/i.test(d)
-          ? 'Double-check your email and password. Tap "Forgot password" to reset.'
-          : (d || 'Please check your connection and try again.'),
+          ? t('memberships_console.mp_login_bad_detail', 'Double-check your email and password. Tap "Forgot password" to reset.')
+          : (d || t('memberships_console.mp_conn_retry', 'Please check your connection and try again.')),
       });
     } finally { setBusy(false); }
   };
@@ -609,18 +613,19 @@ function LoginForm({ onAuthed, accent }) {
   return (
     <form onSubmit={submit} className="space-y-3" data-testid="member-login-form">
       {banner}
-      <LabelledInput label="Email" type="email" value={email} onChange={setEmail} required testid="member-login-email" />
-      <LabelledInput label="Password" type="password" value={password} onChange={setPassword} required testid="member-login-password" />
+      <LabelledInput label={t('memberships_console.mp_email', 'Email')} type="email" value={email} onChange={setEmail} required testid="member-login-email" />
+      <LabelledInput label={t('memberships_console.mp_password', 'Password')} type="password" value={password} onChange={setPassword} required testid="member-login-password" />
       <button type="submit" disabled={busy}
         className="w-full rounded-lg py-3 text-sm font-extrabold uppercase tracking-wider disabled:opacity-60"
         style={{ background: accent || 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="member-login-submit">
-        {busy ? 'Signing in…' : 'Sign in'}
+        {busy ? t('memberships_console.mp_signing_in', 'Signing in…') : t('memberships_console.mp_sign_in', 'Sign in')}
       </button>
     </form>
   );
 }
 
 function RegisterForm({ onAuthed, branding, slug, accent }) {
+  const { t } = useTranslation();
   const [f, setF] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = (params.get('ref') || '').toUpperCase().trim();
@@ -642,23 +647,23 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
     e.preventDefault();
     clear();
     if (f.password.length < 8) {
-      show({ tone: 'error', title: 'Password too short', detail: 'Please use at least 8 characters so your account stays secure.' });
+      show({ tone: 'error', title: t('memberships_console.mp_pw_short', 'Password too short'), detail: t('memberships_console.mp_pw_short_detail', 'Please use at least 8 characters so your account stays secure.') });
       return;
     }
     if (!f.phone.trim()) {
-      show({ tone: 'error', title: 'Phone number required', detail: 'Studios use this to contact you about class changes.' });
+      show({ tone: 'error', title: t('memberships_console.mp_phone_req', 'Phone number required'), detail: t('memberships_console.mp_phone_req_detail', 'Studios use this to contact you about class changes.') });
       return;
     }
     if (!f.dob_day || !f.dob_month || !f.dob_year) {
-      show({ tone: 'error', title: 'Date of birth required', detail: 'Required by gym insurance providers.' });
+      show({ tone: 'error', title: t('memberships_console.mp_dob_req', 'Date of birth required'), detail: t('memberships_console.mp_dob_req_detail', 'Required by gym insurance providers.') });
       return;
     }
     if (!f.emergency_contact_phone.trim()) {
-      show({ tone: 'error', title: 'Emergency contact phone required', detail: 'A second number we can call in case of emergency.' });
+      show({ tone: 'error', title: t('memberships_console.mp_eg_req', 'Emergency contact phone required'), detail: t('memberships_console.mp_eg_req_detail', 'A second number we can call in case of emergency.') });
       return;
     }
     if (!f.gdpr_consent) {
-      show({ tone: 'error', title: 'Please accept the Terms & Conditions', detail: 'We need your consent to process your booking & contact details.' });
+      show({ tone: 'error', title: t('memberships_console.mp_tc_req', 'Please accept the Terms & Conditions'), detail: t('memberships_console.mp_tc_req_detail', 'We need your consent to process your booking & contact details.') });
       return;
     }
     setBusy(true);
@@ -672,15 +677,15 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
       };
       const { data } = await axios.post(`${API}/member-auth/register`, payload);
       onAuthed(data.token, data.member);
-      notify.success(`Welcome, ${data.member.first_name}!${referral_code ? ' · Friend referral applied' : ''}`);
+      notify.success(t('memberships_console.mp_welcome_new', 'Welcome, {{name}}!', { name: data.member.first_name }) + (referral_code ? ` · ${t('memberships_console.mp_referral_applied', 'Friend referral applied')}` : ''));
     } catch (err) {
       const d = err.response?.data?.detail || '';
       show({
         tone: 'error',
-        title: /already|exist|taken/i.test(d) ? 'Email already registered' : 'Couldn\'t create your account',
+        title: /already|exist|taken/i.test(d) ? t('memberships_console.mp_email_taken', 'Email already registered') : t('memberships_console.mp_reg_fail', "Couldn't create your account"),
         detail: /already|exist|taken/i.test(d)
-          ? 'An account with this email already exists — try signing in instead.'
-          : (d || 'Please review your details and try again. If it still fails, contact support.'),
+          ? t('memberships_console.mp_email_taken_detail', 'An account with this email already exists — try signing in instead.')
+          : (d || t('memberships_console.mp_reg_fail_detail', 'Please review your details and try again. If it still fails, contact support.')),
       });
     } finally { setBusy(false); }
   };
@@ -702,32 +707,32 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
     <form onSubmit={submit} className="space-y-3" data-testid="member-register-form">
       {banner}
       <div className="grid grid-cols-2 gap-3">
-        <LabelledInput label="First name" value={f.first_name} onChange={up('first_name')} required testid="member-reg-first" />
-        <LabelledInput label="Last name"  value={f.last_name}  onChange={up('last_name')}  required testid="member-reg-last" />
+        <LabelledInput label={t('memberships_console.mp_first_name', 'First name')} value={f.first_name} onChange={up('first_name')} required testid="member-reg-first" />
+        <LabelledInput label={t('memberships_console.mp_last_name', 'Last name')}  value={f.last_name}  onChange={up('last_name')}  required testid="member-reg-last" />
       </div>
-      <LabelledInput label="Email"    type="email"    value={f.email}    onChange={up('email')}    required testid="member-reg-email" />
-      <LabelledInput label="Phone"                    value={f.phone}    onChange={up('phone')}    required placeholder="+44 7700 900000" testid="member-reg-phone" />
+      <LabelledInput label={t('memberships_console.mp_email', 'Email')}    type="email"    value={f.email}    onChange={up('email')}    required testid="member-reg-email" />
+      <LabelledInput label={t('memberships_console.mp_phone', 'Phone')}                    value={f.phone}    onChange={up('phone')}    required placeholder="+44 7700 900000" testid="member-reg-phone" />
 
       {/* Date of birth — day/month/year dropdowns for thumb-friendly mobile entry */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Date of birth *</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">{t('memberships_console.mp_dob', 'Date of birth *')}</p>
         <div className="grid grid-cols-3 gap-2">
-          <RegisterSelect placeholder="Day"   value={f.dob_day}   onChange={up('dob_day')}   options={dobDays.map((v) => ({ v, l: v }))} testid="member-reg-dob-day" />
-          <RegisterSelect placeholder="Month" value={f.dob_month} onChange={up('dob_month')} options={dobMonths}                            testid="member-reg-dob-month" />
-          <RegisterSelect placeholder="Year"  value={f.dob_year}  onChange={up('dob_year')}  options={dobYears.map((v) => ({ v, l: v }))} testid="member-reg-dob-year" />
+          <RegisterSelect placeholder={t('memberships_console.mp_day', 'Day')}   value={f.dob_day}   onChange={up('dob_day')}   options={dobDays.map((v) => ({ v, l: v }))} testid="member-reg-dob-day" />
+          <RegisterSelect placeholder={t('memberships_console.mp_month', 'Month')} value={f.dob_month} onChange={up('dob_month')} options={dobMonths}                            testid="member-reg-dob-month" />
+          <RegisterSelect placeholder={t('memberships_console.mp_year', 'Year')}  value={f.dob_year}  onChange={up('dob_year')}  options={dobYears.map((v) => ({ v, l: v }))} testid="member-reg-dob-year" />
         </div>
       </div>
 
       {/* Address */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Address</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">{t('memberships_console.mp_address', 'Address')}</p>
         <div className="space-y-2">
-          <LabelledInput label={null} value={f.address_line1} onChange={up('address_line1')} placeholder="Address line 1" testid="member-reg-addr1" />
+          <LabelledInput label={null} value={f.address_line1} onChange={up('address_line1')} placeholder={t('memberships_console.mp_addr1', 'Address line 1')} testid="member-reg-addr1" />
           <div className="grid grid-cols-3 gap-2">
-            <LabelledInput label={null} value={f.city}     onChange={up('city')}     placeholder="City"     testid="member-reg-city" />
-            <LabelledInput label={null} value={f.postcode} onChange={(v) => up('postcode')(v.toUpperCase())} placeholder="Postcode" testid="member-reg-postcode" />
+            <LabelledInput label={null} value={f.city}     onChange={up('city')}     placeholder={t('memberships_console.mp_city', 'City')}     testid="member-reg-city" />
+            <LabelledInput label={null} value={f.postcode} onChange={(v) => up('postcode')(v.toUpperCase())} placeholder={t('memberships_console.mp_postcode', 'Postcode')} testid="member-reg-postcode" />
             <RegisterSelect
-              placeholder="Country"
+              placeholder={t('memberships_console.mp_country', 'Country')}
               value={f.country}
               onChange={up('country')}
               options={['United Kingdom', 'Ireland', 'United States', 'Canada', 'Australia', 'New Zealand', 'France', 'Germany', 'Spain', 'Other'].map((c) => ({ v: c, l: c }))}
@@ -739,15 +744,15 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
 
       {/* Emergency contact */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Emergency contact</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">{t('memberships_console.mp_emergency', 'Emergency contact')}</p>
         <div className="grid grid-cols-2 gap-3">
-          <LabelledInput label="Name"  value={f.emergency_contact_name}  onChange={up('emergency_contact_name')}  placeholder="e.g. Frank"      testid="member-reg-eg-name" />
-          <LabelledInput label="Phone" value={f.emergency_contact_phone} onChange={up('emergency_contact_phone')} placeholder="+44 7700 900000" required testid="member-reg-eg-phone" />
+          <LabelledInput label={t('memberships_console.mp_name', 'Name')}  value={f.emergency_contact_name}  onChange={up('emergency_contact_name')}  placeholder={t('memberships_console.mp_eg_name_ph', 'e.g. Frank')}      testid="member-reg-eg-name" />
+          <LabelledInput label={t('memberships_console.mp_phone', 'Phone')} value={f.emergency_contact_phone} onChange={up('emergency_contact_phone')} placeholder="+44 7700 900000" required testid="member-reg-eg-phone" />
         </div>
       </div>
 
-      <LabelledInput label="Password (min 8 characters)" type="password" value={f.password} onChange={up('password')} required testid="member-reg-password" />
-      <LabelledInput label="Referral code (optional)" value={f.referral_code} onChange={(v) => up('referral_code')(v.toUpperCase())} testid="member-reg-referral" />
+      <LabelledInput label={t('memberships_console.mp_password_min', 'Password (min 8 characters)')} type="password" value={f.password} onChange={up('password')} required testid="member-reg-password" />
+      <LabelledInput label={t('memberships_console.mp_referral_optional', 'Referral code (optional)')} value={f.referral_code} onChange={(v) => up('referral_code')(v.toUpperCase())} testid="member-reg-referral" />
 
       {/* Consent */}
       <div className="space-y-2 pt-1">
@@ -759,7 +764,7 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
             className="mt-0.5 h-4 w-4 accent-[color:var(--color-brand-cyan)]"
             data-testid="member-reg-gdpr"
           />
-          <span>I agree to {branding?.name || 'the studio'}&apos;s Terms &amp; Conditions and Privacy Policy. <span className="text-white/50">(required)</span></span>
+          <span>{t('memberships_console.mp_gdpr', "I agree to {{studio}}'s Terms & Conditions and Privacy Policy.", { studio: branding?.name || t('memberships_console.mp_the_studio', 'the studio') })} <span className="text-white/50">{t('memberships_console.mp_required', '(required)')}</span></span>
         </label>
         <label className="flex items-start gap-2 text-[11px] cursor-pointer text-white/80" data-testid="member-reg-mkt-row">
           <input
@@ -769,14 +774,14 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
             className="mt-0.5 h-4 w-4 accent-[color:var(--color-brand-cyan)]"
             data-testid="member-reg-mkt"
           />
-          <span>Send me class reminders and offers from {branding?.name || 'the studio'}. <span className="text-white/50">(optional)</span></span>
+          <span>{t('memberships_console.mp_marketing', 'Send me class reminders and offers from {{studio}}.', { studio: branding?.name || t('memberships_console.mp_the_studio', 'the studio') })} <span className="text-white/50">{t('memberships_console.mp_optional', '(optional)')}</span></span>
         </label>
       </div>
 
       <button type="submit" disabled={busy}
         className="w-full rounded-lg py-3 text-sm font-extrabold uppercase tracking-wider disabled:opacity-60"
         style={{ background: accent || 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="member-register-submit">
-        {busy ? 'Creating account…' : 'Create account'}
+        {busy ? t('memberships_console.mp_creating', 'Creating account…') : t('memberships_console.mp_create_account', 'Create account')}
       </button>
     </form>
   );
