@@ -1,3 +1,19 @@
+# ═══ 2026-07-29 · ROOT-SIDE CLEANUP — normalise dual-portal orgs (migration script) ═══
+Follow-up to the Master-Admin-staff-invisible-in-HR fix. Root cause was orgs running BOTH Operations + CRM whose
+portal_type / enabled_modules didn't reflect it, so `_create_org_user` wrote staff to only one collection.
+DELIVERED: NEW idempotent migration backend/scripts/normalise_dual_portal_orgs.py — finds orgs with a service-portal
+module (operations/memberships/marketing/staffing/reporting) AND crm enabled, and sets portal_type='both' +
+back-fills enabled_modules from the `modules` map. Dry-run by default; `--apply` to write.
+PREVIEW RESULT: Pulse Fitness Ltd was ALREADY correct (portal_type=both, enabled_modules=[operations,crm,memberships])
+— untouched. 1 drifted org ("Iso Demo Fitness", missing 'operations' in enabled_modules list) normalised. Re-run = 0
+changes (idempotent, 82 orgs scanned).
+⚠️ PRODUCTION: run `python -m scripts.normalise_dual_portal_orgs` (dry-run) then `--apply` on prod to fix Pulse
+Fitness Ltd's real config there (preview's copy was already fine). The HR backfill union fix already covers reads
+either way, so this is belt-and-braces for the WRITE path.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · MASTER-ADMIN STAFF INVISIBLE IN OPERATIONS > STAFF > HR (FIXED, verified) ═══
 Reported: a staff member added to "Pulse Fitness Ltd" via Master Admin didn't appear in the end-user portal's
 Operations → Staff → HR list.
