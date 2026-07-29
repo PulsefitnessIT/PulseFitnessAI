@@ -1,3 +1,25 @@
+# ═══ 2026-07-29 · CRM TERRITORIES MAP — DOUBLE-COVERAGE / OVERLAP WARNING (VERIFIED FE) ═══
+Founder enhancement (resumed in-progress item): flag regions covered by 2+ reps of the SAME role to prevent
+double-coverage. User choices: (1a) toolbar TOGGLE "Overlaps" (off by default) that highlights double-covered regions
+with a hatched pattern + red warning outline; (2a) overlap = 2+ reps of the SAME role (a 'both' rep counts toward
+BOTH sales_manager and engineer); (3) NO sidebar list.
+DELIVERED (frontend only, pages/CRM/CRMTerritoryMap.js):
+  - New state showOverlaps (default false). isOverlap(type,code) computed on the FULL unfiltered coverage:
+    ['sales_manager','engineer'].some(role => members with role===role||'both' >= 2). overlapRegions = list for the
+    active layer.
+  - Toolbar toggle button (data-testid map-overlaps-toggle, rose active state, AlertTriangle icon) with a live count
+    badge (data-testid overlap-count) shown only when overlapRegions.length>0.
+  - Map render: SVG <defs> diagonal hatch <pattern id="overlap-hatch"> (red 45° stripes). Each geography wrapped in
+    a <g>; overlapping regions get a red warning stroke on the base + a pointer-events-none hatch overlay Geography
+    (data-testid region-overlap-<type>-<code>). Tooltip appends "⚠ double-covered".
+VERIFIED via screenshot + coverage API: seeded Kent with 2 Sales Managers → toggle shows count badge "1", 1 hatch
+region rendered, Kent painted red/hatched on the map (SE England). Toggle turns rose "Overlaps on" when active.
+Test overlap on Kent cleared afterwards (demo state restored). App compiles clean.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · CRM TERRITORIES MAP — 2 bugs fixed (VERIFIED 100% FE by testing_agent) ═══
 Reported (production pulsefitness.ai; fixed in preview): (1) painting — focusing a rep hid OTHER reps' painted
 colours (couldn't see overlaps); (2) Postcode-areas mode dropped Northern Ireland/Ireland.

@@ -24,7 +24,7 @@ import { geoCentroid } from 'd3-geo';
 import { feature, merge } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
-  Flame, Zap, Paintbrush, Building2, Users,
+  Flame, Zap, Paintbrush, Building2, Users, AlertTriangle,
 } from 'lucide-react';
 import OfficesPanel from './CRMTerritoryOffices';
 
@@ -222,6 +222,7 @@ export default function CRMTerritoryMap() {
   const [coverage, setCoverage] = useState({ counties: {}, postcode_areas: {} });
   const [heatmap, setHeatmap] = useState({ counties: {}, postcode_areas: {} });
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showOverlaps, setShowOverlaps] = useState(false); // flag double-covered regions
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'sales_manager' | 'engineer'
   const [offices, setOffices] = useState([]);
   const [showOffices, setShowOffices] = useState(true);
@@ -437,6 +438,23 @@ export default function CRMTerritoryMap() {
     return 0.2 + 0.8 * (v / heatRange.max);
   }, [showHeatmap, heatmap, heatRange]);
 
+  // ── Double-coverage detector ──────────────────────────────────────
+  // An "overlap" = 2+ reps of the SAME role cover one region (true
+  // double-coverage). A rep with role 'both' counts toward BOTH roles.
+  // Computed on the full (unfiltered) coverage so the warning is honest
+  // regardless of the current role filter.
+  const isOverlap = useCallback((type, code) => {
+    const list = (type === 'county' ? coverage.counties : coverage.postcode_areas)[code] || [];
+    if (list.length < 2) return false;
+    return ['sales_manager', 'engineer'].some(
+      (role) => list.filter((m) => m.role === role || m.role === 'both').length >= 2,
+    );
+  }, [coverage]);
+  const overlapRegions = useMemo(() => {
+    const src = layer === 'county' ? coverage.counties : coverage.postcode_areas;
+    return Object.keys(src).filter((code) => isOverlap(layer, code));
+  }, [coverage, layer, isOverlap]);
+
   // ── Geometries to render ─────────────────────────────────────────
   const features = layer === 'county' ? counties : postcodes;
   const regionFor = (geo) => {
@@ -541,6 +559,22 @@ export default function CRMTerritoryMap() {
             <Flame size={12} /> {showHeatmap ? 'Heatmap on' : 'Heatmap'}
           </button>
           <button
+            onClick={() => setShowOverlaps((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showOverlaps ? 'bg-rose-600 border-rose-600 text-white' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
+            title="Flag regions covered by 2 or more reps of the same role (double-coverage)."
+            data-testid="map-overlaps-toggle"
+          >
+            <AlertTriangle size={12} /> {showOverlaps ? 'Overlaps on' : 'Overlaps'}
+            {overlapRegions.length > 0 && (
+              <span
+                className={`ml-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-extrabold ${showOverlaps ? 'bg-white text-rose-700' : 'bg-rose-600 text-white'}`}
+                data-testid="overlap-count"
+              >
+                {overlapRegions.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={loadCoverage}
             className="px-3 py-1.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 inline-flex items-center gap-1.5"
             data-testid="map-refresh"
@@ -568,36 +602,59 @@ export default function CRMTerritoryMap() {
               width={720} height={780}
               style={{ width: '100%', height: 'auto' }}
             >
+              <defs>
+                <pattern id="overlap-hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                  {/* eslint-disable-next-line gymaxis/no-inline-hex */}
+                  <rect width="6" height="6" fill="#DC2626" fillOpacity="0.08" />
+                  {/* eslint-disable-next-line gymaxis/no-inline-hex */}
+                  <line x1="0" y1="0" x2="0" y2="6" stroke="#DC2626" strokeWidth="1.5" strokeOpacity="0.6" />
+                </pattern>
+              </defs>
               <Geographies geography={{ type: 'FeatureCollection', features }}>
                 {({ geographies }) => geographies.map((geo) => {
                   const region = regionFor(geo);
                   const fill = fillForRegion(region.type, region.code);
                   const list = membersFor(region.type, region.code);
                   const hasAssignees = list.length > 0;
+                  const overlap = showOverlaps && isOverlap(region.type, region.code);
                   // Highlight the regions the focused rep covers with a bolder,
                   // darker outline so you can tell "theirs" apart while still
                   // seeing everyone else's colours.
                   const isFocus = focusedUser && list.some((m) => m.user_id === focusedUser);
                   const tooltip = hasAssignees
-                    ? `${region.label} — ${list.map((m) => m.full_name).join(', ')}`
+                    ? `${region.label} — ${list.map((m) => m.full_name).join(', ')}${overlap ? ' ⚠ double-covered' : ''}`
                     : region.label;
                   return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      onClick={() => { if (focusedUser) paintRegion(region, focusedUser); else setActiveRegion({ ...region, centroid: geoCentroid(geo) }); }}
-                      style={{
-                        // SVG stroke colours — visual data, not theme tokens.
-                        /* eslint-disable gymaxis/no-inline-hex -- SVG stroke literals */
-                        default:  { fill, fillOpacity: opacityForRegion(region.type, region.code), stroke: isFocus ? '#0F172A' : '#94A3B8', strokeWidth: isFocus ? 1.3 : 0.4, outline: 'none', cursor: 'pointer' },
-                        hover:    { fill: hasAssignees ? fill : '#E2E8F0', fillOpacity: 1, stroke: '#1E293B', strokeWidth: 0.9, outline: 'none', cursor: 'pointer' },
-                        pressed:  { fill, fillOpacity: 1, stroke: '#0F172A', strokeWidth: 1.1, outline: 'none' },
-                        /* eslint-enable gymaxis/no-inline-hex */
-                      }}
-                      data-testid={`region-${region.type}-${region.code}`}
-                    >
-                      <title>{tooltip}</title>
-                    </Geography>
+                    <g key={geo.rsmKey}>
+                      <Geography
+                        geography={geo}
+                        onClick={() => { if (focusedUser) paintRegion(region, focusedUser); else setActiveRegion({ ...region, centroid: geoCentroid(geo) }); }}
+                        style={{
+                          // SVG stroke colours — visual data, not theme tokens.
+                          /* eslint-disable gymaxis/no-inline-hex -- SVG stroke literals */
+                          default:  { fill, fillOpacity: opacityForRegion(region.type, region.code), stroke: overlap ? '#DC2626' : (isFocus ? '#0F172A' : '#94A3B8'), strokeWidth: overlap ? 1.6 : (isFocus ? 1.3 : 0.4), outline: 'none', cursor: 'pointer' },
+                          hover:    { fill: hasAssignees ? fill : '#E2E8F0', fillOpacity: 1, stroke: overlap ? '#B91C1C' : '#1E293B', strokeWidth: overlap ? 1.8 : 0.9, outline: 'none', cursor: 'pointer' },
+                          pressed:  { fill, fillOpacity: 1, stroke: '#0F172A', strokeWidth: 1.1, outline: 'none' },
+                          /* eslint-enable gymaxis/no-inline-hex */
+                        }}
+                        data-testid={`region-${region.type}-${region.code}`}
+                      >
+                        <title>{tooltip}</title>
+                      </Geography>
+                      {overlap && (
+                        <Geography
+                          geography={geo}
+                          style={{
+                            /* eslint-disable gymaxis/no-inline-hex */
+                            default: { fill: 'url(#overlap-hatch)', stroke: '#DC2626', strokeWidth: 1.6, outline: 'none', pointerEvents: 'none' },
+                            hover:   { fill: 'url(#overlap-hatch)', stroke: '#B91C1C', strokeWidth: 1.8, outline: 'none', pointerEvents: 'none' },
+                            pressed: { fill: 'url(#overlap-hatch)', stroke: '#DC2626', strokeWidth: 1.6, outline: 'none', pointerEvents: 'none' },
+                            /* eslint-enable gymaxis/no-inline-hex */
+                          }}
+                          data-testid={`region-overlap-${region.type}-${region.code}`}
+                        />
+                      )}
+                    </g>
                   );
                 })}
               </Geographies>
