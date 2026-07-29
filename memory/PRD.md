@@ -1,3 +1,28 @@
+# ═══ 2026-07-29 · i18n ROLLOUT (FR/DE) — MEMBERSHIPS + SERVICE DESK shells (BATCH 1, VERIFIED DE live) ═══
+User: continue FR/DE rollout across Memberships, Marketing, ServiceOps (SKIP MOD Portal — UK-only). Scope = wrap
+strings in t('ns.key','English'), LLM-translate FR+DE via pipeline, verify render. This is multi-batch (these 3
+modules are ~50k+ lines, mostly unlocalized).
+NEW generalised pipeline: backend/scripts/i18n_translate_modules.py — scans pages/Memberships, Marketing,
+ServiceOps, ServiceDesk for t('ns.*','en') in namespaces (memberships_console, mkt, service, sicon); translates
+new/untranslated keys EN->FR/DE via Claude; merges en/fr/de.json; has the same useTranslation() guard (--check)
++ an explicit service_nav dict for template-literal nav keys. Re-run: `cd /app/backend && python scripts/i18n_translate_modules.py`.
+DONE THIS BATCH (VERIFIED DE render via screenshot for both shells):
+  - Memberships console (MembershipsConsole.js): all pill-tab labels + header subtitle; inline DashboardTab (Header
+    + 10 KPI labels + section + empty + load error), MembersTab (Header + search + CSV/import/add buttons + table
+    col headers + empty state), TimetableTab Header, CommissionSection header. 80 memberships_console keys en/fr/de.
+  - Service Desk shell (pages/ServiceDeskPage.js): full sidebar nav (primary tabs + insights + options + brand +
+    Inventory&Distribution) — verified German live (Fälle/Planer/Kunden/Ausrüstung/Wartung/Lager/Abrechnung…).
+  - Service Ops Cases queue (pages/ServiceOps/ServiceDeskPage.js — the "Cases" tab): hero buttons, Header, all KPIs,
+    filter dropdowns, search, table headers, empty/loading. ~50 new `service` keys en/fr/de.
+REMAINING (next batches, all still render EN via fallback = functional): deep Memberships tab bodies + separate
+files (StudioQuickstart/MemberPortal/Analytics/StudioBuilder/MobileAppBuilder/Invoicing/Events/Promotions/etc,
+~55 files); Service Desk Dashboard/Customers/Equipment/Maintenance/Stores/Billing/Scheduler/Engineers tab bodies
++ ServiceOps/Engineer/* (EngineerJobDetailV2 4039 lines etc.) + ServiceCaseDrawer; Marketing module (mkt ns —
+partial, not touched this session; pipeline already scans it). Full checklist: /app/memory/i18n_ops_progress.md.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-07-29 · CRM TERRITORIES MAP — DOUBLE-COVERAGE / OVERLAP WARNING (VERIFIED FE) ═══
 Founder enhancement (resumed in-progress item): flag regions covered by 2+ reps of the SAME role to prevent
 double-coverage. User choices: (1a) toolbar TOGGLE "Overlaps" (off by default) that highlights double-covered regions

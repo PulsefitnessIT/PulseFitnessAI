@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   Plus, Search, AlertTriangle, Clock, CircleAlert, RefreshCw, Phone, Filter,
   Sparkles, Users, MapPin, CheckCircle2, Truck, Coffee, Target, Wrench, Calendar,
@@ -240,6 +241,7 @@ function LiveEngineersPanel({ engineers, liveStats, loading, onCaseClick }) {
 }
 
 export default function ServiceDeskPage({ initialFilters } = {}) {
+  const { t } = useTranslation();
   const [summary, setSummary] = useState(null);
   const [cases, setCases] = useState([]);
   const [engineers, setEngineers] = useState([]);
@@ -312,24 +314,24 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
   const heroActions = (
     <>
       <SvcSecondaryButton icon={RefreshCw} onClick={load} data-testid="desk-refresh">
-        Refresh
+        {t('service.desk_refresh', 'Refresh')}
       </SvcSecondaryButton>
       <SvcSecondaryButton
         icon={Calendar}
         onClick={() => (window.location.href = '/service-desk/dispatch')}
         data-testid="desk-dispatch-board"
       >
-        Dispatch
+        {t('service.desk_dispatch', 'Dispatch')}
       </SvcSecondaryButton>
       <SvcSecondaryButton
         icon={Boxes}
         onClick={() => (window.location.href = '/svc/engineer/stock-admin')}
         data-testid="desk-stock-management"
       >
-        Stock
+        {t('service.desk_stock', 'Stock')}
       </SvcSecondaryButton>
       <SvcPrimaryButton icon={Plus} onClick={() => setIntakeOpen(true)} data-testid="desk-log-case">
-        Log new case
+        {t('service.desk_log_case', 'Log new case')}
       </SvcPrimaryButton>
     </>
   );
@@ -337,41 +339,41 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
   return (
     <ServiceOpsShell
       icon={Phone}
-      title="Service desk"
-      subtitle="Live queue of every open case across your sites. SLA at risk first — click any row for the full timeline."
+      title={t('service.desk_title', 'Service desk')}
+      subtitle={t('service.desk_subtitle', 'Live queue of every open case across your sites. SLA at risk first — click any row for the full timeline.')}
       actions={heroActions}
       active="desk"
       lowStockCount={lowStockCount}
       pageTestId="service-desk-page"
     >
       <div className="svc-kpi-grid" data-testid="desk-kpis">
-        <KPICard label="Open" value={k.open} tone="info" testId="kpi-open" onClick={() => drillTo({})} />
-        <KPICard label="Unassigned" value={k.unassigned} tone={k.unassigned > 0 ? 'warn' : 'neutral'} testId="kpi-unassigned" onClick={() => drillTo({ assigned: 'unassigned' })} />
-        <KPICard label="SLA at risk" value={k.sla_at_risk} tone={k.sla_at_risk > 0 ? 'warn' : 'good'} testId="kpi-at-risk" onClick={() => drillTo({ sla: 'at_risk' })} />
-        <KPICard label="Breached" value={k.sla_breached} tone={k.sla_breached > 0 ? 'danger' : 'good'} testId="kpi-breached" onClick={() => drillTo({ sla: 'breached' })} />
+        <KPICard label={t('service.kpi_open', 'Open')} value={k.open} tone="info" testId="kpi-open" onClick={() => drillTo({})} />
+        <KPICard label={t('service.kpi_unassigned', 'Unassigned')} value={k.unassigned} tone={k.unassigned > 0 ? 'warn' : 'neutral'} testId="kpi-unassigned" onClick={() => drillTo({ assigned: 'unassigned' })} />
+        <KPICard label={t('service.kpi_sla_at_risk', 'SLA at risk')} value={k.sla_at_risk} tone={k.sla_at_risk > 0 ? 'warn' : 'good'} testId="kpi-at-risk" onClick={() => drillTo({ sla: 'at_risk' })} />
+        <KPICard label={t('service.kpi_breached', 'Breached')} value={k.sla_breached} tone={k.sla_breached > 0 ? 'danger' : 'good'} testId="kpi-breached" onClick={() => drillTo({ sla: 'breached' })} />
         <KPICard
-          label="First-time fix"
+          label={t('service.kpi_first_time_fix', 'First-time fix')}
           value={k.first_time_fix_pct === null || k.first_time_fix_pct === undefined ? '—' : `${k.first_time_fix_pct}%`}
           tone={(k.first_time_fix_pct ?? 0) >= 80 ? 'good' : (k.first_time_fix_pct ?? 0) >= 60 ? 'warn' : 'danger'}
           hint={`${k.closed_last_30d ?? 0} closed (30d)`}
           testId="kpi-ftf"
         />
         <KPICard
-          label="Avg resolve"
+          label={t('service.kpi_avg_resolve', 'Avg resolve')}
           value={k.avg_resolve_hours === null || k.avg_resolve_hours === undefined ? '—' : `${k.avg_resolve_hours}h`}
           tone="info"
-          hint="Mean over 30 days"
+          hint={t('service.kpi_avg_resolve_hint', 'Mean over 30 days')}
           testId="kpi-avg-resolve"
         />
         <KPICard
-          label="Skill gap"
+          label={t('service.kpi_skill_gap', 'Skill gap')}
           value={k.skill_gap ?? 0}
           tone={(k.skill_gap ?? 0) > 0 ? 'warn' : 'neutral'}
-          hint="No matched engineer"
+          hint={t('service.kpi_skill_gap_hint', 'No matched engineer')}
           testId="kpi-skill-gap"
         />
         <KPICard
-          label="Field engineers"
+          label={t('service.kpi_field_engineers', 'Field engineers')}
           value={`${activeFieldEngineers}/${totalEngineers}`}
           tone="info"
           hint={`${liveStats.en_route} en route · ${liveStats.on_site} on-site`}
@@ -393,7 +395,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
       <div className="svc-section" data-testid="case-queue-section">
         <div className="svc-section-head">
           <div className="flex items-center gap-1.5 text-xs font-bold svc-muted">
-            <Filter size={12} /> Filters
+            <Filter size={12} /> {t('service.filters', 'Filters')}
           </div>
           {(filters.assigned || filters.sla || filters.rtf) ? (
             <button
@@ -413,14 +415,14 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
             style={{ width: 'auto' }}
             data-testid="filter-status"
           >
-            <option value="open">All open</option>
-            <option value="new">New</option>
-            <option value="assigned">Assigned</option>
-            <option value="en_route">En route</option>
-            <option value="on_site">On site</option>
-            <option value="paused_parts">Waiting parts</option>
-            <option value="awaiting_sign_off">Sign-off</option>
-            <option value="closed">Closed</option>
+            <option value="open">{t('service.status_all_open', 'All open')}</option>
+            <option value="new">{t('service.status_new', 'New')}</option>
+            <option value="assigned">{t('service.status_assigned', 'Assigned')}</option>
+            <option value="en_route">{t('service.status_en_route', 'En route')}</option>
+            <option value="on_site">{t('service.status_on_site', 'On site')}</option>
+            <option value="paused_parts">{t('service.status_waiting_parts', 'Waiting parts')}</option>
+            <option value="awaiting_sign_off">{t('service.status_sign_off', 'Sign-off')}</option>
+            <option value="closed">{t('service.status_closed', 'Closed')}</option>
           </select>
           <select
             value={filters.priority}
@@ -429,11 +431,11 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
             style={{ width: 'auto' }}
             data-testid="filter-priority"
           >
-            <option value="">All priorities</option>
-            <option value="p1">P1 — Critical</option>
-            <option value="p2">P2 — High</option>
-            <option value="p3">P3 — Standard</option>
-            <option value="p4">P4 — Low</option>
+            <option value="">{t('service.all_priorities', 'All priorities')}</option>
+            <option value="p1">{t('service.p1_critical', 'P1 — Critical')}</option>
+            <option value="p2">{t('service.p2_high', 'P2 — High')}</option>
+            <option value="p3">{t('service.p3_standard', 'P3 — Standard')}</option>
+            <option value="p4">{t('service.p4_low', 'P4 — Low')}</option>
           </select>
           <select
             value={filters.case_type}
@@ -442,10 +444,10 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
             style={{ width: 'auto' }}
             data-testid="filter-case-type"
           >
-            <option value="">All types</option>
-            <option value="repair">Repair</option>
-            <option value="ppm">PPM</option>
-            <option value="install">Install</option>
+            <option value="">{t('service.all_types', 'All types')}</option>
+            <option value="repair">{t('service.type_repair', 'Repair')}</option>
+            <option value="ppm">{t('service.type_ppm', 'PPM')}</option>
+            <option value="install">{t('service.type_install', 'Install')}</option>
           </select>
           <div className="svc-search ml-auto w-full sm:w-[280px]">
             <Search size={13} />
@@ -453,7 +455,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
               type="text"
               value={filters.search}
               onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-              placeholder="Search reference, title, customer…"
+              placeholder={t('service.search_placeholder', 'Search reference, title, customer…')}
               className="svc-input svc-input-sm"
               data-testid="filter-search"
             />
@@ -464,23 +466,23 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
           <table className="svc-table" style={{ minWidth: '60rem' }}>
             <thead>
               <tr>
-                <th>Ref</th>
-                <th>Pri</th>
-                <th>Title</th>
-                <th>Site</th>
-                <th>Status</th>
-                <th>Engineer</th>
-                <th className="num">SLA</th>
+                <th>{t('service.col_ref', 'Ref')}</th>
+                <th>{t('service.col_pri', 'Pri')}</th>
+                <th>{t('service.col_title', 'Title')}</th>
+                <th>{t('service.col_site', 'Site')}</th>
+                <th>{t('service.col_status', 'Status')}</th>
+                <th>{t('service.col_engineer', 'Engineer')}</th>
+                <th className="num">{t('service.col_sla', 'SLA')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7"><div className="svc-empty"><span className="svc-spinner" /> Loading cases…</div></td></tr>
+                <tr><td colSpan="7"><div className="svc-empty"><span className="svc-spinner" /> {t('service.loading_cases', 'Loading cases…')}</div></td></tr>
               ) : cases.length === 0 ? (
                 <tr><td colSpan="7"><div className="svc-empty">
                   <Phone size={22} />
-                  <div>No cases match the current filters.</div>
-                  <div className="text-xs mt-1">Click <strong>Log new case</strong> to create one.</div>
+                  <div>{t('service.no_cases_match', 'No cases match the current filters.')}</div>
+                  <div className="text-xs mt-1">{t('service.no_cases_hint_pre', 'Click')} <strong>{t('service.desk_log_case', 'Log new case')}</strong> {t('service.no_cases_hint_post', 'to create one.')}</div>
                 </div></td></tr>
               ) : cases.map((c) => {
                 const pri = PRIORITY_META[c.priority] || PRIORITY_META.p3;

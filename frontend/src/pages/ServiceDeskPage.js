@@ -17,6 +17,7 @@
  */
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '@/App';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
@@ -107,11 +108,12 @@ const EmbedFallback = () => (
 
 export default function ServiceDeskPage() {
   const { user, logout, API } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
-    const t = searchParams.get('tab');
-    return TABS.some((x) => x.id === t) ? t : 'dashboard';
+    const tp = searchParams.get('tab');
+    return TABS.some((x) => x.id === tp) ? tp : 'dashboard';
   });
   const [selectedOrgId, setSelectedOrgId] = useState(null);
   // Iter 268 — dashboard stat cards deep-link to the Customers tab with the
@@ -328,8 +330,8 @@ export default function ServiceDeskPage() {
               <img src="/brand/pulse-mark.svg" alt="Pulse Fitness" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
             </div>
             <div>
-              <div className="text-sm font-bold text-slate-900 tracking-tight">Service Desk</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">Field service ops</div>
+              <div className="text-sm font-bold text-slate-900 tracking-tight">{t('service.nav_brand', 'Service Desk')}</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">{t('service.nav_brand_sub', 'Field service ops')}</div>
             </div>
           </div>
           {/* Mobile-only close button inside the drawer. */}
@@ -358,7 +360,7 @@ export default function ServiceDeskPage() {
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span className="flex-1">{label}</span>
+              <span className="flex-1">{t(`service.nav_${id}`, label)}</span>
             </button>
           ))}
 
@@ -369,11 +371,11 @@ export default function ServiceDeskPage() {
             className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
           >
             <Globe className="w-4 h-4" />
-            <span className="flex-1">Inventory &amp; Distribution</span>
+            <span className="flex-1">{t('service.nav_inventory_distribution', 'Inventory & Distribution')}</span>
           </button>
 
           {/* Insights group (separated) */}
-          <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold">Insights</p>
+          <p className="text-[9px] uppercase tracking-[0.16em] text-slate-400 px-3 pt-4 pb-1 font-semibold">{t('service.nav_insights_group', 'Insights')}</p>
           {visibleInsights.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -386,7 +388,7 @@ export default function ServiceDeskPage() {
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span className="flex-1">{label}</span>
+              <span className="flex-1">{t(`service.nav_${id}`, label)}</span>
             </button>
           ))}
 
@@ -399,7 +401,7 @@ export default function ServiceDeskPage() {
               className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
             >
               <SlidersHorizontal className="w-4 h-4" />
-              <span className="flex-1">Options</span>
+              <span className="flex-1">{t('service.nav_options', 'Options')}</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${optionsOpen ? 'rotate-180' : ''}`} />
             </button>
             {optionsOpen && (
@@ -421,7 +423,7 @@ export default function ServiceDeskPage() {
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span className="flex-1">{label}</span>
+                    <span className="flex-1">{t(`service.nav_${id}`, label)}</span>
                   </button>
                 ))}
               </div>

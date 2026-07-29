@@ -148,34 +148,34 @@ function MembershipsConsoleInner() {
   // existing email CTAs / checklist links still work.)
   const showEmbeddedEmails = !(hasModuleAccess(user, 'marketing') && hasModuleAccess(user, 'crm'));
   const TABS = useMemo(() => [
-    { id: 'start',     label: 'Start', icon: Sparkles },
+    { id: 'start',     label: t('memberships_console.tab_start', 'Start'), icon: Sparkles },
     { id: 'dashboard', label: t('memberships_console.tab_dashboard'), icon: LayoutDashboard },
     // — Daily ops
-    { id: 'schedule', label: 'Classes & Timetable', icon: Calendar },
-    { id: 'checkin', label: 'Check-in', icon: ClipboardCheck },
+    { id: 'schedule', label: t('memberships_console.tab_schedule', 'Classes & Timetable'), icon: Calendar },
+    { id: 'checkin', label: t('memberships_console.tab_checkin', 'Check-in'), icon: ClipboardCheck },
     // — People
     { id: 'members',   label: t('memberships_console.tab_members'),   icon: Users },
-    { id: 'mobile-app', label: 'Member app', icon: Smartphone },
-    { id: 'instructors', label: 'Instructors', icon: Activity },
+    { id: 'mobile-app', label: t('memberships_console.tab_mobile_app', 'Member app'), icon: Smartphone },
+    { id: 'instructors', label: t('memberships_console.tab_instructors', 'Instructors'), icon: Activity },
     // — Commercial
     { id: 'plans',     label: t('memberships_console.tab_plans'),     icon: PackageOpen },
-    { id: 'invoicing', label: 'Invoicing', icon: Receipt },
-    { id: 'desk-sales', label: 'Desk sales', icon: Wallet },
-    { id: 'family-billing', label: 'Family billing', icon: HeartHandshake },
+    { id: 'invoicing', label: t('memberships_console.tab_invoicing', 'Invoicing'), icon: Receipt },
+    { id: 'desk-sales', label: t('memberships_console.tab_desk_sales', 'Desk sales'), icon: Wallet },
+    { id: 'family-billing', label: t('memberships_console.tab_family_billing', 'Family billing'), icon: HeartHandshake },
     // — Family / events
-    { id: 'events', label: 'Events', icon: Theater },
+    { id: 'events', label: t('memberships_console.tab_events', 'Events'), icon: Theater },
     // — Marketing
-    { id: 'promotions', label: 'Promotions', icon: Tag },
-    ...(showEmbeddedEmails ? [{ id: 'emails', label: 'Emails', icon: Mail }] : []),
+    { id: 'promotions', label: t('memberships_console.tab_promotions', 'Promotions'), icon: Tag },
+    ...(showEmbeddedEmails ? [{ id: 'emails', label: t('memberships_console.tab_emails', 'Emails'), icon: Mail }] : []),
     { id: 'ads',       label: t('memberships_console.tab_ads'),       icon: Megaphone },
     // — Intelligence & analytics (Studio Brain + AI Insights are sub-tabs inside Analytics)
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
     // — Cross-platform tools
-    { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
-    { id: 'recover', label: 'Recover', icon: AlertCircle },
-    { id: 'autopilot', label: 'Autopilot', icon: Bot },
-    { id: 'privacy', label: 'Privacy', icon: ShieldCheck },
-    { id: 'booking-rules', label: 'Booking rules', icon: Settings },
+    { id: 'crm-loop', label: t('memberships_console.tab_crm_loop', 'CRM Loop'), icon: Workflow },
+    { id: 'recover', label: t('memberships_console.tab_recover', 'Recover'), icon: AlertCircle },
+    { id: 'autopilot', label: t('memberships_console.tab_autopilot', 'Autopilot'), icon: Bot },
+    { id: 'privacy', label: t('memberships_console.tab_privacy', 'Privacy'), icon: ShieldCheck },
+    { id: 'booking-rules', label: t('memberships_console.tab_booking_rules', 'Booking rules'), icon: Settings },
   ], [t, showEmbeddedEmails]);
 
   // Filter the tab list when Studio Mode is on — keeps UI focused on
@@ -249,7 +249,7 @@ function MembershipsConsoleInner() {
           <ModulePageHeader
             moduleName="Memberships"
             tenantName={user?.company_name}
-            subtitle="Members, classes, timetables & plans — your studio in one place."
+            subtitle={t('memberships_console.header_subtitle', 'Members, classes, timetables & plans — your studio in one place.')}
             isPulseBranded={isPulseBrandedMbr}
             actionSlot={<StudioModeToggle studioMode={studio.studioMode} toggle={studio.toggle} saving={studio.saving} loading={studio.loading} />}
           />
@@ -358,6 +358,7 @@ function MembershipsConsoleInner() {
 /* ─────────────────── Dashboard ─────────────────── */
 
 function DashboardTab({ API, headers }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [setupStatus, setSetupStatus] = useState(null);
   useEffect(() => {
@@ -369,36 +370,36 @@ function DashboardTab({ API, headers }) {
         ]);
         setData(dash.data);
         if (setup) setSetupStatus(setup.data);
-      } catch { notify.error('Failed to load dashboard'); }
+      } catch { notify.error(t('memberships_console.dash_load_error', 'Failed to load dashboard')); }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, []);
   if (!data) return <Loading />;
   return (
     <div data-testid="mbr-dashboard">
-      <Header eyebrow="Overview" title="Studio dashboard" subtitle="Live pulse on members, classes, and revenue." />
+      <Header eyebrow={t('memberships_console.dash_eyebrow', 'Overview')} title={t('memberships_console.dash_title', 'Studio dashboard')} subtitle={t('memberships_console.dash_subtitle', 'Live pulse on members, classes, and revenue.')} />
       {setupStatus && !setupStatus.organization.setup_completed && <SetupNudge />}
       {/* Iter 215bi — removed duplicate AppUrlCard (with live phone preview)
           from the dashboard. Lives under the Mobile App tab now. */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-6">
-        <Kpi label="Active members"     value={data.active_members} color="cyan" />
-        <Kpi label="New this month"     value={data.new_signups_month} color="emerald" />
-        <Kpi label="Cancellations"      value={data.cancellations_month} color={data.cancellations_month > 0 ? 'amber' : 'neutral'} />
-        <Kpi label="Frozen"             value={data.frozen_memberships} color={data.frozen_memberships > 0 ? 'amber' : 'neutral'} />
-        <Kpi label="Expiring < 7d"      value={data.expiring_7d} color={data.expiring_7d > 0 ? 'amber' : 'neutral'} />
-        <Kpi label="Today's classes"    value={data.today_classes} color="cyan" />
-        <Kpi label="Today's occupancy"  value={`${data.occupancy_pct}%`} color={data.occupancy_pct >= 70 ? 'emerald' : 'neutral'} />
-        <Kpi label="Today's bookings"   value={data.today_bookings} color="neutral" />
-        <Kpi label="No-shows (MTD)"     value={data.no_shows_month} color={data.no_shows_month > 0 ? 'amber' : 'emerald'} />
-        <Kpi label="Waitlisted now"     value={data.waitlisted} color={data.waitlisted > 0 ? 'violet' : 'neutral'} />
+        <Kpi label={t('memberships_console.kpi_active_members', 'Active members')}     value={data.active_members} color="cyan" />
+        <Kpi label={t('memberships_console.kpi_new_this_month', 'New this month')}     value={data.new_signups_month} color="emerald" />
+        <Kpi label={t('memberships_console.kpi_cancellations', 'Cancellations')}      value={data.cancellations_month} color={data.cancellations_month > 0 ? 'amber' : 'neutral'} />
+        <Kpi label={t('memberships_console.kpi_frozen', 'Frozen')}             value={data.frozen_memberships} color={data.frozen_memberships > 0 ? 'amber' : 'neutral'} />
+        <Kpi label={t('memberships_console.kpi_expiring_7d', 'Expiring < 7d')}      value={data.expiring_7d} color={data.expiring_7d > 0 ? 'amber' : 'neutral'} />
+        <Kpi label={t('memberships_console.kpi_today_classes', "Today's classes")}    value={data.today_classes} color="cyan" />
+        <Kpi label={t('memberships_console.kpi_today_occupancy', "Today's occupancy")}  value={`${data.occupancy_pct}%`} color={data.occupancy_pct >= 70 ? 'emerald' : 'neutral'} />
+        <Kpi label={t('memberships_console.kpi_today_bookings', "Today's bookings")}   value={data.today_bookings} color="neutral" />
+        <Kpi label={t('memberships_console.kpi_no_shows_mtd', 'No-shows (MTD)')}     value={data.no_shows_month} color={data.no_shows_month > 0 ? 'amber' : 'emerald'} />
+        <Kpi label={t('memberships_console.kpi_waitlisted', 'Waitlisted now')}     value={data.waitlisted} color={data.waitlisted > 0 ? 'violet' : 'neutral'} />
       </div>
       <section className="mt-8">
         <h2 className="text-[color:var(--theme-text-muted)] font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          Today at a glance
+          {t('memberships_console.dash_today_at_a_glance', 'Today at a glance')}
           <HelpHint guideId="mbr-first-class" testId="help-hint-today-classes" />
         </h2>
         {(data.today_occurrences || []).length === 0 ? (
-          <Empty text="No classes scheduled for today." />
+          <Empty text={t('memberships_console.dash_no_classes_today', 'No classes scheduled for today.')} />
         ) : (
           <div className="space-y-2">
             {data.today_occurrences.map((o) => (
@@ -423,6 +424,7 @@ function DashboardTab({ API, headers }) {
 }
 
 function CommissionSection({ API, headers }) {
+  const { t } = useTranslation();
   const [month] = useState(() => new Date().toISOString().slice(0, 7));
   const [data, setData] = useState(null);
   useEffect(() => {
@@ -450,9 +452,9 @@ function CommissionSection({ API, headers }) {
   return (
     <section className="mt-8" data-testid="mbr-commission">
       <div className="flex items-end justify-between mb-3">
-        <h2 className="text-[color:var(--theme-text-muted)] font-bold text-xs uppercase tracking-wider">Instructor commission · {month}</h2>
+        <h2 className="text-[color:var(--theme-text-muted)] font-bold text-xs uppercase tracking-wider">{t('memberships_console.comm_title', 'Instructor commission')} · {month}</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[color:var(--theme-text-muted)]">Total <strong className="text-white">£{(data.grand_total_pence / 100).toFixed(2)}</strong></span>
+          <span className="text-xs text-[color:var(--theme-text-muted)]">{t('memberships_console.comm_total', 'Total')} <strong className="text-white">£{(data.grand_total_pence / 100).toFixed(2)}</strong></span>
           <Button variant="secondary" size="sm" onClick={downloadCsv} data-testid="mbr-commission-csv" className="uppercase tracking-wider">
             CSV
           </Button>
@@ -492,6 +494,7 @@ function CommissionSection({ API, headers }) {
 /* ─────────────────── Members ─────────────────── */
 
 function MembersTab({ API, headers }) {
+  const { t } = useTranslation();
   const [members, setMembers] = useState([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
@@ -596,9 +599,9 @@ function MembersTab({ API, headers }) {
   return (
     <div data-testid="mbr-members">
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <Header eyebrow="Directory" title="Members" subtitle="Every person who walks through the door." />
+        <Header eyebrow={t('memberships_console.mem_eyebrow', 'Directory')} title={t('memberships_console.mem_title', 'Members')} subtitle={t('memberships_console.mem_subtitle', 'Every person who walks through the door.')} />
         <div className="flex gap-2 items-center flex-wrap">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name / email / phone"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('memberships_console.mem_search_placeholder', 'Search name / email / phone')}
             className="h-9 rounded-full bg-transparent border border-[color:var(--theme-border)] px-3 text-sm text-[color:var(--theme-text)] placeholder-[color:var(--theme-text-muted)] w-64 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
             data-testid="mbr-search" />
           <SavedViewsDropdown
@@ -609,20 +612,20 @@ function MembersTab({ API, headers }) {
             currentFilter={{ ...(savedView?.filter || {}), ...(q ? { q } : {}) }}
           />
           <Button variant="secondary" size="sm" onClick={downloadTemplate} data-testid="mbr-csv-template">
-            CSV template
+            {t('memberships_console.mem_csv_template', 'CSV template')}
           </Button>
-          <ExportCsvButton module="members" label="Export CSV" testId="mbr-export-csv" />
+          <ExportCsvButton module="members" label={t('memberships_console.mem_export_csv', 'Export CSV')} testId="mbr-export-csv" />
           <Button variant="secondary" size="sm" onClick={() => importFileRef.current?.click()}
             disabled={importing}
             loading={importing}
             data-testid="mbr-bulk-import">
-            {importing ? 'Importing' : 'Bulk import'}
+            {importing ? t('memberships_console.mem_importing', 'Importing') : t('memberships_console.mem_bulk_import', 'Bulk import')}
           </Button>
           <input ref={importFileRef} type="file" accept=".csv,text/csv"
             onChange={(e) => handleImport(e.target.files?.[0])} className="hidden"
             data-testid="mbr-import-input" />
           <Button variant="primary" size="sm" onClick={() => setAdding(true)} icon={Plus} data-testid="mbr-add-member">
-            Add member
+            {t('memberships_console.mem_add_member', 'Add member')}
           </Button>
           <HelpHint guideId="mbr-onboard-first" testId="help-hint-members" />
         </div>
@@ -650,10 +653,10 @@ function MembersTab({ API, headers }) {
         <div className="mt-6">
           <EmptyState
             icon={UsersIcon}
-            title="No members yet"
-            hint="Add your first member or bulk-import from CSV. Members can also self-register through your branded app URL."
-            primaryAction={{ label: 'Add member', onClick: () => setAdding(true), testId: 'mbr-empty-add' }}
-            secondaryAction={{ label: 'Bulk import CSV', onClick: () => importFileRef.current?.click(), testId: 'mbr-empty-import' }}
+            title={t('memberships_console.mem_empty_title', 'No members yet')}
+            hint={t('memberships_console.mem_empty_hint', 'Add your first member or bulk-import from CSV. Members can also self-register through your branded app URL.')}
+            primaryAction={{ label: t('memberships_console.mem_add_member', 'Add member'), onClick: () => setAdding(true), testId: 'mbr-empty-add' }}
+            secondaryAction={{ label: t('memberships_console.mem_empty_import', 'Bulk import CSV'), onClick: () => importFileRef.current?.click(), testId: 'mbr-empty-import' }}
             testId="mbr-empty-state"
           />
         </div>
@@ -685,12 +688,12 @@ function MembersTab({ API, headers }) {
                     data-testid="mbr-select-all"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-bold">Member</th>
-                <th className="px-4 py-3 text-left font-bold">Plan</th>
-                <th className="px-4 py-3 text-left font-bold">Status</th>
-                <th className="px-4 py-3 text-left font-bold">Credits</th>
-                <th className="px-4 py-3 text-right font-bold">No-shows</th>
-                <th className="px-2 py-3 text-right font-bold">Portal</th>
+                <th className="px-4 py-3 text-left font-bold">{t('memberships_console.col_member', 'Member')}</th>
+                <th className="px-4 py-3 text-left font-bold">{t('memberships_console.col_plan', 'Plan')}</th>
+                <th className="px-4 py-3 text-left font-bold">{t('memberships_console.col_status', 'Status')}</th>
+                <th className="px-4 py-3 text-left font-bold">{t('memberships_console.col_credits', 'Credits')}</th>
+                <th className="px-4 py-3 text-right font-bold">{t('memberships_console.col_no_shows', 'No-shows')}</th>
+                <th className="px-2 py-3 text-right font-bold">{t('memberships_console.col_portal', 'Portal')}</th>
               </tr>
             </thead>
           <tbody>
@@ -1136,6 +1139,7 @@ function SchedulingHubTab({ API, headers, activeTabHint, onSetTab }) {
 /* ─────────────────── Timetable ─────────────────── */
 
 function TimetableTab({ API, headers }) {
+  const { t } = useTranslation();
   const [occs, setOccs] = useState([]);
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0);
@@ -1158,7 +1162,7 @@ function TimetableTab({ API, headers }) {
   return (
     <div data-testid="mbr-timetable">
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <Header eyebrow="This week" title="Timetable" subtitle="Every class across the studio. Tap a class to announce or mark attendance." />
+        <Header eyebrow={t('memberships_console.tt_eyebrow', 'This week')} title={t('memberships_console.tt_title', 'Timetable')} subtitle={t('memberships_console.tt_subtitle', 'Every class across the studio. Tap a class to announce or mark attendance.')} />
         <div className="flex gap-2 items-center">
           <Button variant="secondary" size="icon" onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * 86400000))} icon={ChevronLeft} title="Previous week" data-testid="mbr-week-prev" />
           <div className="text-sm font-bold px-3">{days[0].toLocaleDateString()} – {days[6].toLocaleDateString()}</div>
