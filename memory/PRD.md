@@ -1,3 +1,25 @@
+# ═══ 2026-07-29 · CRM TERRITORIES MAP — 2 bugs fixed (VERIFIED 100% FE by testing_agent) ═══
+Reported (production pulsefitness.ai; fixed in preview): (1) painting — focusing a rep hid OTHER reps' painted
+colours (couldn't see overlaps); (2) Postcode-areas mode dropped Northern Ireland/Ireland.
+RCA + FIX (frontend, pages/CRM/CRMTerritoryMap.js):
+  BUG1: fillForRegion greyed any region not covered by the focused rep (#F1F5F9). Rewrote it to ALWAYS return the
+  region's real owner colour — preferring the focused rep's colour where they cover it — so every rep's colour stays
+  visible while painting. Added a focus emphasis via stroke (focused rep's regions: dark #0F172A, strokeWidth 1.3 vs
+  0.4) so you can still tell "theirs" apart.
+  BUG2: uk_postcodes.topojson is GB-only (120 areas, no BT). loadMaps now synthesises a single 'BT' postcode Feature
+  by merging the six NI ceremonial counties (Antrim/Armagh/Down/Londonderry/Tyrone/Fermanagh) from uk_counties.topojson
+  via topojson-client `merge` → NI now renders + is paintable in postcode mode (121 regions incl BT). Non-fatal try/catch.
+VERIFIED (testing_agent iteration_crm_territories_paint_ni_jan2026.json, 100%): red county stayed red when Green rep
+focused & vice-versa (fills #EF4444 / #22C55E persisted across focus + layer switches); BT renders (data-testid
+region-postcode_area-BT, valid 26k path) and paints. Role filter + paint persistence still work.
+NOTE (doc nit from tester, NOT a bug): region testids use the layer value → `region-postcode_area-<code>` (underscore),
+`region-county-<name>`. Territories tab is admin-only AND hidden in CRM 'Members/leisure' mode — switch to 'Corporate'.
+QATEST reps cleaned up.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-29 · DUAL-PORTAL NORMALISATION WIRED INTO BOOT (self-healing, verified) ═══
 Wired the dual-portal org normalisation into backend startup so config drift self-heals on every deploy/boot.
 - scripts/normalise_dual_portal_orgs.py: added `normalise_dual_portal_orgs_once()` (silent, applies, returns count).
