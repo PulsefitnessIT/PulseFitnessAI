@@ -545,13 +545,10 @@ async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
     return await _compute_estate_readiness(estate_id)
 
 
-@router.get("/master-admin/mod-estate/readiness-export.xlsx")
-async def readiness_export_xlsx(estate_id: str = DEFAULT_ESTATE_ID,
-                                user: dict = Depends(get_current_user)):
-    """One-click Excel of the whole estate's go-live checklist."""
-    require_master_admin(user)
-    data = await _compute_estate_readiness(estate_id)
-    from fastapi.responses import Response
+def build_readiness_xlsx_bytes(data: dict) -> bytes:
+    """Build the whole-of-MOD go-live readiness workbook from a readiness
+    payload (see `_compute_estate_readiness`) and return the raw .xlsx bytes.
+    Shared by the download endpoint and the scheduled HQ email."""
     import io
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -611,11 +608,52 @@ async def readiness_export_xlsx(estate_id: str = DEFAULT_ESTATE_ID,
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
+    return buf.getvalue()
+
+
+@router.get("/master-admin/mod-estate/readiness-export.xlsx")
+async def readiness_export_xlsx(estate_id: str = DEFAULT_ESTATE_ID,
+                                user: dict = Depends(get_current_user)):
+    """One-click Excel of the whole estate's go-live checklist."""
+    require_master_admin(user)
+    data = await _compute_estate_readiness(estate_id)
+    from fastapi.responses import Response
     return Response(
-        content=buf.getvalue(),
+        content=build_readiness_xlsx_bytes(data),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=MOD_Estate_Readiness.xlsx"},
     )
+
+
+@router.post("/master-admin/mod-estate/readiness-email/send")
+async def send_readiness_email_now(estate_id: str = DEFAULT_ESTATE_ID,
+                                   payload: dict = Body(default={}),
+                                   user: dict = Depends(get_current_user)) -> dict:
+    """Master Admin 'Send now' — email the readiness Excel + summary to HQ
+    immediately (bypasses the once-per-week lock). Optional {email} override."""
+    require_master_admin(user)
+    from utils.mod_readiness_digest import send_mod_readiness_email, _hq_recipient
+    to = (payload or {}).get("email") or None
+    res = await send_mod_readiness_email(estate_id=estate_id, to=to, force=True)
+    res.setdefault("recipient", to or _hq_recipient())
+    return res
+
+
+@router.get("/master-admin/mod-estate/readiness-email/status")
+async def readiness_email_status(user: dict = Depends(get_current_user)) -> dict:
+    """Last scheduled/manual readiness email + the configured HQ recipient."""
+    require_master_admin(user)
+    from utils.mod_readiness_digest import JOB_KEY, _hq_recipient, SEND_HOUR_UTC
+    doc = await db.system_jobs.find_one({"job": JOB_KEY}, {"_id": 0})
+    return {
+        "recipient": _hq_recipient(),
+        "send_hour_utc": SEND_HOUR_UTC,
+        "schedule": "Every Monday",
+        "last_sent_at": (doc or {}).get("last_sent_at"),
+        "last_recipient": (doc or {}).get("last_recipient"),
+        "last_ok": (doc or {}).get("last_ok"),
+        "last_totals": (doc or {}).get("last_totals"),
+    }
 
 
 # ──────────────────── MOD equipment self-capture links ─────────────────

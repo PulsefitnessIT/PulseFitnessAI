@@ -15,7 +15,7 @@ import axios from 'axios';
 import {
   Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
-  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy,
+  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -59,19 +59,23 @@ const MODSiteOnboarding = () => {
   const [lastBulkRunId, setLastBulkRunId] = useState(null);
   const [skipDups, setSkipDups] = useState(true);
   const [review, setReview] = useState(null);   // { loading, detail } for the diff modal
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [emailBusy, setEmailBusy] = useState(false);
   const fileInput = useRef(null);
   const targetSite = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [readiness, caps] = await Promise.all([
+      const [readiness, caps, mailSt] = await Promise.all([
         axios.get(`${API}/master-admin/mod-estate/site-readiness`, { headers }),
         axios.get(`${API}/master-admin/mod-estate/captures`, { headers }),
+        axios.get(`${API}/master-admin/mod-estate/readiness-email/status`, { headers }).catch(() => null),
       ]);
       setSites(readiness.data?.sites || []);
       setTotals(readiness.data?.totals || null);
       setCaptures(caps.data?.captures || []);
+      if (mailSt?.data) setEmailStatus(mailSt.data);
     } catch (e) {
       notify.error('Could not load MOD sites', e?.response?.data?.detail || 'Server error');
     } finally {
@@ -80,6 +84,28 @@ const MODSiteOnboarding = () => {
   }, [headers]);
 
   useEffect(() => { load(); }, [load]);
+
+  const sendReadinessEmail = async (emailOverride) => {
+    setEmailBusy(true);
+    try {
+      const { data } = await axios.post(
+        `${API}/master-admin/mod-estate/readiness-email/send`,
+        { ...(emailOverride ? { email: emailOverride } : {}) },
+        { headers },
+      );
+      if (data.sent) {
+        notify.success(`Readiness sheet emailed to ${data.recipient}`, 'The Excel + summary was sent to HQ.');
+      } else {
+        notify.error('Email not sent', 'Resend may be unavailable in this environment (works in production).');
+      }
+      axios.get(`${API}/master-admin/mod-estate/readiness-email/status`, { headers })
+        .then((r) => setEmailStatus(r.data)).catch(() => {});
+    } catch (e) {
+      notify.error('Could not send readiness email', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
 
   const sendCaptureLink = async (site, emailOverride) => {
     setLinkBusyId(site.id);
@@ -267,6 +293,11 @@ const MODSiteOnboarding = () => {
             onClick={() => downloadBlob('/master-admin/mod-estate/readiness-export.xlsx', 'MOD_Estate_Readiness.xlsx', token).catch((e) => notify.error('Export error', e.message))}>
             <FileSpreadsheet size={14} className="mr-1.5" /> Readiness checklist (Excel)
           </Button>
+          <Button variant="outline" data-testid="mod-readiness-email-send" disabled={emailBusy}
+            onClick={() => sendReadinessEmail()}>
+            {emailBusy ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Mail size={14} className="mr-1.5" />}
+            Email readiness to HQ now
+          </Button>
           {lastBulkRunId && (
             <Button variant="outline" data-testid="mod-bulk-report-download"
               onClick={() => downloadBlob(`/master-admin/mod-estate/bulk-report/${lastBulkRunId}.xlsx`, 'MOD_Bulk_Import_Report.xlsx', token).catch((e) => notify.error('Report error', e.message))}>
@@ -275,6 +306,14 @@ const MODSiteOnboarding = () => {
           )}
         </div>
         <input ref={fileInput} type="file" accept=".csv,.xlsx,text/csv" className="hidden" onChange={onFile} data-testid="mod-equip-file-input" />
+        {emailStatus && (
+          <p className="text-[11px] text-zinc-500 mt-3 flex items-center gap-1.5" data-testid="mod-readiness-email-status">
+            <Mail size={12} className="text-cyan-600" />
+            Auto-emailed to <strong className="text-zinc-700">{emailStatus.recipient}</strong> every Monday
+            {typeof emailStatus.send_hour_utc === 'number' ? ` at ${String(emailStatus.send_hour_utc).padStart(2, '0')}:00 UTC` : ''}.
+            {emailStatus.last_sent_at ? ` Last sent ${new Date(emailStatus.last_sent_at).toLocaleString()}.` : ' Not sent yet.'}
+          </p>
+        )}
       </Card>
 
       {totals && (

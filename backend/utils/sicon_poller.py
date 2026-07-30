@@ -210,6 +210,7 @@ async def _poll_once() -> None:
     await _run_pii_retention_daily()
     await _run_digest_dispatcher_hourly()
     await _run_mod_password_rotation_daily()
+    await _run_mod_readiness_weekly()
     await _run_booking_reminders()
     await _run_abandoned_checkout_sweep()
     await _run_memberships_weekly_digest()
@@ -328,6 +329,18 @@ async def _run_abandoned_checkout_sweep() -> None:
         await sweep_abandoned_checkouts()
     except Exception:
         logger.exception("[abandoned-checkout-sweep] cycle failed")
+
+
+async def _run_mod_readiness_weekly() -> None:
+    """Monday 09:00 UTC — email HQ the whole-of-MOD go-live readiness Excel.
+    Self-gated to Monday morning + idempotent per week via system_jobs."""
+    try:
+        from utils.mod_readiness_digest import run_mod_readiness_weekly
+        res = await run_mod_readiness_weekly()
+        if res.get("sent"):
+            logger.info(f"[mod-readiness] weekly email {res}")
+    except Exception:
+        logger.exception("[mod-readiness] cycle failed")
 
 
 async def _run_booking_reminders() -> None:

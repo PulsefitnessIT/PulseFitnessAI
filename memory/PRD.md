@@ -1,3 +1,23 @@
+# ═══ 2026-07-30 · MOD READINESS — SCHEDULED WEEKLY HQ EMAIL + "Send now" (DONE, verified) ═══
+Automates the estate go-live readiness sheet to HQ every Monday 09:00 UTC.
+SCHEDULER: hooked into utils/sicon_poller.py (_run_mod_readiness_weekly → utils/mod_readiness_digest.
+  run_mod_readiness_weekly). Self-gates to Monday & hour>=SEND_HOUR_UTC(=9); idempotent per ISO week via a
+  db.system_jobs lock (job='mod_readiness_weekly_email', week_tag). No new OS cron — reuses the 5-min poller.
+EMAIL: utils/mod_readiness_digest.send_mod_readiness_email() builds the SAME readiness Excel (refactored
+  build_readiness_xlsx_bytes in routes/master_admin_mod_estate.py, shared with the download endpoint) as a
+  base64 attachment + an HTML summary table in the body (KPI row: total / ready / not-ready / awaiting-equipment,
+  plus per-site colour-coded step chips). Recipient = MOD_READINESS_HQ_EMAIL env (default modservice@pulsefitness.com).
+ENDPOINTS (master admin): POST /api/master-admin/mod-estate/readiness-email/send {email?} (force=True, bypasses
+  weekly lock) + GET .../readiness-email/status (recipient, send_hour_utc, last_sent_at/ok/totals).
+UI: MODSiteOnboarding.js — "Email readiness to HQ now" button (data-testid mod-readiness-email-send) next to the
+  Excel export + a status line (data-testid mod-readiness-email-status) showing recipient/schedule/last-sent.
+VERIFIED (curl): send-now built Excel+summary for 4 sites (totals sites4/ready0/no_equip3), recorded status;
+  status endpoint reflects last send; weekly gate correctly skips off-schedule (weekday3/hour15 → not_due).
+  ⚠️ In PREVIEW email sent=false (RESEND key intentionally invalid) — SENDS in PRODUCTION. Frontend compiles clean.
+  Env override: MOD_READINESS_HQ_EMAIL, MOD_READINESS_SEND_HOUR_UTC. PRODUCTION redeploy needed.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · MOD CAPTURE — READINESS EXCEL EXPORT + BULK CONFIRM REPORT (DONE, verified) ═══
 READINESS EXPORT: GET /api/master-admin/mod-estate/readiness-export.xlsx — one-click Excel of the whole estate's
   go-live checklist (Sheet "Go-live readiness": row per site, per-step counts colour-coded green/red + Ready? column;
