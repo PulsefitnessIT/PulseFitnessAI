@@ -696,13 +696,159 @@ async def mod_attachment_serve(
 
 
 # ── Staff CRUD ────────────────────────────────────────────────
+
+# Job-title label shown in the roster for a mirrored login-user, keyed by their
+# account role. Falls back to a Title-cased role.
+_ROLE_LABELS = {
+    "owner": "Owner",
+    "master_admin": "Owner",
+    "manager": "Manager",
+    "admin": "Administrator",
+    "supervisor": "Supervisor",
+    "staff": "Staff",
+}
+
+
+async def _backfill_mod_site_staff_from_users(org: dict) -> None:
+    """Mirror this MOD site's real login-users into the staff roster.
+
+    Fixes the reported gap where a Manager added via Master Admin -> People never
+    appeared under 'Staff at this site' (login accounts live in users/crm_users;
+    the roster lives in mod_site_staff — two separate stores). Idempotent and
+    deletion-safe: matches on source_user_id / email_lc against ALL existing
+    roster rows (active OR inactive) so we never duplicate nor resurrect a
+    manually-removed entry. The generic shared/kiosk site-code login
+    (username-based, synthetic email) is intentionally skipped.
+    """
+    site_id = org["id"]
+    try:
+        existing = await db.mod_site_staff.find(
+            {"site_id": site_id}, {"_id": 0, "email_lc": 1, "source_user_id": 1},
+        ).to_list(2000)
+        seen_emails = {e.get("email_lc") for e in existing if e.get("email_lc")}
+        seen_uids = {e.get("source_user_id") for e in existing if e.get("source_user_id")}
+        now = datetime.now(timezone.utc).isoformat()
+        for coll in (db.users, db.crm_users):
+            cursor = coll.find(
+                {"organization_id": site_id},
+                {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1,
+                 "is_username_login": 1, "phone": 1},
+            )
+            async for u in cursor:
+                uid = u.get("id")
+                email_lc = (u.get("email") or "").strip().lower()
+                # Skip the generic shared / kiosk site-code login.
+                if u.get("is_username_login") or email_lc.endswith("@site.mod.local"):
+                    continue
+                if not email_lc or not uid:
+                    continue
+                if uid in seen_uids or email_lc in seen_emails:
+                    continue
+                role_lc = (u.get("role") or "").lower()
+                role_label = _ROLE_LABELS.get(role_lc, (u.get("role") or "Staff").title())
+                await db.mod_site_staff.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "site_id": site_id,
+                    "name": sanitise_string(u.get("full_name") or email_lc.split("@")[0]),
+                    "rank": None,
+                    "role": role_label,
+                    "date_of_birth": None,
+                    "email": u.get("email"),
+                    "email_lc": email_lc,
+                    "phone": (sanitise_string(u.get("phone")) if u.get("phone") else None),
+                    "is_active": True,
+                    "fault_count": 0,
+                    "last_reported_at": None,
+                    "source_user_id": uid,
+                    "source": "master_admin_people",
+                    "created_at": now,
+                    "updated_at": now,
+                })
+                seen_uids.add(uid)
+                seen_emails.add(email_lc)
+    except Exception as exc:  # best-effort — never break the roster list
+        logger.warning("mod_site_staff backfill skipped for %s: %s", site_id, exc)
+
+
 @router.get("/mod/site/staff")
 async def mod_staff_list(user: dict = Depends(get_current_user)):
     org = await _require_mod_site(user)
+    await _backfill_mod_site_staff_from_users(org)
     items = await db.mod_site_staff.find(
         {"site_id": org["id"], "is_active": {"$ne": False}}, {"_id": 0},
     ).sort("last_reported_at", -1).to_list(500)
     return {"staff": items}
+
+
+class OwnerHandoverReq(BaseModel):
+    successor_name: str = Field(..., min_length=1, max_length=120)
+    successor_email: EmailStr
+    mode: str = Field(default="password")  # 'password' | 'invite'
+
+
+@router.post("/mod/site/transfer-owner")
+async def mod_transfer_owner(payload: OwnerHandoverReq, user: dict = Depends(get_current_user)):
+    """Hand the OWNER role of this MOD site to another person.
+
+    MOD personnel rotate sites often, so the outgoing owner can pass the role on:
+    a new individual owner login is created (password or invite) and the caller's
+    own login is demoted to the restricted shared role + deactivated.
+    """
+    org = await _require_mod_site(user)
+    if user.get("role") != "owner" and not user.get("is_master_admin"):
+        raise HTTPException(403, "Only the site owner can transfer ownership")
+
+    from utils.auth import hash_password
+    from routes.master_admin import _generate_initial_password, _mint_invite_link
+
+    site_id = org["id"]
+    site_code = org.get("site_code") or org.get("mod_site_code") or uuid.uuid4().hex[:8]
+    now = datetime.now(timezone.utc).isoformat()
+    email_lc = payload.successor_email.lower().strip()
+    if email_lc.endswith("@site.mod.local"):
+        raise HTTPException(400, "Use a real personal email for the new owner (not the shared site login)")
+
+    base = {
+        "email": email_lc,
+        "full_name": sanitise_string(payload.successor_name),
+        "organization_id": site_id,
+        "role": "owner",
+        "account_type": "mod_site",
+        "mod_site_code": site_code,
+        "is_active": True,
+        "updated_at": now,
+    }
+    existing = await db.users.find_one(
+        {"email": email_lc, "organization_id": site_id}, {"_id": 0, "id": 1},
+    )
+    uid = existing["id"] if existing else f"mod-owner-{site_code}-{uuid.uuid4().hex[:6]}"
+
+    if payload.mode == "invite":
+        fields = {**base, "password": None, "password_pending": True}
+        if existing:
+            await db.users.update_one({"id": uid}, {"$set": fields})
+        else:
+            await db.users.insert_one({**fields, "id": uid, "created_at": now})
+        invite = await _mint_invite_link(uid, email_lc, user.get("email", "system"))
+        new_owner = {"mode": "invite", "email": email_lc,
+                     "invite_url": invite["invite_url"], "invite_expires_at": invite["expires_at"]}
+    else:
+        pwd = _generate_initial_password()
+        fields = {**base, "password": hash_password(pwd), "password_updated_at": now, "password_pending": False}
+        if existing:
+            await db.users.update_one({"id": uid}, {"$set": fields})
+        else:
+            await db.users.insert_one({**fields, "id": uid, "created_at": now})
+        new_owner = {"mode": "password", "email": email_lc, "temporary_password": pwd}
+
+    # Demote + deactivate the outgoing owner (they are posting out of this site).
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"role": "site_staff", "is_active": False, "owner_handover_at": now}},
+    )
+    await _audit(site_id, user.get("id"), "owner.handover", to=email_lc, mode=payload.mode)
+    return {"success": True, "new_owner": new_owner}
+
 
 
 @router.post("/mod/site/staff")

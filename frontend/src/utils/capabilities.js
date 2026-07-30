@@ -23,6 +23,16 @@ export const isPulseAdmin = (user) =>
 const managerial = (user, role) =>
   role === 'owner' || role === 'manager' || !!user?.is_master_admin || isPulseAdmin(user);
 
+/**
+ * The generic SHARED site login (MOD site-code login, or role "site_staff").
+ * It is used by many people so it must NOT expose figures/credentials.
+ */
+const isRestrictedShared = (user, role) =>
+  !!user?.is_shared_site_login || role === 'site_staff';
+
+/** Visible to everyone EXCEPT the restricted shared site login. */
+const notShared = (user, role) => !isRestrictedShared(user, role);
+
 const RULES = {
   // Operations module: full tab set (Reports / Suppliers / Gym Layout /
   // Staffing), site switcher, dismissable nudges.
@@ -34,6 +44,12 @@ const RULES = {
   view_capex: managerial,
   // Settings → fault templates (org-scoped create/delete/promote).
   manage_fault_templates: managerial,
+  // Reports/figures + Staffing (credentials) — hidden from the shared site login
+  // so posted-in personnel using the generic login can't see the owner's data.
+  view_reports: notShared,
+  view_staffing: notShared,
+  // Only a site owner (or master admin) may hand the owner role to someone else.
+  transfer_ownership: (user, role) => role === 'owner' || !!user?.is_master_admin,
   // Service Desk hub (/service-desk): flagged desk agents, Pulse Fitness master
   // admins and Pulse master admins (Pulse runs the service operation).
   view_service_desk: (user) =>
@@ -71,6 +87,9 @@ export const CAPABILITY_LABELS = {
   view_suppliers: 'View suppliers',
   view_capex: 'View CAPEX planner',
   manage_fault_templates: 'Manage fault templates',
+  view_reports: 'View Reports / figures',
+  view_staffing: 'Open the Staffing tab',
+  transfer_ownership: 'Transfer site ownership',
   view_service_desk: 'Open the Service Desk hub',
   view_inventory: 'Open the Inventory & Distribution module',
 };

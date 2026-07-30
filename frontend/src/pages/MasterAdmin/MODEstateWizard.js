@@ -272,12 +272,30 @@ const AddSite = ({ hqsReady, suppliers, onCreated }) => {
           {result.login?.mode === 'password' ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-700">
               <KeyRound size={13} className="text-amber-600" />
-              <span>Login <code className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5">{result.login.username}</code></span>
+              <span className="font-semibold text-slate-600">Shared login</span>
+              <span>Username <code className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5">{result.login.username}</code></span>
               <span>Password <code className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5">{result.login.temporary_password}</code></span>
               <button onClick={() => { navigator.clipboard?.writeText(result.login.temporary_password); toast.success('Password copied'); }} className="p-1 rounded hover:bg-white"><Copy size={12} /></button>
+              <span className="text-[11px] text-slate-500 basis-full">Restricted — for all site staff. Cannot see Reports/figures or Staffing.</span>
             </div>
           ) : (
-            <div className="mt-2 text-[12px] text-slate-700 break-all">Invite link: {result.login?.invite_url}</div>
+            <div className="mt-2 text-[12px] text-slate-700 break-all">Shared login invite: {result.login?.invite_url}</div>
+          )}
+          {result.owner_login && (
+            <div className="mt-2 pt-2 border-t border-emerald-200 flex flex-wrap items-center gap-2 text-[12px] text-slate-700" data-testid="mod-estate-owner-login">
+              <KeyRound size={13} className="text-emerald-600" />
+              <span className="font-semibold text-slate-600">Owner login</span>
+              {result.owner_login.mode === 'password' ? (
+                <>
+                  <span>Email <code className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5">{result.owner_login.email}</code></span>
+                  <span>Password <code className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5">{result.owner_login.temporary_password}</code></span>
+                  <button onClick={() => { navigator.clipboard?.writeText(result.owner_login.temporary_password); toast.success('Owner password copied'); }} className="p-1 rounded hover:bg-white"><Copy size={12} /></button>
+                </>
+              ) : (
+                <span className="break-all">Invite sent to {result.owner_login.email}: {result.owner_login.invite_url}</span>
+              )}
+              <span className="text-[11px] text-slate-500 basis-full">Individual, full-visibility owner. Ownership can be handed over later from the site's Staffing → Staff tab.</span>
+            </div>
           )}
         </div>
       )}

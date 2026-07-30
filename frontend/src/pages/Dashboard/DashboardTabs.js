@@ -22,7 +22,7 @@ import { useUserPref } from '@/utils/userPrefs';
  *
  *   Pulse Fitness /dashboard (this component) — identical order + labels.
  */
-const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, hasDeliveries, t, _userRole }) => {
+const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, showReports = true, showStaffing = true, hasDeliveries, t, _userRole }) => {
   const pillBarRef = useRef(null);
   const [scrollable, setScrollable] = useState(false);
   const [hideStart] = useUserPref('hideStartTabs', false);
@@ -52,9 +52,11 @@ const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, hasDeliveries, 
     { id: 'issues',      label: t('dashboard.faults'),       icon: AlertTriangle },
     { id: 'maintenance', label: t('check_sheets.title'),     icon: ClipboardCheck },
     { id: 'documents',   label: t('dashboard.documents') || 'Documents', icon: FileText },
-    { id: 'staffing',    label: t('dashboard.staffing'),     icon: Users },
-    { id: 'reports',     label: t('dashboard.reports'),      icon: BarChart3 },
   );
+  // Staffing (credentials) + Reports (figures) are hidden from the restricted
+  // shared site login — see capabilities.js view_staffing / view_reports.
+  if (showStaffing) tabs.push({ id: 'staffing', label: t('dashboard.staffing'), icon: Users });
+  if (showReports) tabs.push({ id: 'reports', label: t('dashboard.reports'), icon: BarChart3 });
   // Suppliers is owner/manager only — mirrors Pulse staff-tier behaviour.
   if (showSuppliers) tabs.push({ id: 'suppliers', label: t('dashboard.suppliers_tab'), icon: Truck });
   tabs.push({ id: 'gym-design', label: t('dashboard.gym_layout'), icon: LayoutGrid });

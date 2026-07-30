@@ -206,6 +206,8 @@ const DashboardPage = () => {
   }
 
   const showSuppliersTab = can(user, 'view_suppliers');
+  const showReportsTab = can(user, 'view_reports');
+  const showStaffingTab = can(user, 'view_staffing');
 
   return (
     <div
@@ -249,7 +251,7 @@ const DashboardPage = () => {
             <div className="mb-4 flex justify-start" data-testid="gymaxis-module-switcher-wrap">
               <ModuleSwitcher user={user} current="operations" />
             </div>
-            <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} showSuppliers={showSuppliersTab} hasDeliveries={hasDeliveries} t={t} />
+            <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} showSuppliers={showSuppliersTab} showReports={showReportsTab} showStaffing={showStaffingTab} hasDeliveries={hasDeliveries} t={t} />
 
             {/* Proactive nudges (warranty, PPM, supplier SLA drift) */}
             {!showGlobal && (

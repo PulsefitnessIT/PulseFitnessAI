@@ -275,36 +275,68 @@ async def create_mod_estate_site(data: dict = Body(...), user: dict = Depends(ge
     }
     await db.organizations.insert_one(org_doc)
 
-    # Kiosk owner login (username-based, like the bulk importer).
+    # ── Logins ──────────────────────────────────────────────────────
+    # A MOD site gets TWO logins going forward:
+    #   1. A GENERIC SHARED login (username = site_code) any site user can use
+    #      day-to-day. Least-privilege role="site_staff" + is_shared_login so it
+    #      CANNOT see Reports/figures, Staffing credentials or Settings.
+    #   2. An individual OWNER login (their own email) with full visibility —
+    #      created only when a real owner email is supplied. MOD owners rotate a
+    #      lot, so ownership can later be handed over via the portal
+    #      (/api/mod/site/transfer-owner).
     send_invite = bool(data.get("send_invite"))
-    synthetic_email = (data.get("site_manager_email") or f"{site_code}@site.mod.local").strip().lower()
-    user_id = f"mod-user-{site_code}"
-    user_doc = {
-        "id": user_id,
+
+    # 1) Generic shared login (restricted)
+    shared_pwd = (data.get("password") or "").strip() or _generate_initial_password()
+    shared_id = f"mod-user-{site_code}"
+    await db.users.insert_one({
+        "id": shared_id,
         "username": site_code,
-        "email": synthetic_email,
-        "full_name": site_name,
+        "email": f"{site_code}@site.mod.local",
+        "full_name": f"{site_name} (shared login)",
         "organization_id": site_id,
-        "role": "owner",
+        "role": "site_staff",
         "account_type": "mod_site",
         "mod_site_code": site_code,
         "is_username_login": True,
+        "is_shared_site_login": True,
+        "password": hash_password(shared_pwd),
+        "password_updated_at": now,
         "created_at": now,
-    }
-    activation: dict
-    if send_invite and "@" in synthetic_email and synthetic_email.endswith("@site.mod.local") is False:
-        user_doc["password"] = None
-        user_doc["password_pending"] = True
-        await db.users.insert_one(user_doc)
-        invite = await _mint_invite_link(user_id, synthetic_email, user.get("email", "system"))
-        activation = {"mode": "invite", "invite_url": invite["invite_url"],
-                      "invite_expires_at": invite["expires_at"]}
-    else:
-        pwd = (data.get("password") or "").strip() or _generate_initial_password()
-        user_doc["password"] = hash_password(pwd)
-        user_doc["password_updated_at"] = now
-        await db.users.insert_one(user_doc)
-        activation = {"mode": "password", "username": site_code, "temporary_password": pwd}
+    })
+    activation = {"mode": "password", "username": site_code,
+                  "temporary_password": shared_pwd, "scope": "shared", "restricted": True}
+
+    # 2) Individual owner login (full visibility) — only with a real owner email
+    owner_email = (data.get("site_manager_email") or "").strip().lower()
+    owner_name = (data.get("site_manager_name") or "").strip()
+    owner_login = None
+    if owner_email and "@" in owner_email and not owner_email.endswith("@site.mod.local"):
+        owner_id = f"mod-owner-{site_code}"
+        owner_doc = {
+            "id": owner_id,
+            "email": owner_email,
+            "full_name": owner_name or owner_email.split("@")[0],
+            "organization_id": site_id,
+            "role": "owner",
+            "account_type": "mod_site",
+            "mod_site_code": site_code,
+            "created_at": now,
+        }
+        if send_invite:
+            owner_doc["password"] = None
+            owner_doc["password_pending"] = True
+            await db.users.insert_one(owner_doc)
+            invite = await _mint_invite_link(owner_id, owner_email, user.get("email", "system"))
+            owner_login = {"mode": "invite", "email": owner_email, "scope": "owner",
+                           "invite_url": invite["invite_url"], "invite_expires_at": invite["expires_at"]}
+        else:
+            owner_pwd = _generate_initial_password()
+            owner_doc["password"] = hash_password(owner_pwd)
+            owner_doc["password_updated_at"] = now
+            await db.users.insert_one(owner_doc)
+            owner_login = {"mode": "password", "email": owner_email,
+                           "temporary_password": owner_pwd, "scope": "owner"}
 
     await log_activity("mod_estate.site_created",
                        f"Created MOD site '{site_name}' ({force.upper()}, {'overseas' if overseas else 'UK'})",
@@ -320,6 +352,7 @@ async def create_mod_estate_site(data: dict = Body(...), user: dict = Depends(ge
             "service_supplier": supplier_name,
         },
         "login": activation,
+        "owner_login": owner_login,
     }
 
 

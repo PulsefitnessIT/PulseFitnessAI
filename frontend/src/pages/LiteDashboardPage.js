@@ -290,7 +290,7 @@ const LiteDashboardPage = () => {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(tab);
     const settings = searchParams.get('settings');
-    if (settings) setShowSettingsDialog(true);
+    if (settings && !isSharedLogin) setShowSettingsDialog(true);
     // Iter 216h193 — `?onboarding=1` opens the equipment OnboardingWizard
     // directly from the "Your first wins" CTA (Craig's bug report: the
     // hyperlink had no effect on Pulse Fitness Pro). Idempotent — strips
@@ -739,7 +739,13 @@ const LiteDashboardPage = () => {
   const TABS = [
     ...buildTabs(),
     ...(hasDeliveries ? [{ id: 'deliveries', label: t('dashboard.deliveries', 'Deliveries'), icon: Truck }] : []),
-  ];
+  ]
+    // The generic SHARED site login (role site_staff / is_shared_site_login) is
+    // used by many people, so it must NOT expose the owner's figures or staffing
+    // credentials — drop Reports + Staffing for it. (Individuals get their own
+    // login via Master Admin.) Its content gates read the same TABS list below,
+    // so hiding the pill also blocks the tab body (Iter 241 invariant).
+    .filter((tab) => !(isSharedLogin && (tab.id === 'reports' || tab.id === 'staffing')));
   // Iter 241 — INVARIANT: if a tab pill is offered, its content must
   // render. Content gates derive from the SAME list as the pills so the
   // two can never diverge again (the production blank-tab bug happened
@@ -802,7 +808,7 @@ const LiteDashboardPage = () => {
     <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--theme-bg)' }} data-testid="lite-dashboard" data-portal="pulse">
       {isMOD && <ClassificationBanner level={user?.classification || 'OFFICIAL'} rightSlot={<OfflineStatusPill />} />}
       <Navbar
-        onOpenSettings={() => setShowSettingsDialog(true)}
+        onOpenSettings={isSharedLogin ? undefined : () => setShowSettingsDialog(true)}
         onOpenMasterAdmin={() => setShowMasterAdmin(true)}
         onStartTour={isPro ? () => { if (pulseTourRef.current) pulseTourRef.current.resetTour(); } : undefined}
       />
