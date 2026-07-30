@@ -32458,3 +32458,21 @@ See CHANGELOG.md (2026-07-20) for full detail. Backend `routes/staff_onboarding_
 **Issue 3 — Resolve no longer blanks the faults list (impersonation):** `LiteDashboardPage.handleUpdateIssueStatus` no longer calls `loadData()` after PATCH (the refetch transiently returned empty under impersonation and blanked the list). Now optimistic in-place status update, mirroring the main Dashboard.
 
 Tested: testing_agent backend 100% (new `backend/tests/test_supplier_comment_and_email_jan2026.py`) + frontend 100% (resolve keeps card visible as Closed). NOTE: Resend email delivery is MOCKED/disabled in preview — builders execute and case fields populate, but no real email is sent in preview (works in production).
+
+---
+## Changelog — 2026-06 (MOD Automatic Quote Writer)
+New feature in CRM → Corporate → Quotes (CPQ). Generates MOD PTE Service & Repair quotes on Pulse Fitness paperwork, driven by the contracted Schedule of Rates (SOR from Schedule B) and linked to the MOD equipment lists. Follows the StOR (Schedule C): Type A = all-inclusive 12-month UK service (per item/year); Type B = ad-hoc UK call-out (+£80 call-out); Type C/Repairs/Refurb = POA (custom price).
+
+**Backend**
+- `utils/mod_sor_data.py`: canonical 30-line SOR rate card (Type A + Type B prices, £80 call-out, 3 POA lines), keyword `match_equipment()` engine, `price_for(entry, contract_type, year)` with Year 2–4 overrides.
+- `routes/crm_mod_quote.py` (prefix `/api/crm/mod-quote`, `get_crm_user`): `GET /rate-card`, `PUT /rate-card/{id}` (admin edit incl. Y2–4), `POST /rate-card/reseed`, `GET /mod-sites`, `GET /equipment` (auto-map site equipment→SOR), `POST /ai-match` (Emergent LLM / Claude Sonnet), `POST /generate` (writes to `crm2_quotes` so it shows in the CPQ list; adds a £0 "Contract Type A/B/C" header line; Type A also inserts `mod_service_contracts` → feeds MOD Service Ops), `GET /contracts`. Registered in `route_registry/crm.py`.
+- Contracted Type A/B prices are FIXED per-quote; only Type C/POA lines take a custom price. Quote states the contract type; PDF via existing `/crm/v2/quotes/{id}/pdf`.
+
+**Frontend**
+- `src/pages/CRM/CRMMODQuoteWizard.js`: 3-step wizard (Contract & Site → Equipment & Pricing → Review & Generate) with auto-mapped equipment rows, per-line SOR dropdown, AI-assist (Sparkles) for unmatched, POA/custom lines, Type B call-out count, and an inline SOR Rate Card editor (Year 1–4).
+- `CRMCPQ.js`: "MOD Auto Quote" button (data-testid `mod-quote-btn`) on the Quotes toolbar; opens wizard; on create refreshes list + opens the quote.
+
+**Decisions locked:** Year-1 pricing now + editable Y2–4 overrides; AI-assisted + manual mapping; default all machines (add/remove); editable rate card; SOR prices fixed except Type C custom; Type A creates a service contract for MOD Service Ops.
+
+Tested: testing_agent backend 100% (10/10, `backend/tests/test_crm_mod_quote_jan2026.py`) + frontend 100% (full wizard Type A/B/C, rate-card editor, AI-match, PDF). Two cosmetic notes only (fixed RateCardEditor empty-flash with a self-fetch fallback).
+Test creds: CRM owner owner@isodemo.com / IsoDemo123! (Corporate env → Quotes CPQ). MOD Test Site org id abfdabd9-ae11-4877-a44d-a36fea7f1f4e (8 machines).

@@ -18,6 +18,14 @@ const CONTRACTS = [
 function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose }) {
   const [rows, setRows] = useState(rateCard);
   const [savingId, setSavingId] = useState('');
+  // Self-fetch fallback so the editor never flashes empty if opened before
+  // the parent's rate-card fetch has resolved.
+  useEffect(() => {
+    if (rows && rows.length) return;
+    axios.get(`${API}/crm/mod-quote/rate-card`, { headers: headers() })
+      .then(r => setRows(r.data.items || []))
+      .catch(() => {});
+  }, [API, headers]); // eslint-disable-line react-hooks/exhaustive-deps
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
 
   const setField = (id, field, val) => setRows(rows.map(r => r.id === id ? { ...r, [field]: val } : r));
