@@ -1,0 +1,21 @@
+{
+  "summary": "Verified i18n (EN/FR/DE) on 3 public marketing pages: /pricing, /security, and / (home). All three pages switch cleanly across EN→FR→DE→EN with fully translated content and ZERO raw 'mkt.*' keys leaking to the DOM in any language. No runtime console errors (only pre-existing CSP warnings for external analytics scripts unrelated to i18n). Interactive controls on /pricing (Annual billing toggle gx-billing-annual, site slider increment gx-site-increment, bundle total gx-bundle-total) work in DE without crashing. Language selection persists via localStorage i18nextLng across navigation/reload.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MarketingHome.js does not appear to expose the language switcher as the same native <select> as MarketingShell used by /pricing and /security; language change from Home works only when triggered via localStorage or after navigating through a shell page. Verify the globe/EN control in Home top nav actually mutates i18n.language (it does not appear to be a <select> with option[value=en|fr|de]). Non-blocking because content still switches correctly once language state is set."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Language switcher on /pricing and /security is a native <select> containing option[value=en|fr|de]; use page.select_option('en'|'fr'|'de') on that element. For the marketing Home ('/'), setting localStorage.i18nextLng and reloading is the reliable way to force language in tests; the top-nav globe control on Home appears to render differently from MarketingShell. Sample verified translated H1s: PRICING FR 'Commencez petit. Évoluez à votre rythme.' DE 'Klein anfangen. In Ihrem Tempo skalieren.'; SECURITY FR 'CONFIANCE & SÉCURITÉ Conçu pour les opérateurs...' DE 'VERTRAUEN & SICHERHEIT Entwickelt für Betreiber...'; HOME FR 'Gérez votre salle. Au même endroit.' DE 'Verwalten Sie Ihr Studio. An einem Ort.' Bundle total in DE annual +1 site rendered as '£2,000' (currency intentionally left as GBP symbol, brand/price format unchanged).",
+  "rca of the issue": "No issues found."
+}

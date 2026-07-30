@@ -7,6 +7,7 @@ import {
   ShieldCheck, Lock, KeyRound, FileSearch, Bug, Server, Activity, ArrowRight,
   CheckCircle2, FileText, Mail, Download, FileType2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import './marketing.css';
 import MarketingShell from './MarketingShell';
@@ -56,25 +57,26 @@ export default function SecurityPage() {
 }
 
 function Hero() {
+  const { t } = useTranslation();
   return (
     <section className="gx-grid-bg" data-testid="sec-hero">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-20 lg:pt-20 lg:pb-28 grid lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7">
           <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
-            <ShieldCheck size={12} />Trust & Security
+            <ShieldCheck size={12} />{t('mkt.sec_eyebrow', 'Trust & Security')}
           </span>
           <h1 className="mt-5 text-5xl md:text-6xl tracking-tighter font-black leading-[1.04]">
-            Built for operators<br /><span className="gx-gradient-text">who can&apos;t afford a breach.</span>
+            {t('mkt.sec_h1_1', 'Built for operators')}<br /><span className="gx-gradient-text">{t('mkt.sec_h1_2', 'who cannot afford a breach.')}</span>
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-2xl">
-            Pulse Fitness runs your members&apos; payment data, your staff personal information, and your operational decisions. Here is how we protect them.
+            {t('mkt.sec_hero_p', 'Pulse Fitness runs your members payment data, your staff personal information, and your operational decisions. Here is how we protect them.')}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href="/.well-known/security.txt" target="_blank" rel="noreferrer" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold">
-              View security.txt <ArrowRight size={15} />
+              {t('mkt.sec_view_txt', 'View security.txt')} <ArrowRight size={15} />
             </a>
             <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:bg-zinc-900">
-              Request pentest evidence
+              {t('mkt.sec_request_pentest', 'Request pentest evidence')}
             </Link>
           </div>
         </div>
@@ -83,14 +85,14 @@ function Hero() {
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
               <ShieldCheck size={26} />
             </div>
-            <p className="mt-5 text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Latest hardening pass</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight">May 2026</p>
+            <p className="mt-5 text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.sec_latest_pass', 'Latest hardening pass')}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight">{t('mkt.sec_pass_date', 'May 2026')}</p>
             <div className="mt-auto space-y-2">
               {[
-                ['Open critical CVEs', '0'],
-                ['Auth rate-limits', 'Active'],
-                ['Audit log', 'Tamper-evident'],
-                ['security.txt', 'Published'],
+                [t('mkt.sec_stat_cve', 'Open critical CVEs'), '0'],
+                [t('mkt.sec_stat_ratelimit', 'Auth rate-limits'), t('mkt.sec_active', 'Active')],
+                [t('mkt.sec_stat_audit', 'Audit log'), t('mkt.sec_tamper', 'Tamper-evident')],
+                [t('mkt.sec_stat_txt', 'security.txt'), t('mkt.sec_published', 'Published')],
               ].map(([l, r]) => (
                 <div key={l} className="flex items-center justify-between rounded-xl bg-white/80 border border-slate-100 px-3 py-2 text-sm dark:border-zinc-800">
                   <span className="font-semibold text-slate-700">{l}</span>
@@ -106,12 +108,13 @@ function Hero() {
 }
 
 function Pillars() {
+  const { t } = useTranslation();
   return (
     <section className="py-24 md:py-32 bg-white dark:bg-zinc-900" data-testid="sec-pillars">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Our defence</p>
-          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Six pillars. Continually verified.</h2>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.sec_defence_eyebrow', 'Our defence')}</p>
+          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.sec_pillars_title', 'Six pillars. Continually verified.')}</h2>
         </div>
         <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {PILLARS.map((p, i) => {
@@ -121,8 +124,8 @@ function Pillars() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
                   <Icon size={18} />
                 </div>
-                <h3 className="mt-5 text-lg font-bold tracking-tight">{p.title}</h3>
-                <p className="mt-1 text-sm text-slate-600 leading-relaxed">{p.body}</p>
+                <h3 className="mt-5 text-lg font-bold tracking-tight">{t('mkt.sec_pillar_' + i + '_title', p.title)}</h3>
+                <p className="mt-1 text-sm text-slate-600 leading-relaxed">{t('mkt.sec_pillar_' + i + '_body', p.body)}</p>
               </div>
             );
           })}
@@ -133,14 +136,15 @@ function Pillars() {
 }
 
 function Hardening() {
+  const { t } = useTranslation();
   return (
     <section className="py-24 md:py-32 bg-slate-50/60">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 grid lg:grid-cols-2 gap-12">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Latest hardening</p>
-          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">What we shipped this quarter.</h2>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.sec_hardening_eyebrow', 'Latest hardening')}</p>
+          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.sec_hardening_title', 'What we shipped this quarter.')}</h2>
           <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">
-            Security is a release item, not a marketing tagline. Every quarter we publish what we hardened, what we audited, and what changed.
+            {t('mkt.sec_hardening_p', 'Security is a release item, not a marketing tagline. Every quarter we publish what we hardened, what we audited, and what changed.')}
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-2" data-testid="security-hardening-actions">
             <Link
@@ -148,14 +152,14 @@ function Hardening() {
               className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700 transition dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
               data-testid="security-hardening-read"
             >
-              <FileText size={14} /> Read full document
+              <FileText size={14} /> {t('mkt.sec_read_full', 'Read full document')}
             </Link>
             <a
               href={`${process.env.REACT_APP_BACKEND_URL}/api/security/document.pdf`}
               className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-slate-400 transition dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
               data-testid="security-hardening-pdf"
             >
-              <Download size={14} /> PDF
+              <Download size={14} /> {t('mkt.sec_pdf', 'PDF')}
             </a>
             <a
               href={`${process.env.REACT_APP_BACKEND_URL}/api/security/document.txt`}
@@ -164,7 +168,7 @@ function Hardening() {
               className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-slate-400 transition dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
               data-testid="security-hardening-txt"
             >
-              <FileType2 size={14} /> Plain text
+              <FileType2 size={14} /> {t('mkt.sec_plain_text', 'Plain text')}
             </a>
           </div>
         </div>
@@ -172,7 +176,7 @@ function Hardening() {
           {HARDENING.map((h, i) => (
             <li key={i} className="flex items-start gap-3">
               <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-500" />
-              <span className="text-sm text-slate-700 leading-relaxed">{h}</span>
+              <span className="text-sm text-slate-700 leading-relaxed">{t('mkt.sec_hardening_' + i, h)}</span>
             </li>
           ))}
         </ul>
@@ -182,18 +186,19 @@ function Hardening() {
 }
 
 function Posture() {
+  const { t } = useTranslation();
   return (
     <section className="py-20 md:py-24 bg-white dark:bg-zinc-900" data-testid="sec-posture">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Trust posture</p>
-          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Read the contracts, not the pitch.</h2>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.sec_posture_eyebrow', 'Trust posture')}</p>
+          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.sec_posture_title', 'Read the contracts, not the pitch.')}</h2>
           <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">
-            Every commitment on this page is written down. Procurement and security teams can review the legal posture before talking to us.
+            {t('mkt.sec_posture_p', 'Every commitment on this page is written down. Procurement and security teams can review the legal posture before talking to us.')}
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {POSTURE_LINKS.map((p) => p.kind === 'external' ? (
+          {POSTURE_LINKS.map((p, pi) => p.kind === 'external' ? (
             <a
               key={p.to}
               href={p.to}
@@ -202,7 +207,7 @@ function Posture() {
               className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/40 px-5 py-4 hover:border-slate-300 hover:bg-slate-50 transition-colors dark:border-zinc-800 dark:bg-zinc-900"
               data-testid={`sec-posture-link-${p.to.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}
             >
-              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
+              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{t('mkt.sec_posture_link_' + pi, p.label)}</span>
               <ArrowRight size={14} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
             </a>
           ) : (
@@ -212,7 +217,7 @@ function Posture() {
               className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/40 px-5 py-4 hover:border-slate-300 hover:bg-slate-50 transition-colors dark:border-zinc-800 dark:bg-zinc-900"
               data-testid={`sec-posture-link-${p.to.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}
             >
-              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
+              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{t('mkt.sec_posture_link_' + pi, p.label)}</span>
               <ArrowRight size={14} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
             </Link>
           ))}
@@ -223,17 +228,18 @@ function Posture() {
 }
 
 function Disclosure() {
+  const { t } = useTranslation();
   return (
     <section className="py-24 md:py-28 bg-white dark:bg-zinc-900">
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
         <div className="rounded-[28px] border border-slate-200 bg-slate-50/40 p-8 md:p-12 grid md:grid-cols-3 gap-8 items-center dark:border-zinc-800">
           <div className="md:col-span-2">
             <p className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: 'var(--gx-brand-from)' }}>
-              <Activity size={13} className="inline mr-1" />Responsible disclosure
+              <Activity size={13} className="inline mr-1" />{t('mkt.sec_disclosure_eyebrow', 'Responsible disclosure')}
             </p>
-            <h2 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">Found something?</h2>
+            <h2 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">{t('mkt.sec_disclosure_title', 'Found something?')}</h2>
             <p className="mt-3 text-base md:text-lg text-slate-600 leading-relaxed">
-              Email us. We acknowledge within 24 hours and patch within the SLA on our security.txt. Researchers acting in good faith are covered by our safe-harbour clause.
+              {t('mkt.sec_disclosure_p', 'Email us. We acknowledge within 24 hours and patch within the SLA on our security.txt. Researchers acting in good faith are covered by our safe-harbour clause.')}
             </p>
           </div>
           <div className="space-y-3">
@@ -251,6 +257,7 @@ function Disclosure() {
 }
 
 function Cta() {
+  const { t } = useTranslation();
   return (
     <section className="py-24 md:py-28">
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
@@ -260,11 +267,11 @@ function Cta() {
         >
           <div className="absolute inset-0 opacity-25 mix-blend-overlay" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,.7), transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,.5), transparent 50%)' }} />
           <div className="relative">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter leading-[1.06]">Run a fitness business that takes security seriously.</h2>
-            <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">14-day free trial. Pentest-evidence pack available on request for enterprise plans.</p>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter leading-[1.06]">{t('mkt.sec_cta_title', 'Run a fitness business that takes security seriously.')}</h2>
+            <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">{t('mkt.sec_cta_sub', '14-day free trial. Pentest-evidence pack available on request for enterprise plans.')}</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">Start Free Trial <ArrowRight size={15} /></button>
-              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Talk to sales <ArrowRight size={15} /></Link>
+              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">{t('mkt.sec_start_trial', 'Start Free Trial')} <ArrowRight size={15} /></button>
+              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">{t('mkt.sec_talk_sales', 'Talk to sales')} <ArrowRight size={15} /></Link>
             </div>
           </div>
         </div>
