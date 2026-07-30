@@ -1,4 +1,31 @@
-# ═══ 2026-07-30 · MOD BOOKING DETAILS ON-SCREEN + FAULT-CARD BOOKING + SICON SERVICE/CONTRACT/APPOINTMENT SYNC (DONE, testing_agent VERIFIED) ═══
+# ═══ 2026-07-30 · PRICING CTA → SIGN-IN → STRIPE (PRODUCTION BUG FIX) + 3-DAY TRIAL COPY (DONE, testing_agent VERIFIED) ═══
+Reported (production /pulse-pricing): clicking a plan/module CTA opened a sign-in-ONLY popup that dead-ended customers;
+should route them to Stripe (via sign-in) for the chosen package. Clarified model: ALL customers are pre-provisioned
+Pulse "Lite" users — NO public self-serve signup. Select package → sign in → Stripe checkout, or upgrade in-app.
+Messaging: drop "14-day free trial / no card required"; use a free 3-DAY trial with all modules unlocked for
+owners/managers (backend TRIAL_DURATION_DAYS already = 3).
+FRONTEND-ONLY fix (reused existing endpoints; login endpoint unchanged — integration_expert consulted for safe redirect):
+  • PulseModulePricing.start(moduleId): logged-in → navigate /choose-plan?module=<id>&billing=<cycle>&currency=<ccy>;
+    logged-out → onStart(dest) opens sign-in carrying that dest. CTA labels: 'Sign in to upgrade' (out) / 'Upgrade to <module>' (in).
+  • PulsePricingPage: openLogin(redirect) stores redirect + passes redirectTo to LoginModal.
+  • LoginModal (PulseLandingPage): new redirectTo prop — after successful login, if it's a SAFE internal path (single
+    leading slash, guards open-redirect), navigate there (after the must_change_password check, before role routing).
+  • ChoosePlanPage: reads ?module=/?billing=/?currency=, pre-sets currency/cycle, and auto-fires POST
+    /payments/checkout/flex for the module (redirects to Stripe). startCheckout refactored to accept explicit currency/cycle.
+  • i18n en/fr/de: pp_note, trial_footer, faq_a4 → 3-day/all-modules copy; added cta_upgrade + cta_signin_upgrade.
+VERIFIED: curl (flex checkout for owner@isodemo → real checkout.stripe.com TEST url, HTTP 200) + testing_agent FRONTEND
+  E2E 5/5 PASS, 0 bugs (iteration_pulse_pricing_signin_to_stripe_jan2026.json): copy updated (no '14-day' anywhere),
+  logged-out CTA 'Sign in to upgrade' → sign-in dialog → /choose-plan?module=crm... → Stripe; logged-in 'Upgrade to <module>'
+  → Stripe; currency/cycle carried through (annual+EUR verified). ⚠️ PREVIEW fix — PRODUCTION (fitness-ai-migrate.emergent.host)
+  needs a REDEPLOY. Non-blocking polish noted (AbortController for aborted auto-checkout request; no explicit retry CTA —
+  manual module buttons on /choose-plan already serve as retry).
+  NOTE: owner/manager 3-day all-module trial mechanism already exists in-platform (POST /me/upgrade-to-pro + module trials);
+  a dedicated 'Start 3-day trial' button on the marketing page was intentionally NOT added (would auto-flip account tier from
+  marketing — pending explicit user confirmation).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Follow-up to the Visit Calendar. User choices: (1) show submitted Engineer Appointment Booking details ON SCREEN in the
 calendar day entry (expandable, not printable); (2a) when an engineer-callout MOD FAULT is logged, auto-generate the same
 booking form + show visitor/vehicle details on the Fault card; (3c) create a Sicon Service Appointment — on visit CONFIRM
