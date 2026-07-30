@@ -138,15 +138,18 @@ class SiconClient:
         """Poll for cases modified since given timestamp."""
         return await self._request("GET", "/api/service/cases", params={"modifiedsince": since_iso})
 
-    # ── Case Types / Statuses / Priorities ────────────────────────
+    # ── Case Types / Statuses ─────────────────────────────────────
     async def get_case_types(self) -> Dict:
         return await self._request("GET", "/api/service/case-types")
 
     async def get_tracking_statuses(self) -> Dict:
         return await self._request("GET", "/api/service/case-tracking-statuses")
 
-    async def get_priorities(self) -> Dict:
-        return await self._request("GET", "/api/service/priorities")
+    # NOTE: The Service WebAPI (R260200c) exposes NO priorities lookup endpoint.
+    # Priorities are set on a case via PriorityID / PriorityName; the ID<->name
+    # map is entered manually in the Sicon config (priority_mapping). Do not add a
+    # get_priorities() call here — /api/service/priorities does not exist and 404s.
+    # (Open question for Sicon: is a priorities lookup available on another route?)
 
     # ── Tracking Notes ────────────────────────────────────────────
     async def get_tracking_notes(self, case_id: int) -> Dict:
@@ -156,20 +159,31 @@ class SiconClient:
         return await self._request("POST", f"/api/Service/Cases/{case_id}/TrackingNotes", json_body=note_data)
 
     # ── Appointments ──────────────────────────────────────────────
+    # Per Service.R260200c the appointment CRUD operations live under Sicon's
+    # generic-entity framework base "/~/api/v2/TEntity" (the "~" resolves to the
+    # WebAPI site root server-side). This differs from TimeBookings / TrackingNotes
+    # which are plain "/api/Service/..." routes. Paths below match the published spec.
     async def get_appointment(self, appointment_id: int) -> Dict:
-        return await self._request("GET", f"/api/service/appointments/{appointment_id}")
+        return await self._request("GET", f"/~/api/v2/TEntity/api/service/appointments/{appointment_id}")
 
     async def get_appointments_for_case(self, case_id: int) -> Dict:
-        return await self._request("GET", "/api/service/appointments", params={"caseid": case_id})
+        # NOTE: The spec exposes NO case-scoped appointment list. Appointments are
+        # only listed via the paged generic-entity reader (GET /~/api/v2/TEntity).
+        # We pass the case id as filterText as a best-effort; confirm the filter
+        # semantics with Sicon (raised as a meeting question).
+        return await self._request(
+            "GET", "/~/api/v2/TEntity",
+            params={"filterText": str(case_id), "pageNumber": 1, "pageSize": 200},
+        )
 
     async def create_appointment(self, appointment_data: Dict) -> Dict:
-        return await self._request("POST", "/api/Service/Appointments", json_body=appointment_data)
+        return await self._request("POST", "/~/api/v2/TEntity/api/Service/Appointments", json_body=appointment_data)
 
     async def update_appointment(self, appointment_id: int, appointment_data: Dict) -> Dict:
-        return await self._request("PUT", f"/api/Service/Appointments/{appointment_id}", json_body=appointment_data)
+        return await self._request("PUT", f"/~/api/v2/TEntity/api/Service/Appointments/{appointment_id}", json_body=appointment_data)
 
     async def delete_appointment(self, appointment_id: int) -> Dict:
-        return await self._request("DELETE", f"/api/service/appointments/{appointment_id}")
+        return await self._request("DELETE", f"/~/api/v2/TEntity/{appointment_id}")
 
     # ── Appointment Resources (Engineers) ─────────────────────────
     async def get_resources(self) -> Dict:

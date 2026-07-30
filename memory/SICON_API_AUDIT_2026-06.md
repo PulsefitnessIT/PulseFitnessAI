@@ -1,21 +1,29 @@
 # Sicon WebAPI — Import/Migration Readiness Audit (2026-06-29)
 
-## ═══ RE-VERIFIED 2026-06 (pre-Sicon-meeting) — specs UNCHANGED, client-path deltas found ═══
+## ═══ RE-VERIFIED 2026-06 (pre-Sicon-meeting) — specs UNCHANGED, client-path deltas FIXED ═══
 Re-fetched all 5 published OpenAPI JSON specs. Versions + path counts IDENTICAL to this audit:
 Service R260200c=26 paths, CRM R221200c=405, Contracts R260200c=4 (all POST, still push-only),
 CoreWebAPI R260200c=135, Projects R260200c=86. Equipment/asset list endpoint STILL absent
 (only serial ref = SOP order-line allocation). Auth (Basic + companyId) unchanged. Brief is current.
 
-⚠️ CLIENT-CODE DELTAS (utils/sicon_client.py calls 5 paths that DON'T match the published spec —
-undetected because integration is still mocked/awaiting live creds):
-  1. GET /api/service/priorities (get_priorities) — NO priorities endpoint exists in Service spec.
-  2. GET /api/service/appointments/{id} (get_appointment) — spec is GET /~/api/v2/TEntity/api/service/appointments/{id}
-  3. GET /api/service/appointments?caseid= (get_appointments_for_case) — NO such endpoint; list only via paged GET /~/api/v2/TEntity
-  4. POST /api/Service/Appointments (create_appointment) — spec is POST /~/api/v2/TEntity/api/Service/Appointments
-  5. PUT /api/Service/Appointments/{id} (update_appointment) — spec is PUT /~/api/v2/TEntity/api/Service/Appointments/{appointmentID}
-MATCH OK: TimeBookings, TrackingNotes, Cases, Contracts, all StockItem endpoints. Only Appointment
-create/get/update + priorities lookup are off. Good candidates for Sicon meeting Qs (confirm the
-/~/api/v2/TEntity/ prefix is the real production route; confirm there's no priorities lookup).
+✅ CLIENT-CODE DELTAS FOUND & FIXED (utils/sicon_client.py — were undetected because integration is
+still mocked/awaiting live creds). Now aligned verbatim to the published Service.R260200c spec:
+  1. get_priorities REMOVED — /api/service/priorities does NOT exist in the spec. Route /api/sicon/priorities
+     now returns the manually-configured priority_mapping + default_priority_id (with a note). [OPEN Q for Sicon]
+  2. get_appointment → GET /~/api/v2/TEntity/api/service/appointments/{id}
+  3. get_appointments_for_case → GET /~/api/v2/TEntity (paged; NO case-scoped filter exists — filterText
+     best-effort, confirm semantics with Sicon) [OPEN Q for Sicon]
+  4. create_appointment → POST /~/api/v2/TEntity/api/Service/Appointments
+  5. update_appointment → PUT /~/api/v2/TEntity/api/Service/Appointments/{id}
+  6. delete_appointment → DELETE /~/api/v2/TEntity/{id}
+The "/~/api/v2/TEntity" prefix is Sicon's generic-entity framework base (Swagger 2.0, no basePath; "~" =
+WebAPI site root). TimeBookings, TrackingNotes, Cases, Contracts, all StockItem endpoints were already correct.
+VERIFIED: backend imports clean, /api/sicon/priorities loads (401 unauth), existing test suite unaffected.
+OPEN QUESTIONS TO CONFIRM WITH SICON AT MEETING:
+  Q-A. Is the "/~/api/v2/TEntity/..." prefix the real production route for appointment create/get/update/delete?
+  Q-B. Is there a case-scoped appointment list (filter appointments by SiSMCaseID)? If not, what is the
+       intended way to poll a case's appointments?
+  Q-C. Is there a priorities lookup endpoint anywhere, or do we hard-map PriorityID via config only?
 ─────────────────────────────────────────────────────────────────────────────
 
 

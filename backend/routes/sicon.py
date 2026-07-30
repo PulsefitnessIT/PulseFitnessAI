@@ -207,14 +207,20 @@ async def refresh_engineers(user: dict = Depends(get_current_user)):
 
 @router.get("/sicon/priorities")
 async def fetch_priorities(user: dict = Depends(get_current_user)):
-    client = await get_sicon_client(_require_org(user))
-    if not client:
-        return {"priorities": [], "error": "Not configured"}
-    try:
-        result = await client.get_priorities()
-        return {"priorities": result.get("entities", [])}
-    except SiconAPIError as e:
-        return {"priorities": [], "error": str(e)[:200]}
+    """Return configured priority mapping.
+
+    The Sicon Service WebAPI (R260200c) has NO priorities lookup endpoint, so
+    priorities cannot be pulled live. We surface the manually-configured
+    priority_mapping / default_priority_id from the org's Sicon config instead.
+    """
+    org_id = _require_org(user)
+    config = await get_sicon_config(org_id) or {}
+    return {
+        "priorities": [],
+        "priority_mapping": config.get("priority_mapping", {}),
+        "default_priority_id": config.get("default_priority_id", 0),
+        "note": "Sicon WebAPI has no priorities list endpoint; set IDs manually in config.",
+    }
 
 
 # ── Outbound: Pulse Fitness → Sicon ─────────────────────────────────────
