@@ -591,6 +591,44 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
     return await send_email(email, f"Onboarding invitation for {customer_name or 'your organisation'}", html, category="support")
 
 
+async def send_mod_equipment_capture_email(email: str, site_name: str, capture_url: str,
+                                           sender_name: str = "Pulse Fitness", expiry_days: int = 60) -> bool:
+    """Send a MOD site a secure link to capture their own equipment list online."""
+    html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+    <div style="background: #19398D; padding: 36px 30px; text-align: center;">
+        <p style="color:#9fc2ff; margin:0 0 6px; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Pulse Fitness · MOD</p>
+        <h1 style="color: white; margin: 0; font-size: 23px; letter-spacing: -0.5px;">Capture your gym equipment</h1>
+    </div>
+    <div style="padding: 40px 32px;">
+        <h2 style="color:#1a1a1a; margin:0 0 16px; font-size:19px;">{site_name}</h2>
+        <p style="color:#444; line-height:1.7; margin:0 0 20px;">
+            Please use the secure link below to list every piece of gym equipment at your site — one entry per machine.
+            It saves as you go, so you can complete it in stages. When you're finished, submit it and the Pulse Fitness
+            team will review and confirm it before anything goes live.
+        </p>
+        <div style="background:#f0f5ff; border-left:4px solid #19398D; padding:16px 20px; margin:22px 0; border-radius:4px;">
+            <p style="margin:0; color:#19398D; font-weight:600; font-size:13px;">Have to hand: make/model, serial or asset (NSN) number, and where each machine is located.</p>
+        </div>
+        <div style="text-align:center; margin:32px 0;">
+            <a href="{capture_url}" style="display:inline-block; background:#19398D; color:white; padding:16px 36px;
+               text-decoration:none; border-radius:8px; font-weight:700; font-size:15px;">Open equipment form →</a>
+        </div>
+        <p style="color:#888; font-size:13px; text-align:center;">This secure link expires in {expiry_days} days.</p>
+        <hr style="border:none; border-top:1px solid #eee; margin:28px 0;" />
+        <p style="color:#aaa; font-size:12px; line-height:1.6;">
+            If the button doesn't work, copy and paste this URL into your browser:<br/>
+            <a href="{capture_url}" style="color:#19398D; word-break:break-all;">{capture_url}</a>
+        </p>
+    </div>
+    <div style="background:#f5f5f5; padding:18px 30px; text-align:center;">
+        <p style="color:#888; font-size:12px; margin:0;">Pulse Fitness AI · MOD Equipment Onboarding</p>
+        <p style="color:#aaa; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
+    </div>
+    </div>"""
+    return await send_email(email, f"Capture your gym equipment — {site_name}", html, category="support")
+
+
+
 
 async def send_trial_signup_notification(trial: dict):
     """Notify the platform owner(s) that a new trial user has signed up.

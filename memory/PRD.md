@@ -1,3 +1,16 @@
+# ═══ 2026-06 · MOD CAPTURE LINK — EMAIL DELIVERY (DONE; email send blocked in preview by invalid RESEND key) ═══
+"Send capture link" now EMAILS the link straight to the site instead of copy-paste.
+Backend: POST /api/master-admin/mod-estate/capture-link now accepts {send_email, email?} — resolves recipient
+  (explicit override → org site_manager_email/primary_contact_email/contact_email → the site's owner-login email);
+  sends via new utils/email.send_mod_equipment_capture_email (Resend, branded MOD template). Returns
+  {emailed, needs_email, site_email}. Still returns share_url so copy-to-clipboard remains a fallback.
+Frontend (MODSiteOnboarding.js): button posts send_email=true → toast "emailed to X" (also copies as backup); if
+  needs_email (no address on file) it prompts for one and resends; graceful copy fallback if send fails.
+VERIFIED: needs_email path returns correctly; send path executes and calls Resend. ⚠️ Preview RESEND_API_KEY is
+  INVALID ("API key is invalid") so no mail actually leaves in preview — will send in PRODUCTION with the valid key.
+  Code degrades gracefully (emailed=False → "link ready & copied").
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-06 · MOD SITE SELF-CAPTURE LINKS (equipment) — with review-before-import gate (DONE, verified) ═══
 Instead of emailing spreadsheets back and forth, Pulse Fitness sends each MOD site a secure token link to fill
 their own equipment sheet online. NOTHING enters the platform until Pulse Fitness reviews & CONFIRMS.

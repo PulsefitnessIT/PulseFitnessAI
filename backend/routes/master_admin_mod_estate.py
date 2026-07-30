@@ -588,12 +588,14 @@ async def _get_capture_by_token(token: str) -> dict:
 
 @router.post("/master-admin/mod-estate/capture-link")
 async def create_capture_link(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
-    """Create (or reuse) a secure self-capture link for a MOD site."""
+    """Create (or reuse) a secure self-capture link for a MOD site, and
+    optionally email it straight to the site."""
     require_master_admin(user)
     site_id = (data.get("site_id") or "").strip()
     site = await db.organizations.find_one(
         {"id": site_id, "account_type": "mod_site"},
-        {"_id": 0, "id": 1, "name": 1, "mod_force": 1},
+        {"_id": 0, "id": 1, "name": 1, "mod_force": 1,
+         "site_manager_email": 1, "primary_contact_email": 1, "contact_email": 1},
     )
     if not site:
         raise HTTPException(404, "MOD site not found")
@@ -618,7 +620,42 @@ async def create_capture_link(data: dict = Body(...), user: dict = Depends(get_c
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=60)).isoformat(),
         })
     share_url = f"{frontend_url}/mod-capture/{token}" if frontend_url else f"/mod-capture/{token}"
-    return {"token": token, "share_url": share_url, "site_id": site_id, "site_name": site.get("name")}
+
+    # Resolve a recipient: explicit override → stored site contact → the site's
+    # individual owner login email.
+    def _valid(e):
+        e = (e or "").strip().lower()
+        return e if ("@" in e and not e.endswith("@site.mod.local")) else ""
+    to_email = _valid(data.get("email")) or _valid(site.get("site_manager_email")) \
+        or _valid(site.get("primary_contact_email")) or _valid(site.get("contact_email"))
+    if not to_email:
+        owner = await db.users.find_one(
+            {"organization_id": site_id, "role": "owner"}, {"_id": 0, "email": 1},
+        )
+        to_email = _valid(owner.get("email")) if owner else ""
+
+    emailed = False
+    if data.get("send_email") and to_email:
+        try:
+            from utils.email import send_mod_equipment_capture_email
+            emailed = await send_mod_equipment_capture_email(
+                to_email, site.get("name") or "your site", share_url,
+                sender_name=user.get("full_name") or "Pulse Fitness",
+            )
+            if emailed:
+                await db.mod_equipment_captures.update_one(
+                    {"token": token},
+                    {"$set": {"last_emailed_to": to_email, "last_emailed_at": _now()}},
+                )
+        except Exception as exc:
+            logger.warning("MOD capture email failed for %s: %s", site_id, exc)
+
+    return {
+        "token": token, "share_url": share_url, "site_id": site_id,
+        "site_name": site.get("name"), "site_email": to_email or None,
+        "emailed": emailed,
+        "needs_email": bool(data.get("send_email") and not to_email),
+    }
 
 
 @router.get("/master-admin/mod-estate/captures")

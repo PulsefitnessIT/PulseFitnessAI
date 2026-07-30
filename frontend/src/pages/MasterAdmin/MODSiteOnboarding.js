@@ -76,12 +76,27 @@ const MODSiteOnboarding = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const sendCaptureLink = async (site) => {
+  const sendCaptureLink = async (site, emailOverride) => {
     setLinkBusyId(site.id);
     try {
-      const { data } = await axios.post(`${API}/master-admin/mod-estate/capture-link`, { site_id: site.id }, { headers });
+      const { data } = await axios.post(
+        `${API}/master-admin/mod-estate/capture-link`,
+        { site_id: site.id, send_email: true, ...(emailOverride ? { email: emailOverride } : {}) },
+        { headers },
+      );
       try { await navigator.clipboard.writeText(data.share_url); } catch { /* clipboard blocked */ }
-      notify.success('Capture link ready & copied', `Send this to ${site.name}: ${data.share_url}`);
+      if (data.emailed) {
+        notify.success(`Capture link emailed to ${data.site_email}`, 'Link also copied to your clipboard as a backup.');
+      } else if (data.needs_email) {
+        const entered = window.prompt(`No email on file for ${site.name}. Enter the site's email to send the capture link:`, '');
+        if (entered && entered.trim()) {
+          await sendCaptureLink(site, entered.trim());
+          return;
+        }
+        notify.info('Link created & copied', `No email sent. Send this to ${site.name}: ${data.share_url}`);
+      } else {
+        notify.success('Capture link ready & copied', `Send this to ${site.name}: ${data.share_url}`);
+      }
       load();
     } catch (e) {
       notify.error('Could not create link', e?.response?.data?.detail || 'Server error');
