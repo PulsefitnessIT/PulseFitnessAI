@@ -29,9 +29,15 @@ export default function PulsePricingPage({ onLogin }) {
   const { theme, toggleTheme } = useAuth();
   const { t, i18n } = useTranslation();
   const [loginOpen, setLoginOpen] = useState(false);
+  const [loginRedirect, setLoginRedirect] = useState('');
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
-  const openLogin = () => setLoginOpen(true);
+  // A plan CTA passes the post-login destination (e.g. /choose-plan?module=crm)
+  // so existing Lite customers land in Stripe checkout right after signing in.
+  const openLogin = (redirect) => {
+    setLoginRedirect(typeof redirect === 'string' ? redirect : '');
+    setLoginOpen(true);
+  };
   const openUpgrade = () => setUpgradeOpen(true);
 
   // Same theme-lock as the landing page — Pulse marketing surfaces
@@ -100,7 +106,7 @@ export default function PulsePricingPage({ onLogin }) {
             </motion.p>
             <div className="mt-8 inline-flex items-center gap-2 text-xs text-[var(--color-text-slate)]">
               <ShieldCheck size={13} className="text-emerald-500" />
-              {t('pulse.pp_note', '14-day free trial · no card required to start · cancel anytime')}
+              {t('pulse.pp_note', '3-day free trial · all modules unlocked for owners & managers · cancel anytime')}
             </div>
           </div>
         </section>
@@ -115,7 +121,7 @@ export default function PulsePricingPage({ onLogin }) {
         <PulsePricingExtras onStart={openLogin} />
 
         <PulseFooter />
-        <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLogin={onLogin} />
+        <LoginModal open={loginOpen} onOpenChange={setLoginOpen} onLogin={onLogin} redirectTo={loginRedirect} />
         <PulseUpgradeRequestModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
       </div>
     </div>

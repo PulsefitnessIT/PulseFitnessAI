@@ -3920,7 +3920,7 @@
     "pp_back": "Back to Pulse home",
     "pp_badge": "Pulse Plans",
     "pp_desc": "Pick the modules you need — Operations, CRM, Marketing and Memberships — each a standalone subscription in your currency. Already a Pulse Fitness equipment customer? Your Lite portal is included free.",
-    "pp_note": "14-day free trial · no card required to start · cancel anytime",
+    "pp_note": "3-day free trial · all modules unlocked for owners & managers · cancel anytime",
     "pp_title": "Pricing that scales with your gym.",
     "pro_f1": "Everything in Lite",
     "pro_f10": "Staff Performance Tracking",
@@ -3997,10 +3997,12 @@
     "blurb_operations": "Equipment, faults, check sheets, AI triage & engineer ops.",
     "cta_choose": "Choose",
     "cta_start": "Start",
+    "cta_upgrade": "Upgrade to",
+    "cta_signin_upgrade": "Sign in to upgrade",
     "faq_a1": "Yes. Every module — Operations, CRM, Marketing and Memberships — is a standalone subscription. Start with one and add more whenever you need them.",
     "faq_a2": "Lite is the free equipment portal included with every Pulse Fitness service agreement. Managed adds AI diagnostics and reporting handled by your account manager. The modules are the full self-serve software platform for running your gym.",
     "faq_a3": "Yes — pricing is shown and billed in GBP, EUR or USD. We auto-detect your region and you can switch currency at any time.",
-    "faq_a4": "Every module comes with a 14-day free trial. No card is required to start, and you can cancel anytime.",
+    "faq_a4": "Every module includes a 3-day free trial with all modules unlocked for the owner or manager. You can cancel anytime.",
     "faq_a5": "Absolutely. Annual billing saves you roughly 17% versus monthly, and you can change your billing cycle whenever suits you.",
     "faq_a6": "Your data stays yours. Export it any time, and nothing is deleted the moment you cancel — you keep read access during your notice period.",
     "faq_eyebrow": "FAQ",
@@ -4042,7 +4044,7 @@
     "sp_eyebrow": "For service providers",
     "sp_heading": "Run service & field teams on Pulse.",
     "subtitle": "Every module is a standalone subscription — mix and match, cancel anytime. Priced in your currency.",
-    "trial_footer": "14-day free trial · no card required to start · cancel anytime"
+    "trial_footer": "3-day free trial · all modules unlocked for owners & managers · cancel anytime"
   },
   "qr": {
     "additional_notes": "Additional Notes",

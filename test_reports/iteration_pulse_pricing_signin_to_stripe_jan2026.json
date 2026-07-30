@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend E2E verified for /pulse-pricing → sign-in → Stripe checkout flow using owner@isodemo.com. All 5 acceptance criteria PASS: (1) hero copy shows '3-day free trial · all modules unlocked for owners & managers · cancel anytime'; no '14-day' or 'no card required' text anywhere on page. (2) Logged-out CTAs correctly read 'Sign in to upgrade' for all 4 modules (operations/crm/marketing/memberships). (3) Logged-out click on pulse-module-start-crm opens pulse-login-dialog; after submitting credentials the app navigates to /choose-plan?module=crm&billing=monthly&currency=gbp and auto-redirects to a checkout.stripe.com URL (cs_test_a1CwTeYq...). (4) After login, revisiting /pulse-pricing shows CTAs as 'Upgrade to Pulse Fitness Pro', 'Upgrade to CRM', 'Upgrade to Marketing', 'Upgrade to Memberships'. (5) Toggling Annual + € EUR before clicking Marketing produced /choose-plan?module=marketing&billing=annual&currency=eur and reached checkout.stripe.com. Cookie banner (Accept All) dismissed as instructed. Rate limit respected — single login reused via session.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ChoosePlanPage auto-checkout is triggered by useEffect on [token, live]; if the user navigates away before the POST /payments/checkout/flex resolves, the aborted request surfaces as a 400 in network logs (observed once during navigation). Harmless but noisy — could be gated with an AbortController to avoid the noise.",
+    "startCheckout does not re-attempt on transient failure; if the auto-checkout call ever fails legitimately (e.g., 400/5xx), the user is left on /choose-plan with a toast but no obvious retry affordance for the deep-link intent. Consider a 'Try again' CTA using the query params."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Lite operator, real Stripe TEST checkout URL returned)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview base = REACT_APP_BACKEND_URL. Login rate limit ~4/min on /api/auth/login — use one login and reuse session. Both logged-out (CTA 'Sign in to upgrade') and logged-in (CTA 'Upgrade to <Module>') flows land on checkout.stripe.com. Query params ?module=/?billing=/?currency= flow from PulseModulePricing → ChoosePlanPage.useEffect auto-checkout → POST /api/payments/checkout/flex → 303 redirect to Stripe. Ignore CSP script warnings and posthog/cloudflare block errors — unrelated.",
+  "rca of the issue": "N/A — the bug described in the problem statement (dead-end sign-in popup on module CTA) is FIXED. PulseModulePricing.start() correctly routes to /choose-plan?module=... with billing/currency preserved; PulseLandingPage LoginModal now honours redirectTo; ChoosePlanPage auto-fires /payments/checkout/flex with module_id when ?module= is present and returns a real Stripe TEST checkout URL."
+}

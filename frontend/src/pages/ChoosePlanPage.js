@@ -11,7 +11,7 @@
  *   GET  /api/payments/pricing        → bundle + module catalogue
  *   POST /api/payments/checkout/flex  → Stripe Checkout session
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -64,9 +64,16 @@ export default function ChoosePlanPage() {
   const startCheckout = async (plan, opts = {}) => {
     setBusy(opts.module_id || plan);
     try {
+      const body = {
+        plan,
+        origin_url: window.location.origin,
+        currency: opts.currency || currency,
+        billing_cycle: opts.cycle || cycle,
+      };
+      if (opts.module_id) body.module_id = opts.module_id;
       const { data } = await axios.post(
         `${API}/payments/checkout/flex`,
-        { plan, origin_url: window.location.origin, currency, billing_cycle: cycle, ...opts },
+        body,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (data?.url) {
@@ -80,6 +87,26 @@ export default function ChoosePlanPage() {
       setBusy(null);
     }
   };
+
+  // Deep-link from the pricing page: /choose-plan?module=crm&billing=annual&currency=eur
+  // pre-selects the currency/cycle and takes the (now signed-in) customer
+  // straight into Stripe checkout for the module they chose.
+  const autoCheckoutRef = useRef(false);
+  useEffect(() => {
+    if (autoCheckoutRef.current || !token || !live) return;
+    const p = new URLSearchParams(window.location.search);
+    const qCcy = (p.get('currency') || '').toLowerCase();
+    const qCycle = p.get('billing');
+    const mod = (p.get('module') || '').toLowerCase();
+    const validCcy = ['gbp', 'eur', 'usd'].includes(qCcy) ? qCcy : null;
+    const validCycle = (qCycle === 'annual' || qCycle === 'monthly') ? qCycle : null;
+    if (validCcy) setCurrency(validCcy);
+    if (validCycle) setCycle(validCycle);
+    if (['operations', 'crm', 'marketing', 'memberships'].includes(mod)) {
+      autoCheckoutRef.current = true;
+      startCheckout('module', { module_id: mod, currency: validCcy || undefined, cycle: validCycle || undefined });
+    }
+  }, [token, live]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bundle = pricing?.bundle;
   const modules = pricing?.modules || [];

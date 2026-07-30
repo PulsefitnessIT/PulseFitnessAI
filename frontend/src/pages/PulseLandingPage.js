@@ -1639,7 +1639,7 @@ export function PulseFooter() {
 }
 
 // ── Login Modal ───────────────────────────────────────────────
-export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
+export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', redirectTo = '' }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
@@ -1661,6 +1661,18 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '' }) {
         if (res.data.user?.must_change_password) {
           onOpenChange(false);
           navigate('/change-password', { replace: true });
+          setLoading(false);
+          return;
+        }
+        // A plan CTA can request a post-login destination (e.g. Stripe
+        // checkout for the chosen module). Only honour safe INTERNAL paths
+        // (single leading slash) to avoid an open-redirect.
+        const safeNext = typeof redirectTo === 'string'
+          && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+          ? redirectTo : '';
+        if (safeNext) {
+          onOpenChange(false);
+          navigate(safeNext, { replace: true });
           setLoading(false);
           return;
         }

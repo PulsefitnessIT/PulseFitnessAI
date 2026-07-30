@@ -60,10 +60,15 @@ export default function PulseModulePricing({ onStart }) {
     return minor == null ? null : `${CCY[currency]}${Math.round(minor / 100)}`;
   };
 
-  const start = () => {
-    if (user) navigate('/choose-plan');
-    else if (onStart) onStart();
-    else navigate('/login?next=/choose-plan');
+  const start = (moduleId) => {
+    const qs = `?module=${moduleId}&billing=${cycle}&currency=${currency}`;
+    const dest = `/choose-plan${qs}`;
+    // Everyone is already a Pulse Lite customer, so there is no public sign-up:
+    // logged-in users go straight to Stripe checkout for the chosen module;
+    // otherwise they sign in first and are then routed to the same checkout.
+    if (user) navigate(dest);
+    else if (onStart) onStart(dest);
+    else navigate(`/login?next=${encodeURIComponent(dest)}`);
   };
 
   const pillBase = 'px-3.5 h-8 rounded-full text-sm font-semibold transition-colors';
@@ -136,18 +141,20 @@ export default function PulseModulePricing({ onStart }) {
                 </div>
                 <button
                   type="button"
-                  onClick={start}
+                  onClick={() => start(id)}
                   className={`mt-5 w-full h-11 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${featured ? 'bg-[var(--pulse-primary)] hover:brightness-95 text-[#0A0C10]' : 'border border-[var(--color-border-subtle,#d4d4d8)] text-[var(--color-surface-dark-panel-alt)] hover:border-[var(--pulse-primary)]'}`}
                   data-testid={`pulse-module-start-${id}`}
                 >
-                  {user ? t('pulse_pricing.cta_choose', 'Choose') : t('pulse_pricing.cta_start', 'Start')} {featured ? 'Pulse Fitness Pro' : meta.name} <ArrowRight size={15} />
+                  {user
+                    ? <>{t('pulse_pricing.cta_upgrade', 'Upgrade to')} {featured ? 'Pulse Fitness Pro' : meta.name}</>
+                    : <>{t('pulse_pricing.cta_signin_upgrade', 'Sign in to upgrade')}</>} <ArrowRight size={15} />
                 </button>
               </motion.div>
             );
           })}
         </div>
         <p className="mt-5 text-center text-xs text-[var(--color-text-slate)]">
-          {t('pulse_pricing.trial_footer', '14-day free trial · no card required to start · cancel anytime')}
+          {t('pulse_pricing.trial_footer', '3-day free trial · all modules unlocked for owners & managers · cancel anytime')}
         </p>
       </div>
     </section>

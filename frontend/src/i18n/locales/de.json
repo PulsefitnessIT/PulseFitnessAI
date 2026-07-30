@@ -3919,7 +3919,7 @@
     "pp_back": "Zurück zur Pulse-Startseite",
     "pp_badge": "Pulse-Tarife",
     "pp_desc": "Lite ist in jedem Pulse-Fitness-Servicevertrag enthalten. Wechseln Sie zu Pro für KI-Triage, automatische Checklisten, KPI-Tracking und Betriebsberichte — über Ihren Kundenbetreuer.",
-    "pp_note": "Keine Karte für Lite nötig · Pro-Preis passend zu Ihrem Bestand",
+    "pp_note": "3 Tage kostenlos testen · alle Module für Inhaber & Manager freigeschaltet · jederzeit kündbar",
     "pp_title": "Zwei Stufen für Pulse-Fitness-Kunden.",
     "pro_f1": "Alles aus Lite",
     "pro_f10": "Mitarbeiter-Leistungstracking",
@@ -3996,10 +3996,12 @@
     "blurb_operations": "Geräte, Störungen, Prüflisten, KI-Triage und Technikereinsätze.",
     "cta_choose": "Auswählen",
     "cta_start": "Starten",
+    "cta_upgrade": "Upgrade auf",
+    "cta_signin_upgrade": "Zum Upgraden anmelden",
     "faq_a1": "Ja. Jedes Modul — Operations, CRM, Marketing und Memberships — ist ein eigenständiges Abonnement. Beginnen Sie mit einem und fügen Sie weitere hinzu, wann immer Sie sie brauchen.",
     "faq_a2": "Lite ist das kostenlose Geräteportal, das in jedem Pulse-Fitness-Servicevertrag enthalten ist. Managed ergänzt KI-Diagnose und Reporting, betreut von Ihrem Account Manager. Die Module sind die vollständige Self-Service-Softwareplattform für den Betrieb Ihres Studios.",
     "faq_a3": "Ja — die Preise werden in GBP, EUR oder USD angezeigt und abgerechnet. Wir erkennen Ihre Region automatisch und Sie können die Währung jederzeit wechseln.",
-    "faq_a4": "Jedes Modul umfasst eine 14-tägige kostenlose Testphase. Für den Start ist keine Karte erforderlich und Sie können jederzeit kündigen.",
+    "faq_a4": "Jedes Modul umfasst eine 3-tägige kostenlose Testphase, bei der alle Module für den Inhaber oder Manager freigeschaltet sind. Sie können jederzeit kündigen.",
     "faq_a5": "Auf jeden Fall. Die jährliche Abrechnung spart Ihnen rund 17 % gegenüber der monatlichen, und Sie können Ihren Abrechnungszyklus jederzeit ändern.",
     "faq_a6": "Ihre Daten bleiben Ihre. Exportieren Sie sie jederzeit; bei Kündigung wird nichts sofort gelöscht — während Ihrer Kündigungsfrist behalten Sie Lesezugriff.",
     "faq_eyebrow": "FAQ",
@@ -4041,7 +4043,7 @@
     "sp_eyebrow": "Für Serviceanbieter",
     "sp_heading": "Service- und Außendienstteams auf Pulse steuern.",
     "subtitle": "Jedes Modul ist ein eigenständiges Abonnement — beliebig kombinierbar, jederzeit kündbar. Preise in Ihrer Währung.",
-    "trial_footer": "14 Tage kostenlos testen · keine Karte erforderlich · jederzeit kündbar"
+    "trial_footer": "3 Tage kostenlos testen · alle Module für Inhaber & Manager freigeschaltet · jederzeit kündbar"
   },
   "qr": {
     "additional_notes": "Zusätzliche Notizen",
