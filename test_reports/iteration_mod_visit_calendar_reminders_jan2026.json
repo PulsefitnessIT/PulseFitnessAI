@@ -1,0 +1,19 @@
+{
+  "summary": "End-to-end tested MOD Annual Service Visits calendar on Service Desk -> Preventative Maintenance and the public Engineer Appointment Booking form. Backend API /api/svc/pm/mod-visits returns visits with visit_status/effective_date/booking_status; POST booking-link returns share_url with emailed=false in preview (expected). Frontend calendar renders with legend + stats (2 confirmed, 1 pending), month nav works, seeded days 2026-08-14 (pending amber), 2026-08-29 (confirmed green) and 2026-09-08 (confirmed green) all render markers on correct days. Day-detail panel lists correct visit info (site, quote, machines, annual value, badge, booking status) and both 'Send booking form' and 'Copy link' buttons work. Public form loads via /mod-booking/:token, prefills site name + proposed date, blocks submit without mod_contact_name+email (shows booking-error), and after filling both submits successfully showing booking-done confirmation.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MODVisitCalendar.sendBooking always writes clipboard even when emailed=true; harmless but could be gated on needs_email to avoid unexpected clipboard writes.",
+    "Public MODVisitBookingForm.saveDraft has no error handling in catch block (relies on finally only); if PUT fails the user gets no feedback."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None (used existing qatest-ct-1/2/3 seeded contracts). Test submitted booking for qatest-ct-2 with QATEST contact data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "qatest-ct-2 booking is now 'submitted' after this run. qatest-ct-3 booking is 'sent'. qatest-ct-1 was already 'submitted' from prior tests. Reset via DB if fresh-state needed.",
+  "rca of the issue": "No issues found."
+}

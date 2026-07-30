@@ -76,6 +76,7 @@ const PartsRequestsPage = lazy(() => import('@/pages/PartsRequests/PartsRequests
 const PartsCardPage = lazy(() => import('@/pages/PartsRequests/PartsCardPage'));
 const CustomerOnboardingForm = lazy(() => import('@/pages/CustomerOnboardingForm'));
 const MODEquipmentCaptureForm = lazy(() => import('@/pages/MODEquipmentCaptureForm'));
+const MODVisitBookingForm = lazy(() => import('@/pages/MODVisitBookingForm'));
 const QRScanPage = lazy(() => import('@/pages/QRScanPage'));
 const EngineerFaultReportPage = lazy(() => import('@/pages/EngineerFaultReportPage'));
 const EngineerMachineHistory = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerMachineHistory'));
@@ -474,6 +475,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/complete-profile" element={user ? <CompleteProfilePage /> : <Navigate to="/" replace />} />
       <Route path="/onboarding/:token" element={<CustomerOnboardingForm />} />
       <Route path="/mod-capture/:token" element={<MODEquipmentCaptureForm />} />
+      <Route path="/mod-booking/:token" element={<MODVisitBookingForm />} />
       <Route path="/payment-success" element={<PaymentSuccessPage />} />
       {/* Trial-ending email destination — login-gated paid checkout, no free-trial offer (iter 221) */}
       <Route path="/choose-plan" element={user ? <ChoosePlanPage /> : <Navigate to="/login?next=/choose-plan" replace />} />

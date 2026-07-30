@@ -210,6 +210,11 @@ from routes.svc.inbound_email import (
 )
 # Iter 216h259 — Engineer Lite CRM (saved customers, shared org-wide)
 from routes.svc.engineer_customers import router as svc_engineer_customers_router
+# MOD annual service visit calendar + engineer appointment booking form
+from routes.svc.mod_visits import (
+    router as svc_mod_visits_router,
+    public_router as svc_mod_booking_public_router,
+)
 # Iter 220 — Work Report custom fields (engineer + admin configurable)
 from routes.svc.work_report_fields import router as svc_work_report_fields_router
 # Iter 220ec — Configurable case types (Repair / PPM / custom)
@@ -332,6 +337,8 @@ _UNGATED_ROUTERS = (
     svc_cases_router, svc_intake_router, svc_desk_router,
     # Iter 292 — GymAxis parity: PM scheduling + Master-Admin desk console
     svc_pm_router, master_admin_service_desk_router, svc_orbit4_router,
+    # MOD annual visit calendar + booking form (+ public booking router)
+    svc_mod_visits_router, svc_mod_booking_public_router,
     # Iter 215dp — Phase 2 Engineer Mobile
     svc_engineer_router, svc_engineers_admin_router,
     # Iter 216h129 — Engineer Quote Builder + PDF + Email

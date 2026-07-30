@@ -212,6 +212,7 @@ async def _poll_once() -> None:
     await _run_mod_password_rotation_daily()
     await _run_mod_readiness_weekly()
     await _run_booking_reminders()
+    await _run_mod_visit_reminders()
     await _run_abandoned_checkout_sweep()
     await _run_memberships_weekly_digest()
     await _run_memberships_winback()
@@ -349,6 +350,14 @@ async def _run_booking_reminders() -> None:
         await run_booking_reminders()
     except Exception:
         logger.exception("[bookings-reminders] cycle failed")
+
+
+async def _run_mod_visit_reminders() -> None:
+    try:
+        from utils.mod_visit_reminders import run_mod_visit_reminders
+        await run_mod_visit_reminders()
+    except Exception:
+        logger.exception("[mod-visit-reminders] cycle failed")
 
 
 async def poller_loop() -> None:
