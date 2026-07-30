@@ -1,4 +1,36 @@
-# ═══ 2026-07-30 · MOD BOOKING FORM — 1-WEEK UNFILLED NUDGE (DONE, verified) ═══
+# ═══ 2026-07-30 · MOD BOOKING DETAILS ON-SCREEN + FAULT-CARD BOOKING + SICON SERVICE/CONTRACT/APPOINTMENT SYNC (DONE, testing_agent VERIFIED) ═══
+Follow-up to the Visit Calendar. User choices: (1) show submitted Engineer Appointment Booking details ON SCREEN in the
+calendar day entry (expandable, not printable); (2a) when an engineer-callout MOD FAULT is logged, auto-generate the same
+booking form + show visitor/vehicle details on the Fault card; (3c) create a Sicon Service Appointment — on visit CONFIRM
+(create) AND on booking SUBMIT (update); (4a) Sicon Service Case/Call + Appointment + CONTRACT link (no Project). Sicon
+stays MOCKED awaiting live creds → everything QUEUES into svc_sicon_outbox and simulates now.
+BACKEND (routes/svc/mod_visits.py):
+  • Booking storage generalised: _find_booking(token) resolves BOTH sources — mod_service_contracts.annual_visit.booking
+    AND issues.mod_booking; public GET/PUT/submit are now source-agnostic (_persist_booking). _visit_row includes the full
+    booking form so the calendar can render details.
+  • make_fault_booking(issue_id) — idempotent; creates issues.mod_booking token (prefilled reporter as MOD contact) for
+    engineer-callout faults. Wired into mod_portal.py fault-log when ai_triage.engineer_required OR priority in urgent/high.
+  • Sicon: enqueue_contract_visit_sicon(contract) + enqueue_fault_visit_sicon(issue) build Service Call (kind=case,
+    /api/Service/Calls, ContractID = contract number, JobTypeID service|repair) + Appointment (kind=appointment,
+    /api/Service/Appointments, ResourceID=engineer, start/end from booking, visitor+vehicle in Notes). Stable OurReference
+    (modvisit-case/appt-<cid>, modfault-case/appt-<iid>) → idempotent upsert. push_mod_service_call/push_mod_appointment
+    added to routes/svc/integrations/sicon_sync.py. Triggered on confirm_contract_visit (master_admin_mod_estate.py) and on
+    public booking submit (both sources).
+FRONTEND:
+  • MODVisitCalendar.js — expandable <BookingDetails> block per visit (MOD contact / engineer-visitor / vehicle);
+    data-testid mod-booking-details-toggle + mod-booking-details.
+  • LiteFaultsTab.js renderIssueCard — 'Engineer booking' block on the MOD fault card (Booked/Awaiting badge, submitted
+    engineer+vehicle+visit summary, Copy link + Open form). data-testid mod-booking-block-<id>, mod-booking-summary-<id>,
+    mod-booking-copy-<id>, mod-booking-open-<id>.
+VERIFIED: direct calls (4 outbox rows correct incl ContractID + engineer; fault booking idempotent) + testing_agent
+  BOTH 100%, 0 bugs (iteration_mod_visit_booking_details_sicon_jan2026.json — calendar details render all 5 fields,
+  fault card block shows Priya Patel/ZZ99 XYZ, outbox modvisit-case ContractID=CN-7001 + modvisit-appt ResourceID=Dave Smith).
+  ⚠️ Sicon rows stay pending/skipped_no_config until LIVE creds (Base URL+user/pass+companyId) supplied — INTENDED. Emails
+  send only in PRODUCTION. QATEST data cleaned. PRODUCTION redeploy needed.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Follow-up to the Visit Calendar feature. If a MOD site's Engineer Appointment Booking form is still unfilled a week
 after it was sent, gently nudge them once. utils/mod_visit_reminders.run_mod_booking_nudges() (hooked into the poller
 via sicon_poller._run_mod_booking_nudges): finds contracts with annual_visit.booking.status in (sent,draft),
