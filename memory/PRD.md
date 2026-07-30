@@ -1,3 +1,17 @@
+# ═══ 2026-06 · MOD CAPTURE — REMINDER EMAILS + SUBMISSION DIFF/DUP REVIEW (DONE, verified) ═══
+REMINDER: POST /api/master-admin/mod-estate/captures/{id}/remind — re-emails the capture link to sites not yet
+  submitted (status open/changes_requested); resolves recipient (override→site contact→owner email), returns
+  {reminded, needs_email, site_email}, increments reminder_count. UI: MODSiteOnboarding "Awaiting sites" section
+  (open/changes_requested) with Remind + Copy link; prompts for an email if none on file.
+DIFF/DUP REVIEW: GET /api/master-admin/mod-estate/captures/{id} — returns every submitted row with duplicate flags:
+  duplicate_serial (matches existing equipment for the site), duplicate_in_sheet (serial repeated in submission),
+  possible_duplicate (same name+model already present), missing_name. UI: "Review" opens a diff modal (table + flag
+  badges + header summary) with Confirm & import / Request changes from inside.
+VERIFIED: curl — remind needs_email path correct; diff flags exactly right (duplicate_serial/duplicate_in_sheet/
+  missing_name, dup_count=2). UI screenshot — diff modal renders all rows with red/amber flag badges + summary.
+  ⚠️ Reminder email actually SENDS only in production (preview RESEND key invalid). Preview → PRODUCTION redeploy needed.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-06 · MOD CAPTURE LINK — EMAIL DELIVERY (DONE; email send blocked in preview by invalid RESEND key) ═══
 "Send capture link" now EMAILS the link straight to the site instead of copy-paste.
 Backend: POST /api/master-admin/mod-estate/capture-link now accepts {send_email, email?} — resolves recipient

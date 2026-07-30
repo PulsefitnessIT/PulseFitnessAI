@@ -671,6 +671,105 @@ async def list_captures(user: dict = Depends(get_current_user)) -> dict:
     return {"captures": items}
 
 
+def _norm(v) -> str:
+    return (str(v) if v is not None else "").strip().lower()
+
+
+@router.get("/master-admin/mod-estate/captures/{capture_id}")
+async def get_capture_detail(capture_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Full submission for review — every row the site entered, with likely
+    duplicates flagged against existing equipment AND within the sheet itself."""
+    require_master_admin(user)
+    c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Capture not found")
+    rows = c.get("rows") or []
+    existing = await db.equipment.find(
+        {"organization_id": c["site_id"]}, {"_id": 0, "serial_number": 1, "name": 1, "model": 1},
+    ).to_list(50000)
+    exist_serials = {_norm(e.get("serial_number")) for e in existing if e.get("serial_number")}
+    exist_namemodel = {(_norm(e.get("name")), _norm(e.get("model"))) for e in existing}
+
+    seen_serials: set = set()
+    analysed = []
+    for i, r in enumerate(rows):
+        serial, name, model = _norm(r.get("serial_number")), _norm(r.get("name")), _norm(r.get("model"))
+        flags = []
+        if not name:
+            flags.append("missing_name")
+        if serial and serial in exist_serials:
+            flags.append("duplicate_serial")        # already on the platform
+        if serial and serial in seen_serials:
+            flags.append("duplicate_in_sheet")       # listed twice in this sheet
+        if "duplicate_serial" not in flags and name and (name, model) in exist_namemodel:
+            flags.append("possible_duplicate")        # same make/model already present
+        if serial:
+            seen_serials.add(serial)
+        analysed.append({"index": i, "row": r, "flags": flags})
+
+    dup_count = sum(1 for a in analysed if any(
+        f in ("duplicate_serial", "duplicate_in_sheet", "possible_duplicate") for f in a["flags"]))
+    return {
+        "capture": {k: v for k, v in c.items() if k != "rows"},
+        "rows": analysed,
+        "columns": [f[0] for f in _MOD_EQUIP_FIELDS],
+        "field_labels": {f[0]: f[1] for f in _MOD_EQUIP_FIELDS},
+        "row_count": len(rows),
+        "duplicate_count": dup_count,
+        "existing_equipment_count": len(existing),
+    }
+
+
+async def _resolve_site_email(site_id: str, override: str = "") -> str:
+    def _valid(e):
+        e = (e or "").strip().lower()
+        return e if ("@" in e and not e.endswith("@site.mod.local")) else ""
+    if _valid(override):
+        return _valid(override)
+    site = await db.organizations.find_one(
+        {"id": site_id},
+        {"_id": 0, "site_manager_email": 1, "primary_contact_email": 1, "contact_email": 1},
+    ) or {}
+    email = _valid(site.get("site_manager_email")) or _valid(site.get("primary_contact_email")) \
+        or _valid(site.get("contact_email"))
+    if not email:
+        owner = await db.users.find_one({"organization_id": site_id, "role": "owner"}, {"_id": 0, "email": 1})
+        email = _valid(owner.get("email")) if owner else ""
+    return email
+
+
+@router.post("/master-admin/mod-estate/captures/{capture_id}/remind")
+async def remind_capture(capture_id: str, data: dict = Body(default={}), user: dict = Depends(get_current_user)) -> dict:
+    """Re-email the capture link to a site that hasn't submitted yet."""
+    require_master_admin(user)
+    c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Capture not found")
+    if c.get("status") not in ("open", "changes_requested"):
+        raise HTTPException(400, "This site has already submitted — nothing to remind about")
+    to_email = await _resolve_site_email(c["site_id"], data.get("email") or c.get("last_emailed_to") or "")
+    if not to_email:
+        return {"reminded": False, "needs_email": True}
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    url = f"{frontend_url}/mod-capture/{c['token']}" if frontend_url else f"/mod-capture/{c['token']}"
+    reminded = False
+    try:
+        from utils.email import send_mod_equipment_capture_email
+        reminded = await send_mod_equipment_capture_email(
+            to_email, c.get("site_name") or "your site", url,
+            sender_name=user.get("full_name") or "Pulse Fitness",
+        )
+    except Exception as exc:
+        logger.warning("MOD capture reminder failed for %s: %s", capture_id, exc)
+    if reminded:
+        await db.mod_equipment_captures.update_one(
+            {"id": capture_id},
+            {"$set": {"last_emailed_to": to_email, "last_reminded_at": _now(), "updated_at": _now()},
+             "$inc": {"reminder_count": 1}},
+        )
+    return {"reminded": reminded, "site_email": to_email}
+
+
 @router.post("/master-admin/mod-estate/captures/{capture_id}/approve")
 async def approve_capture(capture_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Confirm a submitted capture — import its rows into the site's equipment."""

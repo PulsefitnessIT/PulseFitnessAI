@@ -15,7 +15,7 @@ import axios from 'axios';
 import {
   Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
-  Link2, Inbox, ThumbsUp, Undo2,
+  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -54,6 +54,8 @@ const MODSiteOnboarding = () => {
   const [captures, setCaptures] = useState([]);
   const [linkBusyId, setLinkBusyId] = useState(null);
   const [reviewBusyId, setReviewBusyId] = useState(null);
+  const [remindBusyId, setRemindBusyId] = useState(null);
+  const [review, setReview] = useState(null);   // { loading, detail } for the diff modal
   const fileInput = useRef(null);
   const targetSite = useRef(null);
 
@@ -111,6 +113,7 @@ const MODSiteOnboarding = () => {
       const { data } = await axios.post(`${API}/master-admin/mod-estate/captures/${c.id}/approve`, {}, { headers });
       const r = data.import_result || {};
       notify.success(`Imported ${r.imported} machines into ${c.site_name}`, r.skipped ? `${r.skipped} skipped.` : 'Confirmed & imported.');
+      setReview(null);
       load();
     } catch (e) {
       notify.error('Import failed', e?.response?.data?.detail || 'Server error');
@@ -126,11 +129,46 @@ const MODSiteOnboarding = () => {
     try {
       await axios.post(`${API}/master-admin/mod-estate/captures/${c.id}/reject`, { reason }, { headers });
       notify.success('Sent back to the site for changes');
+      setReview(null);
       load();
     } catch (e) {
       notify.error('Could not send back', e?.response?.data?.detail || 'Server error');
     } finally {
       setReviewBusyId(null);
+    }
+  };
+
+  const remindCapture = async (c, emailOverride) => {
+    setRemindBusyId(c.id);
+    try {
+      const { data } = await axios.post(
+        `${API}/master-admin/mod-estate/captures/${c.id}/remind`,
+        { ...(emailOverride ? { email: emailOverride } : {}) }, { headers },
+      );
+      if (data.reminded) {
+        notify.success(`Reminder emailed to ${data.site_email}`, `${c.site_name} — nudged to submit their equipment.`);
+        load();
+      } else if (data.needs_email) {
+        const entered = window.prompt(`No email on file for ${c.site_name}. Enter an email to send the reminder:`, '');
+        if (entered && entered.trim()) { await remindCapture(c, entered.trim()); return; }
+      } else {
+        notify.warning('Reminder not sent', 'Email could not be delivered — check the email service.');
+      }
+    } catch (e) {
+      notify.error('Could not send reminder', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setRemindBusyId(null);
+    }
+  };
+
+  const openReview = async (c) => {
+    setReview({ loading: true, id: c.id });
+    try {
+      const { data } = await axios.get(`${API}/master-admin/mod-estate/captures/${c.id}`, { headers });
+      setReview({ loading: false, detail: data, id: c.id });
+    } catch (e) {
+      notify.error('Could not load submission', e?.response?.data?.detail || 'Server error');
+      setReview(null);
     }
   };
 
@@ -229,7 +267,7 @@ const MODSiteOnboarding = () => {
         </Card>
       )}
 
-      {captures.filter((c) => c.status === 'submitted' || c.status === 'changes_requested').length > 0 && (
+      {captures.filter((c) => c.status === 'submitted').length > 0 && (
         <Card className="p-4 rounded-xl border-amber-200 bg-amber-50/50" data-testid="mod-capture-review-queue">
           <div className="flex items-center gap-2 mb-3">
             <Inbox size={16} className="text-amber-600" />
@@ -237,26 +275,56 @@ const MODSiteOnboarding = () => {
             <span className="text-[11px] text-amber-700">Nothing is imported until you confirm.</span>
           </div>
           <div className="space-y-2">
-            {captures.filter((c) => c.status === 'submitted' || c.status === 'changes_requested').map((c) => (
+            {captures.filter((c) => c.status === 'submitted').map((c) => (
               <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg border border-amber-200 px-3 py-2" data-testid={`mod-capture-review-${c.id}`}>
                 <div className="text-sm">
                   <span className="font-bold text-zinc-800">{c.site_name}</span>
                   <span className="text-zinc-500"> · {c.row_count} machine{c.row_count === 1 ? '' : 's'}</span>
-                  {c.status === 'changes_requested'
-                    ? <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500">Awaiting site</span>
-                    : <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Ready to review</span>}
+                  <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Ready to review</span>
                 </div>
-                {c.status === 'submitted' && (
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => rejectCapture(c)} disabled={reviewBusyId === c.id} data-testid={`mod-capture-reject-${c.id}`}>
-                      <Undo2 size={13} className="mr-1" /> Request changes
-                    </Button>
-                    <Button size="sm" onClick={() => approveCapture(c)} disabled={reviewBusyId === c.id} data-testid={`mod-capture-approve-${c.id}`}>
-                      {reviewBusyId === c.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <ThumbsUp size={13} className="mr-1" />}
-                      Confirm & import
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openReview(c)} data-testid={`mod-capture-viewdiff-${c.id}`}>
+                    <Eye size={13} className="mr-1" /> Review
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => rejectCapture(c)} disabled={reviewBusyId === c.id} data-testid={`mod-capture-reject-${c.id}`}>
+                    <Undo2 size={13} className="mr-1" /> Request changes
+                  </Button>
+                  <Button size="sm" onClick={() => approveCapture(c)} disabled={reviewBusyId === c.id} data-testid={`mod-capture-approve-${c.id}`}>
+                    {reviewBusyId === c.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <ThumbsUp size={13} className="mr-1" />}
+                    Confirm &amp; import
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {captures.filter((c) => c.status === 'open' || c.status === 'changes_requested').length > 0 && (
+        <Card className="p-4 rounded-xl border-zinc-200" data-testid="mod-capture-awaiting">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell size={16} className="text-zinc-500" />
+            <h4 className="text-sm font-extrabold text-zinc-700">Awaiting sites (link sent, not yet submitted)</h4>
+          </div>
+          <div className="space-y-2">
+            {captures.filter((c) => c.status === 'open' || c.status === 'changes_requested').map((c) => (
+              <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 bg-zinc-50 rounded-lg border border-zinc-200 px-3 py-2" data-testid={`mod-capture-awaiting-${c.id}`}>
+                <div className="text-sm">
+                  <span className="font-bold text-zinc-800">{c.site_name}</span>
+                  {c.status === 'changes_requested'
+                    ? <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Changes requested</span>
+                    : <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500">Awaiting submission</span>}
+                  {c.reminder_count ? <span className="ml-2 text-[11px] text-zinc-400">reminded {c.reminder_count}×</span> : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(c.share_url); notify.success('Link copied'); }} data-testid={`mod-capture-copy-${c.id}`}>
+                    <Copy size={13} className="mr-1" /> Copy link
+                  </Button>
+                  <Button size="sm" onClick={() => remindCapture(c)} disabled={remindBusyId === c.id} data-testid={`mod-capture-remind-${c.id}`}>
+                    {remindBusyId === c.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <Bell size={13} className="mr-1" />}
+                    Remind
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -311,6 +379,87 @@ const MODSiteOnboarding = () => {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {review && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} data-testid="mod-capture-review-modal">
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[88vh] flex flex-col shadow-2xl">
+            {review.loading || !review.detail ? (
+              <div className="p-10 text-center text-zinc-500"><Loader2 className="animate-spin inline mr-2" size={16} /> Loading submission…</div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-3 p-5 border-b border-zinc-200">
+                  <div>
+                    <h3 className="text-base font-extrabold text-zinc-900">{review.detail.capture.site_name} — equipment submission</h3>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      {review.detail.row_count} machine{review.detail.row_count === 1 ? '' : 's'} entered ·
+                      {review.detail.existing_equipment_count} already on the platform ·
+                      {review.detail.duplicate_count > 0
+                        ? <span className="text-red-600 font-semibold"> {review.detail.duplicate_count} likely duplicate{review.detail.duplicate_count === 1 ? '' : 's'} flagged</span>
+                        : <span className="text-emerald-600 font-semibold"> no duplicates detected</span>}
+                    </p>
+                  </div>
+                  <button onClick={() => setReview(null)} className="p-1.5 rounded-full hover:bg-zinc-100" aria-label="Close" data-testid="mod-capture-review-close"><X size={16} /></button>
+                </div>
+
+                <div className="overflow-auto p-5 flex-1">
+                  <table className="w-full text-xs border-collapse" data-testid="mod-capture-diff-table">
+                    <thead>
+                      <tr className="text-left text-zinc-500 border-b border-zinc-200">
+                        <th className="py-2 pr-3">#</th>
+                        {['name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'asset_number', 'location'].map((k) => (
+                          <th key={k} className="py-2 pr-3 font-semibold whitespace-nowrap">{review.detail.field_labels[k] || k}</th>
+                        ))}
+                        <th className="py-2 pr-3">Flags</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {review.detail.rows.map((a) => {
+                        const dup = a.flags.some((f) => f.startsWith('duplicate') || f === 'possible_duplicate');
+                        return (
+                          <tr key={a.index} className={`border-b border-zinc-100 ${dup ? 'bg-red-50/60' : ''}`} data-testid={`mod-capture-diff-row-${a.index}`}>
+                            <td className="py-2 pr-3 text-zinc-400">{a.index + 1}</td>
+                            {['name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'asset_number', 'location'].map((k) => (
+                              <td key={k} className="py-2 pr-3 text-zinc-700 whitespace-nowrap max-w-[160px] truncate" title={a.row[k] || ''}>{a.row[k] || <span className="text-zinc-300">—</span>}</td>
+                            ))}
+                            <td className="py-2 pr-3">
+                              <div className="flex flex-wrap gap-1">
+                                {a.flags.length === 0 && <span className="text-emerald-600">✓</span>}
+                                {a.flags.map((f) => {
+                                  const map = {
+                                    duplicate_serial: ['Duplicate serial', 'bg-red-100 text-red-700'],
+                                    duplicate_in_sheet: ['Repeated in sheet', 'bg-amber-100 text-amber-700'],
+                                    possible_duplicate: ['Possible duplicate', 'bg-amber-100 text-amber-700'],
+                                    missing_name: ['Missing name', 'bg-red-100 text-red-700'],
+                                  };
+                                  const [label, cls] = map[f] || [f, 'bg-zinc-100 text-zinc-600'];
+                                  return <span key={f} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${cls}`}><AlertTriangle size={9} /> {label}</span>;
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 p-4 border-t border-zinc-200 bg-zinc-50 rounded-b-2xl">
+                  <span className="text-[11px] text-zinc-500">Duplicates are flagged only — the importer also de-dupes by serial on import.</span>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => rejectCapture(review.detail.capture)} disabled={reviewBusyId === review.detail.capture.id} data-testid="mod-capture-modal-reject">
+                      <Undo2 size={13} className="mr-1" /> Request changes
+                    </Button>
+                    <Button size="sm" onClick={() => approveCapture(review.detail.capture)} disabled={reviewBusyId === review.detail.capture.id} data-testid="mod-capture-modal-approve">
+                      {reviewBusyId === review.detail.capture.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <ThumbsUp size={13} className="mr-1" />}
+                      Confirm &amp; import
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
