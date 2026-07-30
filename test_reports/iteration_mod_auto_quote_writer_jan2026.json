@@ -1,0 +1,34 @@
+{
+  "summary": "Full backend + frontend E2E of MOD Automatic Quote Writer (CRM → Corporate → Quotes (CPQ) → MOD Auto Quote). All 10 pytest tests PASS. Frontend wizard executes Type A → Load Equipment → Review → Generate producing a quote (MOD-20260730-858D) with subtotal £1,057.52, VAT £211.50, total £1,269.02, contract-header £0 line and 8 auto-mapped machine lines; Type A also creates the MOD service contract (pending_activation, annual_value £1,057.52) returned by /api/crm/mod-quote/contracts. Type B path shows the UK Call-Out Charges field on step 3 and 3× £80 charges are added (no contract). Type C path enables per-line editable Unit £ inputs (no contract) and uses the custom price. Rate-card year-2 override (sor-2 → £60) flows through GET /equipment?year=2. Non-admin manager gets 403 on rate-card PUT. AI-match endpoint returns a rate_card_id via Emergent LLM. /api/crm/v2/quotes/{id}/pdf returns valid application/pdf (starts with %PDF). Quote also appears in /api/crm/v2/quotes list.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MOD wizard site dropdown", "issues": ["React hydration warning: <span> is rendered inside <option> in the site <select> ('MOD Test Site <span>(8 items)</span>'). Console: 'In HTML, <span> cannot be a child of <option>'. Cosmetic React warning; move the count into the option label text."]},
+      {"screen": "Rate Card Editor", "issues": ["When opened immediately from the wizard header before the wizard's own rate-card fetch finishes, the editor briefly shows 0 rows (uses parent prop, no self-fetch fallback). Minor UX — consider showing a spinner or self-loading if prop is empty."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_mod_quote_jan2026.py",
+    "/app/test_reports/pytest/mod_quote_jan2026.xml"
+  ],
+  "action_items": [
+    "(Optional / cosmetic) Fix <span> inside <option> hydration warning in CRMMODQuoteWizard site select — render count as plain text in the option label.",
+    "(Optional / UX) RateCardEditor should either self-fetch or show a loading state when the parent prop is still empty."
+  ],
+  "critical_code_review_comments": [
+    "routes/crm_mod_quote.py: clean, uses _now() and log_audit; Mongo _id popped after insert. Good.",
+    "generate() Type A contract annual_value uses subtotal which includes the £0 contract-header line — correct behaviour, but be aware if any other £0 lines are added later.",
+    "AI-match raises HTTPException(502, ...) with raw exception text — consider not leaking internal error details to the client in prod.",
+    "PUT /rate-card/{id} silently sets a field to None when value is '' — fine for override reset, but frontend already sends null; keep parity documented."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_mod_quote_jan2026.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% of tested flows"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM owner). Manager (403 test): manager@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None persisted — pytest test_cleanup removes the created crm2_quotes and mod_service_contracts. Frontend E2E left one MOD-… Type A quote + contract (safely identifiable via quote_kind='mod_sor').",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend regression file: /app/backend/tests/test_crm_mod_quote_jan2026.py. Run: cd /app/backend && python -m pytest tests/test_crm_mod_quote_jan2026.py -v. Uses REACT_APP_BACKEND_URL. Frontend flow entry point: /crm login → Corporate pill → Quotes (CPQ) tab → data-testid=mod-quote-btn. Wizard testids all present (mod-contract-A/B/C, mod-site-select, mod-year-select, mod-next-1/2, mod-line-select-*, mod-line-price-*, mod-callout-count, mod-generate-btn, mod-open-rate-card, mod-rate-card-editor). MOD Test Site id: abfdabd9-ae11-4877-a44d-a36fea7f1f4e.",
+  "rca of the issue": "No blocking bugs. Two minor cosmetic observations noted above (React <span>-in-<option> hydration warning and RateCardEditor empty flash if parent hasn't finished fetching)."
+}

@@ -3,10 +3,11 @@ import { useCRM } from './CRMApp';
 import {
   Plus, FileText, X, ArrowLeft, GitCompareArrows,
   Building2, User, ChevronRight, History, Copy,
-  Printer, Mail, AlertTriangle, Loader2, Package, Search, Layers,
+  Printer, Mail, AlertTriangle, Loader2, Package, Search, Layers, ShieldCheck,
 } from 'lucide-react';
 import axios from 'axios';
 import CRMQuoteSagePanel from './CRMQuoteSagePanel';
+import CRMMODQuoteWizard from './CRMMODQuoteWizard';
 import { notify } from '@/components/notifications';
 import { formatMoneySync } from '@/utils/localization';
 
@@ -631,6 +632,7 @@ export default function CRMCPQ() {
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showMOD, setShowMOD] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [opps, setOpps] = useState([]);
@@ -806,6 +808,9 @@ export default function CRMCPQ() {
         <button type="button" onClick={() => crm.setActiveTab && crm.setActiveTab('quote-compare')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="compare-quotes-btn">
           <GitCompareArrows size={14} /> Compare
         </button>
+        <button type="button" onClick={() => setShowMOD(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="mod-quote-btn">
+          <ShieldCheck size={14} /> MOD Auto Quote
+        </button>
         <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-quote-btn">
           <Plus size={14} /> New Quote
         </button>
@@ -855,6 +860,13 @@ export default function CRMCPQ() {
       </div>
 
       {/* Create Quote Dialog */}
+      {showMOD && (
+        <CRMMODQuoteWizard
+          API={API} headers={headers} c={c} isDark={isDark}
+          onClose={() => setShowMOD(false)}
+          onCreated={(quoteId) => { setShowMOD(false); load(); if (quoteId) setSelectedQuote(quoteId); }}
+        />
+      )}
       {showCreate && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
           <div className="w-full max-w-2xl mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
