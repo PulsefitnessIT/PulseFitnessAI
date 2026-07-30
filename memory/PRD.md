@@ -1,3 +1,17 @@
+# ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MARKETING module BATCH 3 (Group A console COMPLETE, VERIFIED) ═══
+Report: /app/test_reports/iteration_marketing_i18n_4tabs_jan2026.json (0 raw key leaks, 0 console errors, EN/FR/DE).
+DONE: the 4 largest console tabs — CampaignsTab (mkt.cmp_), CampaignWizard (mkt.wz_),
+  CreativeStudioTab (mkt.cs_), AIDirectorPanel (mkt.dir_). Marketing Group-A console i18n is now COMPLETE.
+  Shadows fixed: CampaignsTab load t->tplRes / removeTemplate+resetStock+templates.map t->tpl;
+  CampaignWizard TIME_SLOTS.map t->slot; CreativeStudioTab TYPES.map t->ty; AIDirectorPanel presets.tones.map t->tn.
+  Sub-components wired own useTranslation (TemplateEditorModal, ProgressBar, AICopilot, PosterCard, ChannelCard, ChannelBody).
+  Template-literal keys seeded in i18n_translate_modules.py. mkt.* now 1288 keys/locale.
+Note: AI Director + Churn Rescue are SUB-tabs inside the Creative Studio tab (not separate top tabs).
+REMAINING Marketing = Group B public/SEO pages only (Pricing hero, Blog, Compare, Landing, module/security pages).
+Next modules after Marketing: ServiceOps, Staffing, Settings.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MARKETING module BATCH 2 (VERIFIED EN/FR/DE 100%) ═══
 Report: /app/test_reports/iteration_marketing_i18n_fr_de_jan2026.json (0 raw key leaks, 0 console errors across 18 states).
 DONE this session (11 components + 2 shell fixes; babel-parse OK, i18n guard OK, FR+DE merged; mkt.* now 878 keys/locale):

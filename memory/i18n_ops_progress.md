@@ -268,3 +268,19 @@ mkt.* key count: 878 in each of en/fr/de.json (as of this batch).
 - [ ] AIDirectorPanel.js (819 lines)
 ### Group B (public/SEO pages, later): PricingMarketingPage hero, Blog/Compare/Landing/module/security pages.
 ### Minor shell gaps observed: MarketingSuite header subtitle "Campaigns, journeys, creative & growth insights", "Pro Marketing"/"manage packs" chip.
+
+
+## Marketing module (mkt.*) — Batch 3 (2026-06, VERIFIED EN/FR/DE 100%, 0 key leaks)
+Report: /app/test_reports/iteration_marketing_i18n_4tabs_jan2026.json
+The 4 largest Group-A console tabs — Group A Marketing i18n now COMPLETE:
+- [x] CampaignsTab.js (mkt.cmp_; + TemplateEditorModal; shadows renamed: load destructure t->tplRes, removeTemplate/resetStockTemplate param t->tpl, templates.map t->tpl)
+- [x] CampaignWizard.js (mkt.wz_; ProgressBar + AICopilot got own useTranslation; TIME_SLOTS.map t->slot; step/goal/audience/channel/time labels via template keys mkt.wz_step_/goal_/aud_/chan_/time_*)
+- [x] CreativeStudioTab.js (mkt.cs_; TYPES.map t->ty; type/style/mood/idea/category via template keys mkt.cs_type_/style_/mood_/idea_/cat_*)
+- [x] AIDirectorPanel.js (mkt.dir_; PosterCard/ChannelCard/ChannelBody got own useTranslation; presets.tones.map t->tn; tone/goal/segment/quickstart/refine/channel via template keys mkt.dir_tone_/goal_/seg_/qs_/refine_/chan_*)
+mkt.* key count now 1288/locale. Template-literal keys seeded in i18n_translate_modules.py pairs.update() blocks.
+NOTE (from tester): AI Director & Churn Rescue live as SUB-tabs inside the Creative Studio tab (marketing-tab-creative), not separate top tabs.
+
+### Marketing STILL TODO — Group B (public/SEO pages, later):
+- [ ] PricingMarketingPage hero, Blog, Compare, Landing, module/security public pages.
+### Next module areas after Marketing: ServiceOps, Staffing, Settings.
+
