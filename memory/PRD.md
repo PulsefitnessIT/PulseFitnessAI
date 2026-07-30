@@ -1,3 +1,35 @@
+# ═══ 2026-07-30 · MOD VISIT CALENDAR + ENGINEER APPOINTMENT BOOKING + 1-MONTH REMINDERS (DONE, testing_agent VERIFIED) ═══
+User feature "Visit Calendar & Reminders" for MOD Type A annual service visits. User choices: calendar lives on the
+SERVICE DESK -> Preventative Maintenance page; shows BOTH confirmed (green) + pending/proposed (amber) colour-coded;
+reminder lead = 1 MONTH (30d, env MOD_VISIT_REMINDER_LEAD_DAYS); recipients = MOD Service team + MOD site contact;
+plus a digital "Engineer Appointment Booking" form (from the user's paper booking sheet — visitor + vehicle details
+for base access) sent to the site contact via a secure link.
+BACKEND (routes/svc/mod_visits.py — reads mod_service_contracts, org-scoped via get_current_user):
+  • GET /api/svc/pm/mod-visits — all annual visits {visit_status confirmed|pending_confirmation, effective_date
+    (scheduled|proposed), booking_status, share_url, engineer, annual_value…}.
+  • POST /api/svc/pm/mod-visits/{contract_id}/booking-link {send_email?,email?} — mints/reuses a booking token on
+    annual_visit.booking, prefills requested-by (sending user) + visit date + engineer, optionally emails the site
+    contact. Returns share_url/emailed/needs_email.
+  • PUBLIC (no auth, IP rate-limited): GET/PUT /api/public/mod-booking/{token} + POST .../submit. Submit requires
+    mod_contact_name+email; on submit notifies the MOD Service team (MOD_READINESS_HQ_EMAIL, default modservice@pulsefitness.com).
+  • Booking fields mirror the sheet: requested_by_name/email, mod_contact_name/email/phone, visit_start/end date+time,
+    engineer_name/dob/phone, veh_reg/make/model/colour.
+REMINDERS (utils/mod_visit_reminders.run_mod_visit_reminders, hooked into utils/sicon_poller._run_mod_visit_reminders
+  in the 5-min poller): daily idempotent sweep — for CONFIRMED visits ~30d away (window lead-2..lead+1) not yet
+  reminded, emails site contact (with booking link) + MOD Service team, stamps annual_visit.reminded_at once.
+FRONTEND: pages/ServiceDesk/MODVisitCalendar.js (month grid, colour-coded, day-detail panel with Send booking form /
+  Copy link) rendered at top of DeskPreventativeMaintenance.js (Service Desk -> "Maintenance" tab). Public page
+  pages/MODVisitBookingForm.js at /mod-booking/:token (5-section branded form, save draft / submit).
+VERIFIED: curl (list, booking-link, public GET/PUT/submit 400-without-contact/200-with) + reminder sweep (only the
+  30d-away confirmed visit fired, idempotent on re-run) + testing_agent FRONTEND+BACKEND 100%, 0 bugs
+  (iteration_mod_visit_calendar_reminders_jan2026.json). ⚠️ Emails SEND only in PRODUCTION (preview Resend key invalid).
+  QATEST seed data cleaned. PRODUCTION redeploy needed.
+data-testid: mod-visit-calendar, mod-cal-prev/-next/-label, mod-cal-day-<ISO>, mod-cal-day-detail, mod-visit-<id>,
+  mod-visit-send-<id>, mod-visit-copy-<id>; booking-<field>, booking-save-draft, booking-submit, booking-error, booking-done.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-30 · MOD READINESS — SCHEDULED WEEKLY HQ EMAIL + "Send now" (DONE, verified) ═══
 Automates the estate go-live readiness sheet to HQ every Monday 09:00 UTC.
 SCHEDULER: hooked into utils/sicon_poller.py (_run_mod_readiness_weekly → utils/mod_readiness_digest.

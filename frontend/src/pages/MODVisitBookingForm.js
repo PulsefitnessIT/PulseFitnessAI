@@ -59,8 +59,9 @@ export default function MODVisitBookingForm() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const saveDraft = async () => {
-    setSaving(true);
+    setSaving(true); setError('');
     try { await axios.put(`${API}/public/mod-booking/${token}`, { form }); }
+    catch (e) { setError(e?.response?.data?.detail || 'Could not save your draft — please try again.'); }
     finally { setSaving(false); }
   };
 
