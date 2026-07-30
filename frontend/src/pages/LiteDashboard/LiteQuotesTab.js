@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { FileText, Loader2, PenLine, CheckCircle2, ChevronLeft, RotateCcw, ShieldCheck, FileSignature } from 'lucide-react';
+import { notify } from '@/components/notifications';
 
 const money = (n, cur = 'GBP') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(Number(n) || 0);
 
@@ -56,7 +57,7 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
     try {
       const r = await axios.get(`${API}/mod/site/quotes`, { headers });
       setList(r.data.quotes || []);
-    } catch { /* ignore */ }
+    } catch { notify.error('Could not load quotes'); }
     setLoading(false);
   }, [API]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
@@ -65,7 +66,7 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
     try {
       const r = await axios.get(`${API}/mod/site/quotes/${id}`, { headers });
       setActive(r.data); setSig(''); setName(''); setAgree(false);
-    } catch { /* ignore */ }
+    } catch { notify.error('Could not open quote'); }
   };
 
   const sign = async () => {
@@ -75,7 +76,8 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
       await axios.post(`${API}/mod/site/quotes/${active.id}/sign`, { signature: sig, signer_name: name.trim() }, { headers });
       const r = await axios.get(`${API}/mod/site/quotes/${active.id}`, { headers });
       setActive(r.data); await load(); onChanged && onChanged();
-    } catch (e) { /* surfaced below */ }
+      notify.success('Quote accepted & signed');
+    } catch (e) { notify.error(e.response?.data?.detail || 'Could not sign the quote — please try again'); }
     setSigning(false);
   };
 

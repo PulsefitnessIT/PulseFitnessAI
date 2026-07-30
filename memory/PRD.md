@@ -32490,3 +32490,19 @@ Added a secure public e-signature flow to the MOD Automatic Quote Writer.
 - `CRMCPQ.js` QuoteDetail: "Send for E-Sign" button (`quote-esign-btn`) + dialog to enter recipient and copy the secure link; label flips to "Resend E-Sign"/"Signed".
 
 Tested: testing_agent backend 100% (12/12, `backend/tests/test_crm_mod_quote_esign_jan2026.py`) + frontend 100% (send flow + public sign + contract activation + regression). Fixed the cosmetic `<span>`-in-`<option>` warning in the wizard selects.
+
+---
+## Changelog — 2026-06 (MOD in-portal Quotes tab + inline e-sign)
+Site owners/managers can now review and e-sign MOD quotes INSIDE their MODService portal (/pulse, LiteDashboardPage) — no separate public link/login needed. A public /quote/sign/:token link remains as a fallback (both share one accept engine).
+
+**Backend** (`routes/mod_portal.py`, auth get_current_user + _require_mod_site):
+- `GET /api/mod/site/quotes` → {quotes[], pending_count} (crm2_quotes where mod_site_id == user's org id).
+- `GET /api/mod/site/quotes/{id}` → detail view. `GET .../pdf` → application/pdf. `POST .../sign` → accept + sign (calls the shared `crm_mod_quote.apply_quote_signature`, which activates the linked Type A mod_service_contract). Non-MOD users → 403.
+- Refactored the sign/accept core into `crm_mod_quote.apply_quote_signature(quote, signer, signature, via)` — single source of truth for both the public link and in-portal signing.
+
+**Frontend**:
+- `src/pages/LiteDashboard/LiteQuotesTab.js` — light-themed in-portal quotes list + detail + inline signature-pad sign (with name + authorisation checkbox), PDF link, and a signed/accepted state.
+- `LiteDashboardPage.js` — MOD-only "Quotes (N)" tab (pending badge, hidden for shared-site logins), fetches pending_count in loadData, renders LiteQuotesTab.
+- (`MODPortal/MODSiteDashboard.js` + `MODQuotesPanel.js` also wired but that portal is legacy/unrouted; the live portal is /pulse.)
+
+Tested: testing_agent backend 100% (7/7 new + 12/12 regression, `tests/test_mod_portal_quotes_esign_jan2026.py`) + frontend 100% (tab → list → detail → inline sign → contract active, pending badge decrements). Added error toasts to LiteQuotesTab per review.
