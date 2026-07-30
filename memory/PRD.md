@@ -50,7 +50,13 @@ User decisions: portal self-serve NOT wanted (single-add fine for sites); HQ/mas
   guided checklist YES; template must include ALL fields + a presentable version to send to sites. Target = PRODUCTION (needs redeploy).
 ─────────────────────────────────────────────────────────────────────────────
 
-# ═══ 2026-06 · MOD STAFF FLOW-THROUGH + LOGIN SPLIT (code-complete, backend unit-tested; NOT yet e2e-tested) ═══
+# ═══ 2026-06 · MOD STAFF FLOW-THROUGH + LOGIN SPLIT (DONE — e2e VERIFIED, safe to redeploy) ═══
+# E2E verified via testing_agent (iteration_mod_login_split_handover_jan2026.json — 4/4 PASS, retest_needed=false):
+#   • Restricted shared login (role site_staff / is_shared_site_login) → Reports + Staffing + Settings HIDDEN; still sees
+#     Dashboard/Equipment/Faults/Check Sheets/Documents. • Owner login → Reports+Staffing visible + Transfer ownership button.
+#   • Owner handover modal → success + new-owner creds shown, outgoing owner stepped down. • Staff flow-through: MOD
+#     "Staff at this site" now lists people mirrored from Master Admin People (was empty). No bugs found.
+
 1) STAFF FLOW-THROUGH (reported bug): Master-Admin→People users never appeared in MOD portal "Staff at this site"
    (login accounts in users/crm_users vs roster in mod_site_staff = separate stores). FIX: read-time backfill
    _backfill_mod_site_staff_from_users in GET /api/mod/site/staff — mirrors real login-users into the roster,
