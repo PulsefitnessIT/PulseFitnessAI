@@ -332,6 +332,24 @@ async def push_part_movement(movement: dict, *, case_reference: str = "") -> Non
         logger.warning("sicon push_part_movement failed: %s", e)
 
 
+async def push_mod_service_call(*, organization_id: str, payload: dict) -> None:
+    """Enqueue a MOD visit/callout as a Sicon Service Call (Case). Non-blocking."""
+    try:
+        await _enqueue(organization_id=organization_id, kind="case",
+                       sicon_endpoint="/api/Service/Calls", payload=payload)
+    except Exception as e:
+        logger.warning("sicon push_mod_service_call failed: %s", e)
+
+
+async def push_mod_appointment(*, organization_id: str, payload: dict) -> None:
+    """Enqueue a MOD visit engineer Appointment to Sicon. Non-blocking."""
+    try:
+        await _enqueue(organization_id=organization_id, kind="appointment",
+                       sicon_endpoint="/api/Service/Appointments", payload=payload)
+    except Exception as e:
+        logger.warning("sicon push_mod_appointment failed: %s", e)
+
+
 __all__ = [
     "push_case",
     "push_event",
@@ -339,6 +357,8 @@ __all__ = [
     "push_signature",
     "push_attachment",
     "push_part_movement",
+    "push_mod_service_call",
+    "push_mod_appointment",
     "STATUS_CROSSWALK",
     "PRIORITY_CROSSWALK",
     "NOTE_TYPE_CROSSWALK",

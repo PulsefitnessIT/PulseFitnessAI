@@ -86,6 +86,11 @@ def _visit_row(c: dict) -> dict:
     status = av.get("status") or ("pending_confirmation" if c.get("status") == "active" else "none")
     booking = av.get("booking") or {}
     effective = av.get("scheduled_date") or av.get("proposed_date")
+    booking_out = None
+    if booking.get("token"):
+        booking_out = {k: booking.get(k, "") for k in BOOKING_FIELDS}
+        booking_out["status"] = booking.get("status") or "sent"
+        booking_out["submitted_at"] = booking.get("submitted_at")
     return {
         "contract_id": c.get("id"),
         "quote_number": c.get("quote_number"),
@@ -103,6 +108,7 @@ def _visit_row(c: dict) -> dict:
         "equipment_count": c.get("equipment_count"),
         "booking_status": booking.get("status") or "not_sent",
         "booking_token": booking.get("token"),
+        "booking": booking_out,
         "share_url": _share_url(booking["token"]) if booking.get("token") else None,
         "reminded_at": av.get("reminded_at"),
     }
@@ -173,24 +179,166 @@ async def create_booking_link(contract_id: str, data: dict = Body(default={}),
 
 # ── Public booking form (token-gated, no auth) ────────────────────
 
-async def _contract_by_booking_token(token: str) -> dict:
+async def _find_booking(token: str) -> dict:
+    """Locate a booking by token across both sources: contract annual visits
+    (mod_service_contracts.annual_visit.booking) and MOD faults (issues.mod_booking)."""
     c = await db.mod_service_contracts.find_one(
         {"annual_visit.booking.token": token}, {"_id": 0})
-    if not c:
-        raise HTTPException(404, "Booking form not found or expired")
-    return c
+    if c:
+        av = c.get("annual_visit") or {}
+        return {"source": "contract_visit", "doc": c, "booking": av.get("booking") or {},
+                "ref_id": c.get("id"), "organization_id": c.get("organization_id"),
+                "site_id": c.get("mod_site_id"), "site_name": c.get("mod_site_name"),
+                "visit_date": av.get("scheduled_date") or av.get("proposed_date"),
+                "reference": c.get("quote_number")}
+    i = await db.issues.find_one({"mod_booking.token": token}, {"_id": 0})
+    if i:
+        b = i.get("mod_booking") or {}
+        return {"source": "fault", "doc": i, "booking": b,
+                "ref_id": i.get("id"), "organization_id": i.get("organization_id"),
+                "site_id": i.get("mod_site_id") or i.get("organization_id"),
+                "site_name": b.get("site_name") or "",
+                "visit_date": b.get("visit_start_date") or "",
+                "reference": i.get("mod_ticket_ref")}
+    raise HTTPException(404, "Booking form not found or expired")
 
 
-def _public_booking_view(c: dict) -> dict:
-    av = c.get("annual_visit") or {}
-    booking = av.get("booking") or {}
+async def _persist_booking(handle: dict, booking: dict) -> None:
+    if handle["source"] == "contract_visit":
+        av = handle["doc"].get("annual_visit") or {}
+        av["booking"] = booking
+        await db.mod_service_contracts.update_one(
+            {"id": handle["ref_id"]}, {"$set": {"annual_visit": av, "updated_at": _now()}})
+    else:
+        await db.issues.update_one(
+            {"id": handle["ref_id"]}, {"$set": {"mod_booking": booking, "updated_at": _now()}})
+
+
+def _public_booking_view(handle: dict) -> dict:
+    b = handle["booking"]
     return {
-        "site_name": c.get("mod_site_name"),
-        "visit_scheduled_date": av.get("scheduled_date") or av.get("proposed_date"),
-        "status": booking.get("status") or "sent",
-        "submitted_at": booking.get("submitted_at"),
-        "form": {k: booking.get(k, "") for k in BOOKING_FIELDS},
+        "site_name": handle["site_name"],
+        "visit_scheduled_date": handle["visit_date"],
+        "reference": handle.get("reference"),
+        "source": handle["source"],
+        "status": b.get("status") or "sent",
+        "submitted_at": b.get("submitted_at"),
+        "form": {k: b.get(k, "") for k in BOOKING_FIELDS},
     }
+
+
+# ── Sicon Service / Contract / Appointment sync (queues; simulates until
+#    live Sicon credentials are supplied, then posts for real) ───────
+
+def _visit_datetimes(visit_date: str, booking: dict) -> tuple:
+    start = booking.get("visit_start_date") or visit_date or ""
+    end = booking.get("visit_end_date") or start
+    stime = booking.get("visit_start_time") or "09:00"
+    etime = booking.get("visit_end_time") or "17:00"
+    return (f"{start}T{stime}" if start else None, f"{end}T{etime}" if end else None)
+
+
+def _booking_notes(booking: dict) -> str:
+    lines = []
+    if booking.get("engineer_name"):
+        lines.append(f"Engineer/visitor: {booking['engineer_name']} · DOB {booking.get('engineer_dob') or '—'} · {booking.get('engineer_phone') or '—'}")
+    veh = " ".join(x for x in [booking.get("veh_colour"), booking.get("veh_make"), booking.get("veh_model")] if x)
+    if booking.get("veh_reg") or veh:
+        lines.append(f"Vehicle: {(booking.get('veh_reg') or '').strip()} {veh}".strip())
+    if booking.get("mod_contact_name"):
+        lines.append(f"MOD contact: {booking['mod_contact_name']} · {booking.get('mod_contact_phone') or booking.get('mod_contact_email') or ''}")
+    return "\n".join(lines)
+
+
+async def enqueue_contract_visit_sicon(contract: dict) -> None:
+    """Push a Sicon Service Call + engineer Appointment for a MOD annual visit,
+    linked to the Type A Contract. Idempotent (stable OurReference)."""
+    from routes.svc.integrations.sicon_sync import push_mod_service_call, push_mod_appointment
+    av = contract.get("annual_visit") or {}
+    booking = av.get("booking") or {}
+    visit_date = av.get("scheduled_date") or av.get("proposed_date")
+    start_dt, end_dt = _visit_datetimes(visit_date, booking)
+    org = contract.get("organization_id")
+    cid = contract.get("id")
+    call_ref = contract.get("quote_number") or f"MODV-{str(cid)[:8]}"
+    await push_mod_service_call(organization_id=org, payload={
+        "OurReference": f"modvisit-case-{cid}",
+        "CallReference": call_ref,
+        "Description": f"MOD annual service visit — {contract.get('mod_site_name') or ''}"[:80],
+        "Notes": _booking_notes(booking),
+        "StatusID": "Logged", "CallTypeID": "contract", "JobTypeID": "service",
+        "ContractID": contract.get("sicon_contract_id") or contract.get("contract_number") or cid,
+        "SubLocation": {"SiconSubLocationID": contract.get("mod_site_id"),
+                        "Description": contract.get("mod_site_name") or ""},
+        "ContactName": booking.get("mod_contact_name") or "",
+        "ContactEmail": booking.get("mod_contact_email") or "",
+        "ContactPhone": booking.get("mod_contact_phone") or "",
+        "ScheduledDateTime": start_dt, "LoggedDateTime": _now(),
+        "LoggedByMethod": "mod_visit_calendar",
+    })
+    await push_mod_appointment(organization_id=org, payload={
+        "OurReference": f"modvisit-appt-{cid}",
+        "ServiceCallReference": call_ref,
+        "ResourceID": av.get("engineer") or booking.get("engineer_name") or "",
+        "StartDateTime": start_dt, "EndDateTime": end_dt,
+        "AppointmentTypeID": "on_site", "Notes": _booking_notes(booking),
+    })
+
+
+async def enqueue_fault_visit_sicon(issue: dict) -> None:
+    """Push a Sicon Service Call + Appointment for a MOD engineer-callout fault."""
+    from routes.svc.integrations.sicon_sync import push_mod_service_call, push_mod_appointment
+    booking = issue.get("mod_booking") or {}
+    start_dt, end_dt = _visit_datetimes("", booking)
+    org = issue.get("organization_id")
+    iid = issue.get("id")
+    call_ref = issue.get("mod_ticket_ref") or f"MODF-{str(iid)[:8]}"
+    await push_mod_service_call(organization_id=org, payload={
+        "OurReference": f"modfault-case-{iid}",
+        "CallReference": call_ref,
+        "Description": f"MOD engineer callout — {issue.get('machine_type') or 'equipment'}"[:80],
+        "Notes": (issue.get("issue_description") or "") + ("\n\n" + _booking_notes(booking) if _booking_notes(booking) else ""),
+        "StatusID": "Logged", "CallTypeID": "callout", "JobTypeID": "repair",
+        "SubLocation": {"SiconSubLocationID": issue.get("mod_site_id"),
+                        "Description": booking.get("site_name") or ""},
+        "ContactName": booking.get("mod_contact_name") or issue.get("reporter_name") or "",
+        "ContactEmail": booking.get("mod_contact_email") or issue.get("reporter_email") or "",
+        "ContactPhone": booking.get("mod_contact_phone") or issue.get("reporter_phone") or "",
+        "ScheduledDateTime": start_dt, "LoggedDateTime": _now(),
+        "LoggedByMethod": "mod_fault_callout",
+    })
+    await push_mod_appointment(organization_id=org, payload={
+        "OurReference": f"modfault-appt-{iid}",
+        "ServiceCallReference": call_ref,
+        "ResourceID": booking.get("engineer_name") or "",
+        "StartDateTime": start_dt, "EndDateTime": end_dt,
+        "AppointmentTypeID": "on_site", "Notes": _booking_notes(booking),
+    })
+
+
+async def make_fault_booking(issue_id: str) -> dict | None:
+    """Create an Engineer Appointment Booking form for a MOD engineer-callout
+    fault (idempotent). Stored on issues.mod_booking; the site fills it via the
+    same /mod-booking/:token page and its details surface on the fault card."""
+    issue = await db.issues.find_one({"id": issue_id}, {"_id": 0})
+    if not issue:
+        return None
+    if (issue.get("mod_booking") or {}).get("token"):
+        return issue["mod_booking"]
+    org = await db.organizations.find_one(
+        {"id": issue.get("mod_site_id") or issue.get("organization_id")}, {"_id": 0, "name": 1}) or {}
+    booking = {k: "" for k in BOOKING_FIELDS}
+    booking.update({
+        "token": secrets.token_urlsafe(24), "status": "sent",
+        "site_name": org.get("name") or "", "kind": "fault",
+        "requested_by_name": "Pulse Fitness Service", "requested_by_email": "",
+        "mod_contact_name": issue.get("reporter_name") or "",
+        "mod_contact_email": issue.get("reporter_email") or "",
+        "mod_contact_phone": issue.get("reporter_phone") or "",
+        "created_at": _now(), "updated_at": _now(), "sent_at": _now(),
+    })
+    await db.issues.update_one({"id": issue_id}, {"$set": {"mod_booking": booking}})
+    return booking
 
 
 @public_router.get("/{token}")
@@ -198,60 +346,70 @@ async def public_get_booking(token: str, request: Request) -> dict:
     from utils.security_plus import rate_limit_async
     ip = request.client.host if request.client else "unknown"
     await rate_limit_async(f"mod_booking_ip:{ip}", max_requests=60, window_seconds=300)
-    return _public_booking_view(await _contract_by_booking_token(token))
+    return _public_booking_view(await _find_booking(token))
 
 
 @public_router.put("/{token}")
 async def public_save_booking(token: str, body: dict = Body(...)) -> dict:
-    c = await _contract_by_booking_token(token)
-    av = c.get("annual_visit") or {}
-    booking = av.get("booking") or {}
+    handle = await _find_booking(token)
+    booking = handle["booking"]
     if booking.get("status") == "submitted":
         raise HTTPException(409, "This booking form has already been submitted.")
     form = body.get("form") or {}
     for k in BOOKING_FIELDS:
         if k in form:
-            booking[k] = (form.get(k) or "").strip() if isinstance(form.get(k), str) else form.get(k)
+            booking[k] = form.get(k).strip() if isinstance(form.get(k), str) else form.get(k)
     booking["status"] = "draft" if booking.get("status") in (None, "sent") else booking["status"]
     booking["updated_at"] = _now()
-    av["booking"] = booking
-    await db.mod_service_contracts.update_one(
-        {"id": c["id"]}, {"$set": {"annual_visit": av, "updated_at": _now()}})
-    return _public_booking_view(await _contract_by_booking_token(token))
+    await _persist_booking(handle, booking)
+    return _public_booking_view(await _find_booking(token))
 
 
 @public_router.post("/{token}/submit")
 async def public_submit_booking(token: str, body: dict = Body(default={})) -> dict:
-    c = await _contract_by_booking_token(token)
-    av = c.get("annual_visit") or {}
-    booking = av.get("booking") or {}
+    handle = await _find_booking(token)
+    booking = handle["booking"]
     if booking.get("status") == "submitted":
         raise HTTPException(409, "This booking form has already been submitted.")
     form = body.get("form") or {}
     for k in BOOKING_FIELDS:
         if k in form:
-            booking[k] = (form.get(k) or "").strip() if isinstance(form.get(k), str) else form.get(k)
+            booking[k] = form.get(k).strip() if isinstance(form.get(k), str) else form.get(k)
     if not (booking.get("mod_contact_name") and booking.get("mod_contact_email")):
         raise HTTPException(400, "Please provide the MOD contact name and email before submitting.")
     booking["status"] = "submitted"
     booking["submitted_at"] = _now()
     booking["updated_at"] = _now()
-    av["booking"] = booking
-    await db.mod_service_contracts.update_one(
-        {"id": c["id"]}, {"$set": {"annual_visit": av, "updated_at": _now()}})
-    # Notify the MOD Service team that the booking form came back.
+    await _persist_booking(handle, booking)
+
+    # Notify the MOD Service team.
     try:
         from utils.email import send_email
         team = os.environ.get("MOD_READINESS_HQ_EMAIL") or "modservice@pulsefitness.com"
-        html = (f"<p>The Engineer Appointment Booking form for <b>{c.get('mod_site_name')}</b> "
-                f"has been completed by the MOD contact.</p>"
+        label = "engineer callout" if handle["source"] == "fault" else "annual service visit"
+        html = (f"<p>The Engineer Appointment Booking form for the {label} at "
+                f"<b>{handle['site_name']}</b> ({handle.get('reference') or ''}) has been completed.</p>"
                 f"<p>Contact: {booking.get('mod_contact_name')} · {booking.get('mod_contact_email')} · "
                 f"{booking.get('mod_contact_phone') or '—'}</p>"
+                f"<p>Engineer: {booking.get('engineer_name') or '—'} · Vehicle: {booking.get('veh_reg') or '—'}</p>"
                 f"<p>Visit: {booking.get('visit_start_date') or '—'} {booking.get('visit_start_time') or ''}</p>")
-        await send_email(team, f"MOD booking form completed — {c.get('mod_site_name')}", html, category="support")
+        await send_email(team, f"MOD booking completed — {handle['site_name']}", html, category="support")
     except Exception:
         pass
-    return _public_booking_view(await _contract_by_booking_token(token))
+
+    # Sync to Sicon (Service Call + engineer Appointment; queues + simulates
+    # until live credentials are provided).
+    try:
+        fresh = await _find_booking(token)
+        if fresh["source"] == "contract_visit":
+            await enqueue_contract_visit_sicon(fresh["doc"])
+        else:
+            await enqueue_fault_visit_sicon(fresh["doc"])
+    except Exception:
+        logger.exception("[mod-booking] Sicon enqueue failed on submit")
+
+    return _public_booking_view(await _find_booking(token))
 
 
-__all__ = ["router", "public_router"]
+__all__ = ["router", "public_router", "enqueue_contract_visit_sicon",
+           "enqueue_fault_visit_sicon", "make_fault_booking"]

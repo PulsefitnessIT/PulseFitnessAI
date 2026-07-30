@@ -1680,6 +1680,17 @@ async def mod_fault_submit(
     }
     await db.issues.insert_one(doc)
 
+    # Engineer-callout faults get an Engineer Appointment Booking form so the
+    # site can book our engineer onto the base (details surface on the fault
+    # card). Auto-generated when AI triage says an engineer is required or the
+    # fault is high priority.
+    if (ai or {}).get("engineer_required") or priority in ("urgent", "high"):
+        try:
+            from routes.svc.mod_visits import make_fault_booking
+            await make_fault_booking(issue_id)
+        except Exception:
+            logger.warning("MOD fault booking-form generation failed for %s", issue_id)
+
     # Iter 216h115 — When a classification flag is raised, email HQ +
     # the on-call mailbox so a human reviews the record.
     if classification_flags:

@@ -1,0 +1,22 @@
+{
+  "summary": "Re-verified the MOD Visit Calendar 'Booking details' expandable, MOD fault card 'Engineer booking' block, Sicon outbox queueing on contract confirm, and fault detail mod_booking passthrough. Backend pytest 4/4 pass. Frontend: Service Desk → Maintenance calendar in September 2026 shows contract qatest-mv-ct1 day 08 Sept with Booking details rendering MOD contact (Sgt Jones / jones@example.com / 07111 222333), engineer (Dave Smith / 1985-04-01 / 07999 888777 / visit 2026-09-08 09:30) and vehicle (AB12 CDE · White Ford Transit) — all 5 expected tokens found inside data-testid mod-booking-details. MOD portal Faults tab (test@army.mod.test) shows the seeded fault PF-MODTS-001 card with data-testid mod-booking-block-qatest-mv-fault1, 'Booked' badge, summary showing 'Engineer: Priya Patel · Vehicle: ZZ99 XYZ · Silver Vauxhall Vivaro · Visit: 2026-08-04 10:00', and both mod-booking-copy-qatest-mv-fault1 and mod-booking-open-qatest-mv-fault1 buttons present. Sicon outbox rows for the contract path present in DB: modvisit-case-qatest-mv-ct1 with payload.ContractID=CN-7001 (endpoint /api/Service/Calls) and modvisit-appt-qatest-mv-ct1 with payload.ResourceID=Dave Smith (endpoint /api/Service/Appointments), both status=pending as expected in mocked mode.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mod_visit_booking_details_sicon_jan2026.py",
+    "/app/test_reports/pytest/mod_visit_booking_details_sicon.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MODVisitCalendar.BookingDetails defaults to open when a booking is present, so the 'toggle' behaves as a collapse rather than expand on first click; consider defaulting to closed to match the 'expandable' wording in requirements. Not a blocker — all data still visible by default.",
+    "No public route to inspect svc_sicon_outbox from the API surface; a lightweight master-admin GET /api/master-admin/sicon/outbox listing (or existing worker admin) would help future regression tests validate ContractID/ResourceID without direct DB access."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_visit_booking_details_sicon_jan2026.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Service Desk); test@army.mod.test / ModTest123! (MOD portal via /MODService); admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (master admin)",
+  "seed_data_creation": "None. Re-triggered confirm-visit on qatest-mv-ct1 (idempotent) which re-enqueued the two outbox rows; fault booking rows for qatest-mv-fault1 were not re-created because seed only writes mod_booking on the issue, not a submit — main agent already verified modfault-case/modfault-appt rows via direct call.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public form GET path is /api/public/mod-booking/{token} (NOT /api/svc/pm/mod-visits/booking/{token}). Booking payload lives under `form` key (form.mod_contact_name, form.engineer_name, form.visit_start_date, etc.). Contract qatest-mv-ct1 confirmed visit is 2026-09-08. Fault qatest-mv-fault1 booking is Priya Patel / ZZ99 XYZ Silver Vauxhall Vivaro / 2026-08-04 10:00. svc_sicon_outbox rows for the contract are already present with status=pending; do not treat 'pending'/'skipped_no_config' as bugs — that's the intended mocked state.",
+  "rca of the issue": "No issues found."
+}

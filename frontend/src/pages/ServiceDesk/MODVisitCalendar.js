@@ -8,7 +8,7 @@
  * Engineer Appointment Booking form.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, ShieldCheck, Loader2, Send, Copy, CheckCircle2, Clock, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShieldCheck, Loader2, Send, Copy, CheckCircle2, Clock, CalendarDays, ChevronDown, User, Car } from 'lucide-react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
 
@@ -23,6 +23,45 @@ function fmtDate(d) {
 const money = (v, c = 'GBP') => (v == null ? '—' : new Intl.NumberFormat('en-GB', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(v));
 
 const BOOKING_LABEL = { not_sent: 'Not sent', sent: 'Form sent', draft: 'In progress', submitted: 'Completed' };
+
+function BookingDetails({ b }) {
+  const [open, setOpen] = useState(b?.status === 'submitted');
+  if (!b || b.status === 'not_sent') return null;
+  const veh = [b.veh_colour, b.veh_make, b.veh_model].filter(Boolean).join(' ');
+  const Row = ({ label, value }) => (
+    <div className="flex justify-between gap-3 py-0.5"><span className="text-zinc-400">{label}</span><span className="text-zinc-700 dark:text-zinc-200 font-medium text-right">{value || '—'}</span></div>
+  );
+  return (
+    <div className="mt-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-[11px] font-bold text-zinc-600 dark:text-zinc-300" data-testid="mod-booking-details-toggle">
+        <span className="inline-flex items-center gap-1.5"><CalendarDays size={12} /> Booking details {b.status === 'submitted' ? '(completed)' : `(${BOOKING_LABEL[b.status] || b.status})`}</span>
+        <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2.5 text-[11px] space-y-2" data-testid="mod-booking-details">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 flex items-center gap-1 mb-0.5"><User size={10} /> MOD contact</p>
+            <Row label="Name" value={b.mod_contact_name} />
+            <Row label="Email" value={b.mod_contact_email} />
+            <Row label="Phone" value={b.mod_contact_phone} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 flex items-center gap-1 mb-0.5"><User size={10} /> Engineer / visitor</p>
+            <Row label="Name" value={b.engineer_name} />
+            <Row label="DOB" value={b.engineer_dob} />
+            <Row label="Phone" value={b.engineer_phone} />
+            <Row label="Visit" value={[b.visit_start_date, b.visit_start_time].filter(Boolean).join(' ')} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 flex items-center gap-1 mb-0.5"><Car size={10} /> Vehicle</p>
+            <Row label="Registration" value={b.veh_reg} />
+            <Row label="Details" value={veh} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MODVisitCalendar() {
   const [visits, setVisits] = useState([]);
@@ -188,6 +227,7 @@ export default function MODVisitCalendar() {
                       </button>
                     </div>
                   </div>
+                  <BookingDetails b={v.booking} />
                 </li>
               ))}
             </ul>

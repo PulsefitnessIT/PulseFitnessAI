@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package, ShieldAlert } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, CalendarClock, Copy, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package, ShieldAlert } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
@@ -92,6 +92,35 @@ const LiteFaultsTab = ({
                 >
                   <ExternalLink size={11} /> {t('faults.view_supplier_card', 'View supplier card')}
                 </button>
+              </div>
+            )}
+            {issue.mod_booking?.token && (
+              <div className="mt-2 rounded-lg border border-[var(--color-brand-blue)]/30 bg-[rgb(var(--rgb-brand-blue)/0.08)] p-2.5" onClick={(e) => e.stopPropagation()} data-testid={`mod-booking-block-${issue.id}`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--color-brand-blue)]">
+                    <CalendarClock size={12} /> {t('faults.engineer_booking', 'Engineer booking')}
+                    <Badge className={issue.mod_booking.status === 'submitted' ? 'bg-emerald-500/20 text-emerald-400 text-[9px] px-1.5 py-0' : 'bg-amber-500/20 text-amber-400 text-[9px] px-1.5 py-0'}>
+                      {issue.mod_booking.status === 'submitted' ? t('faults.booked', 'Booked') : t('faults.awaiting_booking', 'Awaiting booking')}
+                    </Badge>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/mod-booking/${issue.mod_booking.token}`); }}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-text-muted)] hover:text-white transition-colors" data-testid={`mod-booking-copy-${issue.id}`} title="Copy booking form link">
+                      <Copy size={11} /> {t('faults.copy_link', 'Copy link')}
+                    </button>
+                    <button type="button" onClick={() => window.open(`/mod-booking/${issue.mod_booking.token}`, '_blank', 'noopener')}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-brand-cyan-hover)] hover:text-white hover:underline transition-colors" data-testid={`mod-booking-open-${issue.id}`}>
+                      <ExternalLink size={11} /> {t('faults.open_booking_form', 'Open form')}
+                    </button>
+                  </div>
+                </div>
+                {issue.mod_booking.status === 'submitted' && (
+                  <div className="mt-2 grid sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]" data-testid={`mod-booking-summary-${issue.id}`}>
+                    <div><span className="text-[var(--color-text-muted)]">{t('faults.engineer', 'Engineer')}: </span><span className="text-white">{issue.mod_booking.engineer_name || '—'}</span></div>
+                    <div><span className="text-[var(--color-text-muted)]">{t('faults.vehicle', 'Vehicle')}: </span><span className="text-white">{[issue.mod_booking.veh_reg, [issue.mod_booking.veh_colour, issue.mod_booking.veh_make, issue.mod_booking.veh_model].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}</span></div>
+                    <div><span className="text-[var(--color-text-muted)]">{t('faults.visit', 'Visit')}: </span><span className="text-white">{[issue.mod_booking.visit_start_date, issue.mod_booking.visit_start_time].filter(Boolean).join(' ') || '—'}</span></div>
+                  </div>
+                )}
               </div>
             )}
           </div>

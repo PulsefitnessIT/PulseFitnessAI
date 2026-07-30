@@ -24,6 +24,7 @@ import os
 import re
 import secrets
 import uuid
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -39,6 +40,7 @@ from routes.master_admin import (
     require_master_admin,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 DEFAULT_ESTATE_ID = "uk-mod"
@@ -1230,6 +1232,15 @@ async def confirm_contract_visit(contract_id: str, data: dict = Body(default={})
     })
     await db.mod_service_contracts.update_one(
         {"id": contract_id}, {"$set": {"annual_visit": av, "updated_at": now}})
+    # Sync to Sicon: Service Call + engineer Appointment linked to the Contract
+    # (queues + simulates until live Sicon credentials are supplied).
+    try:
+        from routes.svc.mod_visits import enqueue_contract_visit_sicon
+        fresh = await db.mod_service_contracts.find_one({"id": contract_id}, {"_id": 0})
+        if fresh:
+            await enqueue_contract_visit_sicon(fresh)
+    except Exception:
+        logger.exception("[mod-visit] Sicon enqueue on confirm failed")
     return {"ok": True, "annual_visit": av}
 
 
