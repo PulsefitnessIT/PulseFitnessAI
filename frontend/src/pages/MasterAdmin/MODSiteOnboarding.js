@@ -55,6 +55,8 @@ const MODSiteOnboarding = () => {
   const [linkBusyId, setLinkBusyId] = useState(null);
   const [reviewBusyId, setReviewBusyId] = useState(null);
   const [remindBusyId, setRemindBusyId] = useState(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [skipDups, setSkipDups] = useState(true);
   const [review, setReview] = useState(null);   // { loading, detail } for the diff modal
   const fileInput = useRef(null);
   const targetSite = useRef(null);
@@ -107,18 +109,41 @@ const MODSiteOnboarding = () => {
     }
   };
 
-  const approveCapture = async (c) => {
+  const approveCapture = async (c, skipDuplicates = false) => {
     setReviewBusyId(c.id);
     try {
-      const { data } = await axios.post(`${API}/master-admin/mod-estate/captures/${c.id}/approve`, {}, { headers });
+      const { data } = await axios.post(`${API}/master-admin/mod-estate/captures/${c.id}/approve`, { skip_duplicates: skipDuplicates }, { headers });
       const r = data.import_result || {};
-      notify.success(`Imported ${r.imported} machines into ${c.site_name}`, r.skipped ? `${r.skipped} skipped.` : 'Confirmed & imported.');
+      const dropped = data.skipped_duplicates || 0;
+      notify.success(
+        `Imported ${r.imported} machines into ${c.site_name}`,
+        dropped ? `${dropped} flagged duplicate${dropped === 1 ? '' : 's'} skipped.` : (r.skipped ? `${r.skipped} skipped.` : 'Confirmed & imported.'),
+      );
       setReview(null);
       load();
     } catch (e) {
       notify.error('Import failed', e?.response?.data?.detail || 'Server error');
     } finally {
       setReviewBusyId(null);
+    }
+  };
+
+  const bulkApprove = async () => {
+    const pending = captures.filter((c) => c.status === 'submitted').length;
+    if (!pending) return;
+    if (!window.confirm(`Confirm all ${pending} submitted site${pending === 1 ? '' : 's'} at once? Flagged duplicate rows will be skipped; only clean rows import.`)) return;
+    setBulkBusy(true);
+    try {
+      const { data } = await axios.post(`${API}/master-admin/mod-estate/captures/bulk-approve`, { skip_duplicates: true }, { headers });
+      notify.success(
+        `Imported ${data.total_imported} machines across ${data.processed} site${data.processed === 1 ? '' : 's'}`,
+        data.total_skipped_duplicates ? `${data.total_skipped_duplicates} flagged duplicate row(s) skipped.` : 'All clean rows imported.',
+      );
+      load();
+    } catch (e) {
+      notify.error('Bulk confirm failed', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -165,6 +190,7 @@ const MODSiteOnboarding = () => {
     setReview({ loading: true, id: c.id });
     try {
       const { data } = await axios.get(`${API}/master-admin/mod-estate/captures/${c.id}`, { headers });
+      setSkipDups((data.duplicate_count || 0) > 0);
       setReview({ loading: false, detail: data, id: c.id });
     } catch (e) {
       notify.error('Could not load submission', e?.response?.data?.detail || 'Server error');
@@ -273,6 +299,12 @@ const MODSiteOnboarding = () => {
             <Inbox size={16} className="text-amber-600" />
             <h4 className="text-sm font-extrabold text-amber-900">Site submissions to review</h4>
             <span className="text-[11px] text-amber-700">Nothing is imported until you confirm.</span>
+            <div className="ml-auto">
+              <Button size="sm" variant="outline" onClick={bulkApprove} disabled={bulkBusy} data-testid="mod-capture-bulk-approve">
+                {bulkBusy ? <Loader2 size={13} className="animate-spin mr-1" /> : <ThumbsUp size={13} className="mr-1" />}
+                Confirm all clean ({captures.filter((c) => c.status === 'submitted').length})
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             {captures.filter((c) => c.status === 'submitted').map((c) => (
@@ -446,14 +478,17 @@ const MODSiteOnboarding = () => {
                 </div>
 
                 <div className="flex items-center justify-between gap-2 p-4 border-t border-zinc-200 bg-zinc-50 rounded-b-2xl">
-                  <span className="text-[11px] text-zinc-500">Duplicates are flagged only — the importer also de-dupes by serial on import.</span>
+                  <label className="flex items-center gap-2 text-[12px] text-zinc-600 cursor-pointer select-none" data-testid="mod-capture-skip-dups-label">
+                    <input type="checkbox" checked={skipDups} onChange={(e) => setSkipDups(e.target.checked)} data-testid="mod-capture-skip-dups" className="rounded" />
+                    Skip the {review.detail.duplicate_count} flagged duplicate row{review.detail.duplicate_count === 1 ? '' : 's'} on import
+                  </label>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => rejectCapture(review.detail.capture)} disabled={reviewBusyId === review.detail.capture.id} data-testid="mod-capture-modal-reject">
                       <Undo2 size={13} className="mr-1" /> Request changes
                     </Button>
-                    <Button size="sm" onClick={() => approveCapture(review.detail.capture)} disabled={reviewBusyId === review.detail.capture.id} data-testid="mod-capture-modal-approve">
+                    <Button size="sm" onClick={() => approveCapture(review.detail.capture, skipDups)} disabled={reviewBusyId === review.detail.capture.id} data-testid="mod-capture-modal-approve">
                       {reviewBusyId === review.detail.capture.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <ThumbsUp size={13} className="mr-1" />}
-                      Confirm &amp; import
+                      {skipDups && review.detail.duplicate_count > 0 ? `Import ${review.detail.row_count - review.detail.duplicate_count} clean` : 'Confirm & import'}
                     </Button>
                   </div>
                 </div>

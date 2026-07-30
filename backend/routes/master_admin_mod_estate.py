@@ -675,21 +675,16 @@ def _norm(v) -> str:
     return (str(v) if v is not None else "").strip().lower()
 
 
-@router.get("/master-admin/mod-estate/captures/{capture_id}")
-async def get_capture_detail(capture_id: str, user: dict = Depends(get_current_user)) -> dict:
-    """Full submission for review — every row the site entered, with likely
-    duplicates flagged against existing equipment AND within the sheet itself."""
-    require_master_admin(user)
-    c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
-    if not c:
-        raise HTTPException(404, "Capture not found")
-    rows = c.get("rows") or []
+DUP_FLAGS = ("duplicate_serial", "duplicate_in_sheet", "possible_duplicate")
+
+
+async def _analyse_capture_rows(site_id: str, rows: list) -> tuple:
+    """Flag likely duplicates in captured rows. Returns (analysed, existing_count)."""
     existing = await db.equipment.find(
-        {"organization_id": c["site_id"]}, {"_id": 0, "serial_number": 1, "name": 1, "model": 1},
+        {"organization_id": site_id}, {"_id": 0, "serial_number": 1, "name": 1, "model": 1},
     ).to_list(50000)
     exist_serials = {_norm(e.get("serial_number")) for e in existing if e.get("serial_number")}
     exist_namemodel = {(_norm(e.get("name")), _norm(e.get("model"))) for e in existing}
-
     seen_serials: set = set()
     analysed = []
     for i, r in enumerate(rows):
@@ -706,9 +701,36 @@ async def get_capture_detail(capture_id: str, user: dict = Depends(get_current_u
         if serial:
             seen_serials.add(serial)
         analysed.append({"index": i, "row": r, "flags": flags})
+    return analysed, len(existing)
 
-    dup_count = sum(1 for a in analysed if any(
-        f in ("duplicate_serial", "duplicate_in_sheet", "possible_duplicate") for f in a["flags"]))
+
+async def _import_rows_to_site(site_id: str, rows: list, user: dict) -> dict:
+    """Build a CSV from captured rows and feed the battle-tested equipment importer."""
+    import csv as _csv
+    import io as _io
+    from fastapi import UploadFile
+    from routes.master_admin_bulk_import import _do_bulk_import_equipment
+    cols = [f[0] for f in _MOD_EQUIP_FIELDS]
+    buf = _io.StringIO()
+    w = _csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
+    w.writeheader()
+    for r in rows:
+        w.writerow({k: (r.get(k) if r.get(k) is not None else "") for k in cols})
+    upload = UploadFile(filename="mod_capture.csv", file=_io.BytesIO(buf.getvalue().encode("utf-8")))
+    return await _do_bulk_import_equipment(upload, site_id, user, validate_org=True)
+
+
+@router.get("/master-admin/mod-estate/captures/{capture_id}")
+async def get_capture_detail(capture_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Full submission for review — every row the site entered, with likely
+    duplicates flagged against existing equipment AND within the sheet itself."""
+    require_master_admin(user)
+    c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Capture not found")
+    rows = c.get("rows") or []
+    analysed, existing_count = await _analyse_capture_rows(c["site_id"], rows)
+    dup_count = sum(1 for a in analysed if any(f in DUP_FLAGS for f in a["flags"]))
     return {
         "capture": {k: v for k, v in c.items() if k != "rows"},
         "rows": analysed,
@@ -716,7 +738,7 @@ async def get_capture_detail(capture_id: str, user: dict = Depends(get_current_u
         "field_labels": {f[0]: f[1] for f in _MOD_EQUIP_FIELDS},
         "row_count": len(rows),
         "duplicate_count": dup_count,
-        "existing_equipment_count": len(existing),
+        "existing_equipment_count": existing_count,
     }
 
 
@@ -771,9 +793,11 @@ async def remind_capture(capture_id: str, data: dict = Body(default={}), user: d
 
 
 @router.post("/master-admin/mod-estate/captures/{capture_id}/approve")
-async def approve_capture(capture_id: str, user: dict = Depends(get_current_user)) -> dict:
-    """Confirm a submitted capture — import its rows into the site's equipment."""
+async def approve_capture(capture_id: str, data: dict = Body(default={}), user: dict = Depends(get_current_user)) -> dict:
+    """Confirm a submitted capture — import its rows into the site's equipment.
+    Pass skip_duplicates=true to drop the flagged duplicate rows at import time."""
     require_master_admin(user)
+    skip_dups = bool(data.get("skip_duplicates"))
     c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
     if not c:
         raise HTTPException(404, "Capture not found")
@@ -783,28 +807,71 @@ async def approve_capture(capture_id: str, user: dict = Depends(get_current_user
     if not rows:
         raise HTTPException(400, "Nothing to import — the site has not added any equipment")
 
-    # Build a CSV from the captured rows and feed the battle-tested importer
-    # (dedupe, supplier/site/force resolution, batching) via an in-memory upload.
-    import csv as _csv
-    import io as _io
-    from fastapi import UploadFile
-    from routes.master_admin_bulk_import import _do_bulk_import_equipment
+    skipped_duplicates = 0
+    if skip_dups:
+        analysed, _ = await _analyse_capture_rows(c["site_id"], rows)
+        keep = [a["row"] for a in analysed if not (set(a["flags"]) & set(DUP_FLAGS))]
+        skipped_duplicates = len(rows) - len(keep)
+        rows = keep
+        if not rows:
+            raise HTTPException(400, "Every row was flagged as a duplicate — nothing left to import")
 
-    cols = [f[0] for f in _MOD_EQUIP_FIELDS]
-    buf = _io.StringIO()
-    w = _csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
-    w.writeheader()
-    for r in rows:
-        w.writerow({k: (r.get(k) if r.get(k) is not None else "") for k in cols})
-    upload = UploadFile(filename="mod_capture.csv", file=_io.BytesIO(buf.getvalue().encode("utf-8")))
-    result = await _do_bulk_import_equipment(upload, c["site_id"], user, validate_org=True)
-
+    result = await _import_rows_to_site(c["site_id"], rows, user)
+    result["skipped_duplicates"] = skipped_duplicates
     await db.mod_equipment_captures.update_one(
         {"id": capture_id},
         {"$set": {"status": "approved", "reviewed_at": _now(), "updated_at": _now(),
                   "reviewed_by": user.get("email", "system"), "import_result": result}},
     )
-    return {"success": True, "import_result": result}
+    return {"success": True, "import_result": result, "skipped_duplicates": skipped_duplicates}
+
+
+@router.post("/master-admin/mod-estate/captures/bulk-approve")
+async def bulk_approve_captures(data: dict = Body(default={}), user: dict = Depends(get_current_user)) -> dict:
+    """Confirm ALL submitted site submissions at once. By default drops the
+    flagged duplicate rows in each (skip_duplicates), importing only clean rows."""
+    require_master_admin(user)
+    skip_dups = data.get("skip_duplicates", True)
+    subs = await db.mod_equipment_captures.find({"status": "submitted"}, {"_id": 0}).to_list(500)
+    results = []
+    total_imported = 0
+    total_skipped_dups = 0
+    for c in subs:
+        rows = c.get("rows") or []
+        skipped = 0
+        if skip_dups and rows:
+            analysed, _ = await _analyse_capture_rows(c["site_id"], rows)
+            keep = [a["row"] for a in analysed if not (set(a["flags"]) & set(DUP_FLAGS))]
+            skipped = len(rows) - len(keep)
+            rows = keep
+        if not rows:
+            results.append({"capture_id": c["id"], "site_name": c.get("site_name"),
+                            "imported": 0, "skipped_duplicates": skipped, "note": "all rows flagged / empty"})
+            total_skipped_dups += skipped
+            continue
+        try:
+            r = await _import_rows_to_site(c["site_id"], rows, user)
+            imported = r.get("imported", 0)
+            total_imported += imported
+            total_skipped_dups += skipped
+            await db.mod_equipment_captures.update_one(
+                {"id": c["id"]},
+                {"$set": {"status": "approved", "reviewed_at": _now(), "updated_at": _now(),
+                          "reviewed_by": user.get("email", "system"),
+                          "import_result": {**r, "skipped_duplicates": skipped}}},
+            )
+            results.append({"capture_id": c["id"], "site_name": c.get("site_name"),
+                            "imported": imported, "skipped_duplicates": skipped, "skipped_import": r.get("skipped", 0)})
+        except Exception as exc:
+            logger.warning("bulk-approve failed for %s: %s", c.get("id"), exc)
+            results.append({"capture_id": c["id"], "site_name": c.get("site_name"),
+                            "imported": 0, "skipped_duplicates": skipped, "error": str(exc)[:200]})
+    return {
+        "processed": len(subs),
+        "total_imported": total_imported,
+        "total_skipped_duplicates": total_skipped_dups,
+        "results": results,
+    }
 
 
 @router.post("/master-admin/mod-estate/captures/{capture_id}/reject")

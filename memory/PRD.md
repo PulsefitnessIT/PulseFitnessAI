@@ -1,3 +1,16 @@
+# ═══ 2026-06 · MOD CAPTURE — BULK CONFIRM + SKIP-DUPLICATES TOGGLE (DONE, verified) ═══
+SKIP-DUPLICATES: approve_capture now accepts {skip_duplicates}; when true drops rows flagged
+  duplicate_serial/duplicate_in_sheet/possible_duplicate before import; returns skipped_duplicates.
+  Diff modal has a checkbox "Skip the N flagged duplicate rows on import" (default on when dups>0); CTA reads
+  "Import <clean> clean". Quick queue "Confirm & import" imports everything (skip off).
+BULK CONFIRM: POST /api/master-admin/mod-estate/captures/bulk-approve {skip_duplicates=true default} — approves ALL
+  'submitted' captures at once, skipping flagged rows per site; returns {processed,total_imported,
+  total_skipped_duplicates,results[]}. UI: "Confirm all clean (N)" button in review-queue header (window.confirm guard).
+Refactored shared helpers _analyse_capture_rows + _import_rows_to_site (used by detail/approve/bulk).
+VERIFIED: curl bulk-approve — 5-row submission → imported 3 clean, skipped 2 flagged (dup-serial + dup-in-sheet),
+  correct rows landed in db.equipment. UI screenshot — bulk button + skip checkbox + dynamic "Import N clean" CTA.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-06 · MOD CAPTURE — REMINDER EMAILS + SUBMISSION DIFF/DUP REVIEW (DONE, verified) ═══
 REMINDER: POST /api/master-admin/mod-estate/captures/{id}/remind — re-emails the capture link to sites not yet
   submitted (status open/changes_requested); resolves recipient (override→site contact→owner email), returns
