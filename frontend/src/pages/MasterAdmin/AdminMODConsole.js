@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock, ShieldAlert, Save, Loader2, FileSignature, CalendarCheck } from 'lucide-react';
+import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock, ShieldAlert, Save, Loader2, FileSignature, CalendarCheck, RefreshCw } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
@@ -447,6 +447,9 @@ function ContractActivationBoard({ API, headers }) {
             </span>
           )}
           <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{meta.active_count} active</span>
+          <button onClick={load} disabled={loading} className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 disabled:opacity-50" title="Refresh" data-testid="mod-contract-refresh">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
 

@@ -32506,3 +32506,16 @@ Site owners/managers can now review and e-sign MOD quotes INSIDE their MODServic
 - (`MODPortal/MODSiteDashboard.js` + `MODQuotesPanel.js` also wired but that portal is legacy/unrouted; the live portal is /pulse.)
 
 Tested: testing_agent backend 100% (7/7 new + 12/12 regression, `tests/test_mod_portal_quotes_esign_jan2026.py`) + frontend 100% (tab → list → detail → inline sign → contract active, pending badge decrements). Added error toasts to LiteQuotesTab per review.
+
+---
+## Changelog — 2026-06 (MOD Contract Activation Board)
+When a Type A MOD quote is e-signed, its service contract activates AND an annual service visit is auto-scheduled as PENDING CONFIRMATION. The Pulse Fitness MOD Service team confirms/reschedules it on a live board in the Master Admin MOD console.
+
+**Backend**:
+- `crm_mod_quote.apply_quote_signature` now also sets `annual_visit={status:'pending_confirmation', proposed_date:<start_date or sign date>}` on the Type A contract at activation.
+- `routes/master_admin_mod_estate.py` (require_master_admin): `GET /master-admin/mod-estate/contracts` (board: contracts[] + pending_confirmation + active_count), `POST .../{id}/confirm-visit` (set scheduled_date/engineer/notes/confirmed_by → status confirmed), `POST .../{id}/reschedule-visit` (back to pending with new proposed_date).
+
+**Frontend**:
+- `MasterAdmin/AdminMODConsole.js` — new `ContractActivationBoard` card (Master Admin → Overview → MoD → 'MOD Console & ASER'): lists Type A contracts with an "awaiting confirmation" badge; each pending row has date + engineer + notes inputs and a "Confirm service" button; confirmed rows show the scheduled date + who confirmed. Added a Refresh button.
+
+Tested: testing_agent backend 100% (4/4, `tests/test_mod_contract_board_jan2026.py`) + frontend 100% (board renders, confirm flips row to 'Visit confirmed', pending badge decrements; regression of console + quote gen/e-sign intact). Board test-IDs: mod-contract-board, mod-contract-pending-badge, mod-contract-row/date/eng/notes/confirm-<id>.
